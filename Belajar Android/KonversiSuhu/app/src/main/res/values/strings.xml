@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Konversi Suhu</string>
+    <string-array name="pilihan">
+        <item>Celcius To Reamur</item>
+        <item>Celcius To Fahrenheit</item>
+        <item>Celcius To Kelvin</item>
+        <item>Reamur To Celcius</item>
+        <item>Reamur To Fahrenheit</item>
+    </string-array>
+</resources>
