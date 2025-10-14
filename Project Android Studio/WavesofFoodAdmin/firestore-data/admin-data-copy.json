@@ -1,0 +1,12 @@
+{
+  "email": "admin@wavesoffood.com",
+  "name": "Admin Waves of Food",
+  "role": "admin",
+  "isActive": true,
+  "permissions": {
+    "manageOrders": true,
+    "manageMenu": true,
+    "manageUsers": true,
+    "viewDashboard": true
+  }
+}

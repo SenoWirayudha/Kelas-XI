@@ -1,0 +1,4 @@
+# Jangan commit service account key ke Git!
+serviceAccountKey.json
+node_modules/
+.env

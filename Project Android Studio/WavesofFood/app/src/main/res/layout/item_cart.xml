@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="4dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="8dp">
+
+        <ImageView
+            android:id="@+id/ivFood"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:src="@tools:sample/backgrounds/scenic" />
+
+        <TextView
+            android:id="@+id/tvName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@id/btnDelete"
+            app:layout_constraintStart_toEndOf="@id/ivFood"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="Food Name" />
+
+        <TextView
+            android:id="@+id/tvPrice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="4dp"
+            android:textColor="?colorPrimary"
+            app:layout_constraintStart_toEndOf="@id/ivFood"
+            app:layout_constraintTop_toBottomOf="@id/tvName"
+            tools:text="Rp 50.000" />
+
+        <ImageButton
+            android:id="@+id/btnDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?selectableItemBackgroundBorderless"
+            android:contentDescription="@string/delete_item"
+            android:padding="8dp"
+            android:src="@drawable/ic_delete"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="?colorError" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnMinus"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginTop="8dp"
+            android:insetLeft="0dp"
+            android:insetTop="0dp"
+            android:insetRight="0dp"
+            android:insetBottom="0dp"
+            android:text="@string/minus"
+            app:layout_constraintStart_toStartOf="@id/tvPrice"
+            app:layout_constraintTop_toBottomOf="@id/tvPrice" />
+
+        <TextView
+            android:id="@+id/tvQuantity"
+            android:layout_width="36dp"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="@id/btnMinus"
+            app:layout_constraintStart_toEndOf="@id/btnMinus"
+            app:layout_constraintTop_toTopOf="@id/btnMinus"
+            tools:text="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnPlus"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:insetLeft="0dp"
+            android:insetTop="0dp"
+            android:insetRight="0dp"
+            android:insetBottom="0dp"
+            android:text="@string/plus"
+            app:layout_constraintBottom_toBottomOf="@id/btnMinus"
+            app:layout_constraintStart_toEndOf="@id/tvQuantity"
+            app:layout_constraintTop_toTopOf="@id/btnMinus" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

@@ -1,0 +1,30 @@
+INSTRUKSI MENDAPATKAN SERVICE ACCOUNT KEY
+
+1. Buka browser dan masuk ke Firebase Console:
+   https://console.firebase.google.com/
+
+2. Pilih project "wavesoffood-94471"
+
+3. Klik ikon gear (Settings) di sebelah kiri > Project Settings
+
+4. Pilih tab "Service Accounts"
+
+5. Scroll ke bawah dan klik "Generate new private key"
+
+6. Akan muncul dialog konfirmasi, klik "Generate key"
+
+7. File JSON akan otomatis ter-download
+
+8. Rename file yang di-download menjadi "service-account-key.json"
+
+9. Copy file tersebut ke direktori:
+   d:\Project Android Studio\WavesofFood\firebase-import\
+
+10. Pastikan file berada di lokasi yang tepat:
+    d:\Project Android Studio\WavesofFood\firebase-import\service-account-key.json
+
+Setelah selesai, jalankan perintah:
+npm start
+
+ATAU langsung:
+node import-data.js

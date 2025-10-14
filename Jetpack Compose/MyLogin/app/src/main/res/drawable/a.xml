@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    <!-- Simple placeholder logo -->
+    <path
+        android:fillColor="#6200EE"
+        android:pathData="M50,50 L150,50 L150,150 L50,150 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M70,80 L130,80 L130,120 L70,120 Z" />
+</vector>

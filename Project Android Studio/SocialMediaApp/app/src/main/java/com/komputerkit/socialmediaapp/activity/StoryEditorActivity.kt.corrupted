@@ -1,0 +1,632 @@
+package com.kompimport com.komputerkit.socialmediaapp.manager.TextOverlayManager
+import com.komputerkit.socialmediaapp.manager.setTextSizeInPx
+import com.komputerkit.socialmediaapp.view.MovableTextViewerkit.socialmediaapp.activity
+
+import android.content.Intent
+import android.graphics.*
+import android.net.Uri
+import android.os.Bundle
+import android.util.Base64
+import android.util.Log
+import android.view.View
+import android.widget.*
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import com.komputerkit.socialmediaapp.R
+import com.komputerkit.socialmediaapp.repository.FirebaseRepository
+import com.komputerkit.socialmediaapp.model.Story
+import com.komputerkit.socialmediaapp.view.DrawingView
+import com.komputerkit.socialmediaapp.view.TextOverlayManager
+import com.komputerkit.socialmediaapp.view.MovableTextView
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+
+class StoryEditorActivity : AppCompatActivity() {
+
+    private lateinit var imageView: ImageView
+    private lateinit var drawingView: DrawingView
+    private lateinit var textOverlayContainer: FrameLayout
+    private lateinit var drawingToolsContainer: LinearLayout
+    private lateinit var textToolsContainer: LinearLayout
+    private lateinit var brushSizeSeekBar: SeekBar
+    private lateinit var textSizeSeekBar: SeekBar
+    private lateinit var textSizeLabel: TextView
+    
+    private lateinit var btnText: ImageButton
+    private lateinit var btnDraw: ImageButton
+    private lateinit var btnCrop: ImageButton
+    private lateinit var btnRotate: ImageButton
+    private lateinit var btnClose: ImageButton
+    private lateinit var btnReset: ImageButton
+    private lateinit var btnCancel: Button
+    private lateinit var btnUpload: Button
+    
+    private lateinit var btnDeleteText: Button
+    
+    // Font selection buttons
+    private lateinit var btnFontDefault: Button
+    private lateinit var btnFontSerif: Button
+    private lateinit var btnFontMonospace: Button
+    private lateinit var btnFontCasual: Button
+    private lateinit var btnFontCursive: Button
+    private lateinit var fontButtons: List<Button>
+    
+    private lateinit var colorViews: List<View>
+    
+    private var originalBitmap: Bitmap? = null
+    private var currentBitmap: Bitmap? = null
+    private var imageUri: Uri? = null
+    private var currentRotation = 0f
+    
+    private lateinit var textOverlayManager: TextOverlayManager
+    private val firebaseRepository = FirebaseRepository()
+    private var currentSelectedTextView: MovableTextView? = null
+    
+    private enum class EditMode {
+        NONE, TEXT, DRAW, CROP
+    }
+    
+    private var currentMode = EditMode.NONE
+
+    companion object {
+        const val EXTRA_IMAGE_URI = "extra_image_uri"
+        private const val TAG = "StoryEditorActivity"
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_story_editor)
+        
+        initViews()
+        setupListeners()
+        setupDrawingTools()
+        
+        // Get image URI from intent
+        imageUri = intent.getParcelableExtra(EXTRA_IMAGE_URI)
+        loadImage()
+        
+        // Initialize text overlay manager
+        textOverlayManager = TextOverlayManager(textOverlayContainer)
+        textOverlayManager.onTextViewSelected = { selectedTextView ->
+            currentSelectedTextView = selectedTextView
+            if (selectedTextView != null && currentMode == EditMode.TEXT) {
+                updateTextSizeControls()
+            }
+        }
+    }
+
+    private fun initViews() {
+        imageView = findViewById(R.id.imageView)
+        drawingView = findViewById(R.id.drawingView)
+        textOverlayContainer = findViewById(R.id.textOverlayContainer)
+        drawingToolsContainer = findViewById(R.id.drawingToolsContainer)
+        textToolsContainer = findViewById(R.id.textToolsContainer)
+        brushSizeSeekBar = findViewById(R.id.brushSizeSeekBar)
+        textSizeSeekBar = findViewById(R.id.textSizeSeekBar)
+        textSizeLabel = findViewById(R.id.textSizeLabel)
+        
+        btnText = findViewById(R.id.btnText)
+        btnDraw = findViewById(R.id.btnDraw)
+        btnCrop = findViewById(R.id.btnCrop)
+        btnRotate = findViewById(R.id.btnRotate)
+        btnClose = findViewById(R.id.btnClose)
+        btnReset = findViewById(R.id.btnReset)
+        btnCancel = findViewById(R.id.btnCancel)
+        btnUpload = findViewById(R.id.btnUpload)
+        
+        btnDeleteText = findViewById(R.id.btnDeleteText)
+        
+        // Font selection buttons
+        btnFontDefault = findViewById(R.id.btnFontDefault)
+        btnFontSerif = findViewById(R.id.btnFontSerif)
+        btnFontMonospace = findViewById(R.id.btnFontMonospace)
+        btnFontCasual = findViewById(R.id.btnFontCasual)
+        btnFontCursive = findViewById(R.id.btnFontCursive)
+        
+        fontButtons = listOf(
+            btnFontDefault,
+            btnFontSerif,
+            btnFontMonospace,
+            btnFontCasual,
+            btnFontCursive
+        )
+        
+        colorViews = listOf(
+            findViewById(R.id.colorRed),
+            findViewById(R.id.colorBlue),
+            findViewById(R.id.colorGreen),
+            findViewById(R.id.colorYellow),
+            findViewById(R.id.colorWhite)
+        )
+    }
+
+    private fun setupListeners() {
+        btnClose.setOnClickListener { finish() }
+        btnCancel.setOnClickListener { finish() }
+        
+        btnText.setOnClickListener {
+            setEditMode(EditMode.TEXT)
+            val newTextView = textOverlayManager.addTextView()
+            currentSelectedTextView = newTextView
+            updateTextSizeControls()
+        }
+        
+        btnDraw.setOnClickListener {
+            setEditMode(EditMode.DRAW)
+        }
+        
+        btnCrop.setOnClickListener {
+            setEditMode(EditMode.CROP)
+            // TODO: Implement crop functionality
+            Toast.makeText(this, "Crop feature coming soon", Toast.LENGTH_SHORT).show()
+        }
+        
+        btnRotate.setOnClickListener {
+            rotateImage()
+        }
+        
+        btnReset.setOnClickListener {
+            resetAllEdits()
+        }
+        
+        btnUpload.setOnClickListener {
+            uploadStory()
+        }
+        
+        // Text size SeekBar
+        textSizeSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    val textSize = (progress + 12).toFloat() // Min 12px, Max 72px (12 + 60)
+                    currentSelectedTextView?.setTextSizeInPx(textSize)
+                    updateTextSizeLabel(textSize)
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+        
+        btnDeleteText.setOnClickListener {
+            currentSelectedTextView?.forceDelete()
+            currentSelectedTextView = null
+            if (textOverlayManager.getAllTextViews().isEmpty()) {
+                setEditMode(EditMode.NONE)
+            }
+        }
+        
+        // Font selection listeners
+        btnFontDefault.setOnClickListener { 
+            setCurrentTextFont(MovableTextView.FontType.DEFAULT)
+        }
+        btnFontSerif.setOnClickListener { 
+            setCurrentTextFont(MovableTextView.FontType.SERIF)
+        }
+        btnFontMonospace.setOnClickListener { 
+            setCurrentTextFont(MovableTextView.FontType.MONOSPACE)
+        }
+        btnFontCasual.setOnClickListener { 
+            setCurrentTextFont(MovableTextView.FontType.CASUAL)
+        }
+        btnFontCursive.setOnClickListener { 
+            setCurrentTextFont(MovableTextView.FontType.CURSIVE)
+        }
+    }
+
+    private fun setupDrawingTools() {
+        // Brush size
+        brushSizeSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val brushSize = (progress + 5).toFloat() // Min size 5, max size 55
+                drawingView.setBrushSize(brushSize)
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+        
+        // Color selection
+        val colors = listOf(
+            Color.RED,
+            Color.BLUE,
+            Color.GREEN,
+            Color.YELLOW,
+            Color.WHITE
+        )
+        
+        colorViews.forEachIndexed { index, view ->
+            view.setOnClickListener {
+                drawingView.setBrushColor(colors[index])
+                updateColorSelection(view)
+            }
+        }
+        
+        // Set initial color selection
+        updateColorSelection(colorViews[4]) // White as default
+    }
+
+    private fun updateColorSelection(selectedView: View) {
+        colorViews.forEach { view ->
+            view.alpha = if (view == selectedView) 1.0f else 0.5f
+        }
+    }
+
+    private fun setEditMode(mode: EditMode) {
+        currentMode = mode
+        
+        // Update UI based on mode
+        when (mode) {
+            EditMode.DRAW -> {
+                drawingView.setDrawingEnabled(true)
+                drawingToolsContainer.visibility = View.VISIBLE
+                textToolsContainer.visibility = View.GONE
+                updateButtonSelection(btnDraw)
+            }
+            EditMode.TEXT -> {
+                drawingView.setDrawingEnabled(false)
+                drawingToolsContainer.visibility = View.GONE
+                textToolsContainer.visibility = View.VISIBLE
+                updateButtonSelection(btnText)
+                updateTextSizeControls()
+            }
+            EditMode.CROP -> {
+                drawingView.setDrawingEnabled(false)
+                drawingToolsContainer.visibility = View.GONE
+                textToolsContainer.visibility = View.GONE
+                updateButtonSelection(btnCrop)
+            }
+            EditMode.NONE -> {
+                drawingView.setDrawingEnabled(false)
+                drawingToolsContainer.visibility = View.GONE
+                textToolsContainer.visibility = View.GONE
+                clearButtonSelection()
+            }
+        }
+    }
+
+    private fun updateButtonSelection(selectedButton: ImageButton) {
+        val buttons = listOf(btnText, btnDraw, btnCrop)
+        buttons.forEach { button ->
+            if (button == selectedButton) {
+                button.background = ContextCompat.getDrawable(this, R.drawable.circle_button_selected)
+            } else {
+                button.background = ContextCompat.getDrawable(this, R.drawable.circle_button_background)
+            }
+        }
+    }
+
+    private fun clearButtonSelection() {
+        val buttons = listOf(btnText, btnDraw, btnCrop)
+        buttons.forEach { button ->
+            button.background = ContextCompat.getDrawable(this, R.drawable.circle_button_background)
+        }
+    }
+
+    private fun loadImage() {
+        imageUri?.let { uri ->
+            try {
+                val inputStream: InputStream? = contentResolver.openInputStream(uri)
+                originalBitmap = BitmapFactory.decodeStream(inputStream)
+                currentBitmap = originalBitmap
+                imageView.setImageBitmap(currentBitmap)
+                inputStream?.close()
+                
+                Log.d(TAG, "Image loaded successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading image: ${e.message}")
+                Toast.makeText(this, "Error loading image", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
+    private fun updateTextSizeControls() {
+        val currentTextView = currentSelectedTextView
+        if (currentTextView != null) {
+            val currentSize = currentTextView.getTextSizeInPx()
+            val progress = (currentSize - 12).toInt() // Convert back to SeekBar progress (0-60)
+            textSizeSeekBar.progress = progress.coerceIn(0, 60)
+            updateTextSizeLabel(currentSize)
+            updateFontSelection(currentTextView.getCurrentFontType())
+            
+            // Enable controls
+            textSizeSeekBar.isEnabled = true
+            btnDeleteText.isEnabled = true
+            btnDeleteText.alpha = 1.0f
+            fontButtons.forEach { it.isEnabled = true; it.alpha = 1.0f }
+        } else {
+            // Disable controls when no text selected
+            textSizeSeekBar.isEnabled = false
+            btnDeleteText.isEnabled = false
+            btnDeleteText.alpha = 0.5f
+            fontButtons.forEach { it.isEnabled = false; it.alpha = 0.5f }
+            updateTextSizeLabel(24f) // Default display
+            updateFontSelection(MovableTextView.FontType.DEFAULT) // Default display
+        }
+    }
+    
+    private fun updateTextSizeLabel(sizePx: Float) {
+        textSizeLabel.text = "${sizePx.toInt()}px"
+    }
+    
+    private fun setCurrentTextFont(fontType: MovableTextView.FontType) {
+        currentSelectedTextView?.setFontType(fontType)
+        updateFontSelection(fontType)
+    }
+    
+    private fun updateFontSelection(selectedType: MovableTextView.FontType) {
+        // Reset all buttons to unselected state
+        fontButtons.forEach { button ->
+            button.setBackgroundResource(R.drawable.button_outline_white)
+            button.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+        }
+        
+        // Highlight selected button
+        val selectedButton = when (selectedType) {
+            MovableTextView.FontType.DEFAULT -> btnFontDefault
+            MovableTextView.FontType.SERIF -> btnFontSerif
+            MovableTextView.FontType.MONOSPACE -> btnFontMonospace
+            MovableTextView.FontType.CASUAL -> btnFontCasual
+            MovableTextView.FontType.CURSIVE -> btnFontCursive
+        }
+        
+        selectedButton.setBackgroundResource(R.drawable.button_primary)
+        selectedButton.setBackgroundResource(R.drawable.button_primary)
+        selectedButton.setTextColor(ContextCompat.getColor(this, android.R.color.black))
+    }
+
+    private fun rotateImage() {
+        currentBitmap?.let { bitmap ->
+            currentRotation += 90f
+            if (currentRotation >= 360f) currentRotation = 0f
+            
+            val matrix = Matrix().apply {
+                postRotate(90f)
+            }
+            
+            currentBitmap = Bitmap.createBitmap(
+                bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
+            )
+            imageView.setImageBitmap(currentBitmap)
+            
+            Log.d(TAG, "Image rotated to $currentRotation degrees")
+        }
+    }
+
+    private fun resetAllEdits() {
+        // Reset image
+        currentBitmap = originalBitmap
+        currentRotation = 0f
+        imageView.setImageBitmap(currentBitmap)
+        
+        // Clear drawing
+        drawingView.clearDrawing()
+        
+        // Clear text overlays
+        textOverlayManager.clearAllText()
+        
+        // Reset mode
+        setEditMode(EditMode.NONE)
+        
+        Log.d(TAG, "All edits reset")
+    }
+
+    private fun uploadStory() {
+        Log.d(TAG, "Upload story initiated")
+        
+        // Disable upload button and show progress
+        btnUpload.isEnabled = false
+        btnUpload.text = "Preparing..."
+        
+        try {
+            Log.d(TAG, "Creating final bitmap...")
+            val finalBitmap = createFinalBitmap()
+            
+            if (finalBitmap != null) {
+                Log.d(TAG, "Final bitmap created: ${finalBitmap.width}x${finalBitmap.height}")
+                
+                btnUpload.text = "Compressing..."
+                
+                // Run bitmap compression in background to avoid UI blocking
+                Thread {
+                    try {
+                        val base64Image = bitmapToBase64(finalBitmap)
+                        
+                        runOnUiThread {
+                            btnUpload.text = "Uploading..."
+                            saveStoryToFirestore(base64Image)
+                        }
+                        
+                        // Clean up bitmap
+                        finalBitmap.recycle()
+                        
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in background processing: ${e.message}", e)
+                        runOnUiThread {
+                            Toast.makeText(this@StoryEditorActivity, "Error processing image: ${e.message}", Toast.LENGTH_SHORT).show()
+                            btnUpload.isEnabled = true
+                            btnUpload.text = "Upload Story"
+                        }
+                    }
+                }.start()
+                
+            } else {
+                Log.e(TAG, "Failed to create final bitmap")
+                Toast.makeText(this, "Error creating final image. Please try again.", Toast.LENGTH_SHORT).show()
+                btnUpload.isEnabled = true
+                btnUpload.text = "Upload Story"
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in upload story: ${e.message}", e)
+            Toast.makeText(this, "Upload failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            btnUpload.isEnabled = true
+            btnUpload.text = "Upload Story"
+        }
+    }
+
+    private fun createFinalBitmap(): Bitmap? {
+        return try {
+            currentBitmap?.let { bitmap ->
+                Log.d(TAG, "Creating final bitmap from original size: ${bitmap.width}x${bitmap.height}")
+                
+                val finalBitmap = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(finalBitmap)
+                
+                // Draw the main image
+                canvas.drawBitmap(bitmap, 0f, 0f, null)
+                Log.d(TAG, "Main image drawn")
+                
+                // Draw the drawing layer
+                try {
+                    val drawingBitmap = drawingView.getDrawingBitmap()
+                    if (drawingBitmap != null) {
+                        val scaledDrawing = Bitmap.createScaledBitmap(
+                            drawingBitmap, bitmap.width, bitmap.height, true
+                        )
+                        canvas.drawBitmap(scaledDrawing, 0f, 0f, null)
+                        Log.d(TAG, "Drawing layer added")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error adding drawing layer: ${e.message}")
+                }
+                
+                // Draw text overlays
+                try {
+                    Log.d(TAG, "Creating text overlay bitmap with size: ${bitmap.width}x${bitmap.height}")
+                    
+                    // Debug: Log all text views before rendering
+                    textOverlayManager.getAllTextViews().forEach { textView ->
+                        val textData = textView.getTextData(bitmap.width, bitmap.height, imageView.width, imageView.height)
+                        Log.d(TAG, "Text view data: text='${textData.text}', imageRelPos=(${textData.relativeX}, ${textData.relativeY}), size=${textData.textSizePx}, font=${textData.fontType}, hasContent=${textView.hasUserContent()}")
+                    }
+                    
+                    val textBitmap = textOverlayManager.getTextOverlayBitmap(bitmap.width, bitmap.height, imageView.width, imageView.height)
+                    canvas.drawBitmap(textBitmap, 0f, 0f, null)
+                    Log.d(TAG, "Text overlays added using image coordinates")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error adding text overlays: ${e.message}")
+                }
+                
+                Log.d(TAG, "Final bitmap created successfully")
+                return finalBitmap
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating final bitmap: ${e.message}")
+            null
+        }
+    }
+
+    private fun bitmapToBase64(bitmap: Bitmap): String {
+        return try {
+            // Optimize bitmap size if it's too large
+            val maxWidth = 1080
+            val maxHeight = 1920
+            
+            val optimizedBitmap = if (bitmap.width > maxWidth || bitmap.height > maxHeight) {
+                val ratio = kotlin.math.min(
+                    maxWidth.toFloat() / bitmap.width,
+                    maxHeight.toFloat() / bitmap.height
+                )
+                val newWidth = (bitmap.width * ratio).toInt()
+                val newHeight = (bitmap.height * ratio).toInt()
+                
+                Log.d(TAG, "Resizing bitmap from ${bitmap.width}x${bitmap.height} to ${newWidth}x${newHeight}")
+                Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+            } else {
+                bitmap
+            }
+            
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            
+            // Use different compression based on image size
+            val quality = when {
+                optimizedBitmap.width * optimizedBitmap.height > 1000000 -> 60 // Large images
+                optimizedBitmap.width * optimizedBitmap.height > 500000 -> 70  // Medium images
+                else -> 80 // Small images
+            }
+            
+            Log.d(TAG, "Compressing bitmap with quality: $quality")
+            optimizedBitmap.compress(Bitmap.CompressFormat.JPEG, quality, byteArrayOutputStream)
+            
+            val byteArray = byteArrayOutputStream.toByteArray()
+            val base64Size = byteArray.size / 1024 // Size in KB
+            Log.d(TAG, "Base64 image size: ${base64Size}KB")
+            
+            // Clean up
+            if (optimizedBitmap != bitmap) {
+                optimizedBitmap.recycle()
+            }
+            
+            Base64.encodeToString(byteArray, Base64.DEFAULT)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error converting bitmap to base64: ${e.message}")
+            throw e
+        }
+    }
+
+    private fun saveStoryToFirestore(base64Image: String) {
+        Log.d(TAG, "Starting to save story to Firestore")
+        Log.d(TAG, "Base64 image length: ${base64Image.length}")
+        
+        // Validate base64 size (Firestore has 1MB limit per field)
+        val sizeInMB = base64Image.length * 0.75 / (1024 * 1024) // Approximate size in MB
+        Log.d(TAG, "Estimated image size: ${"%.2f".format(sizeInMB)}MB")
+        
+        if (sizeInMB > 0.8) { // Keep under 800KB to be safe
+            Log.w(TAG, "Image size too large, this might cause upload failure")
+        }
+        
+        firebaseRepository.getCurrentUser { currentUser ->
+            if (currentUser != null) {
+                Log.d(TAG, "Current user found: ${currentUser.fullName}")
+                
+                try {
+                    val story = Story(
+                        id = "story_${System.currentTimeMillis()}",
+                        userId = currentUser.id,
+                        userName = currentUser.fullName,
+                        userProfileImage = currentUser.profileImageUrl,
+                        storyImageUrl = "data:image/jpeg;base64,$base64Image",
+                        timestamp = System.currentTimeMillis(),
+                        isViewed = false
+                    )
+                    
+                    Log.d(TAG, "Story object created, attempting to save...")
+                    
+                    firebaseRepository.saveStory(story) { success ->
+                        runOnUiThread {
+                            if (success) {
+                                Log.d(TAG, "Story saved successfully")
+                                Toast.makeText(this@StoryEditorActivity, "Story uploaded successfully!", Toast.LENGTH_SHORT).show()
+                                
+                                // Return to MainActivity and refresh stories
+                                val intent = Intent().apply {
+                                    putExtra("story_uploaded", true)
+                                }
+                                setResult(RESULT_OK, intent)
+                                finish()
+                            } else {
+                                Log.e(TAG, "Failed to save story to Firestore")
+                                Toast.makeText(this@StoryEditorActivity, "Failed to upload story. Please try again.", Toast.LENGTH_SHORT).show()
+                                btnUpload.isEnabled = true
+                                btnUpload.text = "Upload Story"
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error creating story object: ${e.message}")
+                    runOnUiThread {
+                        Toast.makeText(this@StoryEditorActivity, "Error preparing upload: ${e.message}", Toast.LENGTH_SHORT).show()
+                        btnUpload.isEnabled = true
+                        btnUpload.text = "Upload Story"
+                    }
+                }
+            } else {
+                Log.e(TAG, "Current user not found")
+                runOnUiThread {
+                    Toast.makeText(this@StoryEditorActivity, "User not found. Please login again.", Toast.LENGTH_SHORT).show()
+                    btnUpload.isEnabled = true
+                    btnUpload.text = "Upload Story"
+                }
+            }
+        }
+    }
+}

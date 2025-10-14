@@ -1,0 +1,36 @@
+{
+  "name": "firestore-import-script",
+  "version": "1.0.0",
+  "description": "Script untuk import data sample ke Firestore Blog App",
+  "main": "import-data.js",
+  "scripts": {
+    "setup": "node setup-env.js",
+    "setup-db": "node setup-database.js",
+    "create-indexes": "node create-indexes.js",
+    "deploy-rules": "node deploy-rules.js",
+    "auto-setup": "node auto-setup.js",
+    "force-init": "node force-init.js",
+    "check": "node check-project.js",
+    "validate": "node validate-config.js",
+    "import": "node import-data.js",
+    "simple-import": "node simple-import.js",
+    "clear": "node clear-data.js",
+    "test": "npm run validate"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "firebase-admin": "^12.0.0",
+    "googleapis": "^157.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "firebase",
+    "firestore",
+    "import",
+    "blog"
+  ],
+  "author": "Blog App Team",
+  "license": "MIT"
+}

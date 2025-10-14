@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">Blog App</string>
+    
+    <!-- Dialog Messages -->
+    <string name="delete_post_title">Hapus Postingan</string>
+    <string name="delete_post_message">Apakah Anda yakin ingin menghapus postingan ini? Tindakan ini tidak dapat dibatalkan.</string>
+    <string name="delete">Hapus</string>
+    <string name="cancel">Batal</string>
+    
+    <!-- Success Messages -->
+    <string name="post_deleted_success">Postingan berhasil dihapus</string>
+    <string name="post_updated_success">Postingan berhasil diperbarui</string>
+    
+    <!-- Error Messages -->
+    <string name="error_title_empty">Judul tidak boleh kosong</string>
+    <string name="error_content_empty">Konten tidak boleh kosong</string>
+    <string name="error_post_not_found">Postingan tidak ditemukan</string>
+    <string name="error_unauthorized">Anda tidak memiliki izin untuk melakukan tindakan ini</string>
+</resources>

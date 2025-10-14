@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    
+    <!-- Background circle -->
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M60,10 C32.4,10 10,32.4 10,60 C10,87.6 32.4,110 60,110 C87.6,110 110,87.6 110,60 C110,32.4 87.6,10 60,10 Z" />
+    
+    <!-- Wave pattern -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M20,60 Q30,45 40,60 T60,60 T80,60 T100,60"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF" />
+    
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M20,70 Q30,55 40,70 T60,70 T80,70 T100,70"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFF" />
+        
+    <!-- Food icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M45,35 C45,32 47,30 50,30 L70,30 C73,30 75,32 75,35 L75,40 L45,40 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M47,42 L73,42 L71,52 C70.5,54 68.5,55 66,55 L54,55 C51.5,55 49.5,54 49,52 Z" />
+</vector>

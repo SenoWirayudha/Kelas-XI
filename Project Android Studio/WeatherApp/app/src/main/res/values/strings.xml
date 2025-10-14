@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Weather App</string>
+    <string name="search_hint">Enter city name</string>
+    <string name="search">Search</string>
+    <string name="location_permission_rationale">Location permission is needed to get weather for your current location.</string>
+    <string name="location_permission_denied">Location permission denied. Please enter a city name manually.</string>
+    <string name="error_network">Network error. Please check your internet connection.</string>
+    <string name="error_city_not_found">City not found. Please check the spelling and try again.</string>
+    <string name="error_general">Something went wrong. Please try again.</string>
+    <string name="loading">Loading weather data...</string>
+    <string name="api_key_required">Get your free API key from openweathermap.org and add it to WeatherApiService.kt</string>
+    <string name="demo_data_message">Demo weather data shown. Get real weather by adding your OpenWeatherMap API key!</string>
+</resources>

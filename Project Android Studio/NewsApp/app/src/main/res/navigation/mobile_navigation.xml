@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/nav_bbc">
+
+    <!-- News WebView Fragments -->
+    <fragment
+        android:id="@+id/nav_bbc"
+        android:name="com.komputerkit.newsapp.ui.newswebview.NewsWebViewFragment"
+        android:label="@string/menu_bbc"
+        tools:layout="@layout/fragment_news_webview">
+        <argument
+            android:name="news_source"
+            android:defaultValue="BBC"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_al_jazeera"
+        android:name="com.komputerkit.newsapp.ui.newswebview.NewsWebViewFragment"
+        android:label="@string/menu_al_jazeera"
+        tools:layout="@layout/fragment_news_webview">
+        <argument
+            android:name="news_source"
+            android:defaultValue="Al Jazeera"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_cnn"
+        android:name="com.komputerkit.newsapp.ui.newswebview.NewsWebViewFragment"
+        android:label="@string/menu_cnn"
+        tools:layout="@layout/fragment_news_webview">
+        <argument
+            android:name="news_source"
+            android:defaultValue="CNN"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_fox_news"
+        android:name="com.komputerkit.newsapp.ui.newswebview.NewsWebViewFragment"
+        android:label="@string/menu_fox_news"
+        tools:layout="@layout/fragment_news_webview">
+        <argument
+            android:name="news_source"
+            android:defaultValue="Fox News"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_sky_news"
+        android:name="com.komputerkit.newsapp.ui.newswebview.NewsWebViewFragment"
+        android:label="@string/menu_sky_news"
+        tools:layout="@layout/fragment_news_webview">
+        <argument
+            android:name="news_source"
+            android:defaultValue="Sky News"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_ny_times"
+        android:name="com.komputerkit.newsapp.ui.newswebview.NewsWebViewFragment"
+        android:label="@string/menu_ny_times"
+        tools:layout="@layout/fragment_news_webview">
+        <argument
+            android:name="news_source"
+            android:defaultValue="New York Times"
+            app:argType="string" />
+    </fragment>
+
+</navigation>

@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    tools:context=".activity.PostDetailActivity">
+
+    <!-- Toolbar -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/primary"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:title="Post"
+        app:titleTextColor="@color/white"
+        app:navigationIconTint="@color/white"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/deleteMenuButton"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="end"
+            android:layout_marginEnd="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="4dp"
+            android:src="@drawable/ic_delete"
+            android:visibility="gone"
+            android:contentDescription="Delete post"
+            app:tint="@color/white" />
+
+    </com.google.android.material.appbar.MaterialToolbar>
+
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar" />
+
+    <!-- Main Content -->
+    <ScrollView
+        android:id="@+id/mainContent"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@+id/bottom_navigation_container"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Main Post Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- User Profile Section -->
+                    <LinearLayout
+                        android:id="@+id/profileContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingBottom="12dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:id="@+id/profileImage"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:src="@drawable/ic_launcher_foreground" 
+                            android:background="@drawable/circle_background" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="12dp">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <TextView
+                                    android:id="@+id/displayNameText"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Display Name"
+                                    android:textSize="14sp"
+                                    android:textStyle="bold"
+                                    android:textColor="@color/black" />
+
+                                <ImageView
+                                    android:id="@+id/verifiedIcon"
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:layout_marginStart="4dp"
+                                    android:src="@drawable/ic_verified"
+                                    android:visibility="gone"
+                                    app:tint="@color/primary" />
+
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/usernameText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@username"
+                                android:textSize="12sp"
+                                android:textColor="@color/gray" />
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/postTimeText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="2h"
+                            android:textSize="12sp"
+                            android:textColor="@color/gray" />
+
+                    </LinearLayout>
+
+                    <!-- Post Media Container -->
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="300dp"
+                        android:layout_marginBottom="12dp">
+                        
+                        <!-- Post Image -->
+                        <ImageView
+                            android:id="@+id/mainPostImage"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:scaleType="centerCrop"
+                            android:background="@color/light_gray" />
+                            
+                        <!-- Post Video -->
+                        <VideoView
+                            android:id="@+id/mainPostVideo"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:visibility="gone" />
+                            
+                        <!-- Video Play Button -->
+                        <ImageView
+                            android:id="@+id/videoPlayButton"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:layout_gravity="center"
+                            android:background="@drawable/circle_background_semi_transparent"
+                            android:padding="16dp"
+                            android:src="@drawable/ic_play_arrow"
+                            android:tint="@android:color/white"
+                            android:visibility="gone" />
+                            
+                    </FrameLayout>
+
+                    <!-- Action Buttons -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="8dp">
+
+                        <ImageButton
+                            android:id="@+id/likeButton"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:src="@drawable/ic_heart"
+                            android:layout_marginEnd="16dp" />
+
+                        <ImageButton
+                            android:id="@+id/commentButton"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:src="@drawable/ic_comment"
+                            android:layout_marginEnd="16dp" />
+
+                        <ImageButton
+                            android:id="@+id/shareButton"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:src="@drawable/ic_share" />
+
+                    </LinearLayout>
+
+                    <!-- Likes Count -->
+                    <TextView
+                        android:id="@+id/likesCountText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 likes"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/black"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- Caption -->
+                    <TextView
+                        android:id="@+id/postCaption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Post caption goes here..."
+                        android:textSize="14sp"
+                        android:textColor="@color/black"
+                        android:lineSpacingExtra="2dp" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Other Posts Section -->
+            <TextView
+                android:id="@+id/otherPostsLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="More posts from this user"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/black"
+                android:padding="16dp"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/otherPostsRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"
+                android:layout_marginBottom="16dp"
+                android:nestedScrollingEnabled="false"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- Bottom Navigation with Badge -->
+    <include 
+        android:id="@+id/bottom_navigation_container"
+        layout="@layout/bottom_navigation_with_badge"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

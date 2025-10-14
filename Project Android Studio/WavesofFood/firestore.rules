@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
+      
+      // Cart subcollection
+      match /cart/{cartItemId} {
+        allow read, write: if isAuthenticated() && isOwner(userId);
+      }
+      
+      // Addresses subcollection
+      match /addresses/{addressId} {
+        allow read, write: if isAuthenticated() && isOwner(userId);
+      }
+    }
+    
+    // Foods Collection
+    match /foods/{foodId} {
+      allow read: if true;  // Anyone can read food items
+      allow create, update, delete: if isAdmin();
+      
+      // Reviews subcollection
+      match /reviews/{reviewId} {
+        allow read: if true;
+        allow create: if isAuthenticated();
+        allow update, delete: if isAuthenticated() && 
+          (request.auth.uid == resource.data.userId || isAdmin());
+      }
+    }
+    
+    // Orders Collection
+    match /orders/{orderId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

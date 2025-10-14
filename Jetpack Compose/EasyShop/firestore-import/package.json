@@ -1,0 +1,20 @@
+{
+  "name": "easyshop-firestore-import",
+  "version": "1.0.0",
+  "description": "Script untuk mengimport data products, categories, dan banners ke Firestore",
+  "main": "import.js",
+  "type": "module",
+  "scripts": {
+    "import": "node import.js"
+  },
+  "keywords": [
+    "firebase",
+    "firestore",
+    "import"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

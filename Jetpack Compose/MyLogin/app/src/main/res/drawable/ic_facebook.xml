@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="60dp"
+    android:height="60dp"
+    android:viewportWidth="60"
+    android:viewportHeight="60">
+    <!-- Facebook placeholder icon -->
+    <path
+        android:fillColor="#1877F2"
+        android:pathData="M30,0 C13.4,0 0,13.4 0,30 C0,46.6 13.4,60 30,60 C46.6,60 60,46.6 60,30 C60,13.4 46.6,0 30,0 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M33,45 L33,30 L39,30 L40,24 L33,24 L33,20 C33,18 34,17 36,17 L40,17 L40,12 C39,12 36,11 33,11 C27,11 24,14 24,20 L24,24 L18,24 L18,30 L24,30 L24,45 L33,45 Z" />
+</vector>

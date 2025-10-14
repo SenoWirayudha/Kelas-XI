@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black"
+    tools:context=".activity.StoryEditorActivity">
+
+    <!-- Top Toolbar -->
+    <LinearLayout
+        android:id="@+id/topToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:background="#80000000"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageButton
+            android:id="@+id/btnClose"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_close"
+            android:tint="@android:color/white"
+            android:contentDescription="Close" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Edit Story"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/btnReset"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_refresh"
+            android:tint="@android:color/white"
+            android:contentDescription="Reset" />
+
+    </LinearLayout>
+
+    <!-- Editor Container -->
+    <FrameLayout
+        android:id="@+id/editorContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/topToolbar"
+        app:layout_constraintBottom_toTopOf="@id/bottomToolbar">
+
+        <!-- Main Image -->
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="matrix"
+            android:layout_gravity="center" />
+
+        <!-- Crop/Rotate Overlay -->
+        <com.komputerkit.socialmediaapp.view.CropRotateView
+            android:id="@+id/cropRotateView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:visibility="gone" />
+
+        <!-- Drawing Canvas -->
+        <com.komputerkit.socialmediaapp.view.DrawingView
+            android:id="@+id/drawingView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="false"
+            android:focusable="false" />
+
+        <!-- Text Overlay Container -->
+        <FrameLayout
+            android:id="@+id/textOverlayContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="false"
+            android:focusable="false" />
+
+    </FrameLayout>
+
+    <!-- Bottom Toolbar -->
+    <LinearLayout
+        android:id="@+id/bottomToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#80000000"
+        android:paddingVertical="16dp"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <!-- Tool Selection -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
+            android:layout_marginBottom="16dp">
+
+            <ImageButton
+                android:id="@+id/btnText"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="8dp"
+                android:background="@drawable/circle_button_background"
+                android:src="@drawable/ic_text"
+                android:tint="@android:color/white"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Add Text" />
+
+            <ImageButton
+                android:id="@+id/btnDraw"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="8dp"
+                android:background="@drawable/circle_button_background"
+                android:src="@drawable/ic_brush"
+                android:tint="@android:color/white"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Draw" />
+
+            <ImageButton
+                android:id="@+id/btnCrop"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="8dp"
+                android:background="@drawable/circle_button_background"
+                android:src="@drawable/ic_crop"
+                android:tint="@android:color/white"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Crop" />
+
+            <ImageButton
+                android:id="@+id/btnRotate"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="8dp"
+                android:background="@drawable/circle_button_background"
+                android:src="@drawable/ic_rotate"
+                android:tint="@android:color/white"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Rotate" />
+
+        </LinearLayout>
+
+        <!-- Text Tools (Initially Hidden) -->
+        <LinearLayout
+            android:id="@+id/textToolsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone">
+
+            <!-- Font Selection Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Font:"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp"
+                    android:layout_marginEnd="8dp" />
+
+                <HorizontalScrollView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/fontSelectionContainer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/btnFontDefault"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:text="Default"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:background="@drawable/button_outline_white"
+                            android:layout_marginEnd="8dp"
+                            android:minWidth="0dp"
+                            android:paddingHorizontal="12dp"
+                            style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                        <Button
+                            android:id="@+id/btnFontSerif"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:text="Serif"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:background="@drawable/button_outline_white"
+                            android:layout_marginEnd="8dp"
+                            android:minWidth="0dp"
+                            android:paddingHorizontal="12dp"
+                            android:fontFamily="serif"
+                            style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                        <Button
+                            android:id="@+id/btnFontMonospace"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:text="Mono"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:background="@drawable/button_outline_white"
+                            android:layout_marginEnd="8dp"
+                            android:minWidth="0dp"
+                            android:paddingHorizontal="12dp"
+                            android:fontFamily="monospace"
+                            style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                        <Button
+                            android:id="@+id/btnFontCasual"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:text="Casual"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:background="@drawable/button_outline_white"
+                            android:layout_marginEnd="8dp"
+                            android:minWidth="0dp"
+                            android:paddingHorizontal="12dp"
+                            android:fontFamily="casual"
+                            style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                        <Button
+                            android:id="@+id/btnFontCursive"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:text="Cursive"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:background="@drawable/button_outline_white"
+                            android:minWidth="0dp"
+                            android:paddingHorizontal="12dp"
+                            android:fontFamily="cursive"
+                            style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                    </LinearLayout>
+
+                </HorizontalScrollView>
+
+            </LinearLayout>
+
+            <!-- Size Control Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Size:"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/textSizeLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="24px"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp"
+                    android:layout_marginEnd="12dp"
+                    android:minWidth="40dp"
+                    android:gravity="center" />
+
+                <SeekBar
+                    android:id="@+id/textSizeSeekBar"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="16dp"
+                    android:max="60"
+                    android:progress="24"
+                    android:progressTint="@android:color/white"
+                    android:thumbTint="@android:color/white" />
+
+                <Button
+                    android:id="@+id/btnDeleteText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="Delete"
+                    android:textSize="12sp"
+                    android:textColor="#FF5252"
+                    android:background="@drawable/button_outline_white"
+                    android:backgroundTint="#FF5252"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Drawing Tools (Initially Hidden) -->
+        <LinearLayout
+            android:id="@+id/drawingToolsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone">
+
+            <!-- Brush Size -->
+            <SeekBar
+                android:id="@+id/brushSizeSeekBar"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="16dp"
+                android:max="50"
+                android:progress="10" />
+
+            <!-- Color Selection -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/colorRed"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginHorizontal="4dp"
+                    android:background="@drawable/circle_color_selector"
+                    android:backgroundTint="#FF0000" />
+
+                <View
+                    android:id="@+id/colorBlue"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginHorizontal="4dp"
+                    android:background="@drawable/circle_color_selector"
+                    android:backgroundTint="#0000FF" />
+
+                <View
+                    android:id="@+id/colorGreen"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginHorizontal="4dp"
+                    android:background="@drawable/circle_color_selector"
+                    android:backgroundTint="#00FF00" />
+
+                <View
+                    android:id="@+id/colorYellow"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginHorizontal="4dp"
+                    android:background="@drawable/circle_color_selector"
+                    android:backgroundTint="#FFFF00" />
+
+                <View
+                    android:id="@+id/colorWhite"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginHorizontal="4dp"
+                    android:background="@drawable/circle_color_selector"
+                    android:backgroundTint="#FFFFFF" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Crop/Rotate Tools (Initially Hidden) -->
+        <LinearLayout
+            android:id="@+id/cropRotateToolsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone">
+
+            <!-- Crop Controls -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <Button
+                    android:id="@+id/btnCropToggle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="Enable Crop"
+                    android:textSize="12sp"
+                    android:textColor="@android:color/white"
+                    android:background="@drawable/button_outline_white"
+                    android:layout_marginEnd="8dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="16dp"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                <Button
+                    android:id="@+id/btnApplyCrop"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="Apply Crop"
+                    android:textSize="12sp"
+                    android:textColor="@android:color/white"
+                    android:background="@drawable/button_primary"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="16dp"
+                    android:visibility="gone"
+                    style="@style/Widget.Material3.Button" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="16dp">
+
+            <Button
+                android:id="@+id/btnCancel"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="Cancel"
+                android:textColor="@android:color/white"
+                android:background="@drawable/button_outline_white"
+                android:clickable="true"
+                android:focusable="true"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
+
+            <Button
+                android:id="@+id/btnUpload"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Upload Story"
+                android:textColor="@android:color/black"
+                android:background="@drawable/button_primary"
+                android:clickable="true"
+                android:focusable="true"
+                style="@style/Widget.Material3.Button" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

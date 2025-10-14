@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <!-- Profile Image -->
+        <ImageView
+            android:id="@+id/ivProfileImage"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_marginEnd="16dp"
+            android:scaleType="centerCrop"
+            android:background="@color/design_default_color_background"
+            android:src="@drawable/ic_launcher_foreground" />
+
+        <!-- User Info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvUserName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Nama User"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tvUserEmail"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="email@example.com"
+                android:textSize="14sp"
+                android:textColor="@color/design_default_color_on_surface"
+                android:layout_marginTop="2dp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tvUserPhone"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="08123456789"
+                android:textSize="14sp"
+                android:textColor="@color/design_default_color_on_surface"
+                android:layout_marginTop="2dp" />
+
+            <TextView
+                android:id="@+id/tvOrderCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="5 pesanan"
+                android:textSize="12sp"
+                android:textColor="@color/design_default_color_primary"
+                android:layout_marginTop="4dp" />
+
+            <TextView
+                android:id="@+id/tvUserStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="✅ ACTIVE"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginTop="4dp" />
+
+            <TextView
+                android:id="@+id/tvBanReason"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Alasan: Spam"
+                android:textSize="11sp"
+                android:textColor="@color/design_default_color_error"
+                android:layout_marginTop="2dp"
+                android:visibility="gone"
+                android:maxLines="2"
+                android:ellipsize="end" />
+
+        </LinearLayout>
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnViewDetails"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Detail"
+                android:textSize="12sp"
+                android:layout_marginBottom="4dp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnViewOrders"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Pesanan"
+                android:textSize="12sp"
+                android:layout_marginBottom="4dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnBanUnban"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Ban"
+                android:textSize="12sp"
+                android:textColor="@android:color/white"
+                style="@style/Widget.MaterialComponents.Button" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

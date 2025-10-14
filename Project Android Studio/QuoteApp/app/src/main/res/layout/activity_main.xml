@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="16dp"
+        android:minHeight="?android:attr/listPreferredItemHeight">
+
+        <!-- CardView untuk ImageView dengan rasio 16:9 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="24dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="8dp"
+            app:contentPadding="8dp">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    android:id="@+id/imageViewQuote"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/drive_my_car"
+                    android:contentDescription="Drive My Car"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintDimensionRatio="16:9" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- TextView untuk menampilkan kutipan -->
+        <TextView
+            android:id="@+id/textViewQuote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/sample_quote"
+            android:textSize="18sp"
+            android:textStyle="italic"
+            android:textColor="?android:attr/textColorPrimary"
+            android:lineSpacingMultiplier="1.4"
+            android:justificationMode="inter_word"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginBottom="16dp"
+            android:padding="16dp" />
+
+        <!-- TextView untuk menampilkan penulis -->
+        <TextView
+            android:id="@+id/textViewAuthor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/sample_author"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textAlignment="textEnd"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="24dp"
+            android:paddingHorizontal="16dp" />
+
+        <!-- MaterialButton Share -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonShare"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/share_button"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:textAllCaps="false"
+            android:layout_gravity="center"
+            android:layout_marginBottom="24dp"
+            android:paddingHorizontal="32dp"
+            android:paddingVertical="16dp"
+            app:backgroundTint="?attr/colorPrimary"
+            app:icon="@android:drawable/ic_menu_share"
+            app:iconGravity="start"
+            app:iconPadding="8dp"
+            app:iconTint="@android:color/white"
+            app:cornerRadius="24dp"
+            style="@style/Widget.Material3.Button" />
+
+    </LinearLayout>
+
+</ScrollView>

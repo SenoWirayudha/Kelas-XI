@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main_nav_graph"
+    app:startDestination="@id/navigation_home">
+
+    <fragment
+        android:id="@+id/navigation_home"
+        android:name="com.komputerkit.wavesoffood.ui.home.HomeFragment"
+        android:label="HomeFragment">
+        <action
+            android:id="@+id/action_navigation_home_to_foodDetailFragment"
+            app:destination="@id/foodDetailFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_cart"
+        android:name="com.komputerkit.wavesoffood.ui.cart.CartFragment"
+        android:label="CartFragment">
+        <action
+            android:id="@+id/action_navigation_cart_to_checkoutFragment"
+            app:destination="@id/checkoutFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_orders"
+        android:name="com.komputerkit.wavesoffood.ui.orders.OrdersFragment"
+        android:label="OrdersFragment">
+        <action
+            android:id="@+id/action_navigation_orders_to_orderDetailFragment"
+            app:destination="@id/orderDetailFragment"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_profile"
+        android:name="com.komputerkit.wavesoffood.ui.profile.ProfileFragment"
+        android:label="ProfileFragment" />
+
+    <fragment
+        android:id="@+id/foodDetailFragment"
+        android:name="com.komputerkit.wavesoffood.ui.home.FoodDetailFragment"
+        android:label="FoodDetailFragment">
+        <argument
+            android:name="food"
+            app:argType="com.komputerkit.wavesoffood.model.Food" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/orderDetailFragment"
+        android:name="com.komputerkit.wavesoffood.ui.orders.OrderDetailFragment"
+        android:label="OrderDetailFragment">
+        <argument
+            android:name="orderId"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/checkoutFragment"
+        android:name="com.komputerkit.wavesoffood.ui.checkout.CheckoutFragment"
+        android:label="CheckoutFragment" />
+
+</navigation>

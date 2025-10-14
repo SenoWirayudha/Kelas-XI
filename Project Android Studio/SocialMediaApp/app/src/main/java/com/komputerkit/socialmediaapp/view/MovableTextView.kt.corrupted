@@ -1,0 +1,676 @@
+package com.komputerkit.socialmediaapp.view
+
+import android.content.Context
+import android.graphics.*
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.AttributeSet
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
+import android.widget.FrameLayout
+import androidx.core.content.ContextCompat
+import com.komputerkit.socialmediaapp.R
+import kotlin.math.pow
+import kotlin.math.sqrt
+
+class MovableTextView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : EditText(context, attrs, defStyleAttr) {
+
+    private var isDragging = false
+    private var lastX = 0f
+    private var lastY = 0f
+    private var initialX = 0f
+    private var initialY = 0f
+    private var longPressTimer: Runnable? = null
+    private val longPressDelay = 500L // 500ms for long press
+    
+    private val strokePaint = Paint()
+    private var strokeWidth = 8f
+    private var strokeColor = Color.BLACK
+    
+    var onDeleteClickListener: (() -> Unit)? = null
+    private var isInitialText = true
+    private val initialText = "Tap to edit"
+    private var currentTextSizePx = 24f // Default 24px
+    private var preventDeletion = false
+    private val minTextSize = 12f // Minimum 12px
+    private val maxTextSize = 72f // Maximum 72px
+    private var currentTypeface: Typeface? = null
+
+    // Font types available
+    enum class FontType {
+        DEFAULT, SERIF, MONOSPACE, CASUAL, CURSIVE
+    }
+
+    init {
+        setupTextView()
+    }
+
+    private fun setupTextView() {
+        // Text styling
+        textSize = currentTextSizePx
+        setTextColor(Color.WHITE)
+        background = null
+        isCursorVisible = false
+        isFocusableInTouchMode = true
+        setText(initialText)
+        
+        // Stroke paint setup
+        strokePaint.apply {
+            style = Paint.Style.STROKE
+            strokeWidth = this@MovableTextView.strokeWidth
+            color = strokeColor
+            isAntiAlias = true
+        }
+        
+        // Text change listener
+        addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                // If user starts typing and we have initial text, mark as no longer initial
+                if (isInitialText && s.toString() == initialText && after > 0) {
+                    isInitialText = false
+                }
+                
+                // Prevent deletion if text will become empty and user is actively editing
+                if (!s.isNullOrEmpty() && after == 0 && count > 0 && s.length == count && !isInitialText) {
+                    preventDeletion = true
+                }
+            }
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                // If user is replacing the initial text, mark as no longer initial
+                if (isInitialText && s.toString() != initialText) {
+                    isInitialText = false
+                }
+                
+                // If user has actual content (not just initial text), mark as user content
+                if (!s.isNullOrEmpty() && s.toString() != initialText && s.toString().trim().isNotEmpty()) {
+                    isInitialText = false
+                }
+            }
+            override fun afterTextChanged(s: Editable?) {
+                val currentText = s?.toString() ?: ""
+                
+                // Handle empty text more intelligently
+                if (currentText.isEmpty()) {
+                    if (preventDeletion) {
+                        // User accidentally deleted all text, restore placeholder
+                        preventDeletion = false
+                        isInitialText = true
+                        setText(initialText)
+                        selectAll()
+                        return
+                    } else if (!isInitialText) {
+                        // Only delete text view if user explicitly wants to remove it
+                        // (e.g., by using delete button, not accidental backspace)
+                        post {
+                            onDeleteClickListener?.invoke()
+                        }
+                    }
+                } else if (currentText == initialText) {
+                    // User has the initial text
+                    isInitialText = true
+                } else if (currentText.trim().isNotEmpty()) {
+                    // User has actual content
+                    isInitialText = false
+                }
+                preventDeletion = false
+            }
+        })
+        
+        // Focus change listener to handle initial text selection
+        // This will be overridden by TextOverlayManager if needed
+        setOnFocusChangeListener { _, hasFocus ->
+            handleFocusChange(hasFocus)
+        }
+    }
+
+    private fun showKeyboard() {
+        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun hideKeyboard() {
+        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(windowToken, 0)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        // Only draw fill text without stroke to avoid black outline
+        val textColor = currentTextColor
+        
+        // Use different alpha for initial text to show it's placeholder
+        val alpha = if (isInitialText && text.toString() == initialText) 0.6f else 1.0f
+        
+        // Draw only fill text (no stroke to avoid black outline)
+        val fillColorWithAlpha = Color.argb(
+            (Color.alpha(textColor) * alpha).toInt(),
+            Color.red(textColor),
+            Color.green(textColor),
+            Color.blue(textColor)
+        )
+        setTextColor(fillColorWithAlpha)
+        paint.style = Paint.Style.FILL
+        paint.strokeWidth = 0f // Remove stroke
+        super.onDraw(canvas)
+        
+        // Restore original color
+        setTextColor(textColor)
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                isDragging = false
+                lastX = event.rawX
+                lastY = event.rawY
+                initialX = event.rawX
+                initialY = event.rawY
+                
+                // Start long press timer
+                longPressTimer = Runnable {
+                    if (!isDragging) {
+                        performLongPress()
+                    }
+                }
+                postDelayed(longPressTimer, longPressDelay)
+                
+                return true
+            }
+            
+            MotionEvent.ACTION_MOVE -> {
+                val deltaX = event.rawX - lastX
+                val deltaY = event.rawY - lastY
+                
+                // Check if this is a drag gesture
+                val deltaXFloat = (event.rawX - initialX)
+                val deltaYFloat = (event.rawY - initialY)
+                val totalDelta = sqrt(deltaXFloat.pow(2f) + deltaYFloat.pow(2f))
+                
+                if (totalDelta > 30) { // Threshold for drag detection
+                    isDragging = true
+                    
+                    // Cancel long press
+                    longPressTimer?.let { removeCallbacks(it) }
+                    
+                    // Move the view
+                    x += deltaX
+                    y += deltaY
+                    
+                    // Keep within parent bounds
+                    val parent = parent as? ViewGroup
+                    parent?.let {
+                        x = x.coerceIn(0f, (it.width - width).toFloat())
+                        y = y.coerceIn(0f, (it.height - height).toFloat())
+                    }
+                }
+                
+                lastX = event.rawX
+                lastY = event.rawY
+                return true
+            }
+            
+            MotionEvent.ACTION_UP -> {
+                // Cancel long press
+                longPressTimer?.let { removeCallbacks(it) }
+                
+                if (!isDragging) {
+                    // This was a tap, not a drag - handle as text edit
+                    isCursorVisible = true
+                    requestFocus()
+                    
+                    if (isInitialText && text.toString() == initialText) {
+                        // If this is the initial text, select all for easy replacement
+                        selectAll()
+                        // Add visual feedback
+                        alpha = 0.8f
+                        animate().alpha(1.0f).setDuration(200).start()
+                    } else {
+                        // For existing text, place cursor at the end
+                        setSelection(text?.length ?: 0)
+                    }
+                    return super.onTouchEvent(event)
+                }
+                isDragging = false
+                return true
+            }
+            
+            MotionEvent.ACTION_CANCEL -> {
+                // Cancel long press
+                longPressTimer?.let { removeCallbacks(it) }
+                isDragging = false
+                return true
+            }
+        }
+        
+        return super.onTouchEvent(event)
+    }
+
+    private fun performLongPress() {
+        // Cycle through some preset sizes on long press
+        val presetSizes = arrayOf(16f, 24f, 32f, 48f, 64f)
+        val currentIndex = presetSizes.indexOfFirst { it == currentTextSizePx }
+        val nextIndex = if (currentIndex >= 0) (currentIndex + 1) % presetSizes.size else 0
+        
+        setTextSizeInPx(presetSizes[nextIndex])
+        
+        // Provide haptic feedback
+        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        
+        // Visual feedback
+        scaleX = 1.1f
+        scaleY = 1.1f
+        animate().scaleX(1.0f).scaleY(1.0f).setDuration(150).start()
+    }
+
+    fun setStrokeColor(color: Int) {
+        strokeColor = color
+        invalidate()
+    }
+
+    fun setStrokeWidth(width: Float) {
+        strokeWidth = width
+        invalidate()
+    }
+    
+    fun isShowingInitialText(): Boolean {
+        return isInitialText && text.toString() == initialText
+    }
+    
+    fun hasUserContent(): Boolean {
+        return !isInitialText && !text.isNullOrEmpty() && text.toString() != initialText && text.toString().trim().isNotEmpty()
+    }
+    
+    fun setTextSizeInPx(sizePx: Float) {
+        currentTextSizePx = sizePx.coerceIn(minTextSize, maxTextSize)
+        textSize = currentTextSizePx
+    }
+    
+    fun getTextSizeInPx(): Float = currentTextSizePx
+    
+    fun getMinTextSize(): Float = minTextSize
+    
+    fun getMaxTextSize(): Float = maxTextSize
+    
+    fun forceDelete() {
+        // Force delete this text view (for delete button)
+        onDeleteClickListener?.invoke()
+    }
+    
+    fun setFontType(fontType: FontType) {
+        currentTypeface = when (fontType) {
+            FontType.DEFAULT -> Typeface.DEFAULT
+            FontType.SERIF -> Typeface.SERIF
+            FontType.MONOSPACE -> Typeface.MONOSPACE
+            FontType.CASUAL -> Typeface.create("casual", Typeface.NORMAL)
+            FontType.CURSIVE -> Typeface.create("cursive", Typeface.NORMAL)
+        }
+        typeface = currentTypeface
+    }
+    
+    fun getCurrentFontType(): FontType {
+        return when (currentTypeface) {
+            Typeface.SERIF -> FontType.SERIF
+            Typeface.MONOSPACE -> FontType.MONOSPACE
+            else -> {
+                if (currentTypeface?.toString()?.contains("casual") == true) FontType.CASUAL
+                else if (currentTypeface?.toString()?.contains("cursive") == true) FontType.CURSIVE
+                else FontType.DEFAULT
+            }
+        }
+    }
+    
+    // Get relative position as percentage of parent container
+    fun getRelativePosition(): Pair<Float, Float> {
+        val parent = parent as? ViewGroup
+        return if (parent != null && parent.width > 0 && parent.height > 0) {
+            // Get the actual view position including any offset
+            val relX = x / parent.width.toFloat()
+            val relY = y / parent.height.toFloat()
+            android.util.Log.d("MovableTextView", "getRelativePosition: view pos=(${x}, ${y}), parent size=(${parent.width}, ${parent.height}), relative=(${relX}, ${relY})")
+            Pair(relX, relY)
+        } else {
+            android.util.Log.d("MovableTextView", "getRelativePosition: parent null or invalid size")
+            Pair(0f, 0f)
+        }
+    }
+    
+    // Get position relative to image content area (accounting for centerCrop scaling)
+    fun getImageRelativePosition(imageWidth: Int, imageHeight: Int, containerWidth: Int, containerHeight: Int): Pair<Float, Float> {
+        val parent = parent as? ViewGroup
+        return if (parent != null && parent.width > 0 && parent.height > 0) {
+            // Calculate how image is scaled and positioned in centerCrop mode
+            val imageAspectRatio = imageWidth.toFloat() / imageHeight.toFloat()
+            val containerAspectRatio = containerWidth.toFloat() / containerHeight.toFloat()
+            
+            val scale: Float
+            val offsetX: Float
+            val offsetY: Float
+            
+            if (imageAspectRatio > containerAspectRatio) {
+                // Image is wider - crop horizontally, fit height
+                scale = containerHeight.toFloat() / imageHeight.toFloat()
+                val scaledImageWidth = imageWidth * scale
+                offsetX = (scaledImageWidth - containerWidth) / 2f // How much is cropped from each side
+                offsetY = 0f
+            } else {
+                // Image is taller - crop vertically, fit width
+                scale = containerWidth.toFloat() / imageWidth.toFloat()
+                val scaledImageHeight = imageHeight * scale
+                offsetX = 0f
+                offsetY = (scaledImageHeight - containerHeight) / 2f // How much is cropped from top/bottom
+            }
+            
+            // Convert text position to image coordinates
+            val textCenterX = x + width / 2f
+            val textCenterY = y + height / 2f
+            
+            // Account for cropping offset and scale back to original image coordinates
+            val imageRelativeX = (textCenterX + offsetX) / (scale * imageWidth)
+            val imageRelativeY = (textCenterY + offsetY) / (scale * imageHeight)
+            
+            android.util.Log.d("MovableTextView", "getImageRelativePosition: imageSize=($imageWidth, $imageHeight), containerSize=($containerWidth, $containerHeight)")
+            android.util.Log.d("MovableTextView", "  aspectRatios: image=$imageAspectRatio, container=$containerAspectRatio")
+            android.util.Log.d("MovableTextView", "  scale=$scale, offset=($offsetX, $offsetY)")
+            android.util.Log.d("MovableTextView", "  textCenter=($textCenterX, $textCenterY), imageRelative=($imageRelativeX, $imageRelativeY)")
+            
+            Pair(imageRelativeX, imageRelativeY)
+        } else {
+            Pair(0.5f, 0.5f) // Default center position
+        }
+    }
+    
+    // Set position using image-relative coordinates  
+    fun setImageRelativePosition(imageRelativeX: Float, imageRelativeY: Float, imageWidth: Int, imageHeight: Int, containerWidth: Int, containerHeight: Int) {
+        val parent = parent as? ViewGroup
+        parent?.let {
+            // Calculate how image is scaled and positioned in centerCrop mode
+            val imageAspectRatio = imageWidth.toFloat() / imageHeight.toFloat()
+            val containerAspectRatio = containerWidth.toFloat() / containerHeight.toFloat()
+            
+            val scale: Float
+            val offsetX: Float
+            val offsetY: Float
+            
+            if (imageAspectRatio > containerAspectRatio) {
+                // Image is wider - crop horizontally, fit height
+                scale = containerHeight.toFloat() / imageHeight.toFloat()
+                val scaledImageWidth = imageWidth * scale
+                offsetX = (scaledImageWidth - containerWidth) / 2f
+                offsetY = 0f
+            } else {
+                // Image is taller - crop vertically, fit width
+                scale = containerWidth.toFloat() / imageWidth.toFloat()
+                val scaledImageHeight = imageHeight * scale
+                offsetX = 0f
+                offsetY = (scaledImageHeight - containerHeight) / 2f
+            }
+            
+            // Convert from image coordinates to container coordinates
+            val containerX = (imageRelativeX * imageWidth * scale) - offsetX - width / 2f
+            val containerY = (imageRelativeY * imageHeight * scale) - offsetY - height / 2f
+            
+            x = containerX.coerceIn(0f, (containerWidth - width).toFloat())
+            y = containerY.coerceIn(0f, (containerHeight - height).toFloat())
+            
+            android.util.Log.d("MovableTextView", "Set image relative position: imageRel=($imageRelativeX, $imageRelativeY), containerPos=($x, $y)")
+        }
+    }
+    
+    // Set position using relative coordinates
+    fun setRelativePosition(relX: Float, relY: Float) {
+        val parent = parent as? ViewGroup
+        parent?.let {
+            x = relX * it.width.toFloat()
+            y = relY * it.height.toFloat()
+        }
+    }
+    
+    // Get text data for saving (using image-relative coordinates)
+    fun getTextData(imageWidth: Int, imageHeight: Int, containerWidth: Int, containerHeight: Int): TextData {
+        val (imageRelX, imageRelY) = getImageRelativePosition(imageWidth, imageHeight, containerWidth, containerHeight)
+        val actualText = if (isInitialText || text.toString() == initialText) "" else text.toString()
+        return TextData(
+            text = actualText,
+            relativeX = imageRelX,
+            relativeY = imageRelY,
+            textSizePx = currentTextSizePx,
+            fontType = getCurrentFontType(),
+            textColor = currentTextColor,
+            strokeColor = strokeColor,
+            strokeWidth = strokeWidth
+        )
+    }
+    
+    // Legacy method for backward compatibility
+    fun getTextData(): TextData {
+        val (relX, relY) = getRelativePosition()
+        val actualText = if (isInitialText || text.toString() == initialText) "" else text.toString()
+        return TextData(
+            text = actualText,
+            relativeX = relX,
+            relativeY = relY,
+            textSizePx = currentTextSizePx,
+            fontType = getCurrentFontType(),
+            textColor = currentTextColor,
+            strokeColor = strokeColor,
+            strokeWidth = strokeWidth
+        )
+    }
+    
+    // Restore text from data (using image-relative coordinates)
+    fun setTextData(textData: TextData, imageWidth: Int, imageHeight: Int, containerWidth: Int, containerHeight: Int) {
+        setText(textData.text.ifEmpty { initialText })
+        isInitialText = textData.text.isEmpty()
+        setImageRelativePosition(textData.relativeX, textData.relativeY, imageWidth, imageHeight, containerWidth, containerHeight)
+        setTextSizeInPx(textData.textSizePx)
+        setFontType(textData.fontType)
+        setTextColor(textData.textColor)
+        setStrokeColor(textData.strokeColor)
+        setStrokeWidth(textData.strokeWidth)
+    }
+    
+    // Restore text from data (legacy method for backward compatibility)
+    fun setTextData(textData: TextData) {
+        setText(textData.text.ifEmpty { initialText })
+        isInitialText = textData.text.isEmpty()
+        setRelativePosition(textData.relativeX, textData.relativeY)
+        setTextSizeInPx(textData.textSizePx)
+        setFontType(textData.fontType)
+        setTextColor(textData.textColor)
+        setStrokeColor(textData.strokeColor)
+        setStrokeWidth(textData.strokeWidth)
+    }
+    
+    fun handleFocusChange(hasFocus: Boolean) {
+        if (hasFocus && isInitialText && text.toString() == initialText) {
+            selectAll()
+            showKeyboard()
+        } else if (hasFocus) {
+            showKeyboard()
+        } else {
+            hideKeyboard()
+        }
+    }
+}
+
+class TextOverlayManager(private val container: FrameLayout) {
+    
+    private val textViews = mutableListOf<MovableTextView>()
+    var onTextViewSelected: ((MovableTextView?) -> Unit)? = null
+    
+    fun addTextView(text: String = ""): MovableTextView {
+        val textView = MovableTextView(container.context).apply {
+            // Don't set text here, let the constructor handle initial text
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                // Center initially
+                leftMargin = (container.width - 200) / 2
+                topMargin = (container.height - 100) / 2
+            }
+            
+            onDeleteClickListener = {
+                removeTextView(this)
+            }
+            
+            // Add focus change listener for selection callback
+            setOnFocusChangeListener { view, hasFocus ->
+                if (hasFocus) {
+                    onTextViewSelected?.invoke(this@apply)
+                }
+                
+                // Call original focus change logic from MovableTextView
+                handleFocusChange(hasFocus)
+            }
+        }
+        
+        container.addView(textView)
+        textViews.add(textView)
+        
+        // Focus on the new text view and select all initial text after view is laid out
+        textView.post {
+            textView.requestFocus()
+            textView.selectAll()
+        }
+        
+        return textView
+    }
+    
+    private fun removeTextView(textView: MovableTextView) {
+        container.removeView(textView)
+        textViews.remove(textView)
+        onTextViewSelected?.invoke(null) // No text view selected after deletion
+    }
+    
+    fun getAllTextViews(): List<MovableTextView> = textViews.toList()
+    
+    fun clearAllText() {
+        textViews.forEach { container.removeView(it) }
+        textViews.clear()
+    }
+    
+    // TODO: fix text stretching in bitmap scaling - FIXED WITH UNIFORM SCALING + IMAGE COORDINATE MAPPING
+    fun getTextOverlayBitmap(width: Int, height: Int, containerWidth: Int = container.width, containerHeight: Int = container.height): Bitmap {
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        
+        android.util.Log.d("TextOverlayManager", "Creating bitmap overlay ${width}x${height} with ${textViews.size} text views")
+        android.util.Log.d("TextOverlayManager", "Container size: ${containerWidth}x${containerHeight}")
+        
+        textViews.forEach { textView ->
+            if (!textView.isShowingInitialText() && textView.hasUserContent()) {
+                try {
+                    val textContent = textView.text.toString()
+                    android.util.Log.d("TextOverlayManager", "Processing text: '$textContent'")
+                    
+                    // Get image-relative position from text view
+                    val (imageRelX, imageRelY) = textView.getImageRelativePosition(width, height, containerWidth, containerHeight)
+                    
+                    // Calculate scaling factor for text size
+                    val imageAspectRatio = width.toFloat() / height.toFloat()
+                    val containerAspectRatio = containerWidth.toFloat() / containerHeight.toFloat()
+                    
+                    val scale: Float
+                    if (imageAspectRatio > containerAspectRatio) {
+                        // Image is wider - scale based on height
+                        scale = height.toFloat() / containerHeight.toFloat()
+                    } else {
+                        // Image is taller - scale based on width
+                        scale = width.toFloat() / containerWidth.toFloat()
+                    }
+                    
+                    // Calculate scaled text size and dimensions
+                    val scaledTextSize = textView.getTextSizeInPx() * scale
+                    val scaledWidth = textView.width * scale
+                    val scaledHeight = textView.height * scale
+                    
+                    // Calculate position on final bitmap (centered)
+                    val targetX = (imageRelX * width) - (scaledWidth / 2f)
+                    val targetY = (imageRelY * height) - (scaledHeight / 2f)
+                    
+                    android.util.Log.d("TextOverlayManager", "Scale factor: $scale, original text size: ${textView.getTextSizeInPx()}, scaled: $scaledTextSize")
+                    android.util.Log.d("TextOverlayManager", "Image relative pos: ($imageRelX, $imageRelY), target: ($targetX, $targetY), scaled size: (${scaledWidth}, ${scaledHeight})")
+                    
+                    // Create scaled text bitmap
+                    if (scaledWidth > 0 && scaledHeight > 0) {
+                        // Create a temporary text view with scaled text size for rendering
+                        val tempTextView = android.widget.TextView(textView.context).apply {
+                            text = textView.text
+                            textSize = scaledTextSize
+                            setTextColor(textView.currentTextColor)
+                            typeface = textView.typeface
+                            gravity = textView.gravity
+                            
+                            // Measure the text with scaled size
+                            measure(
+                                android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED),
+                                android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+                            )
+                            layout(0, 0, measuredWidth, measuredHeight)
+                        }
+                        
+                        val actualWidth = tempTextView.measuredWidth.toFloat()
+                        val actualHeight = tempTextView.measuredHeight.toFloat()
+                        
+                        if (actualWidth > 0 && actualHeight > 0) {
+                            val textBitmap = Bitmap.createBitmap(actualWidth.toInt(), actualHeight.toInt(), Bitmap.Config.ARGB_8888)
+                            val textCanvas = Canvas(textBitmap)
+                            textCanvas.drawColor(android.graphics.Color.TRANSPARENT)
+                            tempTextView.draw(textCanvas)
+                            
+                            // Adjust position to center the actual text size
+                            val adjustedX = (imageRelX * width) - (actualWidth / 2f)
+                            val adjustedY = (imageRelY * height) - (actualHeight / 2f)
+                            
+                            // Draw scaled text at calculated position
+                            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+                            paint.isFilterBitmap = true
+                            canvas.drawBitmap(textBitmap, adjustedX, adjustedY, paint)
+                            
+                            android.util.Log.d("TextOverlayManager", "Text rendered with proper scaling - final pos: ($adjustedX, $adjustedY), size: (${actualWidth}, ${actualHeight})")
+                            textBitmap.recycle()
+                        }
+                    }
+                    
+                } catch (e: Exception) {
+                    android.util.Log.e("TextOverlayManager", "Error rendering text view: ${e.message}", e)
+                }
+            } else {
+                android.util.Log.d("TextOverlayManager", "Skipping text view: isInitial=${textView.isShowingInitialText()}, hasContent=${textView.hasUserContent()}, text='${textView.text}'")
+            }
+        }
+        
+        return bitmap
+    }
+}
+
+// Data class for saving text information
+data class TextData(
+    val text: String,
+    val relativeX: Float,
+    val relativeY: Float,
+    val textSizePx: Float,
+    val fontType: MovableTextView.FontType,
+    val textColor: Int,
+    val strokeColor: Int,
+    val strokeWidth: Float
+)
+    val textColor: Int,
+    val strokeColor: Int,
+    val strokeWidth: Float
+)
+    val textColor: Int,
+    val strokeColor: Int,
+    val strokeWidth: Float
+)
+    val strokeColor: Int,
+    val strokeWidth: Float
+)
+)

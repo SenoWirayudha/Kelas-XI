@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_gravity="center"
+        app:cardCornerRadius="40dp"
+        app:cardElevation="2dp">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:id="@+id/storyImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_launcher_foreground" />
+
+            <!-- Story Border Ring -->
+            <View
+                android:id="@+id/storyBorder"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/story_border_gradient" />
+
+            <!-- Profile Image -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="4dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <ImageView
+                    android:id="@+id/profileImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_launcher_foreground" />
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Viewed Indicator -->
+            <View
+                android:id="@+id/viewedIndicator"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/story_viewed_overlay"
+                android:visibility="gone" />
+
+        </FrameLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/userName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="Username"
+        android:textColor="@android:color/black"
+        android:textSize="12sp" />
+
+</LinearLayout>

@@ -1,0 +1,45 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    
+    <!-- Background Circle -->
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M60,10 A50,50 0 1,1 60,110 A50,50 0 1,1 60,10 Z"/>
+    
+    <!-- School Building -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,50 L60,30 L90,50 L90,90 L30,90 Z"/>
+    
+    <!-- Roof -->
+    <path
+        android:fillColor="#FFC107"
+        android:pathData="M25,50 L60,25 L95,50 L90,50 L60,30 L30,50 Z"/>
+    
+    <!-- Door -->
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M52,65 L68,65 L68,90 L52,90 Z"/>
+    
+    <!-- Windows -->
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M35,55 L45,55 L45,65 L35,65 Z"/>
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M75,55 L85,55 L85,65 L75,65 Z"/>
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M35,70 L45,70 L45,80 L35,80 Z"/>
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M75,70 L85,70 L85,80 L75,80 Z"/>
+        
+    <!-- Flag -->
+    <path
+        android:fillColor="#F44336"
+        android:pathData="M58,30 L58,45 M58,30 L70,35 L58,40"/>
+</vector>

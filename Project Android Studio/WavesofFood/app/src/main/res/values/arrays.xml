@@ -1,0 +1,7 @@
+<resources>
+    <string-array name="payment_methods">
+        <item>@string/payment_method_bank</item>
+        <item>@string/payment_method_cod</item>
+        <item>@string/payment_method_ewallet</item>
+    </string-array>
+</resources>

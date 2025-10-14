@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "846590505363",
+    "project_id": "fir-authdemo-423bb",
+    "storage_bucket": "fir-authdemo-423bb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:846590505363:android:86545986c079b1952ab866",
+        "android_client_info": {
+          "package_name": "com.komputerkit.firebaseauthdemo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmci0gKuvB8lzu2rCQFI8ea5glu6-DVXw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

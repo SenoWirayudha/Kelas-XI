@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <item android:title="News Sources">
+        <menu>
+            <group android:checkableBehavior="single">
+                <item
+                    android:id="@+id/nav_bbc"
+                    android:icon="@drawable/ic_menu_camera"
+                    android:title="@string/menu_bbc" />
+                <item
+                    android:id="@+id/nav_al_jazeera"
+                    android:icon="@drawable/ic_menu_camera"
+                    android:title="@string/menu_al_jazeera" />
+                <item
+                    android:id="@+id/nav_cnn"
+                    android:icon="@drawable/ic_menu_camera"
+                    android:title="@string/menu_cnn" />
+                <item
+                    android:id="@+id/nav_fox_news"
+                    android:icon="@drawable/ic_menu_camera"
+                    android:title="@string/menu_fox_news" />
+                <item
+                    android:id="@+id/nav_sky_news"
+                    android:icon="@drawable/ic_menu_camera"
+                    android:title="@string/menu_sky_news" />
+                <item
+                    android:id="@+id/nav_ny_times"
+                    android:icon="@drawable/ic_menu_camera"
+                    android:title="@string/menu_ny_times" />
+            </group>
+        </menu>
+    </item>
+</menu>

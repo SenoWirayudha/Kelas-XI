@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <color name="primary">#FF6B35</color>
+    <color name="primary_variant">#E85A2B</color>
+    <color name="secondary">#FFA726</color>
+    <color name="secondary_variant">#FF8F00</color>
+    <color name="background">#FAFAFA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="error">#B00020</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="on_secondary">#000000</color>
+    <color name="on_background">#000000</color>
+    <color name="on_surface">#000000</color>
+    <color name="on_error">#FFFFFF</color>
+    
+    <!-- Status Colors -->
+    <color name="status_pending">#FFC107</color>
+    <color name="status_preparing">#2196F3</color>
+    <color name="status_ready">#4CAF50</color>
+    <color name="status_delivered">#8BC34A</color>
+    <color name="status_cancelled">#F44336</color>
+    
+    <!-- UI Colors -->
+    <color name="card_background">#FFFFFF</color>
+    <color name="divider">#E0E0E0</color>
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="text_hint">#BDBDBD</color>
+    
+    <!-- Dashboard Colors -->
+    <color name="dashboard_card_1">#E3F2FD</color>
+    <color name="dashboard_card_2">#E8F5E8</color>
+    <color name="dashboard_card_3">#FFF3E0</color>
+    <color name="dashboard_card_4">#FCE4EC</color>
+</resources>

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black"
+    tools:context=".activity.StoryViewerActivity">
+
+    <!-- Story Image -->
+    <ImageView
+        android:id="@+id/storyImageView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:background="@android:color/black" />
+
+    <!-- Progress Indicators -->
+    <LinearLayout
+        android:id="@+id/progressContainer"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="32dp"
+        android:layout_marginEnd="16dp"
+        android:orientation="horizontal" />
+
+    <!-- Top Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="48dp"
+        android:layout_marginEnd="16dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- User Profile -->
+        <ImageView
+            android:id="@+id/userProfileImage"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_launcher_foreground"
+            android:background="@drawable/circle_background" />
+
+        <TextView
+            android:id="@+id/userNameText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:text="Username"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/timeAgoText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:text="2h"
+            android:textColor="@android:color/white"
+            android:textSize="12sp" />
+
+        <!-- Close Button -->
+        <ImageView
+            android:id="@+id/closeButton"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="4dp"
+            android:src="@drawable/ic_close"
+            app:tint="@android:color/white" />
+
+    </LinearLayout>
+
+    <!-- Story Text Overlay (if story has text) -->
+    <TextView
+        android:id="@+id/storyTextOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="32dp"
+        android:padding="16dp"
+        android:background="@drawable/story_text_background"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+    <!-- Delete Story Button (Only for own stories) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/deleteStoryButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="32dp"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="4dp"
+        app:cardBackgroundColor="#80FF6B6B"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_delete"
+            android:tint="@android:color/white" />
+
+    </androidx.cardview.widget.CardView>
+
+    <!-- Touch Areas for Navigation -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="100dp"
+        android:orientation="horizontal">
+        
+        <View
+            android:id="@+id/leftTouchArea"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@android:color/transparent" />
+
+        <View
+            android:id="@+id/rightTouchArea"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@android:color/transparent" />
+            
+    </LinearLayout>
+
+</FrameLayout>

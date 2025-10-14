@@ -1,0 +1,28 @@
+{
+  "name": "firestore-data-importer",
+  "version": "1.0.0",
+  "description": "Node.js script to import sample data to Firebase Firestore",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "seed": "node seedData.js",
+    "clear": "node clearData.js",
+    "init": "node initFirestore.js",
+    "test-connection": "node -e \"const {db} = require('./firebase-config'); console.log('Testing...'); db.collection('test').limit(1).get().then(() => console.log('✅ Connected!')).catch(err => console.error('❌ Error:', err.message));\""
+  },
+  "dependencies": {
+    "firebase-admin": "^11.11.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0"
+  },
+  "keywords": [
+    "firebase",
+    "firestore", 
+    "nodejs",
+    "data-import"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

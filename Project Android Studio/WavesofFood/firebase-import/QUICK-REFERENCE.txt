@@ -1,0 +1,45 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                    🔑 QUICK REFERENCE                           ║
+║              Firebase Service Account Key Setup                  ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║  1️⃣  OPEN: https://console.firebase.google.com/                 ║
+║                                                                  ║
+║  2️⃣  SELECT PROJECT: wavesoffood-94471                          ║
+║                                                                  ║
+║  3️⃣  CLICK: ⚙️ (Settings) → Project settings                   ║
+║                                                                  ║
+║  4️⃣  CLICK: "Service accounts" tab                              ║
+║                                                                  ║
+║  5️⃣  CLICK: "Generate new private key" (blue button)           ║
+║                                                                  ║
+║  6️⃣  CLICK: "Generate key" (confirm dialog)                     ║
+║                                                                  ║
+║  7️⃣  RENAME: downloaded file → service-account-key.json         ║
+║                                                                  ║
+║  8️⃣  MOVE TO: firebase-import/ directory                        ║
+║                                                                  ║
+║  9️⃣  TEST: npm run check                                        ║
+║                                                                  ║
+║  🔟  RUN: npm start                                              ║
+║                                                                  ║
+╠══════════════════════════════════════════════════════════════════╣
+║                         ⚠️ SECURITY                             ║
+║                                                                  ║
+║  ❌ NEVER commit to Git                                          ║
+║  ❌ NEVER share publicly                                         ║
+║  ✅ Keep in local dev only                                       ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+TROUBLESHOOTING:
+├─ Permission denied? → Check Firebase project access
+├─ File won't download? → Disable popup blocker  
+├─ Invalid key? → Re-download from Firebase Console
+└─ Still stuck? → See HOW-TO-CREATE-SERVICE-ACCOUNT-KEY.md
+
+COMMANDS:
+├─ npm run demo   → Preview import data
+├─ npm run check  → Validate service account key
+├─ npm start      → Import data to Firebase
+└─ npm run clear  → Clear all data from Firebase

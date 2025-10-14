@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "134344663004",
+    "project_id": "blog-app-ee78d",
+    "storage_bucket": "blog-app-ee78d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:134344663004:android:12c32e7feae84359837919",
+        "android_client_info": {
+          "package_name": "com.komputerkit.blogapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDAJ0civfdGC9v-FL3DZCMTtpNCGZujHhc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

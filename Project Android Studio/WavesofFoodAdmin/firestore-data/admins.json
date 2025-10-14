@@ -1,0 +1,30 @@
+{
+  "admins": {
+    "admin_001": {
+      "email": "admin@wavesoffood.com",
+      "name": "Admin Waves of Food",
+      "role": "admin",
+      "createdAt": "2025-08-16T00:00:00Z",
+      "isActive": true,
+      "permissions": {
+        "manageOrders": true,
+        "manageMenu": true,
+        "manageUsers": true,
+        "viewDashboard": true
+      }
+    },
+    "admin_002": {
+      "email": "manager@wavesoffood.com", 
+      "name": "Manager Waves of Food",
+      "role": "manager",
+      "createdAt": "2025-08-16T00:00:00Z",
+      "isActive": true,
+      "permissions": {
+        "manageOrders": true,
+        "manageMenu": true,
+        "manageUsers": false,
+        "viewDashboard": true
+      }
+    }
+  }
+}

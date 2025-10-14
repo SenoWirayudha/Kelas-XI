@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Order Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/tvOrderId"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Order #12345678"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvOrderStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PENDING"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                android:background="@color/design_default_color_primary"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:layout_marginStart="8dp" />
+
+        </LinearLayout>
+
+        <!-- Customer Info -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_launcher_foreground"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/tvCustomerName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Nama Customer"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tvOrderTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="12:30"
+                android:textSize="12sp"
+                android:textColor="@color/design_default_color_on_surface" />
+
+        </LinearLayout>
+
+        <!-- Items Summary -->
+        <TextView
+            android:id="@+id/tvItemsSummary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="2 items"
+            android:textSize="14sp"
+            android:textColor="@color/design_default_color_on_surface"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Total and Actions -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvOrderTotal"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Rp 45.000"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/design_default_color_primary" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnViewDetails"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Detail"
+                android:textSize="12sp"
+                android:layout_marginEnd="8dp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUpdateStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Update"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

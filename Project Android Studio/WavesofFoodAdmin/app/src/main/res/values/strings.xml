@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Waves of Food Admin</string>
+    
+    <string name="dashboard_title">Dashboard Admin</string>
+    <string name="dashboard_total_orders">Total Pesanan</string>
+    <string name="dashboard_active_orders">Pesanan Aktif</string>
+    <string name="dashboard_total_foods">Total Menu</string>
+    <string name="dashboard_total_users">Total Pengguna</string>
+    
+    <string name="menu_management_title">Kelola Menu</string>
+    <string name="add_menu_item">Tambah Menu</string>
+    <string name="edit_menu_item">Edit Menu</string>
+    <string name="menu_item_name">Nama Menu</string>
+    <string name="menu_item_price">Harga</string>
+    <string name="menu_item_description">Deskripsi</string>
+    <string name="menu_item_category">Kategori</string>
+    <string name="menu_item_available">Tersedia</string>
+    <string name="select_image">Pilih Gambar</string>
+    <string name="save">Simpan</string>
+    <string name="delete">Hapus</string>
+    <string name="edit">Edit</string>
+    
+    <string name="order_management_title">Kelola Pesanan</string>
+    <string name="order_pending">Menunggu</string>
+    <string name="order_preparing">Sedang Diproses</string>
+    <string name="order_ready">Siap</string>
+    <string name="order_delivered">Terkirim</string>
+    <string name="order_cancelled">Dibatalkan</string>
+    <string name="update_status">Update Status</string>
+    <string name="order_id">ID Pesanan</string>
+    <string name="customer_name">Nama Pelanggan</string>
+    <string name="order_items">Item Pesanan</string>
+    <string name="total_amount">Total</string>
+    <string name="order_time">Waktu Pesanan</string>
+    
+    <string name="user_management_title">Kelola Pengguna</string>
+    <string name="search_users">Cari Pengguna</string>
+    <string name="view_details">Lihat Detail</string>
+    <string name="view_orders">Lihat Pesanan</string>
+    <string name="user_profile">Profil Pengguna</string>
+    <string name="user_orders">Pesanan Pengguna</string>
+    
+    <string name="login_title">Login Admin</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="login">Masuk</string>
+    <string name="login_error">Email atau password salah</string>
+    <string name="welcome_admin">Selamat datang, Admin!</string>
+    
+    <string name="logout">Keluar</string>
+    <string name="confirm_logout">Apakah Anda yakin ingin keluar?</string>
+    <string name="confirm_delete">Apakah Anda yakin ingin menghapus item ini?</string>
+    <string name="yes">Ya</string>
+    <string name="no">Tidak</string>
+    <string name="cancel">Batal</string>
+    
+    <string name="success_add_food">Menu berhasil ditambahkan</string>
+    <string name="success_update_food">Menu berhasil diperbarui</string>
+    <string name="success_delete_food">Menu berhasil dihapus</string>
+    <string name="success_update_order">Status pesanan berhasil diperbarui</string>
+    <string name="error_generic">Terjadi kesalahan, silakan coba lagi</string>
+    <string name="error_empty_fields">Harap isi semua field</string>
+    <string name="error_upload_image">Gagal mengunggah gambar</string>
+    
+    <string name="no_orders">Belum ada pesanan</string>
+    <string name="no_foods">Belum ada menu</string>
+    <string name="no_users">Belum ada pengguna</string>
+    <string name="loading">Memuat...</string>
+    
+    <string name="rp">Rp</string>
+    <string name="orders_count">pesanan</string>
+</resources>
