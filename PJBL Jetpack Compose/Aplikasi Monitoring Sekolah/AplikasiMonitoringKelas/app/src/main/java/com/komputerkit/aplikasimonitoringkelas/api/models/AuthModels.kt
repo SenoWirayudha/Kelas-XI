@@ -30,6 +30,8 @@ data class User(
     val name: String,
     val email: String,
     val role: String,  // siswa, kurikulum, kepala_sekolah, admin
+    val kelas_id: Int?,  // Foreign key ke tabel kelas (untuk role siswa)
+    val kelas: KelasData?,  // Relasi ke kelas (untuk role siswa)
     val email_verified_at: String?,
     val created_at: String,
     val updated_at: String

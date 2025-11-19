@@ -48,6 +48,7 @@ Route::get('/jadwal/cascade/details/hari/{hari}/kelas/{kelasId}/guru/{guruId}/ma
 // Guru Mengajar endpoints - untuk ListKurikulumScreen & Ganti Guru
 Route::post('/guru-mengajar/by-hari-kelas', [GuruMengajarController::class, 'getByHariKelasPost']);
 Route::post('/guru-mengajar/tidak-masuk', [GuruMengajarController::class, 'getGuruTidakMasukPost']);
+Route::post('/guru-mengajar/kelas-kosong', [GuruMengajarController::class, 'getKelasKosongByHari']); // NEW: Get kelas kosong by hari
 Route::get('/guru-mengajars/hari/{hari}/kelas/{kelasId}', [GuruMengajarController::class, 'getByHariAndKelas']);
 Route::get('/guru-mengajars/tidak-masuk/hari/{hari}/kelas/{kelasId}', [GuruMengajarController::class, 'getGuruTidakMasuk']);
 Route::post('/guru-mengajars', [GuruMengajarController::class, 'store']); // Create guru mengajar with jadwal_id

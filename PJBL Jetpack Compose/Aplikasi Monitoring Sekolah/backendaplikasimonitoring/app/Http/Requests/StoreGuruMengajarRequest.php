@@ -23,8 +23,9 @@ class StoreGuruMengajarRequest extends FormRequest
     {
         return [
             'jadwal_id' => 'required|exists:jadwals,id',
-            'keterangan' => 'nullable|string',
-            'status' => 'required|in:masuk,tidak_masuk'
+            'guru_pengganti_id' => 'nullable|exists:gurus,id',
+            'status' => 'required|in:masuk,tidak_masuk,izin',
+            'keterangan' => 'nullable|string'
         ];
     }
 }

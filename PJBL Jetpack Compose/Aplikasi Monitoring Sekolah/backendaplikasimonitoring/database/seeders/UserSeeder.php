@@ -29,6 +29,14 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password123'),
             'role' => 'kepala_sekolah',
         ]);
+        
+        // User Login (Kepala Sekolah alternatif)
+        User::create([
+            'name' => 'User Login',
+            'email' => 'user@sekolah.com',
+            'password' => Hash::make('password'),
+            'role' => 'kepala_sekolah',
+        ]);
 
         // Kurikulum
         User::create([
@@ -38,20 +46,22 @@ class UserSeeder extends Seeder
             'role' => 'kurikulum',
         ]);
 
-        // Siswa 1
+        // Siswa 1 - Kelas 1 (X RPL 1)
         User::create([
             'name' => 'Ahmad Fauzi',
             'email' => 'siswa1@sekolah.com',
             'password' => Hash::make('password123'),
             'role' => 'siswa',
+            'kelas_id' => 1, // X RPL 1
         ]);
 
-        // Siswa 2
+        // Siswa 2 - Kelas 2 (XI RPL 1)
         User::create([
             'name' => 'Siti Aminah',
             'email' => 'siswa2@sekolah.com',
             'password' => Hash::make('password123'),
             'role' => 'siswa',
+            'kelas_id' => 2, // XI RPL 1
         ]);
     }
 }

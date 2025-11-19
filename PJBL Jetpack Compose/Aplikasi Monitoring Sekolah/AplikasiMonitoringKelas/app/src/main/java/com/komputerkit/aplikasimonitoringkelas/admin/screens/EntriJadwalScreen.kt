@@ -69,7 +69,7 @@ fun EntriJadwalScreen(role: String, email: String, name: String, onLogout: () ->
     var isSaving by remember { mutableStateOf(false) }
     
     // Hardcoded hari list
-    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
+    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat")
     
     // Load data functions - SIMPLIFIED (no delays, no dispatchers)
     fun loadKelas() {

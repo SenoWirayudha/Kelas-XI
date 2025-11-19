@@ -38,7 +38,8 @@ class AuthViewModel(context: Context) : ViewModel() {
                         id = loginData.user.id,
                         name = loginData.user.name,
                         email = loginData.user.email,
-                        role = loginData.user.role
+                        role = loginData.user.role,
+                        kelasId = loginData.user.kelas_id // Simpan kelas_id untuk siswa
                     )
                     _isLoggedIn.value = true
                 }
@@ -74,4 +75,6 @@ class AuthViewModel(context: Context) : ViewModel() {
     fun getUserEmail(): String? = tokenManager.getUserEmail()
     
     fun getUserRole(): String? = tokenManager.getUserRole()
+    
+    fun getKelasId(): Int? = tokenManager.getKelasId()
 }

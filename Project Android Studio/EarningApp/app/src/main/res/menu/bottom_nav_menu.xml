@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_home"
+        android:icon="@android:drawable/ic_menu_view"
+        android:title="@string/nav_home" />
+    
+    <item
+        android:id="@+id/nav_spin"
+        android:icon="@android:drawable/ic_menu_compass"
+        android:title="@string/nav_spin" />
+    
+    <item
+        android:id="@+id/nav_withdrawal"
+        android:icon="@android:drawable/ic_menu_send"
+        android:title="@string/nav_withdrawal" />
+</menu>

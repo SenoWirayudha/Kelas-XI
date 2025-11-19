@@ -101,6 +101,13 @@ interface ApiService {
         @Body request: GuruMengajarByHariKelasRequest
     ): Response<GuruMengajarListResponse>
     
+    // Kelas Kosong Endpoints (untuk Ganti Guru screen)
+    @POST("guru-mengajar/kelas-kosong")
+    suspend fun getKelasKosongByHari(
+        @Header("Authorization") token: String,
+        @Body request: KelasKosongRequest
+    ): Response<KelasKosongListResponse>
+    
     // Guru Endpoints
     @GET("gurus")
     suspend fun getAllGurus(@Header("Authorization") token: String): Response<GuruListResponse>

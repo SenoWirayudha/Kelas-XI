@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Earning Quiz App</string>
+    <string name="app_logo">App Logo</string>
+    
+    <!-- Bottom Navigation -->
+    <string name="nav_home">Beranda</string>
+    <string name="nav_spin">Spin Wheel</string>
+    <string name="nav_withdrawal">Penarikan</string>
+</resources>

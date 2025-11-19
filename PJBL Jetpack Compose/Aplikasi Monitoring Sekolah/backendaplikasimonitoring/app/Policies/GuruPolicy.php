@@ -13,7 +13,7 @@ class GuruPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return in_array($user->role, ['admin', 'kurikulum', 'kepala_sekolah']);
     }
 
     /**
@@ -21,7 +21,7 @@ class GuruPolicy
      */
     public function view(User $user, Guru $guru): bool
     {
-        return false;
+        return in_array($user->role, ['admin', 'kurikulum', 'kepsek']);
     }
 
     /**
@@ -29,7 +29,7 @@ class GuruPolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        return in_array($user->role, ['admin', 'kurikulum', 'kepala_sekolah']);
     }
 
     /**
@@ -37,7 +37,7 @@ class GuruPolicy
      */
     public function update(User $user, Guru $guru): bool
     {
-        return false;
+        return in_array($user->role, ['admin', 'kurikulum']);
     }
 
     /**
@@ -45,7 +45,7 @@ class GuruPolicy
      */
     public function delete(User $user, Guru $guru): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -53,7 +53,7 @@ class GuruPolicy
      */
     public function restore(User $user, Guru $guru): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -61,6 +61,6 @@ class GuruPolicy
      */
     public function forceDelete(User $user, Guru $guru): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 }

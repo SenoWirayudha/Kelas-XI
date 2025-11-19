@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="280dp"
+    android:height="280dp"
+    android:viewportWidth="280"
+    android:viewportHeight="280">
+    
+    <!-- Outer Circle Border -->
+    <path
+        android:fillColor="#FFA500"
+        android:pathData="M140,140m-140,0a140,140 0,1,1 280,0a140,140 0,1,1 -280,0" />
+    
+    <!-- Main Circle -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M140,140m-135,0a135,135 0,1,1 270,0a135,135 0,1,1 -270,0" />
+    
+    <!-- Segment 1 - Red (100) -->
+    <path
+        android:fillColor="#F44336"
+        android:pathData="M140,140 L140,5 A135,135 0 0,1 235,31 Z" />
+    
+    <!-- Segment 2 - Blue (50) -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M140,140 L235,31 A135,135 0 0,1 275,140 Z" />
+    
+    <!-- Segment 3 - Green (20) -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M140,140 L275,140 A135,135 0 0,1 235,249 Z" />
+    
+    <!-- Segment 4 - Purple (80) -->
+    <path
+        android:fillColor="#9C27B0"
+        android:pathData="M140,140 L235,249 A135,135 0 0,1 140,275 Z" />
+    
+    <!-- Segment 5 - Orange (30) -->
+    <path
+        android:fillColor="#FF9800"
+        android:pathData="M140,140 L140,275 A135,135 0 0,1 45,249 Z" />
+    
+    <!-- Segment 6 - Cyan (60) -->
+    <path
+        android:fillColor="#00BCD4"
+        android:pathData="M140,140 L45,249 A135,135 0 0,1 5,140 Z" />
+    
+    <!-- Segment 7 - Pink (40) -->
+    <path
+        android:fillColor="#E91E63"
+        android:pathData="M140,140 L5,140 A135,135 0 0,1 45,31 Z" />
+    
+    <!-- Segment 8 - Yellow (70) -->
+    <path
+        android:fillColor="#FFEB3B"
+        android:pathData="M140,140 L45,31 A135,135 0 0,1 140,5 Z" />
+    
+    <!-- White divider lines -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:pathData="M140,140 L140,5 M140,140 L235,31 M140,140 L275,140 M140,140 L235,249 M140,140 L140,275 M140,140 L45,249 M140,140 L5,140 M140,140 L45,31" />
+    
+    <!-- Center Circle -->
+    <path
+        android:fillColor="#6200EE"
+        android:pathData="M140,140m-30,0a30,30 0,1,1 60,0a30,30 0,1,1 -60,0" />
+    
+    <!-- Center White Circle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M140,140m-20,0a20,20 0,1,1 40,0a20,20 0,1,1 -40,0" />
+
+</vector>

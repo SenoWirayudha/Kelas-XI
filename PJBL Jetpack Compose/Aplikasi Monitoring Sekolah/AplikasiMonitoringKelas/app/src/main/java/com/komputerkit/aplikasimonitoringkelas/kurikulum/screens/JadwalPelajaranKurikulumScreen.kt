@@ -43,7 +43,7 @@ fun JadwalPelajaranKurikulumScreen(role: String, email: String, name: String, on
     var isLoadingJadwal by remember { mutableStateOf(false) }
     
     // Hardcoded hari list (Senin - Minggu)
-    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
+    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat")
     
     // Function to load jadwal by kelas and hari
     fun loadJadwal() {

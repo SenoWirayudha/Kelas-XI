@@ -52,6 +52,11 @@ class AuthController extends Controller
             ]);
         }
 
+        // Load relasi kelas untuk user dengan role siswa
+        if ($user->role === 'siswa') {
+            $user->load('kelas');
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([

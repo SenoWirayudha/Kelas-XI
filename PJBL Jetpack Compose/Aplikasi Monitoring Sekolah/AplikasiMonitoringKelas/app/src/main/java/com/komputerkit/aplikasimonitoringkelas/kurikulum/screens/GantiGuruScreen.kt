@@ -5,18 +5,30 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.komputerkit.aplikasimonitoringkelas.api.*
+import com.komputerkit.aplikasimonitoringkelas.api.ApiHelper
+import com.komputerkit.aplikasimonitoringkelas.api.ApiResult
+import com.komputerkit.aplikasimonitoringkelas.api.ApiClient
+import com.komputerkit.aplikasimonitoringkelas.api.TokenManager
 import com.komputerkit.aplikasimonitoringkelas.api.models.*
 import kotlinx.coroutines.launch
+
+/**
+ * GantiGuruScreen - New Flow:
+ * 1. User pilih Hari
+ * 2. System load kelas kosong (guru tidak masuk/izin) pada hari tersebut
+ * 3. User pilih kelas kosong
+ * 4. System auto-show: Kelas, Guru, Mapel, Jam Ke, Status (read-only)
+ * 5. User pilih guru pengganti
+ * 6. User isi keterangan (optional)
+ * 7. Save
+ */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,121 +38,78 @@ fun GantiGuruScreen(role: String, email: String, name: String, onLogout: () -> U
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiClient.getApiService() }
     
-    // State variables for spinners
+    // State variables
     var selectedHari by remember { mutableStateOf("") }
-    var selectedKelas by remember { mutableStateOf<KelasData?>(null) }
-    var selectedGuru by remember { mutableStateOf<GuruData?>(null) }
-    var selectedMapel by remember { mutableStateOf<MapelData?>(null) }
-    var selectedStatus by remember { mutableStateOf("") }
-    var jamKe by remember { mutableStateOf("") }
-    var jadwalId by remember { mutableStateOf<Int?>(null) }
+    var selectedKelasKosong by remember { mutableStateOf<KelasKosongData?>(null) }
+    var selectedGuruPengganti by remember { mutableStateOf<GuruData?>(null) }
     var keterangan by remember { mutableStateOf("") }
     
     // Expanded states for dropdowns
     var expandedHari by remember { mutableStateOf(false) }
-    var expandedKelas by remember { mutableStateOf(false) }
-    var expandedGuru by remember { mutableStateOf(false) }
-    var expandedMapel by remember { mutableStateOf(false) }
-    var expandedStatus by remember { mutableStateOf(false) }
+    var expandedKelasKosong by remember { mutableStateOf(false) }
+    var expandedGuruPengganti by remember { mutableStateOf(false) }
     
-    // Data lists for spinners
-    var kelasList by remember { mutableStateOf<List<KelasData>>(emptyList()) }
-    var guruList by remember { mutableStateOf<List<GuruData>>(emptyList()) }
-    var mapelList by remember { mutableStateOf<List<MapelData>>(emptyList()) }
+    // Data lists
+    var kelasKosongList by remember { mutableStateOf<List<KelasKosongData>>(emptyList()) }
+    var guruPenggantiList by remember { mutableStateOf<List<GuruData>>(emptyList()) }
     
     // Loading states
-    var isLoadingKelas by remember { mutableStateOf(false) }
-    var isLoadingGuru by remember { mutableStateOf(false) }
-    var isLoadingMapel by remember { mutableStateOf(false) }
-    var isLoadingJadwal by remember { mutableStateOf(false) }
+    var isLoadingKelasKosong by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     
-    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
-    val statusList = listOf("Masuk", "Tidak Masuk")
+    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat")
     
-    // Function to load kelas based on selected hari
-    fun loadKelas(hari: String) {
-        scope.launch {
-            isLoadingKelas = true
-            val token = "Bearer ${tokenManager.getToken()}"
-            when (val result = ApiHelper.safeApiCall { apiService.getKelasByHari(token, hari) }) {
-                is ApiResult.Success -> {
-                    kelasList = result.data.data
-                }
-                is ApiResult.Error -> {
-                    Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_SHORT).show()
-                }
-                ApiResult.Loading -> {}
-            }
-            isLoadingKelas = false
+    // Function to load kelas kosong based on hari
+    fun loadKelasKosong() {
+        if (selectedHari.isEmpty()) {
+            Toast.makeText(context, "Pilih hari terlebih dahulu", Toast.LENGTH_SHORT).show()
+            return
         }
-    }
-    
-    // Function to load guru based on hari and kelas
-    fun loadGuru(hari: String, kelasId: Int) {
+        
         scope.launch {
-            isLoadingGuru = true
+            isLoadingKelasKosong = true
             val token = "Bearer ${tokenManager.getToken()}"
-            when (val result = ApiHelper.safeApiCall { 
-                apiService.getGuruByHariAndKelas(token, hari, kelasId) 
+            val request = KelasKosongRequest(hari = selectedHari)
+            
+            when (val result = ApiHelper.safeApiCall<KelasKosongListResponse> { 
+                apiService.getKelasKosongByHari(token, request) 
             }) {
                 is ApiResult.Success -> {
-                    guruList = result.data.data
+                    kelasKosongList = result.data.data
+                    if (kelasKosongList.isEmpty()) {
+                        Toast.makeText(context, "Tidak ada kelas kosong pada hari $selectedHari", Toast.LENGTH_SHORT).show()
+                    }
                 }
                 is ApiResult.Error -> {
                     Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_SHORT).show()
                 }
-                ApiResult.Loading -> {}
+                is ApiResult.Loading -> {}
             }
-            isLoadingGuru = false
+            isLoadingKelasKosong = false
         }
     }
     
-    // Function to load mapel based on hari, kelas, and guru
-    fun loadMapel(hari: String, kelasId: Int, guruId: Int) {
+    // Function to load all guru for pengganti
+    fun loadAllGuru() {
         scope.launch {
-            isLoadingMapel = true
-            val token = "Bearer ${tokenManager.getToken()}"
-            when (val result = ApiHelper.safeApiCall { 
-                apiService.getMapelByHariKelasGuru(token, hari, kelasId, guruId) 
-            }) {
-                is ApiResult.Success -> {
-                    mapelList = result.data.data
+            try {
+                val token = "Bearer ${tokenManager.getToken()}"
+                val response = apiService.getAllGurus(token)
+                // Filter out the guru yang sedang tidak masuk/izin
+                if (response.isSuccessful && response.body() != null) {
+                    guruPenggantiList = response.body()!!.data.filter { 
+                        it.id != selectedKelasKosong?.guruId 
+                    }
                 }
-                is ApiResult.Error -> {
-                    Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_SHORT).show()
-                }
-                ApiResult.Loading -> {}
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error loading guru: ${e.message}", Toast.LENGTH_SHORT).show()
             }
-            isLoadingMapel = false
         }
     }
     
-    // Function to load jadwal details and auto-fill jam_ke
-    fun loadJadwalDetails(hari: String, kelasId: Int, guruId: Int, mapelId: Int) {
-        scope.launch {
-            isLoadingJadwal = true
-            val token = "Bearer ${tokenManager.getToken()}"
-            when (val result = ApiHelper.safeApiCall { 
-                apiService.getJadwalDetails(token, hari, kelasId, guruId, mapelId) 
-            }) {
-                is ApiResult.Success -> {
-                    val detail = result.data.data
-                    jamKe = detail.jamKe
-                    jadwalId = detail.jadwalId
-                }
-                is ApiResult.Error -> {
-                    Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_SHORT).show()
-                }
-                ApiResult.Loading -> {}
-            }
-            isLoadingJadwal = false
-        }
-    }
-    
-    // Function to save guru mengajar
-    fun saveGuruMengajar() {
-        if (jadwalId == null || selectedStatus.isEmpty()) {
+    // Function to save guru pengganti
+    fun saveGuruPengganti() {
+        if (selectedKelasKosong == null || selectedGuruPengganti == null) {
             Toast.makeText(context, "Lengkapi semua data terlebih dahulu", Toast.LENGTH_SHORT).show()
             return
         }
@@ -148,97 +117,99 @@ fun GantiGuruScreen(role: String, email: String, name: String, onLogout: () -> U
         scope.launch {
             isSaving = true
             val token = "Bearer ${tokenManager.getToken()}"
-            val request = CreateGuruMengajarRequest(
-                jadwalId = jadwalId!!,
-                status = if (selectedStatus == "Masuk") "masuk" else "tidak_masuk",
+            
+            // Update guru mengajar dengan guru pengganti
+            val request = UpdateGuruMengajarRequest(
+                guruPenggantiId = selectedGuruPengganti!!.id,
+                status = selectedKelasKosong!!.status,
                 keterangan = keterangan.ifEmpty { null }
             )
             
-            when (val result = ApiHelper.safeApiCall { 
-                apiService.createGuruMengajar(token, request) 
+            when (val result = ApiHelper.safeApiCall<GuruMengajarResponse> {
+                apiService.updateGuruMengajar(token, selectedKelasKosong!!.id, request)
             }) {
                 is ApiResult.Success -> {
-                    Toast.makeText(context, "Data berhasil disimpan!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Guru pengganti berhasil disimpan!", Toast.LENGTH_SHORT).show()
                     // Reset form
                     selectedHari = ""
-                    selectedKelas = null
-                    selectedGuru = null
-                    selectedMapel = null
-                    selectedStatus = ""
-                    jamKe = ""
-                    jadwalId = null
+                    selectedKelasKosong = null
+                    selectedGuruPengganti = null
                     keterangan = ""
-                    kelasList = emptyList()
-                    guruList = emptyList()
-                    mapelList = emptyList()
+                    kelasKosongList = emptyList()
+                    guruPenggantiList = emptyList()
                 }
                 is ApiResult.Error -> {
-                    Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_SHORT).show()
                 }
-                ApiResult.Loading -> {}
+                is ApiResult.Loading -> {}
             }
             isSaving = false
         }
     }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Top App Bar
-        TopAppBar(
-            title = { 
-                Column {
-                    Text("Ganti Guru", fontWeight = FontWeight.Bold)
-                    Text("$name - $email", fontSize = 12.sp)
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Ganti Guru") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                actions = {
+                    IconButton(onClick = onLogout) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Logout",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            ),
-            actions = {
-                OutlinedButton(
-                    onClick = onLogout,
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                ) {
-                    Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Logout")
-                }
-            }
-        )
-
+            )
+        }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(paddingValues)
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
+            // Header Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
                         text = "Form Penggantian Guru",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
-                    
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Pilih filter secara berurutan dari Hari sampai Status",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "Pilih kelas kosong dan assign guru pengganti",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
-                    
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    // 1. Spinner Hari
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Form Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 1. Dropdown Hari
                     ExposedDropdownMenuBox(
                         expanded = expandedHari,
                         onExpandedChange = { expandedHari = it },
@@ -255,7 +226,7 @@ fun GantiGuruScreen(role: String, email: String, name: String, onLogout: () -> U
                             modifier = Modifier.fillMaxWidth().menuAnchor(),
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                         )
-
+                        
                         ExposedDropdownMenu(
                             expanded = expandedHari,
                             onDismissRequest = { expandedHari = false }
@@ -265,285 +236,249 @@ fun GantiGuruScreen(role: String, email: String, name: String, onLogout: () -> U
                                     text = { Text(hari) },
                                     onClick = {
                                         selectedHari = hari
+                                        selectedKelasKosong = null
+                                        selectedGuruPengganti = null
+                                        kelasKosongList = emptyList()
+                                        guruPenggantiList = emptyList()
                                         expandedHari = false
-                                        // Reset cascade
-                                        selectedKelas = null
-                                        selectedGuru = null
-                                        selectedMapel = null
-                                        selectedStatus = ""
-                                        jamKe = ""
-                                        jadwalId = null
-                                        guruList = emptyList()
-                                        mapelList = emptyList()
-                                        // Load kelas
-                                        loadKelas(hari)
+                                        loadKelasKosong()
                                     }
                                 )
                             }
                         }
                     }
-
-                    // 2. Spinner Kelas
+                    
+                    // 2. Dropdown Kelas Kosong
                     ExposedDropdownMenuBox(
-                        expanded = expandedKelas,
-                        onExpandedChange = { if (kelasList.isNotEmpty()) expandedKelas = it },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = selectedKelas?.nama_kelas ?: "",
-                            onValueChange = {},
-                            readOnly = true,
-                            enabled = kelasList.isNotEmpty(),
-                            label = { Text("2. Pilih Kelas") },
-                            trailingIcon = {
-                                if (isLoadingKelas) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                } else {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedKelas)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-
-                        ExposedDropdownMenu(
-                            expanded = expandedKelas,
-                            onDismissRequest = { expandedKelas = false }
-                        ) {
-                            kelasList.forEach { kelas ->
-                                DropdownMenuItem(
-                                    text = { Text("${kelas.nama_kelas} (ID: ${kelas.id})") },
-                                    onClick = {
-                                        selectedKelas = kelas
-                                        expandedKelas = false
-                                        // Reset cascade
-                                        selectedGuru = null
-                                        selectedMapel = null
-                                        selectedStatus = ""
-                                        jamKe = ""
-                                        jadwalId = null
-                                        mapelList = emptyList()
-                                        // Load guru
-                                        loadGuru(selectedHari, kelas.id)
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // 3. Spinner Guru
-                    ExposedDropdownMenuBox(
-                        expanded = expandedGuru,
-                        onExpandedChange = { if (guruList.isNotEmpty()) expandedGuru = it },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = selectedGuru?.namaGuru ?: "",
-                            onValueChange = {},
-                            readOnly = true,
-                            enabled = guruList.isNotEmpty(),
-                            label = { Text("3. Pilih Guru") },
-                            trailingIcon = {
-                                if (isLoadingGuru) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                } else {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGuru)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-
-                        ExposedDropdownMenu(
-                            expanded = expandedGuru,
-                            onDismissRequest = { expandedGuru = false }
-                        ) {
-                            guruList.forEach { guru ->
-                                DropdownMenuItem(
-                                    text = { Text("${guru.namaGuru} (${guru.kodeGuru})") },
-                                    onClick = {
-                                        selectedGuru = guru
-                                        expandedGuru = false
-                                        // Reset cascade
-                                        selectedMapel = null
-                                        selectedStatus = ""
-                                        jamKe = ""
-                                        jadwalId = null
-                                        // Load mapel
-                                        loadMapel(selectedHari, selectedKelas!!.id, guru.id)
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // 4. Spinner Mapel
-                    ExposedDropdownMenuBox(
-                        expanded = expandedMapel,
-                        onExpandedChange = { if (mapelList.isNotEmpty()) expandedMapel = it },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = selectedMapel?.namaMapel ?: "",
-                            onValueChange = {},
-                            readOnly = true,
-                            enabled = mapelList.isNotEmpty(),
-                            label = { Text("4. Pilih Mata Pelajaran") },
-                            trailingIcon = {
-                                if (isLoadingMapel) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                } else {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMapel)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-
-                        ExposedDropdownMenu(
-                            expanded = expandedMapel,
-                            onDismissRequest = { expandedMapel = false }
-                        ) {
-                            mapelList.forEach { mapel ->
-                                DropdownMenuItem(
-                                    text = { Text("${mapel.namaMapel} (${mapel.kodeMapel})") },
-                                    onClick = {
-                                        selectedMapel = mapel
-                                        expandedMapel = false
-                                        // Load jadwal details to get jam_ke
-                                        loadJadwalDetails(
-                                            selectedHari,
-                                            selectedKelas!!.id,
-                                            selectedGuru!!.id,
-                                            mapel.id
-                                        )
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // 5. Auto-filled Jam Ke (Read-only)
-                    OutlinedTextField(
-                        value = jamKe,
-                        onValueChange = {},
-                        readOnly = true,
-                        enabled = false,
-                        label = { Text("Jam Ke (Otomatis)") },
-                        leadingIcon = {
-                            if (isLoadingJadwal) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                            } else {
-                                Icon(Icons.Default.DateRange, contentDescription = null)
-                            }
+                        expanded = expandedKelasKosong,
+                        onExpandedChange = { 
+                            if (selectedHari.isNotEmpty()) expandedKelasKosong = it 
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                            disabledBorderColor = MaterialTheme.colorScheme.outline,
-                            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    )
-
-                    // 6. Spinner Status
-                    ExposedDropdownMenuBox(
-                        expanded = expandedStatus,
-                        onExpandedChange = { if (jamKe.isNotEmpty()) expandedStatus = it },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         OutlinedTextField(
-                            value = selectedStatus,
+                            value = selectedKelasKosong?.let { 
+                                "${it.kelasNama} - ${it.guruNama} (${it.mapelNama})" 
+                            } ?: "",
                             onValueChange = {},
                             readOnly = true,
-                            enabled = jamKe.isNotEmpty(),
-                            label = { Text("5. Pilih Status") },
+                            enabled = selectedHari.isNotEmpty() && kelasKosongList.isNotEmpty(),
+                            label = { Text("2. Pilih Kelas Kosong") },
+                            placeholder = { Text(
+                                when {
+                                    selectedHari.isEmpty() -> "Pilih hari terlebih dahulu"
+                                    isLoadingKelasKosong -> "Loading..."
+                                    kelasKosongList.isEmpty() -> "Tidak ada kelas kosong"
+                                    else -> "Pilih kelas"
+                                }
+                            ) },
+                            leadingIcon = {
+                                if (isLoadingKelasKosong) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                } else {
+                                    Icon(Icons.Default.DateRange, contentDescription = null)
+                                }
+                            },
                             trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStatus)
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedKelasKosong)
                             },
                             modifier = Modifier.fillMaxWidth().menuAnchor(),
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                         )
-
+                        
                         ExposedDropdownMenu(
-                            expanded = expandedStatus,
-                            onDismissRequest = { expandedStatus = false }
+                            expanded = expandedKelasKosong,
+                            onDismissRequest = { expandedKelasKosong = false }
                         ) {
-                            statusList.forEach { status ->
+                            kelasKosongList.forEach { kelas ->
                                 DropdownMenuItem(
-                                    text = { Text(status) },
+                                    text = { 
+                                        Column {
+                                            Text(
+                                                text = kelas.kelasNama,
+                                                style = MaterialTheme.typography.bodyLarge
+                                            )
+                                            Text(
+                                                text = "${kelas.guruNama} - ${kelas.mapelNama} (Jam ${kelas.jamKe})",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = "Status: ${kelas.status.uppercase()}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = if (kelas.status == "izin") 
+                                                    MaterialTheme.colorScheme.tertiary 
+                                                else 
+                                                    MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    },
                                     onClick = {
-                                        selectedStatus = status
-                                        expandedStatus = false
+                                        selectedKelasKosong = kelas
+                                        selectedGuruPengganti = null
+                                        expandedKelasKosong = false
+                                        loadAllGuru()
                                     }
                                 )
                             }
                         }
                     }
-
-                    // 7. Keterangan (Optional)
-                    OutlinedTextField(
-                        value = keterangan,
-                        onValueChange = { keterangan = it },
-                        label = { Text("Keterangan (Opsional)") },
-                        placeholder = { Text("Contoh: Guru izin sakit") },
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 3
-                    )
-
+                    
+                    // Auto-filled fields (Read-only) - Only show when kelas kosong selected
+                    if (selectedKelasKosong != null) {
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                        
+                        Text(
+                            text = "Detail Kelas Kosong",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        
+                        // Kelas
+                        OutlinedTextField(
+                            value = selectedKelasKosong!!.kelasNama,
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = false,
+                            label = { Text("Kelas") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                        
+                        // Guru (yang tidak masuk/izin)
+                        OutlinedTextField(
+                            value = selectedKelasKosong!!.guruNama,
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = false,
+                            label = { Text("Guru (Tidak Masuk/Izin)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                        
+                        // Mata Pelajaran
+                        OutlinedTextField(
+                            value = selectedKelasKosong!!.mapelNama,
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = false,
+                            label = { Text("Mata Pelajaran") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                        
+                        // Jam Ke
+                        OutlinedTextField(
+                            value = "Jam Ke ${selectedKelasKosong!!.jamKe}",
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = false,
+                            label = { Text("Waktu") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                        
+                        // Status
+                        OutlinedTextField(
+                            value = selectedKelasKosong!!.status.uppercase(),
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = false,
+                            label = { Text("Status") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = if (selectedKelasKosong!!.status == "izin") 
+                                    MaterialTheme.colorScheme.tertiary 
+                                else 
+                                    MaterialTheme.colorScheme.error,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                        
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                        
+                        // 3. Dropdown Guru Pengganti
+                        ExposedDropdownMenuBox(
+                            expanded = expandedGuruPengganti,
+                            onExpandedChange = { expandedGuruPengganti = it },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = selectedGuruPengganti?.namaGuru ?: "",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("3. Pilih Guru Pengganti") },
+                                placeholder = { Text("Pilih guru pengganti") },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGuruPengganti)
+                                },
+                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                            )
+                            
+                            ExposedDropdownMenu(
+                                expanded = expandedGuruPengganti,
+                                onDismissRequest = { expandedGuruPengganti = false }
+                            ) {
+                                guruPenggantiList.forEach { guru ->
+                                    DropdownMenuItem(
+                                        text = { Text(guru.namaGuru) },
+                                        onClick = {
+                                            selectedGuruPengganti = guru
+                                            expandedGuruPengganti = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // 4. Keterangan (Optional)
+                        OutlinedTextField(
+                            value = keterangan,
+                            onValueChange = { keterangan = it },
+                            label = { Text("4. Keterangan (Opsional)") },
+                            placeholder = { Text("Contoh: Guru sakit") },
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 3
+                        )
+                    }
+                    
                     Divider(modifier = Modifier.padding(vertical = 8.dp))
-
+                    
                     // Button Simpan
                     Button(
-                        onClick = { saveGuruMengajar() },
-                        enabled = jadwalId != null && selectedStatus.isNotEmpty() && !isSaving,
-                        modifier = Modifier.fillMaxWidth().height(50.dp)
+                        onClick = { saveGuruPengganti() },
+                        enabled = selectedKelasKosong != null && 
+                                  selectedGuruPengganti != null && 
+                                  !isSaving,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         if (isSaving) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(20.dp),
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Menyimpan...")
-                        } else {
-                            Icon(Icons.Default.Check, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Simpan Data", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
+                        Text(if (isSaving) "Menyimpan..." else "Simpan Guru Pengganti")
                     }
-                }
-            }
-
-            // Info Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Informasi",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "• Pilih filter secara berurutan: Hari → Kelas → Guru → Mapel → Status\n" +
-                               "• Jam Ke akan terisi otomatis setelah memilih Mapel\n" +
-                               "• Keterangan bersifat opsional",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
                 }
             }
         }

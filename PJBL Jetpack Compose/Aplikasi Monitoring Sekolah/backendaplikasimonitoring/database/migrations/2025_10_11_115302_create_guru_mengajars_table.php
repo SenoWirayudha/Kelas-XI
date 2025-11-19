@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('jadwal_id')->constrained('jadwals')->onDelete('cascade');
             $table->text('keterangan')->nullable();
-            $table->enum('status', ['masuk', 'tidak_masuk'])->default('masuk');
+            $table->enum('status', ['masuk', 'tidak_masuk', 'izin'])->default('masuk');
             $table->timestamps();
         });
     }

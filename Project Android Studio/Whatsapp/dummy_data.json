@@ -1,0 +1,98 @@
+{
+  "Users": {
+    "dummy_user1": {
+      "uid": "dummy_user1",
+      "username": "John Doe",
+      "email": "john@example.com",
+      "status": "online",
+      "lastSeen": 1729000000000,
+      "profileImage": ""
+    },
+    "dummy_user2": {
+      "uid": "dummy_user2",
+      "username": "Jane Smith",
+      "email": "jane@example.com",
+      "status": "online",
+      "lastSeen": 1729000000000,
+      "profileImage": ""
+    },
+    "dummy_user3": {
+      "uid": "dummy_user3",
+      "username": "Bob Wilson",
+      "email": "bob@example.com",
+      "status": "offline",
+      "lastSeen": 1728900000000,
+      "profileImage": ""
+    },
+    "dummy_user4": {
+      "uid": "dummy_user4",
+      "username": "Alice Cooper",
+      "email": "alice@example.com",
+      "status": "online",
+      "lastSeen": 1729010000000,
+      "profileImage": ""
+    },
+    "dummy_user5": {
+      "uid": "dummy_user5",
+      "username": "Charlie Brown",
+      "email": "charlie@example.com",
+      "status": "offline",
+      "lastSeen": 1728800000000,
+      "profileImage": ""
+    }
+  },
+  "Chats": {
+    "room_dummy_user1_dummy_user2": {
+      "messages": {
+        "msg1": {
+          "uid": "dummy_user1",
+          "message": "Hello Jane!",
+          "timestamp": 1729000000000
+        },
+        "msg2": {
+          "uid": "dummy_user2",
+          "message": "Hi John! How are you?",
+          "timestamp": 1729001000000
+        },
+        "msg3": {
+          "uid": "dummy_user1",
+          "message": "I'm good, thanks! How about you?",
+          "timestamp": 1729002000000
+        },
+        "msg4": {
+          "uid": "dummy_user2",
+          "message": "Great! Want to meet tomorrow?",
+          "timestamp": 1729003000000
+        }
+      }
+    },
+    "room_dummy_user1_dummy_user3": {
+      "messages": {
+        "msg1": {
+          "uid": "dummy_user3",
+          "message": "Hey John, are you coming to the meeting?",
+          "timestamp": 1728900000000
+        },
+        "msg2": {
+          "uid": "dummy_user1",
+          "message": "Yes, I'll be there at 10 AM",
+          "timestamp": 1728901000000
+        }
+      }
+    },
+    "room_dummy_user2_dummy_user4": {
+      "messages": {
+        "msg1": {
+          "uid": "dummy_user4",
+          "message": "Jane, did you finish the report?",
+          "timestamp": 1729010000000
+        },
+        "msg2": {
+          "uid": "dummy_user2",
+          "message": "Almost done! Will send it by EOD",
+          "timestamp": 1729011000000
+        }
+      }
+    }
+  }
+}

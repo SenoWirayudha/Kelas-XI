@@ -28,14 +28,14 @@ fun ListScreen(role: String, email: String, name: String, onLogout: () -> Unit) 
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiClient.getApiService() }
     
+    // Get kelas_id from token
+    val kelasId = remember { tokenManager.getKelasId() }
+    
     // State management
     var selectedHari by remember { mutableStateOf("Senin") }
     var expandedHari by remember { mutableStateOf(false) }
     
-    var selectedKelas by remember { mutableStateOf<KelasData?>(null) }
-    var expandedKelas by remember { mutableStateOf(false) }
-    var kelasList by remember { mutableStateOf<List<KelasData>>(emptyList()) }
-    var isLoadingKelas by remember { mutableStateOf(false) }
+    var kelasName by remember { mutableStateOf("") }
     
     var guruMengajarList by remember { mutableStateOf<List<GuruMengajarData>>(emptyList()) }
     var isLoadingData by remember { mutableStateOf(false) }
@@ -48,32 +48,30 @@ fun ListScreen(role: String, email: String, name: String, onLogout: () -> Unit) 
     var editKeterangan by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
     
-    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
+    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat")
     
-    // Load kelas list on screen open
-    LaunchedEffect(Unit) {
-        isLoadingKelas = true
-        try {
-            val response = apiService.getKelas()
-            kelasList = response.data
-            if (kelasList.isNotEmpty()) {
-                selectedKelas = kelasList[0]
+    // Load kelas name on screen open
+    LaunchedEffect(kelasId) {
+        if (kelasId != null) {
+            try {
+                val response = apiService.getKelas()
+                val kelas = response.data.find { it.id == kelasId }
+                kelasName = kelas?.nama_kelas ?: ""
+            } catch (e: Exception) {
+                Toast.makeText(context, e.message ?: "Error loading kelas", Toast.LENGTH_SHORT).show()
             }
-        } catch (e: Exception) {
-            Toast.makeText(context, e.message ?: "Error loading kelas", Toast.LENGTH_SHORT).show()
         }
-        isLoadingKelas = false
     }
     
-    // Load guru mengajar when hari and kelas selected
-    LaunchedEffect(selectedHari, selectedKelas) {
-        if (selectedKelas != null) {
+    // Load guru mengajar when hari selected
+    LaunchedEffect(selectedHari, kelasId) {
+        if (kelasId != null) {
             isLoadingData = true
             errorMessage = null
             val token = "Bearer ${tokenManager.getToken()}"
             val request = GuruMengajarByHariKelasRequest(
                 hari = selectedHari,
-                kelasId = selectedKelas!!.id
+                kelasId = kelasId
             )
             
             when (val result = ApiHelper.safeApiCall { 
@@ -82,7 +80,7 @@ fun ListScreen(role: String, email: String, name: String, onLogout: () -> Unit) 
                 is ApiResult.Success -> {
                     guruMengajarList = result.data.data
                     if (guruMengajarList.isEmpty()) {
-                        errorMessage = "Tidak ada data guru mengajar untuk hari ${selectedHari} di kelas ${selectedKelas!!.nama_kelas}"
+                        errorMessage = "Tidak ada data guru mengajar untuk hari ${selectedHari}"
                     }
                 }
                 is ApiResult.Error -> {
@@ -101,6 +99,7 @@ fun ListScreen(role: String, email: String, name: String, onLogout: () -> Unit) 
             isSaving = true
             val token = "Bearer ${tokenManager.getToken()}"
             val request = UpdateGuruMengajarRequest(
+                guruPenggantiId = null,
                 status = status,
                 keterangan = keterangan
             )
@@ -113,10 +112,10 @@ fun ListScreen(role: String, email: String, name: String, onLogout: () -> Unit) 
                     showEditDialog = false
                     
                     // Reload data
-                    if (selectedKelas != null) {
+                    if (kelasId != null) {
                         val reloadRequest = GuruMengajarByHariKelasRequest(
                             hari = selectedHari,
-                            kelasId = selectedKelas!!.id
+                            kelasId = kelasId
                         )
                         when (val reloadResult = ApiHelper.safeApiCall { 
                             apiService.getGuruMengajarByHariKelas(token, reloadRequest) 
@@ -143,8 +142,14 @@ fun ListScreen(role: String, email: String, name: String, onLogout: () -> Unit) 
             TopAppBar(
                 title = { 
                     Column {
-                        Text("Daftar Guru Mengajar", fontWeight = FontWeight.Bold)
-                        Text("$name - $email", fontSize = 12.sp)
+                        Text(
+                            text = "Daftar Guru Mengajar",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (kelasName.isNotEmpty()) "$name - $kelasName" else "$name - $email",
+                            fontSize = 12.sp
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -210,42 +215,6 @@ fun ListScreen(role: String, email: String, name: String, onLogout: () -> Unit) 
                                     onClick = {
                                         selectedHari = hari
                                         expandedHari = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Dropdown Kelas
-                    ExposedDropdownMenuBox(
-                        expanded = expandedKelas,
-                        onExpandedChange = { expandedKelas = it }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedKelas?.nama_kelas ?: "Loading...",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Pilih Kelas") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedKelas) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                            enabled = !isLoadingKelas
-                        )
-                        
-                        ExposedDropdownMenu(
-                            expanded = expandedKelas,
-                            onDismissRequest = { expandedKelas = false }
-                        ) {
-                            kelasList.forEach { kelas ->
-                                DropdownMenuItem(
-                                    text = { Text(kelas.nama_kelas) },
-                                    onClick = {
-                                        selectedKelas = kelas
-                                        expandedKelas = false
                                     }
                                 )
                             }
@@ -375,6 +344,7 @@ fun ListScreen(role: String, email: String, name: String, onLogout: () -> Unit) 
                             value = when(editStatus) {
                                 "masuk" -> "Masuk"
                                 "tidak_masuk" -> "Tidak Masuk"
+                                "izin" -> "Izin"
                                 else -> editStatus
                             },
                             onValueChange = {},
@@ -402,6 +372,13 @@ fun ListScreen(role: String, email: String, name: String, onLogout: () -> Unit) 
                                 text = { Text("Tidak Masuk") },
                                 onClick = {
                                     editStatus = "tidak_masuk"
+                                    expandedStatus = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Izin") },
+                                onClick = {
+                                    editStatus = "izin"
                                     expandedStatus = false
                                 }
                             )
@@ -555,6 +532,7 @@ fun GuruMengajarCard(
                         containerColor = when (item.status.lowercase()) {
                             "masuk" -> MaterialTheme.colorScheme.primaryContainer
                             "tidak_masuk" -> MaterialTheme.colorScheme.errorContainer
+                            "izin" -> MaterialTheme.colorScheme.tertiaryContainer
                             else -> MaterialTheme.colorScheme.secondaryContainer
                         }
                     )
@@ -563,6 +541,7 @@ fun GuruMengajarCard(
                         text = when (item.status.lowercase()) {
                             "masuk" -> "Masuk"
                             "tidak_masuk" -> "Tidak Masuk"
+                            "izin" -> "Izin"
                             else -> item.status
                         },
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -571,9 +550,88 @@ fun GuruMengajarCard(
                         color = when (item.status.lowercase()) {
                             "masuk" -> MaterialTheme.colorScheme.onPrimaryContainer
                             "tidak_masuk" -> MaterialTheme.colorScheme.onErrorContainer
+                            "izin" -> MaterialTheme.colorScheme.onTertiaryContainer
                             else -> MaterialTheme.colorScheme.onSecondaryContainer
                         }
                     )
+                }
+            }
+            
+            // Tampilkan guru pengganti jika ada
+            if (!item.guruPengganti.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Guru Pengganti:",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                            )
+                            Text(
+                                text = item.guruPengganti,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // Tampilkan durasi izin jika ada
+            if (!item.izinMulai.isNullOrEmpty() && !item.izinSelesai.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Durasi Izin:",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                            )
+                            Text(
+                                text = "${item.izinMulai} - ${item.izinSelesai}",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
                 }
             }
             

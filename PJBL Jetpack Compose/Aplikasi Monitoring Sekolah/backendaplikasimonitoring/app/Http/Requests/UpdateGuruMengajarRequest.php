@@ -22,9 +22,9 @@ class UpdateGuruMengajarRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'jadwal_id' => 'sometimes|required|exists:jadwals,id',
-            'keterangan' => 'nullable|string',
-            'status' => 'sometimes|required|in:masuk,tidak_masuk'
+            'guru_pengganti_id' => 'nullable|exists:gurus,id',
+            'status' => 'sometimes|required|in:masuk,tidak_masuk,izin',
+            'keterangan' => 'nullable|string'
         ];
     }
 }

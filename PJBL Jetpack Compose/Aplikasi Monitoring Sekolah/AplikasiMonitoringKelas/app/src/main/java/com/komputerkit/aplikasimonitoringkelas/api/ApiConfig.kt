@@ -5,14 +5,15 @@ object ApiConfig {
     const val BASE_URL = "http://127.0.0.1:8000/api/"
     
     // UNTUK DEVICE FISIK di WiFi yang sama: gunakan IP komputer
-    // const val BASE_URL = "http://192.168.1.28:8000/api/"
+    // const val BASE_URL = "http://192.168.25.131:8000/api/"
     
     // UNTUK EMULATOR ANDROID: gunakan 10.0.2.2 (localhost dari komputer host)
     // const val BASE_URL = "http://10.0.2.2:8000/api/"
     
     // Catatan: 
-    // - Pastikan device fisik dan komputer terhubung ke WiFi yang sama
+    // - Untuk USB: jalankan "adb reverse tcp:8000 tcp:8000" terlebih dahulu
+    // - Untuk WiFi: pastikan device dan komputer di jaringan yang sama
     // - Laravel server harus running dengan: php artisan serve --host=0.0.0.0
-    // - IP komputer: 192.168.1.28
+    // - IP komputer WiFi: 192.168.25.131
     // - Pastikan AndroidManifest.xml sudah allow cleartext traffic
 }

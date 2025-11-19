@@ -39,7 +39,7 @@ fun ListAdminScreen(role: String, email: String, name: String, onLogout: () -> U
     var isLoadingKelas by remember { mutableStateOf(false) }
     var isLoadingJadwal by remember { mutableStateOf(false) }
     
-    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
+    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat")
     
     // Load kelas list when screen opens
     LaunchedEffect(Unit) {

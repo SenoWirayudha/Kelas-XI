@@ -31,6 +31,15 @@ data class GuruMengajarData(
     @SerializedName("status")
     val status: String,
     
+    @SerializedName("guru_pengganti")
+    val guruPengganti: String?,
+    
+    @SerializedName("izin_mulai")
+    val izinMulai: String?,
+    
+    @SerializedName("izin_selesai")
+    val izinSelesai: String?,
+    
     @SerializedName("keterangan")
     val keterangan: String?
 )
@@ -49,6 +58,9 @@ data class GuruMengajarListResponse(
 
 // Request untuk UPDATE guru mengajar (PUT /guru-mengajars/{id})
 data class UpdateGuruMengajarRequest(
+    @SerializedName("guru_pengganti_id")
+    val guruPenggantiId: Int?,
+    
     @SerializedName("status")
     val status: String,
     
@@ -75,4 +87,60 @@ data class DeleteResponse(
     
     @SerializedName("message")
     val message: String
+)
+
+// ==================== KELAS KOSONG MODELS ====================
+
+// Request untuk POST /api/guru-mengajar/kelas-kosong
+data class KelasKosongRequest(
+    @SerializedName("hari")
+    val hari: String
+)
+
+// Data untuk kelas kosong (guru tidak masuk/izin)
+data class KelasKosongData(
+    @SerializedName("id")
+    val id: Int,
+    
+    @SerializedName("jadwal_id")
+    val jadwalId: Int,
+    
+    @SerializedName("kelas_id")
+    val kelasId: Int,
+    
+    @SerializedName("kelas_nama")
+    val kelasNama: String,
+    
+    @SerializedName("guru_id")
+    val guruId: Int,
+    
+    @SerializedName("guru_nama")
+    val guruNama: String,
+    
+    @SerializedName("mapel_id")
+    val mapelId: Int,
+    
+    @SerializedName("mapel_nama")
+    val mapelNama: String,
+    
+    @SerializedName("jam_ke")
+    val jamKe: String,
+    
+    @SerializedName("status")
+    val status: String,  // tidak_masuk atau izin
+    
+    @SerializedName("keterangan")
+    val keterangan: String?
+)
+
+// Response wrapper untuk list kelas kosong
+data class KelasKosongListResponse(
+    @SerializedName("success")
+    val success: Boolean,
+    
+    @SerializedName("message")
+    val message: String,
+    
+    @SerializedName("data")
+    val data: List<KelasKosongData>
 )

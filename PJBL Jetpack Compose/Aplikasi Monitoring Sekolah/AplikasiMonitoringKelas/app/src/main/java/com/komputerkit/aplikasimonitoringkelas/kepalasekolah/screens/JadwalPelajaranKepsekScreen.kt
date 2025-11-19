@@ -44,7 +44,7 @@ fun JadwalPelajaranKepsekScreen(role: String, email: String, name: String, onLog
     var isLoadingJadwal by remember { mutableStateOf(false) }
     
     // Hardcoded hari list (Senin - Minggu)
-    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
+    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat")
     
     // Function to load jadwal by kelas and hari
     fun loadJadwal() {
@@ -114,66 +114,34 @@ fun JadwalPelajaranKepsekScreen(role: String, email: String, name: String, onLog
         }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Informasi User Login dengan Logout Button
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = "Selamat Datang",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = name,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = email,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Column {
+                        Text("Jadwal Pelajaran", fontWeight = FontWeight.Bold)
+                        Text("$name - $email", fontSize = 12.sp)
                     }
-                    
-                    OutlinedButton(
-                        onClick = onLogout,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ExitToApp,
-                            contentDescription = "Logout"
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Logout")
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+                actions = {
+                    IconButton(onClick = onLogout) {
+                        Icon(Icons.Default.ExitToApp, "Logout")
                     }
                 }
-            }
+            )
         }
-
-        // Spinner Hari
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Spinner Hari
         item {
             ExposedDropdownMenuBox(
                 expanded = expandedHari,
@@ -345,6 +313,7 @@ fun JadwalPelajaranKepsekScreen(role: String, email: String, name: String, onLog
                     )
                 }
             }
+        }
         }
     }
 }

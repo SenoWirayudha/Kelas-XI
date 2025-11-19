@@ -14,14 +14,9 @@ class KelasSeeder extends Seeder
     public function run(): void
     {
         $kelasList = [
-            ['nama_kelas' => '10 IPA 1'],
-            ['nama_kelas' => '10 IPA 2'],
-            ['nama_kelas' => '10 IPS 1'],
-            ['nama_kelas' => '11 IPA 1'],
-            ['nama_kelas' => '11 IPA 2'],
-            ['nama_kelas' => '11 IPS 1'],
-            ['nama_kelas' => '12 IPA 1'],
-            ['nama_kelas' => '12 IPS 1'],
+            ['nama_kelas' => 'X-RPL 1'],
+            ['nama_kelas' => 'XI-RPL 1'],
+            ['nama_kelas' => 'XII-RPL 1'],
         ];
 
         foreach ($kelasList as $kelas) {

@@ -71,7 +71,7 @@ class GuruMengajarController extends Controller
             'guru_id' => 'required|exists:gurus,id',
             'mapel_id' => 'required|exists:mapels,id',
             'jam_ke' => 'required|string',
-            'status' => 'required|in:masuk,tidak_masuk',
+            'status' => 'required|in:masuk,tidak_masuk,izin',
             'keterangan' => 'nullable|string'
         ]);
 
@@ -93,6 +93,7 @@ class GuruMengajarController extends Controller
         // Buat data guru mengajar
         $guruMengajar = GuruMengajar::create([
             'jadwal_id' => $jadwal->id,
+            'guru_pengganti_id' => $request->guru_pengganti_id,
             'status' => $request->status,
             'keterangan' => $request->keterangan
         ]);
@@ -119,7 +120,7 @@ class GuruMengajarController extends Controller
             'guru_id' => 'required|exists:gurus,id',
             'mapel_id' => 'required|exists:mapels,id',
             'jam_ke' => 'required|string',
-            'status' => 'required|in:masuk,tidak_masuk',
+            'status' => 'required|in:masuk,tidak_masuk,izin',
             'keterangan' => 'nullable|string'
         ]);
 
@@ -257,7 +258,7 @@ class GuruMengajarController extends Controller
             $query->where('hari', $request->hari)
                   ->where('kelas_id', $request->kelas_id);
         })
-        ->with(['jadwal.guru', 'jadwal.mapel'])
+        ->with(['jadwal.guru', 'jadwal.mapel', 'guruPengganti'])
         ->get()
         ->map(function ($item) {
             return [
@@ -267,6 +268,9 @@ class GuruMengajarController extends Controller
                 'mapel' => $item->jadwal->mapel->nama_mapel,
                 'jam_ke' => $item->jadwal->jam_ke,
                 'status' => $item->status,
+                'guru_pengganti' => $item->guruPengganti ? $item->guruPengganti->nama_guru : null,
+                'izin_mulai' => $item->izin_mulai ? $item->izin_mulai->format('d/m/Y') : null,
+                'izin_selesai' => $item->izin_selesai ? $item->izin_selesai->format('d/m/Y') : null,
                 'keterangan' => $item->keterangan
             ];
         });
@@ -292,5 +296,47 @@ class GuruMengajarController extends Controller
         ]);
 
         return $this->getGuruTidakMasuk($request->hari, $request->kelas_id);
+    }
+
+    /**
+     * Get kelas kosong (yang gurunya tidak masuk atau izin) berdasarkan hari
+     * Request body: { "hari": "Senin" }
+     * Response: Array of kelas with guru mengajar details (status tidak_masuk atau izin only, belum ada guru pengganti)
+     */
+    public function getKelasKosongByHari(Request $request)
+    {
+        $request->validate([
+            'hari' => 'required|string|in:Senin,Selasa,Rabu,Kamis,Jumat,Sabtu,Minggu'
+        ]);
+        
+        // Ambil semua guru mengajar dengan status tidak_masuk atau izin DAN belum ada guru pengganti
+        $kelasKosong = GuruMengajar::whereIn('status', ['tidak_masuk', 'izin'])
+            ->whereNull('guru_pengganti_id')  // Hanya kelas yang belum ada guru pengganti
+            ->whereHas('jadwal', function ($query) use ($request) {
+                $query->where('hari', $request->hari);
+            })
+            ->with(['jadwal.guru', 'jadwal.mapel', 'jadwal.kelas'])
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'jadwal_id' => $item->jadwal_id,
+                    'kelas_id' => $item->jadwal->kelas_id,
+                    'kelas_nama' => $item->jadwal->kelas->nama_kelas,
+                    'guru_id' => $item->jadwal->guru_id,
+                    'guru_nama' => $item->jadwal->guru->nama_guru,
+                    'mapel_id' => $item->jadwal->mapel_id,
+                    'mapel_nama' => $item->jadwal->mapel->nama_mapel,
+                    'jam_ke' => $item->jadwal->jam_ke,
+                    'status' => $item->status,
+                    'keterangan' => $item->keterangan
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data kelas kosong berhasil diambil',
+            'data' => $kelasKosong
+        ], 200);
     }
 }

@@ -26,9 +26,11 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiClient.getApiService() }
     
+    // Get kelas_id dari SharedPreferences (untuk siswa)
+    val kelasId = remember { tokenManager.getKelasId() }
+    
     // State variables for spinners
     var selectedHari by remember { mutableStateOf("") }
-    var selectedKelas by remember { mutableStateOf<KelasData?>(null) }
     var selectedGuru by remember { mutableStateOf<GuruData?>(null) }
     var selectedMapel by remember { mutableStateOf<MapelData?>(null) }
     var selectedStatus by remember { mutableStateOf("") }
@@ -36,48 +38,49 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
     var jadwalId by remember { mutableStateOf<Int?>(null) }
     var keterangan by remember { mutableStateOf("") }
     
+    var kelasName by remember { mutableStateOf("") }
+    
     // Expanded states for dropdowns
     var expandedHari by remember { mutableStateOf(false) }
-    var expandedKelas by remember { mutableStateOf(false) }
     var expandedGuru by remember { mutableStateOf(false) }
     var expandedMapel by remember { mutableStateOf(false) }
     var expandedStatus by remember { mutableStateOf(false) }
     
     // Data lists for spinners
-    var kelasList by remember { mutableStateOf<List<KelasData>>(emptyList()) }
     var guruList by remember { mutableStateOf<List<GuruData>>(emptyList()) }
     var mapelList by remember { mutableStateOf<List<MapelData>>(emptyList()) }
     
     // Loading states
-    var isLoadingKelas by remember { mutableStateOf(false) }
     var isLoadingGuru by remember { mutableStateOf(false) }
     var isLoadingMapel by remember { mutableStateOf(false) }
     var isLoadingJadwal by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     
-    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
-    val statusList = listOf("Masuk", "Tidak Masuk")
+    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat")
+    val statusList = listOf("Masuk", "Tidak Masuk", "Izin")
     
-    // Function to load kelas based on selected hari
-    fun loadKelas(hari: String) {
-        scope.launch {
-            isLoadingKelas = true
-            val token = "Bearer ${tokenManager.getToken()}"
-            when (val result = ApiHelper.safeApiCall { apiService.getKelasByHari(token, hari) }) {
-                is ApiResult.Success -> {
-                    kelasList = result.data.data
-                }
-                is ApiResult.Error -> {
-                    Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_SHORT).show()
-                }
-                ApiResult.Loading -> {}
+    // Load kelas name on screen open
+    LaunchedEffect(kelasId) {
+        if (kelasId != null) {
+            try {
+                val response = apiService.getKelas()
+                val kelas = response.data.find { it.id == kelasId }
+                kelasName = kelas?.nama_kelas ?: ""
+            } catch (e: Exception) {
+                Toast.makeText(context, e.message ?: "Error loading kelas", Toast.LENGTH_SHORT).show()
             }
-            isLoadingKelas = false
+        } else {
+            Toast.makeText(context, "Error: Anda belum terdaftar di kelas manapun", Toast.LENGTH_LONG).show()
         }
     }
     
-    // Function to load guru based on hari and kelas
-    fun loadGuru(hari: String, kelasId: Int) {
+    // Function to load guru based on hari and kelas (auto using kelasId from token)
+    fun loadGuru(hari: String) {
+        if (kelasId == null) {
+            Toast.makeText(context, "Kelas ID tidak ditemukan", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
         scope.launch {
             isLoadingGuru = true
             val token = "Bearer ${tokenManager.getToken()}"
@@ -97,7 +100,9 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
     }
     
     // Function to load mapel based on hari, kelas, and guru
-    fun loadMapel(hari: String, kelasId: Int, guruId: Int) {
+    fun loadMapel(hari: String, guruId: Int) {
+        if (kelasId == null) return
+        
         scope.launch {
             isLoadingMapel = true
             val token = "Bearer ${tokenManager.getToken()}"
@@ -117,7 +122,9 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
     }
     
     // Function to load jadwal details and auto-fill jam_ke
-    fun loadJadwalDetails(hari: String, kelasId: Int, guruId: Int, mapelId: Int) {
+    fun loadJadwalDetails(hari: String, guruId: Int, mapelId: Int) {
+        if (kelasId == null) return
+        
         scope.launch {
             isLoadingJadwal = true
             val token = "Bearer ${tokenManager.getToken()}"
@@ -150,7 +157,12 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
             val token = "Bearer ${tokenManager.getToken()}"
             val request = CreateGuruMengajarRequest(
                 jadwalId = jadwalId!!,
-                status = if (selectedStatus == "Masuk") "masuk" else "tidak_masuk",
+                status = when (selectedStatus) {
+                    "Masuk" -> "masuk"
+                    "Tidak Masuk" -> "tidak_masuk"
+                    "Izin" -> "izin"
+                    else -> "masuk"
+                },
                 keterangan = keterangan.ifEmpty { null }
             )
             
@@ -161,14 +173,12 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                     Toast.makeText(context, "Data berhasil disimpan!", Toast.LENGTH_SHORT).show()
                     // Reset form
                     selectedHari = ""
-                    selectedKelas = null
                     selectedGuru = null
                     selectedMapel = null
                     selectedStatus = ""
                     jamKe = ""
                     jadwalId = null
                     keterangan = ""
-                    kelasList = emptyList()
                     guruList = emptyList()
                     mapelList = emptyList()
                 }
@@ -186,8 +196,14 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
         TopAppBar(
             title = { 
                 Column {
-                    Text("Entri Guru Mengajar", fontWeight = FontWeight.Bold)
-                    Text("$name - $email", fontSize = 12.sp)
+                    Text(
+                        text = "Entri Guru Mengajar",
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (kelasName.isNotEmpty()) "$name - $kelasName" else "$name - $email",
+                        fontSize = 12.sp
+                    )
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -224,14 +240,14 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Form Penggantian Guru",
+                        text = "Form Guru Mengajar",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     
                     Text(
-                        text = "Pilih filter secara berurutan dari Hari sampai Status",
+                        text = "Pilih filter secara berurutan dari Hari sampai Status untuk kelas Anda",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -267,7 +283,6 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                                         selectedHari = hari
                                         expandedHari = false
                                         // Reset cascade
-                                        selectedKelas = null
                                         selectedGuru = null
                                         selectedMapel = null
                                         selectedStatus = ""
@@ -275,63 +290,15 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                                         jadwalId = null
                                         guruList = emptyList()
                                         mapelList = emptyList()
-                                        // Load kelas
-                                        loadKelas(hari)
+                                        // Load guru langsung berdasarkan hari dan kelas_id dari token
+                                        loadGuru(hari)
                                     }
                                 )
                             }
                         }
                     }
 
-                    // 2. Spinner Kelas
-                    ExposedDropdownMenuBox(
-                        expanded = expandedKelas,
-                        onExpandedChange = { if (kelasList.isNotEmpty()) expandedKelas = it },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = selectedKelas?.nama_kelas ?: "",
-                            onValueChange = {},
-                            readOnly = true,
-                            enabled = kelasList.isNotEmpty(),
-                            label = { Text("2. Pilih Kelas") },
-                            trailingIcon = {
-                                if (isLoadingKelas) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                } else {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedKelas)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-
-                        ExposedDropdownMenu(
-                            expanded = expandedKelas,
-                            onDismissRequest = { expandedKelas = false }
-                        ) {
-                            kelasList.forEach { kelas ->
-                                DropdownMenuItem(
-                                    text = { Text("${kelas.nama_kelas} (ID: ${kelas.id})") },
-                                    onClick = {
-                                        selectedKelas = kelas
-                                        expandedKelas = false
-                                        // Reset cascade
-                                        selectedGuru = null
-                                        selectedMapel = null
-                                        selectedStatus = ""
-                                        jamKe = ""
-                                        jadwalId = null
-                                        mapelList = emptyList()
-                                        // Load guru
-                                        loadGuru(selectedHari, kelas.id)
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // 3. Spinner Guru
+                    // 2. Spinner Guru (langsung setelah hari, tidak perlu pilih kelas)
                     ExposedDropdownMenuBox(
                         expanded = expandedGuru,
                         onExpandedChange = { if (guruList.isNotEmpty()) expandedGuru = it },
@@ -342,7 +309,7 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                             onValueChange = {},
                             readOnly = true,
                             enabled = guruList.isNotEmpty(),
-                            label = { Text("3. Pilih Guru") },
+                            label = { Text("2. Pilih Guru") },
                             trailingIcon = {
                                 if (isLoadingGuru) {
                                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -369,15 +336,15 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                                         selectedStatus = ""
                                         jamKe = ""
                                         jadwalId = null
-                                        // Load mapel
-                                        loadMapel(selectedHari, selectedKelas!!.id, guru.id)
+                                        // Load mapel (tidak perlu kelas.id karena sudah ada di parameter function)
+                                        loadMapel(selectedHari, guru.id)
                                     }
                                 )
                             }
                         }
                     }
 
-                    // 4. Spinner Mapel
+                    // 3. Spinner Mapel
                     ExposedDropdownMenuBox(
                         expanded = expandedMapel,
                         onExpandedChange = { if (mapelList.isNotEmpty()) expandedMapel = it },
@@ -388,7 +355,7 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                             onValueChange = {},
                             readOnly = true,
                             enabled = mapelList.isNotEmpty(),
-                            label = { Text("4. Pilih Mata Pelajaran") },
+                            label = { Text("3. Pilih Mata Pelajaran") },
                             trailingIcon = {
                                 if (isLoadingMapel) {
                                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -413,7 +380,6 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                                         // Load jadwal details to get jam_ke
                                         loadJadwalDetails(
                                             selectedHari,
-                                            selectedKelas!!.id,
                                             selectedGuru!!.id,
                                             mapel.id
                                         )
@@ -446,7 +412,7 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                         )
                     )
 
-                    // 6. Spinner Status
+                    // 4. Spinner Status
                     ExposedDropdownMenuBox(
                         expanded = expandedStatus,
                         onExpandedChange = { if (jamKe.isNotEmpty()) expandedStatus = it },
@@ -457,7 +423,7 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                             onValueChange = {},
                             readOnly = true,
                             enabled = jamKe.isNotEmpty(),
-                            label = { Text("5. Pilih Status") },
+                            label = { Text("4. Pilih Status") },
                             trailingIcon = {
                                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStatus)
                             },
@@ -481,11 +447,11 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                         }
                     }
 
-                    // 7. Keterangan (Optional)
+                    // 5. Keterangan (Optional)
                     OutlinedTextField(
                         value = keterangan,
                         onValueChange = { keterangan = it },
-                        label = { Text("Keterangan (Opsional)") },
+                        label = { Text("5. Keterangan (Opsional)") },
                         placeholder = { Text("Contoh: Guru izin sakit") },
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 3

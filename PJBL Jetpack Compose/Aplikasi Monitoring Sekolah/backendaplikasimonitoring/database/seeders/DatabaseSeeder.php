@@ -13,15 +13,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed Users first (already exists)
-        $this->call(UserSeeder::class);
-        
-        // Seed other tables
+        // Seed data master first
         $this->call([
             GuruSeeder::class,
             MapelSeeder::class,
             TahunAjaranSeeder::class,
-            KelasSeeder::class,
+            KelasSeeder::class, // Kelas harus di-seed sebelum User (karena foreign key)
+        ]);
+        
+        // Seed Users (depends on Kelas)
+        $this->call(UserSeeder::class);
+        
+        // Seed relational data
+        $this->call([
             JadwalSeeder::class,
             GuruMengajarSeeder::class,
         ]);

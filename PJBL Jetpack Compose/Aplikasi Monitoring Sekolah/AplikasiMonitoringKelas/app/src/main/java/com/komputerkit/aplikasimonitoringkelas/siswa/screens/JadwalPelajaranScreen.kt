@@ -32,36 +32,44 @@ fun JadwalPelajaranScreen(
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiClient.getApiService() }
     
+    // Get kelas_id dari SharedPreferences (untuk siswa)
+    val kelasId = remember { tokenManager.getKelasId() }
+    
     // States
     var selectedHari by remember { mutableStateOf("") }
-    var selectedKelas by remember { mutableStateOf<KelasData?>(null) }
     var expandedHari by remember { mutableStateOf(false) }
-    var expandedKelas by remember { mutableStateOf(false) }
     
-    var kelasList by remember { mutableStateOf<List<KelasData>>(emptyList()) }
+    var kelasName by remember { mutableStateOf("") }
+    
     var jadwalList by remember { mutableStateOf<List<JadwalData>>(emptyList()) }
-    
-    var isLoadingKelas by remember { mutableStateOf(false) }
     var isLoadingJadwal by remember { mutableStateOf(false) }
     
-    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
+    val hariList = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat")
     
-    // Load kelas list when screen opens
-    LaunchedEffect(Unit) {
-        isLoadingKelas = true
-        try {
-            val response = apiService.getKelas()
-            kelasList = response.data
-        } catch (e: Exception) {
-            Toast.makeText(context, "Gagal load kelas: ${e.message}", Toast.LENGTH_SHORT).show()
+    // Load kelas name on screen open
+    LaunchedEffect(kelasId) {
+        if (kelasId != null) {
+            try {
+                val response = apiService.getKelas()
+                val kelas = response.data.find { it.id == kelasId }
+                kelasName = kelas?.nama_kelas ?: ""
+            } catch (e: Exception) {
+                Toast.makeText(context, e.message ?: "Error loading kelas", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Error: Anda belum terdaftar di kelas manapun", Toast.LENGTH_LONG).show()
         }
-        isLoadingKelas = false
     }
     
-    // Function to load jadwal data
+    // Function to load jadwal data (auto menggunakan kelasId dari token)
     fun loadJadwalData() {
-        if (selectedHari.isEmpty() || selectedKelas == null) {
-            Toast.makeText(context, "Pilih hari dan kelas terlebih dahulu", Toast.LENGTH_SHORT).show()
+        if (selectedHari.isEmpty()) {
+            Toast.makeText(context, "Pilih hari terlebih dahulu", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        if (kelasId == null) {
+            Toast.makeText(context, "Kelas ID tidak ditemukan", Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -70,12 +78,12 @@ fun JadwalPelajaranScreen(
             val token = "Bearer ${tokenManager.getToken()}"
             
             when (val result = ApiHelper.safeApiCall { 
-                apiService.getJadwalByKelasAndHari(token, selectedKelas!!.id, selectedHari) 
+                apiService.getJadwalByKelasAndHari(token, kelasId, selectedHari) 
             }) {
                 is ApiResult.Success -> {
                     jadwalList = result.data.data
                     if (jadwalList.isEmpty()) {
-                        Toast.makeText(context, "Tidak ada jadwal untuk hari dan kelas ini", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Tidak ada jadwal untuk hari ini", Toast.LENGTH_SHORT).show()
                     }
                 }
                 is ApiResult.Error -> {
@@ -84,13 +92,6 @@ fun JadwalPelajaranScreen(
                 is ApiResult.Loading -> {}
             }
             isLoadingJadwal = false
-        }
-    }
-    
-    // Auto load when hari and kelas selected
-    LaunchedEffect(selectedHari, selectedKelas) {
-        if (selectedHari.isNotEmpty() && selectedKelas != null) {
-            loadJadwalData()
         }
     }
 
@@ -106,7 +107,7 @@ fun JadwalPelajaranScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "$name - $email",
+                        text = if (kelasName.isNotEmpty()) "$name - $kelasName" else "$name - $email",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -183,6 +184,8 @@ fun JadwalPelajaranScreen(
                                     onClick = {
                                         selectedHari = hari
                                         expandedHari = false
+                                        // Auto load jadwal setelah pilih hari
+                                        loadJadwalData()
                                     }
                                 )
                             }
@@ -191,46 +194,23 @@ fun JadwalPelajaranScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Spinner Kelas
-                    ExposedDropdownMenuBox(
-                        expanded = expandedKelas,
-                        onExpandedChange = { expandedKelas = !expandedKelas }
+                    // Button Load Jadwal (optional, karena sudah auto-load)
+                    Button(
+                        onClick = { loadJadwalData() },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = selectedHari.isNotEmpty() && kelasId != null && !isLoadingJadwal
                     ) {
-                        OutlinedTextField(
-                            value = selectedKelas?.nama_kelas ?: "",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Pilih Kelas") },
-                            placeholder = { Text("-- Pilih Kelas --") },
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedKelas)
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(),
-                            enabled = !isLoadingKelas
-                        )
-
-                        ExposedDropdownMenu(
-                            expanded = expandedKelas,
-                            onDismissRequest = { expandedKelas = false }
-                        ) {
-                            if (isLoadingKelas) {
-                                DropdownMenuItem(
-                                    text = { Text("Loading...") },
-                                    onClick = {}
-                                )
-                            } else {
-                                kelasList.forEach { kelas ->
-                                    DropdownMenuItem(
-                                        text = { Text("${kelas.nama_kelas} (ID: ${kelas.id})") },
-                                        onClick = {
-                                            selectedKelas = kelas
-                                            expandedKelas = false
-                                        }
-                                    )
-                                }
-                            }
+                        if (isLoadingJadwal) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Loading...")
+                        } else {
+                            Icon(Icons.Default.Search, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Lihat Jadwal")
                         }
                     }
                 }
@@ -246,7 +226,7 @@ fun JadwalPelajaranScreen(
                 ) {
                     CircularProgressIndicator()
                 }
-            } else if (jadwalList.isEmpty() && selectedHari.isNotEmpty() && selectedKelas != null) {
+            } else if (jadwalList.isEmpty() && selectedHari.isNotEmpty()) {
                 // Empty state
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -269,13 +249,13 @@ fun JadwalPelajaranScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "untuk ${selectedKelas?.nama_kelas} - $selectedHari",
+                            text = "untuk kelas Anda - $selectedHari",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-            } else if (selectedHari.isEmpty() || selectedKelas == null) {
+            } else if (selectedHari.isEmpty()) {
                 // Initial state
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -293,13 +273,14 @@ fun JadwalPelajaranScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Pilih Hari dan Kelas",
+                            text = "Pilih Hari",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "untuk melihat jadwal pelajaran",
+                            text = "untuk melihat jadwal pelajaran kelas Anda",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -313,7 +294,7 @@ fun JadwalPelajaranScreen(
                 ) {
                     item {
                         Text(
-                            text = "Jadwal ${selectedKelas?.nama_kelas} - $selectedHari",
+                            text = "Jadwal Kelas Anda - $selectedHari",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,

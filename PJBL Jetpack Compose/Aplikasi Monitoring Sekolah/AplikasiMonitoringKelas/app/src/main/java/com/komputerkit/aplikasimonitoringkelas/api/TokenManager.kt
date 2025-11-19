@@ -14,6 +14,7 @@ class TokenManager(context: Context) {
         private const val KEY_USER_NAME = "user_name"
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_USER_ROLE = "user_role"
+        private const val KEY_KELAS_ID = "kelas_id" // Untuk role siswa
     }
     
     fun saveToken(token: String) {
@@ -29,12 +30,16 @@ class TokenManager(context: Context) {
         return if (token != null) "Bearer $token" else null
     }
     
-    fun saveUserData(id: Int, name: String, email: String, role: String) {
+    fun saveUserData(id: Int, name: String, email: String, role: String, kelasId: Int? = null) {
         prefs.edit().apply {
             putInt(KEY_USER_ID, id)
             putString(KEY_USER_NAME, name)
             putString(KEY_USER_EMAIL, email)
             putString(KEY_USER_ROLE, role)
+            // Simpan kelas_id jika ada (untuk role siswa)
+            if (kelasId != null) {
+                putInt(KEY_KELAS_ID, kelasId)
+            }
             apply()
         }
     }
@@ -53,6 +58,11 @@ class TokenManager(context: Context) {
     
     fun getUserRole(): String? {
         return prefs.getString(KEY_USER_ROLE, null)
+    }
+    
+    fun getKelasId(): Int? {
+        val kelasId = prefs.getInt(KEY_KELAS_ID, -1)
+        return if (kelasId != -1) kelasId else null
     }
     
     fun clearAll() {
