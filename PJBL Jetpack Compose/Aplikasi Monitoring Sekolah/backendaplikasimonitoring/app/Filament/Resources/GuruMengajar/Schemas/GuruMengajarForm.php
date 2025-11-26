@@ -62,8 +62,20 @@ class GuruMengajarForm
                     ->searchable()
                     ->preload()
                     ->nullable()
+                    ->reactive()
                     ->visible(fn (callable $get) => in_array($get('status'), ['tidak_masuk', 'izin']))
                     ->helperText('Pilih guru pengganti jika guru tidak masuk atau izin'),
+                
+                Select::make('status_guru_pengganti')
+                    ->label('Status Guru Pengganti')
+                    ->options([
+                        'masuk' => 'Masuk',
+                        'tidak_masuk' => 'Tidak Masuk',
+                        'izin' => 'Izin',
+                    ])
+                    ->nullable()
+                    ->visible(fn (callable $get) => $get('guru_pengganti_id') !== null)
+                    ->helperText('Status kehadiran guru pengganti'),
                 
                 Textarea::make('keterangan')
                     ->label('Keterangan')

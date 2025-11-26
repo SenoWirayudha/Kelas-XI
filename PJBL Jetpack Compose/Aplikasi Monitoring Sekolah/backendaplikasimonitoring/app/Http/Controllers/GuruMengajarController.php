@@ -12,7 +12,7 @@ class GuruMengajarController extends Controller
 {
     public function index()
     {
-        $guruMengajars = GuruMengajar::with('jadwal.guru', 'jadwal.mapel', 'jadwal.kelas')->get();
+        $guruMengajars = GuruMengajar::with('jadwal.guru', 'jadwal.mapel', 'jadwal.kelas', 'guruPengganti')->get();
         return response()->json([
             'success' => true,
             'data' => $guruMengajars
@@ -178,7 +178,7 @@ class GuruMengajarController extends Controller
             $query->where('hari', $hari)
                   ->where('kelas_id', $kelasId);
         })
-        ->with(['jadwal.guru', 'jadwal.mapel'])
+        ->with(['jadwal.guru', 'jadwal.mapel', 'guruPengganti'])
         ->get()
         ->map(function ($item) {
             return [
@@ -187,6 +187,8 @@ class GuruMengajarController extends Controller
                 'mapel' => $item->jadwal->mapel->nama_mapel,
                 'jam_ke' => $item->jadwal->jam_ke,
                 'status' => $item->status,
+                'guru_pengganti' => $item->guruPengganti ? $item->guruPengganti->nama_guru : null,
+                'status_guru_pengganti' => $item->status_guru_pengganti,
                 'keterangan' => $item->keterangan
             ];
         });
@@ -215,7 +217,7 @@ class GuruMengajarController extends Controller
                   ->where('kelas_id', $kelasId);
         })
         ->where('status', 'tidak_masuk')
-        ->with(['jadwal.guru', 'jadwal.mapel', 'jadwal.kelas'])
+        ->with(['jadwal.guru', 'jadwal.mapel', 'jadwal.kelas', 'guruPengganti'])
         ->get()
         ->map(function ($item) {
             return [
@@ -224,6 +226,8 @@ class GuruMengajarController extends Controller
                 'mapel' => $item->jadwal->mapel->nama_mapel,
                 'jam_ke' => $item->jadwal->jam_ke,
                 'status' => $item->status,
+                'guru_pengganti' => $item->guruPengganti ? $item->guruPengganti->nama_guru : null,
+                'status_guru_pengganti' => $item->status_guru_pengganti,
                 'keterangan' => $item->keterangan
             ];
         });
@@ -269,6 +273,7 @@ class GuruMengajarController extends Controller
                 'jam_ke' => $item->jadwal->jam_ke,
                 'status' => $item->status,
                 'guru_pengganti' => $item->guruPengganti ? $item->guruPengganti->nama_guru : null,
+                'status_guru_pengganti' => $item->status_guru_pengganti,
                 'izin_mulai' => $item->izin_mulai ? $item->izin_mulai->format('d/m/Y') : null,
                 'izin_selesai' => $item->izin_selesai ? $item->izin_selesai->format('d/m/Y') : null,
                 'keterangan' => $item->keterangan

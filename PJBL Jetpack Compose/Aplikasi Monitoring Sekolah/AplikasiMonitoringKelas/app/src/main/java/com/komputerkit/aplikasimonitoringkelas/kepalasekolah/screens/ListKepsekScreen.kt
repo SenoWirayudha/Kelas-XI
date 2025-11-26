@@ -84,10 +84,16 @@ fun ListKepsekScreen(role: String, email: String, name: String, onLogout: () -> 
                     // Apply filter
                     filteredGuruMengajarList = when (selectedFilter) {
                         "masuk" -> guruMengajarList.filter { 
-                            it.status == "masuk" || !it.guruPengganti.isNullOrEmpty()
+                            // Guru asli masuk ATAU guru pengganti masuk
+                            it.status == "masuk" || it.statusGuruPengganti == "masuk"
                         }
                         "kosong" -> guruMengajarList.filter { 
-                            it.status in listOf("tidak_masuk", "izin") && it.guruPengganti.isNullOrEmpty()
+                            // 1. Guru tidak masuk/izin DAN belum ada guru pengganti
+                            // 2. ATAU ada guru pengganti tapi belum ada status atau status tidak masuk/izin
+                            (it.status in listOf("tidak_masuk", "izin") && it.guruPengganti.isNullOrEmpty()) ||
+                            (!it.guruPengganti.isNullOrEmpty() && 
+                             (it.statusGuruPengganti.isNullOrEmpty() || 
+                              it.statusGuruPengganti in listOf("tidak_masuk", "izin")))
                         }
                         else -> guruMengajarList
                     }
@@ -244,7 +250,8 @@ fun ListKepsekScreen(role: String, email: String, name: String, onLogout: () -> 
                             expandedFilter = false
                             // Re-apply filter
                             filteredGuruMengajarList = guruMengajarList.filter { 
-                                it.status == "masuk" || !it.guruPengganti.isNullOrEmpty()
+                                // Guru asli masuk ATAU guru pengganti masuk
+                                it.status == "masuk" || it.statusGuruPengganti == "masuk"
                             }
                         }
                     )
@@ -255,7 +262,12 @@ fun ListKepsekScreen(role: String, email: String, name: String, onLogout: () -> 
                             expandedFilter = false
                             // Re-apply filter
                             filteredGuruMengajarList = guruMengajarList.filter { 
-                                it.status in listOf("tidak_masuk", "izin") && it.guruPengganti.isNullOrEmpty()
+                                // 1. Guru tidak masuk/izin DAN belum ada guru pengganti
+                                // 2. ATAU ada guru pengganti tapi belum ada status atau status tidak masuk/izin
+                                (it.status in listOf("tidak_masuk", "izin") && it.guruPengganti.isNullOrEmpty()) ||
+                                (!it.guruPengganti.isNullOrEmpty() && 
+                                 (it.statusGuruPengganti.isNullOrEmpty() || 
+                                  it.statusGuruPengganti in listOf("tidak_masuk", "izin")))
                             }
                         }
                     )
@@ -556,31 +568,70 @@ fun GuruMengajarCard(guruMengajar: GuruMengajarData) {
                         containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
                     )
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(10.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = "Guru Pengganti:",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
                             )
-                            Text(
-                                text = guruMengajar.guruPengganti,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Guru Pengganti:",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = guruMengajar.guruPengganti,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                        
+                        // Tampilkan status guru pengganti jika ada
+                        if (!guruMengajar.statusGuruPengganti.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider()
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = when (guruMengajar.statusGuruPengganti.lowercase()) {
+                                        "tidak_masuk" -> MaterialTheme.colorScheme.error
+                                        "masuk" -> MaterialTheme.colorScheme.primary
+                                        "izin" -> MaterialTheme.colorScheme.tertiary
+                                        else -> MaterialTheme.colorScheme.surfaceVariant
+                                    }
+                                )
+                            ) {
+                                Text(
+                                    text = "Status: ${when (guruMengajar.statusGuruPengganti.lowercase()) {
+                                        "masuk" -> "Masuk"
+                                        "tidak_masuk" -> "Tidak Masuk"
+                                        "izin" -> "Izin"
+                                        else -> guruMengajar.statusGuruPengganti
+                                    }}",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = when (guruMengajar.statusGuruPengganti.lowercase()) {
+                                        "tidak_masuk" -> MaterialTheme.colorScheme.onError
+                                        "masuk" -> MaterialTheme.colorScheme.onPrimary
+                                        "izin" -> MaterialTheme.colorScheme.onTertiary
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
                         }
                     }
                 }

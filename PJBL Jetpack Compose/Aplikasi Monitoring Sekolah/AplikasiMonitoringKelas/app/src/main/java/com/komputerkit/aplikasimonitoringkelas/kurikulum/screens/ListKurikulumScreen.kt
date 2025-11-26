@@ -89,10 +89,16 @@ fun ListKurikulumScreen(role: String, email: String, name: String, onLogout: () 
                     // Apply filter
                     filteredGuruMengajarList = when (selectedFilter) {
                         "masuk" -> guruMengajarList.filter { 
-                            it.status == "masuk" || !it.guruPengganti.isNullOrEmpty()
+                            // Guru asli masuk ATAU guru pengganti masuk
+                            it.status == "masuk" || it.statusGuruPengganti == "masuk"
                         }
                         "kosong" -> guruMengajarList.filter { 
-                            it.status in listOf("tidak_masuk", "izin") && it.guruPengganti.isNullOrEmpty()
+                            // 1. Guru tidak masuk/izin DAN belum ada guru pengganti
+                            // 2. ATAU ada guru pengganti tapi belum ada status atau status tidak masuk/izin
+                            (it.status in listOf("tidak_masuk", "izin") && it.guruPengganti.isNullOrEmpty()) ||
+                            (!it.guruPengganti.isNullOrEmpty() && 
+                             (it.statusGuruPengganti.isNullOrEmpty() || 
+                              it.statusGuruPengganti in listOf("tidak_masuk", "izin")))
                         }
                         else -> guruMengajarList
                     }
@@ -270,7 +276,8 @@ fun ListKurikulumScreen(role: String, email: String, name: String, onLogout: () 
                                     expandedFilter = false
                                     // Re-apply filter
                                     filteredGuruMengajarList = guruMengajarList.filter { 
-                                        it.status == "masuk" || !it.guruPengganti.isNullOrEmpty()
+                                        // Guru asli masuk ATAU guru pengganti masuk
+                                        it.status == "masuk" || it.statusGuruPengganti == "masuk"
                                     }
                                 }
                             )
@@ -281,7 +288,12 @@ fun ListKurikulumScreen(role: String, email: String, name: String, onLogout: () 
                                     expandedFilter = false
                                     // Re-apply filter
                                     filteredGuruMengajarList = guruMengajarList.filter { 
-                                        it.status in listOf("tidak_masuk", "izin") && it.guruPengganti.isNullOrEmpty()
+                                        // 1. Guru tidak masuk/izin DAN belum ada guru pengganti
+                                        // 2. ATAU ada guru pengganti tapi belum ada status atau status tidak masuk/izin
+                                        (it.status in listOf("tidak_masuk", "izin") && it.guruPengganti.isNullOrEmpty()) ||
+                                        (!it.guruPengganti.isNullOrEmpty() && 
+                                         (it.statusGuruPengganti.isNullOrEmpty() || 
+                                          it.statusGuruPengganti in listOf("tidak_masuk", "izin")))
                                     }
                                 }
                             )
@@ -563,31 +575,70 @@ fun GuruMengajarCard(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer
                     )
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Column {
-                            Text(
-                                text = "Guru Pengganti:",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
                             )
-                            Text(
-                                text = item.guruPengganti,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    text = "Guru Pengganti:",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = item.guruPengganti,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                        
+                        // Tampilkan status guru pengganti jika ada
+                        if (!item.statusGuruPengganti.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            HorizontalDivider()
+                            Spacer(modifier = Modifier.height(6.dp))
+                            
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = when (item.statusGuruPengganti.lowercase()) {
+                                        "tidak_masuk" -> MaterialTheme.colorScheme.error
+                                        "masuk" -> MaterialTheme.colorScheme.primary
+                                        "izin" -> MaterialTheme.colorScheme.tertiary
+                                        else -> MaterialTheme.colorScheme.surfaceVariant
+                                    }
+                                )
+                            ) {
+                                Text(
+                                    text = "Status: ${when (item.statusGuruPengganti.lowercase()) {
+                                        "masuk" -> "Masuk"
+                                        "tidak_masuk" -> "Tidak Masuk"
+                                        "izin" -> "Izin"
+                                        else -> item.statusGuruPengganti
+                                    }}",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = when (item.statusGuruPengganti.lowercase()) {
+                                        "tidak_masuk" -> MaterialTheme.colorScheme.onError
+                                        "masuk" -> MaterialTheme.colorScheme.onPrimary
+                                        "izin" -> MaterialTheme.colorScheme.onTertiary
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -903,6 +954,7 @@ fun EditDialog(
                         val request = UpdateGuruMengajarRequest(
                             guruPenggantiId = selectedGuruPengganti?.id,
                             status = selectedStatus,
+                            statusGuruPengganti = null,
                             keterangan = keterangan.ifEmpty { null }
                         )
                         
@@ -1135,6 +1187,7 @@ fun GantiGuruDialog(
                         val request = UpdateGuruMengajarRequest(
                             guruPenggantiId = selectedGuruPengganti?.id,
                             status = item.status, // Keep the same status
+                            statusGuruPengganti = null,
                             keterangan = keterangan.ifEmpty { null }
                         )
                         

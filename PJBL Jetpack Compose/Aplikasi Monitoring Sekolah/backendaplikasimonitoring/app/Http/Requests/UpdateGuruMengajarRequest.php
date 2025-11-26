@@ -24,6 +24,7 @@ class UpdateGuruMengajarRequest extends FormRequest
         return [
             'guru_pengganti_id' => 'nullable|exists:gurus,id',
             'status' => 'sometimes|required|in:masuk,tidak_masuk,izin',
+            'status_guru_pengganti' => 'nullable|in:masuk,tidak_masuk,izin',
             'keterangan' => 'nullable|string'
         ];
     }

@@ -34,9 +34,27 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
     var selectedGuru by remember { mutableStateOf<GuruData?>(null) }
     var selectedMapel by remember { mutableStateOf<MapelData?>(null) }
     var selectedStatus by remember { mutableStateOf("") }
+    var selectedStatusGuruPengganti by remember { mutableStateOf("") }
     var jamKe by remember { mutableStateOf("") }
     var jadwalId by remember { mutableStateOf<Int?>(null) }
     var keterangan by remember { mutableStateOf("") }
+    var keteranganGuruPengganti by remember { mutableStateOf("") }
+    
+    // State untuk cek data yang sudah ada
+    var existingGuruMengajarId by remember { mutableStateOf<Int?>(null) }
+    var existingStatus by remember { mutableStateOf<String?>(null) }
+    var guruPenggantiName by remember { mutableStateOf<String?>(null) }
+    var hasGuruPengganti by remember { mutableStateOf(false) }
+    var isFormGuruAsli by remember { mutableStateOf(true) } // true = form guru asli, false = form guru pengganti
+    
+    // State untuk daftar guru pengganti yang belum ada statusnya
+    var guruPenggantiTanpaStatusList by remember { mutableStateOf<List<GuruMengajarData>>(emptyList()) }
+    var guruPenggantiWithHari by remember { mutableStateOf<List<Pair<String, GuruMengajarData>>>(emptyList()) }
+    var showGuruPenggantiDialog by remember { mutableStateOf(false) }
+    var selectedGuruMengajarData by remember { mutableStateOf<GuruMengajarData?>(null) }
+    var isLoadingGuruPengganti by remember { mutableStateOf(false) }
+    var selectedHariDialog by remember { mutableStateOf("") }
+    var expandedHariDialog by remember { mutableStateOf(false) }
     
     var kelasName by remember { mutableStateOf("") }
     
@@ -45,6 +63,7 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
     var expandedGuru by remember { mutableStateOf(false) }
     var expandedMapel by remember { mutableStateOf(false) }
     var expandedStatus by remember { mutableStateOf(false) }
+    var expandedStatusGuruPengganti by remember { mutableStateOf(false) }
     
     // Data lists for spinners
     var guruList by remember { mutableStateOf<List<GuruData>>(emptyList()) }
@@ -135,6 +154,52 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                     val detail = result.data.data
                     jamKe = detail.jamKe
                     jadwalId = detail.jadwalId
+                    
+                    // Cek apakah ada data guru mengajar yang sudah ada
+                    val guruMengajarRequest = GuruMengajarByHariKelasRequest(hari, kelasId)
+                    when (val gmResult = ApiHelper.safeApiCall {
+                        apiService.getGuruMengajarByHariKelas(token, guruMengajarRequest)
+                    }) {
+                        is ApiResult.Success -> {
+                            val existingData = gmResult.data.data.find { it.jadwalId == jadwalId }
+                            if (existingData != null) {
+                                // Data sudah ada
+                                existingGuruMengajarId = existingData.id
+                                existingStatus = existingData.status
+                                hasGuruPengganti = !existingData.guruPengganti.isNullOrEmpty()
+                                guruPenggantiName = existingData.guruPengganti
+                                
+                                // Tentukan form mana yang harus ditampilkan
+                                if (hasGuruPengganti) {
+                                    // Jika ada guru pengganti, tampilkan form untuk input status guru pengganti
+                                    isFormGuruAsli = false
+                                    selectedStatus = when(existingStatus?.lowercase()) {
+                                        "masuk" -> "Masuk"
+                                        "tidak_masuk" -> "Tidak Masuk"
+                                        "izin" -> "Izin"
+                                        else -> existingStatus ?: ""
+                                    }
+                                } else {
+                                    // Jika belum ada guru pengganti, tampilkan form untuk input status guru asli
+                                    isFormGuruAsli = true
+                                }
+                            } else {
+                                // Data belum ada, form untuk input baru (guru asli)
+                                existingGuruMengajarId = null
+                                existingStatus = null
+                                hasGuruPengganti = false
+                                guruPenggantiName = null
+                                isFormGuruAsli = true
+                            }
+                        }
+                        else -> {
+                            existingGuruMengajarId = null
+                            existingStatus = null
+                            hasGuruPengganti = false
+                            guruPenggantiName = null
+                            isFormGuruAsli = true
+                        }
+                    }
                 }
                 is ApiResult.Error -> {
                     Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_SHORT).show()
@@ -176,11 +241,122 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                     selectedGuru = null
                     selectedMapel = null
                     selectedStatus = ""
+                    selectedStatusGuruPengganti = ""
                     jamKe = ""
                     jadwalId = null
                     keterangan = ""
+                    keteranganGuruPengganti = ""
+                    existingGuruMengajarId = null
+                    existingStatus = null
+                    hasGuruPengganti = false
+                    guruPenggantiName = null
+                    isFormGuruAsli = true
                     guruList = emptyList()
                     mapelList = emptyList()
+                }
+                is ApiResult.Error -> {
+                    Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_LONG).show()
+                }
+                ApiResult.Loading -> {}
+            }
+            isSaving = false
+        }
+    }
+    
+    // Function to load guru pengganti yang belum ada statusnya
+    fun loadGuruPenggantiTanpaStatus() {
+        if (kelasId == null) return
+        
+        scope.launch {
+            isLoadingGuruPengganti = true
+            val token = "Bearer ${tokenManager.getToken()}"
+            
+            // Get all guru mengajar untuk semua hari
+            val allData = mutableListOf<Pair<String, GuruMengajarData>>() // Pair of (hari, data)
+            hariList.forEach { hari ->
+                val request = GuruMengajarByHariKelasRequest(hari, kelasId)
+                when (val result = ApiHelper.safeApiCall {
+                    apiService.getGuruMengajarByHariKelas(token, request)
+                }) {
+                    is ApiResult.Success -> {
+                        result.data.data.forEach { guruMengajar ->
+                            allData.add(Pair(hari, guruMengajar))
+                        }
+                    }
+                    else -> {}
+                }
+            }
+            
+            // Filter yang punya guru pengganti tapi belum ada statusnya
+            val filteredData = allData.filter { (_, data) ->
+                !data.guruPengganti.isNullOrEmpty() && data.statusGuruPengganti.isNullOrEmpty()
+            }
+            
+            // Store both versions
+            guruPenggantiWithHari = filteredData
+            guruPenggantiTanpaStatusList = filteredData.map { it.second }
+            
+            isLoadingGuruPengganti = false
+            
+            if (filteredData.isNotEmpty()) {
+                // Reset selectedHariDialog dan selectedGuruMengajarData
+                selectedHariDialog = ""
+                selectedGuruMengajarData = null
+                showGuruPenggantiDialog = true
+            } else {
+                Toast.makeText(context, "Tidak ada guru pengganti yang perlu diisi statusnya", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    
+    // Function to update status guru pengganti
+    fun updateStatusGuruPengganti(guruMengajarId: Int) {
+        if (selectedStatusGuruPengganti.isEmpty()) {
+            Toast.makeText(context, "Pilih status guru pengganti terlebih dahulu", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        scope.launch {
+            isSaving = true
+            val token = "Bearer ${tokenManager.getToken()}"
+            val request = UpdateGuruMengajarRequest(
+                guruPenggantiId = null,
+                status = existingStatus ?: "masuk", // Keep existing status
+                statusGuruPengganti = when (selectedStatusGuruPengganti) {
+                    "Masuk" -> "masuk"
+                    "Tidak Masuk" -> "tidak_masuk"
+                    "Izin" -> "izin"
+                    else -> null
+                },
+                keterangan = keteranganGuruPengganti.ifEmpty { null }
+            )
+            
+            when (val result = ApiHelper.safeApiCall { 
+                apiService.updateGuruMengajar(token, guruMengajarId, request) 
+            }) {
+                is ApiResult.Success -> {
+                    Toast.makeText(context, "Status guru pengganti berhasil disimpan!", Toast.LENGTH_SHORT).show()
+                    // Reset form
+                    selectedHari = ""
+                    selectedGuru = null
+                    selectedMapel = null
+                    selectedStatus = ""
+                    selectedStatusGuruPengganti = ""
+                    jamKe = ""
+                    jadwalId = null
+                    keterangan = ""
+                    keteranganGuruPengganti = ""
+                    existingGuruMengajarId = null
+                    existingStatus = null
+                    hasGuruPengganti = false
+                    guruPenggantiName = null
+                    isFormGuruAsli = true
+                    guruList = emptyList()
+                    mapelList = emptyList()
+                    selectedGuruMengajarData = null
+                    showGuruPenggantiDialog = false
+                    // Refresh list
+                    loadGuruPenggantiTanpaStatus()
                 }
                 is ApiResult.Error -> {
                     Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_LONG).show()
@@ -251,6 +427,30 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    
+                    // Tombol untuk langsung ke form guru pengganti
+                    Button(
+                        onClick = { loadGuruPenggantiTanpaStatus() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        ),
+                        enabled = !isLoadingGuruPengganti
+                    ) {
+                        if (isLoadingGuruPengganti) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Memuat...")
+                        } else {
+                            Icon(Icons.Default.Edit, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Isi Status Guru Pengganti")
+                        }
+                    }
                     
                     Divider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -412,57 +612,246 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                         )
                     )
 
-                    // 4. Spinner Status
-                    ExposedDropdownMenuBox(
-                        expanded = expandedStatus,
-                        onExpandedChange = { if (jamKe.isNotEmpty()) expandedStatus = it },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = selectedStatus,
-                            onValueChange = {},
-                            readOnly = true,
-                            enabled = jamKe.isNotEmpty(),
-                            label = { Text("4. Pilih Status") },
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStatus)
-                            },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-
-                        ExposedDropdownMenu(
-                            expanded = expandedStatus,
-                            onDismissRequest = { expandedStatus = false }
-                        ) {
-                            statusList.forEach { status ->
-                                DropdownMenuItem(
-                                    text = { Text(status) },
-                                    onClick = {
-                                        selectedStatus = status
-                                        expandedStatus = false
-                                    }
+                    // Tampilkan form berdasarkan kondisi
+                    if (jamKe.isNotEmpty()) {
+                        if (isFormGuruAsli) {
+                            // FORM UNTUK GURU ASLI (Data belum ada atau belum ada guru pengganti)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer
                                 )
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Form Status Guru Mengajar",
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    
+                                    // 4. Spinner Status Guru
+                                    ExposedDropdownMenuBox(
+                                        expanded = expandedStatus,
+                                        onExpandedChange = { expandedStatus = it }
+                                    ) {
+                                        OutlinedTextField(
+                                            value = selectedStatus,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text("4. Pilih Status Guru") },
+                                            trailingIcon = {
+                                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStatus)
+                                            },
+                                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                                        )
+
+                                        ExposedDropdownMenu(
+                                            expanded = expandedStatus,
+                                            onDismissRequest = { expandedStatus = false }
+                                        ) {
+                                            statusList.forEach { status ->
+                                                DropdownMenuItem(
+                                                    text = { Text(status) },
+                                                    onClick = {
+                                                        selectedStatus = status
+                                                        expandedStatus = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    // 5. Keterangan
+                                    OutlinedTextField(
+                                        value = keterangan,
+                                        onValueChange = { keterangan = it },
+                                        label = { Text("5. Keterangan (Opsional)") },
+                                        placeholder = { Text("Contoh: Guru izin sakit") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        maxLines = 3
+                                    )
+                                }
+                            }
+                        } else {
+                            // FORM UNTUK GURU PENGGANTI (Data sudah ada dan ada guru pengganti)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            // Info status guru asli (read-only)
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Status Guru Asli",
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    
+                                    OutlinedTextField(
+                                        value = selectedStatus,
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        enabled = false,
+                                        label = { Text("Status (Sudah diisi)") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                            disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    )
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            // Form input status guru pengganti
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(
+                                                text = "Form Status Guru Pengganti",
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                                            )
+                                            if (!guruPenggantiName.isNullOrEmpty()) {
+                                                Text(
+                                                    text = "Guru: $guruPenggantiName",
+                                                    fontSize = 12.sp,
+                                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                                )
+                                            }
+                                        }
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    
+                                    // Dropdown status guru pengganti
+                                    ExposedDropdownMenuBox(
+                                        expanded = expandedStatusGuruPengganti,
+                                        onExpandedChange = { expandedStatusGuruPengganti = it }
+                                    ) {
+                                        OutlinedTextField(
+                                            value = selectedStatusGuruPengganti,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text("4. Status Guru Pengganti") },
+                                            trailingIcon = {
+                                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStatusGuruPengganti)
+                                            },
+                                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                                        )
+                                        
+                                        ExposedDropdownMenu(
+                                            expanded = expandedStatusGuruPengganti,
+                                            onDismissRequest = { expandedStatusGuruPengganti = false }
+                                        ) {
+                                            statusList.forEach { status ->
+                                                DropdownMenuItem(
+                                                    text = { Text(status) },
+                                                    onClick = {
+                                                        selectedStatusGuruPengganti = status
+                                                        expandedStatusGuruPengganti = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    
+                                    // Keterangan untuk guru pengganti
+                                    OutlinedTextField(
+                                        value = keteranganGuruPengganti,
+                                        onValueChange = { keteranganGuruPengganti = it },
+                                        label = { Text("5. Keterangan (Opsional)") },
+                                        placeholder = { Text("Contoh: Guru pengganti terlambat") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        maxLines = 3
+                                    )
+                                }
                             }
                         }
                     }
 
-                    // 5. Keterangan (Optional)
-                    OutlinedTextField(
-                        value = keterangan,
-                        onValueChange = { keterangan = it },
-                        label = { Text("5. Keterangan (Opsional)") },
-                        placeholder = { Text("Contoh: Guru izin sakit") },
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 3
-                    )
-
                     Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-                    // Button Simpan
+                    // Button Simpan - kondisional berdasarkan tipe form
                     Button(
-                        onClick = { saveGuruMengajar() },
-                        enabled = jadwalId != null && selectedStatus.isNotEmpty() && !isSaving,
+                        onClick = { 
+                            if (isFormGuruAsli) {
+                                // Form guru asli - simpan data baru
+                                saveGuruMengajar()
+                            } else {
+                                // Form guru pengganti - update status guru pengganti
+                                existingGuruMengajarId?.let { id ->
+                                    updateStatusGuruPengganti(id)
+                                }
+                            }
+                        },
+                        enabled = if (isFormGuruAsli) {
+                            // Form guru asli: semua field harus terisi
+                            jadwalId != null && selectedStatus.isNotEmpty() && !isSaving
+                        } else {
+                            // Form guru pengganti: hanya status guru pengganti yang harus terisi
+                            selectedStatusGuruPengganti.isNotEmpty() && !isSaving
+                        },
                         modifier = Modifier.fillMaxWidth().height(50.dp)
                     ) {
                         if (isSaving) {
@@ -475,7 +864,11 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                         } else {
                             Icon(Icons.Default.Check, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Simpan Data", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (isFormGuruAsli) "Simpan Status Guru" else "Simpan Status Guru Pengganti", 
+                                fontSize = 16.sp, 
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
@@ -506,7 +899,8 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
                     Text(
                         text = "• Pilih filter secara berurutan: Hari → Kelas → Guru → Mapel → Status\n" +
                                "• Jam Ke akan terisi otomatis setelah memilih Mapel\n" +
-                               "• Keterangan bersifat opsional",
+                               "• Keterangan bersifat opsional\n" +
+                               "• Gunakan tombol 'Isi Status Guru Pengganti' untuk mengisi status guru pengganti yang belum terisi",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
@@ -514,4 +908,282 @@ fun EntriScreen(role: String, email: String, name: String, onLogout: () -> Unit)
             }
         }
     }
+    
+    // Dialog untuk memilih dan mengisi status guru pengganti
+    if (showGuruPenggantiDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showGuruPenggantiDialog = false
+                selectedGuruMengajarData = null
+                selectedStatusGuruPengganti = ""
+                keteranganGuruPengganti = ""
+                selectedHariDialog = ""
+            },
+            title = {
+                Text(
+                    text = "Guru Pengganti Belum Ada Status",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (selectedGuruMengajarData == null) {
+                        // Filter Hari terlebih dahulu
+                        Text(
+                            text = "Pilih hari terlebih dahulu:",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        ExposedDropdownMenuBox(
+                            expanded = expandedHariDialog,
+                            onExpandedChange = { expandedHariDialog = it }
+                        ) {
+                            OutlinedTextField(
+                                value = selectedHariDialog,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Pilih Hari") },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedHariDialog)
+                                },
+                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                            )
+                            
+                            ExposedDropdownMenu(
+                                expanded = expandedHariDialog,
+                                onDismissRequest = { expandedHariDialog = false }
+                            ) {
+                                // Ambil hari unik dari guruPenggantiWithHari
+                                val availableHari = guruPenggantiWithHari
+                                    .map { it.first }
+                                    .distinct()
+                                    .sortedBy { hari ->
+                                        hariList.indexOf(hari)
+                                    }
+                                
+                                availableHari.forEach { hari ->
+                                    DropdownMenuItem(
+                                        text = { Text(hari) },
+                                        onClick = {
+                                            selectedHariDialog = hari
+                                            expandedHariDialog = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // Tampilkan list guru pengganti hanya jika hari sudah dipilih
+                        if (selectedHariDialog.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Text(
+                                text = "Pilih salah satu guru pengganti untuk diisi statusnya:",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            
+                            // Filter berdasarkan hari yang dipilih
+                            val filteredList = guruPenggantiWithHari.filter { it.first == selectedHariDialog }
+                            
+                            if (filteredList.isEmpty()) {
+                                Text(
+                                    text = "Tidak ada guru pengganti untuk hari $selectedHariDialog",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            } else {
+                                filteredList.forEach { (hari, data) ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                        ),
+                                        onClick = {
+                                            selectedGuruMengajarData = data
+                                            existingStatus = data.status
+                                            existingGuruMengajarId = data.id
+                                            guruPenggantiName = data.guruPengganti
+                                        }
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(12.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(
+                                                    text = data.namaGuru,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                                Card(
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = MaterialTheme.colorScheme.errorContainer
+                                                    )
+                                                ) {
+                                                    Text(
+                                                        text = when (data.status.lowercase()) {
+                                                            "masuk" -> "Masuk"
+                                                            "tidak_masuk" -> "Tidak Masuk"
+                                                            "izin" -> "Izin"
+                                                            else -> data.status
+                                                        },
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                        fontSize = 12.sp,
+                                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                                    )
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "${data.mapel} • Jam ${data.jamKe}",
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Person,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = "Pengganti: ${data.guruPengganti}",
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Form untuk mengisi status
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp)
+                            ) {
+                                Text(
+                                    text = "Data Terpilih:",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Guru: ${selectedGuruMengajarData?.namaGuru}", fontSize = 13.sp)
+                                Text("Mapel: ${selectedGuruMengajarData?.mapel} • Jam ${selectedGuruMengajarData?.jamKe}", fontSize = 13.sp)
+                                Text("Guru Pengganti: ${selectedGuruMengajarData?.guruPengganti}", fontSize = 13.sp)
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        // Dropdown status guru pengganti
+                        ExposedDropdownMenuBox(
+                            expanded = expandedStatusGuruPengganti,
+                            onExpandedChange = { expandedStatusGuruPengganti = it }
+                        ) {
+                            OutlinedTextField(
+                                value = selectedStatusGuruPengganti,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Status Guru Pengganti") },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStatusGuruPengganti)
+                                },
+                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                            )
+                            
+                            ExposedDropdownMenu(
+                                expanded = expandedStatusGuruPengganti,
+                                onDismissRequest = { expandedStatusGuruPengganti = false }
+                            ) {
+                                statusList.forEach { status ->
+                                    DropdownMenuItem(
+                                        text = { Text(status) },
+                                        onClick = {
+                                            selectedStatusGuruPengganti = status
+                                            expandedStatusGuruPengganti = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        OutlinedTextField(
+                            value = keteranganGuruPengganti,
+                            onValueChange = { keteranganGuruPengganti = it },
+                            label = { Text("Keterangan (Opsional)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 3
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (selectedGuruMengajarData != null) {
+                    Button(
+                        onClick = {
+                            existingGuruMengajarId?.let { id ->
+                                updateStatusGuruPengganti(id)
+                            }
+                        },
+                        enabled = selectedStatusGuruPengganti.isNotEmpty() && !isSaving
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Simpan")
+                        }
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { 
+                        if (selectedGuruMengajarData != null) {
+                            // Kembali ke list
+                            selectedGuruMengajarData = null
+                            selectedStatusGuruPengganti = ""
+                            keteranganGuruPengganti = ""
+                        } else {
+                            // Tutup dialog
+                            showGuruPenggantiDialog = false
+                            selectedHariDialog = ""
+                        }
+                    }
+                ) {
+                    Text(if (selectedGuruMengajarData != null) "Kembali" else "Tutup")
+                }
+            }
+        )
+    }
 }
+

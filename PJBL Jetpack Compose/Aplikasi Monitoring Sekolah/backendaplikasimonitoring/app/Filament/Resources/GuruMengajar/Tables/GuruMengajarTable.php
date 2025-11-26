@@ -56,6 +56,27 @@ class GuruMengajarTable
                     ->sortable()
                     ->placeholder('-')
                     ->toggleable(),
+                TextColumn::make('status_guru_pengganti')
+                    ->label('Status Guru Pengganti')
+                    ->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        'masuk' => 'success',
+                        'tidak_masuk' => 'danger',
+                        'izin' => 'warning',
+                        null => 'gray',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'masuk' => 'Masuk',
+                        'tidak_masuk' => 'Tidak Masuk',
+                        'izin' => 'Izin',
+                        null => '-',
+                        default => '-',
+                    })
+                    ->sortable()
+                    ->searchable()
+                    ->placeholder('-')
+                    ->toggleable(),
                 TextColumn::make('izin_mulai')
                     ->label('Izin Mulai')
                     ->date('d/m/Y')

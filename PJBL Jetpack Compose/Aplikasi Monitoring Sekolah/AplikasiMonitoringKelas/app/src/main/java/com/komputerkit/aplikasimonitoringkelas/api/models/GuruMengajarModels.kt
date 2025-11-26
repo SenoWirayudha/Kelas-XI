@@ -34,6 +34,9 @@ data class GuruMengajarData(
     @SerializedName("guru_pengganti")
     val guruPengganti: String?,
     
+    @SerializedName("status_guru_pengganti")
+    val statusGuruPengganti: String?,
+    
     @SerializedName("izin_mulai")
     val izinMulai: String?,
     
@@ -63,6 +66,9 @@ data class UpdateGuruMengajarRequest(
     
     @SerializedName("status")
     val status: String,
+    
+    @SerializedName("status_guru_pengganti")
+    val statusGuruPengganti: String?,
     
     @SerializedName("keterangan")
     val keterangan: String?

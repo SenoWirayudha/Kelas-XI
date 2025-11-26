@@ -122,6 +122,7 @@ fun GantiGuruScreen(role: String, email: String, name: String, onLogout: () -> U
             val request = UpdateGuruMengajarRequest(
                 guruPenggantiId = selectedGuruPengganti!!.id,
                 status = selectedKelasKosong!!.status,
+                statusGuruPengganti = null,
                 keterangan = keterangan.ifEmpty { null }
             )
             

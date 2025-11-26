@@ -101,6 +101,7 @@ fun ListScreen(role: String, email: String, name: String, onLogout: () -> Unit) 
             val request = UpdateGuruMengajarRequest(
                 guruPenggantiId = null,
                 status = status,
+                statusGuruPengganti = null,
                 keterangan = keterangan
             )
             
@@ -566,31 +567,70 @@ fun GuruMengajarCard(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer
                     )
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = "Guru Pengganti:",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
                             )
-                            Text(
-                                text = item.guruPengganti,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Guru Pengganti:",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = item.guruPengganti,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                        
+                        // Tampilkan status guru pengganti jika ada
+                        if (!item.statusGuruPengganti.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider()
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = when (item.statusGuruPengganti.lowercase()) {
+                                        "tidak_masuk" -> MaterialTheme.colorScheme.error
+                                        "masuk" -> MaterialTheme.colorScheme.primary
+                                        "izin" -> MaterialTheme.colorScheme.tertiary
+                                        else -> MaterialTheme.colorScheme.surfaceVariant
+                                    }
+                                )
+                            ) {
+                                Text(
+                                    text = "Status: ${when (item.statusGuruPengganti.lowercase()) {
+                                        "masuk" -> "Masuk"
+                                        "tidak_masuk" -> "Tidak Masuk"
+                                        "izin" -> "Izin"
+                                        else -> item.statusGuruPengganti
+                                    }}",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = when (item.statusGuruPengganti.lowercase()) {
+                                        "tidak_masuk" -> MaterialTheme.colorScheme.onError
+                                        "masuk" -> MaterialTheme.colorScheme.onPrimary
+                                        "izin" -> MaterialTheme.colorScheme.onTertiary
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
                         }
                     }
                 }

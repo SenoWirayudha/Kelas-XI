@@ -13,6 +13,7 @@ class GuruMengajar extends Model
     protected $fillable = [
         'jadwal_id',
         'guru_pengganti_id',
+        'status_guru_pengganti',
         'izin_mulai',
         'izin_selesai',
         'keterangan',
