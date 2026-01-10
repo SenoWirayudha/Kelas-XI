@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/dark_background">
+
+    <!-- Header -->
+    <LinearLayout
+        android:id="@+id/header"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="12dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Watchlist"
+            android:textColor="@color/text_primary"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btn_close"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Close"
+            android:src="@drawable/ic_close"
+            app:tint="@color/text_primary" />
+    </LinearLayout>
+
+    <!-- Filter Chips -->
+    <HorizontalScrollView
+        android:id="@+id/scroll_chips"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="16dp"
+        android:scrollbars="none"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/header">
+
+        <com.google.android.flexbox.FlexboxLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:flexWrap="nowrap">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_all_movies"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:text="All Movies"
+                android:textColor="@color/chip_text_selector"
+                android:textSize="13sp"
+                app:checkedIconVisible="false"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipCornerRadius="16dp"
+                app:chipMinHeight="32dp"
+                app:chipStartPadding="12dp"
+                app:chipEndPadding="12dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_date_added"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:text="Date Added"
+                android:textColor="@color/chip_text_selector"
+                android:textSize="13sp"
+                app:checkedIconVisible="false"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipCornerRadius="16dp"
+                app:chipMinHeight="32dp"
+                app:chipStartPadding="12dp"
+                app:chipEndPadding="12dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_unwatched"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="Unwatched"
+                android:textColor="@color/chip_text_selector"
+                android:textSize="13sp"
+                app:checkedIconVisible="false"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipCornerRadius="16dp"
+                app:chipMinHeight="32dp"
+                app:chipStartPadding="12dp"
+                app:chipEndPadding="12dp" />
+        </com.google.android.flexbox.FlexboxLayout>
+    </HorizontalScrollView>
+
+    <!-- Movies Grid -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_watchlist"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingHorizontal="4dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="80dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/scroll_chips"
+        tools:listitem="@layout/item_film_grid" />
+
+    <!-- FAB -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_add"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="Add to Watchlist"
+        android:src="@drawable/ic_add"
+        app:backgroundTint="@color/accent_blue"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@color/white" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

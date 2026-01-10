@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/dark_background">
+
+    <!-- Header -->
+    <LinearLayout
+        android:id="@+id/header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="16dp"
+        android:gravity="center_vertical"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="My Films"
+            android:textColor="@color/white"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/btn_close"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="8dp"
+            android:src="@drawable/ic_close"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Close"
+            app:tint="@color/white" />
+
+    </LinearLayout>
+
+    <!-- Filter Chips -->
+    <HorizontalScrollView
+        android:id="@+id/filter_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        app:layout_constraintTop_toBottomOf="@id/header">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chip_group_filters"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_date_watched"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Date Watched"
+                android:checked="true"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_highest_rated"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Highest Rated"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_genre"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Genre"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+        </com.google.android.material.chip.ChipGroup>
+
+    </HorizontalScrollView>
+
+    <!-- Movies Grid -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_films"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:paddingHorizontal="4dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="80dp"
+        android:clipToPadding="false"
+        app:layout_constraintTop_toBottomOf="@id/filter_scroll"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:listitem="@layout/item_film_grid" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

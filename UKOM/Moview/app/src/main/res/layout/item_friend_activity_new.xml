@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="120dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="12dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/transparent">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Movie Poster -->
+        <ImageView
+            android:id="@+id/iv_poster"
+            android:layout_width="match_parent"
+            android:layout_height="180dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="Movie Poster"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:src="@android:color/darker_gray" />
+
+        <!-- Review Icon -->
+        <ImageView
+            android:id="@+id/ic_has_review"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_margin="8dp"
+            android:src="@drawable/ic_review"
+            android:contentDescription="Has Review"
+            android:visibility="gone"
+            app:tint="@color/white"
+            app:layout_constraintBottom_toTopOf="@id/profile_section"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- Profile Section at Bottom -->
+        <LinearLayout
+            android:id="@+id/profile_section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="8dp"
+            android:background="@drawable/bg_gradient_bottom"
+            app:layout_constraintBottom_toBottomOf="@id/iv_poster">
+
+            <ImageView
+                android:id="@+id/iv_user_photo"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:scaleType="centerCrop"
+                android:contentDescription="Profile"
+                tools:src="@android:color/holo_blue_light" />
+
+            <TextView
+                android:id="@+id/tv_user_name"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="john_cinema" />
+
+        </LinearLayout>
+
+        <!-- Rating and Actions Below Poster -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingTop="6dp"
+            app:layout_constraintTop_toBottomOf="@id/iv_poster">
+
+            <ImageView
+                android:id="@+id/iv_rewatch"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/ic_rewatch"
+                android:contentDescription="Rewatch"
+                android:visibility="gone"
+                android:layout_marginEnd="4dp"
+                app:tint="@color/text_secondary"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/tv_rating"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="@color/accent_gold"
+                tools:text="★★★★★" />
+
+            <ImageView
+                android:id="@+id/iv_like"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/ic_like"
+                android:contentDescription="Like"
+                app:tint="@color/text_secondary" />
+
+            <ImageView
+                android:id="@+id/iv_more"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/ic_more"
+                android:contentDescription="More"
+                android:layout_marginStart="6dp"
+                android:visibility="gone"
+                app:tint="@color/text_secondary"
+                tools:visibility="visible" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

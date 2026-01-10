@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@android:color/transparent"
+    app:strokeWidth="0dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Poster Container -->
+        <FrameLayout
+            android:id="@+id/poster_container"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            app:layout_constraintDimensionRatio="2:3"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <ImageView
+                android:id="@+id/iv_poster"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="Movie Poster"
+                tools:src="@tools:sample/backgrounds/scenic" />
+
+            <!-- Review Icon (top-right overlay) -->
+            <ImageView
+                android:id="@+id/ic_has_review"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_margin="6dp"
+                android:layout_gravity="top|end"
+                android:src="@drawable/ic_review"
+                android:background="@drawable/bg_rating_badge_dark"
+                android:padding="4dp"
+                android:contentDescription="Has Review"
+                android:visibility="gone"
+                app:tint="@color/white" />
+
+        </FrameLayout>
+
+        <!-- User Rating Stars (below poster) -->
+        <LinearLayout
+            android:id="@+id/rating_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal"
+            android:gravity="center"
+            app:layout_constraintTop_toBottomOf="@id/poster_container"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <ImageView
+                android:id="@+id/star1"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginEnd="1dp"
+                android:src="@drawable/ic_star_outline"
+                android:contentDescription="Star 1"
+                app:tint="#FFD700" />
+
+            <ImageView
+                android:id="@+id/star2"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginEnd="1dp"
+                android:src="@drawable/ic_star_outline"
+                android:contentDescription="Star 2"
+                app:tint="#FFD700" />
+
+            <ImageView
+                android:id="@+id/star3"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginEnd="1dp"
+                android:src="@drawable/ic_star_outline"
+                android:contentDescription="Star 3"
+                app:tint="#FFD700" />
+
+            <ImageView
+                android:id="@+id/star4"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginEnd="1dp"
+                android:src="@drawable/ic_star_outline"
+                android:contentDescription="Star 4"
+                app:tint="#FFD700" />
+
+            <ImageView
+                android:id="@+id/star5"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/ic_star_outline"
+                android:contentDescription="Star 5"
+                app:tint="#FFD700" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

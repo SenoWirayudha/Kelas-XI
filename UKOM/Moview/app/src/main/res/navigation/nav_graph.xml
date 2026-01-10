@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/navigation_home">
+
+    <fragment
+        android:id="@+id/navigation_home"
+        android:name="com.komputerkit.moview.ui.home.HomeFragment"
+        android:label="Home">
+        <action
+            android:id="@+id/action_home_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_home_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_search"
+        android:name="com.komputerkit.moview.ui.search.SearchFragment"
+        android:label="Search">
+        <action
+            android:id="@+id/action_search_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_notification"
+        android:name="com.komputerkit.moview.ui.notification.NotificationFragment"
+        android:label="Notification" />
+
+    <fragment
+        android:id="@+id/navigation_profile"
+        android:name="com.komputerkit.moview.ui.profile.ProfileFragment"
+        android:label="Profile">
+        <argument
+            android:name="userId"
+            android:defaultValue="0"
+            app:argType="integer" />
+        <action
+            android:id="@+id/action_profile_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_profile_to_films"
+            app:destination="@id/filmsFragment" />
+        <action
+            android:id="@+id/action_profile_to_diary"
+            app:destination="@id/diaryFragment" />
+        <action
+            android:id="@+id/action_profile_to_review"
+            app:destination="@id/reviewFragment" />
+        <action
+            android:id="@+id/action_profile_to_watchlist"
+            app:destination="@id/watchlistFragment" />
+        <action
+            android:id="@+id/action_profile_to_followers"
+            app:destination="@id/followersFragment" />
+        <action
+            android:id="@+id/action_profile_to_following"
+            app:destination="@id/followingFragment" />
+        <action
+            android:id="@+id/action_profile_to_editProfile"
+            app:destination="@id/editProfileFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/filmsFragment"
+        android:name="com.komputerkit.moview.ui.films.FilmsFragment"
+        android:label="My Films">
+        <action
+            android:id="@+id/action_films_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_films_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/diaryFragment"
+        android:name="com.komputerkit.moview.ui.diary.DiaryFragment"
+        android:label="Diary">
+        <action
+            android:id="@+id/action_diary_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_diary_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/reviewFragment"
+        android:name="com.komputerkit.moview.ui.review.ReviewFragment"
+        android:label="My Reviews">
+        <action
+            android:id="@+id/action_review_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
+        <action
+            android:id="@+id/action_review_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/watchlistFragment"
+        android:name="com.komputerkit.moview.ui.watchlist.WatchlistFragment"
+        android:label="Watchlist">
+        <action
+            android:id="@+id/action_watchlist_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/followersFragment"
+        android:name="com.komputerkit.moview.ui.social.FollowersFragment"
+        android:label="Followers" />
+
+    <fragment
+        android:id="@+id/followingFragment"
+        android:name="com.komputerkit.moview.ui.social.FollowingFragment"
+        android:label="Following" />
+
+    <fragment
+        android:id="@+id/logFilmFragment"
+        android:name="com.komputerkit.moview.ui.log.LogFilmFragment"
+        android:label="Log Film">
+        <argument
+            android:name="movieId"
+            app:argType="integer" />
+        <action
+            android:id="@+id/action_log_film_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/posterBackdropFragment"
+        android:name="com.komputerkit.moview.ui.artwork.PosterBackdropFragment"
+        android:label="Select Artwork">
+        <argument
+            android:name="movieId"
+            app:argType="integer" />
+        <argument
+            android:name="openBackdropsTab"
+            android:defaultValue="false"
+            app:argType="boolean" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/movieDetailFragment"
+        android:name="com.komputerkit.moview.ui.detail.MovieDetailFragment"
+        android:label="Movie Detail">
+        <argument
+            android:name="movieId"
+            app:argType="integer" />
+        <action
+            android:id="@+id/action_movieDetail_self"
+            app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_movieDetail_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_movieDetail_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
+        <action
+            android:id="@+id/action_movieDetail_to_crewDetail"
+            app:destination="@id/crewDetailFragment" />
+        <action
+            android:id="@+id/action_movieDetail_to_filmography"
+            app:destination="@id/filmographyFragment" />
+        <action
+            android:id="@+id/action_movieDetail_to_reviewsList"
+            app:destination="@id/reviewsListFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/filmographyFragment"
+        android:name="com.komputerkit.moview.ui.filmography.FilmographyFragment"
+        android:label="Filmography">
+        <argument
+            android:name="filterType"
+            app:argType="string" />
+        <argument
+            android:name="filterValue"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_filmography_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/reviewsListFragment"
+        android:name="com.komputerkit.moview.ui.reviews.ReviewsListFragment"
+        android:label="Reviews List">
+        <argument
+            android:name="movieId"
+            app:argType="integer" />
+        <argument
+            android:name="movieTitle"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_reviewsList_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/crewDetailFragment"
+        android:name="com.komputerkit.moview.ui.crew.CrewDetailFragment"
+        android:label="Crew Detail">
+        <argument
+            android:name="personId"
+            app:argType="integer" />
+        <action
+            android:id="@+id/action_crewDetail_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/reviewDetailFragment"
+        android:name="com.komputerkit.moview.ui.fragment.ReviewDetailFragment"
+        android:label="Review Detail">
+        <argument
+            android:name="reviewId"
+            app:argType="integer" />
+        <action
+            android:id="@+id/action_reviewDetail_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_reviewDetail_to_profile"
+            app:destination="@id/navigation_profile">
+            <argument
+                android:name="userId"
+                app:argType="integer" />
+        </action>
+    </fragment>
+
+    <fragment
+        android:id="@+id/editProfileFragment"
+        android:name="com.komputerkit.moview.ui.profile.EditProfileFragment"
+        android:label="Edit Profile">
+        <action
+            android:id="@+id/action_editProfile_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment">
+            <argument
+                android:name="movieId"
+                app:argType="integer" />
+            <argument
+                android:name="openBackdropsTab"
+                android:defaultValue="false"
+                app:argType="boolean" />
+        </action>
+    </fragment>
+
+</navigation>

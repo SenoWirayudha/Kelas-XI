@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="180dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="12dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Movie Poster -->
+        <ImageView
+            android:id="@+id/iv_movie_poster"
+            android:layout_width="match_parent"
+            android:layout_height="270dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="Movie Poster"
+            tools:src="@android:color/darker_gray" />
+
+        <!-- Friend Info and Rating Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <!-- Profile Photo and Username -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/iv_profile"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="Profile Photo"
+                    tools:src="@android:color/holo_blue_light" />
+
+                <TextView
+                    android:id="@+id/tv_username"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="?android:attr/textColorPrimary"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    tools:text="john_cinema" />
+
+                <!-- More Menu Icon -->
+                <ImageView
+                    android:id="@+id/iv_more"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_more"
+                    android:padding="2dp"
+                    android:contentDescription="More options"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+            </LinearLayout>
+
+            <!-- Rating Stars -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical">
+
+                <!-- Rewatch Icon -->
+                <ImageView
+                    android:id="@+id/iv_rewatch"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_rewatch"
+                    android:layout_marginEnd="4dp"
+                    android:contentDescription="Rewatch"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+                <TextView
+                    android:id="@+id/tv_rating"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="#FFD700"
+                    tools:text="★★★★★" />
+
+                <!-- Like Icon Only -->
+                <ImageView
+                    android:id="@+id/iv_like"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_like"
+                    android:contentDescription="Likes" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

@@ -1,0 +1,854 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/dark_background">
+
+    <!-- Fixed Header with Back & Share -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@android:color/transparent"
+        android:elevation="4dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/btn_back"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_back"
+            android:contentDescription="Back"
+            android:layout_marginStart="16dp"
+            app:tint="@color/white" />
+
+        <ImageView
+            android:id="@+id/btn_share"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_share"
+            android:contentDescription="Share"
+            android:layout_gravity="end"
+            android:layout_marginEnd="32dp"
+            app:tint="@color/white" />
+
+    </androidx.appcompat.widget.Toolbar>
+
+    <!-- Scrollable Content -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="32dp">
+
+            <!-- Backdrop Image -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="250dp">
+
+                <ImageView
+                    android:id="@+id/iv_backdrop"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="Backdrop"
+                    tools:src="@tools:sample/backgrounds/scenic" />
+
+                <!-- Gradient Overlay -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_backdrop_gradient" />
+
+            </RelativeLayout>
+
+            <!-- Movie Info Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:layout_marginTop="-50dp">
+
+                <!-- Poster -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="120dp"
+                    android:layout_height="180dp"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="8dp">
+
+                    <ImageView
+                        android:id="@+id/iv_poster"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="Poster"
+                        tools:src="@tools:sample/backgrounds/scenic" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Title & Info -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginStart="16dp"
+                    android:layout_gravity="bottom">
+
+                    <TextView
+                        android:id="@+id/tv_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/white"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        tools:text="Interstellar" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="4dp">
+
+                        <TextView
+                            android:id="@+id/tv_year"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp"
+                            tools:text="2014" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text=" • "
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tv_duration"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp"
+                            tools:text="2h 49m" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text=" • "
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tv_pg_rating"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp"
+                            tools:text="PG-13" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_genre"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        tools:text="Sci-Fi, Adventure, Drama" />
+
+                    <TextView
+                        android:id="@+id/tv_director"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textColor="#1E88E5"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        tools:text="Christopher Nolan" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Description -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:layout_marginTop="8dp">
+
+                <TextView
+                    android:id="@+id/tv_description"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp"
+                    android:maxLines="3"
+                    android:ellipsize="end"
+                    tools:text="A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival. When Earth becomes uninhabitable in the future, a..." />
+
+                <TextView
+                    android:id="@+id/btn_read_more"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Read more"
+                    android:textColor="#1E88E5"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:paddingVertical="4dp" />
+
+            </LinearLayout>
+
+            <!-- Stats: Watched & Reviews -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp"
+                android:layout_marginTop="16dp">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    app:cardBackgroundColor="@color/dark_surface"
+                    app:cardCornerRadius="8dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="#2E3A47">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="12dp"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_eye"
+                            app:tint="@color/text_secondary" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginStart="12dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="WATCHED"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="10sp" />
+
+                            <TextView
+                                android:id="@+id/tv_watched_count"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/white"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                tools:text="12.4k" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    app:cardBackgroundColor="@color/dark_surface"
+                    app:cardCornerRadius="8dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="#2E3A47">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="12dp"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_review"
+                            app:tint="@color/text_secondary" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginStart="12dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="REVIEWS"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="10sp" />
+
+                            <TextView
+                                android:id="@+id/tv_review_count"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/white"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                tools:text="3.4k" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+            <!-- Rating Distribution -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="16dp"
+                app:cardBackgroundColor="@color/dark_surface"
+                app:cardCornerRadius="12dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="#2E3A47">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="20dp">
+
+                    <!-- Rating Display -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center">
+
+                        <TextView
+                            android:id="@+id/tv_average_rating"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/white"
+                            android:textSize="48sp"
+                            android:textStyle="bold"
+                            tools:text="4.5" />
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginTop="4dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="★"
+                                android:textColor="#FFD700"
+                                android:textSize="16sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="★"
+                                android:textColor="#FFD700"
+                                android:textSize="16sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="★"
+                                android:textColor="#FFD700"
+                                android:textSize="16sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="★"
+                                android:textColor="#FFD700"
+                                android:textSize="16sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="★"
+                                android:textColor="#FFD700"
+                                android:textSize="16sp" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <!-- Rating Bars -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginStart="24dp">
+
+                        <!-- 5 stars -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="4dp">
+
+                            <TextView
+                                android:layout_width="12dp"
+                                android:layout_height="wrap_content"
+                                android:text="5"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+
+                            <ProgressBar
+                                android:id="@+id/progress_5_star"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="8dp"
+                                android:layout_marginHorizontal="8dp"
+                                android:progressTint="#1E88E5"
+                                android:progressBackgroundTint="#2E3A47"
+                                android:max="100"
+                                tools:progress="75" />
+
+                        </LinearLayout>
+
+                        <!-- 4 stars -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="4dp">
+
+                            <TextView
+                                android:layout_width="12dp"
+                                android:layout_height="wrap_content"
+                                android:text="4"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+
+                            <ProgressBar
+                                android:id="@+id/progress_4_star"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="8dp"
+                                android:layout_marginHorizontal="8dp"
+                                android:progressTint="#1E88E5"
+                                android:progressBackgroundTint="#2E3A47"
+                                android:max="100"
+                                tools:progress="60" />
+
+                        </LinearLayout>
+
+                        <!-- 3 stars -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="4dp">
+
+                            <TextView
+                                android:layout_width="12dp"
+                                android:layout_height="wrap_content"
+                                android:text="3"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+
+                            <ProgressBar
+                                android:id="@+id/progress_3_star"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="8dp"
+                                android:layout_marginHorizontal="8dp"
+                                android:progressTint="#1E88E5"
+                                android:progressBackgroundTint="#2E3A47"
+                                android:max="100"
+                                tools:progress="40" />
+
+                        </LinearLayout>
+
+                        <!-- 2 stars -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="4dp">
+
+                            <TextView
+                                android:layout_width="12dp"
+                                android:layout_height="wrap_content"
+                                android:text="2"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+
+                            <ProgressBar
+                                android:id="@+id/progress_2_star"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="8dp"
+                                android:layout_marginHorizontal="8dp"
+                                android:progressTint="#1E88E5"
+                                android:progressBackgroundTint="#2E3A47"
+                                android:max="100"
+                                tools:progress="20" />
+
+                        </LinearLayout>
+
+                        <!-- 1 star -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="12dp"
+                                android:layout_height="wrap_content"
+                                android:text="1"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+
+                            <ProgressBar
+                                android:id="@+id/progress_1_star"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="8dp"
+                                android:layout_marginHorizontal="8dp"
+                                android:progressTint="#1E88E5"
+                                android:progressBackgroundTint="#2E3A47"
+                                android:max="100"
+                                tools:progress="10" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- See all reviews button -->
+            <TextView
+                android:id="@+id/btn_see_all_reviews"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="See all reviews ›"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:paddingVertical="8dp"
+                android:paddingHorizontal="16dp" />
+
+            <!-- Action Buttons -->
+            <Button
+                android:id="@+id/btn_open_actions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="8dp"
+                android:text="★ RATE • LOG • REVIEW • MORE"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:backgroundTint="#1E88E5"
+                android:paddingVertical="14dp"
+                app:cornerRadius="8dp" />
+
+            <!-- Where to Watch -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:layout_marginTop="24dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Where to Watch"
+                    android:textColor="@color/white"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_streaming"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal"
+                    tools:itemCount="5"
+                    tools:listitem="@layout/item_streaming_service" />
+
+            </LinearLayout>
+
+            <!-- Cast Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:layout_marginTop="24dp">
+
+                <!-- Tabs: Cast, Crew, Details -->
+                <com.google.android.material.tabs.TabLayout
+                    android:id="@+id/tab_layout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    app:tabTextColor="@color/text_secondary"
+                    app:tabSelectedTextColor="@color/white"
+                    app:tabIndicatorColor="#1E88E5"
+                    app:tabIndicatorHeight="2dp"
+                    app:tabMode="fixed">
+
+                    <com.google.android.material.tabs.TabItem
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cast" />
+
+                    <com.google.android.material.tabs.TabItem
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Crew" />
+
+                    <com.google.android.material.tabs.TabItem
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Details" />
+
+                </com.google.android.material.tabs.TabLayout>
+
+                <!-- Cast Tab Content -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_cast"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="horizontal"
+                    android:visibility="visible"
+                    tools:itemCount="4"
+                    tools:listitem="@layout/item_cast_member" />
+
+                <!-- Crew Tab Content (Initially hidden) -->
+                <TextView
+                    android:id="@+id/tv_crew_placeholder"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:padding="24dp"
+                    android:text="Crew information coming soon"
+                    android:textColor="@color/text_secondary"
+                    android:textAlignment="center"
+                    android:visibility="gone" />
+
+                <!-- Details Tab Content (Initially hidden) -->
+                <LinearLayout
+                    android:id="@+id/layout_details"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <!-- Production House -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginBottom="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="PRODUCTION HOUSE"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.05"
+                            android:layout_marginBottom="8dp" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip_production_house"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Warner Bros. Pictures"
+                            android:textColor="@color/white"
+                            app:chipBackgroundColor="@color/dark_card"
+                            app:chipStrokeWidth="0dp"
+                            tools:text="Warner Bros. Pictures" />
+
+                    </LinearLayout>
+
+                    <!-- Country -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginBottom="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="COUNTRY"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.05"
+                            android:layout_marginBottom="8dp" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip_country"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="United States"
+                            android:textColor="@color/white"
+                            app:chipBackgroundColor="@color/dark_card"
+                            app:chipStrokeWidth="0dp"
+                            tools:text="United States" />
+
+                    </LinearLayout>
+
+                    <!-- Genre -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="GENRE"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.05"
+                            android:layout_marginBottom="8dp" />
+
+                        <com.google.android.material.chip.ChipGroup
+                            android:id="@+id/chip_group_genres"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            app:singleLine="false">
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chip_genre_1"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Science Fiction"
+                                android:textColor="@color/white"
+                                app:chipBackgroundColor="@color/dark_card"
+                                app:chipStrokeWidth="0dp" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chip_genre_2"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Adventure"
+                                android:textColor="@color/white"
+                                app:chipBackgroundColor="@color/dark_card"
+                                app:chipStrokeWidth="0dp" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chip_genre_3"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Drama"
+                                android:textColor="@color/white"
+                                app:chipBackgroundColor="@color/dark_card"
+                                app:chipStrokeWidth="0dp" />
+
+                        </com.google.android.material.chip.ChipGroup>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Similar Films -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:layout_marginTop="24dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Similar Films"
+                        android:textColor="@color/white"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btn_view_all"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="View All"
+                        android:textColor="#1E88E5"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_similar_films"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal"
+                    tools:itemCount="3"
+                    tools:listitem="@layout/item_similar_movie" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

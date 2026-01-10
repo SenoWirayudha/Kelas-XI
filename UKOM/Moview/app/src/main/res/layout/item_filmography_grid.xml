@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    app:cardBackgroundColor="@color/dark_card"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Poster Image -->
+        <ImageView
+            android:id="@+id/iv_poster"
+            android:layout_width="80dp"
+            android:layout_height="120dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="Movie Poster"
+            tools:src="@android:color/darker_gray" />
+
+        <!-- Release Year -->
+        <TextView
+            android:id="@+id/tv_year"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="4dp"
+            android:gravity="center"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp"
+            tools:text="2020" />
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

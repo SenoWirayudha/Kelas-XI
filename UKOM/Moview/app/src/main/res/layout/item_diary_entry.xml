@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- Month Header -->
+    <TextView
+        android:id="@+id/tv_month_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.05"
+        tools:text="OCTOBER 2023" />
+
+    <!-- Diary Entry Item -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/entry_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="24dp">
+
+        <!-- Poster -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/poster_card"
+            android:layout_width="110dp"
+            android:layout_height="165dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:strokeWidth="0dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/iv_poster"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="Movie Poster"
+                tools:src="@tools:sample/backgrounds/scenic" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Movie Info -->
+        <LinearLayout
+            android:id="@+id/info_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="8dp"
+            app:layout_constraintStart_toEndOf="@id/poster_card"
+            app:layout_constraintEnd_toStartOf="@id/btn_menu"
+            app:layout_constraintTop_toTopOf="@id/poster_card">
+
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:maxLines="2"
+                android:ellipsize="end"
+                tools:text="Dune: Part Two" />
+
+            <TextView
+                android:id="@+id/tv_year"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"
+                tools:text="2024" />
+
+            <!-- Star Rating -->
+            <LinearLayout
+                android:id="@+id/rating_container"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <ImageView
+                    android:id="@+id/star_1"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_star_filled"
+                    android:contentDescription="Star 1" />
+
+                <ImageView
+                    android:id="@+id/star_2"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_star_filled"
+                    android:contentDescription="Star 2" />
+
+                <ImageView
+                    android:id="@+id/star_3"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_star_filled"
+                    android:contentDescription="Star 3" />
+
+                <ImageView
+                    android:id="@+id/star_4"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_star_filled"
+                    android:contentDescription="Star 4" />
+
+                <ImageView
+                    android:id="@+id/star_5"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_star_outline"
+                    android:contentDescription="Star 5" />
+
+            </LinearLayout>
+
+            <!-- Date and Review Icon -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="8dp">
+
+                <TextView
+                    android:id="@+id/tv_date"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#1E88E5"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="14 Oct" />
+
+                <ImageView
+                    android:id="@+id/ic_has_review"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="8dp"
+                    android:src="@drawable/ic_review"
+                    android:visibility="gone"
+                    app:tint="@color/text_secondary"
+                    android:contentDescription="Has review"
+                    tools:visibility="visible" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Menu Button -->
+        <ImageView
+            android:id="@+id/btn_menu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="8dp"
+            android:src="@drawable/ic_more_vert"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Menu"
+            app:tint="@color/text_secondary"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/poster_card" />
+
+        <!-- Like Button -->
+        <ImageView
+            android:id="@+id/btn_like"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:src="@drawable/ic_heart_outline"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Like"
+            app:tint="@color/text_secondary"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="@id/poster_card"
+            tools:src="@drawable/ic_heart" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</LinearLayout>

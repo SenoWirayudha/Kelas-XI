@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/dark_background">
+
+    <!-- Top Bar -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/top_bar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/dark_background"
+        android:elevation="4dp">
+
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Back"
+            android:src="@drawable/ic_back"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/text_primary" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Scrollable Content -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="56dp"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Header: Profile Photo + Name -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="24dp">
+
+                <!-- Profile Photo (Circular) -->
+                <androidx.cardview.widget.CardView
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    app:cardCornerRadius="60dp"
+                    app:cardElevation="4dp">
+
+                    <ImageView
+                        android:id="@+id/iv_profile"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="Profile Photo"
+                        tools:src="@android:color/darker_gray" />
+                </androidx.cardview.widget.CardView>
+
+                <!-- Full Name -->
+                <TextView
+                    android:id="@+id/tv_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:textColor="@color/text_primary"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    tools:text="Christopher Nolan" />
+            </LinearLayout>
+
+            <!-- Role Tabs -->
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tab_layout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/dark_background"
+                app:tabMode="scrollable"
+                app:tabGravity="start"
+                app:tabIndicatorColor="@color/accent_blue"
+                app:tabIndicatorHeight="2dp"
+                app:tabSelectedTextColor="@color/text_primary"
+                app:tabTextColor="@color/text_secondary"
+                app:tabTextAppearance="@style/TabTextStyle" />
+
+            <!-- Content Container -->
+            <FrameLayout
+                android:id="@+id/content_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="400dp">
+
+                <!-- Bio Section (visible when Bio tab selected) -->
+                <ScrollView
+                    android:id="@+id/bio_section"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="visible">
+
+                    <TextView
+                        android:id="@+id/tv_bio"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="24dp"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
+                        android:lineSpacingExtra="4dp"
+                        tools:text="Christopher Edward Nolan (born 30 July 1970) is a British-American filmmaker known for making personal, conceptually focused blockbuster movies..." />
+                </ScrollView>
+
+                <!-- Filmography Grid (visible when role tab selected) -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_filmography"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp"
+                    android:clipToPadding="false"
+                    android:visibility="gone"
+                    tools:listitem="@layout/item_filmography_grid" />
+            </FrameLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

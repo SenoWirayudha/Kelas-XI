@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/card_artwork"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    app:cardBackgroundColor="@color/dark_card"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp"
+    app:strokeColor="@color/accent_blue">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Poster Image -->
+        <ImageView
+            android:id="@+id/iv_poster"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:contentDescription="Poster"
+            android:scaleType="centerCrop"
+            app:layout_constraintDimensionRatio="2:3"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:src="@color/dark_card" />
+
+        <!-- Selection Overlay -->
+        <View
+            android:id="@+id/selection_overlay"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="#80000000"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/iv_poster"
+            app:layout_constraintEnd_toEndOf="@id/iv_poster"
+            app:layout_constraintStart_toStartOf="@id/iv_poster"
+            app:layout_constraintTop_toTopOf="@id/iv_poster" />
+
+        <!-- Selection Checkmark -->
+        <ImageView
+            android:id="@+id/iv_checkmark"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/bg_circle_indicator"
+            android:padding="6dp"
+            android:src="@drawable/ic_close"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="@id/iv_poster"
+            app:layout_constraintTop_toTopOf="@id/iv_poster"
+            app:tint="@color/white"
+            tools:visibility="visible" />
+
+        <!-- Label -->
+        <TextView
+            android:id="@+id/tv_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:gravity="center"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/iv_poster"
+            tools:text="Original • 2000x3000" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>
