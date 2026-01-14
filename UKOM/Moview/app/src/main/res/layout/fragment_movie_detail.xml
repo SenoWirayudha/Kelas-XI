@@ -50,8 +50,8 @@
             android:orientation="vertical"
             android:paddingBottom="32dp">
 
-            <!-- Backdrop Image -->
-            <RelativeLayout
+            <!-- Backdrop Image with Gradient Fade -->
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="250dp">
 
@@ -63,13 +63,14 @@
                     android:contentDescription="Backdrop"
                     tools:src="@tools:sample/backgrounds/scenic" />
 
-                <!-- Gradient Overlay -->
+                <!-- Gradient Fade ONLY at Bottom (30-40% height) -->
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/bg_backdrop_gradient" />
+                    android:layout_height="100dp"
+                    android:layout_gravity="bottom"
+                    android:background="@drawable/bg_gradient_bottom" />
 
-            </RelativeLayout>
+            </FrameLayout>
 
             <!-- Movie Info Section -->
             <LinearLayout

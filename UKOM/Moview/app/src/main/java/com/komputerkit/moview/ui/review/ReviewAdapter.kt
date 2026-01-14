@@ -35,8 +35,15 @@ class ReviewAdapter(
             binding.tvTitle.text = review.movie.title
             binding.tvYear.text = review.movie.releaseYear.toString()
             binding.tvDate.text = review.dateLabel
-            binding.tvRating.text = String.format("%.1f", review.rating)
             binding.tvReviewPreview.text = review.reviewText
+
+            // Display star rating
+            val starCount = (review.rating / 2).toInt().coerceIn(0, 5)
+            val stars = "★".repeat(starCount)
+            binding.tvRatingStars.text = stars
+
+            // Show liked icon if movie is liked
+            binding.ivLiked.visibility = if (review.isLiked) android.view.View.VISIBLE else android.view.View.GONE
 
             Glide.with(binding.root.context)
                 .load(review.movie.posterUrl)

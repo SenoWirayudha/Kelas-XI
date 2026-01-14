@@ -14,16 +14,23 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentEditProfileBinding
 import com.komputerkit.moview.util.TmdbImageUrl
+import kotlinx.coroutines.launch
 
 class EditProfileFragment : Fragment() {
 
     private var _binding: FragmentEditProfileBinding? = null
     private val binding get() = _binding!!
+    
+    private val viewModel: EditProfileViewModel by viewModels()
+    private lateinit var favoriteSlotAdapter: FavoriteSlotAdapter
     
     private var hasFavorites = false
     private var isBackdropEnabled = false
@@ -42,64 +49,102 @@ class EditProfileFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         
         loadProfileData()
+        setupRecyclerView()
+        setupObservers()
         setupClickListeners()
         setupBackdropToggle()
+        setupNavigationResultListener()
+    }
+    
+    private fun setupRecyclerView() {
+        favoriteSlotAdapter = FavoriteSlotAdapter(
+            onAddClick = { index ->
+                // Navigate to Search Screen in SELECT_MOVIE_MODE
+                val action = EditProfileFragmentDirections.actionEditProfileToSearch(
+                    selectMovieMode = true,
+                    slotIndex = index
+                )
+                findNavController().navigate(action)
+            },
+            onRemoveClick = { index ->
+                viewModel.removeFavoriteMovie(index)
+            }
+        )
+        
+        binding.rvFavorites.apply {
+            adapter = favoriteSlotAdapter
+            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        }
+    }
+    
+    private fun setupObservers() {
+        lifecycleScope.launch {
+            viewModel.uiState.collect { state ->
+                // Update UI
+                binding.etUsername.setText(state.username)
+                binding.etBio.setText(state.bio)
+                
+                // Update favorites
+                favoriteSlotAdapter.submitList(state.favoriteSlots)
+                
+                // Check if has favorites for backdrop toggle
+                hasFavorites = state.favoriteSlots.any { it.movie != null }
+                if (hasFavorites) {
+                    firstFavoriteBackdropUrl = state.favoriteSlots.firstOrNull { it.movie != null }?.movie?.backdropUrl
+                }
+                updateToggleState()
+            }
+        }
+    }
+    
+    private fun setupNavigationResultListener() {
+        // Listen for selected movie from Search Screen
+        findNavController().currentBackStackEntry?.savedStateHandle?.let { savedStateHandle ->
+            savedStateHandle.getLiveData<Int>("selected_movie_id").observe(viewLifecycleOwner) { movieId ->
+                savedStateHandle.getLiveData<Int>("slot_index").observe(viewLifecycleOwner) { slotIndex ->
+                    if (movieId != null && slotIndex != null) {
+                        // Get full movie from ViewModel and add to favorites
+                        viewModel.addFavoriteMovieById(slotIndex, movieId)
+                        // Clear saved state
+                        savedStateHandle.remove<Int>("selected_movie_id")
+                        savedStateHandle.remove<Int>("slot_index")
+                    }
+                }
+            }
+        }
     }
 
     private fun loadProfileData() {
-        // Load user profile data
-        binding.etUsername.setText("moviebuff_99")
-        binding.etBio.setText("Cinema lover. Sci-fi enthusiast. Always waiting for the next Christopher Nolan masterpiece.")
-        
         // Load profile photo - circular avatar
         Glide.with(this)
             .load("https://i.pravatar.cc/150?img=1")
             .circleCrop()
             .into(binding.ivProfile)
         
-        // Load backdrop - default or from favorite
+        // Load default backdrop with blur (toggle OFF state)
         val defaultBackdrop = TmdbImageUrl.getBackdropUrl(TmdbImageUrl.Sample.BACKDROP_DEFAULT)
         Glide.with(this)
             .load(defaultBackdrop)
+            .transform(jp.wasabeef.glide.transformations.BlurTransformation(25, 3))
             .into(binding.ivBackdrop)
-        
-        // Load Top 4 Favorites
-        loadFavorites()
     }
 
     private fun loadFavorites() {
-        // Sample favorite movies - in real app, load from repository
-        val favorites = listOf(
-            TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_INTERSTELLAR),
-            TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_DUNE),
-            TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_DARK_KNIGHT)
-        )
-        
-        if (favorites.isNotEmpty()) {
-            hasFavorites = true
-            Glide.with(this).load(favorites[0]).into(binding.ivFavorite1)
-            firstFavoriteBackdropUrl = TmdbImageUrl.getBackdropUrl(TmdbImageUrl.Sample.BACKDROP_INTERSTELLAR)
-            
+        // Handled by ViewModel and StateFlow
+    }
+    
+    private fun updateToggleState() {
+        if (hasFavorites) {
             binding.layoutBackdropToggle.visibility = View.VISIBLE
             binding.switchBackdrop.isEnabled = true
             binding.tvBackdropLabel.alpha = 1.0f
-            updateToggleColors()
         } else {
-            hasFavorites = false
             binding.layoutBackdropToggle.visibility = View.VISIBLE
             binding.switchBackdrop.isEnabled = false
             binding.switchBackdrop.isChecked = false
             binding.tvBackdropLabel.alpha = 0.5f
-            updateToggleColors()
         }
-        
-        if (favorites.size > 1) {
-            Glide.with(this).load(favorites[1]).into(binding.ivFavorite2)
-        }
-        
-        if (favorites.size > 2) {
-            Glide.with(this).load(favorites[2]).into(binding.ivFavorite3)
-        }
+        updateToggleColors()
     }
 
     private fun setupBackdropToggle() {
@@ -198,20 +243,30 @@ class EditProfileFragment : Fragment() {
     }
 
     private fun updateBackdrop() {
-        // Stable and deterministic: favorites[0] is the ONLY backdrop source when enabled
-        val backdropUrl = if (isBackdropEnabled && firstFavoriteBackdropUrl != null) {
-            firstFavoriteBackdropUrl // Always use favorites[0] when ON
+        // Determine backdrop URL - ALWAYS have a valid fallback
+        val backdropUrl = if (isBackdropEnabled && !firstFavoriteBackdropUrl.isNullOrEmpty()) {
+            firstFavoriteBackdropUrl // Use first favorite backdrop when toggle ON and available
         } else {
-            TmdbImageUrl.getBackdropUrl(TmdbImageUrl.Sample.BACKDROP_DEFAULT) // Default when OFF
+            TmdbImageUrl.getBackdropUrl(TmdbImageUrl.Sample.BACKDROP_DEFAULT) // Default backdrop
         }
         
-        Glide.with(this)
-            .load(backdropUrl)
-            .into(binding.ivBackdrop)
+        // CRITICAL: Always load backdrop image
+        if (isBackdropEnabled) {
+            // Toggle ON: Load WITHOUT blur (clear/sharp)
+            Glide.with(requireContext())
+                .load(backdropUrl)
+                .into(binding.ivBackdrop)
+        } else {
+            // Toggle OFF: Load WITH blur
+            Glide.with(requireContext())
+                .load(backdropUrl)
+                .transform(jp.wasabeef.glide.transformations.BlurTransformation(25, 3))
+                .into(binding.ivBackdrop)
+        }
     }
 
     private fun setupClickListeners() {
-        binding.btnClose.setOnClickListener {
+        binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
         }
 

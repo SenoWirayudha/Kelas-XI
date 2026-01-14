@@ -21,12 +21,12 @@
                 android:id="@+id/btn_back"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
+                android:layout_marginStart="8dp"
                 android:layout_marginTop="8dp"
-                android:layout_marginEnd="16dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Back"
                 android:src="@drawable/ic_back"
-                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@color/text_primary" />
         </androidx.constraintlayout.widget.ConstraintLayout>
@@ -42,29 +42,32 @@
             android:layout_height="wrap_content"
             android:paddingBottom="80dp">
 
-            <!-- Backdrop -->
-            <ImageView
-                android:id="@+id/iv_backdrop"
+            <!-- Backdrop with Gradient Fade -->
+            <FrameLayout
+                android:id="@+id/backdrop_container"
                 android:layout_width="0dp"
                 android:layout_height="0dp"
-                android:contentDescription="Backdrop"
-                android:scaleType="centerCrop"
                 app:layout_constraintDimensionRatio="16:9"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                tools:src="@color/dark_card" />
+                app:layout_constraintTop_toTopOf="parent">
 
-            <!-- Gradient Overlay -->
-            <View
-                android:id="@+id/backdrop_gradient"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:background="@drawable/bg_backdrop_gradient"
-                app:layout_constraintBottom_toBottomOf="@id/iv_backdrop"
-                app:layout_constraintEnd_toEndOf="@id/iv_backdrop"
-                app:layout_constraintStart_toStartOf="@id/iv_backdrop"
-                app:layout_constraintTop_toTopOf="@id/iv_backdrop" />
+                <ImageView
+                    android:id="@+id/iv_backdrop"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="Backdrop"
+                    android:scaleType="centerCrop"
+                    tools:src="@color/dark_card" />
+
+                <!-- Gradient Fade ONLY at Bottom (30-40% height) -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="80dp"
+                    android:layout_gravity="bottom"
+                    android:background="@drawable/bg_gradient_bottom" />
+
+            </FrameLayout>
 
             <!-- Review Header -->
             <LinearLayout
@@ -78,7 +81,7 @@
                 android:orientation="horizontal"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/iv_backdrop">
+                app:layout_constraintTop_toBottomOf="@id/backdrop_container">
 
                 <androidx.cardview.widget.CardView
                     android:id="@+id/card_profile"

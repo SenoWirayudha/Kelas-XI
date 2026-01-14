@@ -54,7 +54,7 @@
             android:id="@+id/rating_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="4dp"
             android:orientation="horizontal"
             android:gravity="center"
             app:layout_constraintTop_toBottomOf="@id/poster_container"
@@ -64,47 +64,53 @@
 
             <ImageView
                 android:id="@+id/star1"
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:layout_marginEnd="1dp"
+                android:layout_width="11dp"
+                android:layout_height="11dp"
                 android:src="@drawable/ic_star_outline"
                 android:contentDescription="Star 1"
-                app:tint="#FFD700" />
+                app:tint="@color/star_green" />
 
             <ImageView
                 android:id="@+id/star2"
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:layout_marginEnd="1dp"
+                android:layout_width="11dp"
+                android:layout_height="11dp"
                 android:src="@drawable/ic_star_outline"
                 android:contentDescription="Star 2"
-                app:tint="#FFD700" />
+                app:tint="@color/star_green" />
 
             <ImageView
                 android:id="@+id/star3"
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:layout_marginEnd="1dp"
+                android:layout_width="11dp"
+                android:layout_height="11dp"
                 android:src="@drawable/ic_star_outline"
                 android:contentDescription="Star 3"
-                app:tint="#FFD700" />
+                app:tint="@color/star_green" />
 
             <ImageView
                 android:id="@+id/star4"
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:layout_marginEnd="1dp"
+                android:layout_width="11dp"
+                android:layout_height="11dp"
                 android:src="@drawable/ic_star_outline"
                 android:contentDescription="Star 4"
-                app:tint="#FFD700" />
+                app:tint="@color/star_green" />
 
             <ImageView
                 android:id="@+id/star5"
-                android:layout_width="14dp"
-                android:layout_height="14dp"
+                android:layout_width="11dp"
+                android:layout_height="11dp"
                 android:src="@drawable/ic_star_outline"
                 android:contentDescription="Star 5"
-                app:tint="#FFD700" />
+                app:tint="@color/star_green" />
+
+            <ImageView
+                android:id="@+id/iv_liked"
+                android:layout_width="11dp"
+                android:layout_height="11dp"
+                android:layout_marginStart="4dp"
+                android:src="@drawable/ic_heart_filled"
+                android:contentDescription="Liked"
+                android:visibility="gone"
+                app:tint="@color/pink_like" />
 
         </LinearLayout>
 

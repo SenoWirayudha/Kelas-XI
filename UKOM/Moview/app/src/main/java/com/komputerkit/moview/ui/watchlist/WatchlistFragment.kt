@@ -81,12 +81,8 @@ class WatchlistFragment : Fragment() {
     }
     
     private fun setupClickListeners() {
-        binding.btnClose.setOnClickListener {
+        binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
-        }
-        
-        binding.fabAdd.setOnClickListener {
-            Toast.makeText(requireContext(), "Add to Watchlist", Toast.LENGTH_SHORT).show()
         }
     }
     

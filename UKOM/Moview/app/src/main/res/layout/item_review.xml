@@ -45,20 +45,49 @@
         app:layout_constraintTop_toTopOf="@id/card_poster"
         tools:text="Dune: Part Two" />
 
-    <!-- Release Year -->
-    <TextView
-        android:id="@+id/tv_year"
+    <!-- Release Year with Stars and Like -->
+    <LinearLayout
+        android:id="@+id/layout_year_rating"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="4dp"
-        android:layout_marginEnd="60dp"
-        android:textColor="@color/text_secondary"
-        android:textSize="14sp"
+        android:layout_marginEnd="16dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/card_poster"
-        app:layout_constraintTop_toBottomOf="@id/tv_title"
-        tools:text="2024" />
+        app:layout_constraintTop_toBottomOf="@id/tv_title">
+
+        <TextView
+            android:id="@+id/tv_year"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            tools:text="1994" />
+
+        <TextView
+            android:id="@+id/tv_rating_stars"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textColor="@color/star_green"
+            android:textSize="12sp"
+            tools:text="★★★★★" />
+
+        <ImageView
+            android:id="@+id/iv_liked"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="6dp"
+            android:src="@drawable/ic_heart_filled"
+            android:contentDescription="Liked"
+            android:visibility="gone"
+            app:tint="@color/pink_like"
+            tools:visibility="visible" />
+
+    </LinearLayout>
 
     <!-- Review Date -->
     <TextView
@@ -66,53 +95,14 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="60dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="16dp"
         android:textColor="@color/text_secondary"
         android:textSize="14sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/card_poster"
-        app:layout_constraintTop_toBottomOf="@id/tv_year"
+        app:layout_constraintTop_toBottomOf="@id/layout_year_rating"
         tools:text="Mar 15, 2024" />
-
-    <!-- Rating Badge -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/card_rating"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="0dp"
-        android:layout_marginEnd="0dp"
-        app:cardBackgroundColor="#40000000"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="0dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="6dp">
-
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@drawable/ic_star_filled"
-                app:tint="@color/accent_gold" />
-
-            <TextView
-                android:id="@+id/tv_rating"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                tools:text="9.0" />
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
 
     <!-- Review Text Preview -->
     <TextView

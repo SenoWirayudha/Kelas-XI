@@ -20,6 +20,7 @@
     <color name="text_secondary">#8899A6</color>
     <color name="accent_blue">#1E88E5</color>
     <color name="accent_gold">#FFD700</color>
+    <color name="star_green">#4CAF50</color>
     
     <!-- Status Colors -->
     <color name="transparent">#00000000</color>

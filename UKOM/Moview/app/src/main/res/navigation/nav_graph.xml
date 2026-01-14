@@ -20,9 +20,20 @@
         android:id="@+id/navigation_search"
         android:name="com.komputerkit.moview.ui.search.SearchFragment"
         android:label="Search">
+        <argument
+            android:name="selectMovieMode"
+            android:defaultValue="false"
+            app:argType="boolean" />
+        <argument
+            android:name="slotIndex"
+            android:defaultValue="-1"
+            app:argType="integer" />
         <action
             android:id="@+id/action_search_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_search_to_crewDetail"
+            app:destination="@id/crewDetailFragment" />
     </fragment>
 
     <fragment
@@ -236,6 +247,16 @@
         android:id="@+id/editProfileFragment"
         android:name="com.komputerkit.moview.ui.profile.EditProfileFragment"
         android:label="Edit Profile">
+        <action
+            android:id="@+id/action_editProfile_to_search"
+            app:destination="@id/navigation_search">
+            <argument
+                android:name="selectMovieMode"
+                app:argType="boolean" />
+            <argument
+                android:name="slotIndex"
+                app:argType="integer" />
+        </action>
         <action
             android:id="@+id/action_editProfile_to_posterBackdrop"
             app:destination="@id/posterBackdropFragment">

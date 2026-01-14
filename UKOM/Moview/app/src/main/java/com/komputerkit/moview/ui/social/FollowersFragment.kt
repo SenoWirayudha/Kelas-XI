@@ -47,7 +47,7 @@ class FollowersFragment : Fragment() {
     }
     
     private fun setupClickListeners() {
-        binding.btnClose.setOnClickListener {
+        binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
         }
     }

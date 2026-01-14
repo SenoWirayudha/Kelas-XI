@@ -62,6 +62,9 @@ dependencies {
     // Glide for image loading
     implementation(libs.glide)
     
+    // Glide Transformations for blur effect
+    implementation("jp.wasabeef:glide-transformations:4.3.0")
+    
     // Flexbox Layout
     implementation("com.google.android.flexbox:flexbox:3.0.0")
     

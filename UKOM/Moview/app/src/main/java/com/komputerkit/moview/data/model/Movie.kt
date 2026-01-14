@@ -23,7 +23,8 @@ data class Movie(
     val similarMovies: List<Movie> = emptyList(),
     val hasReview: Boolean = false,
     val reviewId: Int = 0,
-    val userRating: Float = 0f  // User's personal rating (0-5 in 0.5 steps)
+    val userRating: Float = 0f,  // User's personal rating (0-5 in 0.5 steps)
+    val isLiked: Boolean = false  // Whether user has liked this movie
 )
 
 data class CastMember(

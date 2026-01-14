@@ -12,6 +12,7 @@ data class Review(
     val timestamp: Long = 0L,
     val likeCount: Int = 0,
     val isRewatch: Boolean = false,
+    val isLiked: Boolean = false,
     val userName: String = "",
     val userAvatar: String = "",
     val timeAgo: String = "",

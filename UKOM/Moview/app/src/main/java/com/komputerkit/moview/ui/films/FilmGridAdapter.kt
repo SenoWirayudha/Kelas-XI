@@ -45,6 +45,9 @@ class FilmGridAdapter(
             // Display user rating as stars
             updateStarRating(movie.userRating)
             
+            // Show liked icon if movie is liked
+            binding.ivLiked.visibility = if (movie.isLiked) View.VISIBLE else View.GONE
+            
             // Poster click - navigate to Film Detail
             binding.posterContainer.setOnClickListener {
                 onMovieClick(movie)

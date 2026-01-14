@@ -128,13 +128,9 @@ class ProfileFragment : Fragment() {
     }
     
     private fun setupClickListeners() {
-        binding.btnEdit.setOnClickListener {
+        binding.btnSettings.setOnClickListener {
             val action = ProfileFragmentDirections.actionProfileToEditProfile()
             findNavController().navigate(action)
-        }
-        
-        binding.btnSettings.setOnClickListener {
-            Toast.makeText(requireContext(), "Settings", Toast.LENGTH_SHORT).show()
         }
         
         binding.layoutFilms.setOnClickListener {

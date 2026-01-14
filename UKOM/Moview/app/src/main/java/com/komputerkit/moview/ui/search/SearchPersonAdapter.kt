@@ -7,7 +7,9 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ItemSearchPersonBinding
 
-class SearchPersonAdapter : RecyclerView.Adapter<SearchPersonAdapter.SearchPersonViewHolder>() {
+class SearchPersonAdapter(
+    private val onPersonClick: (SearchPerson) -> Unit
+) : RecyclerView.Adapter<SearchPersonAdapter.SearchPersonViewHolder>() {
     
     private var people: List<SearchPerson> = emptyList()
     
@@ -44,6 +46,11 @@ class SearchPersonAdapter : RecyclerView.Adapter<SearchPersonAdapter.SearchPerso
             
             binding.tvName.text = person.name
             binding.tvRole.text = person.role
+            binding.tvKnownFor.text = person.knownFor
+            
+            binding.root.setOnClickListener {
+                onPersonClick(person)
+            }
         }
     }
 }

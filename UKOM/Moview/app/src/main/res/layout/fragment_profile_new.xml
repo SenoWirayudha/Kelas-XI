@@ -34,20 +34,11 @@
                 tools:text="Alex Cinephile" />
 
             <ImageView
-                android:id="@+id/btn_edit"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_edit"
-                android:contentDescription="Edit"
-                android:layout_marginEnd="16dp"
-                app:tint="@color/white" />
-
-            <ImageView
                 android:id="@+id/btn_settings"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_settings"
-                android:contentDescription="Settings"
+                android:contentDescription="Edit Profile"
                 android:layout_marginEnd="16dp"
                 app:tint="@color/white" />
 

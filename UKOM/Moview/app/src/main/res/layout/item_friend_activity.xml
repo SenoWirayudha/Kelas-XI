@@ -96,7 +96,7 @@
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:textSize="14sp"
-                    android:textColor="#FFD700"
+                    android:textColor="@color/star_green"
                     tools:text="★★★★★" />
 
                 <!-- Like Icon Only -->

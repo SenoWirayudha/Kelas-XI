@@ -42,6 +42,18 @@
             android:textSize="13sp"
             tools:text="Director" />
 
+        <TextView
+            android:id="@+id/tv_known_for"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:alpha="0.7"
+            android:maxLines="1"
+            android:ellipsize="end"
+            tools:text="Known for The Dark Knight, Inception, Interstellar" />
+
     </LinearLayout>
 
     <ImageView

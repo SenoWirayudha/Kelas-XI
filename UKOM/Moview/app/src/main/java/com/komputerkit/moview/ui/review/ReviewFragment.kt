@@ -47,22 +47,14 @@ class ReviewFragment : Fragment() {
     }
     
     private fun setupClickListeners() {
-        binding.btnClose.setOnClickListener {
+        binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
-        }
-        
-        binding.fabAddReview.setOnClickListener {
-            Toast.makeText(requireContext(), "Add Review", Toast.LENGTH_SHORT).show()
         }
     }
     
     private fun observeViewModel() {
         viewModel.reviews.observe(viewLifecycleOwner) { reviews ->
             adapter.submitList(reviews)
-        }
-        
-        viewModel.reviewCount.observe(viewLifecycleOwner) { count ->
-            binding.tvCount.text = "🎬 $count Movies Reviewed"
         }
     }
     

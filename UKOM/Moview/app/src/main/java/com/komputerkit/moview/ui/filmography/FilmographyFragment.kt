@@ -10,7 +10,6 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import com.komputerkit.moview.databinding.FragmentFilmographyBinding
-import com.komputerkit.moview.ui.films.FilmGridAdapter
 
 class FilmographyFragment : Fragment() {
 
@@ -20,7 +19,7 @@ class FilmographyFragment : Fragment() {
     private val viewModel: FilmographyViewModel by viewModels()
     private val args: FilmographyFragmentArgs by navArgs()
     
-    private lateinit var filmGridAdapter: FilmGridAdapter
+    private lateinit var filmographyAdapter: FilmographyAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,7 +50,7 @@ class FilmographyFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        filmGridAdapter = FilmGridAdapter(
+        filmographyAdapter = FilmographyAdapter(
             onMovieClick = { movie ->
                 // Navigate to Film Detail
                 val action = FilmographyFragmentDirections
@@ -61,14 +60,14 @@ class FilmographyFragment : Fragment() {
         )
         
         binding.rvFilmography.apply {
-            adapter = filmGridAdapter
+            adapter = filmographyAdapter
             layoutManager = GridLayoutManager(requireContext(), 4)
         }
     }
     
     private fun setupObservers() {
         viewModel.films.observe(viewLifecycleOwner) { films ->
-            filmGridAdapter.submitList(films)
+            filmographyAdapter.submitList(films)
         }
     }
 

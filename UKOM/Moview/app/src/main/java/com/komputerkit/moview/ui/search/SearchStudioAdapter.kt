@@ -5,7 +5,9 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.databinding.ItemSearchStudioBinding
 
-class SearchStudioAdapter : RecyclerView.Adapter<SearchStudioAdapter.SearchStudioViewHolder>() {
+class SearchStudioAdapter(
+    private val onStudioClick: (SearchStudio) -> Unit
+) : RecyclerView.Adapter<SearchStudioAdapter.SearchStudioViewHolder>() {
     
     private var studios: List<SearchStudio> = emptyList()
     
@@ -35,6 +37,10 @@ class SearchStudioAdapter : RecyclerView.Adapter<SearchStudioAdapter.SearchStudi
         
         fun bind(studio: SearchStudio) {
             binding.chipStudio.text = studio.name
+            
+            binding.chipStudio.setOnClickListener {
+                onStudioClick(studio)
+            }
         }
     }
 }

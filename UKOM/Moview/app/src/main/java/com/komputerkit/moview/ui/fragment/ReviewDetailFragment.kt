@@ -76,8 +76,18 @@ class ReviewDetailFragment : Fragment() {
                 tvUsername.text = review.userName
                 tvMovieTitle.text = review.movie.title
                 
+                // Build year and stars with colored stars
                 val stars = "★".repeat(review.rating.toInt())
-                tvYear.text = "${review.movie.releaseYear} • $stars"
+                val yearText = "${review.movie.releaseYear} • "
+                val fullText = yearText + stars
+                val spannable = android.text.SpannableString(fullText)
+                spannable.setSpan(
+                    android.text.style.ForegroundColorSpan(requireContext().getColor(R.color.star_green)),
+                    yearText.length,
+                    fullText.length,
+                    android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                tvYear.text = spannable
                 
                 tvPostedTime.text = review.timeAgo
                 tvReviewText.text = review.reviewText
@@ -132,11 +142,21 @@ class ReviewDetailFragment : Fragment() {
             }
         }
 
-        binding.layoutActions.setOnClickListener {
+        // Like button - use both icon and count as clickable
+        binding.ivLikeIcon.setOnClickListener {
+            viewModel.toggleLike()
+        }
+        
+        binding.tvLikeCount.setOnClickListener {
             viewModel.toggleLike()
         }
 
+        // Comment button - use both icon and count as clickable
         binding.ivCommentIcon.setOnClickListener {
+            showCommentsBottomSheet()
+        }
+        
+        binding.tvCommentCount.setOnClickListener {
             showCommentsBottomSheet()
         }
 
@@ -199,30 +219,65 @@ class ReviewDetailFragment : Fragment() {
             }
             
             fabAddComment.setOnClickListener {
-                showAddCommentDialog()
+                showAddCommentBottomSheet()
             }
         }
     }
 
-    private fun showAddCommentDialog() {
-        val input = EditText(requireContext()).apply {
-            hint = "Write your comment..."
-            setPadding(40, 40, 40, 40)
-            setTextColor(requireContext().getColor(R.color.text_primary))
-            setHintTextColor(requireContext().getColor(R.color.text_secondary))
+    private fun showAddCommentBottomSheet() {
+        val addCommentSheet = BottomSheetDialog(requireContext(), R.style.BottomSheetDialogTheme)
+        val dialogBinding = com.komputerkit.moview.databinding.DialogAddCommentBinding.inflate(layoutInflater)
+        addCommentSheet.setContentView(dialogBinding.root)
+        
+        // Setup bottom sheet behavior
+        addCommentSheet.setOnShowListener { dialog ->
+            val bottomSheet = (dialog as BottomSheetDialog).findViewById<FrameLayout>(
+                com.google.android.material.R.id.design_bottom_sheet
+            )
+            bottomSheet?.let {
+                val behavior = BottomSheetBehavior.from(it)
+                behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                behavior.skipCollapsed = true
+            }
         }
         
-        AlertDialog.Builder(requireContext())
-            .setTitle("Add Comment")
-            .setView(input)
-            .setPositiveButton("Post") { _, _ ->
-                val commentText = input.text.toString().trim()
-                if (commentText.isNotEmpty()) {
-                    viewModel.addComment(commentText)
+        // Character count
+        dialogBinding.etComment.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val length = s?.length ?: 0
+                dialogBinding.tvCharCount.text = "$length/500"
+                
+                // Change color if approaching limit
+                if (length > 450) {
+                    dialogBinding.tvCharCount.setTextColor(requireContext().getColor(R.color.pink_like))
+                } else {
+                    dialogBinding.tvCharCount.setTextColor(requireContext().getColor(R.color.text_secondary))
                 }
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        })
+        
+        dialogBinding.btnCancel.setOnClickListener {
+            addCommentSheet.dismiss()
+        }
+        
+        dialogBinding.btnPost.setOnClickListener {
+            val commentText = dialogBinding.etComment.text.toString().trim()
+            if (commentText.isNotEmpty()) {
+                viewModel.addComment(commentText)
+                addCommentSheet.dismiss()
+            }
+        }
+        
+        addCommentSheet.show()
+        
+        // Show keyboard automatically
+        dialogBinding.etComment.requestFocus()
+        dialogBinding.etComment.postDelayed({
+            val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.showSoftInput(dialogBinding.etComment, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }, 200)
     }
 
     private fun formatCount(count: Int): String {
