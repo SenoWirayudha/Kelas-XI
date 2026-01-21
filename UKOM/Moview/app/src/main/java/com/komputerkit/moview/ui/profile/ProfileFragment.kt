@@ -8,7 +8,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentProfileNewBinding
@@ -43,21 +43,25 @@ class ProfileFragment : Fragment() {
     }
     
     private fun setupRecyclerViews() {
-        // Favorites
-        favoriteMovieAdapter = FavoriteMovieAdapter { movie ->
-            val action = ProfileFragmentDirections.actionProfileToMovieDetail(movie.id)
-            findNavController().navigate(action)
-        }
+        // Favorites - Grid with 4 columns
+        favoriteMovieAdapter = FavoriteMovieAdapter(
+            onMovieClick = { movie ->
+                val action = ProfileFragmentDirections.actionProfileToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            }
+        )
         binding.rvFavorites.apply {
             adapter = favoriteMovieAdapter
-            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+            layoutManager = GridLayoutManager(requireContext(), 4)
+            isNestedScrollingEnabled = false
         }
         
-        // Recent Activity
+        // Recent Activity - Grid with 4 columns
         recentActivityAdapter = RecentActivityAdapter()
         binding.rvRecentActivity.apply {
             adapter = recentActivityAdapter
-            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+            layoutManager = GridLayoutManager(requireContext(), 4)
+            isNestedScrollingEnabled = false
         }
     }
     

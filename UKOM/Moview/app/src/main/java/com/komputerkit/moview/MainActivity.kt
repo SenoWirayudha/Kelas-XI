@@ -1,6 +1,8 @@
 package com.komputerkit.moview
 
+import android.content.Context
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
@@ -19,6 +21,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         setupNavigation()
+        checkLoginStatus()
     }
     
     private fun setupNavigation() {
@@ -28,5 +31,28 @@ class MainActivity : AppCompatActivity() {
         
         // Setup Bottom Navigation with Navigation Component
         binding.bottomNavigation.setupWithNavController(navController)
+        
+        // Hide bottom navigation on login screen
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            when (destination.id) {
+                R.id.loginFragment -> {
+                    binding.bottomNavigation.visibility = View.GONE
+                }
+                else -> {
+                    binding.bottomNavigation.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+    
+    private fun checkLoginStatus() {
+        val sharedPrefs = getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val isLoggedIn = sharedPrefs.getBoolean("isLoggedIn", false)
+        
+        if (!isLoggedIn) {
+            // User not logged in, navigate to login
+            navController.navigate(R.id.loginFragment)
+        }
+        // If logged in, stay at default destination (home)
     }
 }

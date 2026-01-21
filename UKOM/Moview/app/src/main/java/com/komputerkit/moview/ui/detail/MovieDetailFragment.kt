@@ -14,8 +14,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.komputerkit.moview.R
+import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.BottomSheetMovieActionsBinding
 import com.komputerkit.moview.databinding.FragmentMovieDetailBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 
 class MovieDetailFragment : Fragment() {
 
@@ -64,11 +66,14 @@ class MovieDetailFragment : Fragment() {
         }
         
         // Similar Movies
-        similarMovieAdapter = SimilarMovieAdapter { movie ->
-            // Navigate to this movie's detail
+        val navigateToMovie: (Movie) -> Unit = { movie ->
             val action = MovieDetailFragmentDirections.actionMovieDetailSelf(movie.id)
             findNavController().navigate(action)
         }
+        similarMovieAdapter = SimilarMovieAdapter(
+            onMovieClick = navigateToMovie,
+            onLongPressGoToFilm = navigateToMovie
+        )
         binding.rvSimilarFilms.apply {
             adapter = similarMovieAdapter
             layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
@@ -103,6 +108,21 @@ class MovieDetailFragment : Fragment() {
             Glide.with(this)
                 .load(movie.backdropUrl)
                 .into(binding.ivBackdrop)
+            
+            // Setup long press on poster to show actions
+            MovieActionsHelper.setupPosterLongClick(
+                posterView = binding.ivPoster,
+                movie = movie,
+                isFromMovieDetail = true,
+                onLogFilm = { m ->
+                    val action = MovieDetailFragmentDirections.actionMovieDetailToLogFilm(m.id)
+                    findNavController().navigate(action)
+                },
+                onChangePoster = { m ->
+                    val action = MovieDetailFragmentDirections.actionMovieDetailToPosterBackdrop(m.id)
+                    findNavController().navigate(action)
+                }
+            )
             
             // Cast
             castAdapter.submitList(movie.cast)
@@ -220,73 +240,22 @@ class MovieDetailFragment : Fragment() {
     }
     
     private fun showMovieActionsBottomSheet() {
-        val bottomSheetDialog = BottomSheetDialog(requireContext())
-        val bottomSheetBinding = BottomSheetMovieActionsBinding.inflate(layoutInflater)
-        bottomSheetDialog.setContentView(bottomSheetBinding.root)
-        
-        // Set movie data
         viewModel.movie.value?.let { movie ->
-            bottomSheetBinding.tvMovieTitle.text = movie.title
-            bottomSheetBinding.tvMovieYear.text = movie.releaseYear.toString()
+            MovieActionsHelper.showMovieActionsBottomSheet(
+                context = requireContext(),
+                movie = movie,
+                isFromMovieDetail = true, // Hide "Go to film" since we're already here
+                onGoToFilm = null, // Not needed since we hide it
+                onLogFilm = { m ->
+                    val action = MovieDetailFragmentDirections.actionMovieDetailToLogFilm(m.id)
+                    findNavController().navigate(action)
+                },
+                onChangePoster = { m ->
+                    val action = MovieDetailFragmentDirections.actionMovieDetailToPosterBackdrop(m.id)
+                    findNavController().navigate(action)
+                }
+            )
         }
-        
-        // Setup star rating
-        setupStarRating(bottomSheetBinding)
-        
-        // Setup click listeners
-        bottomSheetBinding.btnWatched.setOnClickListener {
-            Toast.makeText(requireContext(), "Marked as watched", Toast.LENGTH_SHORT).show()
-        }
-        
-        bottomSheetBinding.btnLike.setOnClickListener {
-            Toast.makeText(requireContext(), "Added to likes", Toast.LENGTH_SHORT).show()
-        }
-        
-        bottomSheetBinding.btnWatchlist.setOnClickListener {
-            Toast.makeText(requireContext(), "Added to watchlist", Toast.LENGTH_SHORT).show()
-        }
-        
-        bottomSheetBinding.btnReviewLog.setOnClickListener {
-            bottomSheetDialog.dismiss()
-            viewModel.movie.value?.let { movie ->
-                val action = MovieDetailFragmentDirections.actionMovieDetailToLogFilm(movie.id)
-                findNavController().navigate(action)
-            }
-        }
-        
-        bottomSheetBinding.btnAddToLists.setOnClickListener {
-            Toast.makeText(requireContext(), "Add to lists", Toast.LENGTH_SHORT).show()
-            bottomSheetDialog.dismiss()
-        }
-        
-        bottomSheetBinding.btnGoToFilm.setOnClickListener {
-            Toast.makeText(requireContext(), "Go to film", Toast.LENGTH_SHORT).show()
-            bottomSheetDialog.dismiss()
-        }
-        
-        bottomSheetBinding.btnViewPoster.setOnClickListener {
-            Toast.makeText(requireContext(), "View poster", Toast.LENGTH_SHORT).show()
-            bottomSheetDialog.dismiss()
-        }
-        
-        bottomSheetBinding.btnChangePoster.setOnClickListener {
-            bottomSheetDialog.dismiss()
-            viewModel.movie.value?.let { movie ->
-                val action = MovieDetailFragmentDirections.actionMovieDetailToPosterBackdrop(movie.id)
-                findNavController().navigate(action)
-            }
-        }
-        
-        bottomSheetBinding.btnShareBottom.setOnClickListener {
-            Toast.makeText(requireContext(), "Share", Toast.LENGTH_SHORT).show()
-            bottomSheetDialog.dismiss()
-        }
-        
-        bottomSheetBinding.btnClose.setOnClickListener {
-            bottomSheetDialog.dismiss()
-        }
-        
-        bottomSheetDialog.show()
     }
     
     private fun setupStarRating(bottomSheetBinding: BottomSheetMovieActionsBinding) {

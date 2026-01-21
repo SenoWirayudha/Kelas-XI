@@ -11,11 +11,13 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.DiaryEntry
 import com.komputerkit.moview.databinding.ItemDiaryEntryBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 
 class DiaryAdapter(
     private val onEntryClick: (DiaryEntry) -> Unit,
     private val onLikeClick: (DiaryEntry) -> Unit,
-    private val onMenuClick: (DiaryEntry) -> Unit
+    private val onMenuClick: (DiaryEntry) -> Unit,
+    private val onPosterLongClick: ((DiaryEntry) -> Unit)? = null
 ) : ListAdapter<DiaryItem, RecyclerView.ViewHolder>(DiaryItemDiffCallback()) {
 
     companion object {
@@ -38,7 +40,7 @@ class DiaryAdapter(
         )
         return when (viewType) {
             TYPE_HEADER -> HeaderViewHolder(binding)
-            else -> EntryViewHolder(binding, onEntryClick, onLikeClick, onMenuClick)
+            else -> EntryViewHolder(binding, onEntryClick, onLikeClick, onMenuClick, onPosterLongClick)
         }
     }
 
@@ -63,7 +65,8 @@ class DiaryAdapter(
         private val binding: ItemDiaryEntryBinding,
         private val onEntryClick: (DiaryEntry) -> Unit,
         private val onLikeClick: (DiaryEntry) -> Unit,
-        private val onMenuClick: (DiaryEntry) -> Unit
+        private val onMenuClick: (DiaryEntry) -> Unit,
+        private val onPosterLongClick: ((DiaryEntry) -> Unit)?
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(entry: DiaryEntry) {
@@ -107,6 +110,17 @@ class DiaryAdapter(
 
             binding.btnMenu.setOnClickListener {
                 onMenuClick(entry)
+            }
+            
+            // Long press on poster to show movie actions
+            binding.ivPoster.setOnLongClickListener { view ->
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = entry.movie,
+                    isFromMovieDetail = false,
+                    onGoToFilm = { movie -> onPosterLongClick?.invoke(entry) }
+                )
+                true
             }
         }
 

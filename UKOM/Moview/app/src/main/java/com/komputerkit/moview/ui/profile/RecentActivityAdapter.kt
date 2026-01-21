@@ -6,9 +6,13 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemRecentActivityBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 import kotlin.math.roundToInt
 
-class RecentActivityAdapter : RecyclerView.Adapter<RecentActivityAdapter.RecentActivityViewHolder>() {
+class RecentActivityAdapter(
+    private val onMovieClick: ((Movie) -> Unit)? = null,
+    private val onLongPressGoToFilm: ((Movie) -> Unit)? = null
+) : RecyclerView.Adapter<RecentActivityAdapter.RecentActivityViewHolder>() {
     
     private var activities: List<Pair<Movie, Float>> = emptyList()
     
@@ -44,6 +48,22 @@ class RecentActivityAdapter : RecyclerView.Adapter<RecentActivityAdapter.RecentA
                 .into(binding.ivPoster)
             
             binding.tvRating.text = getStarsFromRating(rating)
+            
+            // Click to navigate to movie detail
+            binding.root.setOnClickListener {
+                onMovieClick?.invoke(movie)
+            }
+            
+            // Long press on poster to show movie actions
+            binding.ivPoster.setOnLongClickListener { view ->
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = movie,
+                    isFromMovieDetail = false,
+                    onGoToFilm = onLongPressGoToFilm ?: onMovieClick
+                )
+                true
+            }
         }
         
         private fun getStarsFromRating(rating: Float): String {

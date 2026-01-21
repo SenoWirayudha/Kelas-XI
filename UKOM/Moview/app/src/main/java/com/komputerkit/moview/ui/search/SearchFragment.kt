@@ -94,18 +94,20 @@ class SearchFragment : Fragment() {
     
     private fun setupRecyclerViews() {
         // Movies - handle click based on mode
-        movieAdapter = SearchMovieAdapter { movie ->
-            if (viewModel.uiState.value.isSelectMovieMode) {
-                // SELECT_MOVIE mode: Return selected movie ID
-                findNavController().previousBackStackEntry?.savedStateHandle?.set("selected_movie_id", movie.id)
-                findNavController().previousBackStackEntry?.savedStateHandle?.set("slot_index", args.slotIndex)
-                findNavController().navigateUp()
-            } else {
-                // Normal mode: navigate to movie detail
-                val action = SearchFragmentDirections.actionSearchToMovieDetail(movie.id)
-                findNavController().navigate(action)
+        movieAdapter = SearchMovieAdapter(
+            onMovieClick = { movie ->
+                if (viewModel.uiState.value.isSelectMovieMode) {
+                    // SELECT_MOVIE mode: Return selected movie ID
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set("selected_movie_id", movie.id)
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set("slot_index", args.slotIndex)
+                    findNavController().navigateUp()
+                } else {
+                    // Normal mode: navigate to movie detail
+                    val action = SearchFragmentDirections.actionSearchToMovieDetail(movie.id)
+                    findNavController().navigate(action)
+                }
             }
-        }
+        )
         binding.rvMovies.apply {
             adapter = movieAdapter
             layoutManager = LinearLayoutManager(requireContext())

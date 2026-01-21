@@ -9,10 +9,12 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemFilmGridBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 
 class FilmGridAdapter(
     private val onMovieClick: (Movie) -> Unit,
-    private val onReviewClick: ((Movie) -> Unit)? = null
+    private val onReviewClick: ((Movie) -> Unit)? = null,
+    private val onLongPressGoToFilm: ((Movie) -> Unit)? = null
 ) : ListAdapter<Movie, FilmGridAdapter.FilmViewHolder>(FilmDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilmViewHolder {
@@ -21,7 +23,7 @@ class FilmGridAdapter(
             parent,
             false
         )
-        return FilmViewHolder(binding, onMovieClick, onReviewClick)
+        return FilmViewHolder(binding, onMovieClick, onReviewClick, onLongPressGoToFilm)
     }
 
     override fun onBindViewHolder(holder: FilmViewHolder, position: Int) {
@@ -31,7 +33,8 @@ class FilmGridAdapter(
     class FilmViewHolder(
         private val binding: ItemFilmGridBinding,
         private val onMovieClick: (Movie) -> Unit,
-        private val onReviewClick: ((Movie) -> Unit)?
+        private val onReviewClick: ((Movie) -> Unit)?,
+        private val onLongPressGoToFilm: ((Movie) -> Unit)?
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(movie: Movie) {
@@ -51,6 +54,17 @@ class FilmGridAdapter(
             // Poster click - navigate to Film Detail
             binding.posterContainer.setOnClickListener {
                 onMovieClick(movie)
+            }
+            
+            // Long press to show movie actions
+            binding.posterContainer.setOnLongClickListener { view ->
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = movie,
+                    isFromMovieDetail = false,
+                    onGoToFilm = onLongPressGoToFilm ?: onMovieClick
+                )
+                true
             }
             
             // Review icon click - navigate to Review Detail (if has review)

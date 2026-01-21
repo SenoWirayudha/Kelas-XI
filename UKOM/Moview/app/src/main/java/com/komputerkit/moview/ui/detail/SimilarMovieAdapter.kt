@@ -8,9 +8,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemSimilarMovieBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 
 class SimilarMovieAdapter(
-    private val onMovieClick: (Movie) -> Unit
+    private val onMovieClick: (Movie) -> Unit,
+    private val onLongPressGoToFilm: ((Movie) -> Unit)? = null
 ) : ListAdapter<Movie, SimilarMovieAdapter.SimilarMovieViewHolder>(SimilarMovieDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SimilarMovieViewHolder {
@@ -19,7 +21,7 @@ class SimilarMovieAdapter(
             parent,
             false
         )
-        return SimilarMovieViewHolder(binding, onMovieClick)
+        return SimilarMovieViewHolder(binding, onMovieClick, onLongPressGoToFilm)
     }
 
     override fun onBindViewHolder(holder: SimilarMovieViewHolder, position: Int) {
@@ -28,7 +30,8 @@ class SimilarMovieAdapter(
 
     class SimilarMovieViewHolder(
         private val binding: ItemSimilarMovieBinding,
-        private val onMovieClick: (Movie) -> Unit
+        private val onMovieClick: (Movie) -> Unit,
+        private val onLongPressGoToFilm: ((Movie) -> Unit)?
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(movie: Movie) {
@@ -40,6 +43,17 @@ class SimilarMovieAdapter(
                 
             binding.root.setOnClickListener {
                 onMovieClick(movie)
+            }
+            
+            // Long press to show movie actions
+            binding.root.setOnLongClickListener { view ->
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = movie,
+                    isFromMovieDetail = false,
+                    onGoToFilm = onLongPressGoToFilm
+                )
+                true
             }
         }
     }

@@ -8,13 +8,15 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemFilmographyPosterBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 
 /**
  * Adapter for filmography grid that shows only movie posters without ratings.
  * Used for production house, country, genre filmography lists.
  */
 class FilmographyAdapter(
-    private val onMovieClick: (Movie) -> Unit
+    private val onMovieClick: (Movie) -> Unit,
+    private val onLongPressGoToFilm: ((Movie) -> Unit)? = null
 ) : ListAdapter<Movie, FilmographyAdapter.FilmographyViewHolder>(FilmographyDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilmographyViewHolder {
@@ -23,7 +25,7 @@ class FilmographyAdapter(
             parent,
             false
         )
-        return FilmographyViewHolder(binding, onMovieClick)
+        return FilmographyViewHolder(binding, onMovieClick, onLongPressGoToFilm)
     }
 
     override fun onBindViewHolder(holder: FilmographyViewHolder, position: Int) {
@@ -32,7 +34,8 @@ class FilmographyAdapter(
 
     class FilmographyViewHolder(
         private val binding: ItemFilmographyPosterBinding,
-        private val onMovieClick: (Movie) -> Unit
+        private val onMovieClick: (Movie) -> Unit,
+        private val onLongPressGoToFilm: ((Movie) -> Unit)?
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(movie: Movie) {
@@ -42,6 +45,17 @@ class FilmographyAdapter(
             
             binding.root.setOnClickListener {
                 onMovieClick(movie)
+            }
+            
+            // Long press to show movie actions
+            binding.root.setOnLongClickListener { view ->
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = movie,
+                    isFromMovieDetail = false,
+                    onGoToFilm = onLongPressGoToFilm ?: onMovieClick
+                )
+                true
             }
         }
     }

@@ -6,9 +6,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemSearchMovieBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 
 class SearchMovieAdapter(
-    private val onMovieClick: (Movie) -> Unit
+    private val onMovieClick: (Movie) -> Unit,
+    private val onLongPressGoToFilm: ((Movie) -> Unit)? = null
 ) : RecyclerView.Adapter<SearchMovieAdapter.SearchMovieViewHolder>() {
     
     private var movies: List<Movie> = emptyList()
@@ -48,6 +50,17 @@ class SearchMovieAdapter(
             
             binding.root.setOnClickListener {
                 onMovieClick(movie)
+            }
+            
+            // Long press to show movie actions
+            binding.root.setOnLongClickListener { view ->
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = movie,
+                    isFromMovieDetail = false,
+                    onGoToFilm = onLongPressGoToFilm ?: onMovieClick
+                )
+                true
             }
         }
     }

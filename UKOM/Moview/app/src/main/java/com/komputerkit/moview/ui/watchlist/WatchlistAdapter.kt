@@ -9,6 +9,7 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.WatchlistItem
 import com.komputerkit.moview.databinding.ItemFilmGridBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 
 class WatchlistAdapter(
     private val onItemClick: (WatchlistItem) -> Unit,
@@ -48,8 +49,14 @@ class WatchlistAdapter(
                 onItemClick(item)
             }
 
-            binding.posterContainer.setOnLongClickListener {
-                onItemLongClick(item)
+            // Long press to show movie action bottom sheet
+            binding.posterContainer.setOnLongClickListener { view ->
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = item.movie,
+                    isFromMovieDetail = false,
+                    onGoToFilm = { movie -> onItemClick(item) }
+                )
                 true
             }
         }

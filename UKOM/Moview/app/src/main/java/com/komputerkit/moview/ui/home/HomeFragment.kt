@@ -40,10 +40,12 @@ class HomeFragment : Fragment() {
 
     private fun setupRecyclerViews() {
         // Setup Popular Movies RecyclerView (Horizontal)
-        movieCardAdapter = MovieCardAdapter { movie ->
-            val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
-            findNavController().navigate(action)
-        }
+        movieCardAdapter = MovieCardAdapter(
+            onMovieClick = { movie ->
+                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            }
+        )
         binding.rvPopularMovies.apply {
             adapter = movieCardAdapter
             layoutManager = LinearLayoutManager(

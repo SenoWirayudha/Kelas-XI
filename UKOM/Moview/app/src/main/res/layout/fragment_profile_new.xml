@@ -179,8 +179,9 @@
                 android:id="@+id/rv_favorites"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingStart="16dp"
+                android:paddingHorizontal="12dp"
                 android:clipToPadding="false"
+                android:overScrollMode="never"
                 tools:listitem="@layout/item_favorite_movie" />
 
             <!-- Recent Activity Section -->
@@ -215,8 +216,9 @@
                 android:id="@+id/rv_recent_activity"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingStart="16dp"
+                android:paddingHorizontal="12dp"
                 android:clipToPadding="false"
+                android:overScrollMode="never"
                 tools:listitem="@layout/item_recent_activity" />
 
             <!-- Ratings Distribution -->

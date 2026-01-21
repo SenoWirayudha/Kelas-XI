@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.profile
 
+import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.os.Bundle
@@ -275,7 +276,7 @@ class EditProfileFragment : Fragment() {
         }
 
         binding.btnLogout.setOnClickListener {
-            // TODO: Implement logout
+            performLogout()
         }
         
         binding.tvEditFavorites.setOnClickListener {
@@ -302,6 +303,20 @@ class EditProfileFragment : Fragment() {
         // TODO: Save backdrop preference and URL
         
         findNavController().navigateUp()
+    }
+    
+    private fun performLogout() {
+        // Clear login state
+        val sharedPrefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        sharedPrefs.edit().apply {
+            putBoolean("isLoggedIn", false)
+            remove("userEmail")
+            apply()
+        }
+        
+        // Navigate to login screen and clear back stack
+        val navController = findNavController()
+        navController.navigate(R.id.action_editProfile_to_login)
     }
 
     override fun onDestroyView() {
