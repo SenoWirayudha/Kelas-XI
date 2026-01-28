@@ -3,6 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Movie;
+use App\Models\Person;
+use App\Models\Genre;
+use App\Models\Service;
+use App\Models\Country;
+use App\Models\Language;
+use App\Models\ProductionHouse;
 use Illuminate\Http\Request;
 
 class FilmController extends Controller
@@ -158,56 +165,273 @@ class FilmController extends Controller
 
     public function index()
     {
-        $films = $this->getDummyFilms();
+        $films = Movie::with([
+            'movieGenres.genre',
+            'movieServices.service'
+        ])->get();
+        
         return view('admin.films.index', compact('films'));
     }
 
     public function create()
     {
-        $genres = $this->getGenreOptions();
-        $services = $this->getServiceOptions();
-        return view('admin.films.form', compact('genres', 'services'));
+        $genres = Genre::all();
+        $services = Service::all();
+        $countries = Country::all();
+        $languages = Language::all();
+        $productionHouses = ProductionHouse::all();
+        return view('admin.films.form', compact('genres', 'services', 'countries', 'languages', 'productionHouses'));
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'release_year' => 'required|integer|min:1800|max:' . (date('Y') + 10),
+            'duration' => 'required|integer|min:1',
+            'age_rating' => 'nullable|string|max:10',
+            'status' => 'required|in:draft,published',
+            'synopsis' => 'nullable|string',
+            'genres' => 'nullable|array',
+            'genres.*' => 'exists:genres,id',
+            'services' => 'nullable|array',
+            'services.*' => 'exists:services,id',
+            'countries' => 'nullable|array',
+            'countries.*' => 'exists:countries,id',
+            'languages' => 'nullable|array',
+            'languages.*' => 'exists:languages,id',
+            'production_houses' => 'nullable|array',
+            'production_houses.*' => 'exists:production_houses,id',
+        ]);
+
+        $movie = Movie::create($validated);
+
+        // Sync genres
+        if ($request->has('genres')) {
+            foreach ($request->genres as $genreId) {
+                $movie->movieGenres()->create(['genre_id' => $genreId]);
+            }
+        }
+
+        // Sync services
+        if ($request->has('services')) {
+            foreach ($request->services as $serviceId) {
+                $movie->movieServices()->create(['service_id' => $serviceId]);
+            }
+        }
+
+        // Sync countries
+        if ($request->has('countries')) {
+            foreach ($request->countries as $countryId) {
+                $movie->movieCountries()->create(['country_id' => $countryId]);
+            }
+        }
+
+        // Sync languages
+        if ($request->has('languages')) {
+            foreach ($request->languages as $languageId) {
+                $movie->movieLanguages()->create(['language_id' => $languageId]);
+            }
+        }
+
+        // Sync production houses
+        if ($request->has('production_houses')) {
+            foreach ($request->production_houses as $productionHouseId) {
+                $movie->movieProductionHouses()->create(['production_house_id' => $productionHouseId]);
+            }
+        }
+
+        return redirect()->route('admin.films.show', $movie->id)
+            ->with('success', 'Film berhasil ditambahkan!');
     }
 
     public function show($id)
     {
-        $films = $this->getDummyFilms();
-        $film = collect($films)->firstWhere('id', (int)$id);
-        
-        if (!$film) {
-            abort(404);
-        }
+        $movie = Movie::with([
+            'movieMedia',
+            'movieGenres.genre',
+            'movieCountries.country',
+            'movieLanguages.language',
+            'movieProductionHouses.productionHouse',
+            'movieServices.service',
+            'moviePersons.person'
+        ])->findOrFail($id);
 
-        return view('admin.films.show', compact('film'));
+        return view('admin.films.show', compact('movie'));
     }
 
     public function edit($id)
     {
-        $films = $this->getDummyFilms();
-        $film = collect($films)->firstWhere('id', (int)$id);
+        $film = Movie::findOrFail($id);
+        $genres = Genre::all();
+        $services = Service::all();
+        $countries = Country::all();
+        $languages = Language::all();
+        $productionHouses = ProductionHouse::all();
         
-        if (!$film) {
-            abort(404);
+        return view('admin.films.form', compact('film', 'genres', 'services', 'countries', 'languages', 'productionHouses'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'release_year' => 'required|integer|min:1800|max:' . (date('Y') + 10),
+            'duration' => 'required|integer|min:1',
+            'age_rating' => 'nullable|string|max:10',
+            'status' => 'required|in:draft,published',
+            'synopsis' => 'nullable|string',
+            'genres' => 'nullable|array',
+            'genres.*' => 'exists:genres,id',
+            'services' => 'nullable|array',
+            'services.*' => 'exists:services,id',
+            'countries' => 'nullable|array',
+            'countries.*' => 'exists:countries,id',
+            'languages' => 'nullable|array',
+            'languages.*' => 'exists:languages,id',
+            'production_houses' => 'nullable|array',
+            'production_houses.*' => 'exists:production_houses,id',
+        ]);
+
+        $movie = Movie::findOrFail($id);
+        $movie->update($validated);
+
+        // Sync genres (delete old, add new)
+        $movie->movieGenres()->delete();
+        if ($request->has('genres')) {
+            foreach ($request->genres as $genreId) {
+                $movie->movieGenres()->create(['genre_id' => $genreId]);
+            }
         }
 
-        $genres = $this->getGenreOptions();
-        $services = $this->getServiceOptions();
+        // Sync services (delete old, add new)
+        $movie->movieServices()->delete();
+        if ($request->has('services')) {
+            foreach ($request->services as $serviceId) {
+                $movie->movieServices()->create(['service_id' => $serviceId]);
+            }
+        }
+
+        // Sync countries (delete old, add new)
+        $movie->movieCountries()->delete();
+        if ($request->has('countries')) {
+            foreach ($request->countries as $countryId) {
+                $movie->movieCountries()->create(['country_id' => $countryId]);
+            }
+        }
+
+        // Sync languages (delete old, add new)
+        $movie->movieLanguages()->delete();
+        if ($request->has('languages')) {
+            foreach ($request->languages as $languageId) {
+                $movie->movieLanguages()->create(['language_id' => $languageId]);
+            }
+        }
+
+        // Sync production houses (delete old, add new)
+        $movie->movieProductionHouses()->delete();
+        if ($request->has('production_houses')) {
+            foreach ($request->production_houses as $productionHouseId) {
+                $movie->movieProductionHouses()->create(['production_house_id' => $productionHouseId]);
+            }
+        }
+
+        return redirect()->route('admin.films.show', $movie->id)
+            ->with('success', 'Film berhasil diperbarui!');
+    }
+
+    public function toggleStatus($id)
+    {
+        $movie = Movie::findOrFail($id);
         
-        return view('admin.films.form', compact('film', 'genres', 'services'));
+        $newStatus = $movie->status === 'published' ? 'draft' : 'published';
+        $movie->update(['status' => $newStatus]);
+
+        return redirect()->route('admin.films.show', $movie->id)
+            ->with('success', 'Film status berhasil diubah menjadi ' . ucfirst($newStatus) . '!');
+    }
+
+    public function duplicate($id)
+    {
+        $originalMovie = Movie::with([
+            'movieGenres',
+            'movieServices',
+            'movieCountries',
+            'movieLanguages',
+            'movieProductionHouses'
+        ])->findOrFail($id);
+
+        // Create duplicate movie
+        $duplicateMovie = Movie::create([
+            'title' => $originalMovie->title . ' (Copy)',
+            'release_year' => $originalMovie->release_year,
+            'duration' => $originalMovie->duration,
+            'age_rating' => $originalMovie->age_rating,
+            'synopsis' => $originalMovie->synopsis,
+            'status' => 'draft', // Always create as draft
+        ]);
+
+        // Duplicate genres
+        foreach ($originalMovie->movieGenres as $mg) {
+            $duplicateMovie->movieGenres()->create(['genre_id' => $mg->genre_id]);
+        }
+
+        // Duplicate services
+        foreach ($originalMovie->movieServices as $ms) {
+            $duplicateMovie->movieServices()->create(['service_id' => $ms->service_id]);
+        }
+
+        // Duplicate countries
+        foreach ($originalMovie->movieCountries as $mc) {
+            $duplicateMovie->movieCountries()->create(['country_id' => $mc->country_id]);
+        }
+
+        // Duplicate languages
+        foreach ($originalMovie->movieLanguages as $ml) {
+            $duplicateMovie->movieLanguages()->create(['language_id' => $ml->language_id]);
+        }
+
+        // Duplicate production houses
+        foreach ($originalMovie->movieProductionHouses as $mph) {
+            $duplicateMovie->movieProductionHouses()->create(['production_house_id' => $mph->production_house_id]);
+        }
+
+        return redirect()->route('admin.films.edit', $duplicateMovie->id)
+            ->with('success', 'Film berhasil diduplikasi! Silakan edit dan simpan.');
+    }
+
+    public function destroy($id)
+    {
+        $movie = Movie::findOrFail($id);
+        
+        // Delete all media files
+        foreach ($movie->movieMedia as $media) {
+            if (\Storage::disk('public')->exists($media->media_path)) {
+                \Storage::disk('public')->delete($media->media_path);
+            }
+        }
+
+        // Delete movie (cascade will delete all relationships)
+        $movie->delete();
+
+        return redirect()->route('admin.films.index')
+            ->with('success', 'Film berhasil dihapus!');
     }
 
     public function castCrew($id)
     {
-        $films = $this->getDummyFilms();
-        $film = collect($films)->firstWhere('id', (int)$id);
+        $movie = Movie::with(['moviePersons.person', 'genres', 'movieMedia'])->findOrFail($id);
         
-        if (!$film) {
-            abort(404);
-        }
-
-        $castCrew = $this->getDummyCastCrew($id);
+        // Get all cast (actors)
+        $cast = $movie->moviePersons()->where('role_type', 'cast')->with('person')->get();
         
-        return view('admin.films.cast-crew', compact('film', 'castCrew'));
+        // Get all crew (directors, writers, etc)
+        $crew = $movie->moviePersons()->where('role_type', 'crew')->with('person')->get();
+        
+        // Get all available persons for dropdown
+        $allPersons = Person::orderBy('full_name')->get();
+        
+        return view('admin.films.cast-crew', compact('movie', 'cast', 'crew', 'allPersons'));
     }
 
     public function reviews($id)
@@ -236,5 +460,29 @@ class FilmController extends Controller
         ];
         
         return view('admin.films.reviews', compact('film', 'reviews', 'ratingDistribution'));
+    }
+
+    public function updateServices(Request $request, $id)
+    {
+        $movie = Movie::findOrFail($id);
+        
+        // Delete all existing services for this movie
+        $movie->movieServices()->delete();
+        
+        // Add selected services
+        if ($request->has('services')) {
+            foreach ($request->services as $serviceId => $data) {
+                if (isset($data['enabled'])) {
+                    $movie->movieServices()->create([
+                        'service_id' => $serviceId,
+                        'availability_type' => $data['availability_type'] ?? 'stream',
+                        'release_date' => $data['release_date'] ?? null,
+                    ]);
+                }
+            }
+        }
+        
+        return redirect()->route('admin.films.show', $id)
+            ->with('success', 'Services updated successfully!');
     }
 }

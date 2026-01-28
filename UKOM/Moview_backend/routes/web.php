@@ -2,6 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\FilmController;
+use App\Http\Controllers\Admin\MediaController;
+use App\Http\Controllers\Admin\CastCrewController;
+use App\Http\Controllers\Admin\CastCrewManagementController;
 
 // Public Routes
 Route::get('/', function () {
@@ -24,10 +27,28 @@ Route::prefix('admin')->name('admin.')->group(function () {
     // Film Management
     Route::get('/films', [FilmController::class, 'index'])->name('films.index');
     Route::get('/films/create', [FilmController::class, 'create'])->name('films.create');
+    Route::post('/films', [FilmController::class, 'store'])->name('films.store');
     Route::get('/films/{id}', [FilmController::class, 'show'])->name('films.show');
     Route::get('/films/{id}/edit', [FilmController::class, 'edit'])->name('films.edit');
+    Route::put('/films/{id}', [FilmController::class, 'update'])->name('films.update');
+    Route::delete('/films/{id}', [FilmController::class, 'destroy'])->name('films.destroy');
+    Route::put('/films/{id}/toggle-status', [FilmController::class, 'toggleStatus'])->name('films.toggle-status');
+    Route::post('/films/{id}/duplicate', [FilmController::class, 'duplicate'])->name('films.duplicate');
     Route::get('/films/{id}/cast-crew', [FilmController::class, 'castCrew'])->name('films.cast-crew');
     Route::get('/films/{id}/reviews', [FilmController::class, 'reviews'])->name('films.reviews');
+    
+    // Media Management (Upload, Set Default, Delete)
+    Route::post('/films/{id}/media', [MediaController::class, 'upload'])->name('films.media.upload');
+    Route::put('/films/{id}/media/{mediaId}/default', [MediaController::class, 'setDefault'])->name('films.media.setDefault');
+    Route::delete('/films/{id}/media/{mediaId}', [MediaController::class, 'delete'])->name('films.media.delete');
+    
+    // Services Management
+    Route::put('/films/{id}/services', [FilmController::class, 'updateServices'])->name('films.services.update');
+    
+    // Cast & Crew Management
+    Route::get('/persons', [CastCrewController::class, 'getPersons'])->name('persons.list');
+    Route::post('/films/{id}/cast-crew', [CastCrewController::class, 'store'])->name('films.castcrew.store');
+    Route::delete('/films/{id}/cast-crew/{moviePersonId}', [CastCrewController::class, 'destroy'])->name('films.castcrew.destroy');
     
     // Users Management (UI only - dummy data)
     Route::get('/users', function () {
@@ -39,14 +60,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         return view('admin.activity.index');
     })->name('activity.index');
     
-    // Cast & Crew Management (UI only - dummy data)
-    Route::get('/cast-crew', function () {
-        return view('admin.cast-crew.index');
-    })->name('cast-crew.index');
-    
-    Route::get('/cast-crew/add', function () {
-        return view('admin.cast-crew.add');
-    })->name('cast-crew.add');
+    // Cast & Crew Management
+    Route::get('/cast-crew', [CastCrewManagementController::class, 'index'])->name('cast-crew.index');
+    Route::get('/cast-crew/add', [CastCrewManagementController::class, 'create'])->name('cast-crew.add');
+    Route::post('/cast-crew', [CastCrewManagementController::class, 'store'])->name('cast-crew.store');
+    Route::get('/cast-crew/{id}', [CastCrewManagementController::class, 'show'])->name('cast-crew.show');
+    Route::get('/cast-crew/{id}/edit', [CastCrewManagementController::class, 'edit'])->name('cast-crew.edit');
+    Route::put('/cast-crew/{id}', [CastCrewManagementController::class, 'update'])->name('cast-crew.update');
+    Route::delete('/cast-crew/{id}', [CastCrewManagementController::class, 'destroy'])->name('cast-crew.destroy');
     
     // Reviews Management (UI only - dummy data)
     Route::get('/reviews', function () {

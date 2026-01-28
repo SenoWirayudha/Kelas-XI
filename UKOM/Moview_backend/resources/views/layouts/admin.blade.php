@@ -102,6 +102,39 @@
 
             <!-- Page Content -->
             <main class="flex-1 overflow-y-auto p-8">
+                <!-- Success Message -->
+                @if(session('success'))
+                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span class="block sm:inline">{{ session('success') }}</span>
+                        <button @click="show = false" class="absolute top-0 bottom-0 right-0 px-4 py-3">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                @endif
+
+                <!-- Error Messages -->
+                @if($errors->any())
+                <div x-data="{ show: true }" x-show="show" class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                    <div class="flex items-start">
+                        <i class="fas fa-exclamation-circle mr-2 mt-1"></i>
+                        <div class="flex-1">
+                            <strong class="font-bold">Ada kesalahan!</strong>
+                            <ul class="mt-2 list-disc list-inside">
+                                @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                        <button @click="show = false" class="ml-4">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                @endif
+
                 @yield('content')
             </main>
         </div>

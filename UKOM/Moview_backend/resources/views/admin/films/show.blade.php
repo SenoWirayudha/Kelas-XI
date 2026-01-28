@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Film Preview - ' . $film['title'])
+@section('title', 'Film Preview - ' . $movie->title)
 @section('page-title', 'Film Preview')
 @section('page-subtitle', 'Admin preview mode')
 
@@ -14,7 +14,7 @@
             <p class="text-sm">This is how users will see this film</p>
         </div>
     </div>
-    <a href="{{ route('admin.films.edit', $film['id']) }}" class="bg-white text-yellow-600 px-4 py-2 rounded-lg hover:bg-yellow-50">
+    <a href="{{ route('admin.films.edit', $movie->id) }}" class="bg-white text-yellow-600 px-4 py-2 rounded-lg hover:bg-yellow-50">
         <i class="fas fa-edit mr-2"></i>
         Edit Film
     </a>
@@ -27,38 +27,52 @@
         Back to Films
     </a>
     <span class="text-gray-400">|</span>
-    <a href="{{ route('admin.films.cast-crew', $film['id']) }}" class="text-purple-600 hover:text-purple-800 flex items-center">
+    <a href="{{ route('admin.films.cast-crew', $movie->id) }}" class="text-purple-600 hover:text-purple-800 flex items-center">
         <i class="fas fa-users mr-2"></i>
         Manage Cast & Crew
     </a>
     <span class="text-gray-400">|</span>
-    <a href="{{ route('admin.films.reviews', $film['id']) }}" class="text-green-600 hover:text-green-800 flex items-center">
+    <a href="{{ route('admin.films.reviews', $movie->id) }}" class="text-green-600 hover:text-green-800 flex items-center">
         <i class="fas fa-star mr-2"></i>
         View Reviews
     </a>
 </div>
 
+@php
+    // Get active poster and backdrop
+    $activePoster = $movie->posters()->where('is_default', true)->first();
+    $activeBackdrop = $movie->backdrops()->where('is_default', true)->first();
+    
+    // Fallback to first if no default
+    if (!$activePoster) {
+        $activePoster = $movie->posters()->first();
+    }
+    if (!$activeBackdrop) {
+        $activeBackdrop = $movie->backdrops()->first();
+    }
+@endphp
+
 <!-- Film Hero Section -->
 <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
     <div class="relative h-96">
-        <img src="{{ $film['backdrop'] }}" alt="{{ $film['title'] }}" class="w-full h-full object-cover">
+        <img src="{{ $activeBackdrop ? asset('storage/' . $activeBackdrop->media_path) : 'https://via.placeholder.com/1920x1080' }}" alt="{{ $movie->title }}" class="w-full h-full object-cover">
         <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
         <div class="absolute bottom-0 left-0 right-0 p-8 text-white">
             <div class="flex items-end space-x-6">
-                <img src="{{ $film['poster'] }}" alt="{{ $film['title'] }}" class="w-48 h-72 object-cover rounded-lg shadow-2xl">
+                <img src="{{ $activePoster ? asset('storage/' . $activePoster->media_path) : 'https://via.placeholder.com/500x750' }}" alt="{{ $movie->title }}" class="w-48 h-72 object-cover rounded-lg shadow-2xl">
                 <div class="flex-1 pb-4">
-                    <h1 class="text-5xl font-bold mb-2">{{ $film['title'] }}</h1>
+                    <h1 class="text-5xl font-bold mb-2">{{ $movie->title }}</h1>
                     <div class="flex items-center space-x-4 text-lg mb-3">
-                        <span>{{ $film['year'] }}</span>
+                        <span>{{ $movie->release_year }}</span>
                         <span>•</span>
-                        <span>{{ $film['runtime'] }} min</span>
+                        <span>{{ $movie->duration }} min</span>
                         <span>•</span>
-                        <span class="px-2 py-1 border border-white rounded">{{ $film['age_rating'] }}</span>
+                        <span class="px-2 py-1 border border-white rounded">{{ $movie->age_rating ?? 'NR' }}</span>
                     </div>
                     <div class="flex items-center space-x-6 mb-4">
                         <div class="flex items-center">
                             @php
-                                $rating5Scale = $film['rating_average'];
+                                $rating5Scale = $movie->rating_average ?? 0;
                                 $fullStars = floor($rating5Scale);
                                 $hasHalfStar = ($rating5Scale - $fullStars) >= 0.5;
                             @endphp
@@ -82,12 +96,12 @@
                             </div>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-300">{{ number_format($film['total_reviews']) }} reviews</p>
+                            <p class="text-sm text-gray-300">{{ number_format($movie->total_reviews ?? 0) }} reviews</p>
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        @foreach($film['genres'] as $genre)
-                        <span class="px-3 py-1 bg-blue-600 bg-opacity-80 rounded-full text-sm">{{ $genre }}</span>
+                        @foreach($movie->movieGenres as $movieGenre)
+                        <span class="px-3 py-1 bg-blue-600 bg-opacity-80 rounded-full text-sm">{{ $movieGenre->genre->name }}</span>
                         @endforeach
                     </div>
                 </div>
@@ -103,7 +117,7 @@
         <!-- Synopsis -->
         <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-2xl font-bold mb-4">Synopsis</h2>
-            <p class="text-gray-700 leading-relaxed">{{ $film['synopsis'] }}</p>
+            <p class="text-gray-700 leading-relaxed">{{ $movie->synopsis ?? 'No synopsis available' }}</p>
         </div>
 
         <!-- Rating Distribution -->
@@ -133,7 +147,7 @@
                 </div>
                 <div class="text-center">
                     <p class="text-gray-600 text-sm mb-1">Average Rating</p>
-                    <p class="text-3xl font-bold text-purple-600">{{ number_format($film['rating_average'], 1) }} / 5</p>
+                    <p class="text-3xl font-bold text-purple-600">{{ number_format($movie->rating_average ?? 0, 1) }} / 5</p>
                 </div>
             </div>
             
@@ -196,18 +210,13 @@
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold">Cast & Crew</h2>
-                <a href="{{ route('admin.films.cast-crew', $film['id']) }}" class="text-blue-600 hover:text-blue-800">
+                <a href="{{ route('admin.films.cast-crew', $movie->id) }}" class="text-blue-600 hover:text-blue-800">
                     Manage →
                 </a>
             </div>
             
             @php
-                $castCrewPreview = [
-                    ['name' => 'Tim Robbins', 'role' => 'Actor', 'character' => 'Andy Dufresne', 'photo' => 'https://image.tmdb.org/t/p/w200/hsCuROGEzJAULGgxQS8Y9JzB0gH.jpg'],
-                    ['name' => 'Morgan Freeman', 'role' => 'Actor', 'character' => 'Ellis Boyd Redding', 'photo' => 'https://image.tmdb.org/t/p/w200/jPsLqiYGSofU4s6BjrxnefMfabb.jpg'],
-                    ['name' => 'Frank Darabont', 'role' => 'Director', 'character' => null, 'photo' => 'https://image.tmdb.org/t/p/w200/7LqmE3p1XTwCdNCOmBxovq210Qk.jpg'],
-                    ['name' => 'Stephen King', 'role' => 'Writer', 'character' => null, 'photo' => 'https://image.tmdb.org/t/p/w200/cqH5caPdVS0kPUCDoJPCqvza5h3.jpg'],
-                ];
+                $castCrewPreview = $movie->moviePersons->take(5);
             @endphp
             
             <!-- Cast & Crew Table -->
@@ -222,30 +231,32 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach($castCrewPreview as $person)
+                        @foreach($castCrewPreview as $moviePerson)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 whitespace-nowrap">
                                 <div class="flex items-center">
-                                    <img src="{{ $person['photo'] }}" alt="{{ $person['name'] }}" class="w-10 h-10 rounded-full object-cover">
-                                    <span class="ml-3 text-sm font-medium text-gray-900">{{ $person['name'] }}</span>
+                                    @if($moviePerson->person->photo_path)
+                                        <img src="{{ asset('storage/' . $moviePerson->person->photo_path) }}" alt="{{ $moviePerson->person->full_name }}" class="w-10 h-10 rounded-full object-cover">
+                                    @else
+                                        <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                            <i class="fas fa-user text-gray-400"></i>
+                                        </div>
+                                    @endif
+                                    <span class="ml-3 text-sm font-medium text-gray-900">{{ $moviePerson->person->full_name }}</span>
                                 </div>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap">
                                 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                    {{ $person['role'] === 'Actor' ? 'bg-purple-100 text-purple-800' : 
-                                       ($person['role'] === 'Director' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800') }}">
-                                    {{ $person['role'] }}
+                                    {{ $moviePerson->role_type === 'cast' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' }}">
+                                    {{ ucfirst($moviePerson->role_type) }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-900">
-                                {{ $person['character'] ?? '-' }}
+                                {{ $moviePerson->character_name ?? $moviePerson->job ?? '-' }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex justify-end space-x-2">
-                                    <button class="text-indigo-600 hover:text-indigo-900" title="Edit" onclick="alert('Edit cast/crew (UI only)')">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="text-red-600 hover:text-red-900" title="Remove" onclick="alert('Remove cast/crew (UI only)')">
+                                    <button class="text-red-600 hover:text-red-900" title="Remove" onclick="deleteCastCrew({{ $movie->id }}, {{ $moviePerson->id }})">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -258,15 +269,15 @@
             
             <!-- Add Button -->
             <div class="mt-4 pt-4 border-t">
-                <button class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm" onclick="alert('Add cast/crew (UI only)')">
-                    <i class="fas fa-plus mr-2"></i>
-                    Add Cast / Crew Member
-                </button>
+                <a href="{{ route('admin.films.cast-crew', $movie->id) }}" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm flex items-center justify-center">
+                    <i class="fas fa-users-cog mr-2"></i>
+                    Manage Cast & Crew
+                </a>
             </div>
         </div>
 
         <!-- Media Management & Metadata Tabs -->
-        <div class="bg-white rounded-lg shadow p-6" x-data="{ activeSection: 'media', activeTab: 'posters' }">
+        <div class="bg-white rounded-lg shadow p-6" x-data="{ activeSection: 'media', activeTab: 'posters', currentTab: 'posters' }">
             <!-- Section Tabs -->
             <div class="border-b border-gray-200 mb-6">
                 <nav class="-mb-px flex space-x-8">
@@ -289,19 +300,8 @@
             <div x-show="activeSection === 'media'" x-transition>
             
             @php
-                $posters = [
-                    ['id' => 1, 'url' => 'https://image.tmdb.org/t/p/w500/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg', 'is_active' => true, 'size' => '1.2 MB'],
-                    ['id' => 2, 'url' => 'https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg', 'is_active' => false, 'size' => '1.5 MB'],
-                    ['id' => 3, 'url' => 'https://image.tmdb.org/t/p/w500/iNh3BivHyg5sQRPP1KOkzguEX0H.jpg', 'is_active' => false, 'size' => '1.3 MB'],
-                    ['id' => 4, 'url' => 'https://image.tmdb.org/t/p/w500/lyQBXzOQSuE59IsHyhrp0qIiPAz.jpg', 'is_active' => false, 'size' => '1.4 MB'],
-                ];
-                
-                $backdrops = [
-                    ['id' => 1, 'url' => 'https://image.tmdb.org/t/p/original/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg', 'is_active' => true, 'size' => '2.8 MB'],
-                    ['id' => 2, 'url' => 'https://image.tmdb.org/t/p/original/suaEOtk1N1sgg2MTM7oZd2cfVp3.jpg', 'is_active' => false, 'size' => '3.2 MB'],
-                    ['id' => 3, 'url' => 'https://image.tmdb.org/t/p/original/qqHQsStV6exghCM7zbObuYBiYxw.jpg', 'is_active' => false, 'size' => '2.9 MB'],
-                    ['id' => 4, 'url' => 'https://image.tmdb.org/t/p/original/dIWwZW7dJJtqC6CgWzYkNVKIUm8.jpg', 'is_active' => false, 'size' => '3.1 MB'],
-                ];
+                $posters = $movie->posters;
+                $backdrops = $movie->backdrops;
             @endphp
             
             <!-- Active Media Display -->
@@ -315,8 +315,7 @@
                         </span>
                     </div>
                     <div class="relative group">
-                        @php $activePoster = collect($posters)->firstWhere('is_active', true); @endphp
-                        <img src="{{ $activePoster['url'] }}" 
+                        <img src="{{ $activePoster ? asset('storage/' . $activePoster->media_path) : 'https://via.placeholder.com/500x750' }}" 
                              alt="Active Poster" 
                              class="w-full h-96 object-cover rounded-lg shadow-lg">
                         <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
@@ -334,8 +333,7 @@
                         </span>
                     </div>
                     <div class="relative group">
-                        @php $activeBackdrop = collect($backdrops)->firstWhere('is_active', true); @endphp
-                        <img src="{{ $activeBackdrop['url'] }}" 
+                        <img src="{{ $activeBackdrop ? asset('storage/' . $activeBackdrop->media_path) : 'https://via.placeholder.com/1920x1080' }}" 
                              alt="Active Backdrop" 
                              class="w-full h-96 object-cover rounded-lg shadow-lg">
                         <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
@@ -349,26 +347,29 @@
             <div class="border-t border-gray-200 mb-6"></div>
             
             <!-- Media Options Section -->
-            <div>
+            <div x-data="mediaManager()">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-xl font-bold text-gray-800">Media Options</h3>
-                    <button onclick="alert('Add new media (UI only)\n\nIn production, this will open upload dialog.')" 
-                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center">
-                        <i class="fas fa-plus mr-2"></i>
-                        Add Media
-                    </button>
+                    <div>
+                        <input type="file" id="mediaFileInput" @change="handleFileSelect" accept="image/*" class="hidden">
+                        <button @click="openFileDialog()" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center">
+                            <i class="fas fa-plus mr-2"></i>
+                            Add <span x-text="currentTab === 'posters' ? 'Poster' : 'Backdrop'" class="ml-1"></span>
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Tabs -->
                 <div class="border-b border-gray-200 mb-6">
                     <nav class="-mb-px flex space-x-8">
-                        <button @click="activeTab = 'posters'" 
+                        <button @click="activeTab = 'posters'; currentTab = 'posters'" 
                                 :class="activeTab === 'posters' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                                 class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200">
                             <i class="fas fa-image mr-2"></i>
                             Posters ({{ count($posters) }})
                         </button>
-                        <button @click="activeTab = 'backdrops'" 
+                        <button @click="activeTab = 'backdrops'; currentTab = 'backdrops'" 
                                 :class="activeTab === 'backdrops' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                                 class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200">
                             <i class="fas fa-panorama mr-2"></i>
@@ -383,12 +384,12 @@
                         @foreach($posters as $poster)
                         <div class="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-200">
                             <div class="relative aspect-[2/3] group">
-                                <img src="{{ $poster['url'] }}" 
-                                     alt="Poster {{ $poster['id'] }}" 
+                                <img src="{{ asset('storage/' . $poster->media_path) }}" 
+                                     alt="Poster {{ $poster->id }}" 
                                      class="w-full h-full object-cover">
                                 
                                 <!-- Active Badge -->
-                                @if($poster['is_active'])
+                                @if($poster->is_default)
                                 <div class="absolute top-2 right-2">
                                     <span class="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-lg">
                                         <i class="fas fa-check mr-1"></i>Active
@@ -405,13 +406,13 @@
                             <!-- Media Info & Actions -->
                             <div class="p-3">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs text-gray-500">{{ $poster['size'] }}</span>
                                     <span class="text-xs text-gray-500">Poster</span>
+                                    <span class="text-xs text-gray-500">ID: {{ $poster->id }}</span>
                                 </div>
                                 
                                 <div class="space-y-2">
-                                    @if(!$poster['is_active'])
-                                    <button onclick="alert('Set as default poster (UI only)')" 
+                                    @if(!$poster->is_default)
+                                    <button onclick="setMediaDefault({{ $movie->id }}, {{ $poster->id }})" 
                                             class="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200">
                                         <i class="fas fa-check mr-1"></i>Set as Default
                                     </button>
@@ -422,7 +423,7 @@
                                     </button>
                                     @endif
                                     
-                                    <button onclick="if(confirm('Remove this poster? (UI only)')) alert('Poster removed (UI only)')" 
+                                    <button onclick="deleteMedia({{ $movie->id }}, {{ $poster->id }})" 
                                             class="w-full bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200">
                                         <i class="fas fa-trash mr-1"></i>Remove
                                     </button>
@@ -455,12 +456,12 @@
                         @foreach($backdrops as $backdrop)
                         <div class="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-200">
                             <div class="relative aspect-video group">
-                                <img src="{{ $backdrop['url'] }}" 
-                                     alt="Backdrop {{ $backdrop['id'] }}" 
+                                <img src="{{ asset('storage/' . $backdrop->media_path) }}" 
+                                     alt="Backdrop {{ $backdrop->id }}" 
                                      class="w-full h-full object-cover">
                                 
                                 <!-- Active Badge -->
-                                @if($backdrop['is_active'])
+                                @if($backdrop->is_default)
                                 <div class="absolute top-2 right-2">
                                     <span class="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-lg">
                                         <i class="fas fa-check mr-1"></i>Active
@@ -477,13 +478,13 @@
                             <!-- Media Info & Actions -->
                             <div class="p-3">
                                 <div class="flex items-center justify-between mb-3">
-                                    <span class="text-xs text-gray-500">{{ $backdrop['size'] }}</span>
                                     <span class="text-xs text-gray-500">Backdrop</span>
+                                    <span class="text-xs text-gray-500">ID: {{ $backdrop->id }}</span>
                                 </div>
                                 
                                 <div class="grid grid-cols-2 gap-2">
-                                    @if(!$backdrop['is_active'])
-                                    <button onclick="alert('Set as default backdrop (UI only)')" 
+                                    @if(!$backdrop->is_default)
+                                    <button onclick="setMediaDefault({{ $movie->id }}, {{ $backdrop->id }})" 
                                             class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200">
                                         <i class="fas fa-check mr-1"></i>Set Default
                                     </button>
@@ -494,7 +495,7 @@
                                     </button>
                                     @endif
                                     
-                                    <button onclick="if(confirm('Remove this backdrop? (UI only)')) alert('Backdrop removed (UI only)')" 
+                                    <button onclick="deleteMedia({{ $movie->id }}, {{ $backdrop->id }})" 
                                             class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200">
                                         <i class="fas fa-trash mr-1"></i>Remove
                                     </button>
@@ -534,40 +535,23 @@
                                 <i class="fas fa-building text-blue-600 mr-2"></i>
                                 Production House
                             </label>
-                            <button onclick="alert('Add New Production House (UI only)\n\nIn production, this will open a modal to add a new PH to the database.')" 
-                                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200">
-                                <i class="fas fa-plus mr-2"></i>
-                                Add New PH
-                            </button>
                         </div>
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4" x-data="{ 
-                            selectedPH: ['Warner Bros', 'Legendary Pictures'],
-                            allPH: ['Warner Bros', 'Universal Pictures', 'Legendary Pictures', 'A24', 'CJ Entertainment', 'Sony Pictures', 'Paramount Pictures', '20th Century Studios']
-                        }">
-                            <!-- Selected Tags Display -->
-                            <div class="flex flex-wrap gap-2 mb-3" x-show="selectedPH.length > 0">
-                                <template x-for="ph in selectedPH" :key="ph">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            @if($movie->movieProductionHouses->count() > 0)
+                            <!-- Selected Production Houses Display -->
+                            <div class="flex flex-wrap gap-2 mb-3">
+                                @foreach($movie->movieProductionHouses as $mph)
                                     <span class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-full text-sm font-medium">
-                                        <span x-text="ph"></span>
-                                        <button @click="selectedPH = selectedPH.filter(p => p !== ph)" 
-                                                class="ml-2 text-blue-200 hover:text-white transition-colors">
-                                            <i class="fas fa-times text-xs"></i>
-                                        </button>
+                                        {{ $mph->productionHouse->name }}
                                     </span>
-                                </template>
+                                @endforeach
                             </div>
-                            
-                            <!-- Dropdown Select -->
-                            <select @change="if($event.target.value && !selectedPH.includes($event.target.value)) { selectedPH.push($event.target.value); } $event.target.value = ''" 
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                <option value="">Select Production House...</option>
-                                <template x-for="ph in allPH" :key="ph">
-                                    <option :value="ph" x-text="ph" :disabled="selectedPH.includes(ph)"></option>
-                                </template>
-                            </select>
+                            @else
+                            <p class="text-gray-500 text-sm">No production houses added yet</p>
+                            @endif
                             <p class="mt-2 text-xs text-gray-500">
                                 <i class="fas fa-info-circle mr-1"></i>
-                                Select one or more production companies
+                                Edit film to add or change production companies
                             </p>
                         </div>
                     </div>
@@ -578,33 +562,31 @@
                             <i class="fas fa-film text-purple-600 mr-2"></i>
                             Genre
                         </label>
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4" x-data="{
-                            selectedGenres: ['Sci-Fi', 'Action', 'Adventure'],
-                            genres: ['Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Fantasy', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western']
-                        }">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            @if($movie->movieGenres->count() > 0)
                             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                                <template x-for="genre in genres" :key="genre">
-                                    <label class="flex items-center space-x-2 cursor-pointer group">
-                                        <input type="checkbox" 
-                                               :checked="selectedGenres.includes(genre)"
-                                               @change="selectedGenres.includes(genre) ? selectedGenres = selectedGenres.filter(g => g !== genre) : selectedGenres.push(genre)"
-                                               class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
-                                        <span class="text-sm font-medium text-gray-700 group-hover:text-purple-600 transition-colors" 
-                                              x-text="genre"></span>
-                                    </label>
-                                </template>
+                                @foreach($movie->movieGenres as $mg)
+                                    <div class="flex items-center space-x-2">
+                                        <i class="fas fa-check text-purple-600"></i>
+                                        <span class="text-sm font-medium text-gray-700">{{ $mg->genre->name }}</span>
+                                    </div>
+                                @endforeach
                             </div>
                             
                             <!-- Selected Genres Preview -->
-                            <div x-show="selectedGenres.length > 0" class="mt-4 pt-4 border-t border-gray-300">
+                            <div class="mt-4 pt-4 border-t border-gray-300">
                                 <p class="text-xs text-gray-500 mb-2">Selected genres:</p>
                                 <div class="flex flex-wrap gap-2">
-                                    <template x-for="genre in selectedGenres" :key="genre">
-                                        <span class="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-semibold" 
-                                              x-text="genre"></span>
-                                    </template>
+                                    @foreach($movie->movieGenres as $mg)
+                                        <span class="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-semibold">
+                                            {{ $mg->genre->name }}
+                                        </span>
+                                    @endforeach
                                 </div>
                             </div>
+                            @else
+                            <p class="text-gray-500 text-sm">No genres added yet</p>
+                            @endif
                         </div>
                     </div>
                     
@@ -614,34 +596,22 @@
                             <i class="fas fa-globe text-green-600 mr-2"></i>
                             Country
                         </label>
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4" x-data="{ 
-                            selectedCountries: ['USA'],
-                            allCountries: ['USA', 'United Kingdom', 'South Korea', 'Japan', 'France', 'Germany', 'China', 'India', 'Canada', 'Australia', 'Spain', 'Italy', 'Brazil', 'Mexico']
-                        }">
-                            <!-- Selected Tags Display -->
-                            <div class="flex flex-wrap gap-2 mb-3" x-show="selectedCountries.length > 0">
-                                <template x-for="country in selectedCountries" :key="country">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            @if($movie->movieCountries->count() > 0)
+                            <!-- Selected Countries Display -->
+                            <div class="flex flex-wrap gap-2 mb-3">
+                                @foreach($movie->movieCountries as $mc)
                                     <span class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white rounded-full text-sm font-medium">
-                                        <span x-text="country"></span>
-                                        <button @click="selectedCountries = selectedCountries.filter(c => c !== country)" 
-                                                class="ml-2 text-green-200 hover:text-white transition-colors">
-                                            <i class="fas fa-times text-xs"></i>
-                                        </button>
+                                        {{ $mc->country->name }}
                                     </span>
-                                </template>
+                                @endforeach
                             </div>
-                            
-                            <!-- Dropdown Select -->
-                            <select @change="if($event.target.value && !selectedCountries.includes($event.target.value)) { selectedCountries.push($event.target.value); } $event.target.value = ''" 
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
-                                <option value="">Select Country...</option>
-                                <template x-for="country in allCountries" :key="country">
-                                    <option :value="country" x-text="country" :disabled="selectedCountries.includes(country)"></option>
-                                </template>
-                            </select>
+                            @else
+                            <p class="text-gray-500 text-sm">No countries added yet</p>
+                            @endif
                             <p class="mt-2 text-xs text-gray-500">
                                 <i class="fas fa-info-circle mr-1"></i>
-                                Select countries where this film was produced
+                                Edit film to add countries where this film was produced
                             </p>
                         </div>
                     </div>
@@ -652,45 +622,33 @@
                             <i class="fas fa-language text-orange-600 mr-2"></i>
                             Language
                         </label>
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4" x-data="{ 
-                            selectedLanguages: ['English'],
-                            allLanguages: ['English', 'Korean', 'Japanese', 'Mandarin Chinese', 'French', 'Spanish', 'German', 'Italian', 'Portuguese', 'Hindi', 'Arabic', 'Russian']
-                        }">
-                            <!-- Selected Tags Display -->
-                            <div class="flex flex-wrap gap-2 mb-3" x-show="selectedLanguages.length > 0">
-                                <template x-for="language in selectedLanguages" :key="language">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            @if($movie->movieLanguages->count() > 0)
+                            <!-- Selected Languages Display -->
+                            <div class="flex flex-wrap gap-2 mb-3">
+                                @foreach($movie->movieLanguages as $ml)
                                     <span class="inline-flex items-center px-3 py-1.5 bg-orange-600 text-white rounded-full text-sm font-medium">
-                                        <span x-text="language"></span>
-                                        <button @click="selectedLanguages = selectedLanguages.filter(l => l !== language)" 
-                                                class="ml-2 text-orange-200 hover:text-white transition-colors">
-                                            <i class="fas fa-times text-xs"></i>
-                                        </button>
+                                        {{ $ml->language->name }}
                                     </span>
-                                </template>
+                                @endforeach
                             </div>
-                            
-                            <!-- Dropdown Select -->
-                            <select @change="if($event.target.value && !selectedLanguages.includes($event.target.value)) { selectedLanguages.push($event.target.value); } $event.target.value = ''" 
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
-                                <option value="">Select Language...</option>
-                                <template x-for="language in allLanguages" :key="language">
-                                    <option :value="language" x-text="language" :disabled="selectedLanguages.includes(language)"></option>
-                                </template>
-                            </select>
+                            @else
+                            <p class="text-gray-500 text-sm">No languages added yet</p>
+                            @endif
                             <p class="mt-2 text-xs text-gray-500">
                                 <i class="fas fa-info-circle mr-1"></i>
-                                Select all languages spoken in this film
+                                Edit film to add languages spoken in this film
                             </p>
                         </div>
                     </div>
                     
-                    <!-- Save Button -->
+                    <!-- Edit Button -->
                     <div class="flex justify-end pt-4 border-t border-gray-200">
-                        <button onclick="alert('Metadata saved successfully! (UI only)\n\nIn production, this will update the database.')" 
+                        <a href="{{ route('admin.films.edit', $movie->id) }}" 
                                 class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center">
-                            <i class="fas fa-save mr-2"></i>
-                            Save Metadata
-                        </button>
+                            <i class="fas fa-edit mr-2"></i>
+                            Edit Metadata
+                        </a>
                     </div>
                 </div>
             </div>
@@ -707,8 +665,8 @@
                 <div class="flex justify-between items-center">
                     <span class="text-gray-600">Publication:</span>
                     <span class="px-3 py-1 text-sm font-semibold rounded-full 
-                        {{ $film['status'] === 'Published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                        {{ $film['status'] }}
+                        {{ $movie->status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
+                        {{ ucfirst($movie->status) }}
                     </span>
                 </div>
                 <div class="flex justify-between items-center">
@@ -723,17 +681,126 @@
         </div>
 
         <!-- Streaming Services -->
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="font-bold text-lg mb-4">Available On</h3>
+        <div class="bg-white rounded-lg shadow p-6" x-data="{ showServiceModal: false, editingService: null }">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">Available On</h3>
+                <button @click="showServiceModal = true; editingService = null" 
+                        class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
+                    <i class="fas fa-edit mr-1"></i> Edit
+                </button>
+            </div>
             <div class="space-y-3">
-                @foreach($film['services'] as $service)
-                <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                    <div class="w-10 h-10 bg-blue-500 rounded flex items-center justify-center text-white font-bold">
-                        {{ substr($service, 0, 1) }}
+                @forelse($movie->movieServices as $movieService)
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-blue-500 rounded flex items-center justify-center text-white font-bold">
+                            {{ substr($movieService->service->name, 0, 1) }}
+                        </div>
+                        <div>
+                            <span class="font-medium">{{ $movieService->service->name }}</span>
+                            @if($movieService->service->type === 'theatrical' && $movieService->release_date)
+                                <p class="text-xs text-gray-600">
+                                    <i class="fas fa-calendar mr-1"></i>
+                                    {{ \Carbon\Carbon::parse($movieService->release_date)->format('d M Y') }}
+                                </p>
+                            @endif
+                            @if($movieService->availability_type && $movieService->service->type !== 'theatrical')
+                                <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
+                                    {{ ucfirst($movieService->availability_type) }}
+                                </span>
+                            @endif
+                        </div>
                     </div>
-                    <span class="font-medium">{{ $service }}</span>
                 </div>
-                @endforeach
+                @empty
+                <p class="text-gray-500 text-sm text-center py-4">No services added yet</p>
+                @endforelse
+            </div>
+
+            <!-- Modal Edit Services -->
+            <div x-show="showServiceModal" 
+                 x-cloak
+                 class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                 @click.self="showServiceModal = false">
+                <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold">Manage Available Services</h3>
+                        <button @click="showServiceModal = false" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+
+                    <form action="{{ route('admin.films.services.update', $movie->id) }}" method="POST">
+                        @csrf
+                        @method('PUT')
+                        
+                        <div class="space-y-4 mb-6">
+                            <!-- Service Selection with Checkboxes -->
+                            @php
+                                $allServices = \App\Models\Service::all();
+                                $selectedServiceIds = $movie->movieServices->pluck('service_id')->toArray();
+                            @endphp
+                            
+                            @foreach($allServices as $service)
+                            @php
+                                $isSelected = in_array($service->id, $selectedServiceIds);
+                                $movieService = $movie->movieServices->firstWhere('service_id', $service->id);
+                            @endphp
+                            <div class="border rounded-lg p-4 hover:bg-gray-50">
+                                <div class="flex items-start space-x-3">
+                                    <input type="checkbox" 
+                                           name="services[{{ $service->id }}][enabled]" 
+                                           value="1"
+                                           {{ $isSelected ? 'checked' : '' }}
+                                           id="service_{{ $service->id }}"
+                                           class="mt-1">
+                                    <div class="flex-1">
+                                        <label for="service_{{ $service->id }}" class="font-medium cursor-pointer">
+                                            {{ $service->name }}
+                                            <span class="text-xs text-gray-500">({{ ucfirst($service->type) }})</span>
+                                        </label>
+                                        
+                                        @if($service->type === 'theatrical')
+                                        <div class="mt-2">
+                                            <label class="block text-sm text-gray-700 mb-1">Release Date</label>
+                                            <input type="date" 
+                                                   name="services[{{ $service->id }}][release_date]"
+                                                   value="{{ $movieService->release_date ?? '' }}"
+                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                        </div>
+                                        @endif
+                                        
+                                        @if($service->type === 'streaming')
+                                        <div class="mt-2">
+                                            <label class="block text-sm text-gray-700 mb-1">Availability Type</label>
+                                            <select name="services[{{ $service->id }}][availability_type]" 
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                                <option value="stream" {{ ($movieService->availability_type ?? '') === 'stream' ? 'selected' : '' }}>Stream</option>
+                                                <option value="rent" {{ ($movieService->availability_type ?? '') === 'rent' ? 'selected' : '' }}>Rent</option>
+                                                <option value="buy" {{ ($movieService->availability_type ?? '') === 'buy' ? 'selected' : '' }}>Buy</option>
+                                            </select>
+                                        </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+
+                        <div class="flex justify-end space-x-3">
+                            <button type="button" 
+                                    @click="showServiceModal = false"
+                                    class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                                Cancel
+                            </button>
+                            <button type="submit" 
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                <i class="fas fa-save mr-2"></i>
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -746,7 +813,7 @@
                         <span class="text-gray-600">Average Rating</span>
                         <div class="flex items-center">
                             @php
-                                $rating = $film['rating_average'];
+                                $rating = $movie->rating_average ?? 0;
                             @endphp
                             @for($i = 1; $i <= 5; $i++)
                                 @if($i <= floor($rating))
@@ -766,7 +833,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Total Reviews:</span>
-                    <span class="font-bold">{{ number_format($film['total_reviews']) }}</span>
+                    <span class="font-bold">{{ number_format($movie->total_reviews ?? 0) }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Views:</span>
@@ -783,23 +850,160 @@
         <div class="bg-white rounded-lg shadow p-6">
             <h3 class="font-bold text-lg mb-4">Quick Actions</h3>
             <div class="space-y-2">
-                <button onclick="alert('Toggle status (UI only)')" 
-                        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg">
-                    <i class="fas fa-toggle-on mr-2"></i>
-                    {{ $film['status'] === 'Published' ? 'Unpublish' : 'Publish' }}
-                </button>
-                <button onclick="alert('Duplicate (UI only)')" 
-                        class="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg">
-                    <i class="fas fa-copy mr-2"></i>
-                    Duplicate
-                </button>
-                <button onclick="if(confirm('Are you sure? (UI only)')) alert('Deleted (UI only)')" 
-                        class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg">
-                    <i class="fas fa-trash mr-2"></i>
-                    Delete Film
-                </button>
+                <form method="POST" action="{{ route('admin.films.toggle-status', $movie->id) }}">
+                    @csrf
+                    @method('PUT')
+                    <button type="submit" 
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors duration-200">
+                        <i class="fas fa-toggle-on mr-2"></i>
+                        {{ $movie->status === 'published' ? 'Unpublish' : 'Publish' }}
+                    </button>
+                </form>
+                <form method="POST" action="{{ route('admin.films.duplicate', $movie->id) }}">
+                    @csrf
+                    <button type="submit" 
+                            class="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg transition-colors duration-200">
+                        <i class="fas fa-copy mr-2"></i>
+                        Duplicate
+                    </button>
+                </form>
+                <form method="POST" action="{{ route('admin.films.destroy', $movie->id) }}" onsubmit="return confirm('Are you sure you want to delete this film? This action cannot be undone.')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" 
+                            class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition-colors duration-200">
+                        <i class="fas fa-trash mr-2"></i>
+                        Delete Film
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+// Media Manager Alpine.js component
+document.addEventListener('alpine:init', () => {
+    Alpine.data('mediaManager', () => ({
+        currentTab: 'posters',
+        
+        openFileDialog() {
+            document.getElementById('mediaFileInput').click();
+        },
+        
+        async handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const activeTab = this.currentTab;
+            const mediaType = activeTab === 'posters' ? 'poster' : 'backdrop';
+            
+            const formData = new FormData();
+            formData.append('media_file', file);
+            formData.append('media_type', mediaType);
+            formData.append('_token', '{{ csrf_token() }}');
+            
+            try {
+                const response = await fetch('{{ route("admin.films.media.upload", $movie->id) }}', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    location.reload(); // Reload to show new media
+                } else {
+                    alert('Error: ' + (data.message || 'Upload gagal'));
+                }
+            } catch (error) {
+                alert('Error uploading file: ' + error.message);
+            }
+            
+            event.target.value = ''; // Reset input
+        }
+    }));
+});
+
+// Set media as default
+async function setMediaDefault(movieId, mediaId) {
+    if (!confirm('Set sebagai media default?')) return;
+    
+    try {
+        const response = await fetch(`/admin/films/${movieId}/media/${mediaId}/default`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Delete media
+async function deleteMedia(movieId, mediaId) {
+    if (!confirm('Hapus media ini?')) return;
+    
+    try {
+        const response = await fetch(`/admin/films/${movieId}/media/${mediaId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Delete cast/crew
+async function deleteCastCrew(movieId, moviePersonId) {
+    if (!confirm('Hapus cast/crew ini?')) return;
+    
+    try {
+        const response = await fetch(`/admin/films/${movieId}/cast-crew/${moviePersonId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+</script>
+@endpush

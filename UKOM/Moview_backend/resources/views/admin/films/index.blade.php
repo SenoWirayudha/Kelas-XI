@@ -42,7 +42,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Published</p>
-                <p class="text-3xl font-bold text-green-600">{{ collect($films)->where('status', 'Published')->count() }}</p>
+                <p class="text-3xl font-bold text-green-600">{{ $films->where('status', 'published')->count() }}</p>
             </div>
             <div class="bg-green-100 p-3 rounded-full">
                 <i class="fas fa-check-circle text-green-600 text-2xl"></i>
@@ -98,43 +98,46 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="flex items-center">
-                        <img src="{{ $film['poster'] }}" alt="{{ $film['title'] }}" class="w-12 h-16 object-cover rounded">
+                        @php
+                            $poster = $film->posters()->where('is_default', true)->first() ?? $film->posters()->first();
+                        @endphp
+                        <img src="{{ $poster ? asset('storage/' . $poster->media_path) : 'https://via.placeholder.com/100x150' }}" alt="{{ $film->title }}" class="w-12 h-16 object-cover rounded">
                         <div class="ml-4">
-                            <div class="text-sm font-medium text-gray-900">{{ $film['title'] }}</div>
-                            <div class="text-sm text-gray-500">{{ implode(', ', $film['genres']) }}</div>
+                            <div class="text-sm font-medium text-gray-900">{{ $film->title }}</div>
+                            <div class="text-sm text-gray-500">{{ $film->movieGenres->pluck('genre.name')->implode(', ') }}</div>
                         </div>
                     </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $film['year'] }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $film['runtime'] }} min</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $film->release_year }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $film->duration }} min</td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        {{ $film['status'] === 'Published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                        {{ $film['status'] }}
+                        {{ $film->status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
+                        {{ ucfirst($film->status) }}
                     </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="flex items-center">
                         <i class="fas fa-star text-yellow-400 mr-1"></i>
-                        <span class="text-sm font-medium text-gray-900">{{ $film['rating_average'] }}</span>
+                        <span class="text-sm font-medium text-gray-900">{{ number_format($film->rating_average ?? 0, 1) }}</span>
                     </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ number_format($film['total_reviews']) }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ number_format($film->total_reviews ?? 0) }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div class="flex justify-end space-x-2">
-                        <a href="{{ route('admin.films.show', $film['id']) }}" 
+                        <a href="{{ route('admin.films.show', $film->id) }}" 
                            class="text-blue-600 hover:text-blue-900" title="View">
                             <i class="fas fa-eye"></i>
                         </a>
-                        <a href="{{ route('admin.films.edit', $film['id']) }}" 
+                        <a href="{{ route('admin.films.edit', $film->id) }}" 
                            class="text-indigo-600 hover:text-indigo-900" title="Edit">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <a href="{{ route('admin.films.cast-crew', $film['id']) }}" 
+                        <a href="{{ route('admin.films.cast-crew', $film->id) }}" 
                            class="text-purple-600 hover:text-purple-900" title="Cast & Crew">
                             <i class="fas fa-users"></i>
                         </a>
-                        <a href="{{ route('admin.films.reviews', $film['id']) }}" 
+                        <a href="{{ route('admin.films.reviews', $film->id) }}" 
                            class="text-green-600 hover:text-green-900" title="Reviews">
                             <i class="fas fa-star"></i>
                         </a>
@@ -153,30 +156,33 @@
 <div x-data="{ view: 'table' }" x-show="view === 'grid'" x-cloak>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         @foreach($films as $film)
+        @php
+            $poster = $film->posters()->where('is_default', true)->first() ?? $film->posters()->first();
+        @endphp
         <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition">
             <div class="relative">
-                <img src="{{ $film['poster'] }}" alt="{{ $film['title'] }}" class="w-full h-96 object-cover">
+                <img src="{{ $poster ? asset('storage/' . $poster->media_path) : 'https://via.placeholder.com/300x450' }}" alt="{{ $film->title }}" class="w-full h-96 object-cover">
                 <div class="absolute top-2 right-2">
                     <span class="px-3 py-1 text-xs font-semibold rounded-full 
-                        {{ $film['status'] === 'Published' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white' }}">
-                        {{ $film['status'] }}
+                        {{ $film->status === 'published' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white' }}">
+                        {{ ucfirst($film->status) }}
                     </span>
                 </div>
                 <div class="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm">
-                    <i class="fas fa-star text-yellow-400"></i> {{ $film['rating_average'] }}
+                    <i class="fas fa-star text-yellow-400"></i> {{ number_format($film->rating_average ?? 0, 1) }}
                 </div>
             </div>
             <div class="p-4">
-                <h3 class="font-bold text-lg mb-1 truncate">{{ $film['title'] }}</h3>
-                <p class="text-gray-600 text-sm mb-2">{{ $film['year'] }} • {{ $film['runtime'] }} min</p>
-                <p class="text-gray-500 text-xs mb-3">{{ implode(', ', $film['genres']) }}</p>
+                <h3 class="font-bold text-lg mb-1 truncate">{{ $film->title }}</h3>
+                <p class="text-gray-600 text-sm mb-2">{{ $film->release_year }} • {{ $film->duration }} min</p>
+                <p class="text-gray-500 text-xs mb-3">{{ $film->movieGenres->pluck('genre.name')->implode(', ') }}</p>
                 
                 <div class="flex justify-between items-center pt-3 border-t">
-                    <a href="{{ route('admin.films.show', $film['id']) }}" 
+                    <a href="{{ route('admin.films.show', $film->id) }}" 
                        class="text-blue-600 hover:text-blue-800 text-sm">
                         <i class="fas fa-eye"></i> View
                     </a>
-                    <a href="{{ route('admin.films.edit', $film['id']) }}" 
+                    <a href="{{ route('admin.films.edit', $film->id) }}" 
                        class="text-indigo-600 hover:text-indigo-800 text-sm">
                         <i class="fas fa-edit"></i> Edit
                     </a>
