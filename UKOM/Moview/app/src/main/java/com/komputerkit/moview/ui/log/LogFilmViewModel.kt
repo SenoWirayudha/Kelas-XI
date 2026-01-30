@@ -27,7 +27,7 @@ class LogFilmViewModel : ViewModel() {
     
     fun loadMovie(movieId: Int) {
         // In a real app, load from repository
-        val movies = repository.getPopularMoviesThisWeek()
+        val movies = repository.getPopularMoviesThisWeekDummy()
         _movie.value = movies.find { it.id == movieId } ?: movies.first()
     }
     

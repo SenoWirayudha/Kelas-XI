@@ -1,5 +1,9 @@
 package com.komputerkit.moview.data.model
 
+import com.komputerkit.moview.data.api.CrewJobDto
+import com.komputerkit.moview.data.api.StreamingServiceDto
+import com.komputerkit.moview.data.api.TheatricalServiceDto
+
 data class Movie(
     val id: Int,
     val title: String,
@@ -24,7 +28,14 @@ data class Movie(
     val hasReview: Boolean = false,
     val reviewId: Int = 0,
     val userRating: Float = 0f,  // User's personal rating (0-5 in 0.5 steps)
-    val isLiked: Boolean = false  // Whether user has liked this movie
+    val isLiked: Boolean = false,  // Whether user has liked this movie
+    val streamingServices: List<StreamingServiceDto> = emptyList(),
+    val theatricalServices: List<TheatricalServiceDto> = emptyList(),
+    val crew: List<CrewJobDto> = emptyList(),
+    val originalLanguage: String? = null,
+    val spokenLanguages: List<String> = emptyList(),
+    val productionCountries: List<String> = emptyList(),
+    val productionCompanies: List<String> = emptyList()
 )
 
 data class CastMember(

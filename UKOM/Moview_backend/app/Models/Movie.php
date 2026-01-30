@@ -12,6 +12,7 @@ class Movie extends Model
         'duration',
         'age_rating',
         'synopsis',
+        'trailer_url',
         'default_poster_path',
         'default_backdrop_path',
         'status',
@@ -93,6 +94,31 @@ class Movie extends Model
     {
         return $this->hasMany(MovieService::class, 'movie_id');
     }
+
+    /**
+     * Get ratings for the movie
+     */
+    public function ratings()
+    {
+        return $this->hasMany(Rating::class, 'film_id');
+    }
+
+    /**
+     * Get reviews for the movie
+     */
+    public function reviews()
+    {
+        return $this->hasMany(Review::class, 'film_id');
+    }
+
+    /**
+     * Get likes for the movie
+     */
+    public function likes()
+    {
+        return $this->hasMany(MovieLike::class, 'film_id');
+    }
+
     public function movieCountries()
     {
         return $this->hasMany(MovieCountry::class);
@@ -106,4 +132,5 @@ class Movie extends Model
     public function movieProductionHouses()
     {
         return $this->hasMany(MovieProductionHouse::class);
-    }}
+    }
+}

@@ -192,6 +192,7 @@ class FilmController extends Controller
             'age_rating' => 'nullable|string|max:10',
             'status' => 'required|in:draft,published',
             'synopsis' => 'nullable|string',
+            'trailer_url' => 'nullable|url|max:500',
             'genres' => 'nullable|array',
             'genres.*' => 'exists:genres,id',
             'services' => 'nullable|array',
@@ -281,6 +282,7 @@ class FilmController extends Controller
             'age_rating' => 'nullable|string|max:10',
             'status' => 'required|in:draft,published',
             'synopsis' => 'nullable|string',
+            'trailer_url' => 'nullable|url|max:500',
             'genres' => 'nullable|array',
             'genres.*' => 'exists:genres,id',
             'services' => 'nullable|array',
@@ -471,13 +473,16 @@ class FilmController extends Controller
         
         // Add selected services
         if ($request->has('services')) {
-            foreach ($request->services as $serviceId => $data) {
-                if (isset($data['enabled'])) {
-                    $movie->movieServices()->create([
-                        'service_id' => $serviceId,
-                        'availability_type' => $data['availability_type'] ?? 'stream',
-                        'release_date' => $data['release_date'] ?? null,
-                    ]);
+            foreach ($request->services as $serviceId => $availabilityTypes) {
+                // Loop through each availability type (stream, rent, buy, theatrical)
+                foreach ($availabilityTypes as $availType => $data) {
+                    if (isset($data['enabled'])) {
+                        $movie->movieServices()->create([
+                            'service_id' => $serviceId,
+                            'availability_type' => $data['availability_type'] ?? $availType,
+                            'release_date' => $data['release_date'] ?? null,
+                        ]);
+                    }
                 }
             }
         }

@@ -34,7 +34,7 @@ class StreamingServiceAdapter(
             // For now just show placeholder
             Glide.with(binding.root.context)
                 .load(TmdbImageUrl.getProfileUrl("/hUh4ugq6UUTUC03pKshXdQqKcR.jpg"))
-                .into(binding.ivStreamingLogo)
+                .into(binding.ivServiceLogo)
         }
     }
 }

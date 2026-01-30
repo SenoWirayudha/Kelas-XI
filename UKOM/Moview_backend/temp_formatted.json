@@ -1,0 +1,101 @@
+﻿{
+    "success":  true,
+    "data":  {
+                 "id":  2,
+                 "title":  "The Handmaiden",
+                 "year":  2016,
+                 "duration":  "168m",
+                 "rating":  "NC-17",
+                 "synopsis":  "1930s Korea, in the period of Japanese occupation, a new girl, Sookee, is hired as a handmaiden to a Japanese heiress, Hideko, who lives a secluded life on a large countryside estate with her domineering Uncle Kouzuki. But the maid has a secret. She is a pickpocket recruited by a swindler posing as a Japanese Count to help him seduce the Lady to steal her fortune.",
+                 "poster_path":  "http://127.0.0.1:8000/storage/movies/2/poster/k2X1dIuWgacB2YuqsxRWKxMMOpvMohkJTTDqvtmU.webp",
+                 "backdrop_path":  "http://127.0.0.1:8000/storage/movies/2/backdrop/XZonGNaLQAFxpXePD1zoagSANbqByimU4kn5XhuA.webp",
+                 "trailer_url":  "https://youtu.be/whldChqCsYk?si=jSwaKpS5_CTOzaRx",
+                 "genres":  [
+                                "Drama",
+                                "Romance",
+                                "Thriller"
+                            ],
+                 "directors":  [
+                                   {
+                                       "id":  16,
+                                       "name":  "Park Chan-wook",
+                                       "photo_url":  "http://127.0.0.1:8000/storage/persons/UtwsNPMFVcyF0LuwNICzqiFHfTVNTAHo6xmc7U4S.webp"
+                                   }
+                               ],
+                 "cast":  [
+                              {
+                                  "id":  19,
+                                  "name":  "Kim Tae-ri",
+                                  "character":  "Sook-hee",
+                                  "photo_url":  "http://127.0.0.1:8000/storage/persons/4qR4a3k5o6VeNqFQ16QbgBGEgCSAcwZyHhZqV76k.webp"
+                              },
+                              {
+                                  "id":  18,
+                                  "name":  "Kim Min-hee",
+                                  "character":  "Lady Hideko",
+                                  "photo_url":  "http://127.0.0.1:8000/storage/persons/z5gkvCNqYOhUNLWg7wRaMj3cU76EIaqR8FOYApA3.webp"
+                              },
+                              {
+                                  "id":  20,
+                                  "name":  "Ha Jung-woo",
+                                  "character":  "Count Fujiwara",
+                                  "photo_url":  "http://127.0.0.1:8000/storage/persons/U0TYF2HrDmGSsN5aJRoev6AiRQEkTQzTorRhgti3.webp"
+                              },
+                              {
+                                  "id":  21,
+                                  "name":  "Cho Jin-woong",
+                                  "character":  "Uncle Kouzuki",
+                                  "photo_url":  "http://127.0.0.1:8000/storage/persons/VlblrWeLSdNX0tPwnREw0xDZ6uiq8UutLQyjtvRA.webp"
+                              }
+                          ],
+                 "crew":  [
+                              {
+                                  "job":  "Writer",
+                                  "people":  [
+                                                 {
+                                                     "id":  17,
+                                                     "name":  "Chung Seo-kyung",
+                                                     "photo_url":  "http://127.0.0.1:8000/storage/persons/4lZiMTg8odJ3cZzDrZcFmZvc0nChEgKtQ0Bqh2R4.webp"
+                                                 },
+                                                 {
+                                                     "id":  16,
+                                                     "name":  "Park Chan-wook",
+                                                     "photo_url":  "http://127.0.0.1:8000/storage/persons/UtwsNPMFVcyF0LuwNICzqiFHfTVNTAHo6xmc7U4S.webp"
+                                                 }
+                                             ]
+                              }
+                          ],
+                 "statistics":  {
+                                    "watched_count":  0,
+                                    "reviews_count":  0,
+                                    "average_rating":  0,
+                                    "rating_distribution":  {
+                                                                "1":  0,
+                                                                "2":  0,
+                                                                "3":  0,
+                                                                "4":  0,
+                                                                "5":  0
+                                                            }
+                                },
+                 "streaming_services":  [
+
+                                        ],
+                 "theatrical_services":  [
+
+                                         ],
+                 "details":  {
+                                 "original_language":  "ko",
+                                 "spoken_languages":  [
+                                                          "Korean",
+                                                          "Japanese"
+                                                      ],
+                                 "production_countries":  [
+                                                              "South Korea"
+                                                          ],
+                                 "production_companies":  [
+                                                              "Moho Film",
+                                                              "Yong Film"
+                                                          ]
+                             }
+             }
+}

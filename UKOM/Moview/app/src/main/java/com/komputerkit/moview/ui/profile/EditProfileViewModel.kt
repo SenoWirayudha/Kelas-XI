@@ -37,7 +37,7 @@ class EditProfileViewModel : ViewModel() {
     
     private fun createInitialFavorites(): List<FavoriteSlot> {
         // Get some sample favorite movies
-        val movies = repository.getPopularMoviesThisWeek()
+        val movies = repository.getPopularMoviesThisWeekDummy()
         return List(4) { index ->
             FavoriteSlot(
                 index = index,
@@ -59,7 +59,7 @@ class EditProfileViewModel : ViewModel() {
         if (index !in 0..3) return
         
         // Get movie from repository by ID
-        val allMovies = repository.getPopularMoviesThisWeek()
+        val allMovies = repository.getPopularMoviesThisWeekDummy()
         val movie = allMovies.find { it.id == movieId }
         
         if (movie != null) {

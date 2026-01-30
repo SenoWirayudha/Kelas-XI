@@ -54,20 +54,22 @@
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
                         <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                            <span class="font-bold">A</span>
+                            <span class="font-bold">{{ strtoupper(substr(session('admin_user_name', 'A'), 0, 1)) }}</span>
                         </div>
                         <div class="ml-3">
-                            <p class="font-medium">Admin User</p>
-                            <p class="text-sm text-gray-400">admin@moview.com</p>
+                            <p class="font-medium">{{ session('admin_user_name', 'Admin User') }}</p>
+                            <p class="text-sm text-gray-400">{{ session('admin_user_email', 'admin@moview.com') }}</p>
                         </div>
                     </div>
                 </div>
-                <a href="{{ route('admin.login') }}" 
-                   onclick="return confirm('Logout dari admin panel? (UI only)\n\nDalam production:\n- Destroy session\n- Redirect ke login page')"
-                   class="mt-4 flex items-center justify-center w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200">
-                    <i class="fas fa-sign-out-alt mr-2"></i>
-                    <span>Logout</span>
-                </a>
+                <form action="{{ route('admin.logout') }}" method="POST" class="mt-4">
+                    @csrf
+                    <button type="submit" 
+                            class="flex items-center justify-center w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200">
+                        <i class="fas fa-sign-out-alt mr-2"></i>
+                        <span>Logout</span>
+                    </button>
+                </form>
             </div>
         </aside>
 
@@ -89,12 +91,14 @@
                             <span class="text-sm text-gray-600">{{ date('l, M d, Y') }}</span>
                         </div>
                         <div class="border-l pl-4">
-                            <a href="{{ route('admin.login') }}" 
-                               onclick="return confirm('Logout dari admin panel? (UI only)\n\nDalam production:\n- Destroy session\n- Redirect ke login page')"
-                               class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium">
-                                <i class="fas fa-sign-out-alt mr-2"></i>
-                                Logout
-                            </a>
+                            <form action="{{ route('admin.logout') }}" method="POST" class="inline">
+                                @csrf
+                                <button type="submit"
+                                        class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>
+                                    Logout
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>

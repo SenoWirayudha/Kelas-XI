@@ -6,6 +6,7 @@ import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.TmdbImageUrl
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class SearchUiState(
     val isLoading: Boolean = false,
@@ -106,12 +108,13 @@ class SearchViewModel : ViewModel() {
         }
     }
     
-    private fun searchMovies(query: String): List<Movie> {
-        // TODO: Replace with actual TMDB API call (/search/movie)
-        // For now, filter local repository data
-        return repository.getPopularMoviesThisWeek()
-            .filter { it.title.contains(query, ignoreCase = true) }
-            .take(6)
+    private suspend fun searchMovies(query: String): List<Movie> = withContext(Dispatchers.Default) {
+        try {
+            repository.searchMovies(query)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
     
     private fun searchPeople(query: String): List<SearchPerson> {

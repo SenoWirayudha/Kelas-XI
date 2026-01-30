@@ -5,25 +5,31 @@ use App\Http\Controllers\Admin\FilmController;
 use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\CastCrewController;
 use App\Http\Controllers\Admin\CastCrewManagementController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\ActivityController;
+use App\Http\Controllers\Admin\ReviewController;
+use App\Http\Controllers\Admin\AuthController;
 
 // Public Routes
 Route::get('/', function () {
     return view('welcome');
 });
 
-// Admin Authentication (UI only - dummy)
-Route::get('/admin/login', function () {
-    return view('admin.auth.login');
-})->name('admin.login');
+// Admin Authentication
+Route::get('/admin/login', [AuthController::class, 'showLoginForm'])->name('admin.login');
+Route::post('/admin/login', [AuthController::class, 'login'])->name('admin.login.post');
+Route::post('/admin/logout', [AuthController::class, 'logout'])->name('admin.logout');
 
-Route::post('/admin/login', function () {
-    // UI only - no actual authentication
-    // In production: validate credentials, create session, etc.
-    return redirect()->route('admin.films.index');
-})->name('admin.login.post');
+// Admin root redirect
+Route::get('/admin', function () {
+    if (session()->has('admin_logged_in')) {
+        return redirect()->route('admin.films.index');
+    }
+    return redirect()->route('admin.login');
+})->name('admin.index');
 
-// Admin Routes
-Route::prefix('admin')->name('admin.')->group(function () {
+// Admin Routes (Protected)
+Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function () {
     // Film Management
     Route::get('/films', [FilmController::class, 'index'])->name('films.index');
     Route::get('/films/create', [FilmController::class, 'create'])->name('films.create');
@@ -51,14 +57,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::delete('/films/{id}/cast-crew/{moviePersonId}', [CastCrewController::class, 'destroy'])->name('films.castcrew.destroy');
     
     // Users Management (UI only - dummy data)
-    Route::get('/users', function () {
-        return view('admin.users.index');
-    })->name('users.index');
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
     
-    // User Activity (UI only - dummy data)
-    Route::get('/activity', function () {
-        return view('admin.activity.index');
-    })->name('activity.index');
+    // User Activity
+    Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
     
     // Cast & Crew Management
     Route::get('/cast-crew', [CastCrewManagementController::class, 'index'])->name('cast-crew.index');
@@ -69,10 +71,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::put('/cast-crew/{id}', [CastCrewManagementController::class, 'update'])->name('cast-crew.update');
     Route::delete('/cast-crew/{id}', [CastCrewManagementController::class, 'destroy'])->name('cast-crew.destroy');
     
-    // Reviews Management (UI only - dummy data)
-    Route::get('/reviews', function () {
-        return view('admin.reviews.index');
-    })->name('reviews.index');
+    // Reviews Management
+    Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');
     
     // Analytics (UI only - dummy data)
     Route::get('/analytics', function () {

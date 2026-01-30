@@ -26,7 +26,7 @@ class PosterBackdropViewModel : ViewModel() {
     val selectedArtwork: LiveData<Artwork?> = _selectedArtwork
     
     fun loadMovie(movieId: Int) {
-        val movies = repository.getPopularMoviesThisWeek()
+        val movies = repository.getPopularMoviesThisWeekDummy()
         _movie.value = movies.find { it.id == movieId } ?: movies.first()
         
         loadArtwork()

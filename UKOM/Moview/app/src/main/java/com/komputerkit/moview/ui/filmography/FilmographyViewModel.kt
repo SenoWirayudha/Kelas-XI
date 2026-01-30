@@ -16,6 +16,6 @@ class FilmographyViewModel : ViewModel() {
     fun loadFilmography(filterType: String, filterValue: String) {
         // TODO: Implement actual filtering logic
         // For now, load all popular movies as placeholder
-        _films.value = repository.getPopularMoviesThisWeek()
+        _films.value = repository.getPopularMoviesThisWeekDummy()
     }
 }

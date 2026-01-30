@@ -18,13 +18,19 @@
         <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
             <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Admin Login</h2>
             
-            <!-- Alert Example (Hidden by default) -->
-            <div class="hidden mb-6 p-4 bg-red-50 border border-red-200 rounded-lg" id="error-alert">
+            <!-- Error Messages -->
+            @if($errors->any())
+            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div class="flex items-center">
                     <i class="fas fa-exclamation-circle text-red-500 mr-3"></i>
-                    <p class="text-sm text-red-800">Invalid credentials. Please try again.</p>
+                    <div>
+                        @foreach($errors->all() as $error)
+                        <p class="text-sm text-red-800">{{ $error }}</p>
+                        @endforeach
+                    </div>
                 </div>
             </div>
+            @endif
 
             <!-- Login Form -->
             <form action="{{ route('admin.login.post') }}" method="POST">
@@ -40,6 +46,7 @@
                         type="email" 
                         id="email" 
                         name="email" 
+                        value="{{ old('email') }}"
                         placeholder="admin@moview.com"
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
                         required
@@ -133,22 +140,6 @@
                 <a href="#" class="text-xs text-gray-500 hover:text-gray-700 transition-colors">Terms of Service</a>
                 <span class="text-gray-400">•</span>
                 <a href="#" class="text-xs text-gray-500 hover:text-gray-700 transition-colors">Support</a>
-            </div>
-        </div>
-
-        <!-- Demo Credentials Notice -->
-        <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div class="flex items-start">
-                <i class="fas fa-lightbulb text-yellow-600 mr-3 mt-0.5"></i>
-                <div class="text-sm text-yellow-800">
-                    <p class="font-semibold mb-1">Demo Mode (UI Only)</p>
-                    <p class="text-xs">This is a view-only demonstration. No actual authentication is performed.</p>
-                    <p class="text-xs mt-2">
-                        <strong>Example credentials:</strong><br>
-                        Email: admin@moview.com<br>
-                        Password: password123
-                    </p>
-                </div>
             </div>
         </div>
     </div>

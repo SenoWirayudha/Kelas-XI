@@ -99,11 +99,21 @@
                             <p class="text-sm text-gray-300">{{ number_format($movie->total_reviews ?? 0) }} reviews</p>
                         </div>
                     </div>
-                    <div class="flex flex-wrap gap-2">
+                    <div class="flex flex-wrap gap-2 mb-4">
                         @foreach($movie->movieGenres as $movieGenre)
                         <span class="px-3 py-1 bg-blue-600 bg-opacity-80 rounded-full text-sm">{{ $movieGenre->genre->name }}</span>
                         @endforeach
                     </div>
+                    
+                    <!-- Trailer Button -->
+                    @if($movie->trailer_url)
+                    <div class="mt-4">
+                        <a href="{{ $movie->trailer_url }}" target="_blank" class="inline-flex items-center px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-200 shadow-lg hover:shadow-xl">
+                            <i class="fas fa-play-circle text-2xl mr-3"></i>
+                            <span>Watch Trailer</span>
+                        </a>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -128,26 +138,35 @@
             </h2>
             
             @php
-                // Dummy rating distribution data
-                $ratingDistribution = [
-                    5 => 420,
-                    4 => 310,
-                    3 => 120,
-                    2 => 45,
-                    1 => 18,
-                ];
+                // Get actual rating distribution from database
+                $ratingDistribution = [];
+                for ($i = 5; $i >= 1; $i--) {
+                    $ratingDistribution[$i] = $movie->ratings()
+                        ->where('rating', $i)
+                        ->count();
+                }
                 $totalRatings = array_sum($ratingDistribution);
+                
+                // Calculate average rating
+                $totalPoints = 0;
+                foreach ($ratingDistribution as $rating => $count) {
+                    $totalPoints += $rating * $count;
+                }
+                $averageRating = $totalRatings > 0 ? $totalPoints / $totalRatings : 0;
+                
+                // Get total reviews from reviews table
+                $totalReviews = $movie->reviews()->where('status', 'published')->count();
             @endphp
             
             <!-- Summary Stats -->
             <div class="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
                 <div class="text-center">
                     <p class="text-gray-600 text-sm mb-1">Total Reviews</p>
-                    <p class="text-3xl font-bold text-gray-800">{{ number_format($totalRatings) }}</p>
+                    <p class="text-3xl font-bold text-gray-800">{{ number_format($totalReviews) }}</p>
                 </div>
                 <div class="text-center">
                     <p class="text-gray-600 text-sm mb-1">Average Rating</p>
-                    <p class="text-3xl font-bold text-purple-600">{{ number_format($movie->rating_average ?? 0, 1) }} / 5</p>
+                    <p class="text-3xl font-bold text-purple-600">{{ number_format($averageRating, 1) }} / 5</p>
                 </div>
             </div>
             
@@ -698,14 +717,14 @@
                         </div>
                         <div>
                             <span class="font-medium">{{ $movieService->service->name }}</span>
-                            @if($movieService->service->type === 'theatrical' && $movieService->release_date)
+                            @if($movieService->release_date)
                                 <p class="text-xs text-gray-600">
                                     <i class="fas fa-calendar mr-1"></i>
                                     {{ \Carbon\Carbon::parse($movieService->release_date)->format('d M Y') }}
                                 </p>
                             @endif
-                            @if($movieService->availability_type && $movieService->service->type !== 'theatrical')
-                                <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
+                            @if($movieService->availability_type)
+                                <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded ml-2">
                                     {{ ucfirst($movieService->availability_type) }}
                                 </span>
                             @endif
@@ -735,54 +754,92 @@
                         @method('PUT')
                         
                         <div class="space-y-4 mb-6">
-                            <!-- Service Selection with Checkboxes -->
+                            <!-- Service Selection with Multiple Availability Types -->
                             @php
                                 $allServices = \App\Models\Service::all();
-                                $selectedServiceIds = $movie->movieServices->pluck('service_id')->toArray();
                             @endphp
                             
                             @foreach($allServices as $service)
-                            @php
-                                $isSelected = in_array($service->id, $selectedServiceIds);
-                                $movieService = $movie->movieServices->firstWhere('service_id', $service->id);
-                            @endphp
                             <div class="border rounded-lg p-4 hover:bg-gray-50">
-                                <div class="flex items-start space-x-3">
-                                    <input type="checkbox" 
-                                           name="services[{{ $service->id }}][enabled]" 
-                                           value="1"
-                                           {{ $isSelected ? 'checked' : '' }}
-                                           id="service_{{ $service->id }}"
-                                           class="mt-1">
-                                    <div class="flex-1">
-                                        <label for="service_{{ $service->id }}" class="font-medium cursor-pointer">
-                                            {{ $service->name }}
-                                            <span class="text-xs text-gray-500">({{ ucfirst($service->type) }})</span>
-                                        </label>
-                                        
-                                        @if($service->type === 'theatrical')
-                                        <div class="mt-2">
-                                            <label class="block text-sm text-gray-700 mb-1">Release Date</label>
-                                            <input type="date" 
-                                                   name="services[{{ $service->id }}][release_date]"
-                                                   value="{{ $movieService->release_date ?? '' }}"
-                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                                        </div>
-                                        @endif
-                                        
-                                        @if($service->type === 'streaming')
-                                        <div class="mt-2">
-                                            <label class="block text-sm text-gray-700 mb-1">Availability Type</label>
-                                            <select name="services[{{ $service->id }}][availability_type]" 
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                                                <option value="stream" {{ ($movieService->availability_type ?? '') === 'stream' ? 'selected' : '' }}>Stream</option>
-                                                <option value="rent" {{ ($movieService->availability_type ?? '') === 'rent' ? 'selected' : '' }}>Rent</option>
-                                                <option value="buy" {{ ($movieService->availability_type ?? '') === 'buy' ? 'selected' : '' }}>Buy</option>
-                                            </select>
-                                        </div>
-                                        @endif
-                                    </div>
+                                <div class="font-medium mb-3">
+                                    {{ $service->name }}
+                                    <span class="text-xs text-gray-500">({{ ucfirst($service->type) }})</span>
                                 </div>
+                                
+                                @if($service->type === 'streaming')
+                                    <!-- For streaming services, show multiple availability options -->
+                                    @php
+                                        $availabilityTypes = ['stream', 'rent', 'buy'];
+                                        $existingEntries = $movie->movieServices->where('service_id', $service->id);
+                                    @endphp
+                                    
+                                    <div class="space-y-2 pl-4">
+                                        @foreach($availabilityTypes as $availType)
+                                        @php
+                                            $existingEntry = $existingEntries->firstWhere('availability_type', $availType);
+                                            $isChecked = $existingEntry !== null;
+                                        @endphp
+                                        <div class="flex items-start space-x-3 p-2 bg-gray-50 rounded">
+                                            <input type="checkbox" 
+                                                   name="services[{{ $service->id }}][{{ $availType }}][enabled]" 
+                                                   value="1"
+                                                   {{ $isChecked ? 'checked' : '' }}
+                                                   id="service_{{ $service->id }}_{{ $availType }}"
+                                                   class="mt-1">
+                                            <div class="flex-1">
+                                                <label for="service_{{ $service->id }}_{{ $availType }}" class="font-medium cursor-pointer text-sm">
+                                                    {{ ucfirst($availType) }}
+                                                </label>
+                                                
+                                                <input type="hidden" 
+                                                       name="services[{{ $service->id }}][{{ $availType }}][availability_type]" 
+                                                       value="{{ $availType }}">
+                                                
+                                                <div class="mt-1">
+                                                    <label class="block text-xs text-gray-700 mb-1">
+                                                        Release Date <span class="text-gray-500">(Optional)</span>
+                                                    </label>
+                                                    <input type="date" 
+                                                           name="services[{{ $service->id }}][{{ $availType }}][release_date]"
+                                                           value="{{ $existingEntry->release_date ?? '' }}"
+                                                           class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <!-- For theatrical services, single entry -->
+                                    @php
+                                        $existingEntry = $movie->movieServices->firstWhere('service_id', $service->id);
+                                        $isChecked = $existingEntry !== null;
+                                    @endphp
+                                    <div class="flex items-start space-x-3 pl-4">
+                                        <input type="checkbox" 
+                                               name="services[{{ $service->id }}][theatrical][enabled]" 
+                                               value="1"
+                                               {{ $isChecked ? 'checked' : '' }}
+                                               id="service_{{ $service->id }}_theatrical"
+                                               class="mt-1">
+                                        <div class="flex-1">
+                                            <label for="service_{{ $service->id }}_theatrical" class="font-medium cursor-pointer text-sm">
+                                                Enable
+                                            </label>
+                                            
+                                            <input type="hidden" 
+                                                   name="services[{{ $service->id }}][theatrical][availability_type]" 
+                                                   value="stream">
+                                            
+                                            <div class="mt-2">
+                                                <label class="block text-sm text-gray-700 mb-1">Release Date</label>
+                                                <input type="date" 
+                                                       name="services[{{ $service->id }}][theatrical][release_date]"
+                                                       value="{{ $existingEntry->release_date ?? '' }}"
+                                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                             @endforeach
                         </div>
@@ -833,15 +890,15 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Total Reviews:</span>
-                    <span class="font-bold">{{ number_format($movie->total_reviews ?? 0) }}</span>
+                    <span class="font-bold">{{ number_format($totalReviews) }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Views:</span>
-                    <span class="font-bold">{{ number_format(rand(10000, 100000)) }}</span>
+                    <span class="font-bold">{{ number_format($movie->ratings()->count()) }}</span>
                 </div>
                 <div class="flex justify-between">
-                    <span class="text-gray-600">Favorites:</span>
-                    <span class="font-bold">{{ number_format(rand(1000, 10000)) }}</span>
+                    <span class="text-gray-600">Likes:</span>
+                    <span class="font-bold">{{ number_format($movie->likes()->count()) }}</span>
                 </div>
             </div>
         </div>

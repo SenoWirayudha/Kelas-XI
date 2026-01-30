@@ -18,9 +18,11 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'username',
         'email',
         'password',
+        'role',
+        'status',
     ];
 
     /**
@@ -43,6 +45,39 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'joined_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Get reviews written by the user
+     */
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    /**
+     * Get ratings given by the user
+     */
+    public function ratings()
+    {
+        return $this->hasMany(Rating::class);
+    }
+
+    /**
+     * Get movie likes by the user
+     */
+    public function movieLikes()
+    {
+        return $this->hasMany(MovieLike::class);
+    }
+
+    /**
+     * Get user activities
+     */
+    public function userActivities()
+    {
+        return $this->hasMany(UserActivity::class);
     }
 }

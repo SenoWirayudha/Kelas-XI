@@ -38,10 +38,10 @@ class ProfileViewModel : ViewModel() {
         _location.value = "JAKARTA, ID"
         
         // Favorites - ambil 4 film pertama
-        _favoriteMovies.value = repository.getPopularMoviesThisWeek().take(4)
+        _favoriteMovies.value = repository.getPopularMoviesThisWeekDummy().take(4)
         
         // Recent Activity - film dengan rating
-        val movies = repository.getPopularMoviesThisWeek()
+        val movies = repository.getPopularMoviesThisWeekDummy()
         _recentActivity.value = listOf(
             Pair(movies[0], 5.0f),
             Pair(movies[2], 4.5f),

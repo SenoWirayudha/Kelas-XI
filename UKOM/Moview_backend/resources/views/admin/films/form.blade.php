@@ -93,6 +93,22 @@
                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                               placeholder="Enter film synopsis">{{ old('synopsis', $film->synopsis ?? '') }}</textarea>
                 </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Trailer URL
+                        <span class="text-gray-400 font-normal">(Optional)</span>
+                    </label>
+                    <input type="url" 
+                           name="trailer_url" 
+                           value="{{ old('trailer_url', $film->trailer_url ?? '') }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="https://www.youtube.com/watch?v=...">
+                    <p class="mt-1 text-xs text-gray-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Enter YouTube, Vimeo, or other video platform URL
+                    </p>
+                </div>
             </div>
         </div>
 

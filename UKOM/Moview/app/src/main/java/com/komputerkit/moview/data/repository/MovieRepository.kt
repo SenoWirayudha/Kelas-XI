@@ -1,5 +1,7 @@
 package com.komputerkit.moview.data.repository
 
+import com.komputerkit.moview.data.api.MovieCardDto
+import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.User
@@ -7,10 +9,180 @@ import com.komputerkit.moview.data.model.Notification
 import com.komputerkit.moview.data.model.NotificationType
 import com.komputerkit.moview.data.model.NotificationSection
 import com.komputerkit.moview.util.TmdbImageUrl
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MovieRepository {
     
-    fun getPopularMoviesThisWeek(): List<Movie> {
+    private val apiService = RetrofitClient.movieApiService
+    
+    // Konversi dari DTO ke Model
+    private fun MovieCardDto.toMovie(): Movie {
+        return Movie(
+            id = this.id,
+            title = this.title,
+            posterUrl = this.poster_path ?: "",
+            averageRating = this.average_rating,
+            genre = this.genres.joinToString(", "),
+            releaseYear = this.year,
+            description = "",
+            hasReview = false,
+            reviewId = 0,
+            userRating = 0f
+        )
+    }
+    
+    // Ambil data dari API
+    suspend fun getPopularMoviesThisWeek(): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getHome()
+            if (response.success && response.data != null) {
+                response.data.popular_this_week.map { it.toMovie() }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    suspend fun getFriendActivities(): List<FriendActivity> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getHome()
+            if (response.success && response.data != null) {
+                response.data.new_from_friends.map { review ->
+                    FriendActivity(
+                        id = review.review_id,
+                        user = User(
+                            id = review.user.id,
+                            username = review.user.username,
+                            profilePhotoUrl = "",
+                            email = "",
+                            bio = ""
+                        ),
+                        movie = review.movie.toMovie(),
+                        rating = review.rating.toFloat(),
+                        likeCount = 0,
+                        isRewatch = false,
+                        hasReview = true,
+                        reviewText = "",
+                        timestamp = System.currentTimeMillis()
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    suspend fun searchMovies(query: String): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.searchMovies(query)
+            if (response.success && response.data != null) {
+                response.data.map { it.toMovie() }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    suspend fun getMovieDetail(movieId: Int): Movie? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getMovieDetail(movieId)
+            if (response.success && response.data != null) {
+                val movie = response.data
+                
+                // Combine directors into crew list as "Director" job
+                val directorsAsCrew = if (movie.directors.isNotEmpty()) {
+                    listOf(
+                        com.komputerkit.moview.data.api.CrewJobDto(
+                            job = "Director",
+                            people = movie.directors.map { director ->
+                                com.komputerkit.moview.data.api.CrewPersonDto(
+                                    id = director.id,
+                                    name = director.name,
+                                    photo_url = director.photo_url
+                                )
+                            }
+                        )
+                    )
+                } else {
+                    emptyList()
+                }
+                
+                // Merge directors at the beginning of crew list
+                val fullCrew = directorsAsCrew + movie.crew
+                
+                Movie(
+                    id = movie.id,
+                    title = movie.title,
+                    posterUrl = movie.poster_path ?: "",
+                    backdropUrl = movie.backdrop_path ?: "",
+                    averageRating = movie.statistics.average_rating,
+                    genre = movie.genres.joinToString(", "),
+                    releaseYear = movie.year,
+                    description = movie.synopsis,
+                    director = movie.directors.firstOrNull()?.name ?: "",
+                    duration = movie.duration,
+                    pgRating = movie.rating,
+                    watchedCount = "${movie.statistics.watched_count}",
+                    reviewCount = "${movie.statistics.reviews_count}",
+                    rating5 = movie.statistics.rating_distribution["5"] ?: 0,
+                    rating4 = movie.statistics.rating_distribution["4"] ?: 0,
+                    rating3 = movie.statistics.rating_distribution["3"] ?: 0,
+                    rating2 = movie.statistics.rating_distribution["2"] ?: 0,
+                    rating1 = movie.statistics.rating_distribution["1"] ?: 0,
+                    cast = movie.cast.map { cast ->
+                        com.komputerkit.moview.data.model.CastMember(
+                            id = cast.id,
+                            name = cast.name,
+                            character = cast.character,
+                            photoUrl = cast.photo_url ?: ""
+                        )
+                    },
+                    hasReview = false,
+                    reviewId = 0,
+                    userRating = 0f,
+                    streamingServices = movie.streaming_services,
+                    theatricalServices = movie.theatrical_services,
+                    crew = fullCrew,
+                    originalLanguage = movie.details.original_language,
+                    spokenLanguages = movie.details.spoken_languages,
+                    productionCountries = movie.details.production_countries,
+                    productionCompanies = movie.details.production_companies
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    suspend fun getPersonDetail(personId: Int): com.komputerkit.moview.data.api.PersonDetailDto? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getPersonDetail(personId)
+            if (response.success && response.data != null) {
+                response.data
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    // FALLBACK: Data dummy untuk development (akan dihapus nanti)
+    fun getPopularMoviesThisWeekDummy(): List<Movie> {
         return listOf(
             Movie(
                 id = 1,
@@ -111,7 +283,7 @@ class MovieRepository {
         )
     }
     
-    fun getFriendActivities(): List<FriendActivity> {
+    fun getFriendActivitiesDummy(): List<FriendActivity> {
         val users = listOf(
             User(
                 id = 1,
@@ -150,7 +322,7 @@ class MovieRepository {
             )
         )
         
-        val movies = getPopularMoviesThisWeek()
+        val movies = getPopularMoviesThisWeekDummy()
         
         return listOf(
             FriendActivity(
@@ -311,11 +483,11 @@ class MovieRepository {
     }
     
     fun getMovies(): List<Movie> {
-        return getPopularMoviesThisWeek()
+        return getPopularMoviesThisWeekDummy()
     }
     
     fun getDiaryEntries(): List<com.komputerkit.moview.data.model.DiaryEntry> {
-        val movies = getPopularMoviesThisWeek()
+        val movies = getPopularMoviesThisWeekDummy()
         return listOf(
             com.komputerkit.moview.data.model.DiaryEntry(
                 id = 1,
@@ -401,7 +573,7 @@ class MovieRepository {
     }
     
     fun getReviews(): List<com.komputerkit.moview.data.model.Review> {
-        val movies = getPopularMoviesThisWeek()
+        val movies = getPopularMoviesThisWeekDummy()
         return listOf(
             com.komputerkit.moview.data.model.Review(
                 id = 1,
@@ -439,7 +611,7 @@ class MovieRepository {
     }
     
     fun getWatchlistItems(): List<com.komputerkit.moview.data.model.WatchlistItem> {
-        val movies = getPopularMoviesThisWeek()
+        val movies = getPopularMoviesThisWeekDummy()
         return listOf(
             com.komputerkit.moview.data.model.WatchlistItem(
                 id = 1,

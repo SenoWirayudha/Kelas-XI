@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
@@ -12,7 +13,8 @@ import com.bumptech.glide.Glide
 import com.google.android.material.tabs.TabLayout
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentCrewDetailBinding
-import com.komputerkit.moview.util.TmdbImageUrl
+import com.komputerkit.moview.data.repository.MovieRepository
+import kotlinx.coroutines.launch
 
 // Data classes for crew detail
 data class Role(val name: String, val films: List<Film>)
@@ -24,11 +26,13 @@ class CrewDetailFragment : Fragment() {
     private val binding get() = _binding!!
     
     private val args: CrewDetailFragmentArgs by navArgs()
+    private val repository = MovieRepository()
     
     private lateinit var filmographyAdapter: FilmographyAdapter
     
     private var roles: List<Role> = emptyList()
     private var selectedRole: Role? = null
+    private var bio: String = ""
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -67,55 +71,51 @@ class CrewDetailFragment : Fragment() {
     }
 
     private fun loadCrewData() {
-        // In real app, load from repository based on args.personId
-        // For now, use sample data
+        // Show loading state
+        binding.tvName.text = "Loading..."
         
-        // Load profile
-        binding.tvName.text = "Christopher Nolan"
-        Glide.with(this)
-            .load(TmdbImageUrl.getProfileUrl(TmdbImageUrl.Sample.PROFILE_NOLAN))
-            .circleCrop()
-            .into(binding.ivProfile)
-        
-        // Sample bio
-        val bio = """
-            Christopher Edward Nolan (born 30 July 1970) is a British-American filmmaker known for making personal, conceptually focused blockbuster movies. He is considered one of the leading filmmakers of the 21st century.
+        lifecycleScope.launch {
+            val personDetail = repository.getPersonDetail(args.personId)
             
-            Born in London and raised in both London and Chicago, Nolan developed an interest in filmmaking from a young age. After studying English literature at University College London, he made several short films before his feature film debut with Following (1998). Nolan gained international recognition with his second film, Memento (2000), for which he was nominated for the Academy Award for Best Original Screenplay.
-            
-            His subsequent films include the Batman Begins (2005) trilogy, The Prestige (2006), Inception (2010), Interstellar (2014), Dunkirk (2017), and Oppenheimer (2023). His work is frequently noted for its metaphysical themes, exploration of human morality, and the construction of time.
-            
-            Nolan has received numerous accolades, including Academy Awards, BAFTA Awards, and Golden Globes. He is known for his preference for shooting on film stock and his extensive use of practical effects over computer-generated imagery.
-        """.trimIndent()
-        
-        // Sample filmography data
-        roles = listOf(
-            Role("Bio", emptyList()),
-            Role("Director", listOf(
-                Film(1, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_INTERSTELLAR)!!, "2014"),
-                Film(2, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_DUNE)!!, "2020"),
-                Film(3, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_DARK_KNIGHT)!!, "2008"),
-                Film(4, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_INCEPTION)!!, "2010"),
-                Film(5, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_DUNKIRK)!!, "2017"),
-                Film(6, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_BATMAN_BEGINS)!!, "2005")
-            )),
-            Role("Writer", listOf(
-                Film(1, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_INTERSTELLAR)!!, "2014"),
-                Film(2, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_DUNE)!!, "2020"),
-                Film(3, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_DARK_KNIGHT)!!, "2008"),
-                Film(4, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_INCEPTION)!!, "2010")
-            )),
-            Role("Producer", listOf(
-                Film(1, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_INTERSTELLAR)!!, "2014"),
-                Film(5, TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_DUNKIRK)!!, "2017")
-            ))
-        )
-        
-        // Setup tabs
-        setupTabs(bio)
+            if (personDetail != null) {
+                // Update UI with real data
+                binding.tvName.text = personDetail.name
+                
+                Glide.with(this@CrewDetailFragment)
+                    .load(personDetail.photo_url)
+                    .circleCrop()
+                    .into(binding.ivProfile)
+                
+                bio = personDetail.bio ?: "No biography available."
+                
+                // Convert filmography to Role objects
+                roles = mutableListOf<Role>().apply {
+                    // Always add Bio as first tab
+                    add(Role("Bio", emptyList()))
+                    
+                    // Add each job type as a tab
+                    personDetail.filmography.forEach { (job, films) ->
+                        add(Role(
+                            name = job,
+                            films = films.map { filmDto ->
+                                Film(
+                                    id = filmDto.id,
+                                    posterUrl = filmDto.poster_path ?: "",
+                                    year = filmDto.year.toString()
+                                )
+                            }
+                        ))
+                    }
+                }
+                
+                setupTabs()
+            } else {
+                binding.tvName.text = "Failed to load person details"
+            }
+        }
     }
 
-    private fun setupTabs(bio: String) {
+    private fun setupTabs() {
         // Clear existing tabs
         binding.tabLayout.removeAllTabs()
         
@@ -131,7 +131,7 @@ class CrewDetailFragment : Fragment() {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 tab?.let {
                     val role = roles[it.position]
-                    showRoleContent(role, bio)
+                    showRoleContent(role)
                 }
             }
 
@@ -141,10 +141,10 @@ class CrewDetailFragment : Fragment() {
         
         // Select first tab (Bio) by default
         binding.tabLayout.selectTab(binding.tabLayout.getTabAt(0))
-        showRoleContent(roles[0], bio)
+        showRoleContent(roles[0])
     }
 
-    private fun showRoleContent(role: Role, bio: String) {
+    private fun showRoleContent(role: Role) {
         selectedRole = role
         
         if (role.name == "Bio") {
