@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemSearchMovieBinding
+import com.komputerkit.moview.util.loadThumbnail
 import com.komputerkit.moview.util.MovieActionsHelper
 
 class SearchMovieAdapter(
@@ -40,9 +41,7 @@ class SearchMovieAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(movie: Movie) {
-            Glide.with(binding.root.context)
-                .load(movie.posterUrl)
-                .into(binding.ivPoster)
+            binding.ivPoster.loadThumbnail(movie.posterUrl)
             
             binding.tvTitle.text = movie.title
             binding.tvMovieInfo.text = "${movie.releaseYear} • ${movie.genre}"

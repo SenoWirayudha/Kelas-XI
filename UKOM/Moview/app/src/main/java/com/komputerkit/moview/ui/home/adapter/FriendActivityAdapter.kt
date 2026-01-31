@@ -9,6 +9,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.FriendActivity
+import com.komputerkit.moview.util.loadThumbnail
+import com.komputerkit.moview.util.loadAvatar
 
 class FriendActivityAdapter(
     private val activities: List<FriendActivity>,
@@ -37,20 +39,11 @@ class FriendActivityAdapter(
             // Show/hide more menu icon (only if has review)
             moreIcon.visibility = if (activity.hasReview) View.VISIBLE else View.GONE
             
-            // Load movie poster
-            Glide.with(itemView.context)
-                .load(activity.movie.posterUrl)
-                .placeholder(R.color.placeholder_color)
-                .error(R.color.placeholder_color)
-                .into(moviePoster)
+            // Load movie poster with optimization
+            moviePoster.loadThumbnail(activity.movie.posterUrl)
             
-            // Load profile photo
-            Glide.with(itemView.context)
-                .load(activity.user.profilePhotoUrl)
-                .placeholder(R.color.placeholder_color)
-                .error(R.color.placeholder_color)
-                .circleCrop()
-                .into(profilePhoto)
+            // Load profile photo with optimization
+            profilePhoto.loadAvatar(activity.user.profilePhotoUrl)
             
             itemView.setOnClickListener {
                 onActivityClick(activity)

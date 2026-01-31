@@ -28,6 +28,12 @@
         <item name="cornerSize">50%</item>
     </style>
     
+    <!-- Rounded Corner 8dp for service logos -->
+    <style name="RoundedCorner8dp">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">8dp</item>
+    </style>
+    
     <!-- Bottom Sheet Dialog Theme -->
     <style name="BottomSheetDialogTheme" parent="Theme.MaterialComponents.BottomSheetDialog">
         <item name="bottomSheetStyle">@style/ModalBottomSheetStyle</item>

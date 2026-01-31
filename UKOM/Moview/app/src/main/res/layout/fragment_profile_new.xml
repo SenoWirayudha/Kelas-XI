@@ -62,6 +62,7 @@
 
             <!-- Backdrop Section -->
             <FrameLayout
+                android:id="@+id/backdrop_container"
                 android:layout_width="match_parent"
                 android:layout_height="200dp">
 
@@ -84,6 +85,7 @@
 
             <!-- Avatar Container (Outside backdrop to prevent clipping) -->
             <FrameLayout
+                android:id="@+id/profile_photo_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="-48dp">
@@ -557,6 +559,47 @@
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         tools:text="58" />
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_arrow_right"
+                        android:layout_marginStart="8dp"
+                        android:contentDescription="Arrow"
+                        app:tint="@color/text_secondary" />
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/dark_surface"
+                    android:alpha="0.3" />
+
+                <!-- Likes -->
+                <LinearLayout
+                    android:id="@+id/layout_likes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingVertical="12dp"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Likes"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/tv_likes_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        tools:text="0" />
 
                     <ImageView
                         android:layout_width="16dp"

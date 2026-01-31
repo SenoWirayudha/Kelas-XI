@@ -39,7 +39,12 @@ class PosterArtworkAdapter(
 
             Glide.with(binding.root.context)
                 .load(artwork.url)
+                .thumbnail(0.15f)
                 .placeholder(R.color.dark_card)
+                .error(R.color.dark_card)
+                .override(400, 600)
+                .centerCrop()
+                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
                 .into(binding.ivPoster)
 
             // Show selection state

@@ -8,6 +8,8 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.databinding.ItemFriendActivityNewBinding
 import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.util.loadThumbnail
+import com.komputerkit.moview.util.loadAvatar
 import kotlin.math.roundToInt
 
 class FriendActivityNewAdapter(
@@ -42,16 +44,11 @@ class FriendActivityNewAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(activity: FriendActivity) {
-            // Movie poster
-            Glide.with(binding.root.context)
-                .load(activity.movie.posterUrl)
-                .into(binding.ivPoster)
+            // Movie poster with optimization
+            binding.ivPoster.loadThumbnail(activity.movie.posterUrl)
             
-            // User profile photo
-            Glide.with(binding.root.context)
-                .load(activity.user.profilePhotoUrl)
-                .circleCrop()
-                .into(binding.ivUserPhoto)
+            // User profile photo with optimization
+            binding.ivUserPhoto.loadAvatar(activity.user.profilePhotoUrl)
             
             // User name
             binding.tvUserName.text = activity.user.username

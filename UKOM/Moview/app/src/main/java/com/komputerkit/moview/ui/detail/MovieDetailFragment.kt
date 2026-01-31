@@ -13,6 +13,8 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.komputerkit.moview.util.loadPoster
+import com.komputerkit.moview.util.loadBackdrop
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.BottomSheetMovieActionsBinding
@@ -110,14 +112,17 @@ class MovieDetailFragment : Fragment() {
             binding.progress2Star.progress = movie.rating2
             binding.progress1Star.progress = movie.rating1
             
-            // Load images
-            Glide.with(this)
-                .load(movie.posterUrl)
-                .into(binding.ivPoster)
-                
-            Glide.with(this)
-                .load(movie.backdropUrl)
-                .into(binding.ivBackdrop)
+            // Load images with optimization (caching, resizing, smooth transition)
+            binding.ivPoster.loadPoster(movie.posterUrl)
+            binding.ivBackdrop.loadBackdrop(movie.backdropUrl)
+            
+            // Show/hide trailer button based on trailer availability
+            if (!movie.trailerUrl.isNullOrEmpty()) {
+                binding.btnWatchTrailer.visibility = View.VISIBLE
+                currentMovie = movie  // Store for trailer access
+            } else {
+                binding.btnWatchTrailer.visibility = View.GONE
+            }
             
             // Setup long press on poster to show actions
             MovieActionsHelper.setupPosterLongClick(
@@ -189,6 +194,9 @@ class MovieDetailFragment : Fragment() {
                     resources.getColor(com.komputerkit.moview.R.color.dark_card, null)
                 )
                 chip.chipStrokeWidth = 0f
+                chip.setOnClickListener {
+                    navigateToFilmList("production_house", company, company)
+                }
                 productionChipGroup.addView(chip)
             }
             binding.layoutProductionHouse.visibility = View.VISIBLE
@@ -208,6 +216,9 @@ class MovieDetailFragment : Fragment() {
                     resources.getColor(com.komputerkit.moview.R.color.dark_card, null)
                 )
                 chip.chipStrokeWidth = 0f
+                chip.setOnClickListener {
+                    navigateToFilmList("country", country, country)
+                }
                 countriesChipGroup.addView(chip)
             }
             binding.layoutCountry.visibility = View.VISIBLE
@@ -227,6 +238,9 @@ class MovieDetailFragment : Fragment() {
                     resources.getColor(com.komputerkit.moview.R.color.dark_card, null)
                 )
                 chip.chipStrokeWidth = 0f
+                chip.setOnClickListener {
+                    navigateToFilmList("language", language, language)
+                }
                 languagesChipGroup.addView(chip)
             }
             binding.layoutLanguage.visibility = View.VISIBLE
@@ -247,7 +261,7 @@ class MovieDetailFragment : Fragment() {
             )
             chip.chipStrokeWidth = 0f
             chip.setOnClickListener {
-                navigateToGenreFilmography(genre)
+                navigateToFilmList("genre", genre, genre)
             }
             chipGroup.addView(chip)
         }
@@ -320,6 +334,32 @@ class MovieDetailFragment : Fragment() {
         
         binding.btnShare.setOnClickListener {
             Toast.makeText(requireContext(), "Share", Toast.LENGTH_SHORT).show()
+        }
+        
+        binding.btnWatchTrailer.setOnClickListener {
+            openTrailer()
+        }
+        
+        // Click on year to navigate to film list filtered by year
+        binding.tvYear.setOnClickListener {
+            currentMovie?.let { movie ->
+                val action = MovieDetailFragmentDirections.actionMovieDetailToFilmList(
+                    categoryType = "year",
+                    categoryValue = movie.releaseYear.toString(),
+                    categoryName = movie.releaseYear.toString()
+                )
+                findNavController().navigate(action)
+            }
+        }
+        
+        // Click on director to navigate to person detail
+        binding.tvDirector.setOnClickListener {
+            currentMovie?.let { movie ->
+                movie.directorId?.let { directorId ->
+                    val action = MovieDetailFragmentDirections.actionMovieDetailToCrewDetail(directorId)
+                    findNavController().navigate(action)
+                }
+            }
         }
         
         binding.btnReadMore.setOnClickListener {
@@ -399,9 +439,9 @@ class MovieDetailFragment : Fragment() {
         binding.layoutDetails.visibility = View.VISIBLE
     }
     
-    private fun navigateToGenreFilmography(genreName: String) {
+    private fun navigateToFilmList(categoryType: String, categoryValue: String, categoryName: String) {
         val action = MovieDetailFragmentDirections
-            .actionMovieDetailToFilmography("GENRE", genreName)
+            .actionMovieDetailToFilmList(categoryType, categoryValue, categoryName)
         findNavController().navigate(action)
     }
     
@@ -450,6 +490,67 @@ class MovieDetailFragment : Fragment() {
                 star.setImageResource(R.drawable.ic_star_outline)
             }
         }
+    }
+    
+    private fun openTrailer() {
+        val trailerUrl = currentMovie?.trailerUrl
+        
+        if (trailerUrl.isNullOrEmpty()) {
+            Toast.makeText(requireContext(), "Trailer not available", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        try {
+            // Check if it's a YouTube URL
+            val youtubeVideoId = extractYouTubeVideoId(trailerUrl)
+            
+            if (youtubeVideoId != null) {
+                // Try to open in YouTube app first
+                val appIntent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("vnd.youtube:$youtubeVideoId")
+                )
+                
+                try {
+                    startActivity(appIntent)
+                } catch (e: android.content.ActivityNotFoundException) {
+                    // If YouTube app not installed, open in browser
+                    val webIntent = android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("https://www.youtube.com/watch?v=$youtubeVideoId")
+                    )
+                    startActivity(webIntent)
+                }
+            } else {
+                // For non-YouTube URLs, open in browser
+                val intent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse(trailerUrl)
+                )
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Cannot open trailer: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun extractYouTubeVideoId(url: String): String? {
+        // Handle different YouTube URL formats:
+        // https://www.youtube.com/watch?v=VIDEO_ID
+        // https://youtu.be/VIDEO_ID
+        // https://www.youtube.com/embed/VIDEO_ID
+        
+        val patterns = listOf(
+            "(?<=watch\\?v=)[^&]+".toRegex(),
+            "(?<=youtu.be/)[^?]+".toRegex(),
+            "(?<=embed/)[^?]+".toRegex()
+        )
+        
+        patterns.forEach { pattern ->
+            pattern.find(url)?.value?.let { return it }
+        }
+        
+        return null
     }
 
     override fun onDestroyView() {

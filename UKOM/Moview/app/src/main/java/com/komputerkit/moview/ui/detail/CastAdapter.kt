@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.CastMember
 import com.komputerkit.moview.databinding.ItemCastMemberBinding
+import com.komputerkit.moview.util.loadAvatar
 
 class CastAdapter(
     private val onCastClick: (CastMember) -> Unit = {}
@@ -34,10 +35,7 @@ class CastAdapter(
             binding.tvCastName.text = cast.name
             binding.tvCharacterName.text = cast.character
             
-            Glide.with(binding.root.context)
-                .load(cast.photoUrl)
-                .circleCrop()
-                .into(binding.ivCastPhoto)
+            binding.ivCastPhoto.loadAvatar(cast.photoUrl)
             
             binding.root.setOnClickListener {
                 onClick(cast)

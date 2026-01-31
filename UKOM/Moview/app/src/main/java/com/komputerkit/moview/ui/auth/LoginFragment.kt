@@ -12,7 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentLoginBinding
-import kotlinx.coroutines.delay
+import com.komputerkit.moview.data.repository.AuthRepository
 import kotlinx.coroutines.launch
 
 class LoginFragment : Fragment() {
@@ -21,6 +21,7 @@ class LoginFragment : Fragment() {
     private val binding get() = _binding!!
     
     private var isPasswordVisible = false
+    private val authRepository = AuthRepository()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -48,7 +49,7 @@ class LoginFragment : Fragment() {
         }
         
         binding.tvSignUp.setOnClickListener {
-            Toast.makeText(requireContext(), "Sign Up - Coming Soon", Toast.LENGTH_SHORT).show()
+            findNavController().navigate(R.id.action_login_to_signUp)
         }
         
         binding.tvForgotPassword.setOnClickListener {
@@ -109,43 +110,40 @@ class LoginFragment : Fragment() {
         // Show loading state
         showLoading(true)
         
-        // Simulate login process
+        // Perform API login
         lifecycleScope.launch {
-            delay(2000) // Simulate network delay
+            val result = authRepository.login(email, password)
             
-            // Check dummy credentials
-            if (authenticateUser(email, password)) {
+            result.onSuccess { loginData ->
                 // Save login state
-                saveLoginState(email)
+                saveLoginState(loginData.email, loginData.username, loginData.token, loginData.userId)
                 
                 showLoading(false)
-                Toast.makeText(requireContext(), "Login successful!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Welcome, ${loginData.username}!", Toast.LENGTH_SHORT).show()
                 
                 // Navigate to home
                 findNavController().navigate(R.id.action_login_to_home)
-            } else {
+            }.onFailure { error ->
                 showLoading(false)
-                Toast.makeText(requireContext(), "Invalid email or password", Toast.LENGTH_SHORT).show()
+                val errorMessage = when {
+                    error.message?.contains("Invalid email or password") == true -> "Invalid email or password"
+                    error.message?.contains("banned") == true -> "Your account has been banned"
+                    error.message?.contains("suspended") == true -> "Your account has been suspended"
+                    else -> "Login failed. Please try again."
+                }
+                Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_SHORT).show()
             }
         }
     }
     
-    private fun authenticateUser(email: String, password: String): Boolean {
-        // Dummy credentials
-        val validCredentials = mapOf(
-            "user@moview.com" to "password123",
-            "admin@moview.com" to "admin123",
-            "test@moview.com" to "test123"
-        )
-        
-        return validCredentials[email] == password
-    }
-    
-    private fun saveLoginState(email: String) {
+    private fun saveLoginState(email: String, username: String, token: String, userId: Int) {
         val sharedPrefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         sharedPrefs.edit().apply {
             putBoolean("isLoggedIn", true)
             putString("userEmail", email)
+            putString("username", username)
+            putString("authToken", token)
+            putInt("userId", userId)
             apply()
         }
     }

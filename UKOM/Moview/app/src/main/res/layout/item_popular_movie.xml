@@ -16,9 +16,10 @@
 
         <ImageView
             android:id="@+id/iv_poster"
-            android:layout_width="match_parent"
+            android:layout_width="160dp"
             android:layout_height="240dp"
             android:scaleType="centerCrop"
+            android:adjustViewBounds="true"
             android:contentDescription="Movie Poster"
             tools:src="@android:color/darker_gray" />
 

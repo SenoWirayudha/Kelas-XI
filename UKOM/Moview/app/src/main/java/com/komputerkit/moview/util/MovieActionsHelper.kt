@@ -42,6 +42,9 @@ object MovieActionsHelper {
         val bottomSheetDialog = BottomSheetDialog(context)
         val binding = BottomSheetMovieActionsBinding.inflate(LayoutInflater.from(context))
         bottomSheetDialog.setContentView(binding.root)
+        
+        // Remove white background/border from bottom sheet
+        bottomSheetDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         // Set movie data
         binding.tvMovieTitle.text = movie.title

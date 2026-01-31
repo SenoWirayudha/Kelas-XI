@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
+import com.komputerkit.moview.util.loadThumbnail
 
 class PopularMovieAdapter(
     private val movies: List<Movie>,
@@ -27,12 +28,8 @@ class PopularMovieAdapter(
             val stars = getStarsFromRating(movie.averageRating)
             ratingText.text = stars
             
-            // Load poster image using Glide
-            Glide.with(itemView.context)
-                .load(movie.posterUrl)
-                .placeholder(R.color.placeholder_color)
-                .error(R.color.placeholder_color)
-                .into(posterImage)
+            // Load poster image with optimization
+            posterImage.loadThumbnail(movie.posterUrl)
             
             itemView.setOnClickListener {
                 onMovieClick(movie)

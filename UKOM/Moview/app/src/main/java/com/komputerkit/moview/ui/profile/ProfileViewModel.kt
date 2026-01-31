@@ -1,14 +1,20 @@
 package com.komputerkit.moview.ui.profile
 
+import android.app.Application
+import android.content.Context
+import android.util.Log
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
+import kotlinx.coroutines.launch
 
-class ProfileViewModel : ViewModel() {
+class ProfileViewModel(application: Application) : AndroidViewModel(application) {
     
     private val repository = MovieRepository()
+    private val prefs = application.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
     
     private val _favoriteMovies = MutableLiveData<List<Movie>>()
     val favoriteMovies: LiveData<List<Movie>> = _favoriteMovies
@@ -28,44 +34,127 @@ class ProfileViewModel : ViewModel() {
     private val _stats = MutableLiveData<UserStats>()
     val stats: LiveData<UserStats> = _stats
     
+    private val _profilePhotoUrl = MutableLiveData<String?>()
+    val profilePhotoUrl: LiveData<String?> = _profilePhotoUrl
+    
+    private val _backdropUrl = MutableLiveData<String?>()
+    val backdropUrl: LiveData<String?> = _backdropUrl
+    
     init {
+        Log.d("ProfileViewModel", "ProfileViewModel initialized")
+        loadProfileData()
+    }
+    
+    // Public method to reload profile data (called when profile updated)
+    fun reloadProfile() {
         loadProfileData()
     }
     
     private fun loadProfileData() {
-        _userName.value = "Alex Cinephile"
-        _bio.value = "Sci-fi addict. Nolan enthusiast.\nProfessional popcorn eater."
-        _location.value = "JAKARTA, ID"
+        val userId = prefs.getInt("userId", 0)
         
-        // Favorites - ambil 4 film pertama
-        _favoriteMovies.value = repository.getPopularMoviesThisWeekDummy().take(4)
+        Log.d("ProfileViewModel", "=== START Loading profile for userId: $userId ===")
+        Log.d("ProfileViewModel", "SharedPreferences keys: ${prefs.all.keys}")
         
-        // Recent Activity - film dengan rating
-        val movies = repository.getPopularMoviesThisWeekDummy()
-        _recentActivity.value = listOf(
-            Pair(movies[0], 5.0f),
-            Pair(movies[2], 4.5f),
-            Pair(movies[5], 4.0f),
-            Pair(movies[1], 4.5f)
-        )
+        if (userId == 0) {
+            // No user logged in, show empty state or use from SharedPreferences
+            Log.w("ProfileViewModel", "No userId found, trying fallback")
+            val username = prefs.getString("username", "User") ?: "User"
+            _userName.postValue(username)
+            return
+        }
         
-        // Stats
-        _stats.value = UserStats(
-            films = 1240,
-            diary = 823,
-            reviews = 412,
-            watchlist = 58,
-            lists = 12,
-            likes = 2400,
-            followers = 890,
-            following = 340,
-            totalRatings = 842,
-            rating5 = 70,
-            rating4 = 85,
-            rating3 = 45,
-            rating2 = 20,
-            rating1 = 10
-        )
+        viewModelScope.launch {
+            try {
+                Log.d("ProfileViewModel", "Calling API getUserProfile...")
+                val profileData = repository.getUserProfile(userId)
+                
+                Log.d("ProfileViewModel", "Profile data received: $profileData")
+                Log.d("ProfileViewModel", "Is null? ${profileData == null}")
+                
+                if (profileData != null) {
+                    // Update UI dari API response
+                    val displayName = if (!profileData.profile.display_name.isNullOrBlank()) {
+                        profileData.profile.display_name
+                    } else {
+                        profileData.user.username
+                    }
+                    
+                    Log.d("ProfileViewModel", "=== Setting Profile Data ===")
+                    Log.d("ProfileViewModel", "Username: $displayName")
+                    Log.d("ProfileViewModel", "Bio: ${profileData.profile.bio}")
+                    Log.d("ProfileViewModel", "Photo URL: ${profileData.profile.profile_photo_url}")
+                    Log.d("ProfileViewModel", "Backdrop URL: ${profileData.profile.backdrop_url}")
+                    Log.d("ProfileViewModel", "Favorites count: ${profileData.favorites.size}")
+                    
+                    _userName.postValue(displayName)
+                    _bio.postValue(profileData.profile.bio ?: "")
+                    _location.postValue(profileData.profile.location ?: "")
+                    
+                    // Set profile photo URL, use default drawable if null
+                    _profilePhotoUrl.postValue(profileData.profile.profile_photo_url)
+                    _backdropUrl.postValue(profileData.profile.backdrop_url)
+                    
+                    // Convert favorites ke Movie list
+                    val favorites = profileData.favorites.map { fav ->
+                        Log.d("ProfileViewModel", "Favorite: ${fav.title}, poster: ${fav.poster_path}")
+                        Movie(
+                            id = fav.id,
+                            title = fav.title,
+                            posterUrl = fav.poster_path ?: "",
+                            averageRating = 0f,
+                            genre = "",
+                            releaseYear = fav.year,
+                            description = "",
+                            hasReview = false,
+                            reviewId = 0,
+                            userRating = 0f
+                        )
+                    }
+                    Log.d("ProfileViewModel", "Posting ${favorites.size} favorites")
+                    _favoriteMovies.postValue(favorites)
+                    
+                    // Stats dari API
+                    Log.d("ProfileViewModel", "Stats - Films: ${profileData.statistics.films}, Diary: ${profileData.statistics.diary}")
+                    _stats.postValue(UserStats(
+                        films = profileData.statistics.films,
+                        diary = profileData.statistics.diary,
+                        reviews = profileData.statistics.reviews,
+                        watchlist = profileData.statistics.watchlist,
+                        lists = 0,
+                        likes = profileData.statistics.likes,
+                        followers = profileData.statistics.followers,
+                        following = profileData.statistics.following,
+                        totalRatings = 0,
+                        rating5 = 0,
+                        rating4 = 0,
+                        rating3 = 0,
+                        rating2 = 0,
+                        rating1 = 0
+                    ))
+                    
+                    // Recent activity - nanti bisa ditambahkan endpoint terpisah
+                    _recentActivity.postValue(emptyList())
+                    Log.d("ProfileViewModel", "=== Profile data loaded successfully ===")
+                } else {
+                    // API call failed, bisa tampilkan error atau fallback
+                    Log.e("ProfileViewModel", "!!! Profile data is NULL from API !!!")
+                    val fallbackUsername = prefs.getString("username", "User") ?: "User"
+                    _userName.postValue(fallbackUsername)
+                    _favoriteMovies.postValue(emptyList())
+                    _recentActivity.postValue(emptyList())
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "!!! EXCEPTION loading profile !!!", e)
+                Log.e("ProfileViewModel", "Error message: ${e.message}")
+                Log.e("ProfileViewModel", "Stack trace: ${e.stackTraceToString()}")
+                e.printStackTrace()
+                val fallbackUsername = prefs.getString("username", "User") ?: "User"
+                _userName.postValue(fallbackUsername)
+                _favoriteMovies.postValue(emptyList())
+                _recentActivity.postValue(emptyList())
+            }
+        }
     }
 }
 
@@ -85,3 +174,4 @@ data class UserStats(
     val rating2: Int,
     val rating1: Int
 )
+

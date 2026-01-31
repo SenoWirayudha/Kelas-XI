@@ -10,6 +10,7 @@ import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.WatchlistItem
 import com.komputerkit.moview.databinding.ItemFilmGridBinding
 import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.util.loadThumbnail
 
 class WatchlistAdapter(
     private val onItemClick: (WatchlistItem) -> Unit,
@@ -36,10 +37,7 @@ class WatchlistAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: WatchlistItem) {
-            Glide.with(binding.root.context)
-                .load(item.movie.posterUrl)
-                .placeholder(R.color.dark_card)
-                .into(binding.ivPoster)
+            binding.ivPoster.loadThumbnail(item.movie.posterUrl)
 
             // Hide rating and review icon for watchlist items
             binding.ratingContainer.visibility = android.view.View.GONE

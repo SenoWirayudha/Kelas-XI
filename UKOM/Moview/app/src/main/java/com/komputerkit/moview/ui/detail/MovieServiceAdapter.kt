@@ -10,6 +10,7 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.api.StreamingServiceDto
 import com.komputerkit.moview.data.api.TheatricalServiceDto
+import com.komputerkit.moview.util.loadLogo
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -73,13 +74,34 @@ class MovieServiceAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     
     class StreamingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val ivLogo: ImageView = itemView.findViewById(R.id.iv_service_logo)
+        private val tvServiceName: TextView = itemView.findViewById(R.id.tv_service_name)
+        private val tvAvailabilityType: TextView = itemView.findViewById(R.id.tv_availability_type)
+        private val badgeAvailability: View = itemView.findViewById(R.id.badge_availability)
         private val tvDate: TextView? = itemView.findViewById(R.id.tv_release_date)
         
         fun bind(service: StreamingServiceDto) {
+            // Set service name
+            tvServiceName.text = service.name
+            
+            // Set availability type badge
+            tvAvailabilityType.text = when (service.availability_type.lowercase()) {
+                "stream" -> "STREAM"
+                "rent" -> "RENT"
+                "buy" -> "BUY"
+                else -> service.availability_type.uppercase()
+            }
+            
+            // Set badge color based on type
+            val badgeColor = when (service.availability_type.lowercase()) {
+                "stream" -> itemView.context.getColor(android.R.color.holo_green_dark)
+                "rent" -> itemView.context.getColor(android.R.color.holo_orange_dark)
+                "buy" -> itemView.context.getColor(android.R.color.holo_blue_dark)
+                else -> itemView.context.getColor(android.R.color.darker_gray)
+            }
+            (badgeAvailability as? com.google.android.material.card.MaterialCardView)?.setCardBackgroundColor(badgeColor)
+            
             if (service.logo_url != null) {
-                Glide.with(itemView.context)
-                    .load(service.logo_url)
-                    .into(ivLogo)
+                ivLogo.loadLogo(service.logo_url)
             } else {
                 // Use a default background for services without logos
                 ivLogo.setBackgroundColor(itemView.context.getColor(android.R.color.darker_gray))
@@ -108,20 +130,50 @@ class MovieServiceAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     
     class TheatricalViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val ivLogo: ImageView = itemView.findViewById(R.id.iv_theater_logo)
+        private val tvServiceName: TextView = itemView.findViewById(R.id.tv_service_name)
+        private val tvStatusBadge: TextView = itemView.findViewById(R.id.tv_status_badge)
+        private val badgeStatus: View = itemView.findViewById(R.id.badge_status)
         private val tvDate: TextView = itemView.findViewById(R.id.tv_theater_date)
         
         fun bind(service: TheatricalServiceDto) {
+            // Set service name
+            tvServiceName.text = service.name
+            
+            // Load logo
             if (service.logo_url != null) {
-                Glide.with(itemView.context)
-                    .load(service.logo_url)
-                    .into(ivLogo)
+                ivLogo.loadLogo(service.logo_url)
             } else {
                 // Use a default background for services without logos
                 ivLogo.setBackgroundColor(itemView.context.getColor(android.R.color.darker_gray))
             }
             
-            // Show release date if available
-            if (service.release_date != null) {
+            // Determine if upcoming or now showing based on release date
+            val isUpcoming = service.release_date?.let { dateString ->
+                try {
+                    val parser = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val releaseDate = parser.parse(dateString)
+                    val now = Date()
+                    releaseDate?.after(now) == true
+                } catch (e: Exception) {
+                    false
+                }
+            } ?: false
+            
+            // Set badge text and color
+            if (isUpcoming) {
+                tvStatusBadge.text = "UPCOMING"
+                (badgeStatus as? com.google.android.material.card.MaterialCardView)?.setCardBackgroundColor(
+                    itemView.context.getColor(android.R.color.holo_blue_dark)
+                )
+            } else {
+                tvStatusBadge.text = "NOW"
+                (badgeStatus as? com.google.android.material.card.MaterialCardView)?.setCardBackgroundColor(
+                    itemView.context.getColor(android.R.color.holo_orange_dark)
+                )
+            }
+            
+            // Show release date if available and upcoming
+            if (service.release_date != null && isUpcoming) {
                 tvDate.visibility = View.VISIBLE
                 tvDate.text = formatDate(service.release_date)
             } else {

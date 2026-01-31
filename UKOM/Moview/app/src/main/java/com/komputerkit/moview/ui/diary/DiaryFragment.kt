@@ -43,7 +43,8 @@ class DiaryFragment : Fragment() {
                 navigateToMovieDetail(entry)
             },
             onLikeClick = { entry ->
-                viewModel.toggleLike(entry)
+                // TODO: Implement like functionality
+                // viewModel.toggleLike(entry)
             },
             onMenuClick = { entry ->
                 // Show menu options (will implement later)

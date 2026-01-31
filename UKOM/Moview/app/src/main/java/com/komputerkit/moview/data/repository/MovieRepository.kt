@@ -2,6 +2,7 @@ package com.komputerkit.moview.data.repository
 
 import com.komputerkit.moview.data.api.MovieCardDto
 import com.komputerkit.moview.data.api.RetrofitClient
+import com.komputerkit.moview.data.api.UserProfileResponse
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.User
@@ -11,6 +12,8 @@ import com.komputerkit.moview.data.model.NotificationSection
 import com.komputerkit.moview.util.TmdbImageUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.asRequestBody
 
 class MovieRepository {
     
@@ -18,10 +21,16 @@ class MovieRepository {
     
     // Konversi dari DTO ke Model
     private fun MovieCardDto.toMovie(): Movie {
+        val posterUrl = when {
+            this.poster_path.isNullOrBlank() -> ""
+            this.poster_path.startsWith("http") -> this.poster_path.replace("127.0.0.1", "10.0.2.2")
+            else -> "http://10.0.2.2:8000/storage/${this.poster_path}"
+        }
+        
         return Movie(
             id = this.id,
             title = this.title,
-            posterUrl = this.poster_path ?: "",
+            posterUrl = posterUrl,
             averageRating = this.average_rating,
             genre = this.genres.joinToString(", "),
             releaseYear = this.year,
@@ -93,6 +102,246 @@ class MovieRepository {
         }
     }
     
+    suspend fun getUserProfile(userId: Int): UserProfileResponse? = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "=== Calling API getUserProfile for userId: $userId ===")
+            val response = apiService.getUserProfile(userId)
+            android.util.Log.d("MovieRepository", "API Response - success: ${response.success}")
+            android.util.Log.d("MovieRepository", "API Response - data: ${response.data}")
+            
+            if (response.success && response.data != null) {
+                android.util.Log.d("MovieRepository", "Returning profile data")
+                response.data
+            } else {
+                android.util.Log.e("MovieRepository", "Response not successful or data is null")
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "!!! EXCEPTION in getUserProfile !!!", e)
+            android.util.Log.e("MovieRepository", "Error: ${e.message}")
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    suspend fun updateUserProfile(userId: Int, request: com.komputerkit.moview.data.api.UpdateProfileRequest): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.updateUserProfile(userId, request)
+            response.success
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    
+    suspend fun updateUserFavorites(userId: Int, request: com.komputerkit.moview.data.api.UpdateFavoritesRequest): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.updateUserFavorites(userId, request)
+            response.success
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    
+    suspend fun uploadProfilePhoto(userId: Int, imageUri: android.net.Uri, context: android.content.Context): String? = withContext(Dispatchers.IO) {
+        try {
+            val file = java.io.File(context.cacheDir, "profile_photo_${System.currentTimeMillis()}.jpg")
+            context.contentResolver.openInputStream(imageUri)?.use { input ->
+                file.outputStream().use { output -> 
+                    input.copyTo(output) 
+                }
+            }
+            
+            val requestBody = file.asRequestBody("image/*".toMediaTypeOrNull())
+            val part = okhttp3.MultipartBody.Part.createFormData("photo", file.name, requestBody)
+            
+            val response = apiService.uploadProfilePhoto(userId, part)
+            file.delete() // Clean up temp file
+            
+            if (response.success && response.data != null) {
+                response.data.profile_photo_url
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    suspend fun deleteProfilePhoto(userId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.deleteProfilePhoto(userId)
+            response.success
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    
+    suspend fun updateUserBackdrop(userId: Int, backdropPath: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val request = com.komputerkit.moview.data.api.UpdateBackdropRequest(backdrop_path = backdropPath)
+            val response = apiService.updateUserBackdrop(userId, request)
+            response.success
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    
+    suspend fun getUserFilms(userId: Int): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserFilms(userId)
+            if (response.success && response.data != null) {
+                response.data.map { filmDto ->
+                    Movie(
+                        id = filmDto.id,
+                        title = filmDto.title,
+                        releaseYear = filmDto.year,
+                        posterUrl = filmDto.poster_path ?: "",
+                        userRating = filmDto.rating ?: 0f,
+                        averageRating = 0f,
+                        genre = "",
+                        description = "",
+                        hasReview = false,
+                        reviewId = 0
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    suspend fun getUserDiary(userId: Int): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserDiary(userId)
+            if (response.success && response.data != null) {
+                response.data.map { diaryDto ->
+                    Movie(
+                        id = diaryDto.id,
+                        title = diaryDto.title,
+                        releaseYear = diaryDto.year,
+                        posterUrl = diaryDto.poster_path ?: "",
+                        userRating = diaryDto.rating ?: 0f,
+                        averageRating = 0f,
+                        genre = "",
+                        description = diaryDto.note ?: "",
+                        hasReview = false,
+                        reviewId = 0
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    suspend fun getUserWatchlist(userId: Int): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserWatchlist(userId)
+            if (response.success && response.data != null) {
+                response.data.map { filmDto ->
+                    Movie(
+                        id = filmDto.id,
+                        title = filmDto.title,
+                        releaseYear = filmDto.year,
+                        posterUrl = filmDto.poster_path ?: "",
+                        averageRating = 0f,
+                        genre = "",
+                        description = "",
+                        hasReview = false,
+                        reviewId = 0,
+                        userRating = 0f
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    suspend fun getUserLikes(userId: Int): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserLikes(userId)
+            if (response.success && response.data != null) {
+                response.data.map { filmDto ->
+                    Movie(
+                        id = filmDto.id,
+                        title = filmDto.title,
+                        releaseYear = filmDto.year,
+                        posterUrl = filmDto.poster_path ?: "",
+                        averageRating = filmDto.rating ?: 0f,
+                        genre = "",
+                        description = "",
+                        hasReview = false,
+                        reviewId = 0,
+                        userRating = filmDto.rating ?: 0f,
+                        isLiked = true
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    suspend fun getUserReviews(userId: Int): List<com.komputerkit.moview.data.api.UserReviewDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserReviews(userId)
+            if (response.success && response.data != null) {
+                response.data
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    suspend fun getUserFollowers(userId: Int): List<com.komputerkit.moview.data.api.UserFollowDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserFollowers(userId)
+            if (response.success && response.data != null) {
+                response.data
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    suspend fun getUserFollowing(userId: Int): List<com.komputerkit.moview.data.api.UserFollowDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserFollowing(userId)
+            if (response.success && response.data != null) {
+                response.data
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
     suspend fun getMovieDetail(movieId: Int): Movie? = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getMovieDetail(movieId)
@@ -125,11 +374,13 @@ class MovieRepository {
                     title = movie.title,
                     posterUrl = movie.poster_path ?: "",
                     backdropUrl = movie.backdrop_path ?: "",
+                    trailerUrl = movie.trailer_url,
                     averageRating = movie.statistics.average_rating,
                     genre = movie.genres.joinToString(", "),
                     releaseYear = movie.year,
                     description = movie.synopsis,
                     director = movie.directors.firstOrNull()?.name ?: "",
+                    directorId = movie.directors.firstOrNull()?.id,
                     duration = movie.duration,
                     pgRating = movie.rating,
                     watchedCount = "${movie.statistics.watched_count}",
@@ -170,6 +421,34 @@ class MovieRepository {
     suspend fun getPersonDetail(personId: Int): com.komputerkit.moview.data.api.PersonDetailDto? = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getPersonDetail(personId)
+            if (response.success && response.data != null) {
+                response.data
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    suspend fun getFilmsByCategory(categoryType: String, categoryValue: String): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getFilmsByCategory(categoryType, categoryValue)
+            if (response.success && response.data != null) {
+                response.data.map { it.toMovie() }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    suspend fun getMovieMedia(movieId: Int): com.komputerkit.moview.data.api.MovieMediaDto? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getMovieMedia(movieId)
             if (response.success && response.data != null) {
                 response.data
             } else {

@@ -13,6 +13,7 @@ import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -35,7 +36,21 @@ class EditProfileFragment : Fragment() {
     
     private var hasFavorites = false
     private var isBackdropEnabled = false
-    private var firstFavoriteBackdropUrl: String? = null
+    private var currentBackdropUrl: String? = null
+    
+    // Photo picker launcher
+    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let {
+            // Upload photo
+            viewModel.uploadProfilePhoto(it)
+            
+            // Update UI immediately with selected image
+            Glide.with(this@EditProfileFragment)
+                .load(it)
+                .circleCrop()
+                .into(binding.ivProfile)
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -84,16 +99,23 @@ class EditProfileFragment : Fragment() {
                 // Update UI
                 binding.etUsername.setText(state.username)
                 binding.etBio.setText(state.bio)
+                binding.etLocation.setText(state.location)
+                
+                // Update backdrop enabled state
+                isBackdropEnabled = state.backdropEnabled
+                binding.switchBackdrop.isChecked = state.backdropEnabled
+                
+                // Update backdrop URL from state
+                currentBackdropUrl = state.backdropUrl
                 
                 // Update favorites
                 favoriteSlotAdapter.submitList(state.favoriteSlots)
                 
                 // Check if has favorites for backdrop toggle
                 hasFavorites = state.favoriteSlots.any { it.movie != null }
-                if (hasFavorites) {
-                    firstFavoriteBackdropUrl = state.favoriteSlots.firstOrNull { it.movie != null }?.movie?.backdropUrl
-                }
+                
                 updateToggleState()
+                updateBackdrop()
             }
         }
     }
@@ -112,22 +134,50 @@ class EditProfileFragment : Fragment() {
                     }
                 }
             }
+            
+            // Listen for selected backdrop from Poster & Backdrop screen
+            savedStateHandle.getLiveData<String>("selected_backdrop_path").observe(viewLifecycleOwner) { backdropPath ->
+                if (!backdropPath.isNullOrBlank()) {
+                    // Update backdrop in database
+                    viewModel.updateBackdrop(backdropPath)
+                    
+                    // Clear saved state
+                    savedStateHandle.remove<String>("selected_backdrop_path")
+                    
+                    // Show success message
+                    android.widget.Toast.makeText(
+                        requireContext(),
+                        "Backdrop updated successfully",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
     }
 
     private fun loadProfileData() {
-        // Load profile photo - circular avatar
-        Glide.with(this)
-            .load("https://i.pravatar.cc/150?img=1")
-            .circleCrop()
-            .into(binding.ivProfile)
-        
-        // Load default backdrop with blur (toggle OFF state)
-        val defaultBackdrop = TmdbImageUrl.getBackdropUrl(TmdbImageUrl.Sample.BACKDROP_DEFAULT)
-        Glide.with(this)
-            .load(defaultBackdrop)
-            .transform(jp.wasabeef.glide.transformations.BlurTransformation(25, 3))
-            .into(binding.ivBackdrop)
+        lifecycleScope.launch {
+            viewModel.uiState.collect { state ->
+                // Only load if fragment is still attached
+                if (!isAdded) return@collect
+                
+                // Load profile photo from SharedPreferences or API
+                val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+                val profilePhotoUrl = prefs.getString("profilePhotoUrl", null)
+                
+                if (!profilePhotoUrl.isNullOrEmpty()) {
+                    Glide.with(this@EditProfileFragment)
+                        .load(profilePhotoUrl)
+                        .placeholder(R.drawable.ic_default_profile)
+                        .error(R.drawable.ic_default_profile)
+                        .circleCrop()
+                        .into(binding.ivProfile)
+                } else {
+                    // Default profile icon for new users
+                    binding.ivProfile.setImageResource(R.drawable.ic_default_profile)
+                }
+            }
+        }
     }
 
     private fun loadFavorites() {
@@ -160,7 +210,7 @@ class EditProfileFragment : Fragment() {
         val clickableSpan = object : ClickableSpan() {
             override fun onClick(widget: View) {
                 // Only allow navigation if hasFavorites is true
-                if (hasFavorites && firstFavoriteBackdropUrl != null) {
+                if (hasFavorites) {
                     navigateToBackdropSelection()
                 }
             }
@@ -199,6 +249,7 @@ class EditProfileFragment : Fragment() {
         binding.switchBackdrop.setOnCheckedChangeListener { _, isChecked ->
             if (hasFavorites) {
                 isBackdropEnabled = isChecked
+                viewModel.updateBackdropEnabled(isChecked)
                 updateBackdrop()
                 updateToggleColors()
             }
@@ -244,25 +295,15 @@ class EditProfileFragment : Fragment() {
     }
 
     private fun updateBackdrop() {
-        // Determine backdrop URL - ALWAYS have a valid fallback
-        val backdropUrl = if (isBackdropEnabled && !firstFavoriteBackdropUrl.isNullOrEmpty()) {
-            firstFavoriteBackdropUrl // Use first favorite backdrop when toggle ON and available
-        } else {
-            TmdbImageUrl.getBackdropUrl(TmdbImageUrl.Sample.BACKDROP_DEFAULT) // Default backdrop
-        }
-        
-        // CRITICAL: Always load backdrop image
-        if (isBackdropEnabled) {
-            // Toggle ON: Load WITHOUT blur (clear/sharp)
+        if (isBackdropEnabled && !currentBackdropUrl.isNullOrEmpty()) {
+            // Toggle ON: Show backdrop (clear/sharp)
+            binding.ivBackdrop.visibility = View.VISIBLE
             Glide.with(requireContext())
-                .load(backdropUrl)
+                .load(currentBackdropUrl)
                 .into(binding.ivBackdrop)
         } else {
-            // Toggle OFF: Load WITH blur
-            Glide.with(requireContext())
-                .load(backdropUrl)
-                .transform(jp.wasabeef.glide.transformations.BlurTransformation(25, 3))
-                .into(binding.ivBackdrop)
+            // Toggle OFF: Hide backdrop completely
+            binding.ivBackdrop.visibility = View.GONE
         }
     }
 
@@ -282,30 +323,119 @@ class EditProfileFragment : Fragment() {
         binding.tvEditFavorites.setOnClickListener {
             // TODO: Navigate to favorites management
         }
+        
+        // Photo picker - click on profile image or camera icon
+        binding.ivProfile.setOnClickListener {
+            showPhotoOptionsDialog()
+        }
+        
+        // Set to default - click on text below profile photo
+        binding.tvSetDefault.setOnClickListener {
+            setDefaultProfilePhoto()
+        }
+    }
+    
+    private fun showPhotoOptionsDialog() {
+        val options = arrayOf("Select from gallery", "Set to default")
+        
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle("Profile Photo")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> pickImageLauncher.launch("image/*")
+                    1 -> setDefaultProfilePhoto()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun setDefaultProfilePhoto() {
+        // Call ViewModel to delete profile photo via API
+        viewModel.setDefaultProfilePhoto()
+        
+        // Update UI immediately with default photo
+        binding.ivProfile.setImageResource(R.drawable.ic_default_profile)
+        
+        // Show confirmation
+        android.widget.Toast.makeText(
+            requireContext(),
+            "Profile photo reset to default",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
     }
 
     private fun navigateToBackdropSelection() {
-        // Navigate to Poster & Backdrop screen
-        // Open directly in Backdrop grid mode, poster selection disabled
-        // Using movie ID 1 (Interstellar) as example - first favorite
-        val action = EditProfileFragmentDirections.actionEditProfileToPosterBackdrop(
-            movieId = 1,
-            openBackdropsTab = true // Opens in Backdrop mode
-        )
-        findNavController().navigate(action)
+        // Get first favorite movie ID
+        val firstFavoriteMovie = viewModel.uiState.value.favoriteSlots.firstOrNull { it.movie != null }?.movie
+        
+        if (firstFavoriteMovie != null) {
+            // Navigate to Poster & Backdrop screen with actual movie ID
+            val action = EditProfileFragmentDirections.actionEditProfileToPosterBackdrop(
+                movieId = firstFavoriteMovie.id,
+                openBackdropsTab = true // Opens in Backdrop mode
+            )
+            findNavController().navigate(action)
+        } else {
+            // No favorite movies yet
+            android.widget.Toast.makeText(
+                requireContext(),
+                "Please add a favorite movie first",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     private fun saveChanges() {
         val username = binding.etUsername.text.toString()
         val bio = binding.etBio.text.toString()
+        val location = binding.etLocation.text.toString()
         
-        // TODO: Save to repository
-        // TODO: Save backdrop preference and URL
+        // Validate
+        if (username.isEmpty()) {
+            binding.etUsername.error = "Username cannot be empty"
+            return
+        }
         
-        findNavController().navigateUp()
+        // Update ViewModel
+        viewModel.updateUsername(username)
+        viewModel.updateBio(bio)
+        viewModel.updateLocation(location)
+        
+        // Save to API
+        lifecycleScope.launch {
+            val success = viewModel.saveProfile()
+            if (success) {
+                if (isAdded) {
+                    // Set result to notify ProfileFragment to reload
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set("profile_updated", true)
+                    
+                    // Show success message
+                    android.widget.Toast.makeText(
+                        requireContext(),
+                        "Profile updated successfully",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                    
+                    findNavController().navigateUp()
+                }
+            } else {
+                // Show error toast - safely access context
+                context?.let { ctx ->
+                    android.widget.Toast.makeText(
+                        ctx,
+                        "Failed to save profile",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
     }
     
     private fun performLogout() {
+        // Only proceed if fragment is still attached
+        if (!isAdded) return
+        
         // Clear login state
         val sharedPrefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         sharedPrefs.edit().apply {

@@ -10,6 +10,7 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ItemFavoriteSlotBinding
 import com.komputerkit.moview.util.TmdbImageUrl
+import com.komputerkit.moview.util.loadThumbnail
 
 class FavoriteSlotAdapter(
     private val onAddClick: (Int) -> Unit,
@@ -22,11 +23,6 @@ class FavoriteSlotAdapter(
             parent,
             false
         )
-        
-        // Set fixed width for each item (1/4 of screen width minus margins)
-        val screenWidth = parent.resources.displayMetrics.widthPixels
-        val itemWidth = (screenWidth - 48 * parent.resources.displayMetrics.density) / 4
-        binding.root.layoutParams.width = itemWidth.toInt()
         
         return ViewHolder(binding)
     }
@@ -47,12 +43,8 @@ class FavoriteSlotAdapter(
             binding.cardAdd.isVisible = !hasPoster
             
             if (hasPoster) {
-                // Show movie poster
-                Glide.with(binding.root.context)
-                    .load(slot.movie!!.posterUrl)
-                    .placeholder(R.drawable.ic_film)
-                    .error(R.drawable.ic_film)
-                    .into(binding.ivPoster)
+                // Show movie poster with explicit dimensions to prevent stretching
+                binding.ivPoster.loadThumbnail(slot.movie!!.posterUrl)
                 
                 // Remove button click
                 binding.btnRemove.setOnClickListener {

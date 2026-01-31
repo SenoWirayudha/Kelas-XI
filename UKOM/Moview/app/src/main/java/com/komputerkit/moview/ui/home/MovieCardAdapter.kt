@@ -7,6 +7,7 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemMovieCardBinding
 import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.util.loadThumbnail
 
 class MovieCardAdapter(
     private val onMovieClick: (Movie) -> Unit,
@@ -40,9 +41,7 @@ class MovieCardAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(movie: Movie) {
-            Glide.with(binding.root.context)
-                .load(movie.posterUrl)
-                .into(binding.ivPoster)
+            binding.ivPoster.loadThumbnail(movie.posterUrl)
             
             binding.tvRating.text = String.format("%.1f", movie.averageRating)
             binding.tvTitle.text = movie.title

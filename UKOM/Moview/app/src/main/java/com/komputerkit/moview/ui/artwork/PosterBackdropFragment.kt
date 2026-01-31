@@ -154,6 +154,16 @@ class PosterBackdropFragment : Fragment() {
         val success = viewModel.saveArtwork()
         
         if (success) {
+            // Get selected artwork path to send back to EditProfileFragment
+            val selectedBackdropPath = viewModel.selectedArtwork.value?.url
+            if (selectedBackdropPath != null && currentTab == ArtworkType.BACKDROP) {
+                // Send backdrop path back to EditProfileFragment
+                findNavController().previousBackStackEntry?.savedStateHandle?.set(
+                    "selected_backdrop_path",
+                    selectedBackdropPath
+                )
+            }
+            
             Toast.makeText(requireContext(), "Artwork saved successfully!", Toast.LENGTH_SHORT).show()
             findNavController().navigateUp()
         } else {

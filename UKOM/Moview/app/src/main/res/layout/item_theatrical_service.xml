@@ -1,38 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:gravity="center"
     android:padding="8dp">
 
-    <com.google.android.material.card.MaterialCardView
-        android:layout_width="64dp"
-        android:layout_height="64dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="2dp"
-        app:cardBackgroundColor="#2C2C2E">
+    <!-- Logo Container with Badge -->
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingEnd="8dp"
+        android:paddingBottom="8dp">
 
-        <ImageView
-            android:id="@+id/iv_theater_logo"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:contentDescription="Theater logo" />
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="#1A1F2E">
 
-    </com.google.android.material.card.MaterialCardView>
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/iv_theater_logo"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_margin="8dp"
+                android:scaleType="fitCenter"
+                android:contentDescription="Theater logo"
+                app:shapeAppearanceOverlay="@style/RoundedCorner8dp"
+                tools:src="@tools:sample/avatars" />
 
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Status Badge (Upcoming/Now Showing) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/badge_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="2dp"
+            android:layout_marginBottom="2dp"
+            app:cardCornerRadius="6dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="#FF6B35">
+
+            <TextView
+                android:id="@+id/tv_status_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="3dp"
+                android:textColor="@color/white"
+                android:textSize="8sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                tools:text="NOW" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </FrameLayout>
+
+    <!-- Service Name -->
+    <TextView
+        android:id="@+id/tv_service_name"
+        android:layout_width="72dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textColor="@color/white"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:maxLines="1"
+        android:ellipsize="end"
+        tools:text="CGV" />
+
+    <!-- Release Date (for upcoming) -->
     <TextView
         android:id="@+id/tv_theater_date"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textColor="@color/white"
-        android:textSize="10sp"
+        android:layout_marginTop="2dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="9sp"
         android:gravity="center"
-        android:maxLines="2"
-        android:ellipsize="end"
-        android:visibility="gone" />
+        android:visibility="gone"
+        tools:text="Jan 15"
+        tools:visibility="visible" />
 
 </LinearLayout>

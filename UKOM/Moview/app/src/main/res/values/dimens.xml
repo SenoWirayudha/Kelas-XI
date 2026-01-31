@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Profile Screen Dimensions -->
+    <dimen name="profile_backdrop_height">200dp</dimen>
+    <dimen name="profile_backdrop_height_compact">80dp</dimen>
+    <dimen name="profile_photo_margin_with_backdrop">-48dp</dimen>
+    <dimen name="profile_photo_margin_compact">16dp</dimen>
+</resources>

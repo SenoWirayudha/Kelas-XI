@@ -7,6 +7,7 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.api.CrewJobDto
 import com.komputerkit.moview.data.api.CrewPersonDto
 import com.komputerkit.moview.databinding.ItemCrewMemberBinding
+import com.komputerkit.moview.util.loadAvatar
 
 data class CrewMemberWithJob(
     val person: CrewPersonDto,
@@ -52,10 +53,7 @@ class CrewAdapter(
             binding.tvCrewName.text = crewMember.person.name
             binding.tvJobTitle.text = crewMember.job
             
-            Glide.with(binding.root.context)
-                .load(crewMember.person.photo_url)
-                .circleCrop()
-                .into(binding.ivCrewPhoto)
+            binding.ivCrewPhoto.loadAvatar(crewMember.person.photo_url)
             
             binding.root.setOnClickListener {
                 onClick(crewMember.person)

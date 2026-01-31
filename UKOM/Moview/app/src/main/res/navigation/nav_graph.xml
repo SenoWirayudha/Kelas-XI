@@ -14,6 +14,21 @@
             app:destination="@id/navigation_home"
             app:popUpTo="@id/loginFragment"
             app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_login_to_signUp"
+            app:destination="@id/signUpFragment" />
+    </fragment>
+
+    <!-- Sign Up Fragment -->
+    <fragment
+        android:id="@+id/signUpFragment"
+        android:name="com.komputerkit.moview.ui.auth.SignUpFragment"
+        android:label="Sign Up">
+        <action
+            android:id="@+id/action_signUp_to_home"
+            app:destination="@id/navigation_home"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
     </fragment>
 
     <fragment
@@ -83,6 +98,9 @@
             android:id="@+id/action_profile_to_following"
             app:destination="@id/followingFragment" />
         <action
+            android:id="@+id/action_profile_to_likes"
+            app:destination="@id/likesFragment" />
+        <action
             android:id="@+id/action_profile_to_editProfile"
             app:destination="@id/editProfileFragment" />
     </fragment>
@@ -96,6 +114,18 @@
             app:destination="@id/movieDetailFragment" />
         <action
             android:id="@+id/action_films_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/likesFragment"
+        android:name="com.komputerkit.moview.ui.likes.LikesFragment"
+        android:label="Liked Films">
+        <action
+            android:id="@+id/action_likes_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_likes_to_reviewDetail"
             app:destination="@id/reviewDetailFragment" />
     </fragment>
 
@@ -192,6 +222,27 @@
         <action
             android:id="@+id/action_movieDetail_to_reviewsList"
             app:destination="@id/reviewsListFragment" />
+        <action
+            android:id="@+id/action_movieDetail_to_filmList"
+            app:destination="@id/filmListFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/filmListFragment"
+        android:name="com.komputerkit.moview.ui.filmlist.FilmListFragment"
+        android:label="Films">
+        <argument
+            android:name="categoryType"
+            app:argType="string" />
+        <argument
+            android:name="categoryValue"
+            app:argType="string" />
+        <argument
+            android:name="categoryName"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_filmList_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
     </fragment>
 
     <fragment

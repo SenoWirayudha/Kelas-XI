@@ -22,7 +22,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:textColor="@color/white"
+        android:textColor="@color/text_primary"
         android:textSize="20sp"
         android:textStyle="bold"
         android:text="Interstellar" />
@@ -78,7 +78,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="Watched"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="12sp" />
 
         </LinearLayout>
@@ -113,7 +113,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="Like"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="12sp" />
 
         </LinearLayout>
@@ -148,7 +148,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="Watchlist"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="12sp" />
 
         </LinearLayout>
@@ -257,7 +257,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:text="Review or log again"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="16sp" />
 
             <ImageView
@@ -289,7 +289,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:text="Go to film"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="16sp" />
 
         </LinearLayout>
@@ -315,7 +315,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:text="View poster"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="16sp" />
 
         </LinearLayout>
@@ -341,7 +341,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:text="Change poster or backdrop"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="16sp" />
 
         </LinearLayout>
@@ -373,7 +373,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:text="Share"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="16sp" />
 
         </LinearLayout>
@@ -388,7 +388,7 @@
         android:layout_marginHorizontal="24dp"
         android:layout_marginTop="16dp"
         android:text="Close"
-        android:textColor="@color/white"
+        android:textColor="@color/text_primary"
         android:textStyle="bold"
         android:backgroundTint="#2E3A47"
         android:paddingVertical="14dp"
