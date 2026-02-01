@@ -2,17 +2,24 @@ package com.komputerkit.moview.util
 
 import android.app.Dialog
 import android.content.Context
+import android.content.ContextWrapper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
+import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.databinding.BottomSheetMovieActionsBinding
 import com.komputerkit.moview.databinding.DialogFullPosterBinding
+import kotlinx.coroutines.launch
 
 /**
  * Helper class to show movie action bottom sheet from anywhere in the app.
@@ -20,24 +27,42 @@ import com.komputerkit.moview.databinding.DialogFullPosterBinding
  */
 object MovieActionsHelper {
 
-    private var currentRating = 0
+    private val repository = MovieRepository()
+    
+    /**
+     * Get LifecycleOwner from Context by unwrapping ContextWrapper
+     */
+    private fun getLifecycleOwner(context: Context): LifecycleOwner? {
+        var ctx = context
+        while (ctx is ContextWrapper) {
+            if (ctx is LifecycleOwner) {
+                return ctx
+            }
+            ctx = ctx.baseContext
+        }
+        return null
+    }
 
     /**
      * Shows the movie actions bottom sheet
      * @param context Context
      * @param movie Movie data
+     * @param lifecycleOwner LifecycleOwner for coroutine scope (optional, will auto-detect from context)
      * @param isFromMovieDetail Set true if called from MovieDetailFragment to hide "Go to film" option
      * @param onGoToFilm Callback when "Go to film" is clicked (for navigation)
      * @param onLogFilm Callback when "Review or log" is clicked
      * @param onChangePoster Callback when "Change poster" is clicked
+     * @param onRatingSaved Callback when rating is saved successfully (for refreshing data)
      */
     fun showMovieActionsBottomSheet(
         context: Context,
         movie: Movie,
+        lifecycleOwner: LifecycleOwner? = null,
         isFromMovieDetail: Boolean = false,
         onGoToFilm: ((Movie) -> Unit)? = null,
         onLogFilm: ((Movie) -> Unit)? = null,
-        onChangePoster: ((Movie) -> Unit)? = null
+        onChangePoster: ((Movie) -> Unit)? = null,
+        onRatingSaved: (() -> Unit)? = null
     ) {
         val bottomSheetDialog = BottomSheetDialog(context)
         val binding = BottomSheetMovieActionsBinding.inflate(LayoutInflater.from(context))
@@ -52,13 +77,84 @@ object MovieActionsHelper {
 
         // Hide "Go to film" if already on movie detail page
         binding.btnGoToFilm.visibility = if (isFromMovieDetail) View.GONE else View.VISIBLE
+        
+        // Get user ID from SharedPreferences - use same name as Login
+        val sharedPref = context.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val userId = sharedPref.getInt("userId", 0)
+        
+        Log.d("MovieActionsHelper", "Retrieved userId from SharedPreferences: $userId")
+        
+        // Auto-detect LifecycleOwner from context if not provided
+        val actualLifecycleOwner = lifecycleOwner ?: getLifecycleOwner(context)
+        
+        // Use local variable for current rating (not object-level to prevent state leak)
+        var currentRating = 0
+        
+        // Initialize stars to empty state
+        val stars = listOf(
+            binding.star1, binding.star2, binding.star3, binding.star4, binding.star5
+        )
+        
+        // Load existing rating FIRST before setting default UI state
+        if (userId > 0 && actualLifecycleOwner != null) {
+            actualLifecycleOwner.lifecycleScope.launch {
+                Log.d("MovieActionsHelper", "Loading rating for userId=$userId, movieId=${movie.id}")
+                val ratingResponse = repository.getRating(userId, movie.id)
+                Log.d("MovieActionsHelper", "getRating response: rating=${ratingResponse?.rating}, is_watched=${ratingResponse?.is_watched}")
+                
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (ratingResponse != null && ratingResponse.is_watched) {
+                        // User has watched this movie (either rated or just marked as watched)
+                        currentRating = ratingResponse.rating ?: 0
+                        updateStars(stars, currentRating)
+                        // Update button to "Watched" (green)
+                        updateWatchedButtonState(context, binding, true)
+                        Log.d("MovieActionsHelper", "Movie is watched. Rating: ${ratingResponse.rating} stars for movie ${movie.id}")
+                    } else {
+                        // No rating found, set to default empty state
+                        updateStars(stars, 0)
+                        updateWatchedButtonState(context, binding, false)
+                        Log.d("MovieActionsHelper", "Movie not watched, setting default UI")
+                    }
+                }
+            }
+        } else {
+            // No user logged in, set default state
+            Log.w("MovieActionsHelper", "Cannot load rating: userId=$userId, lifecycleOwner=$actualLifecycleOwner")
+            updateStars(stars, 0)
+            updateWatchedButtonState(context, binding, false)
+        }
 
-        // Setup star rating
-        setupStarRating(context, binding)
+        // Setup star rating (pass currentRating via closure)
+        setupStarRating(context, binding, actualLifecycleOwner, movie, userId, onRatingSaved) { newRating ->
+            currentRating = newRating
+        }
 
         // Setup click listeners
         binding.btnWatched.setOnClickListener {
-            Toast.makeText(context, "Marked as watched", Toast.LENGTH_SHORT).show()
+            if (userId > 0 && actualLifecycleOwner != null) {
+                actualLifecycleOwner.lifecycleScope.launch {
+                    // Save rating directly (0-5 stars, no conversion)
+                    val ratingValue = currentRating
+                    Log.d("MovieActionsHelper", "Saving rating: userId=$userId, movieId=${movie.id}, rating=$ratingValue")
+                    val success = repository.saveRating(userId, movie.id, ratingValue)
+                    if (success) {
+                        // Update UI to "Watched" state (green) BEFORE dismissing
+                        updateWatchedButtonState(context, binding, true)
+                        Toast.makeText(context, "Marked as watched", Toast.LENGTH_SHORT).show()
+                        // Trigger callback to refresh data
+                        onRatingSaved?.invoke()
+                        // Add delay to show color change before dismissing
+                        kotlinx.coroutines.delay(300)
+                        bottomSheetDialog.dismiss()
+                    } else {
+                        Toast.makeText(context, "Failed to save", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } else {
+                Log.e("MovieActionsHelper", "Cannot save: userId=$userId, lifecycleOwner=$actualLifecycleOwner")
+                Toast.makeText(context, "Please login first", Toast.LENGTH_SHORT).show()
+            }
         }
 
         binding.btnLike.setOnClickListener {
@@ -229,8 +325,42 @@ object MovieActionsHelper {
 
         dialog.show()
     }
+    
+    /**
+     * Update watched button appearance based on watched state
+     * @param context Context
+     * @param binding Bottom sheet binding
+     * @param isWatched Whether the movie is watched (true = green, false = gray)
+     */
+    private fun updateWatchedButtonState(
+        context: Context,
+        binding: BottomSheetMovieActionsBinding,
+        isWatched: Boolean
+    ) {
+        if (isWatched) {
+            // Watched state - green color
+            binding.tvWatchedLabel.text = "Watched"
+            binding.tvWatchedLabel.setTextColor(context.getColor(R.color.star_green))
+            binding.cardWatched.strokeColor = context.getColor(R.color.star_green)
+            binding.ivWatchedIcon.setColorFilter(context.getColor(R.color.star_green))
+        } else {
+            // Watch state - gray color
+            binding.tvWatchedLabel.text = "Watch"
+            binding.tvWatchedLabel.setTextColor(context.getColor(R.color.text_secondary))
+            binding.cardWatched.strokeColor = context.getColor(R.color.text_secondary)
+            binding.ivWatchedIcon.setColorFilter(context.getColor(R.color.text_secondary))
+        }
+    }
 
-    private fun setupStarRating(context: Context, binding: BottomSheetMovieActionsBinding) {
+    private fun setupStarRating(
+        context: Context,
+        binding: BottomSheetMovieActionsBinding,
+        lifecycleOwner: LifecycleOwner?,
+        movie: Movie,
+        userId: Int,
+        onRatingSaved: (() -> Unit)?,
+        onRatingChanged: (Int) -> Unit
+    ) {
         val stars = listOf(
             binding.star1,
             binding.star2,
@@ -241,9 +371,27 @@ object MovieActionsHelper {
 
         stars.forEachIndexed { index, star ->
             star.setOnClickListener {
-                currentRating = index + 1
-                updateStars(stars, currentRating)
-                Toast.makeText(context, "Rated: $currentRating stars", Toast.LENGTH_SHORT).show()
+                val newRating = index + 1
+                onRatingChanged(newRating) // Update local variable in parent scope
+                updateStars(stars, newRating)
+                
+                // Save rating immediately when star is clicked (direct value, no conversion)
+                if (userId > 0 && lifecycleOwner != null) {
+                    lifecycleOwner.lifecycleScope.launch {
+                        Log.d("MovieActionsHelper", "Star clicked: userId=$userId, movieId=${movie.id}, rating=$newRating")
+                        val success = repository.saveRating(userId, movie.id, newRating)
+                        if (success) {
+                            Toast.makeText(context, "Rated: $newRating stars", Toast.LENGTH_SHORT).show()
+                            // Trigger callback to refresh data
+                            onRatingSaved?.invoke()
+                        } else {
+                            Toast.makeText(context, "Failed to save rating", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    Log.e("MovieActionsHelper", "Cannot save rating: userId=$userId, lifecycleOwner=$lifecycleOwner")
+                    Toast.makeText(context, "Rated: $newRating stars (please login to save)", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -264,6 +412,7 @@ object MovieActionsHelper {
     fun setupPosterLongClick(
         posterView: View,
         movie: Movie,
+        lifecycleOwner: LifecycleOwner? = null,
         isFromMovieDetail: Boolean = false,
         onGoToFilm: ((Movie) -> Unit)? = null,
         onLogFilm: ((Movie) -> Unit)? = null,
@@ -273,6 +422,7 @@ object MovieActionsHelper {
             showMovieActionsBottomSheet(
                 context = view.context,
                 movie = movie,
+                lifecycleOwner = lifecycleOwner,
                 isFromMovieDetail = isFromMovieDetail,
                 onGoToFilm = onGoToFilm,
                 onLogFilm = onLogFilm,

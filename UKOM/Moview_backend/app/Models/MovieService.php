@@ -15,6 +15,7 @@ class MovieService extends Model
         'service_id',
         'availability_type',
         'release_date',
+        'is_coming_soon',
     ];
 
     public function movie()

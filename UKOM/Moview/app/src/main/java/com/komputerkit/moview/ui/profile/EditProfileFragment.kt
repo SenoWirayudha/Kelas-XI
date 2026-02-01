@@ -24,6 +24,7 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentEditProfileBinding
 import com.komputerkit.moview.util.TmdbImageUrl
+import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.launch
 
 class EditProfileFragment : Fragment() {
@@ -37,18 +38,36 @@ class EditProfileFragment : Fragment() {
     private var hasFavorites = false
     private var isBackdropEnabled = false
     private var currentBackdropUrl: String? = null
+    private var skipPhotoReload = false // Flag to prevent reload after upload
     
-    // Photo picker launcher
+    // Photo picker launcher - opens cropper
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
-            // Upload photo
-            viewModel.uploadProfilePhoto(it)
-            
-            // Update UI immediately with selected image
-            Glide.with(this@EditProfileFragment)
-                .load(it)
-                .circleCrop()
-                .into(binding.ivProfile)
+            startCropActivity(it)
+        }
+    }
+    
+    // Crop result launcher
+    private val cropImageLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val resultUri = result.data?.let { UCrop.getOutput(it) }
+            resultUri?.let { croppedUri ->
+                // Set flag to prevent reload
+                skipPhotoReload = true
+                
+                // Upload cropped photo
+                viewModel.uploadProfilePhoto(croppedUri)
+                
+                // Update UI immediately with cropped image and keep it
+                Glide.with(this@EditProfileFragment)
+                    .load(croppedUri)
+                    .circleCrop()
+                    .into(binding.ivProfile)
+                
+                // Save URI to SharedPreferences immediately for consistency
+                val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+                prefs.edit().putString("tempProfilePhotoUri", croppedUri.toString()).apply()
+            }
         }
     }
 
@@ -100,6 +119,16 @@ class EditProfileFragment : Fragment() {
                 binding.etUsername.setText(state.username)
                 binding.etBio.setText(state.bio)
                 binding.etLocation.setText(state.location)
+                
+                // Update profile photo from state (only if not skipping reload)
+                if (!skipPhotoReload && !state.profilePhotoUrl.isNullOrBlank()) {
+                    Glide.with(this@EditProfileFragment)
+                        .load(state.profilePhotoUrl)
+                        .placeholder(R.drawable.ic_default_profile)
+                        .error(R.drawable.ic_default_profile)
+                        .circleCrop()
+                        .into(binding.ivProfile)
+                }
                 
                 // Update backdrop enabled state
                 isBackdropEnabled = state.backdropEnabled
@@ -160,6 +189,9 @@ class EditProfileFragment : Fragment() {
             viewModel.uiState.collect { state ->
                 // Only load if fragment is still attached
                 if (!isAdded) return@collect
+                
+                // Skip photo reload if we just uploaded a new photo
+                if (skipPhotoReload) return@collect
                 
                 // Load profile photo from SharedPreferences or API
                 val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
@@ -364,6 +396,31 @@ class EditProfileFragment : Fragment() {
             android.widget.Toast.LENGTH_SHORT
         ).show()
     }
+    
+    private fun startCropActivity(sourceUri: android.net.Uri) {
+        val destinationUri = android.net.Uri.fromFile(
+            java.io.File(requireContext().cacheDir, "cropped_profile_${System.currentTimeMillis()}.jpg")
+        )
+        
+        val options = UCrop.Options().apply {
+            setCompressionQuality(90)
+            setCircleDimmedLayer(true) // Circular crop overlay
+            setShowCropFrame(false)
+            setShowCropGrid(false)
+            setStatusBarColor(android.graphics.Color.parseColor("#14181C"))
+            setToolbarColor(android.graphics.Color.parseColor("#14181C"))
+            setToolbarWidgetColor(android.graphics.Color.WHITE)
+            setActiveControlsWidgetColor(android.graphics.Color.parseColor("#00E0FF"))
+            setToolbarTitle("Crop Profile Photo")
+        }
+        
+        val uCrop = UCrop.of(sourceUri, destinationUri)
+            .withAspectRatio(1f, 1f) // Square crop for profile photo
+            .withMaxResultSize(1080, 1080)
+            .withOptions(options)
+        
+        cropImageLauncher.launch(uCrop.getIntent(requireContext()))
+    }
 
     private fun navigateToBackdropSelection() {
         // Get first favorite movie ID
@@ -404,11 +461,27 @@ class EditProfileFragment : Fragment() {
         
         // Save to API
         lifecycleScope.launch {
+            // Wait if photo is still uploading
+            if (viewModel.uiState.value.isLoading) {
+                android.widget.Toast.makeText(
+                    requireContext(),
+                    "Please wait, photo is still uploading...",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+            
             val success = viewModel.saveProfile()
             if (success) {
                 if (isAdded) {
+                    // Get the latest profile photo URL from ViewModel state (more reliable)
+                    val profilePhotoUrl = viewModel.uiState.value.profilePhotoUrl
+                    
+                    android.util.Log.d("EditProfileFragment", "Sending profile_photo_url: $profilePhotoUrl")
+                    
                     // Set result to notify ProfileFragment to reload
                     findNavController().previousBackStackEntry?.savedStateHandle?.set("profile_updated", true)
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set("profile_photo_url", profilePhotoUrl)
                     
                     // Show success message
                     android.widget.Toast.makeText(

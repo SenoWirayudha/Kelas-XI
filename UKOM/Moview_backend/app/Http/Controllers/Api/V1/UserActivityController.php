@@ -266,4 +266,148 @@ class UserActivityController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Save or update user rating for a movie
+     */
+    public function saveRating(Request $request, $userId, $movieId)
+    {
+        try {
+            \Log::info("Save Rating Request", [
+                'userId' => $userId,
+                'movieId' => $movieId,
+                'body' => $request->all()
+            ]);
+            
+            $rating = $request->input('rating', 0); // Default 0 if only marking as watched
+            
+            // Validate rating (0-5 scale for star rating)
+            if ($rating < 0 || $rating > 5) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rating must be between 0 and 5 stars'
+                ], 400);
+            }
+            
+            // Check if rating already exists
+            $existingRating = DB::table('ratings')
+                ->where('user_id', $userId)
+                ->where('film_id', $movieId)
+                ->first();
+            
+            if ($existingRating) {
+                // Update existing rating
+                DB::table('ratings')
+                    ->where('user_id', $userId)
+                    ->where('film_id', $movieId)
+                    ->update([
+                        'rating' => $rating,
+                        'updated_at' => now()
+                    ]);
+            } else {
+                // Create new rating
+                DB::table('ratings')->insert([
+                    'user_id' => $userId,
+                    'film_id' => $movieId,
+                    'rating' => $rating,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+            
+            \Log::info("Rating saved successfully", [
+                'userId' => $userId,
+                'movieId' => $movieId,
+                'rating' => $rating
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Rating saved successfully',
+                'data' => [
+                    'rating' => $rating
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("Failed to save rating", [
+                'error' => $e->getMessage(),
+                'userId' => $userId,
+                'movieId' => $movieId
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save rating: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user rating for a movie
+     */
+    public function getRating($userId, $movieId)
+    {
+        try {
+            $rating = DB::table('ratings')
+                ->where('user_id', $userId)
+                ->where('film_id', $movieId)
+                ->first(['rating', 'created_at', 'updated_at']);
+            
+            if ($rating) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'rating' => $rating->rating,
+                        'created_at' => $rating->created_at,
+                        'updated_at' => $rating->updated_at,
+                        'is_watched' => true
+                    ]
+                ]);
+            } else {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'rating' => null,
+                        'is_watched' => false
+                    ]
+                ]);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get rating: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete user rating for a movie
+     */
+    public function deleteRating($userId, $movieId)
+    {
+        try {
+            $deleted = DB::table('ratings')
+                ->where('user_id', $userId)
+                ->where('film_id', $movieId)
+                ->delete();
+            
+            if ($deleted) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Rating deleted successfully'
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rating not found'
+                ], 404);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete rating: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
+

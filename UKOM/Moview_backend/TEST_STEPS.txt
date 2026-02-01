@@ -1,0 +1,13 @@
+Silakan coba langkah berikut:
+
+1. Buka web admin: http://127.0.0.1:8000/admin/films/1
+2. Klik "Edit Services"
+3. Centang checkbox "Coming Soon" pada salah satu service
+4. Klik "Save Changes"
+5. Jalankan command berikut untuk melihat log:
+
+Setelah itu jalankan:
+- php test_coming_soon.php (untuk cek database)
+- tail -n 50 storage/logs/laravel.log (untuk cek log)
+
+Atau jalankan script berikut untuk cek log terbaru:

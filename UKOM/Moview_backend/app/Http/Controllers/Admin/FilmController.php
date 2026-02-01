@@ -468,6 +468,9 @@ class FilmController extends Controller
     {
         $movie = Movie::findOrFail($id);
         
+        // Debug: Log the incoming request data
+        \Log::info('Services Update Request:', $request->all());
+        
         // Delete all existing services for this movie
         $movie->movieServices()->delete();
         
@@ -477,10 +480,15 @@ class FilmController extends Controller
                 // Loop through each availability type (stream, rent, buy, theatrical)
                 foreach ($availabilityTypes as $availType => $data) {
                     if (isset($data['enabled'])) {
+                        $isComingSoon = isset($data['is_coming_soon']) && $data['is_coming_soon'] == '1' ? 1 : 0;
+                        
+                        \Log::info("Creating service: Service ID: $serviceId, Type: $availType, Coming Soon: $isComingSoon", $data);
+                        
                         $movie->movieServices()->create([
                             'service_id' => $serviceId,
                             'availability_type' => $data['availability_type'] ?? $availType,
-                            'release_date' => $data['release_date'] ?? null,
+                            'release_date' => !empty($data['release_date']) ? $data['release_date'] : null,
+                            'is_coming_soon' => $isComingSoon,
                         ]);
                     }
                 }

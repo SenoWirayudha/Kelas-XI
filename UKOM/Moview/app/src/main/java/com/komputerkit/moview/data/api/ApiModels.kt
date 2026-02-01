@@ -111,14 +111,16 @@ data class StreamingServiceDto(
     val name: String,
     val logo_url: String?,
     val availability_type: String,
-    val release_date: String?
+    val release_date: String?,
+    val is_coming_soon: Boolean = false
 )
 
 data class TheatricalServiceDto(
     val id: Int,
     val name: String,
     val logo_url: String?,
-    val release_date: String?
+    val release_date: String?,
+    val is_coming_soon: Boolean = false
 )
 
 data class MovieDetailsDto(
@@ -298,4 +300,15 @@ data class UpdateBackdropRequest(
 
 data class UpdateFavoritesRequest(
     val favorites: List<Int?>  // film_ids in order [0-3], null for empty slots
+)
+
+data class SaveRatingRequest(
+    val rating: Int  // 0-10, 0 = watched without rating
+)
+
+data class RatingResponse(
+    val rating: Int?,
+    val is_watched: Boolean,
+    val created_at: String? = null,
+    val updated_at: String? = null
 )

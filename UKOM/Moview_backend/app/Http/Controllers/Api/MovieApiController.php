@@ -164,11 +164,11 @@ class MovieApiController extends Controller
         $reviewsCount = Review::where('film_id', $id)->count();
         $averageRating = Rating::where('film_id', $id)->avg('rating') ?? 0;
         
-        // Rating distribution (1-5 stars, each representing 2-point ranges)
+        // Rating distribution (direct 0-5 star ratings)
         $ratingDistribution = [];
         for ($i = 1; $i <= 5; $i++) {
             $count = Rating::where('film_id', $id)
-                ->whereBetween('rating', [($i * 2) - 1, $i * 2])
+                ->where('rating', $i)
                 ->count();
             $ratingDistribution[$i] = $count;
         }
@@ -201,6 +201,7 @@ class MovieApiController extends Controller
                     'logo_url' => $ms->service->logo_path ? url('storage/' . $ms->service->logo_path) : null,
                     'availability_type' => $ms->availability_type,
                     'release_date' => $ms->release_date,
+                    'is_coming_soon' => (bool) $ms->is_coming_soon,
                 ];
             })->values();
         
@@ -214,6 +215,7 @@ class MovieApiController extends Controller
                     'name' => $ms->service->name,
                     'logo_url' => $ms->service->logo_path ? url('storage/' . $ms->service->logo_path) : null,
                     'release_date' => $ms->release_date,
+                    'is_coming_soon' => (bool) $ms->is_coming_soon,
                 ];
             })->values();
         

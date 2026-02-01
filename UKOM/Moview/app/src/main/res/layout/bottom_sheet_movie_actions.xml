@@ -56,29 +56,32 @@
             android:padding="8dp">
 
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_watched"
                 android:layout_width="56dp"
                 android:layout_height="56dp"
                 app:cardBackgroundColor="#1E2530"
                 app:cardCornerRadius="28dp"
                 app:cardElevation="0dp"
                 app:strokeWidth="2dp"
-                app:strokeColor="#4CAF50">
+                app:strokeColor="@color/text_secondary">
 
                 <ImageView
+                    android:id="@+id/iv_watched_icon"
                     android:layout_width="28dp"
                     android:layout_height="28dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_eye"
-                    app:tint="#4CAF50" />
+                    app:tint="@color/text_secondary" />
 
             </com.google.android.material.card.MaterialCardView>
 
             <TextView
+                android:id="@+id/tv_watched_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Watched"
-                android:textColor="@color/text_primary"
+                android:text="Watch"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
 
         </LinearLayout>

@@ -716,17 +716,24 @@
                             {{ substr($movieService->service->name, 0, 1) }}
                         </div>
                         <div>
-                            <span class="font-medium">{{ $movieService->service->name }}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium">{{ $movieService->service->name }}</span>
+                                @if($movieService->is_coming_soon)
+                                    <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-semibold">
+                                        <i class="fas fa-clock mr-1"></i>
+                                        Coming Soon
+                                    </span>
+                                @elseif($movieService->availability_type)
+                                    <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
+                                        {{ ucfirst($movieService->availability_type) }}
+                                    </span>
+                                @endif
+                            </div>
                             @if($movieService->release_date)
-                                <p class="text-xs text-gray-600">
+                                <p class="text-xs text-gray-600 mt-1">
                                     <i class="fas fa-calendar mr-1"></i>
                                     {{ \Carbon\Carbon::parse($movieService->release_date)->format('d M Y') }}
                                 </p>
-                            @endif
-                            @if($movieService->availability_type)
-                                <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded ml-2">
-                                    {{ ucfirst($movieService->availability_type) }}
-                                </span>
                             @endif
                         </div>
                     </div>
@@ -795,14 +802,31 @@
                                                        name="services[{{ $service->id }}][{{ $availType }}][availability_type]" 
                                                        value="{{ $availType }}">
                                                 
-                                                <div class="mt-1">
-                                                    <label class="block text-xs text-gray-700 mb-1">
-                                                        Release Date <span class="text-gray-500">(Optional)</span>
-                                                    </label>
-                                                    <input type="date" 
-                                                           name="services[{{ $service->id }}][{{ $availType }}][release_date]"
-                                                           value="{{ $existingEntry->release_date ?? '' }}"
-                                                           class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                                <div class="mt-1 space-y-2">
+                                                    <div>
+                                                        <label class="block text-xs text-gray-700 mb-1">
+                                                            Release Date <span class="text-gray-500">(Optional)</span>
+                                                        </label>
+                                                        <input type="date" 
+                                                               name="services[{{ $service->id }}][{{ $availType }}][release_date]"
+                                                               value="{{ $existingEntry->release_date ?? '' }}"
+                                                               class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                                    </div>
+                                                    <div class="flex items-center space-x-2">
+                                                        <input type="hidden" 
+                                                               name="services[{{ $service->id }}][{{ $availType }}][is_coming_soon]" 
+                                                               value="0">
+                                                        <input type="checkbox" 
+                                                               name="services[{{ $service->id }}][{{ $availType }}][is_coming_soon]"
+                                                               value="1"
+                                                               {{ ($existingEntry->is_coming_soon ?? 0) ? 'checked' : '' }}
+                                                               id="coming_soon_{{ $service->id }}_{{ $availType }}"
+                                                               class="rounded">
+                                                        <label for="coming_soon_{{ $service->id }}_{{ $availType }}" class="text-xs text-gray-700 cursor-pointer">
+                                                            <i class="fas fa-clock text-blue-500 mr-1"></i>
+                                                            Coming Soon
+                                                        </label>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -830,12 +854,29 @@
                                                    name="services[{{ $service->id }}][theatrical][availability_type]" 
                                                    value="stream">
                                             
-                                            <div class="mt-2">
-                                                <label class="block text-sm text-gray-700 mb-1">Release Date</label>
-                                                <input type="date" 
-                                                       name="services[{{ $service->id }}][theatrical][release_date]"
-                                                       value="{{ $existingEntry->release_date ?? '' }}"
-                                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                            <div class="mt-2 space-y-2">
+                                                <div>
+                                                    <label class="block text-sm text-gray-700 mb-1">Release Date</label>
+                                                    <input type="date" 
+                                                           name="services[{{ $service->id }}][theatrical][release_date]"
+                                                           value="{{ $existingEntry->release_date ?? '' }}"
+                                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                                </div>
+                                                <div class="flex items-center space-x-2">
+                                                    <input type="hidden" 
+                                                           name="services[{{ $service->id }}][theatrical][is_coming_soon]" 
+                                                           value="0">
+                                                    <input type="checkbox" 
+                                                           name="services[{{ $service->id }}][theatrical][is_coming_soon]"
+                                                           value="1"
+                                                           {{ ($existingEntry->is_coming_soon ?? 0) ? 'checked' : '' }}
+                                                           id="coming_soon_{{ $service->id }}_theatrical"
+                                                           class="rounded">
+                                                    <label for="coming_soon_{{ $service->id }}_theatrical" class="text-sm text-gray-700 cursor-pointer">
+                                                        <i class="fas fa-clock text-blue-500 mr-1"></i>
+                                                        Coming Soon
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

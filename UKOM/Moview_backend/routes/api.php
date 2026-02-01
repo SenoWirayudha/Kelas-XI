@@ -41,6 +41,7 @@ Route::prefix('v1')->group(function () {
     Route::put('/users/{userId}/profile', [ProfileController::class, 'updateProfile']);
     Route::post('/users/{userId}/profile/photo', [ProfileController::class, 'uploadProfilePhoto']);
     Route::delete('/users/{userId}/profile/photo', [ProfileController::class, 'deleteProfilePhoto']);
+    Route::get('/users/{userId}/profile/photo/image', [ProfileController::class, 'getProfilePhoto']);
     Route::put('/users/{userId}/profile/backdrop', [ProfileController::class, 'updateBackdrop']);
     Route::put('/users/{userId}/favorites', [ProfileController::class, 'updateFavorites']);
     Route::get('/users/{userId}/favorites', [ProfileController::class, 'getFavorites']);
@@ -53,6 +54,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/users/{userId}/watchlist', [UserActivityController::class, 'getWatchlist']);
     Route::get('/users/{userId}/followers', [UserActivityController::class, 'getFollowers']);
     Route::get('/users/{userId}/following', [UserActivityController::class, 'getFollowing']);
+    
+    // Ratings
+    Route::post('/users/{userId}/movies/{movieId}/rating', [UserActivityController::class, 'saveRating']);
+    Route::get('/users/{userId}/movies/{movieId}/rating', [UserActivityController::class, 'getRating']);
+    Route::delete('/users/{userId}/movies/{movieId}/rating', [UserActivityController::class, 'deleteRating']);
     
     // Film List by Category
     Route::get('/films/category', [FilmListController::class, 'getFilmsByCategory']);

@@ -36,7 +36,7 @@ class LogFilmFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        viewModel.loadMovie(args.movieId)
+        viewModel.loadMovie(args.movieId, requireContext())
         
         setupObservers()
         setupClickListeners()
@@ -57,8 +57,22 @@ class LogFilmFragment : Fragment() {
             updateLikedButton(isLiked)
         }
         
+        viewModel.isWatched.observe(viewLifecycleOwner) { isWatched ->
+            updateWatchedButton(isWatched)
+        }
+        
         viewModel.isRewatch.observe(viewLifecycleOwner) { isRewatch ->
-            updateWatchedButton(isRewatch)
+            updateRewatchButton(isRewatch)
+        }
+        
+        viewModel.rating.observe(viewLifecycleOwner) { rating ->
+            updateStars(rating)
+        }
+        
+        viewModel.saveSuccess.observe(viewLifecycleOwner) { success ->
+            if (success == true) {
+                Toast.makeText(requireContext(), "Rating saved!", Toast.LENGTH_SHORT).show()
+            }
         }
     }
     
@@ -144,11 +158,23 @@ class LogFilmFragment : Fragment() {
         }
     }
     
-    private fun updateWatchedButton(isRewatch: Boolean) {
+    private fun updateWatchedButton(isWatched: Boolean) {
+        if (isWatched) {
+            binding.tvWatchedLabel.text = "WATCHED"
+            binding.btnWatched.setCardBackgroundColor(
+                ContextCompat.getColor(requireContext(), R.color.teal_watched)
+            )
+        } else {
+            binding.tvWatchedLabel.text = "WATCH"
+            binding.btnWatched.setCardBackgroundColor(
+                ContextCompat.getColor(requireContext(), R.color.dark_card)
+            )
+        }
+    }
+    
+    private fun updateRewatchButton(isRewatch: Boolean) {
         if (isRewatch) {
             binding.tvWatchedLabel.text = "REWATCH"
-        } else {
-            binding.tvWatchedLabel.text = "WATCHED"
         }
     }
     
@@ -156,14 +182,13 @@ class LogFilmFragment : Fragment() {
         val reviewText = binding.etReview.text.toString()
         val containsSpoilers = binding.cbSpoilers.isChecked
         
-        val success = viewModel.saveLog(reviewText, containsSpoilers)
+        viewModel.saveLog(reviewText, containsSpoilers)
         
-        if (success) {
+        // Give time for async save before closing
+        binding.root.postDelayed({
             Toast.makeText(requireContext(), "Film logged successfully!", Toast.LENGTH_SHORT).show()
             findNavController().navigateUp()
-        } else {
-            Toast.makeText(requireContext(), "Failed to log film", Toast.LENGTH_SHORT).show()
-        }
+        }, 500)
     }
 
     override fun onDestroyView() {

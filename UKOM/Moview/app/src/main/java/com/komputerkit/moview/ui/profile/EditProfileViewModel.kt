@@ -19,6 +19,7 @@ data class EditProfileUiState(
     val location: String = "",
     val backdropEnabled: Boolean = false,
     val backdropUrl: String? = null,
+    val profilePhotoUrl: String? = null,
     val favoriteSlots: List<FavoriteSlot> = List(4) { FavoriteSlot(it, null) },
     val isLoading: Boolean = false
 )
@@ -76,6 +77,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                     location = profileResponse.profile.location,
                     backdropEnabled = profileResponse.profile.backdrop_enabled,
                     backdropUrl = profileResponse.profile.backdrop_url,
+                    profilePhotoUrl = profileResponse.profile.profile_photo_url,
                     favoriteSlots = favoriteSlots,
                     isLoading = false
                 )
@@ -198,7 +200,16 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 location = state.location,
                 backdrop_enabled = state.backdropEnabled
             )
-            repository.updateUserProfile(userId, profileRequest)
+            val profileResponse = repository.updateUserProfile(userId, profileRequest)
+            
+            // Update profile photo URL from response if available
+            if (profileResponse?.success == true) {
+                profileResponse.data?.profile_photo_url?.let { photoUrl ->
+                    prefs.edit().putString("profilePhotoUrl", photoUrl).commit()
+                    _uiState.value = _uiState.value.copy(profilePhotoUrl = photoUrl)
+                    android.util.Log.d("EditProfileVM", "Updated profile photo URL from save: $photoUrl")
+                }
+            }
             
             // Update favorites
             val favoriteIds = state.favoriteSlots.map { it.movie?.id }
@@ -213,7 +224,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
             // Update SharedPreferences username
             prefs.edit().putString("username", state.username).apply()
             
-            true
+            profileResponse?.success == true
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -231,9 +242,17 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 val photoUrl = repository.uploadProfilePhoto(userId, imageUri, getApplication())
                 if (photoUrl != null) {
                     // Save to SharedPreferences
-                    prefs.edit().putString("profilePhotoUrl", photoUrl).apply()
+                    prefs.edit().putString("profilePhotoUrl", photoUrl).commit() // Use commit() for sync write
+                    
+                    // Update state with new photo URL
+                    _uiState.value = _uiState.value.copy(profilePhotoUrl = photoUrl)
+                    
+                    android.util.Log.d("EditProfileVM", "Photo uploaded successfully: $photoUrl")
+                } else {
+                    android.util.Log.e("EditProfileVM", "Photo upload returned null")
                 }
             } catch (e: Exception) {
+                android.util.Log.e("EditProfileVM", "Photo upload failed", e)
                 e.printStackTrace()
             } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)

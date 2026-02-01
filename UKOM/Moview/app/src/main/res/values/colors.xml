@@ -25,4 +25,5 @@
     <!-- Status Colors -->
     <color name="transparent">#00000000</color>
     <color name="pink_like">#FF4081</color>
+    <color name="teal_watched">#00BCD4</color>
 </resources>

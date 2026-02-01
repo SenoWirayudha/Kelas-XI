@@ -1,6 +1,7 @@
 package com.komputerkit.moview.data.api
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -75,7 +76,7 @@ interface MovieApiService {
     suspend fun updateUserProfile(
         @Path("userId") userId: Int,
         @Body request: UpdateProfileRequest
-    ): SimpleResponse
+    ): ApiResponse<ProfilePhotoResponse>
     
     @Multipart
     @POST("users/{userId}/profile/photo")
@@ -141,6 +142,26 @@ interface MovieApiService {
     suspend fun getUserFollowing(
         @Path("userId") userId: Int
     ): ApiResponse<List<UserFollowDto>>
+    
+    // Rating endpoints
+    @POST("users/{userId}/movies/{movieId}/rating")
+    suspend fun saveRating(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int,
+        @Body request: SaveRatingRequest
+    ): ApiResponse<RatingResponse>
+    
+    @GET("users/{userId}/movies/{movieId}/rating")
+    suspend fun getRating(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int
+    ): ApiResponse<RatingResponse>
+    
+    @DELETE("users/{userId}/movies/{movieId}/rating")
+    suspend fun deleteRating(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int
+    ): SimpleResponse
     
     @GET("search")
     suspend fun searchMovies(

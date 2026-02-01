@@ -78,13 +78,12 @@ class ProfileController extends Controller
             // Get statistics
             $stats = $this->getUserStatistics($userId);
 
-            // Build profile photo URL
+            // Build profile photo URL - use storage path for reliability
             $profilePhotoUrl = null;
             if ($profile && $profile->profile_photo) {
-                $profilePhotoUrl = $profile->profile_photo;
-                if (!str_starts_with($profilePhotoUrl, 'http')) {
-                    $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$profile->profile_photo}";
-                }
+                // Use direct storage URL with timestamp for cache busting
+                $timestamp = $profile->updated_at ? strtotime($profile->updated_at) : time();
+                $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$profile->profile_photo}?t={$timestamp}";
             }
 
             // Build backdrop URL
@@ -340,9 +339,23 @@ class ProfileController extends Controller
                     ]);
             }
 
+            // Get the updated profile photo URL
+            $updatedProfile = DB::table('user_profiles')
+                ->where('user_id', $userId)
+                ->first(['profile_photo', 'updated_at']);
+            
+            $profilePhotoUrl = null;
+            if ($updatedProfile && $updatedProfile->profile_photo) {
+                $timestamp = $updatedProfile->updated_at ? strtotime($updatedProfile->updated_at) : time();
+                $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$updatedProfile->profile_photo}?t={$timestamp}";
+            }
+            
             return response()->json([
                 'success' => true,
-                'message' => 'Profile updated successfully'
+                'message' => 'Profile updated successfully',
+                'data' => [
+                    'profile_photo_url' => $profilePhotoUrl
+                ]
             ]);
 
         } catch (\Exception $e) {
@@ -414,8 +427,9 @@ class ProfileController extends Controller
                 ]);
             }
 
-            // Build full URL
-            $photoUrl = "http://10.0.2.2:8000/storage/{$path}";
+            // Build full URL - use storage path with timestamp for cache busting
+            $timestamp = time();
+            $photoUrl = "http://10.0.2.2:8000/storage/{$path}?t={$timestamp}";
 
             return response()->json([
                 'success' => true,
@@ -429,6 +443,60 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to upload photo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get profile photo image directly
+     * 
+     * @param int $userId
+     * @return \Illuminate\Http\Response
+     */
+    public function getProfilePhoto($userId)
+    {
+        try {
+            $profile = DB::table('user_profiles')
+                ->where('user_id', $userId)
+                ->first(['profile_photo']);
+
+            if (!$profile || !$profile->profile_photo) {
+                // Return default image or 404
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No profile photo found'
+                ], 404);
+            }
+
+            $filePath = storage_path('app/public/' . $profile->profile_photo);
+            
+            if (!file_exists($filePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File not found'
+                ], 404);
+            }
+
+            // Get file info
+            $fileSize = filesize($filePath);
+            $mimeType = mime_content_type($filePath);
+            
+            // Read file content
+            $fileContent = file_get_contents($filePath);
+            
+            // Return file with proper headers and content
+            return response($fileContent, 200, [
+                'Content-Type' => $mimeType,
+                'Content-Length' => strlen($fileContent),
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get photo: ' . $e->getMessage()
             ], 500);
         }
     }

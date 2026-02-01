@@ -124,13 +124,12 @@ class MovieRepository {
         }
     }
     
-    suspend fun updateUserProfile(userId: Int, request: com.komputerkit.moview.data.api.UpdateProfileRequest): Boolean = withContext(Dispatchers.IO) {
+    suspend fun updateUserProfile(userId: Int, request: com.komputerkit.moview.data.api.UpdateProfileRequest): com.komputerkit.moview.data.api.ApiResponse<com.komputerkit.moview.data.api.ProfilePhotoResponse>? = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.updateUserProfile(userId, request)
-            response.success
+            apiService.updateUserProfile(userId, request)
         } catch (e: Exception) {
             e.printStackTrace()
-            false
+            null
         }
     }
     
@@ -1084,4 +1083,41 @@ class MovieRepository {
             )
         )
     }
+    
+    // Rating functions
+    suspend fun saveRating(userId: Int, movieId: Int, rating: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val request = com.komputerkit.moview.data.api.SaveRatingRequest(rating = rating)
+            val response = apiService.saveRating(userId, movieId, request)
+            response.success
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    
+    suspend fun getRating(userId: Int, movieId: Int): com.komputerkit.moview.data.api.RatingResponse? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getRating(userId, movieId)
+            if (response.success && response.data != null) {
+                response.data
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    suspend fun deleteRating(userId: Int, movieId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.deleteRating(userId, movieId)
+            response.success
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }
+

@@ -44,6 +44,12 @@ class ProfileFragment : Fragment() {
         setupNavigationResultListener()
     }
     
+    override fun onResume() {
+        super.onResume()
+        // Reload profile photo every time fragment becomes visible
+        reloadProfilePhotoFromPrefs()
+    }
+    
     private fun setupNavigationResultListener() {
         // Listen for profile update notification from EditProfileFragment
         findNavController().currentBackStackEntry?.savedStateHandle?.let { savedStateHandle ->
@@ -52,10 +58,49 @@ class ProfileFragment : Fragment() {
                     // Reload profile data from API
                     viewModel.reloadProfile()
                     
-                    // Clear the flag
+                    // Get the profile photo URL directly from savedStateHandle
+                    val photoUrl = savedStateHandle.get<String>("profile_photo_url")
+                    Log.d("ProfileFragment", "Received profile_photo_url: $photoUrl")
+                    
+                    if (!photoUrl.isNullOrBlank()) {
+                        // Load the new photo directly
+                        Glide.with(this@ProfileFragment)
+                            .load(photoUrl)
+                            .skipMemoryCache(true)
+                            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
+                            .placeholder(R.drawable.ic_default_profile)
+                            .error(R.drawable.ic_default_profile)
+                            .circleCrop()
+                            .into(binding.ivProfilePhoto)
+                    }
+                    
+                    // Clear the flags
                     savedStateHandle.remove<Boolean>("profile_updated")
+                    savedStateHandle.remove<String>("profile_photo_url")
                 }
             }
+        }
+    }
+    
+    private fun reloadProfilePhotoFromPrefs() {
+        if (!isAdded || _binding == null) return
+        
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+        val profilePhotoUrl = prefs.getString("profilePhotoUrl", null)
+        
+        Log.d("ProfileFragment", "reloadProfilePhotoFromPrefs: URL = $profilePhotoUrl")
+        
+        if (!profilePhotoUrl.isNullOrBlank()) {
+            Glide.with(this)
+                .load(profilePhotoUrl)
+                .skipMemoryCache(true) // Skip cache to get fresh image
+                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
+                .placeholder(R.drawable.ic_default_profile)
+                .error(R.drawable.ic_default_profile)
+                .circleCrop()
+                .into(binding.ivProfilePhoto)
+        } else {
+            binding.ivProfilePhoto.setImageResource(R.drawable.ic_default_profile)
         }
     }
     

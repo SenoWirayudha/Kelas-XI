@@ -1,6 +1,7 @@
 package com.komputerkit.moview.ui.detail
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -128,6 +129,7 @@ class MovieDetailFragment : Fragment() {
             MovieActionsHelper.setupPosterLongClick(
                 posterView = binding.ivPoster,
                 movie = movie,
+                lifecycleOwner = viewLifecycleOwner,
                 isFromMovieDetail = true,
                 onLogFilm = { m ->
                     val action = MovieDetailFragmentDirections.actionMovieDetailToLogFilm(m.id)
@@ -447,9 +449,11 @@ class MovieDetailFragment : Fragment() {
     
     private fun showMovieActionsBottomSheet() {
         viewModel.movie.value?.let { movie ->
+            Log.d("MovieDetailFragment", "Opening bottom sheet for movie: id=${movie.id}, title=${movie.title}")
             MovieActionsHelper.showMovieActionsBottomSheet(
                 context = requireContext(),
                 movie = movie,
+                lifecycleOwner = viewLifecycleOwner,
                 isFromMovieDetail = true, // Hide "Go to film" since we're already here
                 onGoToFilm = null, // Not needed since we hide it
                 onLogFilm = { m ->
@@ -459,6 +463,11 @@ class MovieDetailFragment : Fragment() {
                 onChangePoster = { m ->
                     val action = MovieDetailFragmentDirections.actionMovieDetailToPosterBackdrop(m.id)
                     findNavController().navigate(action)
+                },
+                onRatingSaved = {
+                    // Reload movie data after rating is saved
+                    Log.d("MovieDetailFragment", "Rating saved, reloading movie data for id=${movie.id}")
+                    viewModel.loadMovieDetails(movie.id)
                 }
             )
         }
