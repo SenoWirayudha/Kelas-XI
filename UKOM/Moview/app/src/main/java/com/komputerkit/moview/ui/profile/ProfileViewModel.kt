@@ -125,12 +125,12 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                         likes = profileData.statistics.likes,
                         followers = profileData.statistics.followers,
                         following = profileData.statistics.following,
-                        totalRatings = 0,
-                        rating5 = 0,
-                        rating4 = 0,
-                        rating3 = 0,
-                        rating2 = 0,
-                        rating1 = 0
+                        totalRatings = profileData.statistics.total_ratings ?: 0,
+                        rating5 = profileData.statistics.rating_distribution?.get("5") ?: 0,
+                        rating4 = profileData.statistics.rating_distribution?.get("4") ?: 0,
+                        rating3 = profileData.statistics.rating_distribution?.get("3") ?: 0,
+                        rating2 = profileData.statistics.rating_distribution?.get("2") ?: 0,
+                        rating1 = profileData.statistics.rating_distribution?.get("1") ?: 0
                     ))
                     
                     // Recent activity - nanti bisa ditambahkan endpoint terpisah

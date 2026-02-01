@@ -57,22 +57,22 @@ data class UserDto(
 
 data class MovieDetailDto(
     val id: Int,
-    val title: String,
-    val year: Int,
-    val duration: String,
-    val rating: String,
-    val synopsis: String,
+    val title: String?,
+    val year: Int?,
+    val duration: String?,
+    val rating: String?,
+    val synopsis: String?,
     val poster_path: String?,
     val backdrop_path: String?,
     val trailer_url: String?,
-    val genres: List<String>,
-    val directors: List<DirectorDto>,
-    val cast: List<CastDto>,
-    val crew: List<CrewJobDto>,
-    val statistics: StatisticsDto,
-    val streaming_services: List<StreamingServiceDto>,
-    val theatrical_services: List<TheatricalServiceDto>,
-    val details: MovieDetailsDto
+    val genres: List<String>?,
+    val directors: List<DirectorDto>?,
+    val cast: List<CastDto>?,
+    val crew: List<CrewJobDto>?,
+    val statistics: StatisticsDto?,
+    val streaming_services: List<StreamingServiceDto>?,
+    val theatrical_services: List<TheatricalServiceDto>?,
+    val details: MovieDetailsDto?
 )
 
 data class DirectorDto(
@@ -226,7 +226,9 @@ data class UserStatisticsDto(
     val watchlist: Int,
     val likes: Int,
     val followers: Int,
-    val following: Int
+    val following: Int,
+    val total_ratings: Int? = 0,
+    val rating_distribution: Map<String, Int>? = emptyMap()
 )
 
 // User Activity DTOs

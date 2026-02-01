@@ -26,16 +26,37 @@ class UserActivityController extends Controller
                     'movies.id',
                     'movies.title',
                     'movies.release_year as year',
-                    'movie_media.media_path as poster_path',
+                    'movie_media.media_path',
                     'ratings.rating',
                     'ratings.created_at as rated_at'
                 )
                 ->orderBy('ratings.created_at', 'desc')
                 ->get();
 
+            // Build poster URLs with base URL
+            $filmsData = $films->map(function($film) {
+                $posterUrl = null;
+                if ($film->media_path) {
+                    if (!str_starts_with($film->media_path, 'http')) {
+                        $posterUrl = "http://10.0.2.2:8000/storage/{$film->media_path}";
+                    } else {
+                        $posterUrl = $film->media_path;
+                    }
+                }
+                
+                return [
+                    'id' => $film->id,
+                    'title' => $film->title,
+                    'year' => $film->year,
+                    'poster_path' => $posterUrl,
+                    'rating' => $film->rating,
+                    'rated_at' => $film->rated_at
+                ];
+            });
+
             return response()->json([
                 'success' => true,
-                'data' => $films
+                'data' => $filmsData
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -67,7 +88,7 @@ class UserActivityController extends Controller
                     'movies.id',
                     'movies.title',
                     'movies.release_year as year',
-                    'movie_media.media_path as poster_path',
+                    'movie_media.media_path',
                     'diaries.watched_at',
                     'diaries.note',
                     'ratings.rating'
@@ -75,9 +96,31 @@ class UserActivityController extends Controller
                 ->orderBy('diaries.watched_at', 'desc')
                 ->get();
 
+            // Build poster URLs with base URL
+            $diariesData = $diaries->map(function($diary) {
+                $posterUrl = null;
+                if ($diary->media_path) {
+                    if (!str_starts_with($diary->media_path, 'http')) {
+                        $posterUrl = "http://10.0.2.2:8000/storage/{$diary->media_path}";
+                    } else {
+                        $posterUrl = $diary->media_path;
+                    }
+                }
+                
+                return [
+                    'id' => $diary->id,
+                    'title' => $diary->title,
+                    'year' => $diary->year,
+                    'poster_path' => $posterUrl,
+                    'watched_at' => $diary->watched_at,
+                    'note' => $diary->note,
+                    'rating' => $diary->rating
+                ];
+            });
+
             return response()->json([
                 'success' => true,
-                'data' => $diaries
+                'data' => $diariesData
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -183,15 +226,35 @@ class UserActivityController extends Controller
                     'movies.id',
                     'movies.title',
                     'movies.release_year as year',
-                    'movie_media.media_path as poster_path',
+                    'movie_media.media_path',
                     'watchlists.created_at as added_at'
                 )
                 ->orderBy('watchlists.created_at', 'desc')
                 ->get();
 
+            // Build poster URLs with base URL
+            $watchlistData = $watchlist->map(function($item) {
+                $posterUrl = null;
+                if ($item->media_path) {
+                    if (!str_starts_with($item->media_path, 'http')) {
+                        $posterUrl = "http://10.0.2.2:8000/storage/{$item->media_path}";
+                    } else {
+                        $posterUrl = $item->media_path;
+                    }
+                }
+                
+                return [
+                    'id' => $item->id,
+                    'title' => $item->title,
+                    'year' => $item->year,
+                    'poster_path' => $posterUrl,
+                    'added_at' => $item->added_at
+                ];
+            });
+
             return response()->json([
                 'success' => true,
-                'data' => $watchlist
+                'data' => $watchlistData
             ]);
         } catch (\Exception $e) {
             return response()->json([

@@ -15,13 +15,19 @@ import com.komputerkit.moview.R
 
 // Load poster image with optimizations
 fun ImageView.loadPoster(url: String?, placeholder: Drawable? = null) {
+    if (url.isNullOrEmpty()) {
+        // Show placeholder if URL is null or empty
+        this.setImageResource(R.drawable.placeholder_poster)
+        return
+    }
+    
     Glide.with(this.context)
         .load(url)
         .thumbnail(0.1f) // Load low-res thumbnail first for instant display
         .apply(
             RequestOptions()
-                .placeholder(placeholder ?: context.getDrawable(R.drawable.ic_launcher_background))
-                .error(R.drawable.ic_launcher_background)
+                .placeholder(placeholder ?: context.getDrawable(R.drawable.placeholder_poster))
+                .error(R.drawable.placeholder_poster)
                 .diskCacheStrategy(DiskCacheStrategy.ALL) // Cache both original & resized
                 .centerCrop() // Ensure proper cropping without distortion
         )
@@ -31,13 +37,19 @@ fun ImageView.loadPoster(url: String?, placeholder: Drawable? = null) {
 
 // Load backdrop image with optimizations
 fun ImageView.loadBackdrop(url: String?, placeholder: Drawable? = null) {
+    if (url.isNullOrEmpty()) {
+        // Show dark placeholder if URL is null or empty
+        this.setImageResource(android.R.color.transparent)
+        return
+    }
+    
     Glide.with(this.context)
         .load(url)
         .thumbnail(0.1f) // Load low-res thumbnail first
         .apply(
             RequestOptions()
-                .placeholder(placeholder ?: context.getDrawable(R.drawable.ic_launcher_background))
-                .error(R.drawable.ic_launcher_background)
+                .placeholder(placeholder ?: context.getDrawable(android.R.color.transparent))
+                .error(android.R.color.transparent)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .centerCrop() // Ensure proper cropping without distortion
         )

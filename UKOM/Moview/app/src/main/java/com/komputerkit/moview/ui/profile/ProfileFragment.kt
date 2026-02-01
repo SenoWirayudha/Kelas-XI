@@ -46,8 +46,9 @@ class ProfileFragment : Fragment() {
     
     override fun onResume() {
         super.onResume()
-        // Reload profile photo every time fragment becomes visible
-        reloadProfilePhotoFromPrefs()
+        Log.d("ProfileFragment", "onResume() - Reloading profile data")
+        // Reload all profile data (stats, photo, favorites) when returning to fragment
+        viewModel.reloadProfile()
     }
     
     private fun setupNavigationResultListener() {
@@ -160,16 +161,21 @@ class ProfileFragment : Fragment() {
         
         // Profile photo dari API
         viewModel.profilePhotoUrl.observe(viewLifecycleOwner) { photoUrl ->
+            Log.d("ProfileFragment", "Profile photo URL changed: $photoUrl")
             if (!photoUrl.isNullOrBlank()) {
                 Glide.with(this)
                     .load(photoUrl)
+                    .skipMemoryCache(true)  // Skip memory cache to always get fresh image
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)  // Disable disk cache for profile photo
                     .placeholder(R.drawable.ic_default_profile)
                     .error(R.drawable.ic_default_profile)
                     .circleCrop()
                     .into(binding.ivProfilePhoto)
+                Log.d("ProfileFragment", "Loading profile photo from URL: $photoUrl")
             } else {
                 // Use default profile icon
                 binding.ivProfilePhoto.setImageResource(R.drawable.ic_default_profile)
+                Log.d("ProfileFragment", "Using default profile photo")
             }
         }
         

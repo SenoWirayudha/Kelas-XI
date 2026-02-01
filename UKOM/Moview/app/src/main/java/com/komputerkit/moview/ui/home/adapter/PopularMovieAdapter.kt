@@ -22,10 +22,10 @@ class PopularMovieAdapter(
         val ratingText: TextView = view.findViewById(R.id.tv_rating)
 
         fun bind(movie: Movie) {
-            titleText.text = movie.title
+            titleText.text = movie.title ?: "Unknown"
             
             // Convert rating to stars (★★★★★)
-            val stars = getStarsFromRating(movie.averageRating)
+            val stars = getStarsFromRating(movie.averageRating ?: 0f)
             ratingText.text = stars
             
             // Load poster image with optimization

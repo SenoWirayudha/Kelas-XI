@@ -195,6 +195,30 @@ class ProfileController extends Controller
             $followingCount = 0;
         }
 
+        try {
+            // Rating distribution (1-5 stars)
+            $ratingDistribution = [];
+            $totalRatings = 0;
+            for ($i = 1; $i <= 5; $i++) {
+                $count = DB::table('ratings')
+                    ->where('user_id', $userId)
+                    ->where('rating', $i)
+                    ->count();
+                $ratingDistribution[$i] = $count;
+                $totalRatings += $count;
+            }
+            
+            // Count watched without rating (rating = 0)
+            $watchedNoRating = DB::table('ratings')
+                ->where('user_id', $userId)
+                ->where('rating', 0)
+                ->count();
+            $totalRatings += $watchedNoRating;
+        } catch (\Exception $e) {
+            $ratingDistribution = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+            $totalRatings = 0;
+        }
+
         return [
             'films' => $filmsCount,
             'diary' => $diaryCount,
@@ -202,7 +226,9 @@ class ProfileController extends Controller
             'watchlist' => $watchlistCount,
             'likes' => $likesCount,
             'followers' => $followersCount,
-            'following' => $followingCount
+            'following' => $followingCount,
+            'total_ratings' => $totalRatings,
+            'rating_distribution' => $ratingDistribution
         ];
     }
 

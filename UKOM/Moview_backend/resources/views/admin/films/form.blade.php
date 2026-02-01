@@ -55,13 +55,12 @@
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Runtime (minutes) *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Runtime (minutes)</label>
                     <input type="number" 
                            name="duration"
                            value="{{ old('duration', $film->duration ?? '') }}" 
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('duration') border-red-500 @enderror"
-                           placeholder="120"
-                           required>
+                           placeholder="120">
                     @error('duration')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -71,11 +70,12 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Age Rating</label>
                     <select name="age_rating" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Select age rating</option>
-                        <option value="G" {{ old('age_rating', $film->age_rating ?? '') === 'G' ? 'selected' : '' }}>G</option>
-                        <option value="PG" {{ old('age_rating', $film->age_rating ?? '') === 'PG' ? 'selected' : '' }}>PG</option>
-                        <option value="PG-13" {{ old('age_rating', $film->age_rating ?? '') === 'PG-13' ? 'selected' : '' }}>PG-13</option>
-                        <option value="R" {{ old('age_rating', $film->age_rating ?? '') === 'R' ? 'selected' : '' }}>R</option>
-                        <option value="NC-17" {{ old('age_rating', $film->age_rating ?? '') === 'NC-17' ? 'selected' : '' }}>NC-17</option>
+                        <option value="G" {{ old('age_rating', $film->age_rating ?? '') === 'G' ? 'selected' : '' }}>G - General Audiences</option>
+                        <option value="PG" {{ old('age_rating', $film->age_rating ?? '') === 'PG' ? 'selected' : '' }}>PG - Parental Guidance</option>
+                        <option value="PG-13" {{ old('age_rating', $film->age_rating ?? '') === 'PG-13' ? 'selected' : '' }}>PG-13 - Parents Strongly Cautioned</option>
+                        <option value="R" {{ old('age_rating', $film->age_rating ?? '') === 'R' ? 'selected' : '' }}>R - Restricted</option>
+                        <option value="NC-17" {{ old('age_rating', $film->age_rating ?? '') === 'NC-17' ? 'selected' : '' }}>NC-17 - Adults Only</option>
+                        <option value="Not Rated" {{ old('age_rating', $film->age_rating ?? '') === 'Not Rated' ? 'selected' : '' }}>Not Rated</option>
                     </select>
                 </div>
                 

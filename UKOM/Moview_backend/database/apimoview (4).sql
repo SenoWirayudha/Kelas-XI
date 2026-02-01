@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 01 Feb 2026 pada 11.45
+-- Waktu pembuatan: 01 Feb 2026 pada 12.57
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -196,7 +196,7 @@ CREATE TABLE `movies` (
   `id` bigint(20) UNSIGNED NOT NULL,
   `title` varchar(255) NOT NULL,
   `release_year` year(4) NOT NULL,
-  `duration` int(10) UNSIGNED NOT NULL COMMENT 'Duration in minutes',
+  `duration` int(11) DEFAULT NULL,
   `age_rating` varchar(10) DEFAULT 'NR' COMMENT 'e.g., G, PG, PG-13, R, NC-17',
   `synopsis` text DEFAULT NULL,
   `default_poster_path` varchar(500) DEFAULT NULL COMMENT 'Default poster image path',
@@ -226,8 +226,11 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (12, 'The Voice of Hind Rajab', '2025', 89, 'PG', 'January 29, 2024. Red Crescent volunteers receive an emergency call. A five-year old girl is trapped in a car under fire in Gaza, pleading for rescue. While trying to keep her on the line, they do everything they can to get an ambulance to her. Her name was Hind Rajab.', 'movies/12/poster/WARIEsnc3Iegg3dYrivlQA9AsH6K05XtmoalB3jy.webp', 'movies/12/backdrop/y96DkRBguGbmad3k17I4CVojlH2FhAMU0jQ3nrMn.webp', 'https://youtu.be/hrssPpqv6vc?si=JOircuAacdAtx_Xa', 'published', '2026-02-01 01:15:50', '2026-02-01 01:25:35'),
 (13, 'Human Resource', '2026', 122, 'R', 'Working in HR at a challenging company, Fren interviews young new hires and is secretly one month pregnant, grappling with the decision to have a child in difficult circumstances.', 'movies/13/poster/WjGiuVTQ3sEhPLezQ2CJP4pMSW9BvYkkUMQo5BEM.webp', 'movies/13/backdrop/EhcF1T98u3mCu94c34tpjXyl3cXewPEiSYtnL7qt.webp', 'https://youtu.be/S7dPzA9uYyc?si=2JK2spyWN8iOaw-K', 'published', '2026-02-01 01:32:28', '2026-02-01 01:48:35'),
 (14, 'A Usefull Ghost', '2025', 130, 'NC-17', 'After dying from a respiratory disease, a mother\'s spirit possesses a vacuum cleaner to protect her husband when he begins showing the same symptoms.', 'movies/14/poster/cTJL52SoTVBxcd8Ap0vSbcdGJCkxmdbSJHM2iBrB.webp', 'movies/14/backdrop/g8JibIXVMP8wOKg4QZPYobPBIIDxvpG3Zhtf7EFg.webp', 'https://youtu.be/rh0aOKhssKU?si=oF7ue9511YhfklIX', 'published', '2026-02-01 01:46:33', '2026-02-01 01:48:26'),
-(15, 'Sinners', '2025', 138, 'R', 'Trying to leave their troubled lives behind, twin brothers return to their hometown to start again, only to discover that an even greater evil is waiting to welcome them back.', 'movies/15/poster/lSQHQSyGvQVMW5wrnQOVI1O7R3CIEg7ueByJ38tP.webp', 'movies/15/backdrop/PJJn2sNJHNcsINP5HXSakLeiN7H1LEIi0hdGxwWz.webp', NULL, 'draft', '2026-02-01 02:11:35', '2026-02-01 02:13:04'),
-(16, 'The Secret Agent', '2025', 161, 'NC-17', 'Brazil, 1977. Marcelo, a technology expert in his early 40s, is on the run. Hoping to reunite with his son, he travels to Recife during Carnival but soon realizes that the city is not the safe haven he was expecting.', 'movies/16/poster/U2n1A2XdMgeogmj1y7qdHMn2LNbosnz8tS2t4ICR.webp', 'movies/16/backdrop/W9RuHcz4dYU3ksO5xFE87kUWQnro78cShVgMQmGg.webp', NULL, 'draft', '2026-02-01 02:14:58', '2026-02-01 02:19:16');
+(15, 'Sinners', '2025', 138, 'R', 'Trying to leave their troubled lives behind, twin brothers return to their hometown to start again, only to discover that an even greater evil is waiting to welcome them back.', 'movies/15/poster/lSQHQSyGvQVMW5wrnQOVI1O7R3CIEg7ueByJ38tP.webp', 'movies/15/backdrop/PJJn2sNJHNcsINP5HXSakLeiN7H1LEIi0hdGxwWz.webp', 'https://youtu.be/bKGxHflevuk?si=pJKjqEREd_Y4xXzJ', 'published', '2026-02-01 02:11:35', '2026-02-01 04:01:21'),
+(16, 'The Secret Agent', '2025', 161, 'NC-17', 'Brazil, 1977. Marcelo, a technology expert in his early 40s, is on the run. Hoping to reunite with his son, he travels to Recife during Carnival but soon realizes that the city is not the safe haven he was expecting.', 'movies/16/poster/U2n1A2XdMgeogmj1y7qdHMn2LNbosnz8tS2t4ICR.webp', 'movies/16/backdrop/W9RuHcz4dYU3ksO5xFE87kUWQnro78cShVgMQmGg.webp', 'https://youtu.be/9UfrzDKrhEc?si=MXfVdhiuooocyw3R', 'published', '2026-02-01 02:14:58', '2026-02-01 04:02:05'),
+(17, 'Para Perasuk', '2026', 119, 'Not Rated', 'In a town where pleasure equals being possessed by spiritual beings, Bayu aspires to be the shaman of a trance party so he can fundraise enough money to prevent an impending eviction.', 'movies/17/poster/nD2SYCIwfxdtxWBSFVac9X8FYS0CFi5ZKWyRTVnQ.webp', 'movies/17/backdrop/wwf8ERmpdgxMM1IDcLvaPKpV4krL6W7FFbPqdfTo.webp', 'https://youtu.be/tiIDmjCim3k?si=j_JZDP0ciz_D_kNm', 'published', '2026-02-01 04:10:03', '2026-02-01 11:44:49'),
+(18, 'Monster Pabrik Rambut', '2026', NULL, 'Not Rated', 'Two sisters deal with the sudden death of their mother at a wig factory. One believes it was suicide while the other is certain it was a result of possession and takes a job at the factory to uncover the truth. Meanwhile, their brother - born with an eerie gift to regenerate his own body - catches the attention of a ghostly figure roaming the factory, searching for a vessel to inhabit.', 'movies/18/poster/EhNypxxHyEFZacRX9KpVkWUrgBjFyeAKzHOfkF3K.webp', 'movies/18/backdrop/OK7qKBusnxr3JELTDKVizCX3rVwB2sQBpgcCxMqo.jpg', 'https://youtu.be/DaI3BNtjk6Y?si=gkCqEKo9nuBEnhvG', 'published', '2026-02-01 04:21:07', '2026-02-01 11:44:49'),
+(19, 'Alpha', '2025', 128, 'R', 'Alpha, a troubled 13-year-old lives with her single mom. Their world collapses the day she returns from school with a tattoo on her arm.', 'movies/19/poster/Fbznt5rvnUmJqE0qKGyCcb5kMeMdaU1X3PpTc4zY.webp', 'movies/19/backdrop/Vh5CePRfJ7lGYlfW7akA969vjb1caspE29IuGTuJ.webp', 'https://youtu.be/4Cc2A-YLARs?si=3QrxoPkBWLHLErn_', 'published', '2026-02-01 04:30:39', '2026-02-01 04:46:53');
 
 -- --------------------------------------------------------
 
@@ -275,7 +278,10 @@ INSERT INTO `movie_countries` (`movie_id`, `country_id`) VALUES
 (15, 1),
 (16, 5),
 (16, 6),
-(16, 20);
+(16, 20),
+(17, 13),
+(18, 13),
+(19, 5);
 
 -- --------------------------------------------------------
 
@@ -325,7 +331,14 @@ INSERT INTO `movie_genres` (`movie_id`, `genre_id`) VALUES
 (15, 7),
 (15, 9),
 (16, 5),
-(16, 7);
+(16, 7),
+(17, 7),
+(18, 7),
+(18, 9),
+(19, 7),
+(19, 9),
+(19, 12),
+(19, 13);
 
 -- --------------------------------------------------------
 
@@ -366,7 +379,10 @@ INSERT INTO `movie_languages` (`movie_id`, `language_id`) VALUES
 (15, 1),
 (16, 1),
 (16, 7),
-(16, 9);
+(16, 9),
+(17, 13),
+(18, 13),
+(19, 5);
 
 -- --------------------------------------------------------
 
@@ -448,7 +464,13 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (47, 15, 'poster', 'movies/15/poster/lSQHQSyGvQVMW5wrnQOVI1O7R3CIEg7ueByJ38tP.webp', 1, '2026-02-01 09:12:46'),
 (48, 15, 'backdrop', 'movies/15/backdrop/PJJn2sNJHNcsINP5HXSakLeiN7H1LEIi0hdGxwWz.webp', 1, '2026-02-01 09:12:57'),
 (49, 16, 'poster', 'movies/16/poster/U2n1A2XdMgeogmj1y7qdHMn2LNbosnz8tS2t4ICR.webp', 1, '2026-02-01 09:18:58'),
-(50, 16, 'backdrop', 'movies/16/backdrop/W9RuHcz4dYU3ksO5xFE87kUWQnro78cShVgMQmGg.webp', 1, '2026-02-01 09:19:10');
+(50, 16, 'backdrop', 'movies/16/backdrop/W9RuHcz4dYU3ksO5xFE87kUWQnro78cShVgMQmGg.webp', 1, '2026-02-01 09:19:10'),
+(51, 17, 'poster', 'movies/17/poster/nD2SYCIwfxdtxWBSFVac9X8FYS0CFi5ZKWyRTVnQ.webp', 1, '2026-02-01 11:11:42'),
+(52, 17, 'backdrop', 'movies/17/backdrop/wwf8ERmpdgxMM1IDcLvaPKpV4krL6W7FFbPqdfTo.webp', 1, '2026-02-01 11:11:54'),
+(53, 18, 'poster', 'movies/18/poster/EhNypxxHyEFZacRX9KpVkWUrgBjFyeAKzHOfkF3K.webp', 1, '2026-02-01 11:21:37'),
+(54, 18, 'backdrop', 'movies/18/backdrop/OK7qKBusnxr3JELTDKVizCX3rVwB2sQBpgcCxMqo.jpg', 1, '2026-02-01 11:21:49'),
+(55, 19, 'poster', 'movies/19/poster/Fbznt5rvnUmJqE0qKGyCcb5kMeMdaU1X3PpTc4zY.webp', 1, '2026-02-01 11:31:22'),
+(56, 19, 'backdrop', 'movies/19/backdrop/Vh5CePRfJ7lGYlfW7akA969vjb1caspE29IuGTuJ.webp', 1, '2026-02-01 11:31:34');
 
 -- --------------------------------------------------------
 
@@ -531,7 +553,10 @@ INSERT INTO `movie_production_houses` (`movie_id`, `production_house_id`) VALUES
 (15, 1),
 (15, 11),
 (16, 16),
-(16, 18);
+(16, 18),
+(17, 22),
+(18, 23),
+(19, 16);
 
 -- --------------------------------------------------------
 
@@ -566,8 +591,16 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (56, 14, 11, 'stream', '2026-02-17', 1),
 (57, 5, 10, 'stream', NULL, 0),
 (58, 3, 11, 'rent', NULL, 0),
-(59, 15, 4, 'stream', NULL, 0),
-(63, 16, 11, 'stream', NULL, 0);
+(64, 15, 4, 'stream', NULL, 0),
+(66, 16, 10, 'stream', NULL, 0),
+(67, 16, 11, 'stream', NULL, 1),
+(92, 19, 11, 'stream', NULL, 0),
+(93, 18, 9, 'stream', NULL, 1),
+(94, 18, 10, 'stream', NULL, 1),
+(95, 18, 12, 'stream', NULL, 1),
+(96, 17, 9, 'stream', NULL, 1),
+(97, 17, 10, 'stream', NULL, 1),
+(98, 17, 12, 'stream', NULL, 1);
 
 -- --------------------------------------------------------
 
@@ -638,7 +671,9 @@ INSERT INTO `production_houses` (`id`, `name`) VALUES
 (17, 'Mer Film'),
 (9, 'Moho Film'),
 (16, 'NEON'),
+(23, 'Palari Films'),
 (7, 'Paramount Pictures'),
+(22, 'Rekata Studio'),
 (6, 'Sony Pictures'),
 (14, 'TOHO'),
 (2, 'Universal Pictures'),
@@ -668,9 +703,11 @@ CREATE TABLE `ratings` (
 
 INSERT INTO `ratings` (`id`, `user_id`, `film_id`, `rating`, `created_at`, `updated_at`) VALUES
 (1, 3, 2, 5, '2026-02-01 02:58:01', '2026-02-01 03:10:55'),
-(2, 3, 1, 0, '2026-02-01 03:03:52', '2026-02-01 03:03:59'),
+(2, 3, 1, 4, '2026-02-01 03:03:52', '2026-02-01 04:10:37'),
 (3, 3, 3, 5, '2026-02-01 03:11:10', '2026-02-01 03:34:12'),
-(4, 3, 4, 5, '2026-02-01 03:30:10', '2026-02-01 03:40:01');
+(4, 3, 4, 5, '2026-02-01 03:30:10', '2026-02-01 03:40:01'),
+(5, 3, 15, 5, '2026-02-01 04:03:34', '2026-02-01 04:03:34'),
+(6, 3, 5, 5, '2026-02-01 04:06:29', '2026-02-01 04:06:29');
 
 -- --------------------------------------------------------
 
@@ -820,10 +857,10 @@ CREATE TABLE `user_favorite_films` (
 --
 
 INSERT INTO `user_favorite_films` (`id`, `user_id`, `film_id`, `position`, `created_at`, `updated_at`) VALUES
-(162, 3, 4, 1, '2026-02-01 03:17:38', '2026-02-01 03:17:38'),
-(163, 3, 3, 2, '2026-02-01 03:17:38', '2026-02-01 03:17:38'),
-(164, 3, 2, 3, '2026-02-01 03:17:38', '2026-02-01 03:17:38'),
-(165, 3, 5, 4, '2026-02-01 03:17:38', '2026-02-01 03:17:38');
+(166, 3, 4, 1, '2026-02-01 04:11:00', '2026-02-01 04:11:00'),
+(167, 3, 3, 2, '2026-02-01 04:11:00', '2026-02-01 04:11:00'),
+(168, 3, 2, 3, '2026-02-01 04:11:00', '2026-02-01 04:11:00'),
+(169, 3, 5, 4, '2026-02-01 04:11:00', '2026-02-01 04:11:00');
 
 -- --------------------------------------------------------
 
@@ -849,7 +886,7 @@ CREATE TABLE `user_profiles` (
 --
 
 INSERT INTO `user_profiles` (`id`, `user_id`, `display_name`, `profile_photo`, `backdrop_path`, `backdrop_enabled`, `bio`, `location`, `created_at`, `updated_at`) VALUES
-(1, 3, 'Sengefilm', 'profiles/profile_3_1769941056.jpg', 'movies/4/backdrop/sytI9YDHeFuY2VNB1F8zPXZB5olcB2YikL9LyIKA.webp', 1, 'Tes', 'Sidoarjo, Indonesia', '2026-01-31 00:38:49', '2026-02-01 03:17:38'),
+(1, 3, 'Sengefilm', 'profiles/profile_3_1769941056.jpg', 'movies/4/backdrop/sytI9YDHeFuY2VNB1F8zPXZB5olcB2YikL9LyIKA.webp', 1, 'Tes', 'Sidoarjo, Indonesia', '2026-01-31 00:38:49', '2026-02-01 04:11:01'),
 (2, 4, 'NewUser185', NULL, NULL, 0, NULL, NULL, '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
 (3, 1, NULL, NULL, NULL, 1, 'This is my new bio', NULL, '2026-01-31 03:41:40', '2026-01-31 03:41:40');
 
@@ -1150,7 +1187,7 @@ ALTER TABLE `migrations`
 -- AUTO_INCREMENT untuk tabel `movies`
 --
 ALTER TABLE `movies`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_likes`
@@ -1162,7 +1199,7 @@ ALTER TABLE `movie_likes`
 -- AUTO_INCREMENT untuk tabel `movie_media`
 --
 ALTER TABLE `movie_media`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=57;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_persons`
@@ -1174,7 +1211,7 @@ ALTER TABLE `movie_persons`
 -- AUTO_INCREMENT untuk tabel `movie_services`
 --
 ALTER TABLE `movie_services`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=99;
 
 --
 -- AUTO_INCREMENT untuk tabel `persons`
@@ -1186,13 +1223,13 @@ ALTER TABLE `persons`
 -- AUTO_INCREMENT untuk tabel `production_houses`
 --
 ALTER TABLE `production_houses`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT untuk tabel `ratings`
 --
 ALTER TABLE `ratings`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT untuk tabel `reviews`
@@ -1234,7 +1271,7 @@ ALTER TABLE `user_activities`
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`
 --
 ALTER TABLE `user_favorite_films`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=166;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=170;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_profiles`

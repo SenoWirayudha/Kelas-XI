@@ -348,7 +348,7 @@ class MovieRepository {
                 val movie = response.data
                 
                 // Combine directors into crew list as "Director" job
-                val directorsAsCrew = if (movie.directors.isNotEmpty()) {
+                val directorsAsCrew = if (movie.directors?.isNotEmpty() == true) {
                     listOf(
                         com.komputerkit.moview.data.api.CrewJobDto(
                             job = "Director",
@@ -366,47 +366,47 @@ class MovieRepository {
                 }
                 
                 // Merge directors at the beginning of crew list
-                val fullCrew = directorsAsCrew + movie.crew
+                val fullCrew = directorsAsCrew + (movie.crew ?: emptyList())
                 
                 Movie(
                     id = movie.id,
                     title = movie.title,
-                    posterUrl = movie.poster_path ?: "",
-                    backdropUrl = movie.backdrop_path ?: "",
+                    posterUrl = movie.poster_path,
+                    backdropUrl = movie.backdrop_path,
                     trailerUrl = movie.trailer_url,
-                    averageRating = movie.statistics.average_rating,
-                    genre = movie.genres.joinToString(", "),
+                    averageRating = movie.statistics?.average_rating,
+                    genre = movie.genres?.joinToString(", "),
                     releaseYear = movie.year,
                     description = movie.synopsis,
-                    director = movie.directors.firstOrNull()?.name ?: "",
-                    directorId = movie.directors.firstOrNull()?.id,
+                    director = movie.directors?.firstOrNull()?.name,
+                    directorId = movie.directors?.firstOrNull()?.id,
                     duration = movie.duration,
                     pgRating = movie.rating,
-                    watchedCount = "${movie.statistics.watched_count}",
-                    reviewCount = "${movie.statistics.reviews_count}",
-                    rating5 = movie.statistics.rating_distribution["5"] ?: 0,
-                    rating4 = movie.statistics.rating_distribution["4"] ?: 0,
-                    rating3 = movie.statistics.rating_distribution["3"] ?: 0,
-                    rating2 = movie.statistics.rating_distribution["2"] ?: 0,
-                    rating1 = movie.statistics.rating_distribution["1"] ?: 0,
-                    cast = movie.cast.map { cast ->
+                    watchedCount = movie.statistics?.watched_count?.toString(),
+                    reviewCount = movie.statistics?.reviews_count?.toString(),
+                    rating5 = movie.statistics?.rating_distribution?.get("5") ?: 0,
+                    rating4 = movie.statistics?.rating_distribution?.get("4") ?: 0,
+                    rating3 = movie.statistics?.rating_distribution?.get("3") ?: 0,
+                    rating2 = movie.statistics?.rating_distribution?.get("2") ?: 0,
+                    rating1 = movie.statistics?.rating_distribution?.get("1") ?: 0,
+                    cast = movie.cast?.map { cast ->
                         com.komputerkit.moview.data.model.CastMember(
                             id = cast.id,
                             name = cast.name,
                             character = cast.character,
                             photoUrl = cast.photo_url ?: ""
                         )
-                    },
+                    } ?: emptyList(),
                     hasReview = false,
                     reviewId = 0,
                     userRating = 0f,
-                    streamingServices = movie.streaming_services,
-                    theatricalServices = movie.theatrical_services,
+                    streamingServices = movie.streaming_services ?: emptyList(),
+                    theatricalServices = movie.theatrical_services ?: emptyList(),
                     crew = fullCrew,
-                    originalLanguage = movie.details.original_language,
-                    spokenLanguages = movie.details.spoken_languages,
-                    productionCountries = movie.details.production_countries,
-                    productionCompanies = movie.details.production_companies
+                    originalLanguage = movie.details?.original_language,
+                    spokenLanguages = movie.details?.spoken_languages ?: emptyList(),
+                    productionCountries = movie.details?.production_countries ?: emptyList(),
+                    productionCompanies = movie.details?.production_companies ?: emptyList()
                 )
             } else {
                 null

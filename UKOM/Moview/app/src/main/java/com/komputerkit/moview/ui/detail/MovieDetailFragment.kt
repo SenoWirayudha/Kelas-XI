@@ -95,16 +95,16 @@ class MovieDetailFragment : Fragment() {
                 binding.scrollView.scrollTo(0, 0)
             }
             
-            binding.tvTitle.text = movie.title
-            binding.tvYear.text = movie.releaseYear.toString()
-            binding.tvDuration.text = movie.duration
-            binding.tvPgRating.text = movie.pgRating
-            binding.tvGenre.text = movie.genre
-            binding.tvDirector.text = movie.director
-            binding.tvDescription.text = movie.description
-            binding.tvWatchedCount.text = movie.watchedCount
-            binding.tvReviewCount.text = movie.reviewCount
-            binding.tvAverageRating.text = String.format("%.1f", movie.averageRating)
+            binding.tvTitle.text = movie.title ?: "Unknown Title"
+            binding.tvYear.text = movie.releaseYear?.toString() ?: "-"
+            binding.tvDuration.text = movie.duration ?: "Unknown"
+            binding.tvPgRating.text = movie.pgRating ?: "Not Rated"
+            binding.tvGenre.text = movie.genre ?: "Unknown Genre"
+            binding.tvDirector.text = movie.director ?: "Unknown Director"
+            binding.tvDescription.text = movie.description ?: "No description available."
+            binding.tvWatchedCount.text = movie.watchedCount ?: "0"
+            binding.tvReviewCount.text = movie.reviewCount ?: "0"
+            binding.tvAverageRating.text = String.format("%.1f", movie.averageRating ?: 0.0)
             
             // Rating distribution
             binding.progress5Star.progress = movie.rating5
@@ -254,7 +254,7 @@ class MovieDetailFragment : Fragment() {
         val chipGroup = binding.chipGroupGenres
         chipGroup.removeAllViews()
         
-        movie.genre.split(", ").forEach { genre ->
+        movie.genre?.split(", ")?.forEach { genre ->
             val chip = com.google.android.material.chip.Chip(requireContext())
             chip.text = genre
             chip.setTextColor(resources.getColor(com.komputerkit.moview.R.color.white, null))
@@ -378,7 +378,7 @@ class MovieDetailFragment : Fragment() {
         binding.btnSeeAllReviews.setOnClickListener {
             viewModel.movie.value?.let { movie ->
                 val action = MovieDetailFragmentDirections
-                    .actionMovieDetailToReviewsList(movie.id, movie.title)
+                    .actionMovieDetailToReviewsList(movie.id, movie.title ?: "Movie")
                 findNavController().navigate(action)
             }
         }

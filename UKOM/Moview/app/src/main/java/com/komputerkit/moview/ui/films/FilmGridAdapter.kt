@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.films
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -7,6 +8,8 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemFilmGridBinding
 import com.komputerkit.moview.util.MovieActionsHelper
@@ -38,9 +41,22 @@ class FilmGridAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(movie: Movie) {
-            Glide.with(binding.root.context)
-                .load(movie.posterUrl)
-                .into(binding.ivPoster)
+            // Load poster with optimization
+            if (!movie.posterUrl.isNullOrEmpty()) {
+                Glide.with(binding.root.context)
+                    .load(movie.posterUrl)
+                    .thumbnail(0.1f)  // Load 10% thumbnail first for fast preview
+                    .placeholder(R.drawable.placeholder_poster)  // Show placeholder while loading
+                    .error(R.drawable.placeholder_poster)  // Show placeholder if error
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)  // Cache both original & resized
+                    .centerCrop()
+                    .into(binding.ivPoster)
+                Log.d("FilmGridAdapter", "Loading poster for ${movie.title}: ${movie.posterUrl}")
+            } else {
+                // No poster URL, show placeholder
+                binding.ivPoster.setImageResource(R.drawable.placeholder_poster)
+                Log.w("FilmGridAdapter", "No poster URL for ${movie.title}")
+            }
             
             // Show review icon if movie has review
             binding.icHasReview.visibility = if (movie.hasReview) View.VISIBLE else View.GONE

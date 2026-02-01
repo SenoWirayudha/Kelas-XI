@@ -214,18 +214,17 @@ object MovieActionsHelper {
             )
         }
 
-        binding.tvMovieTitle.text = movie.title
+        binding.tvMovieTitle.text = movie.title ?: "Movie"
         binding.progressLoading.visibility = View.VISIBLE
 
         // Load high resolution poster
-        val posterUrl = if (movie.posterUrl.contains("w500")) {
-            movie.posterUrl.replace("w500", "original")
-        } else if (movie.posterUrl.contains("w342")) {
-            movie.posterUrl.replace("w342", "original")
-        } else if (movie.posterUrl.contains("w185")) {
-            movie.posterUrl.replace("w185", "original")
-        } else {
-            movie.posterUrl
+        val posterUrl = movie.posterUrl?.let { url ->
+            when {
+                url.contains("w500") -> url.replace("w500", "original")
+                url.contains("w342") -> url.replace("w342", "original")
+                url.contains("w185") -> url.replace("w185", "original")
+                else -> url
+            }
         }
 
         Glide.with(context)
@@ -381,6 +380,10 @@ object MovieActionsHelper {
                         Log.d("MovieActionsHelper", "Star clicked: userId=$userId, movieId=${movie.id}, rating=$newRating")
                         val success = repository.saveRating(userId, movie.id, newRating)
                         if (success) {
+                            // Update button to "Watched" (green) immediately after rating
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                updateWatchedButtonState(context, binding, true)
+                            }
                             Toast.makeText(context, "Rated: $newRating stars", Toast.LENGTH_SHORT).show()
                             // Trigger callback to refresh data
                             onRatingSaved?.invoke()
