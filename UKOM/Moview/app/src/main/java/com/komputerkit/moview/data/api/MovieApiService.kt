@@ -2,6 +2,8 @@ package com.komputerkit.moview.data.api
 
 import retrofit2.http.Body
 import retrofit2.http.DELETE
+import retrofit2.http.Field
+import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -161,6 +163,43 @@ interface MovieApiService {
     suspend fun deleteRating(
         @Path("userId") userId: Int,
         @Path("movieId") movieId: Int
+    ): SimpleResponse
+    
+    // Like endpoints
+    @POST("users/{userId}/movies/{movieId}/like")
+    suspend fun toggleLike(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int
+    ): ApiResponse<LikeResponse>
+    
+    @GET("users/{userId}/movies/{movieId}/like")
+    suspend fun checkLike(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int
+    ): ApiResponse<LikeResponse>
+    
+    // Watchlist endpoints
+    @POST("users/{userId}/movies/{movieId}/watchlist")
+    suspend fun toggleWatchlist(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int
+    ): ApiResponse<WatchlistResponse>
+    
+    @GET("users/{userId}/movies/{movieId}/watchlist")
+    suspend fun checkWatchlist(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int
+    ): ApiResponse<WatchlistResponse>
+    
+    // Review endpoints
+    @POST("users/{userId}/movies/{movieId}/review")
+    @FormUrlEncoded
+    suspend fun saveReview(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int,
+        @Field("review") review: String,
+        @Field("rating") rating: Int,
+        @Field("contains_spoilers") containsSpoilers: Int
     ): SimpleResponse
     
     @GET("search")

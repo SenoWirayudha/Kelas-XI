@@ -31,6 +31,7 @@ data class Movie(
     val reviewId: Int = 0,
     val userRating: Float = 0f,  // User's personal rating (0-5 in 0.5 steps)
     val isLiked: Boolean = false,  // Whether user has liked this movie
+    val isInWatchlist: Boolean = false,  // Whether movie is in user's watchlist
     val streamingServices: List<StreamingServiceDto> = emptyList(),
     val theatricalServices: List<TheatricalServiceDto> = emptyList(),
     val crew: List<CrewJobDto> = emptyList(),

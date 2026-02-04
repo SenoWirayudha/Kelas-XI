@@ -102,6 +102,12 @@ object MovieActionsHelper {
                 val ratingResponse = repository.getRating(userId, movie.id)
                 Log.d("MovieActionsHelper", "getRating response: rating=${ratingResponse?.rating}, is_watched=${ratingResponse?.is_watched}")
                 
+                // Load like status
+                val isLiked = repository.checkLike(userId, movie.id)
+                
+                // Load watchlist status
+                val isInWatchlist = repository.checkWatchlist(userId, movie.id)
+                
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     if (ratingResponse != null && ratingResponse.is_watched) {
                         // User has watched this movie (either rated or just marked as watched)
@@ -115,6 +121,44 @@ object MovieActionsHelper {
                         updateStars(stars, 0)
                         updateWatchedButtonState(context, binding, false)
                         Log.d("MovieActionsHelper", "Movie not watched, setting default UI")
+                    }
+                    
+                    // Update like button state
+                    val likeIcon = (binding.btnLike.getChildAt(0) as com.google.android.material.card.MaterialCardView)
+                        .getChildAt(0) as ImageView
+                    val likeText = binding.btnLike.getChildAt(1) as android.widget.TextView
+                    
+                    if (isLiked) {
+                        likeIcon.setImageResource(R.drawable.ic_heart_filled)
+                        likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                            context.getColor(R.color.red)
+                        )
+                        likeText.text = "Liked"
+                    } else {
+                        likeIcon.setImageResource(R.drawable.ic_heart)
+                        likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                            context.getColor(R.color.text_secondary)
+                        )
+                        likeText.text = "Like"
+                    }
+                    
+                    // Update watchlist button state
+                    val watchlistIcon = (binding.btnWatchlist.getChildAt(0) as com.google.android.material.card.MaterialCardView)
+                        .getChildAt(0) as ImageView
+                    val watchlistText = binding.btnWatchlist.getChildAt(1) as android.widget.TextView
+                    
+                    if (isInWatchlist) {
+                        watchlistIcon.setImageResource(R.drawable.ic_bookmark_filled)
+                        watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                            context.getColor(R.color.orange)
+                        )
+                        watchlistText.text = "In Watchlist"
+                    } else {
+                        watchlistIcon.setImageResource(R.drawable.ic_bookmark)
+                        watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                            context.getColor(R.color.text_secondary)
+                        )
+                        watchlistText.text = "Watchlist"
                     }
                 }
             }
@@ -158,11 +202,106 @@ object MovieActionsHelper {
         }
 
         binding.btnLike.setOnClickListener {
-            Toast.makeText(context, "Added to likes", Toast.LENGTH_SHORT).show()
+            if (userId > 0 && actualLifecycleOwner != null) {
+                actualLifecycleOwner.lifecycleScope.launch {
+                    val isLiked = repository.toggleLike(userId, movie.id)
+                    
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        val likeIcon = (binding.btnLike.getChildAt(0) as com.google.android.material.card.MaterialCardView)
+                            .getChildAt(0) as ImageView
+                        val likeText = binding.btnLike.getChildAt(1) as android.widget.TextView
+                        
+                        when (isLiked) {
+                            true -> {
+                                // Now liked - also mark as watched with rating 0
+                                likeIcon.setImageResource(R.drawable.ic_heart_filled)
+                                likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                    context.getColor(R.color.red)
+                                )
+                                likeText.text = "Liked"
+                                
+                                // Auto-mark as watched with rating 0
+                                val saveSuccess = repository.saveRating(userId, movie.id, 0)
+                                if (saveSuccess) {
+                                    // Update watched button to green
+                                    updateWatchedButtonState(context, binding, true)
+                                    // Clear all stars (rating 0)
+                                    stars.forEach { star ->
+                                        star.setImageResource(R.drawable.ic_star_outline)
+                                        star.imageTintList = android.content.res.ColorStateList.valueOf(
+                                            context.getColor(R.color.text_secondary)
+                                        )
+                                    }
+                                    currentRating = 0
+                                    Toast.makeText(context, "Added to likes and marked as watched", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Added to likes", Toast.LENGTH_SHORT).show()
+                                }
+                                
+                                // Trigger callback to refresh data
+                                onRatingSaved?.invoke()
+                            }
+                            false -> {
+                                // Now unliked - keep watched status
+                                likeIcon.setImageResource(R.drawable.ic_heart)
+                                likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                    context.getColor(R.color.text_secondary)
+                                )
+                                likeText.text = "Like"
+                                Toast.makeText(context, "Removed from likes", Toast.LENGTH_SHORT).show()
+                                
+                                // Trigger callback to refresh data
+                                onRatingSaved?.invoke()
+                            }
+                            null -> {
+                                Toast.makeText(context, "Failed to update like", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            } else {
+                Toast.makeText(context, "Please login first", Toast.LENGTH_SHORT).show()
+            }
         }
 
         binding.btnWatchlist.setOnClickListener {
-            Toast.makeText(context, "Added to watchlist", Toast.LENGTH_SHORT).show()
+            if (userId > 0 && actualLifecycleOwner != null) {
+                actualLifecycleOwner.lifecycleScope.launch {
+                    val isInWatchlist = repository.toggleWatchlist(userId, movie.id)
+                    
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        val watchlistIcon = (binding.btnWatchlist.getChildAt(0) as com.google.android.material.card.MaterialCardView)
+                            .getChildAt(0) as ImageView
+                        val watchlistText = binding.btnWatchlist.getChildAt(1) as android.widget.TextView
+                        
+                        when (isInWatchlist) {
+                            true -> {
+                                // Now in watchlist
+                                watchlistIcon.setImageResource(R.drawable.ic_bookmark_filled)
+                                watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                    context.getColor(R.color.orange)
+                                )
+                                watchlistText.text = "In Watchlist"
+                                Toast.makeText(context, "Added to watchlist", Toast.LENGTH_SHORT).show()
+                            }
+                            false -> {
+                                // Removed from watchlist
+                                watchlistIcon.setImageResource(R.drawable.ic_bookmark)
+                                watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                    context.getColor(R.color.text_secondary)
+                                )
+                                watchlistText.text = "Watchlist"
+                                Toast.makeText(context, "Removed from watchlist", Toast.LENGTH_SHORT).show()
+                            }
+                            null -> {
+                                Toast.makeText(context, "Failed to update watchlist", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            } else {
+                Toast.makeText(context, "Please login first", Toast.LENGTH_SHORT).show()
+            }
         }
 
         binding.btnReviewLog.setOnClickListener {
@@ -403,8 +542,14 @@ object MovieActionsHelper {
         stars.forEachIndexed { index, star ->
             if (index < rating) {
                 star.setImageResource(R.drawable.ic_star_filled)
+                star.imageTintList = android.content.res.ColorStateList.valueOf(
+                    star.context.getColor(R.color.star_yellow)
+                )
             } else {
                 star.setImageResource(R.drawable.ic_star_outline)
+                star.imageTintList = android.content.res.ColorStateList.valueOf(
+                    star.context.getColor(R.color.text_secondary)
+                )
             }
         }
     }

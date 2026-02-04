@@ -259,7 +259,7 @@
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
-                android:text="Review or log again"
+                android:text="Review and log"
                 android:textColor="@color/text_primary"
                 android:textSize="16sp" />
 

@@ -1,5 +1,6 @@
 package com.komputerkit.moview.data.repository
 
+import android.util.Log
 import com.komputerkit.moview.data.api.MovieCardDto
 import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.data.api.UserProfileResponse
@@ -195,6 +196,7 @@ class MovieRepository {
             val response = apiService.getUserFilms(userId)
             if (response.success && response.data != null) {
                 response.data.map { filmDto ->
+                    Log.d("MovieRepository", "Film: ${filmDto.title}, is_liked=${filmDto.is_liked}, rating=${filmDto.rating}")
                     Movie(
                         id = filmDto.id,
                         title = filmDto.title,
@@ -205,7 +207,9 @@ class MovieRepository {
                         genre = "",
                         description = "",
                         hasReview = false,
-                        reviewId = 0
+                        reviewId = 0,
+                        isLiked = filmDto.is_liked ?: false,
+                        isInWatchlist = filmDto.is_in_watchlist ?: false
                     )
                 }
             } else {
@@ -276,18 +280,25 @@ class MovieRepository {
             val response = apiService.getUserLikes(userId)
             if (response.success && response.data != null) {
                 response.data.map { filmDto ->
+                    // Format poster URL
+                    val posterUrl = when {
+                        filmDto.poster_path.isNullOrBlank() -> ""
+                        filmDto.poster_path.startsWith("http") -> filmDto.poster_path.replace("127.0.0.1", "10.0.2.2")
+                        else -> "http://10.0.2.2:8000/storage/${filmDto.poster_path}"
+                    }
+                    
                     Movie(
                         id = filmDto.id,
                         title = filmDto.title,
                         releaseYear = filmDto.year,
-                        posterUrl = filmDto.poster_path ?: "",
+                        posterUrl = posterUrl,
                         averageRating = filmDto.rating ?: 0f,
                         genre = "",
                         description = "",
                         hasReview = false,
                         reviewId = 0,
                         userRating = filmDto.rating ?: 0f,
-                        isLiked = true
+                        isLiked = true  // All films in likes are liked
                     )
                 }
             } else {
@@ -1119,5 +1130,87 @@ class MovieRepository {
             false
         }
     }
+    
+    suspend fun toggleLike(userId: Int, movieId: Int): Boolean? = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "toggleLike: userId=$userId, movieId=$movieId")
+            val response = apiService.toggleLike(userId, movieId)
+            android.util.Log.d("MovieRepository", "toggleLike response: success=${response.success}, data=${response.data}")
+            if (response.success && response.data != null) {
+                android.util.Log.d("MovieRepository", "toggleLike result: is_liked=${response.data.is_liked}")
+                response.data.is_liked
+            } else {
+                android.util.Log.e("MovieRepository", "toggleLike failed: success=${response.success}")
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "toggleLike exception: ${e.message}", e)
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    suspend fun checkLike(userId: Int, movieId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "checkLike: userId=$userId, movieId=$movieId")
+            val response = apiService.checkLike(userId, movieId)
+            android.util.Log.d("MovieRepository", "checkLike response: success=${response.success}, is_liked=${response.data?.is_liked}")
+            response.success && response.data?.is_liked == true
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "checkLike exception: ${e.message}", e)
+            e.printStackTrace()
+            false
+        }
+    }
+    
+    suspend fun toggleWatchlist(userId: Int, movieId: Int): Boolean? = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "toggleWatchlist: userId=$userId, movieId=$movieId")
+            val response = apiService.toggleWatchlist(userId, movieId)
+            android.util.Log.d("MovieRepository", "toggleWatchlist response: success=${response.success}, data=${response.data}")
+            if (response.success && response.data != null) {
+                android.util.Log.d("MovieRepository", "toggleWatchlist result: is_in_watchlist=${response.data.is_in_watchlist}")
+                response.data.is_in_watchlist
+            } else {
+                android.util.Log.e("MovieRepository", "toggleWatchlist failed: success=${response.success}")
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "toggleWatchlist exception: ${e.message}", e)
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    suspend fun checkWatchlist(userId: Int, movieId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "checkWatchlist: userId=$userId, movieId=$movieId")
+            val response = apiService.checkWatchlist(userId, movieId)
+            android.util.Log.d("MovieRepository", "checkWatchlist response: success=${response.success}, is_in_watchlist=${response.data?.is_in_watchlist}")
+            response.success && response.data?.is_in_watchlist == true
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "checkWatchlist exception: ${e.message}", e)
+            e.printStackTrace()
+            false
+        }
+    }
+    
+    suspend fun saveReview(
+        userId: Int,
+        filmId: Int,
+        reviewText: String,
+        rating: Int,
+        containsSpoilers: Boolean
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "saveReview: userId=$userId, filmId=$filmId, rating=$rating, spoilers=$containsSpoilers")
+            val response = apiService.saveReview(userId, filmId, reviewText, rating, if (containsSpoilers) 1 else 0)
+            android.util.Log.d("MovieRepository", "saveReview response: success=${response.success}")
+            response.success
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "saveReview exception: ${e.message}", e)
+            e.printStackTrace()
+            false
+        }
+    }
 }
-

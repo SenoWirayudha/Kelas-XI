@@ -35,26 +35,37 @@ class LogFilmViewModel : ViewModel() {
     private var currentUserId: Int = -1
     
     fun loadMovie(movieId: Int, context: Context) {
-        // Load movie details
-        val movies = repository.getPopularMoviesThisWeekDummy()
-        _movie.value = movies.find { it.id == movieId } ?: movies.first()
-        
         // Get user ID from SharedPreferences - use same name as Login
         val sharedPref = context.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         currentUserId = sharedPref.getInt("userId", 0)
         
         Log.d("LogFilmViewModel", "Retrieved userId from SharedPreferences: $currentUserId")
         
-        // Load existing rating if any
-        if (currentUserId > 0) {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            // Load movie details from API
+            val movieDetail = repository.getMovieDetail(movieId)
+            if (movieDetail != null) {
+                _movie.value = movieDetail
+                Log.d("LogFilmViewModel", "Loaded movie from API: ${movieDetail.title}")
+            } else {
+                Log.e("LogFilmViewModel", "Failed to load movie details for id: $movieId")
+            }
+            
+            // Load existing rating and like status if any
+            if (currentUserId > 0) {
+                // Load rating - if rating exists, movie is watched
                 val ratingResponse = repository.getRating(currentUserId, movieId)
-                if (ratingResponse != null) {
-                    _isWatched.value = ratingResponse.is_watched
+                if (ratingResponse != null && ratingResponse.is_watched) {
+                    _isWatched.value = true
                     // Direct rating (0-5 stars)
                     _rating.value = ratingResponse.rating ?: 0
-                    Log.d("LogFilmViewModel", "Loaded existing rating: ${ratingResponse.rating} stars, watched: ${ratingResponse.is_watched}")
+                    Log.d("LogFilmViewModel", "Loaded existing rating: ${ratingResponse.rating} stars, watched: true")
                 }
+                
+                // Load liked status
+                val isLiked = repository.checkLike(currentUserId, movieId)
+                _isLiked.value = isLiked
+                Log.d("LogFilmViewModel", "Loaded existing liked status: $isLiked")
             }
         }
     }
@@ -64,7 +75,24 @@ class LogFilmViewModel : ViewModel() {
     }
     
     fun toggleLike() {
-        _isLiked.value = !(_isLiked.value ?: false)
+        val movieId = _movie.value?.id ?: return
+        
+        viewModelScope.launch {
+            if (currentUserId > 0) {
+                val newLikeStatus = repository.toggleLike(currentUserId, movieId)
+                if (newLikeStatus != null) {
+                    _isLiked.value = newLikeStatus
+                    Log.d("LogFilmViewModel", "Toggled like status: $newLikeStatus")
+                    
+                    // Auto-save rating=0 when liked (rating existence = watched)
+                    if (newLikeStatus) {
+                        repository.saveRating(currentUserId, movieId, 0)
+                        _isWatched.value = true
+                        Log.d("LogFilmViewModel", "Auto-saved rating=0 when liked (watched)")
+                    }
+                }
+            }
+        }
     }
     
     fun toggleWatched() {
@@ -98,13 +126,28 @@ class LogFilmViewModel : ViewModel() {
         val movieId = _movie.value?.id ?: return
         
         viewModelScope.launch {
-            if (currentUserId > 0 && _isWatched.value == true) {
-                // Save rating directly (0-5 stars)
+            if (currentUserId > 0) {
+                // Save rating directly (0-5 stars) - rating existence = watched
                 val ratingValue = _rating.value ?: 0
                 Log.d("LogFilmViewModel", "Saving log with rating: userId=$currentUserId, movieId=$movieId, rating=$ratingValue")
                 val success = repository.saveRating(currentUserId, movieId, ratingValue)
+                if (success) _isWatched.value = true
                 Log.d("LogFilmViewModel", "Save log rating result: $success")
-                _saveSuccess.value = success
+                
+                // Save review if text is not empty
+                if (reviewText.isNotBlank()) {
+                    val reviewSuccess = repository.saveReview(
+                        userId = currentUserId,
+                        filmId = movieId,
+                        reviewText = reviewText,
+                        rating = ratingValue,
+                        containsSpoilers = containsSpoilers
+                    )
+                    Log.d("LogFilmViewModel", "Save review result: $reviewSuccess")
+                    _saveSuccess.value = success && reviewSuccess
+                } else {
+                    _saveSuccess.value = success
+                }
             } else {
                 Log.w("LogFilmViewModel", "Not saving rating: userId=$currentUserId, isWatched=${_isWatched.value}")
                 _saveSuccess.value = true // Still allow log to be saved

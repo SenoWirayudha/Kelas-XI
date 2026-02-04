@@ -81,9 +81,8 @@ class ProfileController extends Controller
             // Build profile photo URL - use storage path for reliability
             $profilePhotoUrl = null;
             if ($profile && $profile->profile_photo) {
-                // Use direct storage URL with timestamp for cache busting
-                $timestamp = $profile->updated_at ? strtotime($profile->updated_at) : time();
-                $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$profile->profile_photo}?t={$timestamp}";
+                // Use direct storage URL (no timestamp - let Glide handle caching)
+                $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$profile->profile_photo}";
             }
 
             // Build backdrop URL
@@ -368,12 +367,11 @@ class ProfileController extends Controller
             // Get the updated profile photo URL
             $updatedProfile = DB::table('user_profiles')
                 ->where('user_id', $userId)
-                ->first(['profile_photo', 'updated_at']);
+                ->first(['profile_photo']);
             
             $profilePhotoUrl = null;
             if ($updatedProfile && $updatedProfile->profile_photo) {
-                $timestamp = $updatedProfile->updated_at ? strtotime($updatedProfile->updated_at) : time();
-                $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$updatedProfile->profile_photo}?t={$timestamp}";
+                $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$updatedProfile->profile_photo}";
             }
             
             return response()->json([
@@ -453,9 +451,8 @@ class ProfileController extends Controller
                 ]);
             }
 
-            // Build full URL - use storage path with timestamp for cache busting
-            $timestamp = time();
-            $photoUrl = "http://10.0.2.2:8000/storage/{$path}?t={$timestamp}";
+            // Build full URL - use storage path (no timestamp - let Glide handle caching)
+            $photoUrl = "http://10.0.2.2:8000/storage/{$path}";
 
             return response()->json([
                 'success' => true,

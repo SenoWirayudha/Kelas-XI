@@ -65,6 +65,7 @@ class FilmGridAdapter(
             updateStarRating(movie.userRating)
             
             // Show liked icon if movie is liked
+            Log.d("FilmGridAdapter", "Film: ${movie.title}, isLiked=${movie.isLiked}, rating=${movie.userRating}")
             binding.ivLiked.visibility = if (movie.isLiked) View.VISIBLE else View.GONE
             
             // Poster click - navigate to Film Detail
@@ -100,13 +101,21 @@ class FilmGridAdapter(
                 binding.star5
             )
             
+            // Always show the rating container (it contains the like icon too)
+            binding.ratingContainer.visibility = View.VISIBLE
+            
             if (rating == 0f) {
-                // No rating - hide the rating container
-                binding.ratingContainer.visibility = View.GONE
+                // No rating - hide all stars
+                stars.forEach { star ->
+                    star.visibility = View.GONE
+                }
                 return
             }
             
-            binding.ratingContainer.visibility = View.VISIBLE
+            // Show all stars
+            stars.forEach { star ->
+                star.visibility = View.VISIBLE
+            }
             
             // Round to nearest 0.5 for display
             val roundedRating = (rating * 2).toInt() / 2f

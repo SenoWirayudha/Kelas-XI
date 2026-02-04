@@ -21,9 +21,12 @@
     <color name="accent_blue">#1E88E5</color>
     <color name="accent_gold">#FFD700</color>
     <color name="star_green">#4CAF50</color>
+    <color name="star_yellow">#FFC107</color>
     
     <!-- Status Colors -->
     <color name="transparent">#00000000</color>
     <color name="pink_like">#FF4081</color>
+    <color name="red">#F44336</color>
+    <color name="orange">#FF9800</color>
     <color name="teal_watched">#00BCD4</color>
 </resources>

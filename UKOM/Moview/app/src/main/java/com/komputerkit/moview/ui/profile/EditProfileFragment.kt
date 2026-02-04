@@ -21,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
+import com.komputerkit.moview.util.loadProfilePhoto
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentEditProfileBinding
 import com.komputerkit.moview.util.TmdbImageUrl
@@ -58,11 +59,8 @@ class EditProfileFragment : Fragment() {
                 // Upload cropped photo
                 viewModel.uploadProfilePhoto(croppedUri)
                 
-                // Update UI immediately with cropped image and keep it
-                Glide.with(this@EditProfileFragment)
-                    .load(croppedUri)
-                    .circleCrop()
-                    .into(binding.ivProfile)
+                // Update UI immediately with cropped image
+                binding.ivProfile.loadProfilePhoto(croppedUri.toString())
                 
                 // Save URI to SharedPreferences immediately for consistency
                 val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
@@ -122,12 +120,7 @@ class EditProfileFragment : Fragment() {
                 
                 // Update profile photo from state (only if not skipping reload)
                 if (!skipPhotoReload && !state.profilePhotoUrl.isNullOrBlank()) {
-                    Glide.with(this@EditProfileFragment)
-                        .load(state.profilePhotoUrl)
-                        .placeholder(R.drawable.ic_default_profile)
-                        .error(R.drawable.ic_default_profile)
-                        .circleCrop()
-                        .into(binding.ivProfile)
+                    binding.ivProfile.loadProfilePhoto(state.profilePhotoUrl)
                 }
                 
                 // Update backdrop enabled state
@@ -197,17 +190,8 @@ class EditProfileFragment : Fragment() {
                 val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
                 val profilePhotoUrl = prefs.getString("profilePhotoUrl", null)
                 
-                if (!profilePhotoUrl.isNullOrEmpty()) {
-                    Glide.with(this@EditProfileFragment)
-                        .load(profilePhotoUrl)
-                        .placeholder(R.drawable.ic_default_profile)
-                        .error(R.drawable.ic_default_profile)
-                        .circleCrop()
-                        .into(binding.ivProfile)
-                } else {
-                    // Default profile icon for new users
-                    binding.ivProfile.setImageResource(R.drawable.ic_default_profile)
-                }
+                // Use same loading strategy as poster/backdrop for reliability
+                binding.ivProfile.loadProfilePhoto(profilePhotoUrl)
             }
         }
     }

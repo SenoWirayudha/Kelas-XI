@@ -14,12 +14,21 @@ class UserActivityController extends Controller
     public function getFilms($userId)
     {
         try {
-            $films = DB::table('ratings')
+            // Get films from ratings and likes (union of both)
+            $ratedFilms = DB::table('ratings')
                 ->join('movies', 'ratings.film_id', '=', 'movies.id')
                 ->leftJoin('movie_media', function($join) {
                     $join->on('movies.id', '=', 'movie_media.movie_id')
                          ->where('movie_media.media_type', '=', 'poster')
                          ->where('movie_media.is_default', '=', 1);
+                })
+                ->leftJoin('movie_likes', function($join) use ($userId) {
+                    $join->on('movies.id', '=', 'movie_likes.film_id')
+                         ->where('movie_likes.user_id', '=', $userId);
+                })
+                ->leftJoin('watchlists', function($join) use ($userId) {
+                    $join->on('movies.id', '=', 'watchlists.film_id')
+                         ->where('watchlists.user_id', '=', $userId);
                 })
                 ->where('ratings.user_id', $userId)
                 ->select(
@@ -28,9 +37,43 @@ class UserActivityController extends Controller
                     'movies.release_year as year',
                     'movie_media.media_path',
                     'ratings.rating',
-                    'ratings.created_at as rated_at'
-                )
-                ->orderBy('ratings.created_at', 'desc')
+                    'ratings.created_at as activity_date',
+                    DB::raw('CASE WHEN movie_likes.film_id IS NOT NULL THEN 1 ELSE 0 END as is_liked'),
+                    DB::raw('CASE WHEN watchlists.film_id IS NOT NULL THEN 1 ELSE 0 END as is_in_watchlist')
+                );
+
+            // Get films that are only liked (not rated)
+            $likedOnlyFilms = DB::table('movie_likes')
+                ->join('movies', 'movie_likes.film_id', '=', 'movies.id')
+                ->leftJoin('movie_media', function($join) {
+                    $join->on('movies.id', '=', 'movie_media.movie_id')
+                         ->where('movie_media.media_type', '=', 'poster')
+                         ->where('movie_media.is_default', '=', 1);
+                })
+                ->leftJoin('ratings', function($join) use ($userId) {
+                    $join->on('movies.id', '=', 'ratings.film_id')
+                         ->where('ratings.user_id', '=', $userId);
+                })
+                ->leftJoin('watchlists', function($join) use ($userId) {
+                    $join->on('movies.id', '=', 'watchlists.film_id')
+                         ->where('watchlists.user_id', '=', $userId);
+                })
+                ->where('movie_likes.user_id', $userId)
+                ->whereNull('ratings.film_id') // Only get films that DON'T have ratings
+                ->select(
+                    'movies.id',
+                    'movies.title',
+                    'movies.release_year as year',
+                    'movie_media.media_path',
+                    DB::raw('NULL as rating'),
+                    'movie_likes.created_at as activity_date',
+                    DB::raw('1 as is_liked'),
+                    DB::raw('CASE WHEN watchlists.film_id IS NOT NULL THEN 1 ELSE 0 END as is_in_watchlist')
+                );
+
+            // Combine both queries
+            $films = $ratedFilms->union($likedOnlyFilms)
+                ->orderBy('activity_date', 'desc')
                 ->get();
 
             // Build poster URLs with base URL
@@ -50,7 +93,9 @@ class UserActivityController extends Controller
                     'year' => $film->year,
                     'poster_path' => $posterUrl,
                     'rating' => $film->rating,
-                    'rated_at' => $film->rated_at
+                    'rated_at' => $film->activity_date,
+                    'is_liked' => (bool)$film->is_liked,
+                    'is_in_watchlist' => (bool)$film->is_in_watchlist
                 ];
             });
 
@@ -190,15 +235,41 @@ class UserActivityController extends Controller
                     'movies.id',
                     'movies.title',
                     'movies.release_year as year',
-                    'movie_media.media_path as poster_path',
+                    'movie_media.media_path',
                     'movie_likes.created_at as liked_at'
                 )
                 ->orderBy('movie_likes.created_at', 'desc')
                 ->get();
 
+            // Build full poster URLs and get average rating
+            $likesData = $likes->map(function($like) {
+                $posterUrl = null;
+                if ($like->media_path) {
+                    if (!str_starts_with($like->media_path, 'http')) {
+                        $posterUrl = "http://10.0.2.2:8000/storage/{$like->media_path}";
+                    } else {
+                        $posterUrl = $like->media_path;
+                    }
+                }
+                
+                // Get average rating for this movie
+                $averageRating = DB::table('ratings')
+                    ->where('film_id', $like->id)
+                    ->avg('rating') ?? 0;
+                
+                return [
+                    'id' => $like->id,
+                    'title' => $like->title,
+                    'year' => $like->year,
+                    'poster_path' => $posterUrl,
+                    'rating' => round($averageRating, 1),
+                    'liked_at' => $like->liked_at
+                ];
+            });
+
             return response()->json([
                 'success' => true,
-                'data' => $likes
+                'data' => $likesData
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -421,9 +492,9 @@ class UserActivityController extends Controller
                     'success' => true,
                     'data' => [
                         'rating' => $rating->rating,
+                        'is_watched' => true,
                         'created_at' => $rating->created_at,
-                        'updated_at' => $rating->updated_at,
-                        'is_watched' => true
+                        'updated_at' => $rating->updated_at
                     ]
                 ]);
             } else {
@@ -472,5 +543,214 @@ class UserActivityController extends Controller
             ], 500);
         }
     }
+    
+    /**
+     * Toggle like for a movie (like/unlike)
+     */
+    public function toggleLike($userId, $movieId)
+    {
+        try {
+            // Check if already liked
+            $existingLike = DB::table('movie_likes')
+                ->where('user_id', $userId)
+                ->where('film_id', $movieId)
+                ->first();
+            
+            if ($existingLike) {
+                // Unlike - delete the like
+                DB::table('movie_likes')
+                    ->where('user_id', $userId)
+                    ->where('film_id', $movieId)
+                    ->delete();
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'is_liked' => false
+                    ],
+                    'message' => 'Movie unliked successfully'
+                ]);
+            } else {
+                // Like - insert new like
+                DB::table('movie_likes')->insert([
+                    'user_id' => $userId,
+                    'film_id' => $movieId,
+                    'created_at' => now()
+                ]);
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'is_liked' => true
+                    ],
+                    'message' => 'Movie liked successfully'
+                ]);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to toggle like: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Check if user has liked a movie
+     */
+    public function checkLike($userId, $movieId)
+    {
+        try {
+            $like = DB::table('movie_likes')
+                ->where('user_id', $userId)
+                ->where('film_id', $movieId)
+                ->first();
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'is_liked' => $like !== null
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check like status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Toggle watchlist (add or remove from watchlist)
+     */
+    public function toggleWatchlist($userId, $movieId)
+    {
+        try {
+            // Check if already in watchlist
+            $existingWatchlist = DB::table('watchlists')
+                ->where('user_id', $userId)
+                ->where('film_id', $movieId)
+                ->first();
+            
+            if ($existingWatchlist) {
+                // Remove from watchlist
+                DB::table('watchlists')
+                    ->where('user_id', $userId)
+                    ->where('film_id', $movieId)
+                    ->delete();
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'is_in_watchlist' => false
+                    ],
+                    'message' => 'Removed from watchlist'
+                ]);
+            } else {
+                // Add to watchlist
+                DB::table('watchlists')->insert([
+                    'user_id' => $userId,
+                    'film_id' => $movieId,
+                    'created_at' => now()
+                ]);
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'is_in_watchlist' => true
+                    ],
+                    'message' => 'Added to watchlist'
+                ]);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to toggle watchlist: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Check if movie is in user's watchlist
+     */
+    public function checkWatchlist($userId, $movieId)
+    {
+        try {
+            $watchlist = DB::table('watchlists')
+                ->where('user_id', $userId)
+                ->where('film_id', $movieId)
+                ->first();
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'is_in_watchlist' => $watchlist !== null
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check watchlist status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Save a review for a movie
+     */
+    public function saveReview(Request $request, $userId, $movieId)
+    {
+        try {
+            $reviewText = $request->input('review');
+            $rating = $request->input('rating', 0);
+            $containsSpoilers = $request->input('contains_spoilers', false);
+            
+            // Validate review text
+            if (empty($reviewText)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Review text is required'
+                ], 400);
+            }
+            
+            // Check if review already exists
+            $existingReview = DB::table('reviews')
+                ->where('user_id', $userId)
+                ->where('film_id', $movieId)
+                ->first();
+            
+            if ($existingReview) {
+                // Update existing review
+                DB::table('reviews')
+                    ->where('user_id', $userId)
+                    ->where('film_id', $movieId)
+                    ->update([
+                        'review' => $reviewText,
+                        'rating' => $rating,
+                        'contains_spoilers' => $containsSpoilers ? 1 : 0,
+                        'updated_at' => now()
+                    ]);
+            } else {
+                // Create new review
+                DB::table('reviews')->insert([
+                    'user_id' => $userId,
+                    'film_id' => $movieId,
+                    'review' => $reviewText,
+                    'rating' => $rating,
+                    'contains_spoilers' => $containsSpoilers ? 1 : 0,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Review saved successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save review: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
-

@@ -60,6 +60,17 @@ Route::prefix('v1')->group(function () {
     Route::get('/users/{userId}/movies/{movieId}/rating', [UserActivityController::class, 'getRating']);
     Route::delete('/users/{userId}/movies/{movieId}/rating', [UserActivityController::class, 'deleteRating']);
     
+    // Likes
+    Route::post('/users/{userId}/movies/{movieId}/like', [UserActivityController::class, 'toggleLike']);
+    Route::get('/users/{userId}/movies/{movieId}/like', [UserActivityController::class, 'checkLike']);
+    
+    // Watchlist
+    Route::post('/users/{userId}/movies/{movieId}/watchlist', [UserActivityController::class, 'toggleWatchlist']);
+    Route::get('/users/{userId}/movies/{movieId}/watchlist', [UserActivityController::class, 'checkWatchlist']);
+    
+    // Reviews
+    Route::post('/users/{userId}/movies/{movieId}/review', [UserActivityController::class, 'saveReview']);
+    
     // Film List by Category
     Route::get('/films/category', [FilmListController::class, 'getFilmsByCategory']);
     

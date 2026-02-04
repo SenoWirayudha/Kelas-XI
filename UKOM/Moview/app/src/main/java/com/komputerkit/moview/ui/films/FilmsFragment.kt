@@ -1,6 +1,7 @@
 package com.komputerkit.moview.ui.films
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -58,6 +59,10 @@ class FilmsFragment : Fragment() {
     
     private fun setupObservers() {
         viewModel.films.observe(viewLifecycleOwner) { films ->
+            Log.d("FilmsFragment", "Observer received ${films.size} films")
+            films.forEach { film ->
+                Log.d("FilmsFragment", "Film to adapter: ${film.title}, isLiked=${film.isLiked}")
+            }
             filmGridAdapter.submitList(films)
         }
     }

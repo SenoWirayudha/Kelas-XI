@@ -29,11 +29,26 @@ class MovieGlideModule : AppGlideModule() {
     }
 
     override fun registerComponents(context: Context, glide: Glide, registry: Registry) {
-        // Use OkHttp with connection pooling for faster network requests
+        // Use OkHttp with longer timeout and retry logic for profile photos
         val client = OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
+            .connectTimeout(30, TimeUnit.SECONDS)  // Increased from 10s
+            .readTimeout(30, TimeUnit.SECONDS)     // Increased from 15s
+            .writeTimeout(30, TimeUnit.SECONDS)    // Increased from 15s
+            .retryOnConnectionFailure(true)        // Auto retry on connection failure
+            .addInterceptor { chain ->
+                val request = chain.request()
+                var response = chain.proceed(request)
+                
+                // Retry up to 3 times if we get unexpected end of stream
+                var tryCount = 0
+                while (!response.isSuccessful && tryCount < 3) {
+                    tryCount++
+                    response.close()
+                    response = chain.proceed(request)
+                }
+                
+                response
+            }
             .build()
 
         registry.replace(

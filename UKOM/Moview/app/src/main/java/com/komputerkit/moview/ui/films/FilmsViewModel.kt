@@ -2,6 +2,7 @@ package com.komputerkit.moview.ui.films
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -35,6 +36,10 @@ class FilmsViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 allFilms = repository.getUserFilms(userId)
+                Log.d("FilmsViewModel", "Loaded ${allFilms.size} films")
+                allFilms.forEach { film ->
+                    Log.d("FilmsViewModel", "Film: ${film.title}, isLiked=${film.isLiked}, rating=${film.userRating}")
+                }
                 _films.postValue(allFilms)
             } catch (e: Exception) {
                 e.printStackTrace()

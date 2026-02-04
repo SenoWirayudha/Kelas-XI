@@ -240,7 +240,9 @@ data class UserFilmDto(
     val rating: Float? = null,
     val rated_at: String? = null,
     val liked_at: String? = null,
-    val added_at: String? = null
+    val added_at: String? = null,
+    val is_liked: Boolean? = null,
+    val is_in_watchlist: Boolean? = null
 )
 
 data class DiaryEntryDto(
@@ -313,4 +315,12 @@ data class RatingResponse(
     val is_watched: Boolean,
     val created_at: String? = null,
     val updated_at: String? = null
+)
+
+data class LikeResponse(
+    val is_liked: Boolean
+)
+
+data class WatchlistResponse(
+    val is_in_watchlist: Boolean
 )

@@ -113,3 +113,25 @@ fun ImageView.loadLogo(url: String?, placeholder: Drawable? = null) {
         .transition(DrawableTransitionOptions.withCrossFade(100))
         .into(this)
 }
+
+// Load profile photo with optimizations (same strategy as poster/backdrop)
+fun ImageView.loadProfilePhoto(url: String?) {
+    if (url.isNullOrEmpty()) {
+        // Show default profile icon if URL is null or empty
+        this.setImageResource(R.drawable.ic_default_profile)
+        return
+    }
+    
+    Glide.with(this.context)
+        .load(url)
+        .thumbnail(0.1f) // Load low-res thumbnail first for instant display
+        .apply(
+            RequestOptions()
+                .placeholder(R.drawable.ic_default_profile)
+                .error(R.drawable.ic_default_profile)
+                .diskCacheStrategy(DiskCacheStrategy.ALL) // Cache both original & resized
+                .circleCrop() // Circle crop for profile photo
+        )
+        .transition(DrawableTransitionOptions.withCrossFade(200))
+        .into(this)
+}

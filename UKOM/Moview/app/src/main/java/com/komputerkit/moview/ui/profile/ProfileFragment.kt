@@ -14,6 +14,7 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentProfileNewBinding
 import com.komputerkit.moview.util.TmdbImageUrl
+import com.komputerkit.moview.util.loadProfilePhoto
 
 class ProfileFragment : Fragment() {
 
@@ -63,17 +64,8 @@ class ProfileFragment : Fragment() {
                     val photoUrl = savedStateHandle.get<String>("profile_photo_url")
                     Log.d("ProfileFragment", "Received profile_photo_url: $photoUrl")
                     
-                    if (!photoUrl.isNullOrBlank()) {
-                        // Load the new photo directly
-                        Glide.with(this@ProfileFragment)
-                            .load(photoUrl)
-                            .skipMemoryCache(true)
-                            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
-                            .placeholder(R.drawable.ic_default_profile)
-                            .error(R.drawable.ic_default_profile)
-                            .circleCrop()
-                            .into(binding.ivProfilePhoto)
-                    }
+                    // Load the new photo using same strategy as poster/backdrop
+                    binding.ivProfilePhoto.loadProfilePhoto(photoUrl)
                     
                     // Clear the flags
                     savedStateHandle.remove<Boolean>("profile_updated")
@@ -91,18 +83,8 @@ class ProfileFragment : Fragment() {
         
         Log.d("ProfileFragment", "reloadProfilePhotoFromPrefs: URL = $profilePhotoUrl")
         
-        if (!profilePhotoUrl.isNullOrBlank()) {
-            Glide.with(this)
-                .load(profilePhotoUrl)
-                .skipMemoryCache(true) // Skip cache to get fresh image
-                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
-                .placeholder(R.drawable.ic_default_profile)
-                .error(R.drawable.ic_default_profile)
-                .circleCrop()
-                .into(binding.ivProfilePhoto)
-        } else {
-            binding.ivProfilePhoto.setImageResource(R.drawable.ic_default_profile)
-        }
+        // Use same loading strategy as poster/backdrop for reliability
+        binding.ivProfilePhoto.loadProfilePhoto(profilePhotoUrl)
     }
     
     private fun setupRecyclerViews() {
@@ -159,24 +141,10 @@ class ProfileFragment : Fragment() {
             updateStats(stats)
         }
         
-        // Profile photo dari API
+        // Profile photo dari API - use same loading strategy as poster/backdrop
         viewModel.profilePhotoUrl.observe(viewLifecycleOwner) { photoUrl ->
             Log.d("ProfileFragment", "Profile photo URL changed: $photoUrl")
-            if (!photoUrl.isNullOrBlank()) {
-                Glide.with(this)
-                    .load(photoUrl)
-                    .skipMemoryCache(true)  // Skip memory cache to always get fresh image
-                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)  // Disable disk cache for profile photo
-                    .placeholder(R.drawable.ic_default_profile)
-                    .error(R.drawable.ic_default_profile)
-                    .circleCrop()
-                    .into(binding.ivProfilePhoto)
-                Log.d("ProfileFragment", "Loading profile photo from URL: $photoUrl")
-            } else {
-                // Use default profile icon
-                binding.ivProfilePhoto.setImageResource(R.drawable.ic_default_profile)
-                Log.d("ProfileFragment", "Using default profile photo")
-            }
+            binding.ivProfilePhoto.loadProfilePhoto(photoUrl)
         }
         
         // Header background dari API dengan layout adjustment
