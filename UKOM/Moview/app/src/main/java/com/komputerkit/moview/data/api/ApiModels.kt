@@ -246,26 +246,50 @@ data class UserFilmDto(
 )
 
 data class DiaryEntryDto(
-    val id: Int,
+    val diary_id: Int,
+    val film_id: Int,
+    val movie_id: Int,
     val title: String,
-    val year: Int,
+    val year: String,
     val poster_path: String?,
     val watched_at: String,
     val note: String?,
-    val rating: Float?
+    val review_id: Int?,
+    val rating: Int?,
+    val review_content: String?,
+    val is_liked: Boolean,
+    val type: String,  // "review" or "log"
+    val created_at: String
 )
 
 data class UserReviewDto(
     val review_id: Int,
     val id: Int,
     val title: String,
-    val year: Int,
+    val year: String,  // Changed from Int to String to match backend
     val poster_path: String?,
-    val rating: Float?,
+    val rating: Int?,  // Changed from Float to Int to match backend
     val review_title: String?,
     val content: String,
     val is_spoiler: Boolean,
     val created_at: String
+)
+
+data class ReviewDetailDto(
+    val review_id: Int,
+    val user_id: Int,
+    val movie_id: Int,
+    val rating: Int,
+    val review_text: String,
+    val created_at: String,
+    val id: Int,
+    val title: String,
+    val year: String,
+    val poster_path: String?,
+    val backdrop_path: String?,
+    val username: String,
+    val display_name: String?,
+    val profile_photo: String?
 )
 
 data class UserFollowDto(

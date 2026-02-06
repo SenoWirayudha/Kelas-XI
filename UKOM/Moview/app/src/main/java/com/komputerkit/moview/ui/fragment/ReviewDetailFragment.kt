@@ -13,7 +13,6 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.komputerkit.moview.R
@@ -21,6 +20,9 @@ import com.komputerkit.moview.databinding.BottomSheetCommentsBinding
 import com.komputerkit.moview.databinding.FragmentReviewDetailBinding
 import com.komputerkit.moview.ui.adapter.CommentAdapter
 import com.komputerkit.moview.ui.viewmodel.ReviewDetailViewModel
+import com.komputerkit.moview.util.loadBackdrop
+import com.komputerkit.moview.util.loadPoster
+import com.komputerkit.moview.util.loadProfilePhoto
 
 class ReviewDetailFragment : Fragment() {
     private var _binding: FragmentReviewDetailBinding?= null
@@ -54,24 +56,14 @@ class ReviewDetailFragment : Fragment() {
     private fun setupObservers() {
         viewModel.review.observe(viewLifecycleOwner) { review ->
             binding.apply {
-                // Load backdrop
-                Glide.with(requireContext())
-                    .load(review.movie.backdropUrl)
-                    .placeholder(R.color.dark_card)
-                    .into(ivBackdrop)
+                // Load backdrop using extension for fast loading
+                ivBackdrop.loadBackdrop(review.movie.backdropUrl)
 
-                // Load profile
-                Glide.with(requireContext())
-                    .load(review.userAvatar)
-                    .placeholder(R.color.dark_card)
-                    .circleCrop()
-                    .into(ivProfile)
+                // Load profile photo using extension with circular crop
+                ivProfile.loadProfilePhoto(review.userAvatar)
 
-                // Load poster
-                Glide.with(requireContext())
-                    .load(review.movie.posterUrl)
-                    .placeholder(R.color.dark_card)
-                    .into(ivPoster)
+                // Load poster using extension for fast loading
+                ivPoster.loadPoster(review.movie.posterUrl)
 
                 tvUsername.text = review.userName
                 tvMovieTitle.text = review.movie.title

@@ -221,30 +221,92 @@ class MovieRepository {
         }
     }
     
-    suspend fun getUserDiary(userId: Int): List<Movie> = withContext(Dispatchers.IO) {
+    suspend fun getUserDiary(userId: Int): List<com.komputerkit.moview.data.model.DiaryEntry> = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getUserDiary(userId)
             if (response.success && response.data != null) {
-                response.data.map { diaryDto ->
-                    Movie(
-                        id = diaryDto.id,
-                        title = diaryDto.title,
-                        releaseYear = diaryDto.year,
-                        posterUrl = diaryDto.poster_path ?: "",
-                        userRating = diaryDto.rating ?: 0f,
+                response.data.map { dto ->
+                    // Build full URL for poster
+                    val posterUrl = when {
+                        dto.poster_path.isNullOrBlank() -> ""
+                        dto.poster_path.startsWith("http") -> dto.poster_path.replace("127.0.0.1", "10.0.2.2")
+                        else -> "http://10.0.2.2:8000/storage/${dto.poster_path}"
+                    }
+                    
+                    val movie = Movie(
+                        id = dto.movie_id,
+                        title = dto.title,
+                        releaseYear = dto.year.toIntOrNull() ?: 0,
+                        posterUrl = posterUrl,
+                        userRating = dto.rating?.toFloat() ?: 0f,
                         averageRating = 0f,
                         genre = "",
-                        description = diaryDto.note ?: "",
-                        hasReview = false,
-                        reviewId = 0
+                        description = dto.note ?: "",
+                        hasReview = dto.type == "review",
+                        reviewId = dto.review_id ?: 0
+                    )
+                    
+                    com.komputerkit.moview.data.model.DiaryEntry(
+                        id = dto.diary_id,
+                        movie = movie,
+                        watchedDate = dto.watched_at,
+                        dateLabel = formatDiaryDate(dto.watched_at),
+                        monthYear = formatMonthYear(dto.watched_at),
+                        rating = dto.rating ?: 0,
+                        hasReview = dto.type == "review",
+                        isLiked = dto.is_liked
                     )
                 }
             } else {
                 emptyList()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("MovieRepository", "Error getting diary: ${e.message}", e)
             emptyList()
+        }
+    }
+    
+    private fun formatDiaryDate(dateString: String): String {
+        return try {
+            val parts = dateString.split("-")
+            if (parts.size == 3) {
+                val day = parts[2]
+                "${day.toIntOrNull() ?: 1}"
+            } else {
+                dateString
+            }
+        } catch (e: Exception) {
+            dateString
+        }
+    }
+    
+    private fun formatMonthYear(dateString: String): String {
+        return try {
+            val parts = dateString.split("-")
+            if (parts.size == 3) {
+                val year = parts[0]
+                val month = parts[1]
+                val monthName = when (month) {
+                    "01" -> "Januari"
+                    "02" -> "Februari"
+                    "03" -> "Maret"
+                    "04" -> "April"
+                    "05" -> "Mei"
+                    "06" -> "Juni"
+                    "07" -> "Juli"
+                    "08" -> "Agustus"
+                    "09" -> "September"
+                    "10" -> "Oktober"
+                    "11" -> "November"
+                    "12" -> "Desember"
+                    else -> month
+                }
+                "$monthName $year"
+            } else {
+                dateString
+            }
+        } catch (e: Exception) {
+            dateString
         }
     }
     
@@ -321,6 +383,21 @@ class MovieRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
+        }
+    }
+    
+    suspend fun getReviewDetail(userId: Int, reviewId: Int): com.komputerkit.moview.data.api.ReviewDetailDto? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getReviewDetail(userId, reviewId)
+            if (response.success && response.data != null) {
+                response.data
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error getting review detail: ${e.message}", e)
+            e.printStackTrace()
+            null
         }
     }
     

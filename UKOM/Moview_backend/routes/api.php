@@ -50,6 +50,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/users/{userId}/films', [UserActivityController::class, 'getFilms']);
     Route::get('/users/{userId}/diary', [UserActivityController::class, 'getDiary']);
     Route::get('/users/{userId}/reviews', [UserActivityController::class, 'getReviews']);
+    Route::get('/users/{userId}/reviews/{reviewId}', [UserActivityController::class, 'getReviewDetail']);
     Route::get('/users/{userId}/likes', [UserActivityController::class, 'getLikes']);
     Route::get('/users/{userId}/watchlist', [UserActivityController::class, 'getWatchlist']);
     Route::get('/users/{userId}/followers', [UserActivityController::class, 'getFollowers']);

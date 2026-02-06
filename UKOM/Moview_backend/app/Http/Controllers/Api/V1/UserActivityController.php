@@ -112,54 +112,77 @@ class UserActivityController extends Controller
     }
 
     /**
-     * Get user diary entries
+     * Get user diary entries (logs and reviews)
      */
     public function getDiary($userId)
     {
         try {
             $diaries = DB::table('diaries')
                 ->join('movies', 'diaries.film_id', '=', 'movies.id')
-                ->leftJoin('movie_media', function($join) {
-                    $join->on('movies.id', '=', 'movie_media.movie_id')
-                         ->where('movie_media.media_type', '=', 'poster')
-                         ->where('movie_media.is_default', '=', 1);
+                ->leftJoin('movie_media as poster_media', function($join) {
+                    $join->on('movies.id', '=', 'poster_media.movie_id')
+                         ->where('poster_media.media_type', '=', 'poster')
+                         ->where('poster_media.is_default', '=', 1);
+                })
+                ->leftJoin('reviews', function($join) use ($userId) {
+                    $join->on('diaries.film_id', '=', 'reviews.film_id')
+                         ->where('reviews.user_id', '=', $userId);
                 })
                 ->leftJoin('ratings', function($join) use ($userId) {
                     $join->on('diaries.film_id', '=', 'ratings.film_id')
                          ->where('ratings.user_id', '=', $userId);
                 })
+                ->leftJoin('movie_likes', function($join) use ($userId) {
+                    $join->on('diaries.film_id', '=', 'movie_likes.film_id')
+                         ->where('movie_likes.user_id', '=', $userId);
+                })
                 ->where('diaries.user_id', $userId)
                 ->select(
-                    'movies.id',
-                    'movies.title',
-                    'movies.release_year as year',
-                    'movie_media.media_path',
+                    'diaries.id as diary_id',
+                    'diaries.film_id',
                     'diaries.watched_at',
                     'diaries.note',
-                    'ratings.rating'
+                    'diaries.created_at',
+                    'movies.id as movie_id',
+                    'movies.title',
+                    'movies.release_year as year',
+                    'poster_media.media_path as poster_path',
+                    'reviews.id as review_id',
+                    DB::raw('COALESCE(reviews.rating, ratings.rating) as rating'), // Use review rating first, fallback to ratings table
+                    'reviews.content as review_content',
+                    DB::raw('CASE WHEN movie_likes.id IS NOT NULL THEN 1 ELSE 0 END as is_liked'),
+                    DB::raw('CASE WHEN reviews.content IS NOT NULL THEN "review" ELSE "log" END as type')
                 )
                 ->orderBy('diaries.watched_at', 'desc')
+                ->orderBy('diaries.created_at', 'desc')
                 ->get();
 
             // Build poster URLs with base URL
             $diariesData = $diaries->map(function($diary) {
                 $posterUrl = null;
-                if ($diary->media_path) {
-                    if (!str_starts_with($diary->media_path, 'http')) {
-                        $posterUrl = "http://10.0.2.2:8000/storage/{$diary->media_path}";
+                if ($diary->poster_path) {
+                    if (!str_starts_with($diary->poster_path, 'http')) {
+                        $posterUrl = "http://10.0.2.2:8000/storage/{$diary->poster_path}";
                     } else {
-                        $posterUrl = $diary->media_path;
+                        $posterUrl = $diary->poster_path;
                     }
                 }
                 
                 return [
-                    'id' => $diary->id,
+                    'diary_id' => $diary->diary_id,
+                    'film_id' => $diary->film_id,
+                    'movie_id' => $diary->movie_id,
                     'title' => $diary->title,
                     'year' => $diary->year,
                     'poster_path' => $posterUrl,
                     'watched_at' => $diary->watched_at,
                     'note' => $diary->note,
-                    'rating' => $diary->rating
+                    'review_id' => $diary->review_id,
+                    'rating' => $diary->rating,
+                    'review_content' => $diary->review_content,
+                    'is_liked' => (bool)$diary->is_liked,
+                    'type' => $diary->type,  // 'review' or 'log'
+                    'created_at' => $diary->created_at
                 ];
             });
 
@@ -176,7 +199,7 @@ class UserActivityController extends Controller
     }
 
     /**
-     * Get user reviews
+     * Get user reviews list
      */
     public function getReviews($userId)
     {
@@ -205,6 +228,12 @@ class UserActivityController extends Controller
                 ->orderBy('reviews.created_at', 'desc')
                 ->get();
 
+            // Convert is_spoiler to boolean
+            $reviews = $reviews->map(function($review) {
+                $review->is_spoiler = (bool)$review->is_spoiler;
+                return $review;
+            });
+
             return response()->json([
                 'success' => true,
                 'data' => $reviews
@@ -213,6 +242,65 @@ class UserActivityController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch reviews: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get review detail
+     */
+    public function getReviewDetail($userId, $reviewId)
+    {
+        try {
+            $review = DB::table('reviews')
+                ->join('movies', 'reviews.film_id', '=', 'movies.id')
+                ->join('users', 'reviews.user_id', '=', 'users.id')
+                ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
+                ->leftJoin('movie_media as poster', function($join) {
+                    $join->on('movies.id', '=', 'poster.movie_id')
+                         ->where('poster.media_type', '=', 'poster')
+                         ->where('poster.is_default', '=', 1);
+                })
+                ->leftJoin('movie_media as backdrop', function($join) {
+                    $join->on('movies.id', '=', 'backdrop.movie_id')
+                         ->where('backdrop.media_type', '=', 'backdrop')
+                         ->where('backdrop.is_default', '=', 1);
+                })
+                ->where('reviews.id', $reviewId)
+                ->where('reviews.status', 'published')
+                ->select(
+                    'reviews.id as review_id',
+                    'reviews.user_id',
+                    'reviews.film_id as movie_id',
+                    'reviews.rating',
+                    'reviews.content as review_text',
+                    'reviews.created_at',
+                    'movies.id',
+                    'movies.title',
+                    'movies.release_year as year',
+                    'poster.media_path as poster_path',
+                    'backdrop.media_path as backdrop_path',
+                    'users.username',
+                    'user_profiles.display_name',
+                    'user_profiles.profile_photo'
+                )
+                ->first();
+
+            if (!$review) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Review not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $review
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch review detail: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -703,53 +791,82 @@ class UserActivityController extends Controller
             $reviewText = $request->input('review');
             $rating = $request->input('rating', 0);
             $containsSpoilers = $request->input('contains_spoilers', false);
+            $watchedAt = $request->input('watched_at', now()->format('Y-m-d'));
             
-            // Validate review text
-            if (empty($reviewText)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Review text is required'
-                ], 400);
+            // If review text is provided, save to reviews table
+            if (!empty($reviewText)) {
+                // Check if review already exists
+                $existingReview = DB::table('reviews')
+                    ->where('user_id', $userId)
+                    ->where('film_id', $movieId)
+                    ->first();
+                
+                if ($existingReview) {
+                    // Update existing review
+                    DB::table('reviews')
+                        ->where('user_id', $userId)
+                        ->where('film_id', $movieId)
+                        ->update([
+                            'content' => $reviewText,
+                            'rating' => $rating,
+                            'is_spoiler' => $containsSpoilers ? 1 : 0,
+                            'updated_at' => now()
+                        ]);
+                } else {
+                    // Create new review
+                    DB::table('reviews')->insert([
+                        'user_id' => $userId,
+                        'film_id' => $movieId,
+                        'content' => $reviewText,
+                        'rating' => $rating,
+                        'is_spoiler' => $containsSpoilers ? 1 : 0,
+                        'status' => 'published',
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                }
             }
             
-            // Check if review already exists
-            $existingReview = DB::table('reviews')
+            // Always save to diary (for both review and log)
+            $existingDiary = DB::table('diaries')
                 ->where('user_id', $userId)
                 ->where('film_id', $movieId)
                 ->first();
             
-            if ($existingReview) {
-                // Update existing review
-                DB::table('reviews')
+            $diaryNote = !empty($reviewText) ? "Review: $reviewText" : "Watched this film";
+            
+            if ($existingDiary) {
+                // Update existing diary
+                DB::table('diaries')
                     ->where('user_id', $userId)
                     ->where('film_id', $movieId)
                     ->update([
-                        'review' => $reviewText,
-                        'rating' => $rating,
-                        'contains_spoilers' => $containsSpoilers ? 1 : 0,
+                        'watched_at' => $watchedAt,
+                        'note' => $diaryNote,
                         'updated_at' => now()
                     ]);
             } else {
-                // Create new review
-                DB::table('reviews')->insert([
+                // Create new diary entry
+                DB::table('diaries')->insert([
                     'user_id' => $userId,
                     'film_id' => $movieId,
-                    'review' => $reviewText,
-                    'rating' => $rating,
-                    'contains_spoilers' => $containsSpoilers ? 1 : 0,
+                    'watched_at' => $watchedAt,
+                    'note' => $diaryNote,
                     'created_at' => now(),
                     'updated_at' => now()
                 ]);
             }
             
+            $message = !empty($reviewText) ? 'Review saved successfully' : 'Log saved successfully';
+            
             return response()->json([
                 'success' => true,
-                'message' => 'Review saved successfully'
+                'message' => $message
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to save review: ' . $e->getMessage()
+                'message' => 'Failed to save: ' . $e->getMessage()
             ], 500);
         }
     }

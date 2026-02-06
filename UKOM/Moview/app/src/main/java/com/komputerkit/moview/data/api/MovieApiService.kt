@@ -125,6 +125,12 @@ interface MovieApiService {
         @Path("userId") userId: Int
     ): ApiResponse<List<UserReviewDto>>
     
+    @GET("users/{userId}/reviews/{reviewId}")
+    suspend fun getReviewDetail(
+        @Path("userId") userId: Int,
+        @Path("reviewId") reviewId: Int
+    ): ApiResponse<ReviewDetailDto>
+
     @GET("users/{userId}/likes")
     suspend fun getUserLikes(
         @Path("userId") userId: Int

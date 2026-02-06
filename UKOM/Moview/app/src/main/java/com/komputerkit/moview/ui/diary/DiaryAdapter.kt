@@ -87,29 +87,11 @@ class DiaryAdapter(
             // Show review icon if has review
             binding.icHasReview.visibility = if (entry.hasReview) View.VISIBLE else View.GONE
 
-            // Set like button
-            if (entry.isLiked) {
-                binding.btnLike.setImageResource(R.drawable.ic_heart)
-                binding.btnLike.setColorFilter(
-                    binding.root.context.getColor(R.color.pink_like)
-                )
-            } else {
-                binding.btnLike.setImageResource(R.drawable.ic_heart_outline)
-                binding.btnLike.setColorFilter(
-                    binding.root.context.getColor(R.color.text_secondary)
-                )
-            }
+            // Show liked icon next to rating stars if liked
+            binding.icLiked.visibility = if (entry.isLiked) View.VISIBLE else View.GONE
 
             binding.entryContainer.setOnClickListener {
                 onEntryClick(entry)
-            }
-
-            binding.btnLike.setOnClickListener {
-                onLikeClick(entry)
-            }
-
-            binding.btnMenu.setOnClickListener {
-                onMenuClick(entry)
             }
             
             // Long press on poster to show movie actions

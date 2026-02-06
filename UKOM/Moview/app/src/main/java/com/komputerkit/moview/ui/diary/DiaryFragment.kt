@@ -68,9 +68,9 @@ class DiaryFragment : Fragment() {
     }
     
     private fun navigateToMovieDetail(entry: DiaryEntry) {
-        if (entry.hasReview) {
+        if (entry.hasReview && entry.movie.reviewId > 0) {
             // Navigate to Review Detail if entry has a review
-            val action = DiaryFragmentDirections.actionDiaryToReviewDetail(entry.id)
+            val action = DiaryFragmentDirections.actionDiaryToReviewDetail(entry.movie.reviewId)
             findNavController().navigate(action)
         } else {
             // Navigate to Film Detail if no review

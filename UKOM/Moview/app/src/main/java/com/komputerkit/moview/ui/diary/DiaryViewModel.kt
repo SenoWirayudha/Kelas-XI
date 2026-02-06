@@ -28,25 +28,22 @@ class DiaryViewModel(application: Application) : AndroidViewModel(application) {
     
     private fun loadDiaryEntries() {
         val userId = prefs.getInt("userId", 0)
-        if (userId == 0) return
+        android.util.Log.d("DiaryViewModel", "Loading diary for userId: $userId")
+        
+        if (userId == 0) {
+            android.util.Log.e("DiaryViewModel", "User ID is 0, not loading diary")
+            _diaryItems.value = emptyList()
+            return
+        }
         
         _isLoading.value = true
         viewModelScope.launch {
             try {
-                val movies = repository.getUserDiary(userId)
-                val entries = movies.map { movie ->
-                    DiaryEntry(
-                        id = movie.id,
-                        movie = movie,
-                        watchedDate = "Recently",
-                        dateLabel = "Recently",
-                        monthYear = "Recent",
-                        rating = movie.userRating.toInt(),
-                        hasReview = false,
-                        isLiked = false
-                    )
-                }
+                android.util.Log.d("DiaryViewModel", "Fetching diary entries from API...")
+                val entries = repository.getUserDiary(userId)
+                android.util.Log.d("DiaryViewModel", "Fetched ${entries.size} diary entries")
                 
+                // Group entries by month/year and create header items
                 val items = mutableListOf<DiaryItem>()
                 var currentMonth = ""
                 entries.forEach { entry ->
@@ -57,9 +54,10 @@ class DiaryViewModel(application: Application) : AndroidViewModel(application) {
                     items.add(DiaryItem.Entry(entry))
                 }
                 
+                android.util.Log.d("DiaryViewModel", "Created ${items.size} diary items (including headers)")
                 _diaryItems.postValue(items)
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("DiaryViewModel", "Error loading diary: ${e.message}", e)
                 _diaryItems.postValue(emptyList())
             } finally {
                 _isLoading.postValue(false)

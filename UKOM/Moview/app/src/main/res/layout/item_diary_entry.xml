@@ -55,9 +55,8 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:layout_marginStart="16dp"
-            android:layout_marginEnd="8dp"
             app:layout_constraintStart_toEndOf="@id/poster_card"
-            app:layout_constraintEnd_toStartOf="@id/btn_menu"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@id/poster_card">
 
             <TextView
@@ -80,12 +79,13 @@
                 android:textSize="14sp"
                 tools:text="2024" />
 
-            <!-- Star Rating -->
+            <!-- Star Rating with Like Icon -->
             <LinearLayout
                 android:id="@+id/rating_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:layout_marginTop="8dp">
 
                 <ImageView
@@ -128,6 +128,18 @@
                     android:contentDescription="Star 5"
                     app:tint="@color/star_green" />
 
+                <!-- Like Icon (shown only if liked) -->
+                <ImageView
+                    android:id="@+id/ic_liked"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="6dp"
+                    android:src="@drawable/ic_heart_filled"
+                    android:visibility="gone"
+                    app:tint="@color/red"
+                    android:contentDescription="Liked"
+                    tools:visibility="visible" />
+
             </LinearLayout>
 
             <!-- Date and Review Icon -->
@@ -142,15 +154,18 @@
                     android:id="@+id/tv_date"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="#1E88E5"
+                    android:background="@drawable/bg_date_badge"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:textColor="@color/white"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    tools:text="14 Oct" />
+                    tools:text="1" />
 
                 <ImageView
                     android:id="@+id/ic_has_review"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
                     android:layout_marginStart="8dp"
                     android:src="@drawable/ic_review"
                     android:visibility="gone"
@@ -161,33 +176,6 @@
             </LinearLayout>
 
         </LinearLayout>
-
-        <!-- Menu Button -->
-        <ImageView
-            android:id="@+id/btn_menu"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:padding="8dp"
-            android:src="@drawable/ic_more_vert"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Menu"
-            app:tint="@color/text_secondary"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/poster_card" />
-
-        <!-- Like Button -->
-        <ImageView
-            android:id="@+id/btn_like"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:padding="12dp"
-            android:src="@drawable/ic_heart_outline"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Like"
-            app:tint="@color/text_secondary"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintBottom_toBottomOf="@id/poster_card"
-            tools:src="@drawable/ic_heart" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

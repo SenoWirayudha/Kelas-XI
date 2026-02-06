@@ -5,9 +5,9 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.databinding.ItemReviewBinding
+import com.komputerkit.moview.util.loadPoster
 
 class ReviewAdapter(
     private val onReviewClick: (Review) -> Unit
@@ -37,17 +37,16 @@ class ReviewAdapter(
             binding.tvDate.text = review.dateLabel
             binding.tvReviewPreview.text = review.reviewText
 
-            // Display star rating
-            val starCount = (review.rating / 2).toInt().coerceIn(0, 5)
+            // Display star rating - rating is already in 0-5 scale
+            val starCount = review.rating.toInt().coerceIn(0, 5)
             val stars = "★".repeat(starCount)
             binding.tvRatingStars.text = stars
 
             // Show liked icon if movie is liked
             binding.ivLiked.visibility = if (review.isLiked) android.view.View.VISIBLE else android.view.View.GONE
 
-            Glide.with(binding.root.context)
-                .load(review.movie.posterUrl)
-                .into(binding.ivPoster)
+            // Load poster using Glide extension for fast loading
+            binding.ivPoster.loadPoster(review.movie.posterUrl)
 
             binding.root.setOnClickListener {
                 onReviewClick(review)

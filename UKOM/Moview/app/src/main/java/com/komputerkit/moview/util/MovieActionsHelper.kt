@@ -213,30 +213,15 @@ object MovieActionsHelper {
                         
                         when (isLiked) {
                             true -> {
-                                // Now liked - also mark as watched with rating 0
+                                // Now liked - just update UI, don't override rating
                                 likeIcon.setImageResource(R.drawable.ic_heart_filled)
                                 likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
                                     context.getColor(R.color.red)
                                 )
                                 likeText.text = "Liked"
                                 
-                                // Auto-mark as watched with rating 0
-                                val saveSuccess = repository.saveRating(userId, movie.id, 0)
-                                if (saveSuccess) {
-                                    // Update watched button to green
-                                    updateWatchedButtonState(context, binding, true)
-                                    // Clear all stars (rating 0)
-                                    stars.forEach { star ->
-                                        star.setImageResource(R.drawable.ic_star_outline)
-                                        star.imageTintList = android.content.res.ColorStateList.valueOf(
-                                            context.getColor(R.color.text_secondary)
-                                        )
-                                    }
-                                    currentRating = 0
-                                    Toast.makeText(context, "Added to likes and marked as watched", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Added to likes", Toast.LENGTH_SHORT).show()
-                                }
+                                // Don't auto-save rating - user should set rating separately
+                                Toast.makeText(context, "Added to likes", Toast.LENGTH_SHORT).show()
                                 
                                 // Trigger callback to refresh data
                                 onRatingSaved?.invoke()
