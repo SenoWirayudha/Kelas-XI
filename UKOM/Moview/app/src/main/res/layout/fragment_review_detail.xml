@@ -29,6 +29,20 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@color/text_primary" />
+
+            <ImageButton
+                android:id="@+id/btn_more_options"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="More options"
+                android:src="@drawable/ic_more_vert"
+                android:visibility="gone"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@color/text_primary" />
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -156,14 +170,42 @@
                         tools:text="Perfect Days" />
 
                     <!-- Year & Rating -->
-                    <TextView
-                        android:id="@+id/tv_year"
+                    <LinearLayout
+                        android:id="@+id/layout_year_rating"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="15sp"
-                        tools:text="2023 • ★★★★★" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:id="@+id/tv_year"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="15sp"
+                            tools:text="2023" />
+
+                        <TextView
+                            android:id="@+id/tv_rating_stars"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:textColor="@color/star_green"
+                            android:textSize="15sp"
+                            tools:text="★★★★★" />
+
+                        <ImageView
+                            android:id="@+id/iv_liked_icon"
+                            android:layout_width="15dp"
+                            android:layout_height="15dp"
+                            android:layout_marginStart="6dp"
+                            android:src="@drawable/ic_heart_filled"
+                            android:tint="@color/pink_like"
+                            android:contentDescription="Liked"
+                            android:visibility="gone" />
+
+                    </LinearLayout>
 
                     <!-- Watched Date -->
                     <TextView

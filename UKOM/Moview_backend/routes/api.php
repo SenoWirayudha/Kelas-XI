@@ -48,9 +48,16 @@ Route::prefix('v1')->group(function () {
     
     // User Activity
     Route::get('/users/{userId}/films', [UserActivityController::class, 'getFilms']);
-    Route::get('/users/{userId}/diary', [UserActivityController::class, 'getDiary']);
-    Route::get('/users/{userId}/reviews', [UserActivityController::class, 'getReviews']);
-    Route::get('/users/{userId}/reviews/{reviewId}', [UserActivityController::class, 'getReviewDetail']);
+    
+    // Diary routes - specific before general
+    Route::get('users/{userId}/diary/{diaryId}', [UserActivityController::class, 'getDiaryDetail'])->where('diaryId', '[0-9]+');
+    Route::get('users/{userId}/diary', [UserActivityController::class, 'getDiary']);
+    Route::delete('users/{userId}/diary/{diaryId}', [UserActivityController::class, 'deleteDiary'])->where('diaryId', '[0-9]+');
+    
+    // Reviews routes - specific before general
+    Route::get('users/{userId}/reviews/{reviewId}', [UserActivityController::class, 'getReviewDetail'])->where('reviewId', '[0-9]+');
+    Route::get('users/{userId}/reviews', [UserActivityController::class, 'getReviews']);
+    
     Route::get('/users/{userId}/likes', [UserActivityController::class, 'getLikes']);
     Route::get('/users/{userId}/watchlist', [UserActivityController::class, 'getWatchlist']);
     Route::get('/users/{userId}/followers', [UserActivityController::class, 'getFollowers']);
@@ -71,6 +78,12 @@ Route::prefix('v1')->group(function () {
     
     // Reviews
     Route::post('/users/{userId}/movies/{movieId}/review', [UserActivityController::class, 'saveReview']);
+    Route::put('users/{userId}/reviews/{reviewId}', [UserActivityController::class, 'updateReview'])->where('reviewId', '[0-9]+');
+    Route::delete('users/{userId}/reviews/{reviewId}', [UserActivityController::class, 'deleteReview'])->where('reviewId', '[0-9]+');
+    
+    // Review Comments
+    Route::get('reviews/{reviewId}/comments', [UserActivityController::class, 'getReviewComments'])->where('reviewId', '[0-9]+');
+    Route::post('users/{userId}/reviews/{reviewId}/comments', [UserActivityController::class, 'addReviewComment'])->where('reviewId', '[0-9]+');
     
     // Film List by Category
     Route::get('/films/category', [FilmListController::class, 'getFilmsByCategory']);

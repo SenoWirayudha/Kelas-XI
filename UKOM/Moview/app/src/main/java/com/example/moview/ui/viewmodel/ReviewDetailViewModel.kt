@@ -32,14 +32,27 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
     private val _commentCount = MutableLiveData<Int>()
     val commentCount: LiveData<Int> = _commentCount
 
-    fun loadReview(reviewId: Int) {
+    private val _isLog = MutableLiveData<Boolean>()
+    val isLog: LiveData<Boolean> = _isLog
+
+    fun loadReview(reviewId: Int, isLog: Boolean = false) {
         val userId = prefs.getInt("userId", 0)
         
         viewModelScope.launch {
             try {
-                val reviewDto = repository.getReviewDetail(userId, reviewId)
+                val reviewDto = if (isLog) {
+                    repository.getDiaryDetail(userId, reviewId)
+                } else {
+                    repository.getReviewDetail(userId, reviewId)
+                }
                 
                 if (reviewDto != null) {
+                    // Determine if this is a log based on actual review_id from response
+                    // If review_id is 0, it's a log (no review text)
+                    // If review_id > 0, it's a review (has review text)
+                    val isActuallyLog = reviewDto.review_id == 0
+                    _isLog.postValue(isActuallyLog)
+                    
                     // Build full URLs
                     val posterUrl = when {
                         reviewDto.poster_path.isNullOrBlank() -> ""
@@ -63,7 +76,7 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                         id = reviewDto.movie_id,
                         title = reviewDto.title,
                         posterUrl = posterUrl,
-                        averageRating = reviewDto.rating.toFloat(),
+                        averageRating = reviewDto.rating?.toFloat() ?: 0f,
                         genre = "",
                         releaseYear = reviewDto.year.toIntOrNull() ?: 0,
                         description = "",
@@ -71,27 +84,32 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                     )
                     
                     val review = Review(
-                        id = reviewDto.review_id,
+                        id = if (isActuallyLog) reviewDto.diary_id else reviewDto.review_id,
                         movie = movie,
                         movieId = reviewDto.movie_id,
-                        rating = reviewDto.rating.toFloat(),
-                        reviewText = reviewDto.review_text,
+                        reviewId = reviewDto.review_id,
+                        rating = reviewDto.rating?.toFloat() ?: 0f,
+                        reviewText = reviewDto.review_text ?: "",
                         reviewDate = reviewDto.created_at,
                         dateLabel = formatDateLabel(reviewDto.created_at),
                         userName = reviewDto.display_name ?: reviewDto.username,
                         userAvatar = profilePhoto,
                         userId = reviewDto.user_id,
-                        timeAgo = formatTimeAgo(reviewDto.created_at),
-                        likeCount = 0,
-                        commentCount = 0,
+                        timeAgo = formatWatchedDate(reviewDto.watched_at ?: reviewDto.created_at),
+                        isLiked = reviewDto.snapshot_is_liked,  // Snapshot for icon next to stars
+                        watchedAt = reviewDto.watched_at,
+                        likeCount = reviewDto.like_count,
+                        commentCount = reviewDto.comment_count,
                         hasTag = false,
                         tag = ""
                     )
                     
                     _review.postValue(review)
-                    _likeCount.postValue(0)
-                    _isLiked.postValue(false)
-                    _commentCount.postValue(0)
+                    _likeCount.postValue(reviewDto.like_count)
+                    _commentCount.postValue(reviewDto.comment_count)
+                    
+                    // Set current like status from review_likes table for like button
+                    _isLiked.postValue(reviewDto.is_liked)
                     
                     loadComments(reviewId)
                 }
@@ -127,52 +145,32 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    private fun loadComments(reviewId: Int) {
-        // Sample comments
-        val sampleComments = listOf(
-            Comment(
-                id = 1,
-                reviewId = reviewId,
-                userId = 2,
-                username = "Alex Cinephile",
-                userAvatar = "https://i.pravatar.cc/150?img=12",
-                commentText = "I totally agree with this take! The cinematography was stunning, especially in the desert sequences. It felt like I was actually there.",
-                timeAgo = "2h ago",
-                likeCount = 45
-            ),
-            Comment(
-                id = 2,
-                reviewId = reviewId,
-                userId = 3,
-                username = "MovieBuff99",
-                userAvatar = "https://i.pravatar.cc/150?img=33",
-                commentText = "Absolutely. Greig Fraser is a genius. The lighting in the Giedi Prime scenes was unreal.",
-                timeAgo = "1h ago",
-                likeCount = 12
-            ),
-            Comment(
-                id = 3,
-                reviewId = reviewId,
-                userId = 4,
-                username = "Sarah Films",
-                userAvatar = "https://i.pravatar.cc/150?img=25",
-                commentText = "I felt the pacing was a bit slow in the second act, but the ending made up for it. #Dune2",
-                timeAgo = "3h ago",
-                likeCount = 8
-            ),
-            Comment(
-                id = 4,
-                reviewId = reviewId,
-                userId = 5,
-                username = "John Doe",
-                userAvatar = "https://i.pravatar.cc/150?img=68",
-                commentText = "Does anyone know if they are planning a third one immediately? The books get really weird after this point.",
-                timeAgo = "5h ago",
-                likeCount = 24
-            )
-        )
+    private fun formatWatchedDate(dateString: String): String {
+        // Format: "Watched DD MMMM YYYY" for watched date
+        return try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
+            val date = inputFormat.parse(dateString)
+            if (date != null) {
+                "Watched ${outputFormat.format(date)}"
+            } else {
+                "Watched recently"
+            }
+        } catch (e: Exception) {
+            "Watched recently"
+        }
+    }
 
-        _comments.value = sampleComments
+    private fun loadComments(reviewId: Int) {
+        viewModelScope.launch {
+            try {
+                val comments = repository.getReviewComments(reviewId)
+                _comments.postValue(comments)
+            } catch (e: Exception) {
+                android.util.Log.e("ReviewDetailViewModel", "Error loading comments: ${e.message}", e)
+                _comments.postValue(emptyList())
+            }
+        }
     }
 
     fun toggleLike() {
@@ -199,20 +197,49 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun addComment(commentText: String) {
-        val newComment = Comment(
-            id = (_comments.value?.size ?: 0) + 1,
-            reviewId = _review.value?.id ?: 0,
-            userId = 999,
-            username = "You",
-            userAvatar = "https://i.pravatar.cc/150?img=1",
-            commentText = commentText,
-            timeAgo = "Just now",
-            likeCount = 0
-        )
-
-        val updatedComments = (_comments.value ?: emptyList()).toMutableList()
-        updatedComments.add(newComment)
-        _comments.value = updatedComments
-        _commentCount.value = updatedComments.size
+        val userId = prefs.getInt("userId", 0)
+        val reviewId = _review.value?.id ?: return
+        
+        viewModelScope.launch {
+            try {
+                val newComment = repository.addReviewComment(userId, reviewId, commentText)
+                if (newComment != null) {
+                    // Add new comment to the top of the list
+                    val updatedComments = mutableListOf(newComment)
+                    updatedComments.addAll(_comments.value ?: emptyList())
+                    _comments.postValue(updatedComments)
+                    _commentCount.postValue(updatedComments.size)
+                }
+            } catch (e: Exception) {
+                // Handle error silently or log it
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    private val _deleteStatus = MutableLiveData<Boolean>()
+    val deleteStatus: LiveData<Boolean> = _deleteStatus
+    
+    fun deleteEntry(reviewId: Int, diaryId: Int) {
+        val userId = prefs.getInt("userId", 0)
+        viewModelScope.launch {
+            try {
+                val success = if (reviewId > 0) {
+                    // Delete review (also deletes diary)
+                    repository.deleteReview(userId, reviewId)
+                } else {
+                    // Delete diary entry only
+                    repository.deleteDiary(userId, diaryId)
+                }
+                _deleteStatus.postValue(success)
+            } catch (e: Exception) {
+                _deleteStatus.postValue(false)
+            }
+        }
+    }
+    
+    // Legacy method for backward compatibility
+    fun deleteReview(reviewId: Int) {
+        deleteEntry(reviewId, 0)
     }
 }

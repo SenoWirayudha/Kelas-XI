@@ -37,6 +37,11 @@ class LikesFragment : Fragment() {
         setupClickListeners()
     }
     
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadLikes()
+    }
+    
     private fun setupRecyclerView() {
         filmGridAdapter = FilmGridAdapter(
             onMovieClick = { movie ->

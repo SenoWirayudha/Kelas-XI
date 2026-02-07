@@ -401,6 +401,165 @@ class MovieRepository {
         }
     }
     
+    suspend fun getDiaryDetail(userId: Int, diaryId: Int): com.komputerkit.moview.data.api.ReviewDetailDto? = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "getDiaryDetail: userId=$userId, diaryId=$diaryId")
+            val response = apiService.getDiaryDetail(userId, diaryId)
+            android.util.Log.d("MovieRepository", "getDiaryDetail response: success=${response.success}, data=${response.data}")
+            if (response.success && response.data != null) {
+                response.data
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error getting diary detail: ${e.message}", e)
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    suspend fun deleteReview(userId: Int, reviewId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.deleteReview(userId, reviewId)
+            response.success
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error deleting review: ${e.message}", e)
+            false
+        }
+    }
+    
+    suspend fun deleteDiary(userId: Int, diaryId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.deleteDiary(userId, diaryId)
+            response.success
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error deleting diary: ${e.message}", e)
+            false
+        }
+    }
+    
+    suspend fun getReviewComments(reviewId: Int): List<com.komputerkit.moview.data.model.Comment> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getReviewComments(reviewId)
+            if (response.success && response.data != null) {
+                response.data.map { dto ->
+                    // Build profile photo URL
+                    val profilePhotoUrl = if (!dto.profile_photo.isNullOrBlank()) {
+                        if (dto.profile_photo.startsWith("http")) {
+                            dto.profile_photo.replace("127.0.0.1", "10.0.2.2")
+                        } else {
+                            "http://10.0.2.2:8000/storage/${dto.profile_photo}"
+                        }
+                    } else {
+                        ""
+                    }
+                    
+                    com.komputerkit.moview.data.model.Comment(
+                        id = dto.id,
+                        reviewId = dto.review_id,
+                        userId = dto.user_id,
+                        username = dto.display_name ?: dto.username,
+                        userAvatar = profilePhotoUrl,
+                        commentText = dto.content,
+                        timeAgo = formatCommentTime(dto.created_at),
+                        likeCount = 0  // TODO: Implement comment likes
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error getting comments: ${e.message}", e)
+            emptyList()
+        }
+    }
+    
+    suspend fun addReviewComment(userId: Int, reviewId: Int, commentText: String): com.komputerkit.moview.data.model.Comment? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.addReviewComment(userId, reviewId, commentText)
+            if (response.success && response.data != null) {
+                val dto = response.data
+                
+                // Build profile photo URL
+                val profilePhotoUrl = if (!dto.profile_photo.isNullOrBlank()) {
+                    if (dto.profile_photo.startsWith("http")) {
+                        dto.profile_photo.replace("127.0.0.1", "10.0.2.2")
+                    } else {
+                        "http://10.0.2.2:8000/storage/${dto.profile_photo}"
+                    }
+                } else {
+                    ""
+                }
+                
+                com.komputerkit.moview.data.model.Comment(
+                    id = dto.id,
+                    reviewId = dto.review_id,
+                    userId = dto.user_id,
+                    username = dto.display_name ?: dto.username,
+                    userAvatar = profilePhotoUrl,
+                    commentText = dto.content,
+                    timeAgo = "Just now",
+                    likeCount = 0
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error adding comment: ${e.message}", e)
+            null
+        }
+    }
+    
+    private fun formatCommentTime(dateString: String): String {
+        return try {
+            val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+            val date = inputFormat.parse(dateString)
+            if (date != null) {
+                val now = java.util.Date()
+                val diff = now.time - date.time
+                val seconds = diff / 1000
+                val minutes = seconds / 60
+                val hours = minutes / 60
+                val days = hours / 24
+                
+                when {
+                    seconds < 60 -> "Just now"
+                    minutes < 60 -> "${minutes}m ago"
+                    hours < 24 -> "${hours}h ago"
+                    days < 7 -> "${days}d ago"
+                    else -> {
+                        val outputFormat = java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault())
+                        outputFormat.format(date)
+                    }
+                }
+            } else {
+                "Recently"
+            }
+        } catch (e: Exception) {
+            "Recently"
+        }
+    }
+    
+    suspend fun updateReview(
+        userId: Int,
+        reviewId: Int,
+        reviewText: String,
+        rating: Int,
+        containsSpoilers: Boolean,
+        watchedAt: String? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "updateReview: userId=$userId, reviewId=$reviewId, rating=$rating, watchedAt=$watchedAt")
+            val response = apiService.updateReview(userId, reviewId, reviewText, rating, if (containsSpoilers) 1 else 0, watchedAt)
+            android.util.Log.d("MovieRepository", "updateReview response: success=${response.success}")
+            response.success
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error updating review: ${e.message}", e)
+            e.printStackTrace()
+            false
+        }
+    }
+    
     suspend fun getUserFollowers(userId: Int): List<com.komputerkit.moview.data.api.UserFollowDto> = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getUserFollowers(userId)
@@ -1277,11 +1436,12 @@ class MovieRepository {
         filmId: Int,
         reviewText: String,
         rating: Int,
-        containsSpoilers: Boolean
+        containsSpoilers: Boolean,
+        watchedAt: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            android.util.Log.d("MovieRepository", "saveReview: userId=$userId, filmId=$filmId, rating=$rating, spoilers=$containsSpoilers")
-            val response = apiService.saveReview(userId, filmId, reviewText, rating, if (containsSpoilers) 1 else 0)
+            android.util.Log.d("MovieRepository", "saveReview: userId=$userId, filmId=$filmId, rating=$rating, spoilers=$containsSpoilers, watchedAt=$watchedAt")
+            val response = apiService.saveReview(userId, filmId, reviewText, rating, if (containsSpoilers) 1 else 0, watchedAt)
             android.util.Log.d("MovieRepository", "saveReview response: success=${response.success}")
             response.success
         } catch (e: Exception) {

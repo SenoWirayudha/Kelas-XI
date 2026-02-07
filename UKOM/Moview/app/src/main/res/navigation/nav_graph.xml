@@ -179,6 +179,28 @@
         <argument
             android:name="movieId"
             app:argType="integer" />
+        <argument
+            android:name="isEditMode"
+            app:argType="boolean"
+            android:defaultValue="false" />
+        <argument
+            android:name="reviewId"
+            app:argType="integer"
+            android:defaultValue="0" />
+        <argument
+            android:name="existingReviewText"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="existingRating"
+            app:argType="integer"
+            android:defaultValue="0" />
+        <argument
+            android:name="watchedDate"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
         <action
             android:id="@+id/action_log_film_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
@@ -294,6 +316,10 @@
         <argument
             android:name="reviewId"
             app:argType="integer" />
+        <argument
+            android:name="isLog"
+            app:argType="boolean"
+            android:defaultValue="false" />
         <action
             android:id="@+id/action_reviewDetail_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
@@ -304,6 +330,9 @@
                 android:name="userId"
                 app:argType="integer" />
         </action>
+        <action
+            android:id="@+id/action_reviewDetail_to_editReview"
+            app:destination="@id/logFilmFragment" />
     </fragment>
 
     <fragment

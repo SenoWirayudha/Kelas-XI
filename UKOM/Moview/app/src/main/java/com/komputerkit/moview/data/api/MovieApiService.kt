@@ -131,6 +131,24 @@ interface MovieApiService {
         @Path("reviewId") reviewId: Int
     ): ApiResponse<ReviewDetailDto>
 
+    @GET("users/{userId}/diary/{diaryId}")
+    suspend fun getDiaryDetail(
+        @Path("userId") userId: Int,
+        @Path("diaryId") diaryId: Int
+    ): ApiResponse<ReviewDetailDto>
+    
+    @DELETE("users/{userId}/reviews/{reviewId}")
+    suspend fun deleteReview(
+        @Path("userId") userId: Int,
+        @Path("reviewId") reviewId: Int
+    ): ApiResponse<Unit>
+    
+    @DELETE("users/{userId}/diary/{diaryId}")
+    suspend fun deleteDiary(
+        @Path("userId") userId: Int,
+        @Path("diaryId") diaryId: Int
+    ): ApiResponse<Unit>
+
     @GET("users/{userId}/likes")
     suspend fun getUserLikes(
         @Path("userId") userId: Int
@@ -205,11 +223,37 @@ interface MovieApiService {
         @Path("movieId") movieId: Int,
         @Field("review") review: String,
         @Field("rating") rating: Int,
-        @Field("contains_spoilers") containsSpoilers: Int
+        @Field("contains_spoilers") containsSpoilers: Int,
+        @Field("watched_at") watchedAt: String? = null
+    ): SimpleResponse
+    
+    @PUT("users/{userId}/reviews/{reviewId}")
+    @FormUrlEncoded
+    suspend fun updateReview(
+        @Path("userId") userId: Int,
+        @Path("reviewId") reviewId: Int,
+        @Field("review") review: String,
+        @Field("rating") rating: Int,
+        @Field("contains_spoilers") containsSpoilers: Int,
+        @Field("watched_at") watchedAt: String? = null
     ): SimpleResponse
     
     @GET("search")
     suspend fun searchMovies(
         @Query("q") query: String
     ): ApiResponse<List<MovieCardDto>>
+    
+    // Review Comments
+    @GET("reviews/{reviewId}/comments")
+    suspend fun getReviewComments(
+        @Path("reviewId") reviewId: Int
+    ): ApiResponse<List<ReviewCommentDto>>
+    
+    @FormUrlEncoded
+    @POST("users/{userId}/reviews/{reviewId}/comments")
+    suspend fun addReviewComment(
+        @Path("userId") userId: Int,
+        @Path("reviewId") reviewId: Int,
+        @Field("comment") comment: String
+    ): ApiResponse<ReviewCommentDto>
 }

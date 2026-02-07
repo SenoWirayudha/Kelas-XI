@@ -128,14 +128,6 @@ class UserActivityController extends Controller
                     $join->on('diaries.film_id', '=', 'reviews.film_id')
                          ->where('reviews.user_id', '=', $userId);
                 })
-                ->leftJoin('ratings', function($join) use ($userId) {
-                    $join->on('diaries.film_id', '=', 'ratings.film_id')
-                         ->where('ratings.user_id', '=', $userId);
-                })
-                ->leftJoin('movie_likes', function($join) use ($userId) {
-                    $join->on('diaries.film_id', '=', 'movie_likes.film_id')
-                         ->where('movie_likes.user_id', '=', $userId);
-                })
                 ->where('diaries.user_id', $userId)
                 ->select(
                     'diaries.id as diary_id',
@@ -148,9 +140,9 @@ class UserActivityController extends Controller
                     'movies.release_year as year',
                     'poster_media.media_path as poster_path',
                     'reviews.id as review_id',
-                    DB::raw('COALESCE(reviews.rating, ratings.rating) as rating'), // Use review rating first, fallback to ratings table
+                    DB::raw('COALESCE(reviews.rating, diaries.rating) as rating'), // Use review rating first, fallback to diary snapshot
                     'reviews.content as review_content',
-                    DB::raw('CASE WHEN movie_likes.id IS NOT NULL THEN 1 ELSE 0 END as is_liked'),
+                    DB::raw('COALESCE(reviews.is_liked, diaries.is_liked) as is_liked'), // Use review snapshot, fallback to diary snapshot
                     DB::raw('CASE WHEN reviews.content IS NOT NULL THEN "review" ELSE "log" END as type')
                 )
                 ->orderBy('diaries.watched_at', 'desc')
@@ -220,6 +212,8 @@ class UserActivityController extends Controller
                     'movies.release_year as year',
                     'movie_media.media_path as poster_path',
                     'reviews.rating',
+                    'reviews.is_liked',
+                    'reviews.watched_at',
                     'reviews.title as review_title',
                     'reviews.content',
                     'reviews.is_spoiler',
@@ -228,9 +222,10 @@ class UserActivityController extends Controller
                 ->orderBy('reviews.created_at', 'desc')
                 ->get();
 
-            // Convert is_spoiler to boolean
+            // Convert is_spoiler and is_liked to boolean
             $reviews = $reviews->map(function($review) {
                 $review->is_spoiler = (bool)$review->is_spoiler;
+                $review->is_liked = (bool)$review->is_liked;
                 return $review;
             });
 
@@ -273,8 +268,92 @@ class UserActivityController extends Controller
                     'reviews.user_id',
                     'reviews.film_id as movie_id',
                     'reviews.rating',
+                    'reviews.is_liked as snapshot_is_liked',  // Snapshot for display next to stars
+                    'reviews.watched_at',
                     'reviews.content as review_text',
                     'reviews.created_at',
+                    'movies.id',
+                    'movies.title',
+                    'movies.release_year as year',
+                    'poster.media_path as poster_path',
+                    'backdrop.media_path as backdrop_path',
+                    'users.username',
+                    'user_profiles.display_name',
+                    'user_profiles.profile_photo',
+                    DB::raw('(SELECT COUNT(*) FROM review_likes WHERE review_likes.review_id = reviews.id) as like_count'),
+                    DB::raw('(SELECT COUNT(*) FROM review_comments WHERE review_comments.review_id = reviews.id AND review_comments.status = "published") as comment_count')
+                )
+                ->first();
+
+            if (!$review) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Review not found'
+                ], 404);
+            }
+
+            // Cast snapshot_is_liked to boolean
+            $review->snapshot_is_liked = (bool)$review->snapshot_is_liked;
+            
+            // Check current user's like status from review_likes table
+            $currentUserLiked = DB::table('review_likes')
+                ->where('review_id', $reviewId)
+                ->where('user_id', $userId)
+                ->exists();
+            
+            $review->is_liked = $currentUserLiked;  // Current like status for like button
+
+            return response()->json([
+                'success' => true,
+                'data' => $review
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch review detail: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get diary log detail (for entries without review)
+     */
+    public function getDiaryDetail($userId, $diaryId)
+    {
+        // Log for debugging
+        \Log::info("getDiaryDetail called", [
+            'userId' => $userId,
+            'diaryId' => $diaryId
+        ]);
+        
+        try {
+            $diary = DB::table('diaries')
+                ->join('movies', 'diaries.film_id', '=', 'movies.id')
+                ->join('users', 'diaries.user_id', '=', 'users.id')
+                ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
+                ->leftJoin('reviews', 'diaries.review_id', '=', 'reviews.id')
+                ->leftJoin('movie_media as poster', function($join) {
+                    $join->on('movies.id', '=', 'poster.movie_id')
+                         ->where('poster.media_type', '=', 'poster')
+                         ->where('poster.is_default', '=', 1);
+                })
+                ->leftJoin('movie_media as backdrop', function($join) {
+                    $join->on('movies.id', '=', 'backdrop.movie_id')
+                         ->where('backdrop.media_type', '=', 'backdrop')
+                         ->where('backdrop.is_default', '=', 1);
+                })
+                ->where('diaries.id', $diaryId)
+                ->where('diaries.user_id', $userId)
+                ->select(
+                    'diaries.id as diary_id',
+                    DB::raw('COALESCE(diaries.review_id, 0) as review_id'),
+                    'diaries.user_id',
+                    'diaries.film_id as movie_id',
+                    DB::raw('COALESCE(reviews.rating, diaries.rating) as rating'),  // Prioritize review rating, fallback to diary rating
+                    DB::raw('COALESCE(reviews.is_liked, diaries.is_liked) as is_liked'),  // Prioritize review is_liked, fallback to diary is_liked
+                    DB::raw('COALESCE(reviews.content, NULL) as review_text'),
+                    DB::raw('COALESCE(reviews.watched_at, diaries.watched_at) as watched_at'),  // Prioritize review watched_at
+                    'diaries.created_at',
                     'movies.id',
                     'movies.title',
                     'movies.release_year as year',
@@ -286,21 +365,34 @@ class UserActivityController extends Controller
                 )
                 ->first();
 
-            if (!$review) {
+            if (!$diary) {
+                \Log::warning("Diary entry not found", [
+                    'userId' => $userId,
+                    'diaryId' => $diaryId
+                ]);
                 return response()->json([
                     'success' => false,
-                    'message' => 'Review not found'
+                    'message' => 'Diary entry not found'
                 ], 404);
             }
 
+            \Log::info("Diary entry found", ['diary' => $diary]);
+
+            // Cast is_liked to boolean
+            $diary->is_liked = (bool)$diary->is_liked;
+
             return response()->json([
                 'success' => true,
-                'data' => $review
+                'data' => $diary
             ]);
         } catch (\Exception $e) {
+            \Log::error("Error in getDiaryDetail", [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch review detail: ' . $e->getMessage()
+                'message' => 'Failed to fetch diary detail: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -793,6 +885,14 @@ class UserActivityController extends Controller
             $containsSpoilers = $request->input('contains_spoilers', false);
             $watchedAt = $request->input('watched_at', now()->format('Y-m-d'));
             
+            // Check if user has liked this movie (from movie_likes table)
+            $isLiked = DB::table('movie_likes')
+                ->where('user_id', $userId)
+                ->where('film_id', $movieId)
+                ->exists();
+            
+            $reviewId = null;
+            
             // If review text is provided, save to reviews table
             if (!empty($reviewText)) {
                 // Check if review already exists
@@ -810,16 +910,21 @@ class UserActivityController extends Controller
                             'content' => $reviewText,
                             'rating' => $rating,
                             'is_spoiler' => $containsSpoilers ? 1 : 0,
+                            'is_liked' => $isLiked,  // Snapshot of like status
+                            'watched_at' => $watchedAt,
                             'updated_at' => now()
                         ]);
+                    $reviewId = $existingReview->id;
                 } else {
                     // Create new review
-                    DB::table('reviews')->insert([
+                    $reviewId = DB::table('reviews')->insertGetId([
                         'user_id' => $userId,
                         'film_id' => $movieId,
                         'content' => $reviewText,
                         'rating' => $rating,
                         'is_spoiler' => $containsSpoilers ? 1 : 0,
+                        'is_liked' => $isLiked,  // Snapshot of like status
+                        'watched_at' => $watchedAt,
                         'status' => 'published',
                         'created_at' => now(),
                         'updated_at' => now()
@@ -837,24 +942,42 @@ class UserActivityController extends Controller
             
             if ($existingDiary) {
                 // Update existing diary
+                $updateData = [
+                    'watched_at' => $watchedAt,
+                    'rating' => $rating,  // Save rating snapshot
+                    'is_liked' => $isLiked,  // Snapshot of like status
+                    'note' => $diaryNote,
+                    'updated_at' => now()
+                ];
+                
+                // Set review_id if a review was created/updated
+                if ($reviewId) {
+                    $updateData['review_id'] = $reviewId;
+                }
+                
                 DB::table('diaries')
                     ->where('user_id', $userId)
                     ->where('film_id', $movieId)
-                    ->update([
-                        'watched_at' => $watchedAt,
-                        'note' => $diaryNote,
-                        'updated_at' => now()
-                    ]);
+                    ->update($updateData);
             } else {
                 // Create new diary entry
-                DB::table('diaries')->insert([
+                $insertData = [
                     'user_id' => $userId,
                     'film_id' => $movieId,
                     'watched_at' => $watchedAt,
+                    'rating' => $rating,  // Save rating snapshot
+                    'is_liked' => $isLiked,  // Snapshot of like status
                     'note' => $diaryNote,
                     'created_at' => now(),
                     'updated_at' => now()
-                ]);
+                ];
+                
+                // Set review_id if a review was created
+                if ($reviewId) {
+                    $insertData['review_id'] = $reviewId;
+                }
+                
+                DB::table('diaries')->insert($insertData);
             }
             
             $message = !empty($reviewText) ? 'Review saved successfully' : 'Log saved successfully';
@@ -870,4 +993,237 @@ class UserActivityController extends Controller
             ], 500);
         }
     }
+
+    public function updateReview(Request $request, $userId, $reviewId)
+    {
+        try {
+            // Check if review exists and belongs to user
+            $review = DB::table('reviews')
+                ->where('id', $reviewId)
+                ->where('user_id', $userId)
+                ->first();
+            
+            if (!$review) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Review not found or unauthorized'
+                ], 404);
+            }
+            
+            $reviewText = $request->input('review');
+            $rating = $request->input('rating', $review->rating);
+            $containsSpoilers = $request->input('contains_spoilers', false);
+            $watchedAt = $request->input('watched_at');
+            
+            // Check current like status from movie_likes
+            $isLiked = DB::table('movie_likes')
+                ->where('user_id', $userId)
+                ->where('film_id', $review->film_id)
+                ->exists();
+            
+            // Update review
+            DB::table('reviews')
+                ->where('id', $reviewId)
+                ->update([
+                    'content' => $reviewText,
+                    'rating' => $rating,
+                    'is_spoiler' => $containsSpoilers ? 1 : 0,
+                    'is_liked' => $isLiked,  // Update snapshot
+                    'watched_at' => $watchedAt,
+                    'updated_at' => now()
+                ]);
+            
+            // Update diary entry as well
+            $diaryUpdateData = [
+                'note' => "Review: $reviewText",
+                'rating' => $rating,  // Update rating snapshot
+                'is_liked' => $isLiked,  // Update snapshot
+                'updated_at' => now()
+            ];
+            
+            if ($watchedAt) {
+                $diaryUpdateData['watched_at'] = $watchedAt;
+            }
+            
+            DB::table('diaries')
+                ->where('user_id', $userId)
+                ->where('film_id', $review->film_id)
+                ->update($diaryUpdateData);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Review updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deleteReview(Request $request, $userId, $reviewId)
+    {
+        try {
+            // Check if review exists and belongs to user
+            $review = DB::table('reviews')
+                ->where('id', $reviewId)
+                ->where('user_id', $userId)
+                ->first();
+            
+            if (!$review) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Review not found or unauthorized'
+                ], 404);
+            }
+            
+            // Delete review
+            DB::table('reviews')
+                ->where('id', $reviewId)
+                ->delete();
+            
+            // Delete diary entry if exists
+            DB::table('diaries')
+                ->where('user_id', $userId)
+                ->where('film_id', $review->film_id)
+                ->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Review deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deleteDiary(Request $request, $userId, $diaryId)
+    {
+        try {
+            // Check if diary exists and belongs to user
+            $diary = DB::table('diaries')
+                ->where('id', $diaryId)
+                ->where('user_id', $userId)
+                ->first();
+            
+            if (!$diary) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Diary entry not found or unauthorized'
+                ], 404);
+            }
+            
+            // Delete diary entry
+            DB::table('diaries')
+                ->where('id', $diaryId)
+                ->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Diary entry deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get comments for a review
+     */
+    public function getReviewComments($reviewId)
+    {
+        try {
+            $comments = DB::table('review_comments')
+                ->join('users', 'review_comments.user_id', '=', 'users.id')
+                ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
+                ->where('review_comments.review_id', $reviewId)
+                ->where('review_comments.status', 'published')
+                ->whereNull('review_comments.parent_id')  // Only top-level comments for now
+                ->select(
+                    'review_comments.id',
+                    'review_comments.review_id',
+                    'review_comments.user_id',
+                    'review_comments.content',
+                    'review_comments.created_at',
+                    'users.username',
+                    'user_profiles.display_name',
+                    'user_profiles.profile_photo'
+                )
+                ->orderBy('review_comments.created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $comments
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch comments: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Add a comment to a review
+     */
+    public function addReviewComment(Request $request, $userId, $reviewId)
+    {
+        try {
+            $commentText = $request->input('comment');
+            
+            if (empty($commentText)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Comment text is required'
+                ], 400);
+            }
+            
+            // Insert comment
+            $commentId = DB::table('review_comments')->insertGetId([
+                'review_id' => $reviewId,
+                'user_id' => $userId,
+                'content' => $commentText,
+                'status' => 'published',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            // Get the created comment with user info
+            $comment = DB::table('review_comments')
+                ->join('users', 'review_comments.user_id', '=', 'users.id')
+                ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
+                ->where('review_comments.id', $commentId)
+                ->select(
+                    'review_comments.id',
+                    'review_comments.review_id',
+                    'review_comments.user_id',
+                    'review_comments.content',
+                    'review_comments.created_at',
+                    'users.username',
+                    'user_profiles.display_name',
+                    'user_profiles.profile_photo'
+                )
+                ->first();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Comment added successfully',
+                'data' => $comment
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add comment: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
+

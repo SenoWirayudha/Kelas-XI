@@ -78,8 +78,8 @@
 
         <ImageView
             android:id="@+id/iv_liked"
-            android:layout_width="14dp"
-            android:layout_height="14dp"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
             android:layout_marginStart="6dp"
             android:src="@drawable/ic_heart_filled"
             android:contentDescription="Liked"

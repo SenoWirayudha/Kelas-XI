@@ -37,6 +37,12 @@ class DiaryFragment : Fragment() {
         observeViewModel()
     }
     
+    override fun onResume() {
+        super.onResume()
+        // Reload diary when returning from other screens
+        viewModel.loadDiary()
+    }
+    
     private fun setupRecyclerView() {
         adapter = DiaryAdapter(
             onEntryClick = { entry ->
@@ -70,11 +76,17 @@ class DiaryFragment : Fragment() {
     private fun navigateToMovieDetail(entry: DiaryEntry) {
         if (entry.hasReview && entry.movie.reviewId > 0) {
             // Navigate to Review Detail if entry has a review
-            val action = DiaryFragmentDirections.actionDiaryToReviewDetail(entry.movie.reviewId)
+            val action = DiaryFragmentDirections.actionDiaryToReviewDetail(
+                reviewId = entry.movie.reviewId,
+                isLog = false
+            )
             findNavController().navigate(action)
         } else {
-            // Navigate to Film Detail if no review
-            val action = DiaryFragmentDirections.actionDiaryToMovieDetail(entry.movie.id)
+            // Navigate to Review Detail as Log (without review text)
+            val action = DiaryFragmentDirections.actionDiaryToReviewDetail(
+                reviewId = entry.id,  // Pass diary_id as reviewId for log entries
+                isLog = true
+            )
             findNavController().navigate(action)
         }
     }

@@ -126,7 +126,7 @@ class LogFilmViewModel : ViewModel() {
         }
     }
     
-    fun saveLog(reviewText: String, containsSpoilers: Boolean) {
+    fun saveLog(reviewText: String, containsSpoilers: Boolean, watchedAt: String? = null) {
         val movieId = _movie.value?.id ?: return
         
         viewModelScope.launch {
@@ -140,7 +140,8 @@ class LogFilmViewModel : ViewModel() {
                     filmId = movieId,
                     reviewText = reviewText, // Can be empty for log
                     rating = ratingValue,
-                    containsSpoilers = containsSpoilers
+                    containsSpoilers = containsSpoilers,
+                    watchedAt = watchedAt
                 )
                 
                 if (success) {
@@ -153,6 +154,34 @@ class LogFilmViewModel : ViewModel() {
                 _saveSuccess.postValue(success)
             } else {
                 Log.e("LogFilmViewModel", "Cannot save: userId not found ($currentUserId)")
+                _saveSuccess.postValue(false)
+            }
+        }
+    }
+    
+    fun updateReview(reviewId: Int, reviewText: String, containsSpoilers: Boolean, rating: Int, watchedAt: String? = null) {
+        viewModelScope.launch {
+            if (currentUserId > 0) {
+                Log.d("LogFilmViewModel", "Updating review: userId=$currentUserId, reviewId=$reviewId, rating=$rating")
+                
+                val success = repository.updateReview(
+                    userId = currentUserId,
+                    reviewId = reviewId,
+                    reviewText = reviewText,
+                    rating = rating,
+                    containsSpoilers = containsSpoilers,
+                    watchedAt = watchedAt
+                )
+                
+                if (success) {
+                    Log.d("LogFilmViewModel", "Update review success")
+                } else {
+                    Log.e("LogFilmViewModel", "Failed to update review")
+                }
+                
+                _saveSuccess.postValue(success)
+            } else {
+                Log.e("LogFilmViewModel", "Cannot update: userId not found ($currentUserId)")
                 _saveSuccess.postValue(false)
             }
         }

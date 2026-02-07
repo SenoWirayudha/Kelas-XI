@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.review
 
+import android.text.Html
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
@@ -35,7 +36,15 @@ class ReviewAdapter(
             binding.tvTitle.text = review.movie.title
             binding.tvYear.text = review.movie.releaseYear.toString()
             binding.tvDate.text = review.dateLabel
-            binding.tvReviewPreview.text = review.reviewText
+            
+            // Render HTML in review text
+            val reviewHtml = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                Html.fromHtml(review.reviewText, Html.FROM_HTML_MODE_COMPACT)
+            } else {
+                @Suppress("DEPRECATION")
+                Html.fromHtml(review.reviewText)
+            }
+            binding.tvReviewPreview.text = reviewHtml
 
             // Display star rating - rating is already in 0-5 scale
             val starCount = review.rating.toInt().coerceIn(0, 5)

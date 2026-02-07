@@ -269,6 +269,8 @@ data class UserReviewDto(
     val year: String,  // Changed from Int to String to match backend
     val poster_path: String?,
     val rating: Int?,  // Changed from Float to Int to match backend
+    val is_liked: Boolean = false,
+    val watched_at: String?,
     val review_title: String?,
     val content: String,
     val is_spoiler: Boolean,
@@ -276,17 +278,34 @@ data class UserReviewDto(
 )
 
 data class ReviewDetailDto(
-    val review_id: Int,
+    val review_id: Int = 0,
+    val diary_id: Int = 0,
     val user_id: Int,
     val movie_id: Int,
-    val rating: Int,
-    val review_text: String,
+    val rating: Int?,
+    val snapshot_is_liked: Boolean = false,  // Snapshot for icon next to stars
+    val is_liked: Boolean = false,  // Current like status from review_likes
+    val review_text: String?,
+    val watched_at: String? = null,
     val created_at: String,
     val id: Int,
     val title: String,
     val year: String,
     val poster_path: String?,
     val backdrop_path: String?,
+    val username: String,
+    val display_name: String?,
+    val profile_photo: String?,
+    val like_count: Int = 0,
+    val comment_count: Int = 0
+)
+
+data class ReviewCommentDto(
+    val id: Int,
+    val review_id: Int,
+    val user_id: Int,
+    val content: String,
+    val created_at: String,
     val username: String,
     val display_name: String?,
     val profile_photo: String?

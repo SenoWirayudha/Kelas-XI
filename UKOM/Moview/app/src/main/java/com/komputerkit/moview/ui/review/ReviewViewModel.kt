@@ -75,10 +75,11 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
                         movie = movie,
                         rating = dto.rating?.toFloat() ?: 0f,
                         reviewText = dto.content,
-                        reviewDate = dto.created_at,
-                        dateLabel = formatDateLabel(dto.created_at),
+                        reviewDate = dto.watched_at ?: dto.created_at,
+                        dateLabel = formatDateLabel(dto.watched_at ?: dto.created_at),
                         userId = userId,
-                        movieId = dto.id
+                        movieId = dto.id,
+                        isLiked = dto.is_liked
                     )
                 }
                 
@@ -98,10 +99,18 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
     private fun formatDateLabel(dateString: String): String {
         // Format: "Watched DD MMMM YYYY"
         return try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val outputFormat = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
-            val date = inputFormat.parse(dateString)
+            // Try parsing as date first (yyyy-MM-dd)
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val date = try {
+                dateFormat.parse(dateString)
+            } catch (e: Exception) {
+                // If fails, try datetime format
+                val datetimeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                datetimeFormat.parse(dateString)
+            }
+            
             if (date != null) {
+                val outputFormat = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
                 "Watched ${outputFormat.format(date)}"
             } else {
                 "Watched recently"

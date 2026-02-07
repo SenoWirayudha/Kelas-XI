@@ -27,7 +27,7 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
         loadLikes()
     }
     
-    private fun loadLikes() {
+    fun loadLikes() {
         val userId = prefs.getInt("userId", 0)
         if (userId == 0) {
             _likes.value = emptyList()

@@ -188,10 +188,11 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_image"
+                        android:src="@drawable/ic_calendar"
                         app:tint="@color/text_secondary" />
 
                     <TextView
+                        android:id="@+id/tv_watched_date"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
@@ -325,19 +326,76 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/layout_review_header">
 
-            <EditText
-                android:id="@+id/et_review"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@android:color/transparent"
-                android:gravity="top|start"
-                android:hint="Add your review... What did you think of the ending?"
-                android:inputType="textMultiLine|textCapSentences"
-                android:minHeight="200dp"
-                android:padding="16dp"
-                android:textColor="@color/text_primary"
-                android:textColorHint="#4A5568"
-                android:textSize="15sp" />
+                android:orientation="vertical">
+
+                <!-- Formatting Toolbar -->
+                <LinearLayout
+                    android:id="@+id/toolbar_formatting"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="8dp"
+                    android:background="#0D1117"
+                    android:gravity="start|center_vertical">
+
+                    <ImageButton
+                        android:id="@+id/btn_bold"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Bold"
+                        android:src="@drawable/ic_format_bold"
+                        android:scaleType="centerInside"
+                        app:tint="@color/text_secondary" />
+
+                    <ImageButton
+                        android:id="@+id/btn_italic"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Italic"
+                        android:src="@drawable/ic_format_italic"
+                        android:scaleType="centerInside"
+                        app:tint="@color/text_secondary" />
+
+                    <ImageButton
+                        android:id="@+id/btn_underline"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Underline"
+                        android:src="@drawable/ic_format_underline"
+                        android:scaleType="centerInside"
+                        app:tint="@color/text_secondary" />
+
+                    <ImageButton
+                        android:id="@+id/btn_link"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Insert Link"
+                        android:src="@drawable/ic_link"
+                        android:scaleType="centerInside"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+
+                <EditText
+                    android:id="@+id/et_review"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:gravity="top|start"
+                    android:hint="Add your review... What did you think of the ending?"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:minHeight="200dp"
+                    android:padding="16dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="#4A5568"
+                    android:textSize="15sp" />
+            </LinearLayout>
         </androidx.cardview.widget.CardView>
 
         <!-- Log Button -->

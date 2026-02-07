@@ -23,6 +23,10 @@ class DiaryViewModel(application: Application) : AndroidViewModel(application) {
     val isLoading: LiveData<Boolean> = _isLoading
     
     init {
+        loadDiary()
+    }
+    
+    fun loadDiary() {
         loadDiaryEntries()
     }
     

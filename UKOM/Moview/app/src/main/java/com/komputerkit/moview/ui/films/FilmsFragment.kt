@@ -37,6 +37,12 @@ class FilmsFragment : Fragment() {
         setupClickListeners()
     }
     
+    override fun onResume() {
+        super.onResume()
+        // Reload films when returning from other screens
+        viewModel.loadFilms()
+    }
+    
     private fun setupRecyclerView() {
         filmGridAdapter = FilmGridAdapter(
             onMovieClick = { movie ->

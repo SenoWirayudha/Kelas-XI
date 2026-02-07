@@ -27,7 +27,7 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
         loadWatchlist()
     }
     
-    private fun loadWatchlist() {
+    fun loadWatchlist() {
         val userId = prefs.getInt("userId", 0)
         if (userId == 0) return
         

@@ -1,10 +1,19 @@
 package com.komputerkit.moview.ui.log
 
+import android.app.DatePickerDialog
 import android.os.Bundle
+import android.text.Html
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.StyleSpan
+import android.text.style.UnderlineSpan
+import android.text.style.URLSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -13,6 +22,9 @@ import androidx.navigation.fragment.navArgs
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentLogFilmBinding
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class LogFilmFragment : Fragment() {
 
@@ -23,6 +35,7 @@ class LogFilmFragment : Fragment() {
     private val args: LogFilmFragmentArgs by navArgs()
     
     private var currentRating = 0
+    private var selectedDate: String? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -37,6 +50,41 @@ class LogFilmFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         
         viewModel.loadMovie(args.movieId, requireContext())
+        
+        // Handle edit mode
+        if (args.isEditMode) {
+            binding.btnLogFilm.text = "EDIT REVIEW"
+            args.existingReviewText?.let { htmlText ->
+                // Convert HTML to Spannable for visual editing
+                val spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    Html.fromHtml(htmlText, Html.FROM_HTML_MODE_COMPACT)
+                } else {
+                    @Suppress("DEPRECATION")
+                    Html.fromHtml(htmlText)
+                }
+                binding.etReview.setText(spanned)
+            }
+            if (args.existingRating > 0) {
+                currentRating = args.existingRating
+                updateStars(args.existingRating)
+            }
+            // Load watched date if available
+            args.watchedDate?.let { watchedDate ->
+                selectedDate = watchedDate
+                // Format and display the date
+                try {
+                    val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                    val outputFormat = java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault())
+                    val date = inputFormat.parse(watchedDate)
+                    if (date != null) {
+                        binding.tvWatchedDate.text = outputFormat.format(date).uppercase()
+                        binding.tvWatchedDate.visibility = View.VISIBLE
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("LogFilmFragment", "Error formatting watched date: ${e.message}")
+                }
+            }
+        }
         
         setupObservers()
         setupClickListeners()
@@ -94,6 +142,26 @@ class LogFilmFragment : Fragment() {
         
         binding.btnLiked.setOnClickListener {
             viewModel.toggleLike()
+        }
+        
+        binding.btnToday.setOnClickListener {
+            showDatePicker()
+        }
+        
+        binding.btnBold.setOnClickListener {
+            applyStyleSpan(android.graphics.Typeface.BOLD)
+        }
+        
+        binding.btnItalic.setOnClickListener {
+            applyStyleSpan(android.graphics.Typeface.ITALIC)
+        }
+        
+        binding.btnUnderline.setOnClickListener {
+            applyUnderlineSpan()
+        }
+        
+        binding.btnLink.setOnClickListener {
+            showAddLinkDialog()
         }
         
         binding.btnLogFilm.setOnClickListener {
@@ -178,16 +246,210 @@ class LogFilmFragment : Fragment() {
         }
     }
     
+    private fun showDatePicker() {
+        val calendar = Calendar.getInstance()
+        val datePickerDialog = DatePickerDialog(
+            requireContext(),
+            { _, year, month, dayOfMonth ->
+                val selectedCalendar = Calendar.getInstance()
+                selectedCalendar.set(year, month, dayOfMonth)
+                
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                selectedDate = dateFormat.format(selectedCalendar.time)
+                
+                // Update button label
+                val displayFormat = SimpleDateFormat("MMM d", Locale.US)
+                val displayDate = displayFormat.format(selectedCalendar.time)
+                binding.tvWatchedDate.text = displayDate.uppercase()
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+        
+        // Set max date to today
+        datePickerDialog.datePicker.maxDate = System.currentTimeMillis()
+        datePickerDialog.show()
+    }
+    
+    private fun applyStyleSpan(style: Int) {
+        val editText = binding.etReview
+        val start = editText.selectionStart
+        val end = editText.selectionEnd
+        
+        if (start == end) {
+            Toast.makeText(requireContext(), "Please select text first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val spannable = editText.text as? SpannableStringBuilder ?: SpannableStringBuilder(editText.text)
+        
+        // Check if style already exists
+        val existingSpans = spannable.getSpans(start, end, StyleSpan::class.java)
+        val hasStyle = existingSpans.any { it.style == style }
+        
+        if (hasStyle) {
+            // Remove the style
+            existingSpans.filter { it.style == style }.forEach { spannable.removeSpan(it) }
+        } else {
+            // Add the style
+            spannable.setSpan(
+                StyleSpan(style),
+                start,
+                end,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        
+        editText.setText(spannable)
+        editText.setSelection(start, end)
+    }
+    
+    private fun applyUnderlineSpan() {
+        val editText = binding.etReview
+        val start = editText.selectionStart
+        val end = editText.selectionEnd
+        
+        if (start == end) {
+            Toast.makeText(requireContext(), "Please select text first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val spannable = editText.text as? SpannableStringBuilder ?: SpannableStringBuilder(editText.text)
+        
+        // Check if underline already exists
+        val existingSpans = spannable.getSpans(start, end, UnderlineSpan::class.java)
+        
+        if (existingSpans.isNotEmpty()) {
+            // Remove underline
+            existingSpans.forEach { spannable.removeSpan(it) }
+        } else {
+            // Add underline
+            spannable.setSpan(
+                UnderlineSpan(),
+                start,
+                end,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        
+        editText.setText(spannable)
+        editText.setSelection(start, end)
+    }
+    
+    private fun showAddLinkDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_add_link, null)
+        val etUrl = dialogView.findViewById<EditText>(R.id.et_url)
+        val etTitle = dialogView.findViewById<EditText>(R.id.et_link_title)
+        
+        val editText = binding.etReview
+        val start = editText.selectionStart
+        val end = editText.selectionEnd
+        
+        // Pre-fill title with selected text if any
+        if (start != end) {
+            etTitle.setText(editText.text.substring(start, end))
+        }
+        
+        AlertDialog.Builder(requireContext())
+            .setTitle("Add Link")
+            .setView(dialogView)
+            .setPositiveButton("Insert") { _, _ ->
+                val url = etUrl.text.toString().trim()
+                var title = etTitle.text.toString().trim()
+                
+                if (url.isEmpty()) {
+                    Toast.makeText(requireContext(), "Please enter URL", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                
+                // Ensure URL has https:// prefix
+                val fullUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    "https://$url"
+                } else {
+                    url
+                }
+                
+                if (title.isEmpty()) {
+                    title = fullUrl
+                }
+                
+                val spannable = editText.text as? SpannableStringBuilder ?: SpannableStringBuilder(editText.text)
+                
+                if (start != end) {
+                    // Replace selected text with link
+                    spannable.replace(start, end, title)
+                    spannable.setSpan(
+                        URLSpan(fullUrl),
+                        start,
+                        start + title.length,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                    editText.setText(spannable)
+                    editText.setSelection(start + title.length)
+                } else {
+                    // Insert link at cursor position
+                    spannable.insert(start, title)
+                    spannable.setSpan(
+                        URLSpan(fullUrl),
+                        start,
+                        start + title.length,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                    editText.setText(spannable)
+                    editText.setSelection(start + title.length)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun spannableToHtml(spannable: CharSequence): String {
+        if (spannable !is Spanned) {
+            return spannable.toString()
+        }
+        
+        val html = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            Html.toHtml(spannable, Html.TO_HTML_PARAGRAPH_LINES_CONSECUTIVE)
+        } else {
+            @Suppress("DEPRECATION")
+            Html.toHtml(spannable)
+        }
+        
+        // Clean up extra HTML tags added by Android
+        return html
+            .replace("<p dir=\"ltr\">", "")
+            .replace("</p>", "")
+            .replace("\n", "")
+            .trim()
+    }
+    
     private fun saveLog() {
-        val reviewText = binding.etReview.text.toString()
+        // Convert Spannable to HTML before saving
+        val reviewHtml = spannableToHtml(binding.etReview.text ?: "")
         val containsSpoilers = binding.cbSpoilers.isChecked
         
-        viewModel.saveLog(reviewText, containsSpoilers)
+        if (args.isEditMode) {
+            if (args.reviewId > 0) {
+                // Update existing review
+                viewModel.updateReview(args.reviewId, reviewHtml, containsSpoilers, currentRating, selectedDate)
+            } else {
+                // Create new review from log entry
+                viewModel.saveLog(reviewHtml, containsSpoilers, selectedDate)
+            }
+        } else {
+            // Create new log/review
+            viewModel.saveLog(reviewHtml, containsSpoilers, selectedDate)
+        }
         
         // Give time for async save before closing
         binding.root.postDelayed({
-            Toast.makeText(requireContext(), "Film logged successfully!", Toast.LENGTH_SHORT).show()
-            findNavController().navigateUp()
+            // Check if fragment is still attached to avoid crash
+            if (isAdded && context != null) {
+                val message = if (args.isEditMode && args.reviewId > 0) "Review updated successfully!" else "Review saved successfully!"
+                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                findNavController().navigateUp()
+            }
         }, 500)
     }
 

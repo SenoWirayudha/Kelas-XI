@@ -2,11 +2,15 @@ package com.komputerkit.moview.ui.fragment
 
 import android.app.Dialog
 import android.os.Bundle
+import android.text.Html
+import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.PopupMenu
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -50,7 +54,15 @@ class ReviewDetailFragment : Fragment() {
         setupObservers()
         setupClickListeners()
         
-        viewModel.loadReview(args.reviewId)
+        viewModel.loadReview(args.reviewId, args.isLog)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Reload review data when returning from edit screen
+        // This ensures log entries that were edited to add review text
+        // will now show as review detail instead of log detail
+        viewModel.loadReview(args.reviewId, args.isLog)
     }
 
     private fun setupObservers() {
@@ -66,23 +78,46 @@ class ReviewDetailFragment : Fragment() {
                 ivPoster.loadPoster(review.movie.posterUrl)
 
                 tvUsername.text = review.userName
+                
+                // Show 3-dot menu only if this is current user's review
+                val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+                val currentUserId = prefs.getInt("userId", 0)
+                val isOwnReview = review.userId == currentUserId
+                
+                btnMoreOptions.visibility = if (isOwnReview) View.VISIBLE else View.GONE
+                
+                // Disable like button for own review
+                ivLikeIcon.isEnabled = !isOwnReview
+                tvLikeCount.isEnabled = !isOwnReview
+                ivLikeIcon.alpha = if (isOwnReview) 0.3f else 1.0f
+                
                 tvMovieTitle.text = review.movie.title
                 
-                // Build year and stars with colored stars
-                val stars = "★".repeat(review.rating.toInt())
-                val yearText = "${review.movie.releaseYear} • "
-                val fullText = yearText + stars
-                val spannable = android.text.SpannableString(fullText)
-                spannable.setSpan(
-                    android.text.style.ForegroundColorSpan(requireContext().getColor(R.color.star_green)),
-                    yearText.length,
-                    fullText.length,
-                    android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-                tvYear.text = spannable
+                // Display year and stars separately
+                tvYear.text = review.movie.releaseYear.toString()
+                
+                // Display star rating
+                val stars = "★".repeat(review.rating.toInt().coerceIn(0, 5))
+                tvRatingStars.text = stars
+                
+                // Show liked icon if movie was liked when review was written
+                ivLikedIcon.visibility = if (review.isLiked) View.VISIBLE else View.GONE
                 
                 tvPostedTime.text = review.timeAgo
-                tvReviewText.text = review.reviewText
+                
+                // Display review text with HTML formatting and clickable links
+                if (review.reviewText.isNotEmpty()) {
+                    val htmlText = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                        Html.fromHtml(review.reviewText, Html.FROM_HTML_MODE_COMPACT)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        Html.fromHtml(review.reviewText)
+                    }
+                    tvReviewText.text = htmlText
+                    tvReviewText.movementMethod = LinkMovementMethod.getInstance()
+                } else {
+                    tvReviewText.text = review.reviewText
+                }
                 
                 // Show tag if available
                 if (review.hasTag && review.tag.isNotEmpty()) {
@@ -113,11 +148,47 @@ class ReviewDetailFragment : Fragment() {
         viewModel.commentCount.observe(viewLifecycleOwner) { count ->
             binding.tvCommentCount.text = count.toString()
         }
+        
+        viewModel.isLog.observe(viewLifecycleOwner) { isLog ->
+            binding.apply {
+                if (isLog) {
+                    // Hide review-specific elements for log entries
+                    tvReviewText.visibility = View.GONE
+                    layoutActions.visibility = View.GONE  // Like, Comment, Share buttons
+                    tvMoreFrom.visibility = View.GONE
+                    
+                    // Change label from "REVIEWED BY" to "LOGGED BY"
+                    tvReviewerName.text = "LOGGED BY"
+                } else {
+                    // Show all elements for reviews
+                    tvReviewText.visibility = View.VISIBLE
+                    layoutActions.visibility = View.VISIBLE  // Show like, comment, share buttons
+                    tvMoreFrom.visibility = View.VISIBLE
+                    
+                    tvReviewerName.text = "REVIEWED BY"
+                }
+            }
+        }
+        
+        viewModel.deleteStatus.observe(viewLifecycleOwner) { success ->
+            if (success) {
+                val isReview = viewModel.review.value?.reviewId ?: 0 > 0
+                val message = if (isReview) "Review deleted successfully" else "Log entry deleted successfully"
+                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                findNavController().navigateUp()
+            } else {
+                Toast.makeText(requireContext(), "Failed to delete", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setupClickListeners() {
         binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
+        }
+        
+        binding.btnMoreOptions.setOnClickListener {
+            showOptionsMenu(it)
         }
 
         binding.cardProfile.setOnClickListener {
@@ -134,13 +205,31 @@ class ReviewDetailFragment : Fragment() {
             }
         }
 
-        // Like button - use both icon and count as clickable
+        // Like button - check if own review before allowing toggle
         binding.ivLikeIcon.setOnClickListener {
-            viewModel.toggleLike()
+            viewModel.review.value?.let { review ->
+                val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+                val currentUserId = prefs.getInt("userId", 0)
+                
+                if (review.userId != currentUserId) {
+                    viewModel.toggleLike()
+                } else {
+                    Toast.makeText(requireContext(), "You can't like your own review", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
         
         binding.tvLikeCount.setOnClickListener {
-            viewModel.toggleLike()
+            viewModel.review.value?.let { review ->
+                val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+                val currentUserId = prefs.getInt("userId", 0)
+                
+                if (review.userId != currentUserId) {
+                    viewModel.toggleLike()
+                } else {
+                    Toast.makeText(requireContext(), "You can't like your own review", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         // Comment button - use both icon and count as clickable
@@ -276,6 +365,64 @@ class ReviewDetailFragment : Fragment() {
         return when {
             count >= 1000 -> String.format("%.1fk", count / 1000.0)
             else -> count.toString()
+        }
+    }
+    
+    private fun showOptionsMenu(view: View) {
+        val popup = PopupMenu(requireContext(), view)
+        popup.menuInflater.inflate(R.menu.menu_review_options, popup.menu)
+        
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_edit -> {
+                    navigateToEditReview()
+                    true
+                }
+                R.id.action_delete -> {
+                    showDeleteConfirmation()
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
+    }
+    
+    private fun navigateToEditReview() {
+        viewModel.review.value?.let { review ->
+            val action = ReviewDetailFragmentDirections.actionReviewDetailToEditReview(
+                movieId = review.movieId,
+                isEditMode = true,
+                reviewId = review.reviewId,
+                existingReviewText = review.reviewText,
+                existingRating = review.rating.toInt(),
+                watchedDate = review.watchedAt
+            )
+            findNavController().navigate(action)
+        }
+    }
+    
+    private fun showDeleteConfirmation() {
+        val isReview = viewModel.review.value?.reviewId ?: 0 > 0
+        val title = if (isReview) "Delete Review" else "Delete Log Entry"
+        val message = if (isReview) "Are you sure you want to delete this review?" else "Are you sure you want to delete this log entry?"
+        
+        AlertDialog.Builder(requireContext())
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("Delete") { _, _ ->
+                deleteReview()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun deleteReview() {
+        viewModel.review.value?.let { review ->
+            // Pass both reviewId and id (diaryId)
+            // If reviewId > 0, delete review (and diary)
+            // If reviewId == 0, delete diary only
+            viewModel.deleteEntry(review.reviewId, review.id)
         }
     }
 

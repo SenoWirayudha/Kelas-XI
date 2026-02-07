@@ -28,7 +28,7 @@ class FilmsViewModel(application: Application) : AndroidViewModel(application) {
         loadFilms()
     }
     
-    private fun loadFilms() {
+    fun loadFilms() {
         val userId = prefs.getInt("userId", 0)
         if (userId == 0) return
         

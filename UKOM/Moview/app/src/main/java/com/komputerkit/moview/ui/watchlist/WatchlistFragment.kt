@@ -40,6 +40,11 @@ class WatchlistFragment : Fragment() {
         observeViewModel()
     }
     
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadWatchlist()
+    }
+    
     private fun setupRecyclerView() {
         adapter = WatchlistAdapter(
             onItemClick = { item ->
