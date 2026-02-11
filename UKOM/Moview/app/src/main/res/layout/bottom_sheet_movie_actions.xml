@@ -230,6 +230,34 @@
 
     </LinearLayout>
 
+    <!-- Rewatch Count -->
+    <LinearLayout
+        android:id="@+id/layout_rewatch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_rewatch"
+            app:tint="@color/text_secondary" />
+
+        <TextView
+            android:id="@+id/tv_rewatch_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="Rewatch × 2"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
     <!-- Menu Items -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -255,6 +283,7 @@
                 app:tint="@color/text_secondary" />
 
             <TextView
+                android:id="@+id/tv_review_log_text"
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"

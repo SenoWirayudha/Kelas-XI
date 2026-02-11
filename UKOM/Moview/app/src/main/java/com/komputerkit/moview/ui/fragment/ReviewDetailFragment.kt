@@ -3,6 +3,11 @@ package com.komputerkit.moview.ui.fragment
 import android.app.Dialog
 import android.os.Bundle
 import android.text.Html
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.StyleSpan
+import android.text.style.UnderlineSpan
+import android.text.style.URLSpan
 import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
 import android.view.View
@@ -279,8 +284,9 @@ class ReviewDetailFragment : Fragment() {
                     val action = ReviewDetailFragmentDirections.actionReviewDetailToProfile(userId)
                     findNavController().navigate(action)
                 },
-                onLikeClick = { comment ->
-                    viewModel.toggleCommentLike(comment)
+                onReplyClick = { comment ->
+                    viewModel.setReplyTarget(comment)
+                    showAddCommentBottomSheet()
                 }
             )
             
@@ -292,7 +298,9 @@ class ReviewDetailFragment : Fragment() {
             // Observe comments
             viewModel.comments.observe(viewLifecycleOwner) { comments ->
                 commentAdapter.submitList(comments)
-                tvTitle.text = "Comments (${comments.size})"
+                // Count all comments including replies
+                val totalCount = comments.sumOf { 1 + it.replies.size }
+                tvTitle.text = "Comments ($totalCount)"
             }
             
             btnClose.setOnClickListener {
@@ -300,6 +308,7 @@ class ReviewDetailFragment : Fragment() {
             }
             
             fabAddComment.setOnClickListener {
+                viewModel.clearReplyTarget()
                 showAddCommentBottomSheet()
             }
         }
@@ -322,12 +331,44 @@ class ReviewDetailFragment : Fragment() {
             }
         }
         
-        // Character count
+        // Show reply reference if replying to a comment
+        viewModel.replyingTo.value?.let { replyComment ->
+            dialogBinding.layoutReference?.visibility = View.VISIBLE
+            dialogBinding.tvReferenceText?.text = "Replying to @${replyComment.username}: ${replyComment.commentText}"
+        } ?: run {
+            dialogBinding.layoutReference?.visibility = View.GONE
+        }
+        
+        // Handle close button on reference layout
+        dialogBinding.btnCloseReference?.setOnClickListener {
+            viewModel.clearReplyTarget()
+            dialogBinding.layoutReference?.visibility = View.GONE
+        }
+        
+        // Formatting toolbar buttons
+        dialogBinding.btnBold?.setOnClickListener {
+            applyStyleSpan(dialogBinding.etComment, android.graphics.Typeface.BOLD)
+        }
+        
+        dialogBinding.btnItalic?.setOnClickListener {
+            applyStyleSpan(dialogBinding.etComment, android.graphics.Typeface.ITALIC)
+        }
+        
+        dialogBinding.btnUnderline?.setOnClickListener {
+            applyUnderlineSpan(dialogBinding.etComment)
+        }
+        
+        dialogBinding.btnLink?.setOnClickListener {
+            showInsertLinkDialog(dialogBinding.etComment)
+        }
+        
+        // Character count and preview
         dialogBinding.etComment.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
-                val length = s?.length ?: 0
+                val text = s?.toString() ?: ""
+                val length = text.length
                 dialogBinding.tvCharCount.text = "$length/500"
                 
                 // Change color if approaching limit
@@ -340,15 +381,21 @@ class ReviewDetailFragment : Fragment() {
         })
         
         dialogBinding.btnCancel.setOnClickListener {
+            viewModel.clearReplyTarget()
             addCommentSheet.dismiss()
         }
         
         dialogBinding.btnPost.setOnClickListener {
-            val commentText = dialogBinding.etComment.text.toString().trim()
+            val commentSpannable = dialogBinding.etComment.text
+            val commentText = spannableToHtml(commentSpannable)
             if (commentText.isNotEmpty()) {
                 viewModel.addComment(commentText)
                 addCommentSheet.dismiss()
             }
+        }
+        
+        addCommentSheet.setOnDismissListener {
+            viewModel.clearReplyTarget()
         }
         
         addCommentSheet.show()
@@ -366,6 +413,157 @@ class ReviewDetailFragment : Fragment() {
             count >= 1000 -> String.format("%.1fk", count / 1000.0)
             else -> count.toString()
         }
+    }
+    
+    private fun spannableToHtml(spannable: CharSequence): String {
+        if (spannable !is Spanned) {
+            return spannable.toString()
+        }
+        
+        val html = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            Html.toHtml(spannable, Html.TO_HTML_PARAGRAPH_LINES_CONSECUTIVE)
+        } else {
+            @Suppress("DEPRECATION")
+            Html.toHtml(spannable)
+        }
+        
+        // Clean up extra HTML tags added by Android
+        return html
+            .replace("<p dir=\"ltr\">", "")
+            .replace("</p>", "")
+            .replace("\n", "")
+            .trim()
+    }
+    
+    private fun applyStyleSpan(editText: EditText, style: Int) {
+        val start = editText.selectionStart
+        val end = editText.selectionEnd
+        
+        if (start == end) {
+            Toast.makeText(requireContext(), "Please select text first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val spannable = editText.text as? SpannableStringBuilder ?: SpannableStringBuilder(editText.text)
+        
+        // Check if style already exists
+        val existingSpans = spannable.getSpans(start, end, StyleSpan::class.java)
+        val hasStyle = existingSpans.any { it.style == style }
+        
+        if (hasStyle) {
+            // Remove the style
+            existingSpans.filter { it.style == style }.forEach { spannable.removeSpan(it) }
+        } else {
+            // Add the style
+            spannable.setSpan(
+                StyleSpan(style),
+                start,
+                end,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        
+        editText.setText(spannable)
+        editText.setSelection(start, end)
+    }
+    
+    private fun applyUnderlineSpan(editText: EditText) {
+        val start = editText.selectionStart
+        val end = editText.selectionEnd
+        
+        if (start == end) {
+            Toast.makeText(requireContext(), "Please select text first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val spannable = editText.text as? SpannableStringBuilder ?: SpannableStringBuilder(editText.text)
+        
+        // Check if underline already exists
+        val existingSpans = spannable.getSpans(start, end, UnderlineSpan::class.java)
+        
+        if (existingSpans.isNotEmpty()) {
+            // Remove underline
+            existingSpans.forEach { spannable.removeSpan(it) }
+        } else {
+            // Add underline
+            spannable.setSpan(
+                UnderlineSpan(),
+                start,
+                end,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        
+        editText.setText(spannable)
+        editText.setSelection(start, end)
+    }
+    
+    private fun showInsertLinkDialog(editText: EditText) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_insert_link, null)
+        val etLinkText = dialogView.findViewById<EditText>(R.id.et_link_text)
+        val etLinkUrl = dialogView.findViewById<EditText>(R.id.et_link_url)
+        
+        val start = editText.selectionStart
+        val end = editText.selectionEnd
+        
+        // Pre-fill text with selected text if any
+        if (start != end) {
+            etLinkText.setText(editText.text.substring(start, end))
+        }
+        
+        AlertDialog.Builder(requireContext())
+            .setTitle("Insert Link")
+            .setView(dialogView)
+            .setPositiveButton("Insert") { _, _ ->
+                val url = etLinkUrl.text.toString().trim()
+                var linkText = etLinkText.text.toString().trim()
+                
+                if (url.isEmpty()) {
+                    Toast.makeText(requireContext(), "Please enter URL", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                
+                // Ensure URL has https:// prefix
+                val fullUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    "https://$url"
+                } else {
+                    url
+                }
+                
+                if (linkText.isEmpty()) {
+                    linkText = fullUrl
+                }
+                
+                val spannable = editText.text as? SpannableStringBuilder ?: SpannableStringBuilder(editText.text)
+                val currentStart = editText.selectionStart
+                val currentEnd = editText.selectionEnd
+                
+                if (currentStart != currentEnd) {
+                    // Replace selected text with link
+                    spannable.replace(currentStart, currentEnd, linkText)
+                    spannable.setSpan(
+                        URLSpan(fullUrl),
+                        currentStart,
+                        currentStart + linkText.length,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                    editText.setText(spannable)
+                    editText.setSelection(currentStart + linkText.length)
+                } else {
+                    // Insert link at cursor position
+                    spannable.insert(currentStart, linkText)
+                    spannable.setSpan(
+                        URLSpan(fullUrl),
+                        currentStart,
+                        currentStart + linkText.length,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                    editText.setText(spannable)
+                    editText.setSelection(currentStart + linkText.length)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
     
     private fun showOptionsMenu(view: View) {

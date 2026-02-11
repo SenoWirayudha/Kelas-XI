@@ -3,6 +3,7 @@ package com.komputerkit.moview.data.repository
 import android.util.Log
 import com.komputerkit.moview.data.api.MovieCardDto
 import com.komputerkit.moview.data.api.RetrofitClient
+import com.komputerkit.moview.data.api.ReviewCommentDto
 import com.komputerkit.moview.data.api.UserProfileResponse
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.data.model.Movie
@@ -266,6 +267,20 @@ class MovieRepository {
         }
     }
     
+    suspend fun getWatchCount(userId: Int, movieId: Int): Int = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getWatchCount(userId, movieId)
+            if (response.success && response.data != null) {
+                response.data.watch_count
+            } else {
+                0
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error getting watch count: ${e.message}", e)
+            0
+        }
+    }
+    
     private fun formatDiaryDate(dateString: String): String {
         return try {
             val parts = dateString.split("-")
@@ -442,29 +457,7 @@ class MovieRepository {
         try {
             val response = apiService.getReviewComments(reviewId)
             if (response.success && response.data != null) {
-                response.data.map { dto ->
-                    // Build profile photo URL
-                    val profilePhotoUrl = if (!dto.profile_photo.isNullOrBlank()) {
-                        if (dto.profile_photo.startsWith("http")) {
-                            dto.profile_photo.replace("127.0.0.1", "10.0.2.2")
-                        } else {
-                            "http://10.0.2.2:8000/storage/${dto.profile_photo}"
-                        }
-                    } else {
-                        ""
-                    }
-                    
-                    com.komputerkit.moview.data.model.Comment(
-                        id = dto.id,
-                        reviewId = dto.review_id,
-                        userId = dto.user_id,
-                        username = dto.display_name ?: dto.username,
-                        userAvatar = profilePhotoUrl,
-                        commentText = dto.content,
-                        timeAgo = formatCommentTime(dto.created_at),
-                        likeCount = 0  // TODO: Implement comment likes
-                    )
-                }
+                response.data.map { dto -> mapDtoToComment(dto) }
             } else {
                 emptyList()
             }
@@ -474,9 +467,38 @@ class MovieRepository {
         }
     }
     
-    suspend fun addReviewComment(userId: Int, reviewId: Int, commentText: String): com.komputerkit.moview.data.model.Comment? = withContext(Dispatchers.IO) {
+    private fun mapDtoToComment(dto: ReviewCommentDto): com.komputerkit.moview.data.model.Comment {
+        // Build profile photo URL
+        val profilePhotoUrl = if (!dto.profile_photo.isNullOrBlank()) {
+            if (dto.profile_photo.startsWith("http")) {
+                dto.profile_photo.replace("127.0.0.1", "10.0.2.2")
+            } else {
+                "http://10.0.2.2:8000/storage/${dto.profile_photo}"
+            }
+        } else {
+            ""
+        }
+        
+        // Recursively map replies
+        val replies = dto.replies?.map { replyDto -> mapDtoToComment(replyDto) }?.toMutableList() ?: mutableListOf()
+        
+        return com.komputerkit.moview.data.model.Comment(
+            id = dto.id,
+            reviewId = dto.review_id,
+            userId = dto.user_id,
+            username = dto.display_name ?: dto.username,
+            userAvatar = profilePhotoUrl,
+            commentText = dto.content,
+            timeAgo = formatCommentTime(dto.created_at),
+            likeCount = 0,  // TODO: Implement comment likes
+            parentId = dto.parent_id,
+            replies = replies
+        )
+    }
+    
+    suspend fun addReviewComment(userId: Int, reviewId: Int, commentText: String, parentId: Int? = null): com.komputerkit.moview.data.model.Comment? = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.addReviewComment(userId, reviewId, commentText)
+            val response = apiService.addReviewComment(userId, reviewId, commentText, parentId)
             if (response.success && response.data != null) {
                 val dto = response.data
                 
@@ -499,7 +521,8 @@ class MovieRepository {
                     userAvatar = profilePhotoUrl,
                     commentText = dto.content,
                     timeAgo = "Just now",
-                    likeCount = 0
+                    likeCount = 0,
+                    parentId = dto.parent_id
                 )
             } else {
                 null
@@ -1437,11 +1460,12 @@ class MovieRepository {
         reviewText: String,
         rating: Int,
         containsSpoilers: Boolean,
-        watchedAt: String? = null
+        watchedAt: String? = null,
+        isRewatch: Boolean = false
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            android.util.Log.d("MovieRepository", "saveReview: userId=$userId, filmId=$filmId, rating=$rating, spoilers=$containsSpoilers, watchedAt=$watchedAt")
-            val response = apiService.saveReview(userId, filmId, reviewText, rating, if (containsSpoilers) 1 else 0, watchedAt)
+            android.util.Log.d("MovieRepository", "saveReview: userId=$userId, filmId=$filmId, rating=$rating, spoilers=$containsSpoilers, watchedAt=$watchedAt, isRewatch=$isRewatch")
+            val response = apiService.saveReview(userId, filmId, reviewText, rating, if (containsSpoilers) 1 else 0, watchedAt, if (isRewatch) 1 else 0)
             android.util.Log.d("MovieRepository", "saveReview response: success=${response.success}")
             response.success
         } catch (e: Exception) {

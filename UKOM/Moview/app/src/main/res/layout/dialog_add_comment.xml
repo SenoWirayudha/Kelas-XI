@@ -19,19 +19,120 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- Reference Comment (What we're replying to) -->
+    <LinearLayout
+        android:id="@+id/layout_reference"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@color/dark_card"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_title">
+
+        <TextView
+            android:id="@+id/tv_reference_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:text="Replying to @Username..."
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
+
+        <ImageView
+            android:id="@+id/btn_close_reference"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Clear reply"
+            android:src="@drawable/ic_close"
+            app:tint="@color/text_secondary" />
+
+    </LinearLayout>
+
+    <!-- Formatting Toolbar -->
+    <HorizontalScrollView
+        android:id="@+id/formatting_toolbar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:scrollbars="none"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_reference">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingVertical="4dp">
+
+            <ImageView
+                android:id="@+id/btn_bold"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Bold"
+                android:padding="6dp"
+                android:src="@drawable/ic_format_bold"
+                app:tint="@color/text_secondary" />
+
+            <ImageView
+                android:id="@+id/btn_italic"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Italic"
+                android:padding="6dp"
+                android:src="@drawable/ic_format_italic"
+                app:tint="@color/text_secondary" />
+
+            <ImageView
+                android:id="@+id/btn_underline"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Underline"
+                android:padding="6dp"
+                android:src="@drawable/ic_format_underlined"
+                app:tint="@color/text_secondary" />
+
+            <ImageView
+                android:id="@+id/btn_link"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Insert Link"
+                android:padding="6dp"
+                android:src="@drawable/ic_insert_link"
+                app:tint="@color/text_secondary" />
+
+        </LinearLayout>
+
+    </HorizontalScrollView>
+
     <!-- Comment Input Card -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/card_input"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         app:cardBackgroundColor="@color/dark_card"
         app:cardCornerRadius="12dp"
         app:cardElevation="0dp"
         app:strokeWidth="0dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_title">
+        app:layout_constraintTop_toBottomOf="@id/formatting_toolbar">
 
         <EditText
             android:id="@+id/et_comment"
@@ -39,7 +140,7 @@
             android:layout_height="wrap_content"
             android:background="@android:color/transparent"
             android:gravity="top"
-            android:hint="Share your thoughts..."
+            android:hint="Share your thoughts... (select text to format)"
             android:inputType="textMultiLine"
             android:minHeight="120dp"
             android:padding="16dp"

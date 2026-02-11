@@ -108,19 +108,43 @@ object MovieActionsHelper {
                 // Load watchlist status
                 val isInWatchlist = repository.checkWatchlist(userId, movie.id)
                 
+                // Load watch count (rewatch count)
+                val watchCount = repository.getWatchCount(userId, movie.id)
+                Log.d("MovieActionsHelper", "Watch count for movie ${movie.id}: $watchCount")
+                
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    if (ratingResponse != null && ratingResponse.is_watched) {
-                        // User has watched this movie (either rated or just marked as watched)
+                    // Load rating if exists
+                    if (ratingResponse != null) {
                         currentRating = ratingResponse.rating ?: 0
                         updateStars(stars, currentRating)
-                        // Update button to "Watched" (green)
-                        updateWatchedButtonState(context, binding, true)
-                        Log.d("MovieActionsHelper", "Movie is watched. Rating: ${ratingResponse.rating} stars for movie ${movie.id}")
+                        Log.d("MovieActionsHelper", "Loaded rating: ${ratingResponse.rating} stars for movie ${movie.id}")
                     } else {
-                        // No rating found, set to default empty state
                         updateStars(stars, 0)
-                        updateWatchedButtonState(context, binding, false)
-                        Log.d("MovieActionsHelper", "Movie not watched, setting default UI")
+                        Log.d("MovieActionsHelper", "No rating found for movie ${movie.id}")
+                    }
+                    
+                    // Icon watch state: from ratings table (is_watched)
+                    val isWatched = ratingResponse?.is_watched ?: false
+                    updateWatchedButtonState(context, binding, isWatched)
+                    Log.d("MovieActionsHelper", "Watch icon state from ratings.is_watched: $isWatched")
+                    
+                    // Text "Review and log again": from diary entries count
+                    if (watchCount > 0) {
+                        // User has logged this movie before - show "Review and log again"
+                        binding.tvReviewLogText.text = "Review and log again"
+                        Log.d("MovieActionsHelper", "Movie logged $watchCount time(s) - showing 'Review and log again'")
+                    } else {
+                        // First time logging this movie
+                        binding.tvReviewLogText.text = "Review and log"
+                        Log.d("MovieActionsHelper", "First time logging - showing 'Review and log'")
+                    }
+                    
+                    // Show rewatch count if watched more than once
+                    if (watchCount > 1) {
+                        binding.layoutRewatch.visibility = View.VISIBLE
+                        binding.tvRewatchCount.text = "Rewatch × $watchCount"
+                    } else {
+                        binding.layoutRewatch.visibility = View.GONE
                     }
                     
                     // Update like button state

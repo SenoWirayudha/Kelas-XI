@@ -191,6 +191,31 @@ class UserActivityController extends Controller
     }
 
     /**
+     * Get watch count (diary count) for specific movie
+     */
+    public function getWatchCount($userId, $movieId)
+    {
+        try {
+            $count = DB::table('diaries')
+                ->where('user_id', $userId)
+                ->where('film_id', $movieId)
+                ->count();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'watch_count' => $count
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch watch count: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get user reviews list
      */
     public function getReviews($userId)
@@ -884,6 +909,7 @@ class UserActivityController extends Controller
             $rating = $request->input('rating', 0);
             $containsSpoilers = $request->input('contains_spoilers', false);
             $watchedAt = $request->input('watched_at', now()->format('Y-m-d'));
+            $isRewatch = $request->input('is_rewatch', false); // New parameter to indicate rewatch
             
             // Check if user has liked this movie (from movie_likes table)
             $isLiked = DB::table('movie_likes')
@@ -893,94 +919,106 @@ class UserActivityController extends Controller
             
             $reviewId = null;
             
-            // If review text is provided, save to reviews table
+            // Handle review creation/update based on review text and rewatch status
             if (!empty($reviewText)) {
-                // Check if review already exists
-                $existingReview = DB::table('reviews')
-                    ->where('user_id', $userId)
-                    ->where('film_id', $movieId)
-                    ->first();
-                
-                if ($existingReview) {
-                    // Update existing review
-                    DB::table('reviews')
-                        ->where('user_id', $userId)
-                        ->where('film_id', $movieId)
-                        ->update([
-                            'content' => $reviewText,
-                            'rating' => $rating,
-                            'is_spoiler' => $containsSpoilers ? 1 : 0,
-                            'is_liked' => $isLiked,  // Snapshot of like status
-                            'watched_at' => $watchedAt,
-                            'updated_at' => now()
-                        ]);
-                    $reviewId = $existingReview->id;
-                } else {
-                    // Create new review
+                if ($isRewatch) {
+                    // REWATCH MODE: Always create NEW review entry
+                    // Each rewatch with review text gets its own review entry in reviews table
                     $reviewId = DB::table('reviews')->insertGetId([
                         'user_id' => $userId,
                         'film_id' => $movieId,
                         'content' => $reviewText,
                         'rating' => $rating,
                         'is_spoiler' => $containsSpoilers ? 1 : 0,
-                        'is_liked' => $isLiked,  // Snapshot of like status
+                        'is_liked' => $isLiked,
                         'watched_at' => $watchedAt,
                         'status' => 'published',
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
+                    \Log::info("Created NEW review id: $reviewId for REWATCH");
+                } else {
+                    // NOT REWATCH: Check if review exists for edit mode
+                    $existingReview = DB::table('reviews')
+                        ->where('user_id', $userId)
+                        ->where('film_id', $movieId)
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+                    
+                    if ($existingReview) {
+                        // Edit mode: update most recent review
+                        DB::table('reviews')
+                            ->where('id', $existingReview->id)
+                            ->update([
+                                'content' => $reviewText,
+                                'rating' => $rating,
+                                'is_spoiler' => $containsSpoilers ? 1 : 0,
+                                'is_liked' => $isLiked,
+                                'watched_at' => $watchedAt,
+                                'updated_at' => now()
+                            ]);
+                        $reviewId = $existingReview->id;
+                        \Log::info("Updated existing review id: $reviewId (edit mode)");
+                    } else {
+                        // First review: create new
+                        $reviewId = DB::table('reviews')->insertGetId([
+                            'user_id' => $userId,
+                            'film_id' => $movieId,
+                            'content' => $reviewText,
+                            'rating' => $rating,
+                            'is_spoiler' => $containsSpoilers ? 1 : 0,
+                            'is_liked' => $isLiked,
+                            'watched_at' => $watchedAt,
+                            'status' => 'published',
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                        \Log::info("Created FIRST review id: $reviewId");
+                    }
+                }
+            } else {
+                // No review text provided, get most recent review if exists for linking
+                $existingReview = DB::table('reviews')
+                    ->where('user_id', $userId)
+                    ->where('film_id', $movieId)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                
+                if ($existingReview) {
+                    $reviewId = $existingReview->id;
+                    \Log::info("Linking to most recent review id: $reviewId (no new review text)");
                 }
             }
             
             // Always save to diary (for both review and log)
-            $existingDiary = DB::table('diaries')
-                ->where('user_id', $userId)
-                ->where('film_id', $movieId)
-                ->first();
+            // ALWAYS create NEW diary entry for watch/rewatch tracking - never update
+            // Each diary entry represents one watch with its own note
+            $diaryNote = !empty($reviewText) ? $reviewText : "Watched this film";
             
-            $diaryNote = !empty($reviewText) ? "Review: $reviewText" : "Watched this film";
+            $insertData = [
+                'user_id' => $userId,
+                'film_id' => $movieId,
+                'watched_at' => $watchedAt,
+                'rating' => $rating,  // Save rating snapshot
+                'is_liked' => $isLiked,  // Snapshot of like status
+                'note' => $diaryNote,  // Store review/note text here for this specific watch
+                'is_rewatched' => $isRewatch ? 1 : 0,  // Mark if this is a rewatch
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
             
-            if ($existingDiary) {
-                // Update existing diary
-                $updateData = [
-                    'watched_at' => $watchedAt,
-                    'rating' => $rating,  // Save rating snapshot
-                    'is_liked' => $isLiked,  // Snapshot of like status
-                    'note' => $diaryNote,
-                    'updated_at' => now()
-                ];
-                
-                // Set review_id if a review was created/updated
-                if ($reviewId) {
-                    $updateData['review_id'] = $reviewId;
-                }
-                
-                DB::table('diaries')
-                    ->where('user_id', $userId)
-                    ->where('film_id', $movieId)
-                    ->update($updateData);
-            } else {
-                // Create new diary entry
-                $insertData = [
-                    'user_id' => $userId,
-                    'film_id' => $movieId,
-                    'watched_at' => $watchedAt,
-                    'rating' => $rating,  // Save rating snapshot
-                    'is_liked' => $isLiked,  // Snapshot of like status
-                    'note' => $diaryNote,
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ];
-                
-                // Set review_id if a review was created
-                if ($reviewId) {
-                    $insertData['review_id'] = $reviewId;
-                }
-                
-                DB::table('diaries')->insert($insertData);
+            // Link to review if review exists (either created or existing)
+            if ($reviewId) {
+                $insertData['review_id'] = $reviewId;
             }
             
-            $message = !empty($reviewText) ? 'Review saved successfully' : 'Log saved successfully';
+            // Always insert new diary entry (for rewatch tracking)
+            DB::table('diaries')->insert($insertData);
+            \Log::info("Created diary entry for user $userId, film $movieId, is_rewatched: " . ($isRewatch ? 'true' : 'false'));
+            
+            $message = $isRewatch 
+                ? 'Rewatch logged successfully' 
+                : (!empty($reviewText) ? 'Review saved successfully' : 'Log saved successfully');
             
             return response()->json([
                 'success' => true,
@@ -1140,17 +1178,18 @@ class UserActivityController extends Controller
     public function getReviewComments($reviewId)
     {
         try {
-            $comments = DB::table('review_comments')
+            // Get all comments for this review
+            $allComments = DB::table('review_comments')
                 ->join('users', 'review_comments.user_id', '=', 'users.id')
                 ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
                 ->where('review_comments.review_id', $reviewId)
                 ->where('review_comments.status', 'published')
-                ->whereNull('review_comments.parent_id')  // Only top-level comments for now
                 ->select(
                     'review_comments.id',
                     'review_comments.review_id',
                     'review_comments.user_id',
                     'review_comments.content',
+                    'review_comments.parent_id',
                     'review_comments.created_at',
                     'users.username',
                     'user_profiles.display_name',
@@ -1159,9 +1198,32 @@ class UserActivityController extends Controller
                 ->orderBy('review_comments.created_at', 'desc')
                 ->get();
 
+            // Separate top-level comments and replies
+            $topLevelComments = [];
+            $repliesByParentId = [];
+
+            foreach ($allComments as $comment) {
+                if ($comment->parent_id === null) {
+                    $comment->replies = [];
+                    $topLevelComments[] = $comment;
+                } else {
+                    if (!isset($repliesByParentId[$comment->parent_id])) {
+                        $repliesByParentId[$comment->parent_id] = [];
+                    }
+                    $repliesByParentId[$comment->parent_id][] = $comment;
+                }
+            }
+
+            // Attach replies to their parent comments
+            foreach ($topLevelComments as $comment) {
+                if (isset($repliesByParentId[$comment->id])) {
+                    $comment->replies = $repliesByParentId[$comment->id];
+                }
+            }
+
             return response()->json([
                 'success' => true,
-                'data' => $comments
+                'data' => $topLevelComments
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -1178,6 +1240,7 @@ class UserActivityController extends Controller
     {
         try {
             $commentText = $request->input('comment');
+            $parentId = $request->input('parent_id');  // Optional parent_id for replies
             
             if (empty($commentText)) {
                 return response()->json([
@@ -1191,6 +1254,7 @@ class UserActivityController extends Controller
                 'review_id' => $reviewId,
                 'user_id' => $userId,
                 'content' => $commentText,
+                'parent_id' => $parentId,  // Will be null for top-level comments
                 'status' => 'published',
                 'created_at' => now(),
                 'updated_at' => now()

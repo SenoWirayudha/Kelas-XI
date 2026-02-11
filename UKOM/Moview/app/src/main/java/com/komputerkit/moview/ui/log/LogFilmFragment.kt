@@ -51,7 +51,8 @@ class LogFilmFragment : Fragment() {
         
         viewModel.loadMovie(args.movieId, requireContext())
         
-        // Handle edit mode
+        // Handle edit mode (editing existing review)
+        // Note: For rewatch, we DON'T use edit mode - user creates new log/review
         if (args.isEditMode) {
             binding.btnLogFilm.text = "EDIT REVIEW"
             args.existingReviewText?.let { htmlText ->
@@ -105,12 +106,19 @@ class LogFilmFragment : Fragment() {
             updateLikedButton(isLiked)
         }
         
+        // Icon watch state from ratings table
         viewModel.isWatched.observe(viewLifecycleOwner) { isWatched ->
             updateWatchedButton(isWatched)
         }
         
+        // Label REWATCHED from diary count (watchCount > 0)
         viewModel.isRewatch.observe(viewLifecycleOwner) { isRewatch ->
-            updateRewatchButton(isRewatch)
+            if (isRewatch && !args.isEditMode) {
+                binding.tvWatchedLabel.text = "REWATCHED"
+                binding.btnWatched.setCardBackgroundColor(
+                    ContextCompat.getColor(requireContext(), R.color.teal_watched)
+                )
+            }
         }
         
         viewModel.rating.observe(viewLifecycleOwner) { rating ->
@@ -435,18 +443,28 @@ class LogFilmFragment : Fragment() {
                 viewModel.updateReview(args.reviewId, reviewHtml, containsSpoilers, currentRating, selectedDate)
             } else {
                 // Create new review from log entry
-                viewModel.saveLog(reviewHtml, containsSpoilers, selectedDate)
+                viewModel.saveLog(reviewHtml, containsSpoilers, selectedDate, isRewatch = false)
             }
         } else {
-            // Create new log/review
-            viewModel.saveLog(reviewHtml, containsSpoilers, selectedDate)
+            // Check if this is a rewatch (user already has diary entries)
+            val isRewatch = viewModel.isRewatch.value == true
+            
+            // Create new log/review (or rewatch if already watched)
+            viewModel.saveLog(reviewHtml, containsSpoilers, selectedDate, isRewatch = isRewatch)
         }
         
         // Give time for async save before closing
         binding.root.postDelayed({
             // Check if fragment is still attached to avoid crash
             if (isAdded && context != null) {
-                val message = if (args.isEditMode && args.reviewId > 0) "Review updated successfully!" else "Review saved successfully!"
+                val isRewatch = viewModel.isRewatch.value == true && !args.isEditMode
+                val message = if (args.isEditMode && args.reviewId > 0) {
+                    "Review updated successfully!"
+                } else if (isRewatch) {
+                    "Rewatch logged successfully!"
+                } else {
+                    "Review saved successfully!"
+                }
                 Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                 findNavController().navigateUp()
             }

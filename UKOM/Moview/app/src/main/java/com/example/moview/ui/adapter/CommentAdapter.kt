@@ -12,8 +12,22 @@ import com.komputerkit.moview.databinding.ItemCommentBinding
 
 class CommentAdapter(
     private val onProfileClick: (Int) -> Unit,
-    private val onLikeClick: (Comment) -> Unit
+    private val onReplyClick: (Comment) -> Unit
 ) : ListAdapter<Comment, CommentAdapter.CommentViewHolder>(CommentDiffCallback()) {
+
+    private var flattenedComments: List<Pair<Comment, Boolean>> = emptyList()
+
+    override fun submitList(list: List<Comment>?) {
+        // Flatten the nested comments list
+        flattenedComments = list?.flatMap { comment ->
+            val result = mutableListOf(Pair(comment, false)) // false = not a reply
+            result.addAll(comment.replies.map { reply -> Pair(reply, true) }) // true = is a reply
+            result
+        } ?: emptyList()
+        super.submitList(flattenedComments.map { it.first })
+    }
+
+    override fun getItemCount(): Int = flattenedComments.size
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CommentViewHolder {
         val binding = ItemCommentBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -21,14 +35,34 @@ class CommentAdapter(
     }
 
     override fun onBindViewHolder(holder: CommentViewHolder, position: Int) {
-        holder.bind(getItem(position))
+        val (comment, isReply) = flattenedComments[position]
+        holder.bind(comment, isReply)
     }
 
     inner class CommentViewHolder(private val binding: ItemCommentBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(comment: Comment) {
+        fun bind(comment: Comment, isReply: Boolean) {
             binding.apply {
+                // Show/hide reply indicator
+                if (isReply) {
+                    replyLine.visibility = android.view.View.VISIBLE
+                    root.setPaddingRelative(
+                        root.context.resources.getDimensionPixelSize(R.dimen.reply_indent),
+                        root.paddingTop,
+                        root.paddingEnd,
+                        root.paddingBottom
+                    )
+                } else {
+                    replyLine.visibility = android.view.View.GONE
+                    root.setPaddingRelative(
+                        root.context.resources.getDimensionPixelSize(R.dimen.comment_padding),
+                        root.paddingTop,
+                        root.paddingEnd,
+                        root.paddingBottom
+                    )
+                }
+                
                 Glide.with(ivProfile)
                     .load(comment.userAvatar)
                     .placeholder(R.color.dark_card)
@@ -37,36 +71,23 @@ class CommentAdapter(
 
                 tvUsername.text = comment.username
                 tvTime.text = comment.timeAgo
-                tvCommentText.text = comment.commentText
-                tvLikeCount.text = formatCount(comment.likeCount)
-
-                // Update like icon
-                if (comment.isLiked) {
-                    ivLikeIcon.setImageResource(R.drawable.ic_heart_filled)
-                    ivLikeIcon.setColorFilter(itemView.context.getColor(R.color.pink_like))
+                
+                // Render HTML formatting (comments are stored as HTML)
+                tvCommentText.text = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    android.text.Html.fromHtml(comment.commentText, android.text.Html.FROM_HTML_MODE_LEGACY)
                 } else {
-                    ivLikeIcon.setImageResource(R.drawable.ic_heart_outline)
-                    ivLikeIcon.setColorFilter(itemView.context.getColor(R.color.text_secondary))
+                    @Suppress("DEPRECATION")
+                    android.text.Html.fromHtml(comment.commentText)
                 }
+                tvCommentText.movementMethod = android.text.method.LinkMovementMethod.getInstance()
 
                 cardProfile.setOnClickListener {
                     onProfileClick(comment.userId)
                 }
 
-                layoutActions.setOnClickListener {
-                    onLikeClick(comment)
-                }
-
                 tvReplyButton.setOnClickListener {
-                    // TODO: Handle reply
+                    onReplyClick(comment)
                 }
-            }
-        }
-
-        private fun formatCount(count: Int): String {
-            return when {
-                count >= 1000 -> String.format("%.1fk", count / 1000.0)
-                else -> count.toString()
             }
         }
     }

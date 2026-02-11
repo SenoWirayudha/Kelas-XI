@@ -23,10 +23,10 @@ class LogFilmViewModel : ViewModel() {
     private val _isLiked = MutableLiveData<Boolean>(false)
     val isLiked: LiveData<Boolean> = _isLiked
     
-    private val _isWatched = MutableLiveData<Boolean>(false) // Default to not watched
+    private val _isWatched = MutableLiveData<Boolean>(false) // From ratings table (icon watch state)
     val isWatched: LiveData<Boolean> = _isWatched
     
-    private val _isRewatch = MutableLiveData<Boolean>(false)
+    private val _isRewatch = MutableLiveData<Boolean>(false) // From watchCount > 0 (for label REWATCHED)
     val isRewatch: LiveData<Boolean> = _isRewatch
     
     private val _saveSuccess = MutableLiveData<Boolean>()
@@ -53,16 +53,26 @@ class LogFilmViewModel : ViewModel() {
             
             // Load existing rating and like status if any
             if (currentUserId > 0) {
-                // Load rating - if rating exists, movie is watched
+                // Load rating - if exists in ratings table, movie is "watched" (for icon state)
                 val ratingResponse = repository.getRating(currentUserId, movieId)
                 if (ratingResponse != null && ratingResponse.is_watched) {
                     _isWatched.postValue(true)
-                    // Direct rating (0-5 stars)
                     val existingRating = ratingResponse.rating ?: 0
                     _rating.postValue(existingRating)
-                    Log.d("LogFilmViewModel", "Loaded existing rating: $existingRating stars, watched: true")
+                    Log.d("LogFilmViewModel", "Movie is watched (from ratings table). Rating: $existingRating stars")
                 } else {
-                    Log.d("LogFilmViewModel", "No existing rating found")
+                    _isWatched.postValue(false)
+                    Log.d("LogFilmViewModel", "Movie not watched (no entry in ratings table)")
+                }
+                
+                // Check watch count from diary entries to determine if this is REWATCH
+                val watchCount = repository.getWatchCount(currentUserId, movieId)
+                if (watchCount > 0) {
+                    _isRewatch.postValue(true)
+                    Log.d("LogFilmViewModel", "User has logged this movie $watchCount time(s) - this is REWATCH")
+                } else {
+                    _isRewatch.postValue(false)
+                    Log.d("LogFilmViewModel", "First time logging this movie - NOT rewatch")
                 }
                 
                 // Load liked status
@@ -126,13 +136,13 @@ class LogFilmViewModel : ViewModel() {
         }
     }
     
-    fun saveLog(reviewText: String, containsSpoilers: Boolean, watchedAt: String? = null) {
+    fun saveLog(reviewText: String, containsSpoilers: Boolean, watchedAt: String? = null, isRewatch: Boolean = false) {
         val movieId = _movie.value?.id ?: return
         
         viewModelScope.launch {
             if (currentUserId > 0) {
                 val ratingValue = _rating.value ?: 0
-                Log.d("LogFilmViewModel", "Saving log/review: userId=$currentUserId, movieId=$movieId, rating=$ratingValue, hasReview=${reviewText.isNotBlank()}")
+                Log.d("LogFilmViewModel", "Saving log/review: userId=$currentUserId, movieId=$movieId, rating=$ratingValue, hasReview=${reviewText.isNotBlank()}, isRewatch=$isRewatch")
                 
                 // Save to review endpoint (handles both review and log + diaries table)
                 val success = repository.saveReview(
@@ -141,14 +151,15 @@ class LogFilmViewModel : ViewModel() {
                     reviewText = reviewText, // Can be empty for log
                     rating = ratingValue,
                     containsSpoilers = containsSpoilers,
-                    watchedAt = watchedAt
+                    watchedAt = watchedAt,
+                    isRewatch = isRewatch
                 )
                 
                 if (success) {
                     _isWatched.postValue(true)
-                    Log.d("LogFilmViewModel", "Save ${if (reviewText.isNotBlank()) "review" else "log"} success")
+                    Log.d("LogFilmViewModel", "Save ${if (isRewatch) "rewatch" else if (reviewText.isNotBlank()) "review" else "log"} success")
                 } else {
-                    Log.e("LogFilmViewModel", "Failed to save ${if (reviewText.isNotBlank()) "review" else "log"}")
+                    Log.e("LogFilmViewModel", "Failed to save ${if (isRewatch) "rewatch" else if (reviewText.isNotBlank()) "review" else "log"}")
                 }
                 
                 _saveSuccess.postValue(success)

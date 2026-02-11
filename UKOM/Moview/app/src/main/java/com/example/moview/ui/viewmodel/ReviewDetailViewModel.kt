@@ -34,6 +34,10 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
 
     private val _isLog = MutableLiveData<Boolean>()
     val isLog: LiveData<Boolean> = _isLog
+    
+    // Track which comment is being replied to
+    private val _replyingTo = MutableLiveData<Comment?>()
+    val replyingTo: LiveData<Comment?> = _replyingTo
 
     fun loadReview(reviewId: Int, isLog: Boolean = false) {
         val userId = prefs.getInt("userId", 0)
@@ -166,6 +170,9 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
             try {
                 val comments = repository.getReviewComments(reviewId)
                 _comments.postValue(comments)
+                // Calculate total count including replies
+                val totalCount = comments.sumOf { 1 + it.replies.size }
+                _commentCount.postValue(totalCount)
             } catch (e: Exception) {
                 android.util.Log.e("ReviewDetailViewModel", "Error loading comments: ${e.message}", e)
                 _comments.postValue(emptyList())
@@ -199,22 +206,51 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
     fun addComment(commentText: String) {
         val userId = prefs.getInt("userId", 0)
         val reviewId = _review.value?.id ?: return
+        val parentId = _replyingTo.value?.id  // Get parent comment ID if replying
         
         viewModelScope.launch {
             try {
-                val newComment = repository.addReviewComment(userId, reviewId, commentText)
+                val newComment = repository.addReviewComment(userId, reviewId, commentText, parentId)
                 if (newComment != null) {
-                    // Add new comment to the top of the list
-                    val updatedComments = mutableListOf(newComment)
-                    updatedComments.addAll(_comments.value ?: emptyList())
-                    _comments.postValue(updatedComments)
-                    _commentCount.postValue(updatedComments.size)
+                    if (parentId != null) {
+                        // This is a reply - need to add it to the parent's replies list
+                        val updatedComments = _comments.value?.map { comment ->
+                            if (comment.id == parentId) {
+                                comment.replies.add(newComment)
+                                comment
+                            } else {
+                                comment
+                            }
+                        }
+                        _comments.postValue(updatedComments ?: emptyList())
+                        // Recalculate total count including replies
+                        val totalCount = (updatedComments ?: emptyList()).sumOf { 1 + it.replies.size }
+                        _commentCount.postValue(totalCount)
+                    } else {
+                        // Top-level comment - add to the top of the list
+                        val updatedComments = mutableListOf(newComment)
+                        updatedComments.addAll(_comments.value ?: emptyList())
+                        _comments.postValue(updatedComments)
+                        // Calculate total count including replies
+                        val totalCount = updatedComments.sumOf { 1 + it.replies.size }
+                        _commentCount.postValue(totalCount)
+                    }
+                    // Clear reply target after successful comment
+                    _replyingTo.postValue(null)
                 }
             } catch (e: Exception) {
                 // Handle error silently or log it
                 e.printStackTrace()
             }
         }
+    }
+    
+    fun setReplyTarget(comment: Comment) {
+        _replyingTo.value = comment
+    }
+    
+    fun clearReplyTarget() {
+        _replyingTo.value = null
     }
     
     private val _deleteStatus = MutableLiveData<Boolean>()

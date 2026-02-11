@@ -137,6 +137,12 @@ interface MovieApiService {
         @Path("diaryId") diaryId: Int
     ): ApiResponse<ReviewDetailDto>
     
+    @GET("users/{userId}/movies/{movieId}/watch-count")
+    suspend fun getWatchCount(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int
+    ): ApiResponse<WatchCountDto>
+    
     @DELETE("users/{userId}/reviews/{reviewId}")
     suspend fun deleteReview(
         @Path("userId") userId: Int,
@@ -224,7 +230,8 @@ interface MovieApiService {
         @Field("review") review: String,
         @Field("rating") rating: Int,
         @Field("contains_spoilers") containsSpoilers: Int,
-        @Field("watched_at") watchedAt: String? = null
+        @Field("watched_at") watchedAt: String? = null,
+        @Field("is_rewatch") isRewatch: Int = 0
     ): SimpleResponse
     
     @PUT("users/{userId}/reviews/{reviewId}")
@@ -254,6 +261,7 @@ interface MovieApiService {
     suspend fun addReviewComment(
         @Path("userId") userId: Int,
         @Path("reviewId") reviewId: Int,
-        @Field("comment") comment: String
+        @Field("comment") comment: String,
+        @Field("parent_id") parentId: Int? = null
     ): ApiResponse<ReviewCommentDto>
 }

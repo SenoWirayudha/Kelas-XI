@@ -262,6 +262,10 @@ data class DiaryEntryDto(
     val created_at: String
 )
 
+data class WatchCountDto(
+    val watch_count: Int
+)
+
 data class UserReviewDto(
     val review_id: Int,
     val id: Int,
@@ -308,7 +312,9 @@ data class ReviewCommentDto(
     val created_at: String,
     val username: String,
     val display_name: String?,
-    val profile_photo: String?
+    val profile_photo: String?,
+    val parent_id: Int? = null,
+    val replies: List<ReviewCommentDto>? = null
 )
 
 data class UserFollowDto(
