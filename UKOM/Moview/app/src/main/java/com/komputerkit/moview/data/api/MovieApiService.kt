@@ -246,6 +246,12 @@ interface MovieApiService {
     ): SimpleResponse
     
     @GET("search")
+    suspend fun search(
+        @Query("q") query: String,
+        @Query("type") type: String = "all"
+    ): ApiResponse<SearchResponse>
+    
+    @GET("search")
     suspend fun searchMovies(
         @Query("q") query: String
     ): ApiResponse<List<MovieCardDto>>

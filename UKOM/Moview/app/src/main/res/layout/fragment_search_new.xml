@@ -38,7 +38,7 @@
                 android:layout_weight="1"
                 android:layout_height="match_parent"
                 android:background="@null"
-                android:hint="Dune"
+                android:hint="Search"
                 android:textColorHint="@color/text_secondary"
                 android:textColor="@color/text_primary"
                 android:textSize="16sp"
@@ -81,7 +81,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:paddingHorizontal="16dp"
-            app:singleSelection="false">
+            app:singleSelection="true">
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_all"
@@ -90,8 +90,8 @@
                 android:layout_height="wrap_content"
                 android:text="All"
                 android:checked="true"
-                android:textColor="@color/white"
-                app:chipBackgroundColor="@color/accent_blue" />
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_movies"
@@ -99,7 +99,26 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Movies"
-                android:textColor="@color/text_secondary" />
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_cast_crew"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cast &amp; Crew"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_production_houses"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Production Houses"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_people"
@@ -107,15 +126,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="People"
-                android:textColor="@color/text_secondary" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chip_studios"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Studios"
-                android:textColor="@color/text_secondary" />
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector" />
 
         </com.google.android.material.chip.ChipGroup>
 
@@ -177,9 +189,78 @@
 
             </LinearLayout>
 
-            <!-- People Section -->
+            <!-- Cast &amp; Crew Section -->
             <LinearLayout
-                android:id="@+id/section_people"
+                android:id="@+id/section_cast_crew"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cast &amp; Crew"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_cast_crew"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    tools:listitem="@layout/item_search_person" />
+
+            </LinearLayout>
+
+            <!-- Production Houses Section -->
+            <LinearLayout
+                android:id="@+id/section_production_houses"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Production Houses"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_production_houses"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:paddingBottom="16dp"
+                    tools:listitem="@layout/item_search_studio" />
+
+            </LinearLayout>
+
+            <!-- People (Users) Section -->
+            <LinearLayout
+                android:id="@+id/section_users"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -203,46 +284,12 @@
                 </LinearLayout>
 
                 <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_people"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false"
-                    tools:listitem="@layout/item_search_person" />
-
-            </LinearLayout>
-
-            <!-- Studios Section -->
-            <LinearLayout
-                android:id="@+id/section_studios"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="16dp"
-                    android:paddingBottom="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Studios"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                </LinearLayout>
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_studios"
+                    android:id="@+id/rv_users"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:nestedScrollingEnabled="false"
                     android:paddingBottom="16dp"
-                    tools:listitem="@layout/item_search_studio" />
+                    tools:listitem="@layout/item_search_user" />
 
             </LinearLayout>
 

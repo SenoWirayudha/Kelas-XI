@@ -35,7 +35,13 @@ class ReviewAdapter(
         fun bind(review: Review) {
             binding.tvTitle.text = review.movie.title
             binding.tvYear.text = review.movie.releaseYear.toString()
-            binding.tvDate.text = review.dateLabel
+            
+            // Update date label based on rewatch status
+            binding.tvDate.text = if (review.isRewatch) {
+                review.dateLabel.replace("Watched", "Rewatched")
+            } else {
+                review.dateLabel
+            }
             
             // Render HTML in review text
             val reviewHtml = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
@@ -53,6 +59,9 @@ class ReviewAdapter(
 
             // Show liked icon if movie is liked
             binding.ivLiked.visibility = if (review.isLiked) android.view.View.VISIBLE else android.view.View.GONE
+
+            // Show rewatch icon if this is a rewatch
+            binding.ivRewatch.visibility = if (review.isRewatch) android.view.View.VISIBLE else android.view.View.GONE
 
             // Load poster using Glide extension for fast loading
             binding.ivPoster.loadPoster(review.movie.posterUrl)

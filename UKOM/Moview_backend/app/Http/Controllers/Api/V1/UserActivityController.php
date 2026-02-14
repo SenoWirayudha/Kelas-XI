@@ -124,9 +124,8 @@ class UserActivityController extends Controller
                          ->where('poster_media.media_type', '=', 'poster')
                          ->where('poster_media.is_default', '=', 1);
                 })
-                ->leftJoin('reviews', function($join) use ($userId) {
-                    $join->on('diaries.film_id', '=', 'reviews.film_id')
-                         ->where('reviews.user_id', '=', $userId);
+                ->leftJoin('reviews', function($join) {
+                    $join->on('diaries.review_id', '=', 'reviews.id');
                 })
                 ->where('diaries.user_id', $userId)
                 ->select(
@@ -134,6 +133,7 @@ class UserActivityController extends Controller
                     'diaries.film_id',
                     'diaries.watched_at',
                     'diaries.note',
+                    'diaries.is_rewatched',
                     'diaries.created_at',
                     'movies.id as movie_id',
                     'movies.title',
@@ -173,6 +173,7 @@ class UserActivityController extends Controller
                     'rating' => $diary->rating,
                     'review_content' => $diary->review_content,
                     'is_liked' => (bool)$diary->is_liked,
+                    'is_rewatched' => (bool)$diary->is_rewatched,
                     'type' => $diary->type,  // 'review' or 'log'
                     'created_at' => $diary->created_at
                 ];
@@ -230,6 +231,11 @@ class UserActivityController extends Controller
                 })
                 ->where('reviews.user_id', $userId)
                 ->where('reviews.status', 'published')
+                ->leftJoin('diaries', function($join) use ($userId) {
+                    $join->on('reviews.film_id', '=', 'diaries.film_id')
+                         ->on('reviews.id', '=', 'diaries.review_id')
+                         ->where('diaries.user_id', '=', $userId);
+                })
                 ->select(
                     'reviews.id as review_id',
                     'movies.id',
@@ -242,15 +248,17 @@ class UserActivityController extends Controller
                     'reviews.title as review_title',
                     'reviews.content',
                     'reviews.is_spoiler',
-                    'reviews.created_at'
+                    'reviews.created_at',
+                    DB::raw('COALESCE(diaries.is_rewatched, 0) as is_rewatched')
                 )
                 ->orderBy('reviews.created_at', 'desc')
                 ->get();
 
-            // Convert is_spoiler and is_liked to boolean
+            // Convert is_spoiler, is_liked, and is_rewatched to boolean
             $reviews = $reviews->map(function($review) {
                 $review->is_spoiler = (bool)$review->is_spoiler;
                 $review->is_liked = (bool)$review->is_liked;
+                $review->is_rewatched = (bool)$review->is_rewatched;
                 return $review;
             });
 
@@ -294,6 +302,7 @@ class UserActivityController extends Controller
                     'reviews.film_id as movie_id',
                     'reviews.rating',
                     'reviews.is_liked as snapshot_is_liked',  // Snapshot for display next to stars
+                    'reviews.is_rewatched',  // Whether this review was written during rewatch
                     'reviews.watched_at',
                     'reviews.content as review_text',
                     'reviews.created_at',
@@ -317,8 +326,9 @@ class UserActivityController extends Controller
                 ], 404);
             }
 
-            // Cast snapshot_is_liked to boolean
+            // Cast snapshot_is_liked and is_rewatched to boolean
             $review->snapshot_is_liked = (bool)$review->snapshot_is_liked;
+            $review->is_rewatched = (bool)$review->is_rewatched;
             
             // Check current user's like status from review_likes table
             $currentUserLiked = DB::table('review_likes')
@@ -435,18 +445,23 @@ class UserActivityController extends Controller
                          ->where('movie_media.media_type', '=', 'poster')
                          ->where('movie_media.is_default', '=', 1);
                 })
+                ->leftJoin('ratings', function($join) use ($userId) {
+                    $join->on('movies.id', '=', 'ratings.film_id')
+                         ->where('ratings.user_id', '=', $userId);
+                })
                 ->where('movie_likes.user_id', $userId)
                 ->select(
                     'movies.id',
                     'movies.title',
                     'movies.release_year as year',
                     'movie_media.media_path',
+                    'ratings.rating as user_rating',
                     'movie_likes.created_at as liked_at'
                 )
                 ->orderBy('movie_likes.created_at', 'desc')
                 ->get();
 
-            // Build full poster URLs and get average rating
+            // Build full poster URLs
             $likesData = $likes->map(function($like) {
                 $posterUrl = null;
                 if ($like->media_path) {
@@ -457,17 +472,12 @@ class UserActivityController extends Controller
                     }
                 }
                 
-                // Get average rating for this movie
-                $averageRating = DB::table('ratings')
-                    ->where('film_id', $like->id)
-                    ->avg('rating') ?? 0;
-                
                 return [
                     'id' => $like->id,
                     'title' => $like->title,
                     'year' => $like->year,
                     'poster_path' => $posterUrl,
-                    'rating' => round($averageRating, 1),
+                    'rating' => $like->user_rating ?? 0,
                     'liked_at' => $like->liked_at
                 ];
             });
@@ -931,12 +941,13 @@ class UserActivityController extends Controller
                         'rating' => $rating,
                         'is_spoiler' => $containsSpoilers ? 1 : 0,
                         'is_liked' => $isLiked,
+                        'is_rewatched' => 1,  // Mark as rewatch
                         'watched_at' => $watchedAt,
                         'status' => 'published',
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
-                    \Log::info("Created NEW review id: $reviewId for REWATCH");
+                    \Log::info("Created NEW review id: $reviewId for REWATCH (is_rewatched=1)");
                 } else {
                     // NOT REWATCH: Check if review exists for edit mode
                     $existingReview = DB::table('reviews')
@@ -968,12 +979,13 @@ class UserActivityController extends Controller
                             'rating' => $rating,
                             'is_spoiler' => $containsSpoilers ? 1 : 0,
                             'is_liked' => $isLiked,
+                            'is_rewatched' => 0,  // First watch
                             'watched_at' => $watchedAt,
                             'status' => 'published',
                             'created_at' => now(),
                             'updated_at' => now()
                         ]);
-                        \Log::info("Created FIRST review id: $reviewId");
+                        \Log::info("Created FIRST review id: $reviewId (is_rewatched=0)");
                     }
                 }
             } else {

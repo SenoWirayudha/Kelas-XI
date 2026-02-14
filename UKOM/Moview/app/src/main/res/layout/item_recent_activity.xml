@@ -21,7 +21,7 @@
 
             <ImageView
                 android:id="@+id/iv_poster"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:scaleType="centerCrop"
                 android:contentDescription="Movie Poster"
@@ -29,21 +29,55 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
                 tools:src="@tools:sample/backgrounds/scenic" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Rating Stars -->
-    <TextView
-        android:id="@+id/tv_rating"
+    <!-- Rating Stars with Icons -->
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_marginTop="6dp"
-        android:textColor="@color/star_green"
-        android:textSize="12sp"
-        tools:text="★★★★★" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- Rating Stars (will be set programmatically) -->
+        <TextView
+            android:id="@+id/tv_rating"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/star_green"
+            android:textSize="12sp"
+            tools:text="★★★★★" />
+
+        <!-- Rewatch Icon (shown only if rewatched) -->
+        <ImageView
+            android:id="@+id/iv_rewatch"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_rewatch"
+            android:visibility="gone"
+            app:tint="@color/teal_watched"
+            android:contentDescription="Rewatched"
+            tools:visibility="visible" />
+
+        <!-- Review Icon (shown only if has review) -->
+        <ImageView
+            android:id="@+id/iv_review"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_review"
+            android:visibility="gone"
+            app:tint="@color/text_secondary"
+            android:contentDescription="Has review"
+            tools:visibility="visible" />
+
+    </LinearLayout>
 
 </LinearLayout>

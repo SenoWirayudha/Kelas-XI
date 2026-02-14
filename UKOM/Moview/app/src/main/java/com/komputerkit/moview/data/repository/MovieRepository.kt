@@ -4,6 +4,7 @@ import android.util.Log
 import com.komputerkit.moview.data.api.MovieCardDto
 import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.data.api.ReviewCommentDto
+import com.komputerkit.moview.data.api.SearchResponse
 import com.komputerkit.moview.data.api.UserProfileResponse
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.data.model.Movie
@@ -104,6 +105,20 @@ class MovieRepository {
         }
     }
     
+    suspend fun search(query: String, type: String): SearchResponse? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.search(query, type)
+            if (response.success && response.data != null) {
+                response.data
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    
     suspend fun getUserProfile(userId: Int): UserProfileResponse? = withContext(Dispatchers.IO) {
         try {
             android.util.Log.d("MovieRepository", "=== Calling API getUserProfile for userId: $userId ===")
@@ -196,8 +211,15 @@ class MovieRepository {
         try {
             val response = apiService.getUserFilms(userId)
             if (response.success && response.data != null) {
+                // Get all user reviews once for efficiency
+                val userReviews = getUserReviews(userId)
+                
                 response.data.map { filmDto ->
                     Log.d("MovieRepository", "Film: ${filmDto.title}, is_liked=${filmDto.is_liked}, rating=${filmDto.rating}")
+                    
+                    // Check if user has review for this film
+                    val review = userReviews.find { it.id == filmDto.id }
+                    
                     Movie(
                         id = filmDto.id,
                         title = filmDto.title,
@@ -207,8 +229,8 @@ class MovieRepository {
                         averageRating = 0f,
                         genre = "",
                         description = "",
-                        hasReview = false,
-                        reviewId = 0,
+                        hasReview = review != null,
+                        reviewId = review?.review_id ?: 0,
                         isLiked = filmDto.is_liked ?: false,
                         isInWatchlist = filmDto.is_in_watchlist ?: false
                     )
@@ -255,7 +277,9 @@ class MovieRepository {
                         monthYear = formatMonthYear(dto.watched_at),
                         rating = dto.rating ?: 0,
                         hasReview = dto.type == "review",
-                        isLiked = dto.is_liked
+                        isLiked = dto.is_liked,
+                        isRewatched = dto.is_rewatched,
+                        reviewId = dto.review_id
                     )
                 }
             } else {
@@ -356,6 +380,9 @@ class MovieRepository {
         try {
             val response = apiService.getUserLikes(userId)
             if (response.success && response.data != null) {
+                // Get all user reviews once for efficiency
+                val userReviews = getUserReviews(userId)
+                
                 response.data.map { filmDto ->
                     // Format poster URL
                     val posterUrl = when {
@@ -364,17 +391,20 @@ class MovieRepository {
                         else -> "http://10.0.2.2:8000/storage/${filmDto.poster_path}"
                     }
                     
+                    // Check if user has review for this film
+                    val review = userReviews.find { it.id == filmDto.id }
+                    
                     Movie(
                         id = filmDto.id,
                         title = filmDto.title,
                         releaseYear = filmDto.year,
                         posterUrl = posterUrl,
-                        averageRating = filmDto.rating ?: 0f,
+                        averageRating = 0f,
                         genre = "",
                         description = "",
-                        hasReview = false,
-                        reviewId = 0,
-                        userRating = filmDto.rating ?: 0f,
+                        hasReview = review != null,
+                        reviewId = review?.review_id ?: 0,
+                        userRating = filmDto.rating ?: 0f,  // Now uses user's rating from ratings table
                         isLiked = true  // All films in likes are liked
                     )
                 }
@@ -398,6 +428,16 @@ class MovieRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
+        }
+    }
+    
+    suspend fun getUserReviewForMovie(userId: Int, movieId: Int): com.komputerkit.moview.data.api.UserReviewDto? = withContext(Dispatchers.IO) {
+        try {
+            val reviews = getUserReviews(userId)
+            reviews.find { it.id == movieId }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
     

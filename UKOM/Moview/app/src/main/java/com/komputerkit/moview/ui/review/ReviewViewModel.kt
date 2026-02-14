@@ -79,7 +79,8 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
                         dateLabel = formatDateLabel(dto.watched_at ?: dto.created_at),
                         userId = userId,
                         movieId = dto.id,
-                        isLiked = dto.is_liked
+                        isLiked = dto.is_liked,
+                        isRewatch = dto.is_rewatched
                     )
                 }
                 

@@ -19,8 +19,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val _favoriteMovies = MutableLiveData<List<Movie>>()
     val favoriteMovies: LiveData<List<Movie>> = _favoriteMovies
     
-    private val _recentActivity = MutableLiveData<List<Pair<Movie, Float>>>()
-    val recentActivity: LiveData<List<Pair<Movie, Float>>> = _recentActivity
+    private val _recentActivity = MutableLiveData<List<com.komputerkit.moview.data.model.DiaryEntry>>()
+    val recentActivity: LiveData<List<com.komputerkit.moview.data.model.DiaryEntry>> = _recentActivity
     
     private val _userName = MutableLiveData<String>()
     val userName: LiveData<String> = _userName
@@ -98,6 +98,10 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     // Convert favorites ke Movie list
                     val favorites = profileData.favorites.map { fav ->
                         Log.d("ProfileViewModel", "Favorite: ${fav.title}, poster: ${fav.poster_path}")
+                        
+                        // Check if user has review for this movie
+                        val userReview = repository.getUserReviewForMovie(userId, fav.id)
+                        
                         Movie(
                             id = fav.id,
                             title = fav.title,
@@ -106,8 +110,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                             genre = "",
                             releaseYear = fav.year,
                             description = "",
-                            hasReview = false,
-                            reviewId = 0,
+                            hasReview = userReview != null,
+                            reviewId = userReview?.review_id ?: 0,
                             userRating = 0f
                         )
                     }
@@ -133,8 +137,16 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                         rating1 = profileData.statistics.rating_distribution?.get("1") ?: 0
                     ))
                     
-                    // Recent activity - nanti bisa ditambahkan endpoint terpisah
-                    _recentActivity.postValue(emptyList())
+                    // Load recent activity from diary (latest 4 entries)
+                    try {
+                        val diaryEntries = repository.getUserDiary(userId)
+                        _recentActivity.postValue(diaryEntries.take(4))
+                        Log.d("ProfileViewModel", "Loaded ${diaryEntries.take(4).size} recent diary entries")
+                    } catch (e: Exception) {
+                        Log.e("ProfileViewModel", "Error loading recent activity", e)
+                        _recentActivity.postValue(emptyList())
+                    }
+                    
                     Log.d("ProfileViewModel", "=== Profile data loaded successfully ===")
                 } else {
                     // API call failed, bisa tampilkan error atau fallback

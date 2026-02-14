@@ -45,8 +45,14 @@ class LikesFragment : Fragment() {
     private fun setupRecyclerView() {
         filmGridAdapter = FilmGridAdapter(
             onMovieClick = { movie ->
-                val action = LikesFragmentDirections.actionLikesToMovieDetail(movie.id)
-                findNavController().navigate(action)
+                // If has review, go to review detail, otherwise go to movie detail
+                if (movie.hasReview && movie.reviewId > 0) {
+                    val action = LikesFragmentDirections.actionLikesToReviewDetail(movie.reviewId)
+                    findNavController().navigate(action)
+                } else {
+                    val action = LikesFragmentDirections.actionLikesToMovieDetail(movie.id)
+                    findNavController().navigate(action)
+                }
             },
             onReviewClick = { movie ->
                 val action = LikesFragmentDirections.actionLikesToReviewDetail(movie.reviewId)

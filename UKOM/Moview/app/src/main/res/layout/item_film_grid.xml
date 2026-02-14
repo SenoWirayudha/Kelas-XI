@@ -45,23 +45,7 @@
             app:layout_constraintTop_toTopOf="@id/iv_poster"
             app:layout_constraintBottom_toBottomOf="@id/iv_poster"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <!-- Review Icon (top-right overlay) -->
-            <ImageView
-                android:id="@+id/ic_has_review"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_margin="4dp"
-                android:layout_gravity="top|end"
-                android:src="@drawable/ic_review"
-                android:background="@drawable/bg_rating_badge_dark"
-                android:padding="3dp"
-                android:contentDescription="Has Review"
-                android:visibility="gone"
-                app:tint="@color/white" />
-
-        </FrameLayout>
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <!-- User Rating Stars (below poster) -->
         <LinearLayout
@@ -126,6 +110,17 @@
                 android:contentDescription="Liked"
                 android:visibility="gone"
                 app:tint="@color/pink_like" />
+
+            <!-- Review Icon (aligned with stars) -->
+            <ImageView
+                android:id="@+id/ic_has_review"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginStart="3dp"
+                android:src="@drawable/ic_review"
+                android:contentDescription="Has Review"
+                android:visibility="gone"
+                app:tint="@color/text_secondary" />
 
         </LinearLayout>
 

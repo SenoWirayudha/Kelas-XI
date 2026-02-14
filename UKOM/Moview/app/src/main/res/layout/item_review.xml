@@ -87,6 +87,17 @@
             app:tint="@color/pink_like"
             tools:visibility="visible" />
 
+        <ImageView
+            android:id="@+id/iv_rewatch"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_marginStart="6dp"
+            android:src="@drawable/ic_rewatch"
+            android:contentDescription="Rewatch"
+            android:visibility="gone"
+            app:tint="@color/teal_watched"
+            tools:visibility="visible" />
+
     </LinearLayout>
 
     <!-- Review Date -->
@@ -102,7 +113,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/card_poster"
         app:layout_constraintTop_toBottomOf="@id/layout_year_rating"
-        tools:text="Mar 15, 2024" />
+        tools:text="Rewatched Mar 15, 2024" />
 
     <!-- Review Text Preview -->
     <TextView

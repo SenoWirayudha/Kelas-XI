@@ -61,6 +61,9 @@
         <action
             android:id="@+id/action_search_to_crewDetail"
             app:destination="@id/crewDetailFragment" />
+        <action
+            android:id="@+id/action_search_to_filmList"
+            app:destination="@id/filmListFragment" />
     </fragment>
 
     <fragment
@@ -88,6 +91,9 @@
         <action
             android:id="@+id/action_profile_to_review"
             app:destination="@id/reviewFragment" />
+        <action
+            android:id="@+id/action_profile_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
         <action
             android:id="@+id/action_profile_to_watchlist"
             app:destination="@id/watchlistFragment" />

@@ -31,8 +31,9 @@ class SearchFragment : Fragment() {
     private val args: SearchFragmentArgs by navArgs()
     
     private lateinit var movieAdapter: SearchMovieAdapter
-    private lateinit var personAdapter: SearchPersonAdapter
-    private lateinit var studioAdapter: SearchStudioAdapter
+    private lateinit var castCrewAdapter: SearchPersonAdapter
+    private lateinit var productionHouseAdapter: SearchStudioAdapter
+    private lateinit var userAdapter: SearchUserAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -52,8 +53,31 @@ class SearchFragment : Fragment() {
         }
         
         setupSearchBar()
+        setupFilterChips()
         setupRecyclerViews()
         observeUiState()
+    }
+    
+    private fun setupFilterChips() {
+        binding.chipAll.setOnClickListener {
+            viewModel.setFilter(SearchFilter.ALL)
+        }
+        
+        binding.chipMovies.setOnClickListener {
+            viewModel.setFilter(SearchFilter.MOVIES)
+        }
+        
+        binding.chipCastCrew.setOnClickListener {
+            viewModel.setFilter(SearchFilter.CAST_CREW)
+        }
+        
+        binding.chipProductionHouses.setOnClickListener {
+            viewModel.setFilter(SearchFilter.PRODUCTION_HOUSES)
+        }
+        
+        binding.chipPeople.setOnClickListener {
+            viewModel.setFilter(SearchFilter.PEOPLE)
+        }
     }
     
     private fun setupSearchBar() {
@@ -113,72 +137,102 @@ class SearchFragment : Fragment() {
             layoutManager = LinearLayoutManager(requireContext())
         }
         
-        // People - navigate to crew detail
-        personAdapter = SearchPersonAdapter { person ->
-            // Navigate to Crew/Actor/Director Detail Screen
+        // Cast & Crew - navigate to person detail
+        castCrewAdapter = SearchPersonAdapter { person ->
             val action = SearchFragmentDirections.actionSearchToCrewDetail(person.id)
             findNavController().navigate(action)
         }
-        binding.rvPeople.apply {
-            adapter = personAdapter
+        binding.rvCastCrew.apply {
+            adapter = castCrewAdapter
             layoutManager = LinearLayoutManager(requireContext())
         }
         
-        // Studios - placeholder for now
-        studioAdapter = SearchStudioAdapter { studio ->
-            // TODO: Navigate to Studio Filmography Screen (future implementation)
-            Toast.makeText(requireContext(), "Studio: ${studio.name} (Coming soon)", Toast.LENGTH_SHORT).show()
+        // Production Houses - navigate to filmography
+        productionHouseAdapter = SearchStudioAdapter { studio ->
+            val action = SearchFragmentDirections.actionSearchToFilmList(
+                categoryType = "production_house",
+                categoryValue = studio.name,
+                categoryName = studio.name
+            )
+            findNavController().navigate(action)
         }
-        binding.rvStudios.apply {
-            adapter = studioAdapter
+        binding.rvProductionHouses.apply {
+            adapter = productionHouseAdapter
             layoutManager = FlexboxLayoutManager(requireContext()).apply {
                 flexDirection = FlexDirection.ROW
                 justifyContent = JustifyContent.FLEX_START
             }
+        }
+        
+        // Users - navigate to user profile
+        userAdapter = SearchUserAdapter { user ->
+            val action = SearchFragmentDirections.actionSearchToUserProfile(user.id)
+            findNavController().navigate(action)
+        }
+        binding.rvUsers.apply {
+            adapter = userAdapter
+            layoutManager = LinearLayoutManager(requireContext())
         }
     }
     
     private fun observeUiState() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.uiState.collectLatest { state ->
-                updateUi(state)
+                // Update filter chip selection
+                binding.chipAll.isChecked = state.activeFilter == SearchFilter.ALL
+                binding.chipMovies.isChecked = state.activeFilter == SearchFilter.MOVIES
+                binding.chipCastCrew.isChecked = state.activeFilter == SearchFilter.CAST_CREW
+                binding.chipProductionHouses.isChecked = state.activeFilter == SearchFilter.PRODUCTION_HOUSES
+                binding.chipPeople.isChecked = state.activeFilter == SearchFilter.PEOPLE
+                
+                // In SELECT_MOVIE_MODE, only show movies
+                if (state.isSelectMovieMode) {
+                    // Update movie section
+                    val hasMovies = state.movieResults.isNotEmpty()
+                    binding.sectionMovies.isVisible = hasMovies
+                    movieAdapter.submitList(state.movieResults)
+                    binding.tvMoviesCount.text = if (hasMovies) "View ${state.movieResults.size}" else ""
+                    
+                    // Hide all other sections
+                    binding.sectionCastCrew.isVisible = false
+                    binding.sectionProductionHouses.isVisible = false
+                    binding.sectionUsers.isVisible = false
+                    binding.filterChips.isVisible = false
+                } else {
+                    // Normal mode: show sections based on filter
+                    binding.filterChips.isVisible = true
+                    
+                    // Movies section
+                    val hasMovies = state.movieResults.isNotEmpty()
+                    binding.sectionMovies.isVisible = hasMovies
+                    movieAdapter.submitList(state.movieResults)
+                    binding.tvMoviesCount.text = if (hasMovies) "View ${state.movieResults.size}" else ""
+                    
+                    // Cast & Crew section
+                    val hasCastCrew = state.castCrewResults.isNotEmpty()
+                    binding.sectionCastCrew.isVisible = hasCastCrew
+                    castCrewAdapter.submitList(state.castCrewResults)
+                    
+                    // Production Houses section
+                    val hasProductionHouses = state.productionHouseResults.isNotEmpty()
+                    binding.sectionProductionHouses.isVisible = hasProductionHouses
+                    productionHouseAdapter.submitList(state.productionHouseResults)
+                    
+                    // Users section
+                    val hasUsers = state.userResults.isNotEmpty()
+                    binding.sectionUsers.isVisible = hasUsers
+                    userAdapter.submitList(state.userResults)
+                }
+                
+                // Show empty state
+                val showEmpty = !state.isLoading && state.isEmpty && state.query.isNotEmpty()
+                binding.emptyState.isVisible = showEmpty
+                
+                // Show error if any
+                state.error?.let { error ->
+                    Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
+                }
             }
-        }
-    }
-    
-    private fun updateUi(state: SearchUiState) {
-        // Show/hide loading indicator
-        binding.progressBar.isVisible = state.isLoading
-        
-        // Update movie section
-        val hasMovies = state.movieResults.isNotEmpty()
-        binding.sectionMovies.isVisible = hasMovies
-        movieAdapter.submitList(state.movieResults)
-        binding.tvMoviesCount.text = if (hasMovies) "View ${state.movieResults.size}" else ""
-        
-        // In SELECT_MOVIE_MODE, hide people and studios sections
-        if (state.isSelectMovieMode) {
-            binding.sectionPeople.isVisible = false
-            binding.sectionStudios.isVisible = false
-        } else {
-            // Update people section
-            val hasPeople = state.personResults.isNotEmpty()
-            binding.sectionPeople.isVisible = hasPeople
-            personAdapter.submitList(state.personResults)
-            
-            // Update studios section
-            val hasStudios = state.studioResults.isNotEmpty()
-            binding.sectionStudios.isVisible = hasStudios
-            studioAdapter.submitList(state.studioResults)
-        }
-        
-        // Show empty state
-        val showEmpty = !state.isLoading && state.isEmpty && state.query.isNotEmpty()
-        binding.emptyState.isVisible = showEmpty
-        
-        // Show error if any
-        state.error?.let { error ->
-            Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
         }
     }
 

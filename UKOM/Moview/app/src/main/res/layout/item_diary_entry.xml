@@ -140,6 +140,18 @@
                     android:contentDescription="Liked"
                     tools:visibility="visible" />
 
+                <!-- Rewatch Icon (shown only if rewatched) -->
+                <ImageView
+                    android:id="@+id/ic_rewatched"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="6dp"
+                    android:src="@drawable/ic_rewatch"
+                    android:visibility="gone"
+                    app:tint="@color/teal_watched"
+                    android:contentDescription="Rewatched"
+                    tools:visibility="visible" />
+
             </LinearLayout>
 
             <!-- Date and Review Icon -->

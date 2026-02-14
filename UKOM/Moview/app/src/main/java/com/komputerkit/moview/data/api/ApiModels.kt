@@ -258,6 +258,7 @@ data class DiaryEntryDto(
     val rating: Int?,
     val review_content: String?,
     val is_liked: Boolean,
+    val is_rewatched: Boolean = false,
     val type: String,  // "review" or "log"
     val created_at: String
 )
@@ -274,6 +275,7 @@ data class UserReviewDto(
     val poster_path: String?,
     val rating: Int?,  // Changed from Float to Int to match backend
     val is_liked: Boolean = false,
+    val is_rewatched: Boolean = false,
     val watched_at: String?,
     val review_title: String?,
     val content: String,
@@ -289,6 +291,7 @@ data class ReviewDetailDto(
     val rating: Int?,
     val snapshot_is_liked: Boolean = false,  // Snapshot for icon next to stars
     val is_liked: Boolean = false,  // Current like status from review_likes
+    val is_rewatched: Boolean = false,  // Whether review was written during rewatch
     val review_text: String?,
     val watched_at: String? = null,
     val created_at: String,
@@ -372,4 +375,34 @@ data class LikeResponse(
 
 data class WatchlistResponse(
     val is_in_watchlist: Boolean
+)
+
+// Search Response Models
+data class SearchResponse(
+    val movies: List<MovieCardDto>? = null,
+    val cast_crew: List<SearchPersonDto>? = null,
+    val production_houses: List<SearchProductionHouseDto>? = null,
+    val people: List<SearchUserDto>? = null
+)
+
+data class SearchPersonDto(
+    val id: Int,
+    val name: String,
+    val role: String,
+    val known_for: String,
+    val avatar_url: String?
+)
+
+data class SearchProductionHouseDto(
+    val id: Int,
+    val name: String
+)
+
+data class SearchUserDto(
+    val id: Int,
+    val username: String,
+    val full_name: String,
+    val avatar_url: String?,
+    val films_count: Int,
+    val reviews_count: Int
 )

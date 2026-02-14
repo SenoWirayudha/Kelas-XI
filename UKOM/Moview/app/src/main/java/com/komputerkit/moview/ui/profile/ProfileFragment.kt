@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
@@ -21,10 +22,15 @@ class ProfileFragment : Fragment() {
     private var _binding: FragmentProfileNewBinding? = null
     private val binding get() = _binding!!
     
+    private val args: ProfileFragmentArgs by navArgs()
     private val viewModel: ProfileViewModel by viewModels()
     
     private lateinit var favoriteMovieAdapter: FavoriteMovieAdapter
     private lateinit var recentActivityAdapter: RecentActivityAdapter
+    
+    private var isOwnProfile = true
+    private var targetUserId = 0
+    private var isFollowing = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -38,18 +44,45 @@ class ProfileFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        // Determine if viewing own profile or another user's
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        targetUserId = args.userId
+        
+        // If userId is 0 or same as current user, show own profile
+        isOwnProfile = targetUserId == 0 || targetUserId == currentUserId
+        
+        if (isOwnProfile) {
+            targetUserId = currentUserId
+        }
+        
+        setupUI()
         setupRecyclerViews()
         setupObservers()
         setupClickListeners()
         setupScrollListener()
         setupNavigationResultListener()
+        
+        // Load profile data
+        viewModel.loadProfileData(targetUserId)
     }
     
     override fun onResume() {
         super.onResume()
         Log.d("ProfileFragment", "onResume() - Reloading profile data")
-        // Reload all profile data (stats, photo, favorites) when returning to fragment
-        viewModel.reloadProfile()
+        // Reload profile data
+        if (isOwnProfile) {
+            viewModel.reloadProfile()
+        } else {
+            viewModel.loadProfileData(targetUserId)
+        }
+    }
+    
+    private fun setupUI() {
+        // Show/hide buttons based on whether viewing own profile
+        binding.btnBack.visibility = if (isOwnProfile) View.GONE else View.VISIBLE
+        binding.btnFollow.visibility = if (isOwnProfile) View.GONE else View.VISIBLE
+        binding.btnSettings.visibility = if (isOwnProfile) View.VISIBLE else View.GONE
     }
     
     private fun setupNavigationResultListener() {
@@ -93,6 +126,13 @@ class ProfileFragment : Fragment() {
             onMovieClick = { movie ->
                 val action = ProfileFragmentDirections.actionProfileToMovieDetail(movie.id)
                 findNavController().navigate(action)
+            },
+            onReviewClick = { reviewId ->
+                val action = ProfileFragmentDirections.actionProfileToReviewDetail(
+                    reviewId = reviewId,
+                    isLog = false
+                )
+                findNavController().navigate(action)
             }
         )
         binding.rvFavorites.apply {
@@ -102,7 +142,23 @@ class ProfileFragment : Fragment() {
         }
         
         // Recent Activity - Grid with 4 columns
-        recentActivityAdapter = RecentActivityAdapter()
+        recentActivityAdapter = RecentActivityAdapter(
+            onMovieClick = { entry ->
+                val action = ProfileFragmentDirections.actionProfileToMovieDetail(entry.movie.id)
+                findNavController().navigate(action)
+            },
+            onLongPressGoToFilm = { entry ->
+                val action = ProfileFragmentDirections.actionProfileToMovieDetail(entry.movie.id)
+                findNavController().navigate(action)
+            },
+            onReviewClick = { reviewId ->
+                val action = ProfileFragmentDirections.actionProfileToReviewDetail(
+                    reviewId = reviewId,
+                    isLog = false
+                )
+                findNavController().navigate(action)
+            }
+        )
         binding.rvRecentActivity.apply {
             adapter = recentActivityAdapter
             layoutManager = GridLayoutManager(requireContext(), 4)
@@ -216,8 +272,22 @@ class ProfileFragment : Fragment() {
     }
     
     private fun setupClickListeners() {
+        binding.btnBack.setOnClickListener {
+            findNavController().navigateUp()
+        }
+        
+        binding.btnFollow.setOnClickListener {
+            toggleFollow()
+        }
+        
         binding.btnSettings.setOnClickListener {
             val action = ProfileFragmentDirections.actionProfileToEditProfile()
+            findNavController().navigate(action)
+        }
+        
+        // "More" button for recent activity → navigate to diary
+        binding.btnMoreActivity.setOnClickListener {
+            val action = ProfileFragmentDirections.actionProfileToDiary()
             findNavController().navigate(action)
         }
         

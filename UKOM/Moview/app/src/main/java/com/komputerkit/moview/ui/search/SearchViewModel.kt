@@ -17,12 +17,18 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+enum class SearchFilter {
+    ALL, MOVIES, CAST_CREW, PRODUCTION_HOUSES, PEOPLE
+}
+
 data class SearchUiState(
     val isLoading: Boolean = false,
     val query: String = "",
+    val activeFilter: SearchFilter = SearchFilter.ALL,
     val movieResults: List<Movie> = emptyList(),
-    val personResults: List<SearchPerson> = emptyList(),
-    val studioResults: List<SearchStudio> = emptyList(),
+    val castCrewResults: List<SearchPerson> = emptyList(),
+    val productionHouseResults: List<SearchStudio> = emptyList(),
+    val userResults: List<SearchUser> = emptyList(),
     val error: String? = null,
     val isEmpty: Boolean = false,
     val isSelectMovieMode: Boolean = false
@@ -42,6 +48,18 @@ class SearchViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(isSelectMovieMode = enabled)
     }
     
+    fun setFilter(filter: SearchFilter) {
+        _uiState.value = _uiState.value.copy(activeFilter = filter)
+        
+        // Re-perform search with new filter if query exists
+        val currentQuery = _uiState.value.query
+        if (currentQuery.isNotBlank()) {
+            viewModelScope.launch {
+                performSearch(currentQuery)
+            }
+        }
+    }
+    
     fun onQueryChanged(query: String) {
         // Cancel previous search
         searchJob?.cancel()
@@ -49,8 +67,17 @@ class SearchViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(query = query)
         
         if (query.isBlank()) {
-            // Clear results when query is empty
-            _uiState.value = SearchUiState(query = "")
+            // Clear results when query is empty, but preserve filter and mode
+            _uiState.value = _uiState.value.copy(
+                query = "",
+                movieResults = emptyList(),
+                castCrewResults = emptyList(),
+                productionHouseResults = emptyList(),
+                userResults = emptyList(),
+                isEmpty = false,
+                error = null,
+                isLoading = false
+            )
             return
         }
         
@@ -78,22 +105,33 @@ class SearchViewModel : ViewModel() {
             // Simulate API delay
             delay(300)
             
-            // Search movies
-            val movies = searchMovies(query)
+            val filter = _uiState.value.activeFilter
             
-            // Search people
-            val people = searchPeople(query)
+            // Search based on active filter
+            val movies = if (filter == SearchFilter.ALL || filter == SearchFilter.MOVIES) {
+                searchMovies(query)
+            } else emptyList()
             
-            // Search studios
-            val studios = searchStudios(query)
+            val castCrew = if (filter == SearchFilter.ALL || filter == SearchFilter.CAST_CREW) {
+                searchCastCrew(query)
+            } else emptyList()
             
-            val isEmpty = movies.isEmpty() && people.isEmpty() && studios.isEmpty()
+            val productionHouses = if (filter == SearchFilter.ALL || filter == SearchFilter.PRODUCTION_HOUSES) {
+                searchProductionHouses(query)
+            } else emptyList()
+            
+            val users = if (filter == SearchFilter.ALL || filter == SearchFilter.PEOPLE) {
+                searchUsers(query)
+            } else emptyList()
+            
+            val isEmpty = movies.isEmpty() && castCrew.isEmpty() && productionHouses.isEmpty() && users.isEmpty()
             
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
                 movieResults = movies,
-                personResults = people,
-                studioResults = studios,
+                castCrewResults = castCrew,
+                productionHouseResults = productionHouses,
+                userResults = users,
                 isEmpty = isEmpty
             )
         } catch (e: CancellationException) {
@@ -110,80 +148,82 @@ class SearchViewModel : ViewModel() {
     
     private suspend fun searchMovies(query: String): List<Movie> = withContext(Dispatchers.Default) {
         try {
-            repository.searchMovies(query)
+            val response = repository.search(query, "movies")
+            response?.movies?.map { dto ->
+                Movie(
+                    id = dto.id,
+                    title = dto.title,
+                    posterUrl = dto.poster_path,
+                    averageRating = dto.average_rating,
+                    genre = dto.genres.firstOrNull(),
+                    releaseYear = dto.year,
+                    description = null,
+                    backdropUrl = dto.backdrop_path,
+                    duration = dto.duration,
+                    pgRating = dto.rating,
+                    watchedCount = "${dto.watched_count} views"
+                )
+            } ?: emptyList()
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
         }
     }
     
-    private fun searchPeople(query: String): List<SearchPerson> {
-        // TODO: Replace with actual TMDB API call (/search/person)
-        // Dummy data for now
-        val allPeople = listOf(
-            SearchPerson(
-                id = 1,
-                name = "Christopher Nolan",
-                role = "Director",
-                knownFor = "Known for The Dark Knight, Inception, Interstellar",
-                avatarUrl = TmdbImageUrl.getProfileUrl("/hUh4ugq6UUTUC03pKshXdQqKcR.jpg") ?: ""
-            ),
-            SearchPerson(
-                id = 2,
-                name = "Leonardo DiCaprio",
-                role = "Actor",
-                knownFor = "Known for Inception, The Wolf of Wall Street, Titanic",
-                avatarUrl = TmdbImageUrl.getProfileUrl("/kU3B75TyRiCgE270EyZnHjfivoq.jpg") ?: ""
-            ),
-            SearchPerson(
-                id = 3,
-                name = "Hans Zimmer",
-                role = "Composer",
-                knownFor = "Known for The Dark Knight, Inception, Gladiator",
-                avatarUrl = TmdbImageUrl.getProfileUrl("/d81K0RH8UX7tZj49tZaQhZ9ewH.jpg") ?: ""
-            ),
-            SearchPerson(
-                id = 4,
-                name = "Martin Scorsese",
-                role = "Director",
-                knownFor = "Known for The Godfather, Goodfellas, The Irishman",
-                avatarUrl = TmdbImageUrl.getProfileUrl("/hUh4ugq6UUTUC03pKshXdQqKcR.jpg") ?: ""
-            ),
-            SearchPerson(
-                id = 5,
-                name = "Quentin Tarantino",
-                role = "Director",
-                knownFor = "Known for Pulp Fiction, Django Unchained, Kill Bill",
-                avatarUrl = TmdbImageUrl.getProfileUrl("/kU3B75TyRiCgE270EyZnHjfivoq.jpg") ?: ""
-            )
-        )
-        
-        return allPeople
-            .filter { it.name.contains(query, ignoreCase = true) }
-            .take(6)
+    private suspend fun searchCastCrew(query: String): List<SearchPerson> = withContext(Dispatchers.Default) {
+        try {
+            val response = repository.search(query, "cast_crew")
+            response?.cast_crew?.map { dto ->
+                SearchPerson(
+                    id = dto.id,
+                    name = dto.name,
+                    role = dto.role,
+                    knownFor = dto.known_for,
+                    avatarUrl = dto.avatar_url ?: ""
+                )
+            } ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
     
-    private fun searchStudios(query: String): List<SearchStudio> {
-        // TODO: Replace with actual TMDB API call (/search/company)
-        // Dummy data for now
-        val allStudios = listOf(
-            SearchStudio(1, "Warner Bros. Pictures"),
-            SearchStudio(2, "Universal Pictures"),
-            SearchStudio(3, "Paramount Pictures"),
-            SearchStudio(4, "20th Century Studios"),
-            SearchStudio(5, "Sony Pictures"),
-            SearchStudio(6, "Walt Disney Pictures"),
-            SearchStudio(7, "Columbia Pictures"),
-            SearchStudio(8, "Legendary Pictures")
-        )
-        
-        return allStudios
-            .filter { it.name.contains(query, ignoreCase = true) }
-            .take(6)
+    private suspend fun searchProductionHouses(query: String): List<SearchStudio> = withContext(Dispatchers.Default) {
+        try {
+            val response = repository.search(query, "production_houses")
+            response?.production_houses?.map { dto ->
+                SearchStudio(
+                    id = dto.id,
+                    name = dto.name
+                )
+            } ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    private suspend fun searchUsers(query: String): List<SearchUser> = withContext(Dispatchers.Default) {
+        try {
+            val response = repository.search(query, "people")
+            response?.people?.map { dto ->
+                SearchUser(
+                    id = dto.id,
+                    username = dto.username,
+                    fullName = dto.full_name,
+                    avatarUrl = dto.avatar_url ?: "",
+                    filmsCount = dto.films_count,
+                    reviewsCount = dto.reviews_count
+                )
+            } ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
     
     fun clearSearch() {
         searchJob?.cancel()
-        _uiState.value = SearchUiState()
+        _uiState.value = SearchUiState(activeFilter = _uiState.value.activeFilter)
     }
 }

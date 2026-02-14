@@ -7,6 +7,7 @@ use App\Models\Movie;
 use App\Models\Rating;
 use App\Models\Review;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MovieApiController extends Controller
 {
@@ -363,11 +364,12 @@ class MovieApiController extends Controller
     }
     
     /**
-     * Search movies
+     * Search movies, persons, production houses, or users
      */
     public function search(Request $request)
     {
         $query = $request->get('q');
+        $type = $request->get('type', 'all'); // all, movies, cast_crew, production_houses, people
         
         if (!$query) {
             return response()->json([
@@ -376,20 +378,101 @@ class MovieApiController extends Controller
             ], 400);
         }
         
-        $movies = Movie::where(function ($q) use ($query) {
-                $q->where('title', 'like', "%{$query}%")
-                  ->orWhere('synopsis', 'like', "%{$query}%");
-            })
-            ->where('status', 'published')
-            ->with(['genres'])
-            ->limit(20)
-            ->get();
+        $results = [];
+        
+        // Search Movies
+        if ($type === 'all' || $type === 'movies') {
+            $movies = Movie::where(function ($q) use ($query) {
+                    $q->where('title', 'like', "%{$query}%")
+                      ->orWhere('synopsis', 'like', "%{$query}%");
+                })
+                ->where('status', 'published')
+                ->with(['genres'])
+                ->limit(20)
+                ->get();
+            
+            $results['movies'] = $movies->map(function ($movie) {
+                return $this->formatMovieCard($movie);
+            });
+        }
+        
+        // Search Cast & Crew (Persons)
+        if ($type === 'all' || $type === 'cast_crew') {
+            $persons = DB::table('persons')
+                ->where('full_name', 'like', "%{$query}%")
+                ->limit(20)
+                ->get();
+            
+            $results['cast_crew'] = $persons->map(function ($person) {
+                return [
+                    'id' => $person->id,
+                    'name' => $person->full_name,
+                    'role' => $person->primary_role ?? 'Actor',
+                    'known_for' => '', // Will be loaded on person detail page
+                    'avatar_url' => $person->photo_path ? url('storage/' . $person->photo_path) : null,
+                ];
+            });
+        }
+        
+        // Search Production Houses
+        if ($type === 'all' || $type === 'production_houses') {
+            $productionHouses = DB::table('production_houses')
+                ->where('name', 'like', "%{$query}%")
+                ->limit(20)
+                ->get();
+            
+            $results['production_houses'] = $productionHouses->map(function ($house) {
+                return [
+                    'id' => $house->id,
+                    'name' => $house->name,
+                ];
+            });
+        }
+        
+        // Search People (Users)
+        if ($type === 'all' || $type === 'people') {
+            $users = DB::table('users')
+                ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
+                ->where('users.status', 'active')
+                ->where(function($q) use ($query) {
+                    $q->where('users.username', 'like', "%{$query}%")
+                      ->orWhere('user_profiles.display_name', 'like', "%{$query}%");
+                })
+                ->select(
+                    'users.id',
+                    'users.username',
+                    'user_profiles.display_name',
+                    'user_profiles.profile_photo'
+                )
+                ->limit(20)
+                ->get();
+            
+            $results['people'] = $users->map(function ($user) {
+                // Count films watched (any film with a rating = watched)
+                $filmsCount = DB::table('ratings')
+                    ->where('user_id', $user->id)
+                    ->count();
+                
+                // Count reviews
+                $reviewsCount = DB::table('reviews')
+                    ->where('user_id', $user->id)
+                    ->where('status', 'published')
+                    ->count();
+                
+                return [
+                    'id' => $user->id,
+                    'username' => $user->username,
+                    'full_name' => $user->display_name ?? $user->username,
+                    'avatar_url' => $user->profile_photo ? url('storage/' . $user->profile_photo) : null,
+                    'films_count' => $filmsCount,
+                    'reviews_count' => $reviewsCount,
+                ];
+            });
+        }
         
         return response()->json([
             'success' => true,
-            'data' => $movies->map(function ($movie) {
-                return $this->formatMovieCard($movie);
-            })
+            'data' => $results
         ]);
     }
     

@@ -99,8 +99,9 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                         userName = reviewDto.display_name ?: reviewDto.username,
                         userAvatar = profilePhoto,
                         userId = reviewDto.user_id,
-                        timeAgo = formatWatchedDate(reviewDto.watched_at ?: reviewDto.created_at),
+                        timeAgo = formatWatchedDate(reviewDto.watched_at ?: reviewDto.created_at, reviewDto.is_rewatched),
                         isLiked = reviewDto.snapshot_is_liked,  // Snapshot for icon next to stars
+                        isRewatch = reviewDto.is_rewatched,
                         watchedAt = reviewDto.watched_at,
                         likeCount = reviewDto.like_count,
                         commentCount = reviewDto.comment_count,
@@ -149,19 +150,20 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    private fun formatWatchedDate(dateString: String): String {
-        // Format: "Watched DD MMMM YYYY" for watched date
+    private fun formatWatchedDate(dateString: String, isRewatched: Boolean = false): String {
+        // Format: "Watched DD MMMM YYYY" or "Rewatched DD MMMM YYYY"
+        val prefix = if (isRewatched) "Rewatched" else "Watched"
         return try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val outputFormat = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
             val date = inputFormat.parse(dateString)
             if (date != null) {
-                "Watched ${outputFormat.format(date)}"
+                "$prefix ${outputFormat.format(date)}"
             } else {
-                "Watched recently"
+                "$prefix recently"
             }
         } catch (e: Exception) {
-            "Watched recently"
+            "$prefix recently"
         }
     }
 

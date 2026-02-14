@@ -68,9 +68,13 @@ class FilmGridAdapter(
             Log.d("FilmGridAdapter", "Film: ${movie.title}, isLiked=${movie.isLiked}, rating=${movie.userRating}")
             binding.ivLiked.visibility = if (movie.isLiked) View.VISIBLE else View.GONE
             
-            // Poster click - navigate to Film Detail
+            // Poster click - if has review go to review detail, otherwise go to film detail
             binding.posterContainer.setOnClickListener {
-                onMovieClick(movie)
+                if (movie.hasReview && movie.reviewId > 0) {
+                    onReviewClick?.invoke(movie)
+                } else {
+                    onMovieClick(movie)
+                }
             }
             
             // Long press to show movie actions
@@ -84,12 +88,7 @@ class FilmGridAdapter(
                 true
             }
             
-            // Review icon click - navigate to Review Detail (if has review)
-            if (movie.hasReview) {
-                binding.icHasReview.setOnClickListener {
-                    onReviewClick?.invoke(movie)
-                }
-            }
+
         }
         
         private fun updateStarRating(rating: Float) {

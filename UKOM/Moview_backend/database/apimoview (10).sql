@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 11 Feb 2026 pada 07.08
+-- Waktu pembuatan: 14 Feb 2026 pada 14.01
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -99,7 +99,9 @@ INSERT INTO `diaries` (`id`, `user_id`, `film_id`, `review_id`, `watched_at`, `r
 (21, 3, 11, 13, '2026-02-11', 5, 0, 'tes', 1, '2026-02-10 22:34:28', '2026-02-10 22:34:28'),
 (22, 3, 10, 14, '2026-02-11', 5, 1, 'tes', 1, '2026-02-10 22:34:52', '2026-02-10 22:34:52'),
 (23, 3, 34, 15, '2026-02-11', 4, 0, 'tes', 0, '2026-02-10 22:52:49', '2026-02-10 22:52:49'),
-(24, 3, 34, 16, '2026-02-11', 4, 0, 'tes22', 1, '2026-02-10 22:53:00', '2026-02-10 22:53:00');
+(24, 3, 34, 16, '2026-02-11', 4, 0, 'tes22', 1, '2026-02-10 22:53:00', '2026-02-10 22:53:00'),
+(25, 3, 34, 17, '2026-02-14', 4, 0, 'Aku suka sinema Horeg ini', 1, '2026-02-14 01:28:09', '2026-02-14 01:28:09'),
+(26, 5, 37, 18, '2026-02-14', 5, 1, 'Keren, Absolut cinema', 0, '2026-02-14 04:00:21', '2026-02-14 04:00:21');
 
 -- --------------------------------------------------------
 
@@ -219,7 +221,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (24, '2026_02_07_000002_add_rating_to_diaries_table', 4),
 (25, '2026_02_07_000003_add_is_liked_to_reviews_and_diaries', 5),
 (26, '2026_02_07_000004_add_watched_at_to_reviews_table', 6),
-(27, '2026_02_11_add_is_rewatched_to_diaries', 7);
+(27, '2026_02_11_add_is_rewatched_to_diaries', 7),
+(28, '2026_02_14_add_is_rewatched_to_reviews', 8);
 
 -- --------------------------------------------------------
 
@@ -251,7 +254,7 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (2, 'The Handmaiden', '2016', 168, 'NC-17', '1930s Korea, in the period of Japanese occupation, a new girl, Sookee, is hired as a handmaiden to a Japanese heiress, Hideko, who lives a secluded life on a large countryside estate with her domineering Uncle Kouzuki.', 'movies/2/poster/5KaUYiDyVYHpvYEbJUtByHpmOjigmpveskbTvF15.webp', 'movies/2/backdrop/7tPjR22RtGA8q4n8UaDamlnFPxHJDcLFLBB1lufy.webp', 'https://youtu.be/whldChqCsYk?si=_MK_uXDiQjqukebH', 'published', '2026-01-30 06:37:18', '2026-01-30 21:13:30'),
 (3, 'Perfect Days', '2023', 123, 'PG', 'Hirayama seems utterly content with his simple life as a cleaner of toilets in Tokyo.', 'movies/3/poster/lNUXiqFkQiylVswXRL0CXpQQyO5w8A64VVJ1XwZc.webp', 'movies/3/backdrop/IYVzP15BMaVLXAtW6RJH9hLU4O3xTwz6EirgPiCp.webp', NULL, 'published', '2026-01-30 06:37:18', '2026-01-30 21:03:36'),
 (4, 'Past Lives', '2023', 105, 'PG-13', 'Nora and Hae Sung, two deeply connected childhood friends, are wrest apart after Nora\'s family emigrates from South Korea.', 'movies/4/poster/hBWu8LFNnvKg6Gnd3D8GFHhqLS0rLKMlBp9hIMtx.webp', 'movies/4/backdrop/Ai4eeJWC12mAwSHaBvgwzlRUgyWVaIxeOGdyZ4Ag.webp', NULL, 'published', '2026-01-30 06:37:18', '2026-01-30 21:42:16'),
-(5, 'Resurrection', '2025', 160, 'R', 'In a future where humanity has surrendered its ability to dream in exchange for immortality, an outcast finds illusion, nightmarish visions, and beauty in an intoxicating world of his own making.', 'movies/5/poster/iXl1MJ57vGlRi2GvQFLgPYmsifXdgikhRepquaqC.webp', 'movies/5/backdrop/P23DLxZaJZ1S6XAnAuhfJ4SloMLfLIuLBIlv4Wav.webp', NULL, 'published', '2026-01-30 06:37:18', '2026-02-06 07:20:55'),
+(5, 'Resurrection', '2025', 160, 'R', 'In a future where humanity has surrendered its ability to dream in exchange for immortality, an outcast finds illusion, nightmarish visions, and beauty in an intoxicating world of his own making.', 'movies/5/poster/iXl1MJ57vGlRi2GvQFLgPYmsifXdgikhRepquaqC.webp', 'movies/5/backdrop/P23DLxZaJZ1S6XAnAuhfJ4SloMLfLIuLBIlv4Wav.webp', 'https://youtu.be/ZIJezWgFUEY?si=Jpy_MBO8xS7IhmsA', 'published', '2026-01-30 06:37:18', '2026-02-14 03:41:37'),
 (6, 'Sore: Istri Dari Masa Depan', '2025', 119, 'PG', 'A young man living alone in Croatia encounters a woman who claims to be his wife from the future, sent on a mission to help him correct his bad habits and improve his lifestyle.', 'movies/6/poster/FhAgMgFumfx1blIzWkSBy4FyN0CxfW59fzpiPhYn.webp', 'movies/6/backdrop/c2nt7XkzgOZ8T5RC2qIKTuVn1zke4C3Qgu9JZKTZ.webp', 'https://youtu.be/CZJWXm5KKyM?si=78R4C1eRm3FNYdrv', 'published', '2026-01-30 22:53:21', '2026-01-30 23:02:35'),
 (7, 'Jatuh Cinta Seperti di Film-Film', '2023', 118, 'PG-13', 'Bagus, a screenwriter, reunites with his high school friend and crush, Hana, who is still grieving from the loss of her husband. He wants to convince her to fall in love once again, just like in the movies.', 'movies/7/poster/mvjIEh7YHK6ruRW6cFlomGqB1zhiGCHrlmhRnlma.webp', 'movies/7/backdrop/ztVPySl8mh5j6V5AHd3cSgh4HS41NJ06oj07wiyu.webp', 'https://youtu.be/F6jPobzz-ag?si=qEEc1W9VBvl_QaO1', 'published', '2026-01-30 23:06:54', '2026-01-30 23:10:24'),
 (8, '\"Wuthering Heights\"', '2026', 136, 'R', 'Tragedy strikes when Heathcliff falls in love with Catherine Earnshaw, a woman from a wealthy family in 18th-century England.', 'movies/8/poster/uuaS50XVV9EDYQYtvbTe41EQqv5fFVWKShQo3sbs.webp', 'movies/8/backdrop/Na2VQgAGvNfG32r8ZkBcW6gYUlz6bk6g5j7IMi0u.webp', NULL, 'published', '2026-01-30 23:23:17', '2026-01-30 23:28:09'),
@@ -266,7 +269,7 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (17, 'Para Perasuk', '2026', 119, 'Not Rated', 'In a town where pleasure equals being possessed by spiritual beings, Bayu aspires to be the shaman of a trance party so he can fundraise enough money to prevent an impending eviction.', 'movies/17/poster/nD2SYCIwfxdtxWBSFVac9X8FYS0CFi5ZKWyRTVnQ.webp', 'movies/17/backdrop/wwf8ERmpdgxMM1IDcLvaPKpV4krL6W7FFbPqdfTo.webp', 'https://youtu.be/tiIDmjCim3k?si=j_JZDP0ciz_D_kNm', 'published', '2026-02-01 04:10:03', '2026-02-01 11:44:49'),
 (18, 'Monster Pabrik Rambut', '2026', NULL, 'Not Rated', 'Two sisters deal with the sudden death of their mother at a wig factory. One believes it was suicide while the other is certain it was a result of possession and takes a job at the factory to uncover the truth. Meanwhile, their brother - born with an eerie gift to regenerate his own body - catches the attention of a ghostly figure roaming the factory, searching for a vessel to inhabit.', 'movies/18/poster/EhNypxxHyEFZacRX9KpVkWUrgBjFyeAKzHOfkF3K.webp', 'movies/18/backdrop/OK7qKBusnxr3JELTDKVizCX3rVwB2sQBpgcCxMqo.jpg', 'https://youtu.be/DaI3BNtjk6Y?si=gkCqEKo9nuBEnhvG', 'published', '2026-02-01 04:21:07', '2026-02-01 11:44:49'),
 (19, 'Alpha', '2025', 128, 'R', 'Alpha, a troubled 13-year-old lives with her single mom. Their world collapses the day she returns from school with a tattoo on her arm.', 'movies/19/poster/Fbznt5rvnUmJqE0qKGyCcb5kMeMdaU1X3PpTc4zY.webp', 'movies/19/backdrop/Vh5CePRfJ7lGYlfW7akA969vjb1caspE29IuGTuJ.webp', 'https://youtu.be/4Cc2A-YLARs?si=3QrxoPkBWLHLErn_', 'published', '2026-02-01 04:30:39', '2026-02-01 04:46:53'),
-(20, 'Poor Things', '2023', 141, 'NC-17', 'Brought back to life by an unorthodox scientist, a young woman runs off with a lawyer on a whirlwind adventure across the continents. Free from the prejudices of her times, she grows steadfast in her purpose to stand for equality and liberation.', 'movies/20/poster/4YEx2aWuFh9snIfXwSlUa4bLHNm48M6c4m11bkRM.webp', 'movies/20/backdrop/75bZ6AHxuZgpFzYdLv4VzHDxbYSQssTh20zv0HMQ.webp', NULL, 'published', '2026-02-03 17:14:03', '2026-02-03 17:18:33'),
+(20, 'Poor Things', '2023', 141, 'NC-17', 'Brought back to life by an unorthodox scientist, a young woman runs off with a lawyer on a whirlwind adventure across the continents. Free from the prejudices of her times, she grows steadfast in her purpose to stand for equality and liberation.', 'movies/20/poster/4YEx2aWuFh9snIfXwSlUa4bLHNm48M6c4m11bkRM.webp', 'movies/20/backdrop/75bZ6AHxuZgpFzYdLv4VzHDxbYSQssTh20zv0HMQ.webp', 'https://youtu.be/RlbR5N6veqw?si=oiitCSgASONY59N3', 'published', '2026-02-03 17:14:03', '2026-02-14 03:43:57'),
 (21, 'My Therapist Said, I am Full of Sadness', '2024', 22, 'R', 'Monica scours archive material for answers to the question of how queer life in Berlin and the wish to be accepted by her Christian-Indonesian parents can be reconciled.', 'movies/21/poster/kt3CRvLrQtFl9mTZei9RdutKksGRLYho2rexrmj2.webp', 'movies/21/backdrop/UfjtEHvAUDkdlmlaTwEwnpNFhghXeUqbYtPuTtwd.webp', 'https://youtu.be/7SLivyKN0bs?si=WhA4fAt1Vlsu8unM', 'published', '2026-02-06 04:24:45', '2026-02-06 04:34:38'),
 (22, 'Sammi, Who Can Detach His Body Parts', '2025', 19, NULL, 'Sammi has the ability to remove parts of his body and give them to those he loves and wants to help. After his death, Sammi’s mother goes in search of the pieces of her son.', 'movies/22/poster/30UsvBs7vqeNgJM7LcPSGYkFirTyPsf7aCiuRuO0.jpg', 'movies/22/backdrop/ZsI4A5LzJcEsAYcKvrYarsRer7SfTuq6lmzFFi2T.webp', 'https://youtu.be/03sTav1C6y0?si=TREzmLut1e_Q9Ivu', 'published', '2026-02-06 04:26:35', '2026-02-06 04:35:48'),
 (23, 'The Love That Remains', '2025', 109, 'R', 'Tenderly captures a year in the life of a family as the parents navigate their separation. Through both playful and heartfelt moments, the film portrays the bittersweet essence of faded love and shared memories amidst the changing seasons.', 'movies/23/poster/DrP87pWyrUZBgfznaBHLroKqZDIsMnXs9ofgy9V8.webp', 'movies/23/backdrop/vTbi3LW7vmo2hGcKnWR4eNvdD15QUZIXSavF5Kt8.webp', 'https://youtu.be/jZ0fdmesr-w?si=lJO1fmyxLBaYkKZB', 'published', '2026-02-06 04:37:48', '2026-02-07 02:05:35'),
@@ -279,8 +282,13 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (30, 'Hamnet', '2025', 126, 'PG-13', 'The powerful story of love and loss that inspired the creation of Shakespeare\'s timeless masterpiece, Hamlet.', 'movies/30/poster/krUjfCdqoImYYS6FYaAw4X9oW3F1gJs5fPN6m2FU.webp', 'movies/30/backdrop/BcCXuv2Bbf6JT1he4wzbuaq5qr0MctMFGg6nlaGt.webp', 'https://youtu.be/xYcgQMxQwmk?si=wdQswysXXgi61e6L', 'published', '2026-02-07 02:50:18', '2026-02-07 02:55:39'),
 (31, 'Marty Supreme', '2025', 150, 'R', 'Marty Mauser, a young man with a dream no one respects, goes to hell and back in pursuit of greatness.', 'movies/31/poster/7i8w1eBBicdFWL8Hr7Rb1U5c9Rq7zCMF4KVZ0e4b.webp', 'movies/31/backdrop/XIApNBZz0xgsqOK466QBIWiG648Oxsmt9nEYGKSM.webp', 'https://youtu.be/s9gSuKaKcqM?si=eVioWdw8Y1PAcMvN', 'published', '2026-02-07 02:53:09', '2026-02-07 02:55:27'),
 (32, 'Empat Musim Pertiwi', '2026', NULL, NULL, 'Released from prison, a woman returns to her village and tries to face the four seasons of her past. The lack of welcome from the villagers, and even her family, leads her into a power that is hidden underneath the fog. Aiming to heal, a sexual assault survivor takes a journey to redefine her own meaning of home, family, and peace.', 'movies/32/poster/sfI4BqK2JF0PFbVxRSyjlOrZTHTTflS63hZ16MWD.webp', 'movies/32/backdrop/082ckOHMdnSOw49yhrIneepvnUp5c2uEAvXTnv33.webp', NULL, 'published', '2026-02-07 02:58:07', '2026-02-07 03:15:16'),
-(33, 'Memoir of a Snail', '2024', 94, 'R', 'Life can only be understood backwards, but we have to live it forwards.\r\n\r\nForcibly separated from her twin brother when they are orphaned, a melancholic misfit learns how to find confidence within herself amid the clutter of misfortunes and everyday life.', 'movies/33/poster/J5owMINkJ3DonUXRwHI1HGjxuQsX6k4QRVsOLDlz.webp', 'movies/33/backdrop/aEQkBKlhO1OJePmQyzPxnu9sMW1nOyLsxw2HSEVb.webp', NULL, 'published', '2026-02-07 04:28:03', '2026-02-07 04:29:52'),
-(34, 'Sirāt', '2025', 115, 'PG-13', 'A man and his son arrive at a rave lost in the mountains of Morocco. They are looking for Marina, their daughter and sister, who disappeared months ago at another rave. Driven by fate, they decide to follow a group of ravers in search of one last party, in hopes Marina will be there.', 'movies/34/poster/JSGyu7yh2e361AgDYmiKsaektf0tulHoMP5dUt7t.webp', 'movies/34/backdrop/P6zjYdmEnbGl2zhJ4MKJgpznDVt2Vd6zAEvIx8aG.webp', NULL, 'published', '2026-02-10 17:29:02', '2026-02-10 17:31:29');
+(33, 'Memoir of a Snail', '2024', 94, 'R', 'Life can only be understood backwards, but we have to live it forwards.\r\n\r\nForcibly separated from her twin brother when they are orphaned, a melancholic misfit learns how to find confidence within herself amid the clutter of misfortunes and everyday life.', 'movies/33/poster/J5owMINkJ3DonUXRwHI1HGjxuQsX6k4QRVsOLDlz.webp', 'movies/33/backdrop/aEQkBKlhO1OJePmQyzPxnu9sMW1nOyLsxw2HSEVb.webp', 'https://youtu.be/Ehc8cc7g31I?si=82r2CmF33HXveWeQ', 'published', '2026-02-07 04:28:03', '2026-02-14 03:45:33'),
+(34, 'Sirāt', '2025', 115, 'PG-13', 'A man and his son arrive at a rave lost in the mountains of Morocco. They are looking for Marina, their daughter and sister, who disappeared months ago at another rave. Driven by fate, they decide to follow a group of ravers in search of one last party, in hopes Marina will be there.', 'movies/34/poster/JSGyu7yh2e361AgDYmiKsaektf0tulHoMP5dUt7t.webp', 'movies/34/backdrop/P6zjYdmEnbGl2zhJ4MKJgpznDVt2Vd6zAEvIx8aG.webp', 'https://youtu.be/ww-IXHXvS70?si=XbsNMgfstgIwknaG', 'published', '2026-02-10 17:29:02', '2026-02-14 03:44:37'),
+(35, 'Oldboy', '2003', 120, 'NC-17', 'Oldboy bercerita tentang Oh Dae-su (Choi Min-sik) yang secara tiba-tiba diculik oleh sekelompok orang. Tanpa mengerti permasalahannya, Oh Dae-su kemudian dikurung di sebuah ruangan misterius. Di tengah-tengah masa kurungannya, melalui siaran berita di televisi, Oh Dae-su mendapati bahwa dirinya telah menjadi buronan karena dituduh membunuh istrinya sendiri. Dari sana kemudian ia bertekad untuk kabur dan membalas dendam kepada orang yang mengurungnya. 15 tahun berselang, tiba-tiba Oh Dae-su terbebas dari kurungannya. Ia tidak mengerti mengapa dirinya bisa keluar dari ruangan tersebut. Oh Dae-su kemudian memulai pencarian dan mencoba memecahkan misteri di balik penculikannya. Dalam upayanya tersebut, Oh Dae-su bertemu seorang pelayan restoran sushi yang bernama Mi Do (Kang Hye-jung).', 'movies/35/poster/KlBQcWzL6yGhPxWrCX2GH42lX1THzjLmRq7LCufN.webp', 'movies/35/backdrop/UhRzQarPn4u3fO0FMUyaahompOhn6xMvnVPyLRXz.webp', 'https://youtu.be/tAaBkFChaRg?si=nFXqf1y5MdI2aPjM', 'published', '2026-02-14 01:24:31', '2026-02-14 01:33:21'),
+(36, 'Everything Everywhere All at Once', '2022', 140, 'R', 'Everything Everywhere All at Once menceritakan seorang warga Amerika keturunan China bernama Evelyn Wang. Ia dan suaminya menjalankan usaha laundry hingga akhirnya didatangi oleh agen IRS. Di tengah keterpurukan itu, Waymond mencoba menceraikan Evelyn.', 'movies/36/poster/hCV8BZxPwuJRTmcdKL1gfn46N7D8pvVsjgozh7TX.webp', 'movies/36/backdrop/T6go3lBAc7cRJyVAh64qCpC17sC4jW8iCSMTsWOE.webp', 'https://youtu.be/wxN1T1uxQ2g?si=JGWNYo1fZ7_07DRU', 'published', '2026-02-14 01:30:03', '2026-02-14 01:32:37'),
+(37, 'A Separation', '2011', 123, 'PG-13', 'A married couple are faced with a difficult decision - to improve the life of their child by moving to another country or to stay in Iran and look after a deteriorating parent who has Alzheimer\'s disease.', 'movies/37/poster/euWz3zYnaVtdYkzYxc0fsEkGtbnjUZsBckl4swe3.webp', 'movies/37/backdrop/XIkaZyNfP3aJ06TIVwlNtzARlw7EdHy5iAlz32mi.webp', 'https://youtu.be/58Onuy5USTc?si=iSQL6CMaOatnHW7y', 'published', '2026-02-14 01:38:41', '2026-02-14 01:41:42'),
+(38, 'Aftersun', '2022', 102, 'R', 'Sophie mengenang kegembiraan dan kepiluannya dari liburan yang dia lakukan bersama ayahnya dua puluh tahun sebelumnya. Kenangan nyata dan khayalan mengisi celah di antara rekaman miniDV saat dia mencoba mendamaikan ayah yang dia kenal dengan pria yang tidak dia kenal.', 'movies/38/poster/YO3NsOtfjoJLoUHgWy2dsxDoj6Sl24cyQ34h7Bjn.webp', 'movies/38/backdrop/NmhP1KECaVeNwMlV2TO9YXbLVROcY8JjxdPb3oRW.webp', NULL, 'published', '2026-02-14 04:19:16', '2026-02-14 04:21:02'),
+(39, 'La La Land', '2016', 129, 'PG-13', 'Ketika Sebastian, seorang pianis, dan Mia, seorang aktris, mencoba untuk menggapai mimpi dan mencapai kesuksesan di bidang masing-masing, mereka terjebak dalam pilihan antara cinta dan karir.', 'movies/39/poster/32VPPqPrgpMvqInrFhpl4mR5wNe2gzyKhmWiOLdv.webp', 'movies/39/backdrop/yc94Tv9YEUlWLZ6hyJ3s953BiaI5grfSpqub0HsE.webp', 'https://youtu.be/0pdqf4P9MB8?si=0sF4hhYjMB0M5iJz', 'published', '2026-02-14 05:38:43', '2026-02-14 05:41:38');
 
 -- --------------------------------------------------------
 
@@ -357,7 +365,14 @@ INSERT INTO `movie_countries` (`movie_id`, `country_id`) VALUES
 (32, 14),
 (33, 10),
 (34, 5),
-(34, 11);
+(34, 11),
+(35, 3),
+(36, 1),
+(37, 5),
+(37, 16),
+(38, 1),
+(38, 15),
+(39, 1);
 
 -- --------------------------------------------------------
 
@@ -445,7 +460,20 @@ INSERT INTO `movie_genres` (`movie_id`, `genre_id`) VALUES
 (33, 4),
 (33, 7),
 (34, 7),
-(34, 13);
+(34, 13),
+(35, 1),
+(35, 7),
+(35, 10),
+(35, 13),
+(36, 1),
+(36, 2),
+(36, 4),
+(36, 12),
+(37, 7),
+(38, 7),
+(39, 4),
+(39, 7),
+(39, 11);
 
 -- --------------------------------------------------------
 
@@ -514,7 +542,13 @@ INSERT INTO `movie_languages` (`movie_id`, `language_id`) VALUES
 (34, 1),
 (34, 5),
 (34, 6),
-(34, 11);
+(34, 11),
+(35, 2),
+(36, 1),
+(36, 4),
+(37, 15),
+(38, 1),
+(39, 1);
 
 -- --------------------------------------------------------
 
@@ -544,7 +578,9 @@ INSERT INTO `movie_likes` (`id`, `user_id`, `film_id`, `created_at`) VALUES
 (9, 3, 15, '2026-02-06 07:04:55'),
 (13, 3, 26, '2026-02-06 07:14:13'),
 (14, 3, 16, '2026-02-06 07:23:43'),
-(15, 3, 10, '2026-02-07 03:44:06');
+(15, 3, 10, '2026-02-07 03:44:06'),
+(16, 5, 37, '2026-02-14 04:00:06'),
+(18, 5, 2, '2026-02-14 04:00:36');
 
 -- --------------------------------------------------------
 
@@ -660,7 +696,21 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (94, 33, 'poster', 'movies/33/poster/J5owMINkJ3DonUXRwHI1HGjxuQsX6k4QRVsOLDlz.webp', 1, '2026-02-07 11:29:28'),
 (95, 33, 'backdrop', 'movies/33/backdrop/aEQkBKlhO1OJePmQyzPxnu9sMW1nOyLsxw2HSEVb.webp', 1, '2026-02-07 11:29:41'),
 (96, 34, 'poster', 'movies/34/poster/JSGyu7yh2e361AgDYmiKsaektf0tulHoMP5dUt7t.webp', 1, '2026-02-11 00:30:35'),
-(97, 34, 'backdrop', 'movies/34/backdrop/P6zjYdmEnbGl2zhJ4MKJgpznDVt2Vd6zAEvIx8aG.webp', 1, '2026-02-11 00:30:48');
+(97, 34, 'backdrop', 'movies/34/backdrop/P6zjYdmEnbGl2zhJ4MKJgpznDVt2Vd6zAEvIx8aG.webp', 1, '2026-02-11 00:30:48'),
+(98, 35, 'poster', 'movies/35/poster/KlBQcWzL6yGhPxWrCX2GH42lX1THzjLmRq7LCufN.webp', 1, '2026-02-14 08:25:49'),
+(99, 35, 'backdrop', 'movies/35/backdrop/UhRzQarPn4u3fO0FMUyaahompOhn6xMvnVPyLRXz.webp', 1, '2026-02-14 08:26:00'),
+(100, 36, 'poster', 'movies/36/poster/hCV8BZxPwuJRTmcdKL1gfn46N7D8pvVsjgozh7TX.webp', 1, '2026-02-14 08:31:43'),
+(101, 36, 'backdrop', 'movies/36/backdrop/T6go3lBAc7cRJyVAh64qCpC17sC4jW8iCSMTsWOE.webp', 1, '2026-02-14 08:31:53'),
+(102, 37, 'poster', 'movies/37/poster/euWz3zYnaVtdYkzYxc0fsEkGtbnjUZsBckl4swe3.webp', 1, '2026-02-14 08:41:19'),
+(103, 37, 'backdrop', 'movies/37/backdrop/XIkaZyNfP3aJ06TIVwlNtzARlw7EdHy5iAlz32mi.webp', 1, '2026-02-14 08:41:30'),
+(104, 20, 'backdrop', 'movies/20/backdrop/D2PfeKH26MZz1EpZEhTfhWMFWRaJ1r1fAspXNzvo.webp', 0, '2026-02-14 11:05:35'),
+(105, 20, 'backdrop', 'movies/20/backdrop/vOW8epajt2p3MzCvvICIlAr12TDiAjnhk88IrMWl.webp', 0, '2026-02-14 11:05:40'),
+(106, 20, 'backdrop', 'movies/20/backdrop/GS441NHrTeQlqluMteSiCXwZZNKwMe0Q5uepXY3E.webp', 0, '2026-02-14 11:05:46'),
+(107, 20, 'backdrop', 'movies/20/backdrop/CbRy79xPN5S0icdrAt53VrX8LuSvKBDSDKZueN89.webp', 0, '2026-02-14 11:05:51'),
+(108, 38, 'poster', 'movies/38/poster/YO3NsOtfjoJLoUHgWy2dsxDoj6Sl24cyQ34h7Bjn.webp', 1, '2026-02-14 11:20:35'),
+(109, 38, 'backdrop', 'movies/38/backdrop/NmhP1KECaVeNwMlV2TO9YXbLVROcY8JjxdPb3oRW.webp', 1, '2026-02-14 11:20:46'),
+(110, 39, 'poster', 'movies/39/poster/32VPPqPrgpMvqInrFhpl4mR5wNe2gzyKhmWiOLdv.webp', 1, '2026-02-14 12:41:19'),
+(111, 39, 'backdrop', 'movies/39/backdrop/yc94Tv9YEUlWLZ6hyJ3s953BiaI5grfSpqub0HsE.webp', 1, '2026-02-14 12:41:29');
 
 -- --------------------------------------------------------
 
@@ -694,13 +744,53 @@ INSERT INTO `movie_persons` (`id`, `movie_id`, `person_id`, `role_type`, `charac
 (9, 2, 14, 'crew', NULL, 'Screenplay', 0),
 (10, 3, 12, 'crew', NULL, 'Director', 0),
 (11, 3, 9, 'cast', 'Hirayama', NULL, 0),
-(12, 3, 15, 'crew', NULL, 'Cinematographer', 0),
 (13, 4, 13, 'crew', NULL, 'Director', 0),
 (14, 4, 10, 'cast', 'Nora', NULL, 0),
 (15, 4, 11, 'cast', 'Hae Sung', NULL, 1),
 (16, 4, 13, 'crew', NULL, 'Screenplay', 0),
 (17, 5, 16, 'crew', NULL, 'Director', 0),
-(18, 5, 16, 'crew', NULL, 'Screenplay', 0);
+(18, 5, 16, 'crew', NULL, 'Screenplay', 0),
+(19, 4, 18, 'cast', 'Arthur', NULL, 4),
+(20, 5, 19, 'cast', 'Deliriant / Qiu Moyun / Mongrel / Jia Shengjun / Apollo', NULL, 2),
+(21, 5, 20, 'cast', 'The Great Other / Mother / Voiceover', NULL, 3),
+(22, 5, 21, 'cast', 'Tai Zhaomei', NULL, 4),
+(23, 6, 22, 'cast', 'Sore', NULL, 0),
+(24, 6, 23, 'cast', 'Jonathan', NULL, 1),
+(25, 6, 24, 'crew', NULL, 'Director', 2),
+(26, 6, 24, 'crew', NULL, 'Writer', 3),
+(27, 7, 25, 'cast', 'Bagus', NULL, 0),
+(28, 7, 26, 'cast', 'Hana', NULL, 1),
+(29, 7, 27, 'cast', 'Yoram', NULL, 2),
+(30, 7, 22, 'cast', 'Celine', NULL, 3),
+(31, 7, 23, 'cast', 'Dion Wiyoko', NULL, 4),
+(32, 7, 24, 'crew', NULL, 'Director', 5),
+(33, 7, 24, 'crew', NULL, 'Writer', 6),
+(34, 10, 29, 'cast', 'Nora Borg', NULL, 0),
+(35, 10, 30, 'cast', 'Gustav Borg', NULL, 1),
+(36, 10, 31, 'cast', 'Agnes Borg Pettersen', NULL, 2),
+(37, 10, 32, 'cast', 'Rachel Kemp', NULL, 3),
+(39, 10, 28, 'crew', NULL, 'Director', 4),
+(40, 10, 28, 'crew', NULL, 'Writer', 5),
+(41, 20, 33, 'cast', 'Bella Baxter', NULL, 0),
+(42, 20, 34, 'cast', 'Duncan Wedderburn', NULL, 1),
+(43, 20, 35, 'cast', 'Godwin Baxter', NULL, 2),
+(44, 20, 36, 'cast', 'Max McCandles', NULL, 3),
+(45, 20, 37, 'crew', NULL, 'Director', 4),
+(46, 20, 38, 'crew', NULL, 'Writer', 5),
+(47, 39, 33, 'cast', 'Mia', NULL, 0),
+(48, 39, 40, 'cast', 'Sebastian', NULL, 1),
+(49, 39, 41, 'crew', NULL, 'Director', 2),
+(50, 39, 41, 'crew', NULL, 'Writer', 3),
+(51, 8, 42, 'cast', 'Catherine Earnshaw', NULL, 0),
+(52, 8, 43, 'cast', 'Heathcliff', NULL, 1),
+(53, 8, 44, 'crew', NULL, 'Director', 2),
+(55, 8, 44, 'crew', NULL, 'Writer', 3),
+(56, 9, 45, 'cast', 'Kikuo Tachibana', NULL, 0),
+(57, 9, 46, 'cast', 'Shunsuke Ogaki', NULL, 1),
+(58, 9, 47, 'cast', 'Kikuo (young)', NULL, 2),
+(59, 9, 48, 'cast', 'Shunsuke (young)', NULL, 3),
+(61, 9, 49, 'crew', NULL, 'Director', 4),
+(63, 9, 50, 'crew', NULL, 'Writer', 5);
 
 -- --------------------------------------------------------
 
@@ -774,7 +864,15 @@ INSERT INTO `movie_production_houses` (`movie_id`, `production_house_id`) VALUES
 (32, 38),
 (32, 39),
 (33, 40),
-(34, 16);
+(34, 16),
+(35, 16),
+(36, 4),
+(37, 41),
+(37, 42),
+(38, 43),
+(38, 44),
+(39, 45),
+(39, 46);
 
 -- --------------------------------------------------------
 
@@ -837,9 +935,18 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (159, 32, 9, 'stream', NULL, 1),
 (160, 32, 10, 'stream', NULL, 1),
 (161, 32, 12, 'stream', NULL, 1),
-(163, 33, 11, 'stream', NULL, 0),
-(165, 34, 11, 'rent', '2026-02-14', 0),
-(166, 12, 11, 'rent', '2026-03-26', 0);
+(166, 12, 11, 'rent', '2026-03-26', 0),
+(167, 31, 10, 'stream', '2026-02-25', 0),
+(168, 31, 11, 'rent', NULL, 1),
+(169, 31, 12, 'stream', '2026-02-25', 0),
+(171, 35, 11, 'stream', NULL, 0),
+(172, 36, 5, 'rent', NULL, 0),
+(173, 36, 5, 'buy', NULL, 0),
+(176, 37, 11, 'stream', NULL, 0),
+(177, 34, 11, 'stream', NULL, 0),
+(178, 33, 11, 'stream', NULL, 0),
+(180, 38, 11, 'stream', NULL, 0),
+(182, 39, 1, 'stream', NULL, 0);
 
 -- --------------------------------------------------------
 
@@ -867,19 +974,50 @@ INSERT INTO `persons` (`id`, `full_name`, `primary_role`, `photo_path`, `bio`, `
 (1, 'Leonardo DiCaprio', 'Actor', 'persons/xOLHKCrLzuRqH8PglohlpsA4nbo1DiSvIjTa7ASe.webp', 'Leonardo Wilhelm DiCaprio is an American actor and film producer.', NULL, 'American', '2026-01-30 13:33:36', '2026-01-30 20:38:35'),
 (2, 'Christopher Nolan', 'Director', 'persons/wdaMpeVhrU9Hfveq2l2CWTBZ1EcefAvqCnq1PR1V.webp', 'Christopher Edward Nolan is a British-American film director, producer, and screenwriter.', NULL, 'British-American', '2026-01-30 13:33:36', '2026-01-30 06:59:45'),
 (3, 'Hans Zimmer', 'Composer', 'persons/qv0VulaY23UsWrZ67885saRcUkq8ST4mHyuyQmbr.webp', 'Hans Florian Zimmer is a German film score composer and music producer.', NULL, 'German', '2026-01-30 13:33:36', '2026-01-30 20:39:06'),
-(4, 'Park Chan-wook', 'Director', NULL, NULL, NULL, 'South Korea', '2026-01-30 06:37:18', '2026-01-30 06:37:18'),
-(5, 'Kim Tae-ri', 'Actor', NULL, NULL, NULL, 'South Korea', '2026-01-30 06:37:18', '2026-01-30 06:37:18'),
-(6, 'Kim Min-hee', 'Actor', 'persons/xBVAva9rSkdMeXAdvnkVqKgTLn6tafiWjoYd00mD.webp', NULL, NULL, 'South Korea', '2026-01-30 06:37:18', '2026-01-30 07:00:47'),
-(7, 'Ha Jung-woo', 'Actor', NULL, NULL, NULL, 'South Korea', '2026-01-30 06:37:18', '2026-01-30 06:37:18'),
-(8, 'Cho Jin-woong', 'Actor', NULL, NULL, NULL, 'South Korea', '2026-01-30 06:37:18', '2026-01-30 06:37:18'),
-(9, 'Kōji Yakusho', 'Actor', NULL, NULL, NULL, 'Japan', '2026-01-30 06:37:18', '2026-01-30 06:37:18'),
-(10, 'Greta Lee', 'Actor', NULL, NULL, NULL, 'United States', '2026-01-30 06:37:18', '2026-01-30 06:37:18'),
-(11, 'Teo Yoo', 'Actor', NULL, NULL, NULL, 'Germany', '2026-01-30 06:37:18', '2026-01-30 06:37:18'),
-(12, 'Wim Wenders', 'Director', NULL, NULL, NULL, 'Germany', '2026-01-30 06:37:18', '2026-01-30 06:37:18'),
-(13, 'Celine Song', 'Director', NULL, NULL, NULL, 'South Korea', '2026-01-30 06:37:18', '2026-01-30 06:37:18'),
-(14, 'Choi Seung-yun', 'Writer', NULL, NULL, NULL, 'South Korea', '2026-01-30 06:37:18', '2026-01-30 06:37:18'),
-(15, 'Franz Lustig', 'Cinematographer', NULL, NULL, NULL, 'Austria', '2026-01-30 06:37:18', '2026-01-30 06:37:18'),
-(16, 'Bi Gan', 'Director', NULL, NULL, NULL, 'China', '2026-01-30 06:37:18', '2026-01-30 06:37:18');
+(4, 'Park Chan-wook', 'Director', 'persons/ATi83oGBQItI9xfymHmpeCOA6X8LTlYPv5vjdfBA.webp', 'Park Chan-wook (born August 23, 1963) is a South Korean film director, screenwriter, producer, and former film critic. He is considered one of the most prominent filmmakers of South Korean cinema as well as world cinema in 21st century. His films have gained notoriety for their cinematography and framing, black humor and often brutal subject matter.', NULL, 'South Korea', '2026-01-30 06:37:18', '2026-02-14 02:20:04'),
+(5, 'Kim Tae-ri', 'Actor', 'persons/hkiw9uyPO3I29clDtwKBh0WbTTfaBW9xO695SpRq.webp', 'Kim Tae-ri yang lahir pada 24 April 1990 adalah aktris asal Korea Selatan. Sebelum memulai karirnya sebagai aktris dia mempunyai keinginan untuk menjadi seorang penyiar, ia mendaftar di Departemen Jurnalisme dan Penyiaran (sekarang Departemen Media) di Universitas Kyung Hee. Sampai saat itu, dia belum tertarik pada akting, teater, atau film. Kim Tae-ri pertama kali berhubungan dengan akting di klub drama perguruan tinggi. Pada tahun pertamanya, ia melihat sebuah drama merekrut anggota baru dan bergabung dengan klub drama, dan di tahun keduanya, ia memutuskan untuk mengejar karir sebagai aktor teater.\r\n\r\nKim Tae- ri memulai karirnya dengan tampil dalam produksi teater dan menjadi model iklan TV. Ia memulai debut film layar lebarnya dalam film Park Chan-wook yang berjudul The Handmaiden (2016) di mana ia terpilih dari 1.500 kandidat yang mengikuti audisi untuk peran tersebut. Dia terkenal karena membintangi film The Handmaiden (2016), Little Forest (2018), Space Sweepers (2020) dan drama sejarah Mr. Sunshine (2018). Baru-baru ini, Ia mendapatkan pengakuan lebih lanjut untuk peran utamanya dalam drama percintaan remaja di Twenty-Five Twenty-One (2022). Ia memenangkan kategori Penghargaan Aktris Terbaik pada 58th Baeksang Arts Awards.', NULL, 'South Korea', '2026-01-30 06:37:18', '2026-02-14 02:22:11'),
+(6, 'Kim Min-hee', 'Actor', 'persons/IPSUJRqdkVGS2JTWgdoVs7GQGe2sS3EVHgqgeJCS.webp', 'Kim Min-hee (김민희, born 1 March 1982) is a South Korean actress and former fashion model. In 2017, she won the Silver Bear for Best Actress at the Berlin International Film Festival for her performance in Hong Sang-soo\'s film On the Beach at Night Alone (2017). She is known as one of the muses of director Hong Sang-soo and gained international recognition in her leading role in auteur Park Chan-wook\'s film The Handmaiden (2016).', NULL, 'South Korea', '2026-01-30 06:37:18', '2026-02-14 02:21:21'),
+(7, 'Ha Jung-woo', 'Actor', 'persons/4mcNZUzjwEKgSABBRN0L0onIUOGNd9Bv4t7Ki8pF.webp', 'Ha Jung-woo (Korean: 하정우; born Kim Sung-hoon on March 11, 1978) is a South Korean actor, film director, screenwriter and film producer. One of the highest grossing actors in South Korea, Ha\'s starring films have accumulated more than 100 million tickets. Only 3 other actors have reached this milestone, with Ha being nearly a decade younger than the rest when achieving this.\r\n\r\nHis breakthrough to stardom came with the role in Na Hong-jin\'s serial killer film The Chaser (2008). One of the leading actors of his generation in Korean cinema, Ha showcased his versatility across films of various genres: road movie My Dear Enemy (2008), sports film Take Off (2009), action thriller The Yellow Sea (2010), gangster saga Nameless Gangster: Rules of the Time (2012), romantic comedy Love Fiction (2012), spy actioner The Berlin File (2013), and action thriller The Terror Live (2013). Ha is also known for his role as grim reaper Gang-rim in the fantasy action film Along with the Gods: The Two Worlds (2017) and its 2018 sequel.\r\n\r\nHe made his directorial debut through the comedy film Fasten Your Seatbelt (2013), followed by Chronicle of a Blood Merchant (2015).', NULL, 'South Korea', '2026-01-30 06:37:18', '2026-02-14 02:22:46'),
+(8, 'Cho Jin-woong', 'Actor', 'persons/sqPQsSWf3OCGKGgtLa1Rb8O48sX31Hu06CCN2wU9.webp', 'Cho Jin-woong (조진웅) is a South Korean actor. Born Jo Won-joon on April 3, 1976, he is best known for his roles as Sejong\'s loyal bodyguard in Deep Rooted Tree (2011), a mobster in Nameless Gangster: Rules of the Time (2012), and a mysterious villain in A Hard Day (2014). He also gained recognition and praise for his performance as a detective in the television series Signal (2016).', NULL, 'South Korea', '2026-01-30 06:37:18', '2026-02-14 02:23:16'),
+(9, 'Kōji Yakusho', 'Actor', 'persons/kJboL4aoDUqZhW0XWFsuUOr93bnwA7pjDYm7SjbE.webp', 'Kōji Hashimoto (橋本 広司, Hashimoto Kōji, born 1 January 1956), known professionally as Kōji Yakusho (役所 広司, Yakusho Kōji), is a Japanese actor. He is known internationally for his starring roles in Shall We Dance? (1996), 13 Assassins (2010), The Third Murder (2017), The Blood of Wolves (2018), Under the Open Sky (2020) and The Days (2023). For his performance in Perfect Days (2023), he was awarded the Best Actor award in the 76th Cannes Film Festival.', NULL, 'Japan', '2026-01-30 06:37:18', '2026-02-14 02:24:10'),
+(10, 'Greta Lee', 'Actor', 'persons/nX8ZqWQaqB83GuhKbFYdrghH81wbwlLXTlflPNAq.webp', 'Greta Jiehan Lee (born March 7, 1983) is an American actress. She had supporting roles in the Netflix comedy-drama series Russian Doll (2019–2022) and the Apple TV+ drama series The Morning Show (2021–present). The latter earned her a nomination for a Primetime Emmy Award. She gained prominence for her starring role in the romantic drama film Past Lives (2023), for which she received a nomination for a Golden Globe Award for Best Actress.\r\n\r\nLee began her career in theatre, making her Broadway debut in the musical comedy The 25th Annual Putnam County Spelling Bee (2007). She starred in the 2010 revival of the comedic play La Bête on Broadway and the West End. In 2011, she acted in the Amy Herzog play 4000 Miles at Lincoln Center Theatre.\r\n\r\nDescription above from the Wikipedia article Greta Lee, licensed under CC-BY-SA, full list of contributors on Wikipedia.', NULL, 'United States', '2026-01-30 06:37:18', '2026-02-14 02:26:56'),
+(11, 'Teo Yoo', 'Actor', 'persons/m2BqMKKbM8lHU0ZayKM2Ox7jiUos5wzXyNr4FzyJ.webp', 'Kim Chi-hun (Korean: 김치훈; born April 11, 1981), known professionally as Teo Yoo (Korean: 유태오), is a South Korean actor. He has starred as Viktor Tsoi in the biographical musical film Leto (2018) and won the Blue Dragon Film Award for Best New Actor in 2021. In 2023, he gained wider recognition for starring in the romantic drama film Past Lives, earning a nomination for the BAFTA Award for Best Actor in a Leading Role. In June 2024, he was invited to join the Academy of Motion Picture Arts and Sciences.\r\n\r\nDescription above from the Wikipedia article Teo Yoo, licensed under CC-BY-SA, full list of contributors on Wikipedia.', NULL, NULL, '2026-01-30 06:37:18', '2026-02-14 02:37:30'),
+(12, 'Wim Wenders', 'Director', 'persons/Y7QmewYqI48a0i8J4FanH4Epb8XVPKAFZ41GgHfR.webp', 'Ernst Wilhelm \"Wim\" Wenders (born 14 August 1945) is a German filmmaker and playwright, who is a major figure in New German Cinema. Among the honors he has received are prizes from the Cannes, Venice and Berlin film festivals. He has also received a BAFTA Award and been nominated for three Academy Awards and a Grammy Award.\r\n\r\nWenders made his feature film debut with Summer in the City (1970). He earned critical acclaim for directing the films Alice in the Cities (1974), The Wrong Move (1975), and Kings of the Road (1976), later known as the Road Movie trilogy. Wenders won the BAFTA Award for Best Direction and the Palme d\'Or for Paris, Texas (1984) and the Cannes Film Festival Best Director Award for Wings of Desire (1987). His other notable films include The American Friend (1977), Faraway, So Close! (1993), and Perfect Days (2023).\r\n\r\nWenders has received three nominations for the Academy Award for Best Documentary Feature: for Buena Vista Social Club (1999), Pina (2011), and The Salt of the Earth (2014). He received a nomination for the Grammy Award for Best Long Form Music Video for Willie Nelson at the Teatro (1998). He is also known for directing the documentaries Tokyo-Ga (1985), The Soul of a Man (2003), and Pope Francis: A Man of His Word (2018).\r\n\r\nWenders has been the president of the European Film Academy since 1996 and won an Honorary Golden Bear in 2015. He is an active photographer, emphasizing images of desolate landscapes. He is considered an auteur director.\r\n\r\nDescription above from the Wikipedia article Wim Wenders, licensed under CC-BY-SA, full list of contributors on Wikipedia.', NULL, 'Germany', '2026-01-30 06:37:18', '2026-02-14 02:25:12'),
+(13, 'Celine Song', 'Director', 'persons/IQ6rvhrEtW9hpfl52hclkmq6ISSdPcAYu0tRI8Aw.webp', 'Celine Song (born Song Ha-Young; Korean: 송하영; born September 19, 1988) is a Canadian, Academy Award-nominated director, playwright, and screenwriter based in the United States.\r\n\r\nHer directorial film debut, Past Lives (2023), received critical acclaim and was nominated for the Academy Award for Best Picture and Original Screenplay. Among her plays are Endlings and The Seagull on The Sims 4 (both 2020).', NULL, 'South Korea', '2026-01-30 06:37:18', '2026-02-14 02:26:14'),
+(14, 'Chung Seo-kyung', 'Writer', 'persons/BndyzQzeCeemZPNjx2SgxWm7KVxDuyed00kVCJ4p.webp', 'Chung Seo-kyung is a South Korean screenwriter. She has collaborated extensively with director Park Chan-wook.\r\n\r\nChung Seo-kyung is a South Korean screenwriter. She has collaborated extensively with director Park Chan-wook.', NULL, 'South Korea', '2026-01-30 06:37:18', '2026-02-14 02:31:05'),
+(16, 'Bi Gan', 'Director', 'persons/mkowCcHurf7HNI8KXTKVtLxMHxlXq9noJ6E6V2NH.webp', 'Bi Gan (Chinese: 毕赣, born 4 June 1989) is a Chinese film director, screenwriter, poet, and photographer. His first feature film, Kaili Blues, was released in 2015 and won Best New Film Director at the 52nd Golden Horse Awards, the FIPRESCI Prize, The Golden Montgolfiere Prize at the 37th Festival of the Three Continents in Nantes,[3] and the Best First Feature Film Award at The 68th Locarno Film Festival.\r\n\r\nBi Gan was born in Kaili City in Guizhou Province on June 4, 1989. He is an ethnic Miao.\r\n\r\nFrom 2008 to 2011, Bi Gan studied Television directing in Radio, Film, and Television Cadre College in Taiyuan, Shanxi. The college was renamed in 2013 as Communication University of Shanxi.\r\n\r\nDuring his college years, Bi watched Andrei Tarkovsky\'s Stalker, later stating in an interview, \"Cinema can be different [from mainstream films]; you can make what you like. What I had seen up to that point were mainly Hollywood films. What I was taught was pretty boring.\" Because of this particular film, he made up his mind to pursue filmmaking. \"Before that, my parents and my relatives thought I would become jobless after graduation since I didn\'t want to do anything.\"\r\n\r\nIn 2010 he made the short fiction film South, which won the first prize at the university-sponsored \"Guang Sui Ying Dong\" (Light Follows the Motion of Shadow) Film Festival.\r\n\r\nTwo years later in 2012, he made a black-and-white short film Diamond Sutra (《金刚经》; also known as The Poet and Singer), which features a story of murder in a small isolated town in the mountain. The film received Special Mention Award from the 19th Hong Kong ifva (Incubator for Film and Visual media in Asia), an award organized by Hong Kong Arts Centre,[9] and was ranked top 10 at the 9th China Independent Film Festival in Nanjing, China.\r\n\r\nIn 2015, Bi\'s debut feature film, Kaili Blues, written by him, gave the emerging director wider exposure. The film also garnered the Best New Film Director at the 52nd Golden Horse Awards, the FIPRESCI Prize, the Golden Montgolfiere Prize at the 37th Festival of the Three Continents in Nantes, and the Best First Feature Film Award at the 68th Locarno Film Festival.\r\n\r\nIn 2017, Bi wrote and directed his second feature film Long Day\'s Journey into Night, starring Tang Wei, Huang Jue, Sylvia Chang, and Lee Hong-chi. The film is also based in Guizhou Province and was released in 2018.', NULL, 'China', '2026-01-30 06:37:18', '2026-02-14 02:31:52'),
+(18, 'John Magaro', 'Actor', 'persons/jcjXbFhU2BnDTEJYPzMw0LoEjpDrSQv5niDcYHcF.webp', 'John Robert Magaro (born February 16, 1983) is an American actor. He has acted in the films Not Fade Away (2012), The Big Short (2015), Carol (2015), Overlord (2018), First Cow (2019), Showing Up (2022), The Mistress (2022), and Past Lives (2023). He has also acted in the Netflix series Orange Is the New Black (2015–2019), The Umbrella Academy (2019) and the Amazon series Crisis in Six Scenes (2016). He made his Broadway debut as Earl Williams, the escaped convict, in the revival of The Front Page in 2016\r\n\r\nDescription above from the Wikipedia article John Magaro, licensed under CC-BY-SA, full list of contributors on Wikipedia.', NULL, NULL, '2026-02-14 02:28:27', '2026-02-14 02:28:27'),
+(19, 'Jackson Yee', 'Actor', 'persons/FrZsp5cILr1smgMH9lcxP8SMKkzcoCHW3mhSZ0My.webp', 'Jackson Yee (born 28 November, 2000) is a Chinese actor and singer who graduated from The Central Academy of Drama.\r\n\r\nAlready a star across Asia by 13, Yee gained international recognition with his film debut Better Days (2019), which was Oscar-nominated. Filmed at 17, the role earned him numerous Best Newcomer awards. He went on to star in a string of record-breaking hits, including A Little Red Flower (2020), The Battle at Lake Changjin (2021, China’s highest-grossing live-action film), Nice View (2022), Full River Red (the highest-grossing Asian film of 2023), and Big World (2024, TIFF-JP Audience Award), a micro-budget hit.\r\n\r\nHis engagement with challenging, auteur-oriented works continues with projects such as Cannes-winning Resurrection (2025). Across seven leading roles, Yee’s films have grossed over US$2.8 billion worldwide with nearly 500 million admissions. Jackson Yee’s leading projects have exceeded RMB 100 million in pre-sales for seven consecutive years, including Resurrection (2025), excluding previews. He has received Best Actor nominations from all of China’s major film awards and became the youngest Golden Rooster winner at age 24.\r\n\r\nWidely regarded as the leading figure in contemporary Chinese cinema, Yee is noted for his charisma, versatility, and ability to navigate both commercial and arthouse filmmaking. He topped the Forbes China Celebrity List in 2020 and 2021 before its discontinuation.', NULL, NULL, '2026-02-14 02:32:48', '2026-02-14 02:32:48'),
+(20, 'Shu Qi', 'Actor', 'persons/2Q5TxgzvocoIX3J0MYucmLLO7KgbOMDC3iwq2Plg.webp', 'Lin Li-hui, better known by her stage name Shu Qi (Chinese: 舒淇; pinyin: Shū Qí), is a Taiwanese actress and model. She has also been credited as Hsu Chi and Shu Kei.', NULL, NULL, '2026-02-14 02:33:24', '2026-02-14 02:33:24'),
+(21, 'Li Gengxi', 'Actor', 'persons/VspNZz0wI9yldSguy0THEQQCGJjNyA4481hhrIfr.webp', 'Gengxi Li is a Chinese actress,is known for A Little Reunion (2019), Beyond (2022) and The Long Season (2023).', NULL, NULL, '2026-02-14 02:34:07', '2026-02-14 02:34:07'),
+(22, 'Sheila Dara Aisha', 'Actor', 'persons/Kx8LhYttSjtvvpO8X4Dn5ZrTaxWKGJZHq1pjWU0H.webp', 'Sheila Dara Aisha Tanjung (born September 24, 1992) is a Citra award-winning Indonesian actress, singer, and model.\r\n\r\nSheila\'s career started at a young age, starting out as a child singer and acting in soap operas, up until she was a teenager. She gained wider recognition with her roles in films such as One Day We\'ll Talk About Today (2020) and The Red Point of Marriage (2022). She won her first Piala Citra with Falling in Love Like in Movies (2023).', NULL, NULL, '2026-02-14 02:36:29', '2026-02-14 02:36:29'),
+(23, 'Dion Wiyoko', 'Actor', 'persons/rJ0eJD6FXOxpyg4LnHshHeRFQypS4ZjJEoCCto2a.webp', 'Dion Wiyoko (born in Surabaya, May 3, 1984) is an Indonesian actor of Chinese descent. He began his career as a model before becoming an actor.', NULL, NULL, '2026-02-14 02:37:09', '2026-02-14 02:37:09'),
+(24, 'Yandy Laurens', 'Director', 'persons/z9x76nwZTjPuXfkv8qqJrbQfqDg6I0cVbu4fUCty.webp', 'Alexander Yandy Laurens (born April 9, 1989) is a Indonesian film director, screenwriter, and producer. Born and raised in Makassar, Laurens studied film at the Jakarta Arts Institute (Institut Kesenian Jakarta). His graduation short film, Wan An, won Best Short Film at the 2012 Indonesian Film Festival. Following this achievement, he went on to direct numerous commercials, music videos, and web series.\r\n\r\nIn 2017, Laurens was announced as the director of a film adaptation of the 1996 television series Keluarga Cemara. The film, titled Cemara’s Family, had its world premiere at the 2018 Jogja-NETPAC Asian Film Festival. Starring Ringgo Agus Rahman, Nirina Zubir, Adhisty Zara, and Widuri Puteri, it was theatrically released on 3 January 2019 and became the seventh highest-grossing Indonesian film of all time, with 1,699,433 admissions.\r\n\r\nHis second feature film, Falling In Love Like in Movies, a partially black-and-white romantic comedy, premiered at the 18th Jogja-NETPAC Asian Film Festival. This marked his second collaboration with Ringgo Agus Rahman and Nirina Zubir following Cemara’s Family. The film was released theatrically in Indonesia on 30 November 2023 and went on to receive eleven nominations at the 2024 Indonesian Film Festival, including Best Picture and Best Director.\r\n\r\nIn 2024, Laurens was announced as the director of another adaptation of a television series created by Arswendo Atmowiloto, titled A Brother and 7 Siblings. The film served as the closing title of the 19th Jogja-NETPAC Asian Film Festival. His fourth feature film, Sore: Istri dari Masa Depan, adapted from his web series of the same name and starring Dion Wiyoko reprising his role, was theatrically released in Indonesia on 10 July 2025.', NULL, NULL, '2026-02-14 02:38:59', '2026-02-14 02:38:59'),
+(25, 'Ringgo Agus Rahman', 'Actor', 'persons/OwOXZqGRiblkf7z2oCRbFHK5uVBA7rPFGbEoHjI7.webp', 'Ringgo Agus Rahman (born August 12, 1982) is a Piala Citra winning Indonesian actor and comedian.\r\n\r\nHis career started as a radio DJ in Bandung, which subsequently let to his silver screen debut in Jomblo (2006). He is known for his roles in Get Married (2007), Cemara\'s Family (2018), and Falling in Love Like in Movies (2023), which won his first Piala Citra.', NULL, NULL, '2026-02-14 02:39:43', '2026-02-14 02:39:43'),
+(26, 'Nirina Zubir', 'Actor', 'persons/QDQP8vamQo9JOXzvKASpxUBNcJX4sOh6WnzyzpSy.webp', 'Nirina Zubir atau dipanggil Nirina saja  adalah seorang pembawa acara dan aktris asal Indonesia. Ia bertinggi badan 158 cm. Nirina merupakan putri Zubir Amin, diplomat senior kelahiran Pariaman, Sumatera Barat. Pada tanggal 6 Februari 2010 pasangan Nirina & suaminya (Ernest \"Coklat\") dikaruniai seorang perempuan yaitu Zivara Ruciragati Sharief.', NULL, NULL, '2026-02-14 02:40:27', '2026-02-14 02:40:27'),
+(27, 'Alex Abbad', 'Actor', 'persons/dXYn3CQ9faKFF6iumBh0lB1XPmGX4a0jKCYm3CM9.webp', 'Alex Abdullah Abbad (born June 18, 1978) is a two-time Citra winning Indonesian actor and presenter. He was known as an MTV video jockey. His acting career started with Andai Ia Tahu (2002). He won the Piala Citra for My Stupid Boss (2016) and Falling in Love Like in Movies (2023).', NULL, NULL, '2026-02-14 02:41:05', '2026-02-14 02:41:05'),
+(28, 'Joachim Trier', 'Director', 'persons/bggaLNhKlnpKUuHx2uqYym9iijlP73OVejRNDh5e.webp', 'Joachim Trier (born 1 March 1974) is a Danish-born Norwegian filmmaker. He is best known for his Oslo trilogy which comprises the films Reprise (2006), Oslo, August 31st (2011), The Worst Person in the World (2021). For the latter film, he was nominated for the Best Original Screenplay at the 94th Academy Awards, with the film also nominated for Best International Feature. He is also known for directing Louder Than Bombs (2015), Thelma (2017), and the documentary The Other Munch (2018). In addition to an Academy Award, he has also been nominated for a BAFTA Award, two Cesar Awards, and three Cannes Film Festival Awards.', NULL, NULL, '2026-02-14 03:00:34', '2026-02-14 03:00:34'),
+(29, 'Renate Reinsve', 'Actor', 'persons/hse5lG18DzbI5wAwfRCDhRaTM3Ig0drdNazfzqxN.webp', 'Renate Reinsve (born 24 November 1987) is a Norwegian actress, best known for Oslo, August 31st (2011), Welcome to Norway (2016), The Worst Person in the World (2021) and Sentimental Value (2025). At the 2021 Cannes Film Festival, Reinsve won the Best Actress Award for The Worst Person in the World, the first time ever a Norwegian actress has won an award at the festival. She has also starred in the Apple TV+ legal thriller series Presumed Innocent, the A24 satirical dark comedy A Different Man, and the thriller Armand (all in 2024).', NULL, NULL, '2026-02-14 03:01:07', '2026-02-14 03:01:07'),
+(30, 'Stellan Skarsgård', 'Actor', 'persons/xRAqhoJCXM3Rop7JVZDjD07ymm7bfQQKFZQdjVgL.webp', 'Stellan Skarsgård (born June 13, 1951) is a Swedish actor, known internationally for The Hunt for Red October and Good Will Hunting, as well as his supporting roles in the Pirates of the Caribbean, Mamma Mia!, and Marvel Cinematic Universe (MCU) franchises.\r\n\r\nSkarsgård is particularly associated with director Lars von Trier and has appeared in six of the Danish auteur\'s features: The Kingdom, Breaking the Waves, Dancer in the Dark, Dogville, Melancholia, and Nymphomaniac.', NULL, NULL, '2026-02-14 03:02:12', '2026-02-14 03:02:12'),
+(31, 'Inga Ibsdotter Lilleaas', 'Actor', 'persons/l0WBGsZeAKYeICMHy0D0sADjGzVjHiOcCMz095LB.webp', 'Inga Ibsdotter Lilleaas (born 9 April 1989) is a Norwegian actress. She studied theatre at Nord University in Bodø and spent a semester studying at the Lee Strasberg Theatre and Film Institute in New York City. She is most notably known for her role in Joachim Trier\'s 2025 film, Sentimental Value.', NULL, NULL, '2026-02-14 03:02:52', '2026-02-14 03:02:52'),
+(32, 'Elle Fanning', 'Actor', 'persons/uy9G8zQg3K7F2siLv9JAnsBWlCMR1j3qSo4K0xNF.webp', 'Mary Elle Fanning (born April 9, 1998) is an American actress. As a child, she made her film debut as the younger version of her sister Dakota Fanning\'s character in the drama film I Am Sam (2001). She appeared in several other films as a child actress, including Daddy Day Care (2003), Babel (2006), The Curious Case of Benjamin Button and Phoebe in Wonderland (both 2008), and the miniseries The Lost Room (2006). She then had leading roles in Sofia Coppola\'s drama Somewhere (2010) and J. J. Abrams\' science fiction film Super 8 (2011).\r\n\r\nFanning played Princess Aurora in the fantasy films Maleficent (2014) and Maleficent: Mistress of Evil (2019) while working in independent films such as Sally Potter\'s Ginger & Rosa (2012), Nicolas Winding Refn\'s The Neon Demon (2016), Mike Mills\' 20th Century Women (2016), and Coppola\'s The Beguiled (2017). From 2020 to 2023, she starred as Catherine the Great in the Hulu period satire series The Great, for which she received nominations for a Primetime Emmy Award and two Golden Globe Awards. She has since portrayed Michelle Carter in the Hulu limited series The Girl from Plainville (2022), made her Broadway debut in the play Appropriate (2023), and played a character based on Suze Rotolo in the biographical drama A Complete Unknown (2024).', NULL, NULL, '2026-02-14 03:03:34', '2026-02-14 03:03:34'),
+(33, 'Emma Stone', 'Actor', 'persons/LwFTvHYtw6Etmy22XpwaQCxBQf2GYhmthd55LaTe.webp', 'Emily Jean \"Emma\" Stone (born November 6, 1988, Scottsdale, Arizona) is an American actress and producer whose dynamic performances have reshaped contemporary cinema. With two Academy Awards, two BAFTA Awards, and two Golden Globe Awards, she is a leading figure in global filmmaking. Her career began at Phoenix\'s Valley Youth Theatre with The Wind in the Willows (2000). At fifteen, she moved to Los Angeles, debuting in an unsold television pilot, In Search of the New Partridge Family (2004). Stone gained recognition through teen comedies like Superbad (2007), Zombieland (2009), and Easy A (2010), her first starring role, earning a Golden Globe nomination. Her roles in Crazy, Stupid, Love (2011) and The Help (2011) highlighted her versatility, while The Amazing Spider-Man (2012) and its 2014 sequel elevated her global profile.\r\n\r\nStone earned Oscar nominations for Birdman (2014) and The Favourite (2018), winning Best Actress for La La Land (2016) and Poor Things (2023). She starred in Battle of the Sexes (2017), Cruella (2021), and Maniac (2018). In 2020, she co-founded Fruit Tree, producing films like Problemista (2023).\r\n\r\nStone\'s collaboration with Yorgos Lanthimos, inspired by her admiration for his films like The Lobster (2015) and Dogtooth (2009), spans The Favourite, Poor Things, and Kinds of Kindness (2024). This partnership, driven by her trust in his vision, reflects her deliberate shift toward experimental cinema over mainstream Hollywood projects.', NULL, NULL, '2026-02-14 05:25:17', '2026-02-14 05:25:17'),
+(34, 'Mark Ruffalo', 'Actor', 'persons/pTrEhdQ6WEWYLFpMYlRbqkO1REGxlGLdMeSwj7p8.webp', 'Mark Alan Ruffalo (born November 22, 1967) is an American actor. He began acting in the late 1980s and first gained recognition for his work in Kenneth Lonergan\'s play This Is Our Youth (1996) and drama film You Can Count on Me (2000). He went on to star in the romantic comedies 13 Going on 30 (2004) and Just like Heaven (2005), and the thrillers In the Cut (2003), Zodiac (2007), and Shutter Island (2010). He received a Tony Award nomination for his supporting role in the Broadway revival of Awake and Sing! in 2006. Ruffalo has gained international recognition for playing Bruce Banner / Hulk in the Marvel Cinematic Universe, beginning with the film The Avengers (2012).\r\n\r\nRuffalo earned a record-tying four nominations for the Academy Award for Best Supporting Actor for playing a sperm donor in The Kids Are All Right (2010), Dave Schultz in Foxcatcher (2014), Michael Rezendes in Spotlight (2015), and a debauched lawyer in Poor Things (2023). He won a Screen Actors Guild Award for Best Actor for playing a gay activist in the television drama film The Normal Heart (2015), and a Primetime Emmy Award for Outstanding Lead Actor for his dual role as identical twins in the miniseries I Know This Much Is True (2020).', NULL, NULL, '2026-02-14 05:25:58', '2026-02-14 05:25:58'),
+(35, 'Willem Dafoe', 'Actor', 'persons/CmydBqrxkaYX307Ar6M0VuG2rF6dbL9JMlnT3smM.webp', 'William James \"Willem\" Dafoe (born July 22, 1955) is an American actor. Known for his prolific career portraying diverse roles in both mainstream and arthouse films, he is the recipient of various accolades, including the Volpi Cup for Best Actor as well as nominations for four Academy Awards, a BAFTA Award, four Golden Globe Awards, four Critics\' Choice Movie Awards, and five Screen Actors Guild Awards. He has frequently collaborated with filmmakers Paul Schrader, Abel Ferrara, Lars von Trier, Julian Schnabel, Wes Anderson, and Robert Eggers. Dafoe was a founding member of experimental theatre company The Wooster Group.\r\n\r\nHe made his film debut with an uncredited role in Heaven\'s Gate (1980). Dafoe\'s early career includes credits for The Loveless (1982), Streets of Fire (1984), and To Live and Die in L.A. (1985). He earned his first Academy Award nomination for the war drama Platoon (1986), followed by nominations for his roles in Shadow of the Vampire (2000), The Florida Project (2017), and the Vincent van Gogh biopic At Eternity\'s Gate (2018). He also gained acclaim and wide recognition for his roles as Jesus Christ in The Last Temptation of Christ (1988) and as the supervillain Norman Osborn in the superhero film Spider-Man (2002), a role he reprised in its sequels Spider-Man 2 (2004) and Spider-Man 3 (2007), and the Marvel Cinematic Universe film Spider-Man: No Way Home (2021).\r\n\r\nHis other film appearance include roles in Mississippi Burning (1988), Born on the Fourth of July (1989), Wild at Heart (1990), Light Sleeper (1992), Body of Evidence (1993), Clear and Present Danger (1994), The English Patient (1996), Affliction (1997), New Rose Hotel(1998), Existenz (1999), The Boondock Saints (1999), American Psycho (2000), Auto Focus (2002), Finding Nemo (2003), The Life Aquatic with Steve Zissou (2004), Inside Man (2006), Mr. Bean\'s Holiday (2007), Antichrist (2009), Fantastic Mr. Fox (2009), Nymphomaniac (2013), The Fault in Our Stars (2014), John Wick (2014), The Grand Budapest Hotel (2014), Aquaman (2018), The Lighthouse (2019), Nightmare Alley (2021), Poor Things (2023), and Beetlejuice Beetlejuice (2024).', NULL, NULL, '2026-02-14 05:26:40', '2026-02-14 05:26:40'),
+(36, 'Ramy Youssef', 'Actor', 'persons/exWayOYEqm7JGJxtSVE4Iwc9ClbVe8ZtQ5MCgicA.webp', 'Ramy Youssef (born March 26, 1991) is an American stand-up comedian, actor, and writer of Egyptian descent. Youssef made his acting debut in the Nick@Nite sitcom See Dad Run. In 2019, Youssef made his breakthrough with Ramy, a show Youssef created, produced and starred in. Youssef received a Golden Globe Award for Best Actor in a Television Series for his performance.', NULL, NULL, '2026-02-14 05:27:17', '2026-02-14 05:27:17'),
+(37, 'Yorgos Lanthimos', 'Director', 'persons/lsX2nxzgiAsLS6qumCSKfowXnpdeR3QmU3k6csWx.webp', 'Yorgos Lanthimos (Greek: Γιώργος Λάνθιμος, born 23 September 1973) is a Greek filmmaker. He has received multiple accolades, including a BAFTA Award and a Golden Lion, as well as nominations for five Academy Awards and a Golden Globe Award.\r\n\r\nLanthimos started his career in experimental theatre before making his directorial film debut with the sex comedy My Best Friend (2001). He rose to prominence by directing the psychological drama film Dogtooth (2009), which won the Un Certain Regard prize at the Cannes Film Festival and was nominated for the Academy Award for Best Foreign Language Film. Lanthimos transitioned to making English-language films with the black comedy The Lobster (2015), which earned him an Academy Award nomination for Best Original Screenplay, and the psychological thriller The Killing of a Sacred Deer (2017).\r\n\r\nHe collaborated with actress Emma Stone in the period black comedies The Favourite (2018) and Poor Things (2023) and the anthology film Kinds of Kindness (2024). He received nominations for the Academy Award for Best Director and Best Picture for The Favourite and Poor Things, in addition to winning the Golden Lion for the latter.\r\n\r\nDescription above from the Wikipedia article Yorgos Lanthimos, licensed under CC-BY-SA, full list of contributors on Wikipedia.', NULL, NULL, '2026-02-14 05:27:54', '2026-02-14 05:31:42'),
+(38, 'Tony McNamara', 'Writer', 'persons/Q527vEi8ZjmtyH6EIZr2AN6s9ib4mNCiSyfVd1Pi.webp', 'Tony McNamara (born 31 December 1966) is an Australian writer and producer. He is best known for writing the screenplays for The Favourite (2018) and Poor Things (2023). Starting in theater, he transitioned to television, creating The Great and writing for shows like Doctor Doctor. His film career soared with The Favourite, earning an Oscar nomination, followed by another for Poor Things, both with Yorgos Lanthimos, who chose him after reviewing hundreds of playwrights, finding his match in McNamara. He co-wrote Cruella and is scripting a Star Wars film and Evangeline. His style blends historical settings with modern humor, and he directed The Rage in Placid Lake.', NULL, NULL, '2026-02-14 05:28:26', '2026-02-14 05:32:02'),
+(40, 'Ryan Gosling', 'Actor', 'persons/VjN91dfzyGOHRfBg1gqcP7evjZIlecKo15GeFFIo.webp', 'Ryan Thomas Gosling (born November 12, 1980) is a Canadian actor. Prominent in independent film, he has also worked in blockbuster films of varying genres, and has accrued a worldwide box office gross of over 1.9 billion USD. He has received various accolades, including a Golden Globe Award, and nominations for two Academy Awards and a BAFTA Award.\r\n\r\nBorn and raised in Canada, he rose to prominence at age 13 for being a child star on the Disney Channel\'s The Mickey Mouse Club (1993–1995), and went on to appear in other family entertainment programs, including Are You Afraid of the Dark? (1995) and Goosebumps (1996). His first film role was as a Jewish neo-Nazi in The Believer (2001), and he went on to star in several independent films, including Murder by Numbers (2002), The Slaughter Rule (2002), and The United States of Leland (2003).\r\n\r\nGosling gained wider recognition and stardom for the 2004 romance film The Notebook. This was followed by starring roles in a string of critically acclaimed independent dramas including Half Nelson (2006), for which he was nominated for the Academy Award for Best Actor. Gosling co-starred in three mainstream films in 2011, the romantic comedy Crazy, Stupid, Love and the action drama Drive, all of which were critical and commercial successes. He then starred in the acclaimed financial satire The Big Short (2015) and the romantic musical La La Land (2016), the latter of which won him the Golden Globe Award for Best Actor and a second Academy Award nomination for Best Actor. Further acclaim followed with the science fiction thriller Blade Runner 2049 (2017) and the biopic First Man (2018). In addition to acting, he made his directorial debut in 2014\'s Lost River.', NULL, NULL, '2026-02-14 05:42:25', '2026-02-14 05:42:25'),
+(41, 'Damien Chazelle', 'Director', 'persons/pQzgCqDaSxJh90SZvepjxN84V1jfF2QcPhblAHIV.webp', 'Damien Sayre Chazelle (/ʃəˈzɛl/; born January 19, 1985) is a French-American filmmaker. He directed the psychological drama Whiplash (2014), the musical romance La La Land (2016), the biographical drama First Man (2018), and the period black comedy Babylon (2022).\r\n\r\nFor Whiplash, he was nominated for the Academy Award for Best Adapted Screenplay. His biggest commercial success came with La La Land, nominated for 14 Academy Awards, winning six, including Best Director, making him the youngest person to win the award at age 32. He has also directed two episodes of the Netflix limited series The Eddy (2020).\r\n\r\nDescription above from the Wikipedia article Damien Chazelle, licensed under CC-BY-SA, full list of contributors on Wikipedia.', NULL, NULL, '2026-02-14 05:43:33', '2026-02-14 05:45:30'),
+(42, 'Margot Robbie', 'Actor', 'persons/NV01fXUBDAlTsu2mHqQVdDpd7YWrzkpuYWDuRZ97.webp', 'Margot Elise Robbie (born 2 July 1990) is an Australian actress and producer. Her work includes blockbusters and independent films, and her accolades include nominations for three Academy Awards, four Golden Globe Awards, and six BAFTA Awards. Time named her one of the 100 most influential people in the world in 2017, and Forbes named her the world\'s highest-paid actress in 2023.\r\n\r\nBorn and raised in Queensland, Robbie began her career in 2008 on the television series Neighbours, on which she was a regular until 2011. After moving to the United States, she led the television series Pan Am (2011–2012). She had her breakthrough in 2013 with Martin Scorsese\'s black comedy film The Wolf of Wall Street. She achieved wider recognition by starring in the roles of Jane Porter in The Legend of Tarzan (2016) and  Harley Quinn in the DC Extended Universe films, beginning with Suicide Squad (2016).\r\n\r\nRobbie received critical acclaim and a nomination for the Academy Award for Best Actress for her portrayal of figure skater Tonya Harding in the biopic I, Tonya (2017). This acclaim continued for her performances as Queen Elizabeth I in Mary Queen of Scots (2018), Sharon Tate in Once Upon a Time in Hollywood (2019), and a Fox News employee in Bombshell (2019). The last of these earned her a nomination for the Academy Award for Best Supporting Actress. Robbie has since starred as an aspiring actress in the period film Babylon (2022) and the titular fashion doll in the fantasy comedy Barbie (2023), which emerged as her highest-grossing release and, as its producer, earned her a nomination for the Academy Award for Best Picture.\r\n\r\nRobbie and her husband, filmmaker Tom Ackerley, co-founded the production company LuckyChap Entertainment in 2014, under which they have produced several films, including I, Tonya, Promising Young Woman (2020), Barbie, and Saltburn (2023), as well as the Hulu series Dollface (2019–2022) and the Netflix miniseries Maid (2021).', NULL, NULL, '2026-02-14 05:47:00', '2026-02-14 05:47:00'),
+(43, 'Jacob Elordi', 'Actor', 'persons/veMaX9A2QTVH1GeMtr62bvQ5lF20PVzZa0k4jTA2.webp', 'Jacob Elordi (born 26 June 1997) is an Australian actor. After moving to Los Angeles in 2017 to pursue an acting career, he gained prominence with his role as Noah Flynn, the bad boy love interest, in Netflix\'s The Kissing Booth film series (2018–2021). He also became known for his role as troubled high school football player Nate Jacobs in HBO\'s teen drama series Euphoria (2019–present). In 2023, he starred as Elvis Presley in the biographical film Priscilla and as a wealthy university student in Saltburn, which earned him a nomination for the BAFTA Award for Best Actor in a Supporting Role.', NULL, NULL, '2026-02-14 05:47:41', '2026-02-14 05:47:41'),
+(44, 'Emerald Fennell', 'Director', 'persons/qqZuumnv6aRmYAdGOWv7tRNDxF0O9bXhuGKzn4aK.webp', 'Emerald Lilly Fennell (born 1 October 1985) is an English actress, filmmaker, and writer. She has received numerous accolades, including an Academy Award, two BAFTA Awards, and nominations for three Primetime Emmy Awards and three Golden Globe Awards.\r\n\r\nFennell first gained attention for her roles in period films, such as Albert Nobbs (2011),  Anna Karenina (2012), and The Danish Girl (2015). She gained prominence for her starring role in the BBC One drama series Call the Midwife (2013–2017) and for her portrayal of Camilla Parker-Bowles in the Netflix drama series The Crown (2019–2020), the latter of which garnered her a Primetime Emmy Award nomination.\r\n\r\nAs a writer-director, Fennell is known as the showrunner for season two of the BBC spy thriller series Killing Eve (2019), which earned her two Primetime Emmy Award nominations. She made her feature film directorial debut with the thriller Promising Young Woman (2020), for which she won the Academy Award for Best Original Screenplay and received nominations for Best Picture and Best Director. Fennell also wrote the book for Andrew Lloyd Webber\'s musical Cinderella (2021) and directed her second film, the psychological thriller Saltburn (2023).', NULL, NULL, '2026-02-14 05:48:22', '2026-02-14 05:48:22'),
+(45, 'Ryo Yoshizawa', 'Actor', 'persons/pjEEEOc6dXc5lKhOD2lKcfivbFxzEUuBOEww4HBH.webp', 'Ryo Yoshizawa (吉沢 亮) is a Japanese actor. His breakthrough roles include Yūichi Katagiri in the Tomodachi Game live-action television drama and films and Okita Sogo in the Gintama live-action films. He is known for his expressive eyes and natural acting style.', NULL, NULL, '2026-02-14 05:50:54', '2026-02-14 05:50:54'),
+(46, 'Ryusei Yokohama', 'Actor', 'persons/9qfn3DMWoNLm0YKHD1uhQ82t4PTSw64oy4auGqGQ.webp', NULL, NULL, NULL, '2026-02-14 05:51:22', '2026-02-14 05:51:22'),
+(47, 'Soya Kurokawa', 'Actor', 'persons/BFqAFGU2vlkWElY0uXmdHGEzFrZsB8GQJng5rePK.webp', 'Soya Kurokawa, born on December 5, 2009 in Japan, is an actor from the talent agency, TACHI PRO. He is known for Monster (2023), Tokyo Alien Bros (2018) and Ichiban Suki na Hana (2023).', NULL, NULL, '2026-02-14 05:53:06', '2026-02-14 05:53:06'),
+(48, 'Keitatsu Koshiyama', 'Actor', 'persons/KmJLvzzF9YdGQt2AssNsLIoUcQm0UiMtQFJohQgO.webp', NULL, NULL, NULL, '2026-02-14 05:53:40', '2026-02-14 05:53:40'),
+(49, 'Lee Sang-il', 'Director', 'persons/JlKjbxtdc2g8tHvyWKG0vP0MirGI2M60xM2eu0hN.webp', 'Lee Sang-il is a Korean-Japanese film director and screenwriter. His first film, “Chong,” was a short film about the lives of third generation Koreans living in Japan. “Hula Girls” was declared best Japanese film of 2006 by Kinema Junpo, and Lee won the Best Director and Best Screenplay prizes at the 2007 Japanese Academy Awards for the film. His film “Unforgiven” was screened in the Special Presentation section at the 2013 Toronto International Film Festival.', NULL, NULL, '2026-02-14 05:54:18', '2026-02-14 05:54:18'),
+(50, 'Satoko Okudera', 'Writer', 'persons/Oa7o5DmTZFOHWTWmoJqR1SJMPLhfGcblnGXdcRVi.webp', 'Satoko Okudera (奥寺 佐渡子 Okudera Satoko, born 1966 in Iwate Prefecture) is a Japanese screenwriter. She is known for her screenplays in both the live-action and anime mediums. Her 1995 screenplay for Gakkō no kaidan was nominated for the Japan Academy Prize. She is best known for her collaborations with anime director Mamoru Hosoda. A graduate of the Literature Department of Tokai University in Tokyo, Okudera did not originally consider a career in screenwriting. Instead, she worked for an oil company until 1991, after which she quit her job and became a full-time writer. After over a decade of work in live-action film and television, Okudera was offered her first animation project: adapting Yasutaka Tsutsui\'s novel Toki o Kakeru Shōjo for director Mamoru Hosoda. The resulting film, The Girl Who Leapt Through Time, received worldwide acclaim and gave her international recognition upon its release in 2006. Okudera again collaborated with Hosoda on the 2009 film Summer Wars. At the 2009 Anime Festival Asia in Singapore, Hosoda revealed Okudera would be writing the script for his next project, Wolf Children.', NULL, NULL, '2026-02-14 05:54:56', '2026-02-14 05:54:56');
 
 -- --------------------------------------------------------
 
@@ -901,6 +1039,9 @@ INSERT INTO `production_houses` (`id`, `name`) VALUES
 (4, 'A24'),
 (40, 'Arenamedia'),
 (18, 'ARTE France Cinema'),
+(41, 'Asghar Farhadi Productions'),
+(43, 'BBC Film'),
+(44, 'BFI'),
 (13, 'Cerita Films'),
 (5, 'CJ Entertainment'),
 (33, 'CoMix Wave Films'),
@@ -915,6 +1056,8 @@ INSERT INTO `production_houses` (`id`, `name`) VALUES
 (12, 'Janus Films'),
 (3, 'Legendary Pictures'),
 (20, 'Madman Films'),
+(46, 'Marc Platt Productions'),
+(42, 'Memento Films Production'),
 (17, 'Mer Film'),
 (37, 'Miles Films'),
 (9, 'Moho Film'),
@@ -929,6 +1072,7 @@ INSERT INTO `production_houses` (`id`, `name`) VALUES
 (34, 'Studio Ghibli'),
 (26, 'Studio Rumah Kedua'),
 (27, 'Studio Zentral'),
+(45, 'Summit Entertainment'),
 (29, 'The Associated Press'),
 (14, 'TOHO'),
 (2, 'Universal Pictures'),
@@ -972,7 +1116,10 @@ INSERT INTO `ratings` (`id`, `user_id`, `film_id`, `rating`, `created_at`, `upda
 (13, 3, 26, 5, '2026-02-06 07:12:23', '2026-02-07 03:47:33'),
 (14, 3, 10, 5, '2026-02-07 03:44:05', '2026-02-07 03:44:05'),
 (15, 3, 11, 5, '2026-02-07 03:50:02', '2026-02-10 22:34:21'),
-(16, 3, 34, 4, '2026-02-10 22:35:43', '2026-02-10 22:40:53');
+(16, 3, 34, 4, '2026-02-10 22:35:43', '2026-02-10 22:40:53'),
+(17, 3, 37, 0, '2026-02-14 02:53:28', '2026-02-14 02:53:28'),
+(18, 5, 37, 5, '2026-02-14 04:00:04', '2026-02-14 04:00:04'),
+(19, 5, 2, 5, '2026-02-14 04:00:33', '2026-02-14 04:00:33');
 
 -- --------------------------------------------------------
 
@@ -990,6 +1137,7 @@ CREATE TABLE `reviews` (
   `backdrop_path` varchar(255) DEFAULT NULL COMMENT 'Hero image for review detail page',
   `is_spoiler` tinyint(1) NOT NULL DEFAULT 0,
   `is_liked` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Whether user liked this movie when writing review',
+  `is_rewatched` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Whether this review was written during a rewatch (not first watch)',
   `watched_at` date DEFAULT NULL COMMENT 'Date when the movie was watched',
   `status` enum('published','hidden','deleted') NOT NULL DEFAULT 'published',
   `created_at` timestamp NULL DEFAULT NULL,
@@ -1000,19 +1148,21 @@ CREATE TABLE `reviews` (
 -- Dumping data untuk tabel `reviews`
 --
 
-INSERT INTO `reviews` (`id`, `user_id`, `film_id`, `rating`, `title`, `content`, `backdrop_path`, `is_spoiler`, `is_liked`, `watched_at`, `status`, `created_at`, `updated_at`) VALUES
-(5, 3, 19, 3, NULL, 'Jeleq banget dah, membingungkan', NULL, 0, 0, NULL, 'published', '2026-02-06 07:02:11', '2026-02-06 07:02:11'),
-(6, 3, 2, 5, NULL, 'Sangat sangat dibikin melongo banget', NULL, 0, 0, NULL, 'published', '2026-02-06 07:33:09', '2026-02-07 03:01:34'),
-(7, 3, 7, 5, NULL, 'tes', NULL, 0, 0, NULL, 'published', '2026-02-07 03:13:46', '2026-02-07 03:13:46'),
-(8, 3, 26, 4, NULL, 'Gila Bangt', NULL, 0, 0, NULL, 'published', '2026-02-07 03:20:50', '2026-02-07 04:03:27'),
-(9, 3, 15, 5, NULL, 'Emang bagus banget nget nget', NULL, 0, 0, NULL, 'published', '2026-02-07 03:29:43', '2026-02-07 03:29:43'),
-(10, 3, 6, 5, NULL, 'Kita kan tua dan kehilangan pegangan', NULL, 0, 0, NULL, 'published', '2026-02-07 03:40:05', '2026-02-07 03:40:05'),
-(11, 3, 10, 5, NULL, 'goood', NULL, 0, 1, '2026-02-11', 'published', '2026-02-07 03:44:28', '2026-02-10 22:00:29'),
-(12, 3, 16, 5, NULL, '<b><i>Ngantuk</i></b><b><i> baby</i></b>. <a href=\"https://tv8.lk21official.cc/secret-agent-2025\">Aku </a><a href=\"https://tv8.lk21official.cc/secret-agent-2025\">nonton</a><a href=\"https://tv8.lk21official.cc/secret-agent-2025\"> disini</a>', NULL, 0, 1, '2026-02-01', 'published', '2026-02-07 04:16:39', '2026-02-07 04:50:15'),
-(13, 3, 11, 5, NULL, 'tes', NULL, 0, 0, '2026-02-11', 'published', '2026-02-10 22:34:28', '2026-02-10 22:34:28'),
-(14, 3, 10, 5, NULL, 'tes', NULL, 0, 1, '2026-02-11', 'published', '2026-02-10 22:34:52', '2026-02-10 22:34:52'),
-(15, 3, 34, 4, NULL, 'tes', NULL, 0, 0, '2026-02-11', 'published', '2026-02-10 22:52:49', '2026-02-10 22:52:49'),
-(16, 3, 34, 4, NULL, 'tes22', NULL, 0, 0, '2026-02-11', 'published', '2026-02-10 22:53:00', '2026-02-10 22:53:00');
+INSERT INTO `reviews` (`id`, `user_id`, `film_id`, `rating`, `title`, `content`, `backdrop_path`, `is_spoiler`, `is_liked`, `is_rewatched`, `watched_at`, `status`, `created_at`, `updated_at`) VALUES
+(5, 3, 19, 3, NULL, 'Jeleq banget dah, membingungkan', NULL, 0, 0, 0, NULL, 'published', '2026-02-06 07:02:11', '2026-02-06 07:02:11'),
+(6, 3, 2, 5, NULL, 'Sangat sangat dibikin melongo banget', NULL, 0, 0, 0, NULL, 'published', '2026-02-06 07:33:09', '2026-02-07 03:01:34'),
+(7, 3, 7, 5, NULL, 'tes', NULL, 0, 0, 0, NULL, 'published', '2026-02-07 03:13:46', '2026-02-07 03:13:46'),
+(8, 3, 26, 4, NULL, 'Gila Bangt', NULL, 0, 0, 0, NULL, 'published', '2026-02-07 03:20:50', '2026-02-07 04:03:27'),
+(9, 3, 15, 5, NULL, 'Emang bagus banget nget nget', NULL, 0, 0, 0, NULL, 'published', '2026-02-07 03:29:43', '2026-02-07 03:29:43'),
+(10, 3, 6, 5, NULL, 'Kita kan tua dan kehilangan pegangan', NULL, 0, 0, 0, NULL, 'published', '2026-02-07 03:40:05', '2026-02-07 03:40:05'),
+(11, 3, 10, 5, NULL, 'goood', NULL, 0, 1, 1, '2026-02-11', 'published', '2026-02-07 03:44:28', '2026-02-10 22:00:29'),
+(12, 3, 16, 5, NULL, '<b><i>Ngantuk</i></b><b><i> baby</i></b>. <a href=\"https://tv8.lk21official.cc/secret-agent-2025\">Aku </a><a href=\"https://tv8.lk21official.cc/secret-agent-2025\">nonton</a><a href=\"https://tv8.lk21official.cc/secret-agent-2025\"> disini</a>', NULL, 0, 1, 0, '2026-02-01', 'published', '2026-02-07 04:16:39', '2026-02-07 04:50:15'),
+(13, 3, 11, 5, NULL, 'tes', NULL, 0, 0, 1, '2026-02-11', 'published', '2026-02-10 22:34:28', '2026-02-10 22:34:28'),
+(14, 3, 10, 5, NULL, 'tes', NULL, 0, 1, 1, '2026-02-11', 'published', '2026-02-10 22:34:52', '2026-02-10 22:34:52'),
+(15, 3, 34, 4, NULL, 'tes', NULL, 0, 0, 0, '2026-02-11', 'published', '2026-02-10 22:52:49', '2026-02-10 22:52:49'),
+(16, 3, 34, 4, NULL, 'tes22', NULL, 0, 0, 1, '2026-02-11', 'published', '2026-02-10 22:53:00', '2026-02-10 22:53:00'),
+(17, 3, 34, 4, NULL, 'Aku suka sinema Horeg ini', NULL, 0, 0, 1, '2026-02-14', 'published', '2026-02-14 01:28:08', '2026-02-14 01:28:08'),
+(18, 5, 37, 5, NULL, 'Keren, Absolut cinema', NULL, 0, 1, 0, '2026-02-14', 'published', '2026-02-14 04:00:21', '2026-02-14 04:00:21');
 
 -- --------------------------------------------------------
 
@@ -1119,7 +1269,8 @@ INSERT INTO `users` (`id`, `username`, `email`, `password`, `role`, `status`, `j
 (1, 'NewUsername', 'admin@moview.com', '$2y$12$knpNEAbZAOkT711/AZFX/eisyn6LBQCcShqiWp1YctQm5g8Oi8pZW', 'admin', 'active', '2026-01-30 20:29:53', NULL, '2026-01-30 20:29:53', '2026-01-30 20:29:53'),
 (2, 'testuser', 'user@moview.com', '$2y$12$edj58OcYoXoiJsd22IwnnennCMGix0o98Y0ZJchd1VnnVwRMsH2rC', 'user', 'active', '2026-01-30 23:34:38', 'MnwxNzY5ODQxNjc0fDY5N2RhNDBhNTE4NDQ=', '2026-01-30 23:34:38', '2026-01-30 23:41:14'),
 (3, 'Sengefilm', 'tes@gmail.com', '$2y$12$lDfKXQIoqKTaeAdU.FpQX.Oqu.8Plbzprn6YOMhkIa9KCLtHN1KTK', 'user', 'active', '2026-01-30 23:49:39', 'M3wxNzY5ODU5MDUzfDY5N2RlN2VkOWE2NjI=', '2026-01-30 23:49:39', '2026-01-31 04:30:53'),
-(4, 'NewUser185', 'newuser_1769846806@test.com', '$2y$12$r0tcTwJt.eLjMs1n5pgdi.k9gPXqhujHx90XqkT0QMgkNLXZHrmly', 'user', 'active', '2026-01-31 01:06:46', 'bmV3dXNlcl8xNzY5ODQ2ODA2QHRlc3QuY29tfDE3Njk4NDY4MDZ8Njk3ZGI4MTY3Njk0Zg==', '2026-01-31 01:06:46', '2026-01-31 01:06:46');
+(4, 'NewUser185', 'newuser_1769846806@test.com', '$2y$12$r0tcTwJt.eLjMs1n5pgdi.k9gPXqhujHx90XqkT0QMgkNLXZHrmly', 'user', 'active', '2026-01-31 01:06:46', 'bmV3dXNlcl8xNzY5ODQ2ODA2QHRlc3QuY29tfDE3Njk4NDY4MDZ8Njk3ZGI4MTY3Njk0Zg==', '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
+(5, 'Mafia film', 'filmin@gmail.com', '$2y$12$eO1QTww7vMctvv7QWvNk0uB9Bk2C/aedqb./wlW.Q9dURDjbKISZG', 'user', 'active', '2026-02-14 03:59:49', 'ZmlsbWluQGdtYWlsLmNvbXwxNzcxMDY2Nzg5fDY5OTA1NWE1NWY2ZTA=', '2026-02-14 03:59:49', '2026-02-14 03:59:49');
 
 -- --------------------------------------------------------
 
@@ -1157,10 +1308,14 @@ CREATE TABLE `user_favorite_films` (
 --
 
 INSERT INTO `user_favorite_films` (`id`, `user_id`, `film_id`, `position`, `created_at`, `updated_at`) VALUES
-(214, 3, 5, 1, '2026-02-06 07:26:42', '2026-02-06 07:26:42'),
-(215, 3, 4, 2, '2026-02-06 07:26:42', '2026-02-06 07:26:42'),
-(216, 3, 3, 3, '2026-02-06 07:26:42', '2026-02-06 07:26:42'),
-(217, 3, 2, 4, '2026-02-06 07:26:42', '2026-02-06 07:26:42');
+(218, 3, 33, 1, '2026-02-14 02:58:25', '2026-02-14 02:58:25'),
+(219, 3, 4, 2, '2026-02-14 02:58:25', '2026-02-14 02:58:25'),
+(220, 3, 3, 3, '2026-02-14 02:58:25', '2026-02-14 02:58:25'),
+(221, 3, 2, 4, '2026-02-14 02:58:25', '2026-02-14 02:58:25'),
+(234, 5, 20, 1, '2026-02-14 04:09:09', '2026-02-14 04:09:09'),
+(235, 5, 30, 2, '2026-02-14 04:09:09', '2026-02-14 04:09:09'),
+(236, 5, 31, 3, '2026-02-14 04:09:09', '2026-02-14 04:09:09'),
+(237, 5, 37, 4, '2026-02-14 04:09:09', '2026-02-14 04:09:09');
 
 -- --------------------------------------------------------
 
@@ -1186,9 +1341,10 @@ CREATE TABLE `user_profiles` (
 --
 
 INSERT INTO `user_profiles` (`id`, `user_id`, `display_name`, `profile_photo`, `backdrop_path`, `backdrop_enabled`, `bio`, `location`, `created_at`, `updated_at`) VALUES
-(1, 3, 'Sengefilm', 'profiles/profile_3_1769941056.jpg', 'movies/5/backdrop/SOVrGZN8Cw58AepzvBDFS9IQKkIVgRfw7gL7BTZZ.webp', 1, 'Tes', 'Sidoarjo, Indonesia', '2026-01-31 00:38:49', '2026-02-06 07:26:42'),
+(1, 3, 'Sengefilm', 'profiles/profile_3_1769941056.jpg', 'movies/33/backdrop/aEQkBKlhO1OJePmQyzPxnu9sMW1nOyLsxw2HSEVb.webp', 1, 'Tes', 'Sidoarjo, Indonesia', '2026-01-31 00:38:49', '2026-02-14 02:58:25'),
 (2, 4, 'NewUser185', NULL, NULL, 0, NULL, NULL, '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
-(3, 1, NULL, NULL, NULL, 1, 'This is my new bio', NULL, '2026-01-31 03:41:40', '2026-01-31 03:41:40');
+(3, 1, NULL, NULL, NULL, 1, 'This is my new bio', NULL, '2026-01-31 03:41:40', '2026-01-31 03:41:40'),
+(4, 5, 'Mafia film', 'profiles/profile_5_1771067279.jpg', 'movies/20/backdrop/vOW8epajt2p3MzCvvICIlAr12TDiAjnhk88IrMWl.webp', 1, NULL, NULL, '2026-02-14 03:59:49', '2026-02-14 04:09:10');
 
 -- --------------------------------------------------------
 
@@ -1379,7 +1535,8 @@ ALTER TABLE `reviews`
   ADD KEY `reviews_status_index` (`status`),
   ADD KEY `reviews_created_at_index` (`created_at`),
   ADD KEY `reviews_is_liked_index` (`is_liked`),
-  ADD KEY `reviews_watched_at_index` (`watched_at`);
+  ADD KEY `reviews_watched_at_index` (`watched_at`),
+  ADD KEY `reviews_is_rewatched_index` (`is_rewatched`);
 
 --
 -- Indeks untuk tabel `review_comments`
@@ -1472,7 +1629,7 @@ ALTER TABLE `countries`
 -- AUTO_INCREMENT untuk tabel `diaries`
 --
 ALTER TABLE `diaries`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT untuk tabel `followers`
@@ -1496,61 +1653,61 @@ ALTER TABLE `languages`
 -- AUTO_INCREMENT untuk tabel `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT untuk tabel `movies`
 --
 ALTER TABLE `movies`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_likes`
 --
 ALTER TABLE `movie_likes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_media`
 --
 ALTER TABLE `movie_media`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=98;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=112;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_persons`
 --
 ALTER TABLE `movie_persons`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_services`
 --
 ALTER TABLE `movie_services`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=167;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=183;
 
 --
 -- AUTO_INCREMENT untuk tabel `persons`
 --
 ALTER TABLE `persons`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
 
 --
 -- AUTO_INCREMENT untuk tabel `production_houses`
 --
 ALTER TABLE `production_houses`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
 
 --
 -- AUTO_INCREMENT untuk tabel `ratings`
 --
 ALTER TABLE `ratings`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT untuk tabel `reviews`
 --
 ALTER TABLE `reviews`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT untuk tabel `review_comments`
@@ -1574,7 +1731,7 @@ ALTER TABLE `services`
 -- AUTO_INCREMENT untuk tabel `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_activities`
@@ -1586,13 +1743,13 @@ ALTER TABLE `user_activities`
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`
 --
 ALTER TABLE `user_favorite_films`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=218;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=238;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_profiles`
 --
 ALTER TABLE `user_profiles`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT untuk tabel `watchlists`

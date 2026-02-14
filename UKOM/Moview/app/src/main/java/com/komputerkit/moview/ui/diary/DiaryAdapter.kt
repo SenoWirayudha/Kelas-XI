@@ -90,6 +90,9 @@ class DiaryAdapter(
             // Show liked icon next to rating stars if liked
             binding.icLiked.visibility = if (entry.isLiked) View.VISIBLE else View.GONE
 
+            // Show rewatch icon if this is a rewatch
+            binding.icRewatched.visibility = if (entry.isRewatched) View.VISIBLE else View.GONE
+
             binding.entryContainer.setOnClickListener {
                 onEntryClick(entry)
             }

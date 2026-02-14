@@ -8,5 +8,7 @@ data class DiaryEntry(
     val monthYear: String,
     val rating: Int,
     val hasReview: Boolean,
-    val isLiked: Boolean
+    val isLiked: Boolean,
+    val isRewatched: Boolean = false,
+    val reviewId: Int? = null
 )
