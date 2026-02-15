@@ -650,6 +650,46 @@ class MovieRepository {
             emptyList()
         }
     }
+    
+    suspend fun followUser(userId: Int, targetUserId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "Following user: currentUser=$userId, target=$targetUserId")
+            val response = apiService.followUser(userId, targetUserId)
+            android.util.Log.d("MovieRepository", "Follow response: success=${response.success}, message=${response.message}")
+            response.success
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error following user", e)
+            e.printStackTrace()
+            false
+        }
+    }
+    
+    suspend fun unfollowUser(userId: Int, targetUserId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "Unfollowing user: currentUser=$userId, target=$targetUserId")
+            val response = apiService.unfollowUser(userId, targetUserId)
+            android.util.Log.d("MovieRepository", "Unfollow response: success=${response.success}, message=${response.message}")
+            response.success
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error unfollowing user", e)
+            e.printStackTrace()
+            false
+        }
+    }
+    
+    suspend fun isFollowing(userId: Int, targetUserId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "Checking follow status: currentUser=$userId, target=$targetUserId")
+            val response = apiService.isFollowing(userId, targetUserId)
+            val isFollowing = response.success && response.data?.isFollowing == true
+            android.util.Log.d("MovieRepository", "Follow status: isFollowing=$isFollowing")
+            isFollowing
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error checking follow status", e)
+            e.printStackTrace()
+            false
+        }
+    }
 
     suspend fun getMovieDetail(movieId: Int): Movie? = withContext(Dispatchers.IO) {
         try {

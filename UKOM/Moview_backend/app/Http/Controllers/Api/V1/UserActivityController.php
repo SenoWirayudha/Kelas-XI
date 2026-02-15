@@ -571,9 +571,30 @@ class UserActivityController extends Controller
                 ->orderBy('followers.created_at', 'desc')
                 ->get();
 
+            // Build full URLs for profile photos
+            $followersWithUrls = $followers->map(function($follower) {
+                $profilePhotoUrl = null;
+                if ($follower->profile_photo) {
+                    if (!str_starts_with($follower->profile_photo, 'http')) {
+                        $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$follower->profile_photo}";
+                    } else {
+                        $profilePhotoUrl = $follower->profile_photo;
+                    }
+                }
+                
+                return [
+                    'id' => $follower->id,
+                    'username' => $follower->username,
+                    'display_name' => $follower->display_name,
+                    'profile_photo' => $profilePhotoUrl,
+                    'bio' => $follower->bio,
+                    'followed_at' => $follower->followed_at
+                ];
+            });
+
             return response()->json([
                 'success' => true,
-                'data' => $followers
+                'data' => $followersWithUrls
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -604,9 +625,30 @@ class UserActivityController extends Controller
                 ->orderBy('followers.created_at', 'desc')
                 ->get();
 
+            // Build full URLs for profile photos
+            $followingWithUrls = $following->map(function($user) {
+                $profilePhotoUrl = null;
+                if ($user->profile_photo) {
+                    if (!str_starts_with($user->profile_photo, 'http')) {
+                        $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$user->profile_photo}";
+                    } else {
+                        $profilePhotoUrl = $user->profile_photo;
+                    }
+                }
+                
+                return [
+                    'id' => $user->id,
+                    'username' => $user->username,
+                    'display_name' => $user->display_name,
+                    'profile_photo' => $profilePhotoUrl,
+                    'bio' => $user->bio,
+                    'followed_at' => $user->followed_at
+                ];
+            });
+
             return response()->json([
                 'success' => true,
-                'data' => $following
+                'data' => $followingWithUrls
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -1298,6 +1340,105 @@ class UserActivityController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to add comment: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    public function followUser($userId, $targetUserId)
+    {
+        try {
+            // Check if already following
+            $existing = DB::table('followers')
+                ->where('user_id', $targetUserId)
+                ->where('follower_id', $userId)
+                ->first();
+            
+            if ($existing) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Already following this user'
+                ], 400);
+            }
+            
+            // Insert follow relationship
+            // user_id = target being followed, follower_id = current user doing the follow
+            DB::table('followers')->insert([
+                'user_id' => $targetUserId,
+                'follower_id' => $userId,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully followed user'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to follow user: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    public function unfollowUser($userId, $targetUserId)
+    {
+        try {
+            $deleted = DB::table('followers')
+                ->where('user_id', $targetUserId)
+                ->where('follower_id', $userId)
+                ->delete();
+            
+            if ($deleted) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Successfully unfollowed user'
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Not following this user'
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to unfollow user: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    public function isFollowing($userId, $targetUserId)
+    {
+        try {
+            \Log::info("=== isFollowing API Called ===", [
+                'currentUserId' => $userId,
+                'targetUserId' => $targetUserId
+            ]);
+            
+            $isFollowing = DB::table('followers')
+                ->where('user_id', $targetUserId)
+                ->where('follower_id', $userId)
+                ->exists();
+            
+            \Log::info("isFollowing result", [
+                'isFollowing' => $isFollowing,
+                'query' => "user_id=$targetUserId AND follower_id=$userId"
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'isFollowing' => $isFollowing
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("isFollowing error", [
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check follow status: ' . $e->getMessage()
             ], 500);
         }
     }

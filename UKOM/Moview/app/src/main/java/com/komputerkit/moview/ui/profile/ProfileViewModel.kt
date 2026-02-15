@@ -40,6 +40,12 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val _backdropUrl = MutableLiveData<String?>()
     val backdropUrl: LiveData<String?> = _backdropUrl
     
+    private val _isFollowing = MutableLiveData<Boolean>()
+    val isFollowing: LiveData<Boolean> = _isFollowing
+    
+    private val _followActionResult = MutableLiveData<FollowActionResult?>()
+    val followActionResult: LiveData<FollowActionResult?> = _followActionResult
+    
     init {
         Log.d("ProfileViewModel", "ProfileViewModel initialized")
         loadProfileData()
@@ -50,13 +56,13 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         loadProfileData()
     }
     
-    private fun loadProfileData() {
-        val userId = prefs.getInt("userId", 0)
+    fun loadProfileData(userId: Int = 0) {
+        val targetUserId = if (userId > 0) userId else prefs.getInt("userId", 0)
         
-        Log.d("ProfileViewModel", "=== START Loading profile for userId: $userId ===")
+        Log.d("ProfileViewModel", "=== START Loading profile for userId: $targetUserId ===")
         Log.d("ProfileViewModel", "SharedPreferences keys: ${prefs.all.keys}")
         
-        if (userId == 0) {
+        if (targetUserId == 0) {
             // No user logged in, show empty state or use from SharedPreferences
             Log.w("ProfileViewModel", "No userId found, trying fallback")
             val username = prefs.getString("username", "User") ?: "User"
@@ -67,7 +73,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 Log.d("ProfileViewModel", "Calling API getUserProfile...")
-                val profileData = repository.getUserProfile(userId)
+                val profileData = repository.getUserProfile(targetUserId)
                 
                 Log.d("ProfileViewModel", "Profile data received: $profileData")
                 Log.d("ProfileViewModel", "Is null? ${profileData == null}")
@@ -100,7 +106,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                         Log.d("ProfileViewModel", "Favorite: ${fav.title}, poster: ${fav.poster_path}")
                         
                         // Check if user has review for this movie
-                        val userReview = repository.getUserReviewForMovie(userId, fav.id)
+                        val userReview = repository.getUserReviewForMovie(targetUserId, fav.id)
                         
                         Movie(
                             id = fav.id,
@@ -139,7 +145,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     
                     // Load recent activity from diary (latest 4 entries)
                     try {
-                        val diaryEntries = repository.getUserDiary(userId)
+                        val diaryEntries = repository.getUserDiary(targetUserId)
                         _recentActivity.postValue(diaryEntries.take(4))
                         Log.d("ProfileViewModel", "Loaded ${diaryEntries.take(4).size} recent diary entries")
                     } catch (e: Exception) {
@@ -168,6 +174,55 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
+    
+    fun checkFollowStatus(currentUserId: Int, targetUserId: Int) {
+        Log.d("ProfileViewModel", "=== Checking Follow Status ===")
+        Log.d("ProfileViewModel", "Current User: $currentUserId, Target User: $targetUserId")
+        viewModelScope.launch {
+            try {
+                val following = repository.isFollowing(currentUserId, targetUserId)
+                Log.d("ProfileViewModel", "Follow status result: $following")
+                _isFollowing.postValue(following)
+                Log.d("ProfileViewModel", "Posted follow status to LiveData: $following")
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error checking follow status", e)
+                Log.e("ProfileViewModel", "Error message: ${e.message}")
+                _isFollowing.postValue(false)
+            }
+        }
+    }
+    
+    fun toggleFollow(currentUserId: Int, targetUserId: Int) {
+        viewModelScope.launch {
+            try {
+                val currentStatus = _isFollowing.value ?: false
+                val success = if (currentStatus) {
+                    // Currently following, so unfollow
+                    repository.unfollowUser(currentUserId, targetUserId)
+                } else {
+                    // Not following, so follow
+                    repository.followUser(currentUserId, targetUserId)
+                }
+                
+                if (success) {
+                    val newStatus = !currentStatus
+                    _isFollowing.postValue(newStatus)
+                    _followActionResult.postValue(FollowActionResult.Success(newStatus))
+                    Log.d("ProfileViewModel", "Follow toggled successfully. New status: $newStatus")
+                } else {
+                    _followActionResult.postValue(FollowActionResult.Error("Failed to update follow status"))
+                    Log.e("ProfileViewModel", "Failed to toggle follow")
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error toggling follow", e)
+                _followActionResult.postValue(FollowActionResult.Error("Error: ${e.message}"))
+            }
+        }
+    }
+    
+    fun clearFollowActionResult() {
+        _followActionResult.value = null
+    }
 }
 
 data class UserStats(
@@ -186,4 +241,9 @@ data class UserStats(
     val rating2: Int,
     val rating1: Int
 )
+
+sealed class FollowActionResult {
+    data class Success(val isFollowing: Boolean) : FollowActionResult()
+    data class Error(val message: String) : FollowActionResult()
+}
 

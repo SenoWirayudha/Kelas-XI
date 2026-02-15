@@ -24,19 +24,15 @@ class FilmsViewModel(application: Application) : AndroidViewModel(application) {
     
     private var allFilms: List<Movie> = emptyList()
     
-    init {
-        loadFilms()
-    }
-    
-    fun loadFilms() {
-        val userId = prefs.getInt("userId", 0)
-        if (userId == 0) return
+    fun loadFilms(userId: Int = 0) {
+        val targetUserId = if (userId > 0) userId else prefs.getInt("userId", 0)
+        if (targetUserId == 0) return
         
         _isLoading.value = true
         viewModelScope.launch {
             try {
-                allFilms = repository.getUserFilms(userId)
-                Log.d("FilmsViewModel", "Loaded ${allFilms.size} films")
+                allFilms = repository.getUserFilms(targetUserId)
+                Log.d("FilmsViewModel", "Loaded ${allFilms.size} films for user $targetUserId")
                 allFilms.forEach { film ->
                     Log.d("FilmsViewModel", "Film: ${film.title}, isLiked=${film.isLiked}, rating=${film.userRating}")
                 }

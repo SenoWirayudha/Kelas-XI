@@ -46,23 +46,6 @@
                 android:alpha="0"
                 tools:text="Alex Cinephile" />
 
-            <!-- Follow Button (only visible for other user's profile) -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_follow"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:text="Follow"
-                android:textSize="14sp"
-                android:textColor="@color/white"
-                android:layout_marginEnd="12dp"
-                android:visibility="gone"
-                app:cornerRadius="18dp"
-                app:backgroundTint="@color/accent_blue"
-                app:strokeWidth="0dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                tools:visibility="visible" />
-
             <!-- Settings Button (only visible for own profile) -->
             <ImageView
                 android:id="@+id/btn_settings"
@@ -115,7 +98,7 @@
 
             </FrameLayout>
 
-            <!-- Avatar Container (Outside backdrop to prevent clipping) -->
+            <!-- Avatar Container with Follow Button -->
             <FrameLayout
                 android:id="@+id/profile_photo_container"
                 android:layout_width="match_parent"
@@ -134,6 +117,26 @@
                     app:shapeAppearanceOverlay="@style/CircleImageView"
                     android:elevation="4dp"
                     tools:src="@tools:sample/avatars" />
+
+                <!-- Follow Button (left of profile photo, only visible for other user's profile) -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_follow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_gravity="center_vertical|start"
+                    android:layout_marginStart="24dp"
+                    android:text="FOLLOW"
+                    android:textSize="12sp"
+                    android:textColor="@color/white"
+                    android:visibility="gone"
+                    app:cornerRadius="4dp"
+                    app:strokeColor="@color/white"
+                    app:strokeWidth="1dp"
+                    app:backgroundTint="@android:color/transparent"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="20dp"
+                    android:elevation="4dp"
+                    tools:visibility="visible" />
 
             </FrameLayout>
 

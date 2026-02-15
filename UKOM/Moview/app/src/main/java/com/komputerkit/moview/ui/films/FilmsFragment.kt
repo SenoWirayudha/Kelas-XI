@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.films
 
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -9,6 +10,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import com.komputerkit.moview.databinding.FragmentFilmsBinding
 
@@ -17,6 +19,7 @@ class FilmsFragment : Fragment() {
     private var _binding: FragmentFilmsBinding? = null
     private val binding get() = _binding!!
     
+    private val args: FilmsFragmentArgs by navArgs()
     private val viewModel: FilmsViewModel by viewModels()
     private lateinit var filmGridAdapter: FilmGridAdapter
 
@@ -32,15 +35,26 @@ class FilmsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        // Get userId from args or use current user
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        
         setupRecyclerView()
         setupObservers()
         setupClickListeners()
+        
+        // Load films for the target user
+        viewModel.loadFilms(targetUserId)
     }
     
     override fun onResume() {
         super.onResume()
         // Reload films when returning from other screens
-        viewModel.loadFilms()
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        viewModel.loadFilms(targetUserId)
     }
     
     private fun setupRecyclerView() {

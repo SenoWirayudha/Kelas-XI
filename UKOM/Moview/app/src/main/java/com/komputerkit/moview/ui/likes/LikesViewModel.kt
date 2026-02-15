@@ -24,11 +24,11 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
     val isLoading: LiveData<Boolean> = _isLoading
     
     init {
-        loadLikes()
+        val userId = prefs.getInt("userId", 0)
+        loadLikes(userId)
     }
     
-    fun loadLikes() {
-        val userId = prefs.getInt("userId", 0)
+    fun loadLikes(userId: Int) {
         if (userId == 0) {
             _likes.value = emptyList()
             return

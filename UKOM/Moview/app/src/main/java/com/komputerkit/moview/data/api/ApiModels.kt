@@ -406,3 +406,7 @@ data class SearchUserDto(
     val films_count: Int,
     val reviews_count: Int
 )
+
+data class FollowStatusResponse(
+    val isFollowing: Boolean
+)

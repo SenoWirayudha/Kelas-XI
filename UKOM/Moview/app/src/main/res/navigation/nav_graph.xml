@@ -64,6 +64,9 @@
         <action
             android:id="@+id/action_search_to_filmList"
             app:destination="@id/filmListFragment" />
+        <action
+            android:id="@+id/action_search_to_userProfile"
+            app:destination="@id/navigation_profile" />
     </fragment>
 
     <fragment
@@ -115,6 +118,10 @@
         android:id="@+id/filmsFragment"
         android:name="com.komputerkit.moview.ui.films.FilmsFragment"
         android:label="My Films">
+        <argument
+            android:name="userId"
+            app:argType="integer"
+            android:defaultValue="0" />
         <action
             android:id="@+id/action_films_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
@@ -127,6 +134,10 @@
         android:id="@+id/likesFragment"
         android:name="com.komputerkit.moview.ui.likes.LikesFragment"
         android:label="Liked Films">
+        <argument
+            android:name="userId"
+            app:argType="integer"
+            android:defaultValue="0" />
         <action
             android:id="@+id/action_likes_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
@@ -139,6 +150,10 @@
         android:id="@+id/diaryFragment"
         android:name="com.komputerkit.moview.ui.diary.DiaryFragment"
         android:label="Diary">
+        <argument
+            android:name="userId"
+            app:argType="integer"
+            android:defaultValue="0" />
         <action
             android:id="@+id/action_diary_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
@@ -151,6 +166,10 @@
         android:id="@+id/reviewFragment"
         android:name="com.komputerkit.moview.ui.review.ReviewFragment"
         android:label="My Reviews">
+        <argument
+            android:name="userId"
+            app:argType="integer"
+            android:defaultValue="0" />
         <action
             android:id="@+id/action_review_to_reviewDetail"
             app:destination="@id/reviewDetailFragment" />
@@ -163,6 +182,10 @@
         android:id="@+id/watchlistFragment"
         android:name="com.komputerkit.moview.ui.watchlist.WatchlistFragment"
         android:label="Watchlist">
+        <argument
+            android:name="userId"
+            app:argType="integer"
+            android:defaultValue="0" />
         <action
             android:id="@+id/action_watchlist_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
@@ -171,12 +194,28 @@
     <fragment
         android:id="@+id/followersFragment"
         android:name="com.komputerkit.moview.ui.social.FollowersFragment"
-        android:label="Followers" />
+        android:label="Followers">
+        <argument
+            android:name="userId"
+            app:argType="integer"
+            android:defaultValue="0" />
+        <action
+            android:id="@+id/action_followers_to_profile"
+            app:destination="@id/navigation_profile" />
+    </fragment>
 
     <fragment
         android:id="@+id/followingFragment"
         android:name="com.komputerkit.moview.ui.social.FollowingFragment"
-        android:label="Following" />
+        android:label="Following">
+        <argument
+            android:name="userId"
+            app:argType="integer"
+            android:defaultValue="0" />
+        <action
+            android:id="@+id/action_following_to_profile"
+            app:destination="@id/navigation_profile" />
+    </fragment>
 
     <fragment
         android:id="@+id/logFilmFragment"

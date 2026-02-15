@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.watchlist
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,6 +9,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.chip.Chip
 import com.komputerkit.moview.R
@@ -18,6 +20,7 @@ class WatchlistFragment : Fragment() {
 
     private var _binding: FragmentWatchlistBinding? = null
     private val binding get() = _binding!!
+    private val args: WatchlistFragmentArgs by navArgs()
     
     private val viewModel: WatchlistViewModel by viewModels()
     private lateinit var adapter: WatchlistAdapter
@@ -34,6 +37,13 @@ class WatchlistFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        // Get userId from args or use current user
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        
+        viewModel.loadWatchlist(targetUserId)
+        
         setupRecyclerView()
         setupChips()
         setupClickListeners()
@@ -42,7 +52,13 @@ class WatchlistFragment : Fragment() {
     
     override fun onResume() {
         super.onResume()
-        viewModel.loadWatchlist()
+        
+        // Get userId from args or use current user
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        
+        viewModel.loadWatchlist(targetUserId)
     }
     
     private fun setupRecyclerView() {

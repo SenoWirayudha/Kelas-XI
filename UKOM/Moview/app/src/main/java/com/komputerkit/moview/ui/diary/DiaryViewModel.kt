@@ -22,19 +22,15 @@ class DiaryViewModel(application: Application) : AndroidViewModel(application) {
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
     
-    init {
-        loadDiary()
+    fun loadDiary(userId: Int = 0) {
+        loadDiaryEntries(userId)
     }
     
-    fun loadDiary() {
-        loadDiaryEntries()
-    }
-    
-    private fun loadDiaryEntries() {
-        val userId = prefs.getInt("userId", 0)
-        android.util.Log.d("DiaryViewModel", "Loading diary for userId: $userId")
+    private fun loadDiaryEntries(userId: Int = 0) {
+        val targetUserId = if (userId > 0) userId else prefs.getInt("userId", 0)
+        android.util.Log.d("DiaryViewModel", "Loading diary for userId: $targetUserId")
         
-        if (userId == 0) {
+        if (targetUserId == 0) {
             android.util.Log.e("DiaryViewModel", "User ID is 0, not loading diary")
             _diaryItems.value = emptyList()
             return
@@ -44,7 +40,7 @@ class DiaryViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 android.util.Log.d("DiaryViewModel", "Fetching diary entries from API...")
-                val entries = repository.getUserDiary(userId)
+                val entries = repository.getUserDiary(targetUserId)
                 android.util.Log.d("DiaryViewModel", "Fetched ${entries.size} diary entries")
                 
                 // Group entries by month/year and create header items

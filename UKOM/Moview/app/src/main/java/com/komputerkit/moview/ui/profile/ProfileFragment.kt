@@ -65,24 +65,57 @@ class ProfileFragment : Fragment() {
         
         // Load profile data
         viewModel.loadProfileData(targetUserId)
+        
+        // Check follow status if viewing another user's profile
+        if (!isOwnProfile) {
+            val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+            val currentUserId = prefs.getInt("userId", 0)
+            Log.d("ProfileFragment", "Checking follow status: currentUser=$currentUserId, target=$targetUserId")
+            viewModel.checkFollowStatus(currentUserId, targetUserId)
+        }
     }
     
     override fun onResume() {
         super.onResume()
         Log.d("ProfileFragment", "onResume() - Reloading profile data")
+        
         // Reload profile data
         if (isOwnProfile) {
             viewModel.reloadProfile()
         } else {
             viewModel.loadProfileData(targetUserId)
+            // Reload follow status for other user's profile
+            val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+            val currentUserId = prefs.getInt("userId", 0)
+            viewModel.checkFollowStatus(currentUserId, targetUserId)
         }
     }
     
     private fun setupUI() {
-        // Show/hide buttons based on whether viewing own profile
-        binding.btnBack.visibility = if (isOwnProfile) View.GONE else View.VISIBLE
-        binding.btnFollow.visibility = if (isOwnProfile) View.GONE else View.VISIBLE
-        binding.btnSettings.visibility = if (isOwnProfile) View.VISIBLE else View.GONE
+        // Show/hide buttons based on whether viewing own profile and navigation source
+        if (isOwnProfile) {
+            // Own profile
+            if (args.userId == 0) {
+                // Opened from bottom nav (args.userId defaults to 0) - hide back, show settings
+                binding.btnBack.visibility = View.GONE
+                binding.btnSettings.visibility = View.VISIBLE
+            } else {
+                // Navigated from followers/following/etc (args.userId explicitly set) - show back, hide settings
+                binding.btnBack.visibility = View.VISIBLE
+                binding.btnSettings.visibility = View.GONE
+            }
+            binding.btnFollow.visibility = View.GONE
+        } else {
+            // Other user's profile - show back and follow, hide settings
+            binding.btnBack.visibility = View.VISIBLE
+            binding.btnFollow.visibility = View.VISIBLE
+            binding.btnSettings.visibility = View.GONE
+        }
+        
+        // Initialize follow button state
+        if (!isOwnProfile) {
+            updateFollowButton()
+        }
     }
     
     private fun setupNavigationResultListener() {
@@ -242,6 +275,30 @@ class ProfileFragment : Fragment() {
                 }
             }
         }
+        
+        // Observe follow status
+        viewModel.isFollowing.observe(viewLifecycleOwner) { following ->
+            Log.d("ProfileFragment", "Follow status changed: $following")
+            isFollowing = following
+            updateFollowButton()
+        }
+        
+        // Observe follow action result
+        viewModel.followActionResult.observe(viewLifecycleOwner) { result ->
+            result?.let {
+                when (it) {
+                    is FollowActionResult.Success -> {
+                        val message = if (it.isFollowing) "Following" else "Unfollowed"
+                        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                    }
+                    is FollowActionResult.Error -> {
+                        Toast.makeText(requireContext(), it.message, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                // Clear the result after processing
+                viewModel.clearFollowActionResult()
+            }
+        }
     }
     
     private fun updateStats(stats: UserStats) {
@@ -287,42 +344,42 @@ class ProfileFragment : Fragment() {
         
         // "More" button for recent activity → navigate to diary
         binding.btnMoreActivity.setOnClickListener {
-            val action = ProfileFragmentDirections.actionProfileToDiary()
+            val action = ProfileFragmentDirections.actionProfileToDiary(targetUserId)
             findNavController().navigate(action)
         }
         
         binding.layoutFilms.setOnClickListener {
-            val action = ProfileFragmentDirections.actionProfileToFilms()
+            val action = ProfileFragmentDirections.actionProfileToFilms(targetUserId)
             findNavController().navigate(action)
         }
         
         binding.layoutDiary.setOnClickListener {
-            val action = ProfileFragmentDirections.actionProfileToDiary()
+            val action = ProfileFragmentDirections.actionProfileToDiary(targetUserId)
             findNavController().navigate(action)
         }
         
         binding.layoutReviews.setOnClickListener {
-            val action = ProfileFragmentDirections.actionProfileToReview()
+            val action = ProfileFragmentDirections.actionProfileToReview(targetUserId)
             findNavController().navigate(action)
         }
         
         binding.layoutWatchlist.setOnClickListener {
-            val action = ProfileFragmentDirections.actionProfileToWatchlist()
+            val action = ProfileFragmentDirections.actionProfileToWatchlist(targetUserId)
             findNavController().navigate(action)
         }
         
         binding.layoutLikes.setOnClickListener {
-            val action = ProfileFragmentDirections.actionProfileToLikes()
+            val action = ProfileFragmentDirections.actionProfileToLikes(targetUserId)
             findNavController().navigate(action)
         }
         
         binding.layoutFollowers.setOnClickListener {
-            val action = ProfileFragmentDirections.actionProfileToFollowers()
+            val action = ProfileFragmentDirections.actionProfileToFollowers(targetUserId)
             findNavController().navigate(action)
         }
         
         binding.layoutFollowing.setOnClickListener {
-            val action = ProfileFragmentDirections.actionProfileToFollowing()
+            val action = ProfileFragmentDirections.actionProfileToFollowing(targetUserId)
             findNavController().navigate(action)
         }
     }
@@ -345,6 +402,38 @@ class ProfileFragment : Fragment() {
                     .setDuration(200)
                     .start()
             }
+        }
+    }
+    
+    private fun toggleFollow() {
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        
+        if (currentUserId == 0 || targetUserId == 0) {
+            Toast.makeText(requireContext(), "Unable to follow user", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        viewModel.toggleFollow(currentUserId, targetUserId)
+    }
+    
+    private fun updateFollowButton() {
+        Log.d("ProfileFragment", "Updating follow button. isFollowing = $isFollowing")
+        if (isFollowing) {
+            // Following state: green solid background, no border
+            binding.btnFollow.text = "FOLLOWING"
+            binding.btnFollow.setBackgroundColor(resources.getColor(R.color.star_green, null))
+            binding.btnFollow.strokeWidth = 0
+            binding.btnFollow.setTextColor(resources.getColor(R.color.white, null))
+            Log.d("ProfileFragment", "Button set to FOLLOWING (green)")
+        } else {
+            // Follow state: transparent background with white border
+            binding.btnFollow.text = "FOLLOW"
+            binding.btnFollow.setBackgroundColor(resources.getColor(android.R.color.transparent, null))
+            binding.btnFollow.strokeWidth = (1 * resources.displayMetrics.density).toInt()
+            binding.btnFollow.strokeColor = resources.getColorStateList(R.color.white, null)
+            binding.btnFollow.setTextColor(resources.getColor(R.color.white, null))
+            Log.d("ProfileFragment", "Button set to FOLLOW (transparent border)")
         }
     }
 

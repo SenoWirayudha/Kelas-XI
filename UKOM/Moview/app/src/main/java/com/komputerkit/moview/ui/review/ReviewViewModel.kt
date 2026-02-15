@@ -28,11 +28,11 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
     val isLoading: LiveData<Boolean> = _isLoading
     
     init {
-        loadReviews()
+        val userId = prefs.getInt("userId", 0)
+        loadReviews(userId)
     }
     
-    private fun loadReviews() {
-        val userId = prefs.getInt("userId", 0)
+    fun loadReviews(userId: Int) {
         android.util.Log.d("ReviewViewModel", "Loading reviews for userId: $userId")
         
         if (userId == 0) {

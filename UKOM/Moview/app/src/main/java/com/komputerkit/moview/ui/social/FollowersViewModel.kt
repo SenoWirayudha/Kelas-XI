@@ -21,12 +21,7 @@ class FollowersViewModel(application: Application) : AndroidViewModel(applicatio
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
     
-    init {
-        loadFollowers()
-    }
-    
-    private fun loadFollowers() {
-        val userId = prefs.getInt("userId", 0)
+    fun loadFollowers(userId: Int) {
         if (userId == 0) {
             _followers.value = emptyList()
             return

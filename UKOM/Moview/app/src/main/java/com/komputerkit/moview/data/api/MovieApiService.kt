@@ -175,6 +175,24 @@ interface MovieApiService {
         @Path("userId") userId: Int
     ): ApiResponse<List<UserFollowDto>>
     
+    @POST("users/{userId}/follow/{targetUserId}")
+    suspend fun followUser(
+        @Path("userId") userId: Int,
+        @Path("targetUserId") targetUserId: Int
+    ): SimpleResponse
+    
+    @DELETE("users/{userId}/follow/{targetUserId}")
+    suspend fun unfollowUser(
+        @Path("userId") userId: Int,
+        @Path("targetUserId") targetUserId: Int
+    ): SimpleResponse
+    
+    @GET("users/{userId}/is-following/{targetUserId}")
+    suspend fun isFollowing(
+        @Path("userId") userId: Int,
+        @Path("targetUserId") targetUserId: Int
+    ): ApiResponse<FollowStatusResponse>
+    
     // Rating endpoints
     @POST("users/{userId}/movies/{movieId}/rating")
     suspend fun saveRating(

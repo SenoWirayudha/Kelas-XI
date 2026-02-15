@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.social
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,6 +9,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.komputerkit.moview.data.model.UserProfile
 import com.komputerkit.moview.databinding.FragmentFollowingBinding
@@ -16,6 +18,7 @@ class FollowingFragment : Fragment() {
 
     private var _binding: FragmentFollowingBinding? = null
     private val binding get() = _binding!!
+    private val args: FollowingFragmentArgs by navArgs()
     
     private val viewModel: FollowingViewModel by viewModels()
     private lateinit var adapter: UserAdapter
@@ -31,6 +34,13 @@ class FollowingFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        
+        // Get userId from args or use current user
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        
+        viewModel.loadFollowing(targetUserId)
         
         setupRecyclerView()
         setupClickListeners()
@@ -59,8 +69,15 @@ class FollowingFragment : Fragment() {
     }
     
     private fun navigateToUserProfile(user: UserProfile) {
-        // TODO: Navigate to user profile when implemented
-        Toast.makeText(requireContext(), "View ${user.username}'s profile", Toast.LENGTH_SHORT).show()
+        // Get current user ID from SharedPreferences
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        
+        // Navigate to profile with the user's ID
+        // If it's the current user, ProfileFragment will hide the follow button
+        // If it's another user, ProfileFragment will show the follow button
+        val action = FollowingFragmentDirections.actionFollowingToProfile(user.id)
+        findNavController().navigate(action)
     }
 
     override fun onDestroyView() {

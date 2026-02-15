@@ -64,6 +64,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/users/{userId}/followers', [UserActivityController::class, 'getFollowers']);
     Route::get('/users/{userId}/following', [UserActivityController::class, 'getFollowing']);
     
+    // Follow/Unfollow
+    Route::post('/users/{userId}/follow/{targetUserId}', [UserActivityController::class, 'followUser']);
+    Route::delete('/users/{userId}/follow/{targetUserId}', [UserActivityController::class, 'unfollowUser']);
+    Route::get('/users/{userId}/is-following/{targetUserId}', [UserActivityController::class, 'isFollowing']);
+    
     // Ratings
     Route::post('/users/{userId}/movies/{movieId}/rating', [UserActivityController::class, 'saveRating']);
     Route::get('/users/{userId}/movies/{movieId}/rating', [UserActivityController::class, 'getRating']);

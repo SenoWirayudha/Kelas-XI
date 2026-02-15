@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Follow API</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+        pre { background: #f4f4f4; padding: 15px; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Test Follow API</h1>
+    
+    <div>
+        <label>Current User ID: <input type="number" id="userId" value="5"></label><br>
+        <label>Target User ID: <input type="number" id="targetId" value="3"></label>
+    </div>
+    
+    <div>
+        <button onclick="testIsFollowing()">Test isFollowing</button>
+        <button onclick="testFollow()">Test Follow</button>
+        <button onclick="testUnfollow()">Test Unfollow</button>
+    </div>
+    
+    <h2>Result:</h2>
+    <pre id="result">Click a button to test...</pre>
+    
+    <script>
+        const baseUrl = 'http://localhost:8000/api/v1';
+        
+        function testIsFollowing() {
+            const userId = document.getElementById('userId').value;
+            const targetId = document.getElementById('targetId').value;
+            const url = `${baseUrl}/users/${userId}/is-following/${targetId}`;
+            
+            document.getElementById('result').innerHTML = 'Loading...';
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('result').innerHTML = JSON.stringify(data, null, 2);
+                    document.getElementById('result').className = data.success ? 'success' : 'error';
+                })
+                .catch(error => {
+                    document.getElementById('result').innerHTML = 'Error: ' + error;
+                    document.getElementById('result').className = 'error';
+                });
+        }
+        
+        function testFollow() {
+            const userId = document.getElementById('userId').value;
+            const targetId = document.getElementById('targetId').value;
+            const url = `${baseUrl}/users/${userId}/follow/${targetId}`;
+            
+            document.getElementById('result').innerHTML = 'Loading...';
+            
+            fetch(url, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('result').innerHTML = JSON.stringify(data, null, 2);
+                    document.getElementById('result').className = data.success ? 'success' : 'error';
+                })
+                .catch(error => {
+                    document.getElementById('result').innerHTML = 'Error: ' + error;
+                    document.getElementById('result').className = 'error';
+                });
+        }
+        
+        function testUnfollow() {
+            const userId = document.getElementById('userId').value;
+            const targetId = document.getElementById('targetId').value;
+            const url = `${baseUrl}/users/${userId}/follow/${targetId}`;
+            
+            document.getElementById('result').innerHTML = 'Loading...';
+            
+            fetch(url, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('result').innerHTML = JSON.stringify(data, null, 2);
+                    document.getElementById('result').className = data.success ? 'success' : 'error';
+                })
+                .catch(error => {
+                    document.getElementById('result').innerHTML = 'Error: ' + error;
+                    document.getElementById('result').className = 'error';
+                });
+        }
+    </script>
+</body>
+</html>

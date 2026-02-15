@@ -5,10 +5,10 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.UserProfile
 import com.komputerkit.moview.databinding.ItemUserBinding
+import com.komputerkit.moview.util.loadProfilePhoto
 
 class UserAdapter(
     private val onUserClick: (UserProfile) -> Unit
@@ -42,11 +42,8 @@ class UserAdapter(
                 binding.tvBio.visibility = android.view.View.GONE
             }
 
-            Glide.with(binding.root.context)
-                .load(user.avatarUrl)
-                .placeholder(R.color.dark_card)
-                .circleCrop()
-                .into(binding.ivAvatar)
+            // Load profile photo using Glide extension
+            binding.ivAvatar.loadProfilePhoto(user.avatarUrl)
 
             binding.root.setOnClickListener {
                 onUserClick(user)

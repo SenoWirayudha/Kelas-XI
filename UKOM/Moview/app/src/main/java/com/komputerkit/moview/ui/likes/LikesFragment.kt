@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.likes
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,6 +9,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import com.komputerkit.moview.databinding.FragmentLikesBinding
 import com.komputerkit.moview.ui.films.FilmGridAdapter
@@ -16,6 +18,7 @@ class LikesFragment : Fragment() {
 
     private var _binding: FragmentLikesBinding? = null
     private val binding get() = _binding!!
+    private val args: LikesFragmentArgs by navArgs()
     
     private val viewModel: LikesViewModel by viewModels()
     private lateinit var filmGridAdapter: FilmGridAdapter
@@ -32,6 +35,13 @@ class LikesFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        // Get userId from args or use current user
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        
+        viewModel.loadLikes(targetUserId)
+        
         setupRecyclerView()
         setupObservers()
         setupClickListeners()
@@ -39,7 +49,13 @@ class LikesFragment : Fragment() {
     
     override fun onResume() {
         super.onResume()
-        viewModel.loadLikes()
+        
+        // Get userId from args or use current user
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        
+        viewModel.loadLikes(targetUserId)
     }
     
     private fun setupRecyclerView() {
