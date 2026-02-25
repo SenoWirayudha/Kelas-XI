@@ -72,7 +72,14 @@
     <fragment
         android:id="@+id/navigation_notification"
         android:name="com.komputerkit.moview.ui.notification.NotificationFragment"
-        android:label="Notification" />
+        android:label="Notification">
+        <action
+            android:id="@+id/action_notification_to_profile"
+            app:destination="@id/navigation_profile" />
+        <action
+            android:id="@+id/action_notification_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
+    </fragment>
 
     <fragment
         android:id="@+id/navigation_profile"
@@ -365,9 +372,16 @@
             android:name="isLog"
             app:argType="boolean"
             android:defaultValue="false" />
+        <argument
+            android:name="openComments"
+            app:argType="boolean"
+            android:defaultValue="false" />
         <action
             android:id="@+id/action_reviewDetail_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_reviewDetail_self"
+            app:destination="@id/reviewDetailFragment" />
         <action
             android:id="@+id/action_reviewDetail_to_profile"
             app:destination="@id/navigation_profile">

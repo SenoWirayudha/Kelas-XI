@@ -288,4 +288,46 @@ interface MovieApiService {
         @Field("comment") comment: String,
         @Field("parent_id") parentId: Int? = null
     ): ApiResponse<ReviewCommentDto>
+    
+    @DELETE("users/{userId}/comments/{commentId}")
+    suspend fun deleteReviewComment(
+        @Path("userId") userId: Int,
+        @Path("commentId") commentId: Int
+    ): ApiResponse<Any>
+    
+    // Review Likes
+    @POST("users/{userId}/reviews/{reviewId}/like")
+    suspend fun toggleReviewLike(
+        @Path("userId") userId: Int,
+        @Path("reviewId") reviewId: Int
+    ): ApiResponse<ReviewLikeResponse>
+    
+    @GET("users/{userId}/reviews/{reviewId}/like")
+    suspend fun checkReviewLike(
+        @Path("userId") userId: Int,
+        @Path("reviewId") reviewId: Int
+    ): ApiResponse<ReviewLikeResponse>
+    
+    @GET("users/{userId}/movies/{movieId}/liked-reviews")
+    suspend fun getLikedReviewsForMovie(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int
+    ): ApiResponse<List<LikedReviewDto>>
+    
+    // Notifications
+    @GET("users/{userId}/notifications")
+    suspend fun getNotifications(
+        @Path("userId") userId: Int
+    ): ApiResponse<NotificationResponse>
+    
+    @PUT("users/{userId}/notifications/{notificationId}/read")
+    suspend fun markNotificationAsRead(
+        @Path("userId") userId: Int,
+        @Path("notificationId") notificationId: Int
+    ): ApiResponse<Any>
+    
+    @PUT("users/{userId}/notifications/read-all")
+    suspend fun markAllNotificationsAsRead(
+        @Path("userId") userId: Int
+    ): ApiResponse<Any>
 }

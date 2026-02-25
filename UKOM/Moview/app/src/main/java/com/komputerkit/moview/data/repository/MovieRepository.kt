@@ -8,6 +8,7 @@ import com.komputerkit.moview.data.api.SearchResponse
 import com.komputerkit.moview.data.api.UserProfileResponse
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.data.model.Movie
+import com.komputerkit.moview.data.model.LikedReview
 import com.komputerkit.moview.data.model.User
 import com.komputerkit.moview.data.model.Notification
 import com.komputerkit.moview.data.model.NotificationType
@@ -573,6 +574,70 @@ class MovieRepository {
         }
     }
     
+    suspend fun deleteReviewComment(userId: Int, commentId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.deleteReviewComment(userId, commentId)
+            response.success
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error deleting comment: ${e.message}", e)
+            false
+        }
+    }
+    
+    suspend fun toggleReviewLike(userId: Int, reviewId: Int): Pair<Boolean, Int>? = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "Toggling review like: userId=$userId, reviewId=$reviewId")
+            val response = apiService.toggleReviewLike(userId, reviewId)
+            if (response.success && response.data != null) {
+                android.util.Log.d("MovieRepository", "Review like toggled: isLiked=${response.data.is_liked}, count=${response.data.like_count}")
+                Pair(response.data.is_liked, response.data.like_count)
+            } else {
+                android.util.Log.e("MovieRepository", "Failed to toggle review like: ${response.message}")
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error toggling review like: ${e.message}", e)
+            null
+        }
+    }
+    
+    suspend fun checkReviewLike(userId: Int, reviewId: Int): Pair<Boolean, Int>? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.checkReviewLike(userId, reviewId)
+            if (response.success && response.data != null) {
+                Pair(response.data.is_liked, response.data.like_count)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error checking review like: ${e.message}", e)
+            null
+        }
+    }
+    
+    suspend fun getLikedReviewsForMovie(userId: Int, movieId: Int): List<LikedReview> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getLikedReviewsForMovie(userId, movieId)
+            if (response.success && response.data != null) {
+                response.data.map { dto ->
+                    LikedReview(
+                        reviewId = dto.review_id,
+                        userId = dto.user_id,
+                        username = dto.username,
+                        displayName = dto.display_name,
+                        profilePhoto = dto.profile_photo,
+                        rating = dto.rating
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error getting liked reviews for movie: ${e.message}", e)
+            emptyList()
+        }
+    }
+    
     private fun formatCommentTime(dateString: String): String {
         return try {
             val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
@@ -1021,93 +1086,85 @@ class MovieRepository {
     }
     
     fun getNotifications(): List<Notification> {
-        return listOf(
-            // Today
-            Notification(
-                id = 1,
-                userId = 1,
-                userName = "john_cinema",
-                userAvatar = TmdbImageUrl.getProfileUrl("/hUh4ugq6UUTUC03pKshXdQqKcR.jpg") ?: "",
-                message = "john_cinema liked your review of Inception",
-                time = "2 hours ago",
-                moviePoster = TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_INCEPTION) ?: "",
-                isRead = false,
-                type = NotificationType.LIKE,
-                section = NotificationSection.TODAY
-            ),
-            Notification(
-                id = 2,
-                userId = 2,
-                userName = "sarah_films",
-                userAvatar = TmdbImageUrl.getProfileUrl("/kU3B75TyRiCgE270EyZnHjfivoq.jpg") ?: "",
-                message = "sarah_films commented on your review: \"Great analysis!\"",
-                time = "4 hours ago",
-                moviePoster = TmdbImageUrl.getPosterUrl("/3bhkrj58Vtu7enYsRolD1fZdja1.jpg") ?: "",
-                isRead = false,
-                type = NotificationType.COMMENT,
-                section = NotificationSection.TODAY
-            ),
-            Notification(
-                id = 3,
-                userId = 3,
-                userName = "mike_reviews",
-                userAvatar = TmdbImageUrl.getProfileUrl("/d81K0RH8UX7tZj49tZaQhZ9ewH.jpg") ?: "",
-                message = "mike_reviews started following you",
-                time = "6 hours ago",
-                isRead = true,
-                type = NotificationType.FOLLOW,
-                section = NotificationSection.TODAY
-            ),
-            // Yesterday
-            Notification(
-                id = 4,
-                userId = 4,
-                userName = "emma_movie",
-                userAvatar = TmdbImageUrl.getProfileUrl("/e8SEXyV7heKWX1GhNbF7SbPWjH.jpg") ?: "",
-                message = "emma_movie liked your review of The Matrix",
-                time = "Yesterday",
-                moviePoster = TmdbImageUrl.getPosterUrl("/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg") ?: "",
-                isRead = true,
-                type = NotificationType.LIKE,
-                section = NotificationSection.YESTERDAY
-            ),
-            Notification(
-                id = 5,
-                userId = 5,
-                userName = "david_watch",
-                userAvatar = TmdbImageUrl.getProfileUrl("/bOlYWhVuOiU6azC4Bw6zlXZ5QTC.jpg") ?: "",
-                message = "david_watch commented on your review: \"I completely agree!\"",
-                time = "Yesterday",
-                moviePoster = TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_DARK_KNIGHT) ?: "",
-                isRead = true,
-                type = NotificationType.COMMENT,
-                section = NotificationSection.YESTERDAY
-            ),
-            // Last Week
-            Notification(
-                id = 6,
-                userId = 1,
-                userName = "john_cinema",
-                userAvatar = TmdbImageUrl.getProfileUrl("/hUh4ugq6UUTUC03pKshXdQqKcR.jpg") ?: "",
-                message = "john_cinema liked your review of Interstellar",
-                time = "5 days ago",
-                moviePoster = TmdbImageUrl.getPosterUrl(TmdbImageUrl.Sample.POSTER_INTERSTELLAR) ?: "",
-                isRead = true,
-                type = NotificationType.LIKE,
-                section = NotificationSection.LAST_WEEK
-            ),
-            Notification(
-                id = 7,
-                userId = 2,
-                userName = "sarah_films",
-                userAvatar = TmdbImageUrl.getProfileUrl("/kU3B75TyRiCgE270EyZnHjfivoq.jpg") ?: "",
-                message = "sarah_films started following you",
-                time = "6 days ago",
-                isRead = true,
-                type = NotificationType.FOLLOW,
-                section = NotificationSection.LAST_WEEK
-            )
+        // This method is synchronous but needs to be replaced with suspend function
+        // For now, return empty list and use the new suspend function
+        return emptyList()
+    }
+    
+    suspend fun getNotificationsAsync(userId: Int): List<Notification> = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("MovieRepository", "Fetching notifications for user: $userId")
+            val response = apiService.getNotifications(userId)
+            android.util.Log.d("MovieRepository", "Response success: ${response.success}, data: ${response.data}")
+            
+            if (response.success && response.data != null) {
+                val allNotifications = mutableListOf<Notification>()
+                
+                android.util.Log.d("MovieRepository", "Today: ${response.data.today.size}, Yesterday: ${response.data.yesterday.size}, Last week: ${response.data.last_week.size}")
+                
+                // Process each section
+                response.data.today.forEach { dto ->
+                    allNotifications.add(mapDtoToNotification(dto))
+                }
+                response.data.yesterday.forEach { dto ->
+                    allNotifications.add(mapDtoToNotification(dto))
+                }
+                response.data.last_week.forEach { dto ->
+                    allNotifications.add(mapDtoToNotification(dto))
+                }
+                
+                android.util.Log.d("MovieRepository", "Total notifications: ${allNotifications.size}")
+                allNotifications
+            } else {
+                android.util.Log.e("MovieRepository", "Response not successful or data is null")
+                emptyList()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error getting notifications: ${e.message}", e)
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    private fun mapDtoToNotification(dto: com.komputerkit.moview.data.api.NotificationDto): Notification {
+        return Notification(
+            id = dto.id,
+            userId = dto.user_id,
+            actorId = dto.actor_id,
+            userName = dto.actor_display_name ?: dto.actor_username,
+            userAvatar = dto.actor_profile_photo ?: "",
+            message = dto.message,
+            time = dto.time_ago,
+            moviePoster = dto.movie_poster,
+            movieTitle = dto.movie_title,
+            filmId = dto.film_id,
+            relatedId = dto.related_id,
+            reviewId = dto.review_id,
+            commentContent = dto.comment_content,
+            isRead = dto.is_read,
+            type = NotificationType.fromString(dto.type),
+            section = NotificationSection.fromString(dto.section)
         )
+    }
+    
+    suspend fun markNotificationAsRead(userId: Int, notificationId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.markNotificationAsRead(userId, notificationId)
+            response.success
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error marking notification as read: ${e.message}", e)
+            false
+        }
+    }
+    
+    suspend fun markAllNotificationsAsRead(userId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.markAllNotificationsAsRead(userId)
+            response.success
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error marking all notifications as read: ${e.message}", e)
+            false
+        }
     }
     
     fun getMovies(): List<Movie> {

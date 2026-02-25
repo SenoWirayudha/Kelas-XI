@@ -67,6 +67,33 @@
                 android:textSize="12sp"
                 tools:text="2 hours ago" />
 
+            <!-- Comment Preview Box (for comment/reply notifications) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/comment_preview_box"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="@color/dark_surface"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/text_secondary"
+                app:strokeWidth="0.5dp"
+                tools:visibility="visible">
+
+                <TextView
+                    android:id="@+id/tv_comment_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="12dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:maxLines="3"
+                    android:ellipsize="end"
+                    tools:text="This is a comment preview text that shows what the user commented on your review..." />
+
+            </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
 
         <!-- Movie Poster (if applicable) -->

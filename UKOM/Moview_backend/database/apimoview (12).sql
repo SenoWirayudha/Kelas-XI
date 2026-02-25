@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 15 Feb 2026 pada 13.10
+-- Waktu pembuatan: 25 Feb 2026 pada 07.33
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -101,7 +101,9 @@ INSERT INTO `diaries` (`id`, `user_id`, `film_id`, `review_id`, `watched_at`, `r
 (23, 3, 34, 15, '2026-02-11', 4, 0, 'tes', 0, '2026-02-10 22:52:49', '2026-02-10 22:52:49'),
 (24, 3, 34, 16, '2026-02-11', 4, 0, 'tes22', 1, '2026-02-10 22:53:00', '2026-02-10 22:53:00'),
 (25, 3, 34, 17, '2026-02-14', 4, 0, 'Aku suka sinema Horeg ini', 1, '2026-02-14 01:28:09', '2026-02-14 01:28:09'),
-(26, 5, 37, 18, '2026-02-14', 5, 1, 'Keren, Absolut cinema', 0, '2026-02-14 04:00:21', '2026-02-14 04:00:21');
+(26, 5, 37, 18, '2026-02-14', 5, 1, 'Keren, Absolut cinema', 0, '2026-02-14 04:00:21', '2026-02-14 04:00:21'),
+(27, 5, 34, 19, '2026-02-25', 4, 1, 'Sangar', 0, '2026-02-24 18:16:47', '2026-02-24 18:16:47'),
+(28, 5, 10, 20, '2026-02-25', 5, 1, 'Heartwarming', 0, '2026-02-24 20:53:12', '2026-02-24 20:53:12');
 
 -- --------------------------------------------------------
 
@@ -122,7 +124,8 @@ CREATE TABLE `followers` (
 --
 
 INSERT INTO `followers` (`id`, `user_id`, `follower_id`, `created_at`, `updated_at`) VALUES
-(4, 3, 5, '2026-02-15 05:09:30', '2026-02-15 05:09:30');
+(5, 5, 3, '2026-02-24 22:19:47', '2026-02-24 22:19:47'),
+(6, 3, 5, '2026-02-24 22:29:34', '2026-02-24 22:29:34');
 
 -- --------------------------------------------------------
 
@@ -229,7 +232,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (25, '2026_02_07_000003_add_is_liked_to_reviews_and_diaries', 5),
 (26, '2026_02_07_000004_add_watched_at_to_reviews_table', 6),
 (27, '2026_02_11_add_is_rewatched_to_diaries', 7),
-(28, '2026_02_14_add_is_rewatched_to_reviews', 8);
+(28, '2026_02_14_add_is_rewatched_to_reviews', 8),
+(29, '2026_02_25_000001_create_notifications_table', 9);
 
 -- --------------------------------------------------------
 
@@ -298,7 +302,8 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (39, 'La La Land', '2016', 129, 'PG-13', 'Ketika Sebastian, seorang pianis, dan Mia, seorang aktris, mencoba untuk menggapai mimpi dan mencapai kesuksesan di bidang masing-masing, mereka terjebak dalam pilihan antara cinta dan karir.', 'movies/39/poster/32VPPqPrgpMvqInrFhpl4mR5wNe2gzyKhmWiOLdv.webp', 'movies/39/backdrop/yc94Tv9YEUlWLZ6hyJ3s953BiaI5grfSpqub0HsE.webp', 'https://youtu.be/0pdqf4P9MB8?si=0sF4hhYjMB0M5iJz', 'published', '2026-02-14 05:38:43', '2026-02-14 05:41:38'),
 (40, 'Parasite', '2019', 133, 'R', 'Semua menganggur, keluarga Ki-taek memiliki minat khusus pada Taman kaya dan glamor untuk mata pencaharian mereka sampai mereka terjerat dalam insiden tak terduga.', 'movies/40/poster/SvSfwrfxD7hJAvBxzRtOpH0j4EhYtX85Rr06aLEO.webp', 'movies/40/backdrop/QxXVHoZs8uJideK5jAYcA1euj1t2eDimF7iVD8yj.webp', 'https://youtu.be/isOGD_7hNIY?si=3AXXub_f4PlJugz7', 'published', '2026-02-15 02:45:50', '2026-02-15 02:53:47'),
 (41, 'The Seed of the Sacred Fig', '2024', 167, 'PG-13', 'Investigating judge Iman grapples with paranoia amid political unrest in Tehran. When his gun vanishes, he suspects his wife and daughters, imposing draconian measures that strain family ties as societal rules crumble.', 'movies/41/poster/WSd66avb0rUipB7BWCtVHysM5XhapwznCtIqqEhC.webp', 'movies/41/backdrop/IozpJYooh5NkPNJ9aBgtc8kxoYIfFTvATD9X8aJX.webp', 'https://youtu.be/nbKLGsf1Syg?si=lIlQVo7sBGlZ-fQf', 'published', '2026-02-15 02:51:41', '2026-02-15 02:53:37'),
-(42, 'Anora', '2024', 139, 'NC-17', 'Seorang pekerja seks muda dari Brooklyn mendapatkan kesempatan di cerita Cinderella ketika dia bertemu dan secara impulsif menikahi putra seorang oligarki. Setelah berita mencapai Rusia, dongengnya terancam ketika orang tuanya berangkat untuk membuat pernikahan dibatalkan.', 'movies/42/poster/l5fk2wtNZXNW6UgWzMZIqzDeLyu86XPly4XnstFA.webp', 'movies/42/backdrop/EMSgOND1nz7oJidfmhZmpIW33IScghkrY1cjmNYu.webp', 'https://youtu.be/GuPkfvxmtdw?si=gYtldKVFp3d6BPCQ', 'published', '2026-02-15 03:05:16', '2026-02-15 03:40:49');
+(42, 'Anora', '2024', 139, 'NC-17', 'Seorang pekerja seks muda dari Brooklyn mendapatkan kesempatan di cerita Cinderella ketika dia bertemu dan secara impulsif menikahi putra seorang oligarki. Setelah berita mencapai Rusia, dongengnya terancam ketika orang tuanya berangkat untuk membuat pernikahan dibatalkan.', 'movies/42/poster/l5fk2wtNZXNW6UgWzMZIqzDeLyu86XPly4XnstFA.webp', 'movies/42/backdrop/EMSgOND1nz7oJidfmhZmpIW33IScghkrY1cjmNYu.webp', 'https://youtu.be/GuPkfvxmtdw?si=gYtldKVFp3d6BPCQ', 'published', '2026-02-15 03:05:16', '2026-02-15 03:40:49'),
+(43, 'Portrait of a Lady on Fire', '2019', 121, 'NC-17', 'DON\'T REGRET. REMEMBER.\r\n\r\nOn an isolated island in Brittany at the end of the eighteenth century, a female painter is obliged to paint a wedding portrait of a young woman.', 'movies/43/poster/uYxlams4WAuuNZgMKzjPYmkqTH4EENrEwg47kcew.webp', 'movies/43/backdrop/k5NpxCa2lHXLFZRXOOiJgWjmaAjvY1TcD6Xw58tI.webp', 'https://youtu.be/R-fQPTwma9o?si=ETFBNdjeB9bSLB3y', 'published', '2026-02-24 18:12:14', '2026-02-24 18:15:36');
 
 -- --------------------------------------------------------
 
@@ -386,7 +391,8 @@ INSERT INTO `movie_countries` (`movie_id`, `country_id`) VALUES
 (40, 3),
 (41, 5),
 (41, 6),
-(42, 1);
+(42, 1),
+(43, 5);
 
 -- --------------------------------------------------------
 
@@ -496,7 +502,9 @@ INSERT INTO `movie_genres` (`movie_id`, `genre_id`) VALUES
 (41, 13),
 (42, 4),
 (42, 7),
-(42, 11);
+(42, 11),
+(43, 7),
+(43, 11);
 
 -- --------------------------------------------------------
 
@@ -575,7 +583,9 @@ INSERT INTO `movie_languages` (`movie_id`, `language_id`) VALUES
 (40, 2),
 (41, 15),
 (42, 1),
-(42, 12);
+(42, 12),
+(43, 5),
+(43, 8);
 
 -- --------------------------------------------------------
 
@@ -607,7 +617,9 @@ INSERT INTO `movie_likes` (`id`, `user_id`, `film_id`, `created_at`) VALUES
 (14, 3, 16, '2026-02-06 07:23:43'),
 (15, 3, 10, '2026-02-07 03:44:06'),
 (16, 5, 37, '2026-02-14 04:00:06'),
-(18, 5, 2, '2026-02-14 04:00:36');
+(18, 5, 2, '2026-02-14 04:00:36'),
+(19, 5, 34, '2026-02-24 18:16:37'),
+(20, 5, 10, '2026-02-24 20:52:59');
 
 -- --------------------------------------------------------
 
@@ -754,7 +766,14 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (125, 27, 'backdrop', 'movies/27/backdrop/eSjfoH4ZasRujj9PsmPtxFFn1waxRkmN5JRahw3e.webp', 0, '2026-02-15 10:35:09'),
 (126, 10, 'backdrop', 'movies/10/backdrop/nN8L1vwL664haKikcvt2NnUo5ymerMD5xSrid937.webp', 0, '2026-02-15 12:07:22'),
 (127, 10, 'backdrop', 'movies/10/backdrop/bPo4WeQAvje5gKC9qZ5p2VhwscXJlu69E7Oi54uU.webp', 0, '2026-02-15 12:07:56'),
-(128, 10, 'backdrop', 'movies/10/backdrop/TP4rZGyu1zErQa9JJkmKY4sQPw6qwoPO1eBUBzsi.webp', 0, '2026-02-15 12:08:10');
+(128, 10, 'backdrop', 'movies/10/backdrop/TP4rZGyu1zErQa9JJkmKY4sQPw6qwoPO1eBUBzsi.webp', 0, '2026-02-15 12:08:10'),
+(129, 43, 'poster', 'movies/43/poster/uYxlams4WAuuNZgMKzjPYmkqTH4EENrEwg47kcew.webp', 1, '2026-02-25 01:15:03'),
+(130, 43, 'backdrop', 'movies/43/backdrop/k5NpxCa2lHXLFZRXOOiJgWjmaAjvY1TcD6Xw58tI.webp', 1, '2026-02-25 01:15:17'),
+(131, 43, 'backdrop', 'movies/43/backdrop/1tkE8W7skWE1agMgbV9dUvIoNOks019sEyRZ70Y1.webp', 0, '2026-02-25 03:28:53'),
+(132, 30, 'backdrop', 'movies/30/backdrop/WcvLzELjaCn7l5vXy52iqwdXPfW3hSq4zqFiLKn7.webp', 0, '2026-02-25 03:32:50'),
+(133, 30, 'backdrop', 'movies/30/backdrop/Qz3OzImArUT2ouHC746OeaMv2CKFF1GIwV4muUVj.webp', 0, '2026-02-25 03:32:55'),
+(134, 30, 'backdrop', 'movies/30/backdrop/18MgPasmVhGN6jRM4yqxyJC9AMFRgELdX3uI3o9f.webp', 0, '2026-02-25 03:33:00'),
+(135, 30, 'backdrop', 'movies/30/backdrop/0wGPYPHTVirlfxklQ9dxyXZ4xHvjI9DiWbt3mMi8.webp', 0, '2026-02-25 03:33:26');
 
 -- --------------------------------------------------------
 
@@ -935,7 +954,11 @@ INSERT INTO `movie_production_houses` (`movie_id`, `production_house_id`) VALUES
 (41, 18),
 (42, 16),
 (42, 48),
-(42, 49);
+(42, 49),
+(43, 16),
+(43, 18),
+(43, 20),
+(43, 50);
 
 -- --------------------------------------------------------
 
@@ -1012,6 +1035,40 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (182, 39, 1, 'stream', NULL, 0),
 (183, 41, 11, 'stream', NULL, 0),
 (186, 42, 4, 'stream', NULL, 0);
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `notifications`
+--
+
+CREATE TABLE `notifications` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `user_id` bigint(20) UNSIGNED NOT NULL,
+  `actor_id` bigint(20) UNSIGNED NOT NULL,
+  `type` varchar(255) NOT NULL COMMENT 'follow, like_review, comment_review, reply_comment',
+  `film_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `related_id` bigint(20) UNSIGNED DEFAULT NULL COMMENT 'review_id or comment_id',
+  `message` text NOT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data untuk tabel `notifications`
+--
+
+INSERT INTO `notifications` (`id`, `user_id`, `actor_id`, `type`, `film_id`, `related_id`, `message`, `is_read`, `created_at`, `updated_at`) VALUES
+(1, 5, 3, 'follow', NULL, NULL, 'Sengefilm followed you', 1, '2026-02-24 22:19:47', '2026-02-24 22:19:47'),
+(2, 5, 3, 'like_review', 10, 20, 'Sengefilm liked your ★★★★★ review of Sentimental Value', 1, '2026-02-24 22:19:53', '2026-02-24 22:19:53'),
+(3, 5, 3, 'reply_comment', 10, 15, 'Sengefilm replied to your comment on Sentimental Value', 1, '2026-02-24 22:20:09', '2026-02-24 22:20:09'),
+(4, 3, 5, 'follow', NULL, NULL, 'Mafia film followed you', 1, '2026-02-24 22:29:34', '2026-02-24 22:29:34'),
+(5, 3, 5, 'like_review', 10, 11, 'Mafia film liked your ★★★★★ review of Sentimental Value', 1, '2026-02-24 22:30:23', '2026-02-24 22:30:23'),
+(6, 3, 5, 'reply_comment', 10, 16, 'Mafia film replied to your comment on Sentimental Value', 1, '2026-02-24 22:30:49', '2026-02-24 22:30:49'),
+(7, 3, 5, 'comment_review', 10, 17, 'Mafia film commented on your review of Sentimental Value', 1, '2026-02-24 22:31:06', '2026-02-24 22:31:06'),
+(8, 5, 3, 'like_review', 34, 19, 'Sengefilm liked your ★★★★ review of Sirāt', 1, '2026-02-24 23:17:25', '2026-02-24 23:17:25'),
+(9, 5, 3, 'comment_review', 34, 18, 'Sengefilm commented on your review of Sirāt', 1, '2026-02-24 23:17:37', '2026-02-24 23:17:37');
 
 -- --------------------------------------------------------
 
@@ -1131,6 +1188,7 @@ INSERT INTO `production_houses` (`id`, `name`) VALUES
 (38, 'Jagartha'),
 (12, 'Janus Films'),
 (3, 'Legendary Pictures'),
+(50, 'Lilies Films'),
 (20, 'Madman Films'),
 (46, 'Marc Platt Productions'),
 (42, 'Memento Films Production'),
@@ -1195,7 +1253,9 @@ INSERT INTO `ratings` (`id`, `user_id`, `film_id`, `rating`, `created_at`, `upda
 (16, 3, 34, 4, '2026-02-10 22:35:43', '2026-02-10 22:40:53'),
 (17, 3, 37, 0, '2026-02-14 02:53:28', '2026-02-14 02:53:28'),
 (18, 5, 37, 5, '2026-02-14 04:00:04', '2026-02-14 04:00:04'),
-(19, 5, 2, 5, '2026-02-14 04:00:33', '2026-02-14 04:00:33');
+(19, 5, 2, 5, '2026-02-14 04:00:33', '2026-02-14 04:00:33'),
+(20, 5, 34, 4, '2026-02-24 18:16:35', '2026-02-24 18:16:35'),
+(21, 5, 10, 5, '2026-02-24 20:52:58', '2026-02-24 20:52:58');
 
 -- --------------------------------------------------------
 
@@ -1238,7 +1298,9 @@ INSERT INTO `reviews` (`id`, `user_id`, `film_id`, `rating`, `title`, `content`,
 (15, 3, 34, 4, NULL, 'tes', NULL, 0, 0, 0, '2026-02-11', 'published', '2026-02-10 22:52:49', '2026-02-10 22:52:49'),
 (16, 3, 34, 4, NULL, 'tes22', NULL, 0, 0, 1, '2026-02-11', 'published', '2026-02-10 22:53:00', '2026-02-10 22:53:00'),
 (17, 3, 34, 4, NULL, 'Aku suka sinema Horeg ini', NULL, 0, 0, 1, '2026-02-14', 'published', '2026-02-14 01:28:08', '2026-02-14 01:28:08'),
-(18, 5, 37, 5, NULL, 'Keren, Absolut cinema', NULL, 0, 1, 0, '2026-02-14', 'published', '2026-02-14 04:00:21', '2026-02-14 04:00:21');
+(18, 5, 37, 5, NULL, 'Keren, Absolut cinema', NULL, 0, 1, 0, '2026-02-14', 'published', '2026-02-14 04:00:21', '2026-02-14 04:00:21'),
+(19, 5, 34, 4, NULL, 'Sangar', NULL, 0, 1, 0, '2026-02-25', 'published', '2026-02-24 18:16:47', '2026-02-24 18:16:47'),
+(20, 5, 10, 5, NULL, 'Heartwarming', NULL, 0, 1, 0, '2026-02-25', 'published', '2026-02-24 20:53:12', '2026-02-24 20:53:12');
 
 -- --------------------------------------------------------
 
@@ -1270,7 +1332,12 @@ INSERT INTO `review_comments` (`id`, `review_id`, `user_id`, `content`, `parent_
 (9, 11, 3, '<i><b><u>waw</u></b></i>', NULL, 'published', '2026-02-10 19:49:58', '2026-02-10 19:49:58'),
 (10, 11, 3, '<b><i>ya</i></b>', NULL, 'published', '2026-02-10 20:07:51', '2026-02-10 20:07:51'),
 (11, 11, 3, '[nonton disini](https://klikfilm.com/r/6940/50)', NULL, 'published', '2026-02-10 20:09:18', '2026-02-10 20:09:18'),
-(12, 11, 3, '<a href=\"https://klikfilm.com/r/6940/50\">tonton disini</a>', NULL, 'published', '2026-02-10 21:24:04', '2026-02-10 21:24:04');
+(12, 11, 3, '<a href=\"https://klikfilm.com/r/6940/50\">tonton disini</a>', NULL, 'published', '2026-02-10 21:24:04', '2026-02-10 21:24:04'),
+(14, 20, 5, 'Tes', NULL, 'published', '2026-02-24 22:18:27', '2026-02-24 22:18:27'),
+(15, 20, 3, 'tes lagi', 14, 'published', '2026-02-24 22:20:09', '2026-02-24 22:20:09'),
+(16, 11, 5, 'Thanks', 12, 'published', '2026-02-24 22:30:49', '2026-02-24 22:30:49'),
+(17, 11, 5, 'Tess', NULL, 'published', '2026-02-24 22:31:06', '2026-02-24 22:31:06'),
+(18, 19, 3, 'Horeg banget jir', NULL, 'published', '2026-02-24 23:17:37', '2026-02-24 23:17:37');
 
 -- --------------------------------------------------------
 
@@ -1285,6 +1352,16 @@ CREATE TABLE `review_likes` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data untuk tabel `review_likes`
+--
+
+INSERT INTO `review_likes` (`id`, `review_id`, `user_id`, `created_at`, `updated_at`) VALUES
+(1, 17, 5, '2026-02-24 18:07:10', '2026-02-24 18:07:10'),
+(3, 20, 3, '2026-02-24 22:19:53', '2026-02-24 22:19:53'),
+(4, 11, 5, '2026-02-24 22:30:23', '2026-02-24 22:30:23'),
+(5, 19, 3, '2026-02-24 23:17:25', '2026-02-24 23:17:25');
 
 -- --------------------------------------------------------
 
@@ -1344,9 +1421,9 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `role`, `status`, `joined_at`, `remember_token`, `created_at`, `updated_at`) VALUES
 (1, 'NewUsername', 'admin@moview.com', '$2y$12$knpNEAbZAOkT711/AZFX/eisyn6LBQCcShqiWp1YctQm5g8Oi8pZW', 'admin', 'active', '2026-01-30 20:29:53', NULL, '2026-01-30 20:29:53', '2026-01-30 20:29:53'),
 (2, 'testuser', 'user@moview.com', '$2y$12$edj58OcYoXoiJsd22IwnnennCMGix0o98Y0ZJchd1VnnVwRMsH2rC', 'user', 'active', '2026-01-30 23:34:38', 'MnwxNzY5ODQxNjc0fDY5N2RhNDBhNTE4NDQ=', '2026-01-30 23:34:38', '2026-01-30 23:41:14'),
-(3, 'Sengefilm', 'tes@gmail.com', '$2y$12$lDfKXQIoqKTaeAdU.FpQX.Oqu.8Plbzprn6YOMhkIa9KCLtHN1KTK', 'user', 'active', '2026-01-30 23:49:39', 'M3wxNzY5ODU5MDUzfDY5N2RlN2VkOWE2NjI=', '2026-01-30 23:49:39', '2026-01-31 04:30:53'),
+(3, 'Sengefilm', 'tes@gmail.com', '$2y$12$lDfKXQIoqKTaeAdU.FpQX.Oqu.8Plbzprn6YOMhkIa9KCLtHN1KTK', 'user', 'active', '2026-01-30 23:49:39', 'M3wxNzcyMDAxMTY2fDY5OWU5NzhlYzZkMzI=', '2026-01-30 23:49:39', '2026-02-24 23:32:46'),
 (4, 'NewUser185', 'newuser_1769846806@test.com', '$2y$12$r0tcTwJt.eLjMs1n5pgdi.k9gPXqhujHx90XqkT0QMgkNLXZHrmly', 'user', 'active', '2026-01-31 01:06:46', 'bmV3dXNlcl8xNzY5ODQ2ODA2QHRlc3QuY29tfDE3Njk4NDY4MDZ8Njk3ZGI4MTY3Njk0Zg==', '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
-(5, 'Mafia film', 'filmin@gmail.com', '$2y$12$eO1QTww7vMctvv7QWvNk0uB9Bk2C/aedqb./wlW.Q9dURDjbKISZG', 'user', 'active', '2026-02-14 03:59:49', 'ZmlsbWluQGdtYWlsLmNvbXwxNzcxMDY2Nzg5fDY5OTA1NWE1NWY2ZTA=', '2026-02-14 03:59:49', '2026-02-14 03:59:49');
+(5, 'Mafia film', 'filmin@gmail.com', '$2y$12$eO1QTww7vMctvv7QWvNk0uB9Bk2C/aedqb./wlW.Q9dURDjbKISZG', 'user', 'active', '2026-02-14 03:59:49', 'NXwxNzcyMDAwMjg5fDY5OWU5NDIxYjgyZDk=', '2026-02-14 03:59:49', '2026-02-24 23:18:09');
 
 -- --------------------------------------------------------
 
@@ -1363,6 +1440,18 @@ CREATE TABLE `user_activities` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data untuk tabel `user_activities`
+--
+
+INSERT INTO `user_activities` (`id`, `user_id`, `type`, `film_id`, `meta`, `created_at`, `updated_at`) VALUES
+(1, 5, 'follow', NULL, '{\"followed_user_id\":\"3\"}', '2026-02-24 22:29:34', '2026-02-24 22:29:34'),
+(2, 5, 'like_review', 10, '{\"review_id\":\"11\",\"review_owner_id\":3}', '2026-02-24 22:30:23', '2026-02-24 22:30:23'),
+(3, 5, 'reply_comment', 10, '{\"review_id\":\"11\",\"parent_comment_id\":\"12\",\"comment_id\":16,\"parent_comment_owner_id\":3}', '2026-02-24 22:30:49', '2026-02-24 22:30:49'),
+(4, 5, 'comment_review', 10, '{\"review_id\":\"11\",\"comment_id\":17,\"review_owner_id\":3}', '2026-02-24 22:31:06', '2026-02-24 22:31:06'),
+(5, 3, 'like_review', 34, '{\"review_id\":\"19\",\"review_owner_id\":5}', '2026-02-24 23:17:25', '2026-02-24 23:17:25'),
+(6, 3, 'comment_review', 34, '{\"review_id\":\"19\",\"comment_id\":18,\"review_owner_id\":5}', '2026-02-24 23:17:37', '2026-02-24 23:17:37');
 
 -- --------------------------------------------------------
 
@@ -1388,10 +1477,10 @@ INSERT INTO `user_favorite_films` (`id`, `user_id`, `film_id`, `position`, `crea
 (219, 3, 4, 2, '2026-02-14 02:58:25', '2026-02-14 02:58:25'),
 (220, 3, 3, 3, '2026-02-14 02:58:25', '2026-02-14 02:58:25'),
 (221, 3, 2, 4, '2026-02-14 02:58:25', '2026-02-14 02:58:25'),
-(262, 5, 10, 1, '2026-02-15 05:08:51', '2026-02-15 05:08:51'),
-(263, 5, 30, 2, '2026-02-15 05:08:51', '2026-02-15 05:08:51'),
-(264, 5, 42, 3, '2026-02-15 05:08:51', '2026-02-15 05:08:51'),
-(265, 5, 37, 4, '2026-02-15 05:08:51', '2026-02-15 05:08:51');
+(282, 5, 30, 1, '2026-02-24 20:51:30', '2026-02-24 20:51:30'),
+(283, 5, 14, 2, '2026-02-24 20:51:30', '2026-02-24 20:51:30'),
+(284, 5, 42, 3, '2026-02-24 20:51:30', '2026-02-24 20:51:30'),
+(285, 5, 37, 4, '2026-02-24 20:51:30', '2026-02-24 20:51:30');
 
 -- --------------------------------------------------------
 
@@ -1420,7 +1509,7 @@ INSERT INTO `user_profiles` (`id`, `user_id`, `display_name`, `profile_photo`, `
 (1, 3, 'Sengefilm', 'profiles/profile_3_1769941056.jpg', 'movies/33/backdrop/aEQkBKlhO1OJePmQyzPxnu9sMW1nOyLsxw2HSEVb.webp', 1, 'Tes', 'Sidoarjo, Indonesia', '2026-01-31 00:38:49', '2026-02-14 02:58:25'),
 (2, 4, 'NewUser185', NULL, NULL, 0, NULL, NULL, '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
 (3, 1, NULL, NULL, NULL, 1, 'This is my new bio', NULL, '2026-01-31 03:41:40', '2026-01-31 03:41:40'),
-(4, 5, 'Mafia film', 'profiles/profile_5_1771067279.jpg', 'movies/10/backdrop/TP4rZGyu1zErQa9JJkmKY4sQPw6qwoPO1eBUBzsi.webp', 1, NULL, NULL, '2026-02-14 03:59:49', '2026-02-15 05:08:52');
+(4, 5, 'Mafia film', 'profiles/profile_5_1771067279.jpg', 'movies/30/backdrop/WcvLzELjaCn7l5vXy52iqwdXPfW3hSq4zqFiLKn7.webp', 1, NULL, NULL, '2026-02-14 03:59:49', '2026-02-24 20:51:30');
 
 -- --------------------------------------------------------
 
@@ -1575,6 +1664,18 @@ ALTER TABLE `movie_services`
   ADD KEY `idx_coming_soon` (`is_coming_soon`);
 
 --
+-- Indeks untuk tabel `notifications`
+--
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `notifications_film_id_foreign` (`film_id`),
+  ADD KEY `notifications_user_id_index` (`user_id`),
+  ADD KEY `notifications_actor_id_index` (`actor_id`),
+  ADD KEY `notifications_type_index` (`type`),
+  ADD KEY `notifications_is_read_index` (`is_read`),
+  ADD KEY `notifications_created_at_index` (`created_at`);
+
+--
 -- Indeks untuk tabel `persons`
 --
 ALTER TABLE `persons`
@@ -1705,13 +1806,13 @@ ALTER TABLE `countries`
 -- AUTO_INCREMENT untuk tabel `diaries`
 --
 ALTER TABLE `diaries`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT untuk tabel `followers`
 --
 ALTER TABLE `followers`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT untuk tabel `genres`
@@ -1729,25 +1830,25 @@ ALTER TABLE `languages`
 -- AUTO_INCREMENT untuk tabel `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT untuk tabel `movies`
 --
 ALTER TABLE `movies`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_likes`
 --
 ALTER TABLE `movie_likes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_media`
 --
 ALTER TABLE `movie_media`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=129;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=136;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_persons`
@@ -1762,6 +1863,12 @@ ALTER TABLE `movie_services`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=187;
 
 --
+-- AUTO_INCREMENT untuk tabel `notifications`
+--
+ALTER TABLE `notifications`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+
+--
 -- AUTO_INCREMENT untuk tabel `persons`
 --
 ALTER TABLE `persons`
@@ -1771,31 +1878,31 @@ ALTER TABLE `persons`
 -- AUTO_INCREMENT untuk tabel `production_houses`
 --
 ALTER TABLE `production_houses`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
 
 --
 -- AUTO_INCREMENT untuk tabel `ratings`
 --
 ALTER TABLE `ratings`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT untuk tabel `reviews`
 --
 ALTER TABLE `reviews`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT untuk tabel `review_comments`
 --
 ALTER TABLE `review_comments`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT untuk tabel `review_likes`
 --
 ALTER TABLE `review_likes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT untuk tabel `services`
@@ -1813,13 +1920,13 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT untuk tabel `user_activities`
 --
 ALTER TABLE `user_activities`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`
 --
 ALTER TABLE `user_favorite_films`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=266;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=286;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_profiles`
@@ -1906,6 +2013,14 @@ ALTER TABLE `movie_production_houses`
 ALTER TABLE `movie_services`
   ADD CONSTRAINT `movie_services_ibfk_1` FOREIGN KEY (`movie_id`) REFERENCES `movies` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `movie_services_ibfk_2` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE;
+
+--
+-- Ketidakleluasaan untuk tabel `notifications`
+--
+ALTER TABLE `notifications`
+  ADD CONSTRAINT `notifications_actor_id_foreign` FOREIGN KEY (`actor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `notifications_film_id_foreign` FOREIGN KEY (`film_id`) REFERENCES `movies` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `notifications_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Ketidakleluasaan untuk tabel `ratings`

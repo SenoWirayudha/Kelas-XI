@@ -1,7 +1,9 @@
 package com.komputerkit.moview.ui.adapter
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import android.widget.PopupMenu
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -11,8 +13,10 @@ import com.komputerkit.moview.data.model.Comment
 import com.komputerkit.moview.databinding.ItemCommentBinding
 
 class CommentAdapter(
+    private val currentUserId: Int,
     private val onProfileClick: (Int) -> Unit,
-    private val onReplyClick: (Comment) -> Unit
+    private val onReplyClick: (Comment) -> Unit,
+    private val onDeleteClick: (Comment) -> Unit
 ) : ListAdapter<Comment, CommentAdapter.CommentViewHolder>(CommentDiffCallback()) {
 
     private var flattenedComments: List<Pair<Comment, Boolean>> = emptyList()
@@ -88,7 +92,33 @@ class CommentAdapter(
                 tvReplyButton.setOnClickListener {
                     onReplyClick(comment)
                 }
+                
+                // Show menu icon only for own comments
+                if (comment.userId == currentUserId) {
+                    ivMenu.visibility = View.VISIBLE
+                    ivMenu.setOnClickListener { view ->
+                        showPopupMenu(view, comment)
+                    }
+                } else {
+                    ivMenu.visibility = View.GONE
+                    ivMenu.setOnClickListener(null)
+                }
             }
+        }
+        
+        private fun showPopupMenu(view: View, comment: Comment) {
+            val popup = PopupMenu(view.context, view)
+            popup.menuInflater.inflate(R.menu.menu_comment, popup.menu)
+            popup.setOnMenuItemClickListener { menuItem ->
+                when (menuItem.itemId) {
+                    R.id.action_delete -> {
+                        onDeleteClick(comment)
+                        true
+                    }
+                    else -> false
+                }
+            }
+            popup.show()
         }
     }
 

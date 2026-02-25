@@ -25,9 +25,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.komputerkit.moview.R
+import com.komputerkit.moview.data.model.Comment
 import com.komputerkit.moview.databinding.BottomSheetCommentsBinding
 import com.komputerkit.moview.databinding.FragmentReviewDetailBinding
 import com.komputerkit.moview.ui.adapter.CommentAdapter
+import com.komputerkit.moview.ui.adapter.LikedReviewAdapter
 import com.komputerkit.moview.ui.viewmodel.ReviewDetailViewModel
 import com.komputerkit.moview.util.loadBackdrop
 import com.komputerkit.moview.util.loadPoster
@@ -43,6 +45,7 @@ class ReviewDetailFragment : Fragment() {
     private var commentsBottomSheet: BottomSheetDialog? = null
     private var commentsBinding: BottomSheetCommentsBinding? = null
     private lateinit var commentAdapter: CommentAdapter
+    private lateinit var likedReviewsAdapter: LikedReviewAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -56,10 +59,29 @@ class ReviewDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        setupLikedReviewsRecyclerView()
         setupObservers()
         setupClickListeners()
         
         viewModel.loadReview(args.reviewId, args.isLog)
+    }
+    
+    private fun setupLikedReviewsRecyclerView() {
+        likedReviewsAdapter = LikedReviewAdapter(
+            onReviewClick = { reviewId ->
+                val action = ReviewDetailFragmentDirections.actionReviewDetailSelf(reviewId, false)
+                findNavController().navigate(action)
+            }
+        )
+        
+        binding.rvLikedMovies.apply {
+            adapter = likedReviewsAdapter
+            layoutManager = androidx.recyclerview.widget.LinearLayoutManager(
+                requireContext(),
+                androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL,
+                false
+            )
+        }
     }
 
     override fun onResume() {
@@ -131,8 +153,6 @@ class ReviewDetailFragment : Fragment() {
                 } else {
                     tvTag.visibility = View.GONE
                 }
-                
-                tvMoreFrom.text = "MORE FROM ${review.userName.uppercase()}"
             }
         }
 
@@ -152,6 +172,14 @@ class ReviewDetailFragment : Fragment() {
 
         viewModel.commentCount.observe(viewLifecycleOwner) { count ->
             binding.tvCommentCount.text = count.toString()
+            
+            // Auto-open comments if navigated from notification
+            if (args.openComments && count > 0 && commentsBottomSheet == null) {
+                // Post with slight delay to ensure UI is ready
+                view?.postDelayed({
+                    showCommentsBottomSheet()
+                }, 300)
+            }
         }
         
         viewModel.isLog.observe(viewLifecycleOwner) { isLog ->
@@ -161,6 +189,7 @@ class ReviewDetailFragment : Fragment() {
                     tvReviewText.visibility = View.GONE
                     layoutActions.visibility = View.GONE  // Like, Comment, Share buttons
                     tvMoreFrom.visibility = View.GONE
+                    rvLikedMovies.visibility = View.GONE
                     
                     // Change label from "REVIEWED BY" to "LOGGED BY"
                     tvReviewerName.text = "LOGGED BY"
@@ -168,11 +197,30 @@ class ReviewDetailFragment : Fragment() {
                     // Show all elements for reviews
                     tvReviewText.visibility = View.VISIBLE
                     layoutActions.visibility = View.VISIBLE  // Show like, comment, share buttons
-                    tvMoreFrom.visibility = View.VISIBLE
+                    // tvMoreFrom and rvLikedMovies visibility will be set by liked movies observers
                     
                     tvReviewerName.text = "REVIEWED BY"
                 }
             }
+        }
+        
+        // Observe liked reviews data
+        viewModel.likedReviews.observe(viewLifecycleOwner) { reviews ->
+            binding.apply {
+                if (reviews.isEmpty()) {
+                    tvMoreFrom.visibility = View.GONE
+                    rvLikedMovies.visibility = View.GONE
+                } else {
+                    tvMoreFrom.visibility = View.VISIBLE
+                    rvLikedMovies.visibility = View.VISIBLE
+                    likedReviewsAdapter.submitList(reviews)
+                }
+            }
+        }
+        
+        // Observe liked by text ("YOU LIKED" or "Liked by...")
+        viewModel.likedByText.observe(viewLifecycleOwner) { text ->
+            binding.tvMoreFrom.text = text
         }
         
         viewModel.deleteStatus.observe(viewLifecycleOwner) { success ->
@@ -279,6 +327,7 @@ class ReviewDetailFragment : Fragment() {
         commentsBinding?.apply {
             // Setup RecyclerView
             commentAdapter = CommentAdapter(
+                currentUserId = getCurrentUserId(),
                 onProfileClick = { userId ->
                     commentsBottomSheet?.dismiss()
                     val action = ReviewDetailFragmentDirections.actionReviewDetailToProfile(userId)
@@ -287,6 +336,9 @@ class ReviewDetailFragment : Fragment() {
                 onReplyClick = { comment ->
                     viewModel.setReplyTarget(comment)
                     showAddCommentBottomSheet()
+                },
+                onDeleteClick = { comment ->
+                    showDeleteCommentDialog(comment)
                 }
             )
             
@@ -622,6 +674,22 @@ class ReviewDetailFragment : Fragment() {
             // If reviewId == 0, delete diary only
             viewModel.deleteEntry(review.reviewId, review.id)
         }
+    }
+    
+    private fun getCurrentUserId(): Int {
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+        return prefs.getInt("userId", 0)
+    }
+    
+    private fun showDeleteCommentDialog(comment: Comment) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete Comment")
+            .setMessage("Are you sure you want to delete this comment?")
+            .setPositiveButton("Delete") { _, _ ->
+                viewModel.deleteComment(comment.id)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     override fun onDestroyView() {

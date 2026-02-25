@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:paddingEnd="16dp">
+
+    <!-- Profile Photo with Badge (Using FrameLayout for overlay) -->
+    <FrameLayout
+        android:id="@+id/frame_profile"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Circular Profile Photo -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            app:cardCornerRadius="28dp"
+            app:cardElevation="0dp">
+
+            <ImageView
+                android:id="@+id/iv_profile"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="User Profile"
+                android:scaleType="centerCrop"
+                tools:src="@color/dark_card" />
+        </androidx.cardview.widget.CardView>
+
+        <!-- Review Badge Icon (Bottom right corner) -->
+        <ImageView
+            android:id="@+id/iv_badge"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="bottom|end"
+            android:background="@drawable/circle_background"
+            android:contentDescription="Review Badge"
+            android:padding="3dp"
+            android:src="@drawable/ic_review"
+            app:tint="@color/text_primary" />
+    </FrameLayout>
+
+    <!-- Rating Stars Container -->
+    <LinearLayout
+        android:id="@+id/layout_stars"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="@id/frame_profile"
+        app:layout_constraintStart_toStartOf="@id/frame_profile"
+        app:layout_constraintTop_toBottomOf="@id/frame_profile">
+
+        <ImageView
+            android:id="@+id/star1"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:contentDescription="Star 1"
+            android:src="@drawable/ic_star_filled"
+            app:tint="@color/star_green" />
+
+        <ImageView
+            android:id="@+id/star2"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_marginStart="1dp"
+            android:contentDescription="Star 2"
+            android:src="@drawable/ic_star_filled"
+            app:tint="@color/star_green" />
+
+        <ImageView
+            android:id="@+id/star3"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_marginStart="1dp"
+            android:contentDescription="Star 3"
+            android:src="@drawable/ic_star_filled"
+            app:tint="@color/star_green" />
+
+        <ImageView
+            android:id="@+id/star4"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_marginStart="1dp"
+            android:contentDescription="Star 4"
+            android:src="@drawable/ic_star_filled"
+            app:tint="@color/star_green" />
+
+        <ImageView
+            android:id="@+id/star5"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_marginStart="1dp"
+            android:contentDescription="Star 5"
+            android:src="@drawable/ic_star_filled"
+            app:tint="@color/star_green" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

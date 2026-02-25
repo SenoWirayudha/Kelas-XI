@@ -329,6 +329,20 @@ data class UserFollowDto(
     val followed_at: String
 )
 
+data class ReviewLikeResponse(
+    val is_liked: Boolean,
+    val like_count: Int
+)
+
+data class LikedReviewDto(
+    val review_id: Int,
+    val user_id: Int,
+    val username: String,
+    val display_name: String?,
+    val profile_photo: String,
+    val rating: Float
+)
+
 // Edit Profile DTOs
 data class FavoriteMovieDetailDto(
     val id: Int,
@@ -409,4 +423,31 @@ data class SearchUserDto(
 
 data class FollowStatusResponse(
     val isFollowing: Boolean
+)
+
+data class NotificationDto(
+    val id: Int,
+    val user_id: Int,
+    val actor_id: Int,
+    val actor_username: String,
+    val actor_display_name: String?,
+    val actor_profile_photo: String?,
+    val type: String,
+    val film_id: Int?,
+    val related_id: Int?,
+    val review_id: Int?,
+    val comment_content: String?,
+    val message: String,
+    val is_read: Boolean,
+    val time_ago: String,
+    val section: String,
+    val movie_title: String?,
+    val movie_poster: String?,
+    val created_at: String
+)
+
+data class NotificationResponse(
+    val today: List<NotificationDto>,
+    val yesterday: List<NotificationDto>,
+    val last_week: List<NotificationDto>
 )

@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.coordinatorlayout)
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     
     // Navigation Component
     implementation(libs.androidx.navigation.fragment.ktx)

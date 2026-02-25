@@ -8,9 +8,12 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Notification
 import com.komputerkit.moview.data.model.NotificationSection
+import com.komputerkit.moview.data.model.NotificationType
 import com.komputerkit.moview.databinding.ItemNotificationBinding
 
-class NotificationAdapter : RecyclerView.Adapter<NotificationAdapter.NotificationViewHolder>() {
+class NotificationAdapter(
+    private val onNotificationClick: (Notification) -> Unit
+) : RecyclerView.Adapter<NotificationAdapter.NotificationViewHolder>() {
     
     private var notifications: List<Notification> = emptyList()
     
@@ -55,6 +58,7 @@ class NotificationAdapter : RecyclerView.Adapter<NotificationAdapter.Notificatio
             Glide.with(binding.root.context)
                 .load(notification.userAvatar)
                 .placeholder(R.drawable.ic_profile)
+                .circleCrop()
                 .into(binding.ivUserAvatar)
             
             // Message and time
@@ -71,8 +75,23 @@ class NotificationAdapter : RecyclerView.Adapter<NotificationAdapter.Notificatio
                 binding.ivMoviePoster.visibility = View.GONE
             }
             
+            // Comment preview box (for comment/reply notifications)
+            if ((notification.type == NotificationType.COMMENT_REVIEW || 
+                 notification.type == NotificationType.REPLY_COMMENT) && 
+                !notification.commentContent.isNullOrEmpty()) {
+                binding.commentPreviewBox.visibility = View.VISIBLE
+                binding.tvCommentContent.text = notification.commentContent
+            } else {
+                binding.commentPreviewBox.visibility = View.GONE
+            }
+            
             // Unread indicator
             binding.unreadIndicator.visibility = if (!notification.isRead) View.VISIBLE else View.GONE
+            
+            // Click handler
+            binding.root.setOnClickListener {
+                onNotificationClick(notification)
+            }
         }
     }
 }

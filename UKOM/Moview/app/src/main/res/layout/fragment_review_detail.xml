@@ -360,13 +360,31 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:layout_marginTop="48dp"
-                android:text="MORE FROM SARAH"
+                android:text="YOU LIKED"
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.05"
+                android:visibility="gone"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/layout_actions" />
+            
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_liked_movies"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:clipToPadding="false"
+                android:orientation="horizontal"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:visibility="gone"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_more_from"
+                tools:itemCount="4"
+                tools:listitem="@layout/item_poster_small" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.core.widget.NestedScrollView>

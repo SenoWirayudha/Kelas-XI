@@ -1331,6 +1331,77 @@ class UserActivityController extends Controller
                 )
                 ->first();
             
+            // Create notification
+            $review = DB::table('reviews')
+                ->join('movies', 'reviews.film_id', '=', 'movies.id')
+                ->where('reviews.id', $reviewId)
+                ->select('reviews.user_id as review_user_id', 'reviews.film_id', 'movies.title as movie_title')
+                ->first();
+            
+            if ($review) {
+                $commenterName = $comment->display_name ?? $comment->username;
+                
+                if ($parentId) {
+                    // This is a reply - notify the parent comment author
+                    $parentComment = DB::table('review_comments')
+                        ->where('id', $parentId)
+                        ->first();
+                    
+                    // Insert to user_activities for reply
+                    DB::table('user_activities')->insert([
+                        'user_id' => $userId,
+                        'type' => 'reply_comment',
+                        'film_id' => $review->film_id,
+                        'meta' => json_encode([
+                            'review_id' => $reviewId,
+                            'parent_comment_id' => $parentId,
+                            'comment_id' => $commentId,
+                            'parent_comment_owner_id' => $parentComment->user_id ?? null
+                        ]),
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                    
+                    if ($parentComment && $parentComment->user_id != $userId) {
+                        NotificationController::createNotification(
+                            $parentComment->user_id,
+                            $userId,
+                            'reply_comment',
+                            "{$commenterName} replied to your comment on {$review->movie_title}",
+                            $review->film_id,
+                            $commentId
+                        );
+                    }
+                } else {
+                    // This is a comment on the review - notify the review author
+                    
+                    // Insert to user_activities for comment
+                    DB::table('user_activities')->insert([
+                        'user_id' => $userId,
+                        'type' => 'comment_review',
+                        'film_id' => $review->film_id,
+                        'meta' => json_encode([
+                            'review_id' => $reviewId,
+                            'comment_id' => $commentId,
+                            'review_owner_id' => $review->review_user_id
+                        ]),
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                    
+                    if ($review->review_user_id != $userId) {
+                        NotificationController::createNotification(
+                            $review->review_user_id,
+                            $userId,
+                            'comment_review',
+                            "{$commenterName} commented on your review of {$review->movie_title}",
+                            $review->film_id,
+                            $commentId
+                        );
+                    }
+                }
+            }
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Comment added successfully',
@@ -1340,6 +1411,44 @@ class UserActivityController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to add comment: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    public function deleteReviewComment($userId, $commentId)
+    {
+        try {
+            // Check if comment exists and belongs to user
+            $comment = DB::table('review_comments')
+                ->where('id', $commentId)
+                ->where('user_id', $userId)
+                ->first();
+            
+            if (!$comment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Comment not found or you do not have permission to delete it'
+                ], 404);
+            }
+            
+            // Delete replies first (if any)
+            DB::table('review_comments')
+                ->where('parent_id', $commentId)
+                ->delete();
+            
+            // Delete the comment
+            DB::table('review_comments')
+                ->where('id', $commentId)
+                ->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Comment deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete comment: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -1368,6 +1477,31 @@ class UserActivityController extends Controller
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
+            
+            // Insert to user_activities
+            DB::table('user_activities')->insert([
+                'user_id' => $userId,
+                'type' => 'follow',
+                'film_id' => null,
+                'meta' => json_encode([
+                    'followed_user_id' => $targetUserId
+                ]),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            // Create notification
+            $followerName = DB::table('user_profiles')
+                ->join('users', 'user_profiles.user_id', '=', 'users.id')
+                ->where('user_profiles.user_id', $userId)
+                ->value('user_profiles.display_name') ?? DB::table('users')->where('id', $userId)->value('username');
+            
+            NotificationController::createNotification(
+                $targetUserId,
+                $userId,
+                'follow',
+                "{$followerName} followed you"
+            );
             
             return response()->json([
                 'success' => true,
@@ -1439,6 +1573,180 @@ class UserActivityController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to check follow status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Toggle review like (like or unlike a review)
+     */
+    public function toggleReviewLike($userId, $reviewId)
+    {
+        try {
+            // Check if already liked
+            $existingLike = DB::table('review_likes')
+                ->where('user_id', $userId)
+                ->where('review_id', $reviewId)
+                ->first();
+            
+            if ($existingLike) {
+                // Unlike - remove from review_likes
+                DB::table('review_likes')
+                    ->where('user_id', $userId)
+                    ->where('review_id', $reviewId)
+                    ->delete();
+                
+                // Get updated like count
+                $likeCount = DB::table('review_likes')
+                    ->where('review_id', $reviewId)
+                    ->count();
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'is_liked' => false,
+                        'like_count' => $likeCount
+                    ]
+                ]);
+            } else {
+                // Like - add to review_likes
+                DB::table('review_likes')->insert([
+                    'user_id' => $userId,
+                    'review_id' => $reviewId,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+                
+                // Get updated like count
+                $likeCount = DB::table('review_likes')
+                    ->where('review_id', $reviewId)
+                    ->count();
+                
+                // Create notification
+                $review = DB::table('reviews')
+                    ->join('movies', 'reviews.film_id', '=', 'movies.id')
+                    ->where('reviews.id', $reviewId)
+                    ->select('reviews.user_id as review_user_id', 'reviews.rating', 'reviews.film_id', 'movies.title as movie_title')
+                    ->first();
+                
+                if ($review) {
+                    // Insert to user_activities
+                    DB::table('user_activities')->insert([
+                        'user_id' => $userId,
+                        'type' => 'like_review',
+                        'film_id' => $review->film_id,
+                        'meta' => json_encode([
+                            'review_id' => $reviewId,
+                            'review_owner_id' => $review->review_user_id
+                        ]),
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                    
+                    if ($review->review_user_id != $userId) {
+                        $likerName = DB::table('user_profiles')
+                            ->join('users', 'user_profiles.user_id', '=', 'users.id')
+                            ->where('user_profiles.user_id', $userId)
+                            ->value('user_profiles.display_name') ?? DB::table('users')->where('id', $userId)->value('username');
+                        
+                        $stars = str_repeat('★', (int)$review->rating);
+                        
+                        NotificationController::createNotification(
+                            $review->review_user_id,
+                            $userId,
+                            'like_review',
+                            "{$likerName} liked your {$stars} review of {$review->movie_title}",
+                            $review->film_id,
+                            $reviewId
+                        );
+                    }
+                }
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'is_liked' => true,
+                        'like_count' => $likeCount
+                    ]
+                ]);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to toggle review like: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Check if user has liked a review
+     */
+    public function checkReviewLike($userId, $reviewId)
+    {
+        try {
+            $like = DB::table('review_likes')
+                ->where('user_id', $userId)
+                ->where('review_id', $reviewId)
+                ->first();
+            
+            $likeCount = DB::table('review_likes')
+                ->where('review_id', $reviewId)
+                ->count();
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'is_liked' => $like !== null,
+                    'like_count' => $likeCount
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check review like status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Get reviews that user has liked for a specific movie
+     */
+    public function getLikedReviewsForMovie($userId, $movieId)
+    {
+        try {
+            $likedReviews = DB::table('review_likes')
+                ->join('reviews', 'review_likes.review_id', '=', 'reviews.id')
+                ->join('users', 'reviews.user_id', '=', 'users.id')
+                ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
+                ->where('review_likes.user_id', $userId)
+                ->where('reviews.film_id', $movieId)
+                ->where('reviews.user_id', '!=', $userId) // Exclude own reviews
+                ->select(
+                    'reviews.id as review_id',
+                    'reviews.user_id',
+                    'users.username',
+                    'user_profiles.display_name',
+                    'user_profiles.profile_photo',
+                    'reviews.rating'
+                )
+                ->get();
+            
+            // Transform profile photo URLs
+            $likedReviews = $likedReviews->map(function($review) {
+                if ($review->profile_photo) {
+                    $review->profile_photo = url('storage/' . $review->profile_photo);
+                }
+                return $review;
+            });
+            
+            return response()->json([
+                'success' => true,
+                'data' => $likedReviews
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get liked reviews: ' . $e->getMessage()
             ], 500);
         }
     }

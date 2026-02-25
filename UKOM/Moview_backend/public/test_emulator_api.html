@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API from Emulator Perspective</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #output {
+            background-color: #f4f4f4;
+            padding: 20px;
+            border-radius: 4px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+        .info {
+            background-color: #e7f3fe;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Notification API (Emulator Perspective)</h1>
+    
+    <div class="info">
+        <strong>Testing URL:</strong> http://10.0.2.2:8000/api/v1/users/3/notifications<br>
+        <strong>Note:</strong> This uses 10.0.2.2 which is how Android emulator accesses localhost
+    </div>
+    
+    <div>
+        <button onclick="testWithEmulatorURL()">Test with 10.0.2.2 (Emulator URL)</button>
+        <button onclick="testWithLocalhost()">Test with 127.0.0.1 (Browser Localhost)</button>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+    
+    <div id="output"></div>
+
+    <script>
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+        
+        async function testWithEmulatorURL() {
+            const url = 'http://10.0.2.2:8000/api/v1/users/3/notifications';
+            await testAPI(url, 'Emulator URL (10.0.2.2)');
+        }
+        
+        async function testWithLocalhost() {
+            const url = 'http://127.0.0.1:8000/api/v1/users/3/notifications';
+            await testAPI(url, 'Browser Localhost (127.0.0.1)');
+        }
+        
+        async function testAPI(url, label) {
+            const output = document.getElementById('output');
+            output.innerHTML += `\n=== Testing ${label} ===\n`;
+            output.innerHTML += `URL: ${url}\n\n`;
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const endTime = Date.now();
+                
+                output.innerHTML += `Status: ${response.status} ${response.statusText}\n`;
+                output.innerHTML += `Time: ${endTime - startTime}ms\n\n`;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    output.innerHTML += `Success: ${data.success}\n`;
+                    
+                    if (data.data) {
+                        output.innerHTML += `Today: ${data.data.today ? data.data.today.length : 0} notifications\n`;
+                        output.innerHTML += `Yesterday: ${data.data.yesterday ? data.data.yesterday.length : 0} notifications\n`;
+                        output.innerHTML += `Last Week: ${data.data.last_week ? data.data.last_week.length : 0} notifications\n\n`;
+                        
+                        output.innerHTML += `Full Response:\n`;
+                        output.innerHTML += JSON.stringify(data, null, 2);
+                    }
+                } else {
+                    const text = await response.text();
+                    output.innerHTML += `Error Response:\n${text}\n`;
+                }
+                
+            } catch (error) {
+                output.innerHTML += `\nError: ${error.message}\n`;
+                output.innerHTML += `This might mean the server is not reachable from this URL\n`;
+            }
+            
+            output.innerHTML += `\n${'='.repeat(50)}\n`;
+        }
+    </script>
+</body>
+</html>

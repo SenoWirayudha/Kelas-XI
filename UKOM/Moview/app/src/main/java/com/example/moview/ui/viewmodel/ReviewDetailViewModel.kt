@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Comment
 import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.data.model.Movie
+import com.komputerkit.moview.data.model.LikedReview
 import com.komputerkit.moview.data.repository.MovieRepository
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -38,6 +39,13 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
     // Track which comment is being replied to
     private val _replyingTo = MutableLiveData<Comment?>()
     val replyingTo: LiveData<Comment?> = _replyingTo
+    
+    // Liked reviews section
+    private val _likedReviews = MutableLiveData<List<LikedReview>>()
+    val likedReviews: LiveData<List<LikedReview>> = _likedReviews
+    
+    private val _likedByText = MutableLiveData<String>()
+    val likedByText: LiveData<String> = _likedByText
 
     fun loadReview(reviewId: Int, isLog: Boolean = false) {
         val userId = prefs.getInt("userId", 0)
@@ -117,9 +125,76 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                     _isLiked.postValue(reviewDto.is_liked)
                     
                     loadComments(reviewId)
+                    
+                    // Load liked reviews section (exclude current review)
+                    loadLikedReviewsSection(userId, reviewDto.user_id, reviewDto.movie_id, reviewDto.review_id, reviewDto.is_liked)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ReviewDetailViewModel", "Error loading review: ${e.message}", e)
+            }
+        }
+    }
+    
+    private fun loadLikedReviewsSection(currentUserId: Int, reviewUserId: Int, movieId: Int, currentReviewId: Int, isCurrentUserLikedReview: Boolean) {
+        viewModelScope.launch {
+            try {
+                val isOwnReview = currentUserId == reviewUserId
+                
+                android.util.Log.d("ReviewDetailViewModel", "loadLikedReviewsSection: currentUserId=$currentUserId, reviewUserId=$reviewUserId, movieId=$movieId, currentReviewId=$currentReviewId, isLiked=$isCurrentUserLikedReview, isOwnReview=$isOwnReview")
+                
+                // Logic:
+                // 1. Own review: Show "YOU LIKED" if user has liked other reviews for this movie
+                // 2. Other's review that current user liked: Show "Liked by [username]" if user has liked other reviews for this movie
+                // 3. Other's review that current user NOT liked: Hide section
+                
+                if (isOwnReview) {
+                    // This is user's own review - show "YOU LIKED" section
+                    val likedReviews = repository.getLikedReviewsForMovie(currentUserId, movieId)
+                    
+                    // Filter out the current review if it somehow appears
+                    val filteredReviews = likedReviews.filter { it.reviewId != currentReviewId }
+                    
+                    if (filteredReviews.isNotEmpty()) {
+                        _likedReviews.postValue(filteredReviews)
+                        _likedByText.postValue("YOU LIKED")
+                        android.util.Log.d("ReviewDetailViewModel", "Own review: Show YOU LIKED with ${filteredReviews.size} reviews")
+                    } else {
+                        // No liked reviews - hide section
+                        _likedReviews.postValue(emptyList())
+                        _likedByText.postValue("")
+                        android.util.Log.d("ReviewDetailViewModel", "Own review: No liked reviews, hiding section")
+                    }
+                } else if (isCurrentUserLikedReview) {
+                    // This is other user's review that current user liked
+                    val likedReviews = repository.getLikedReviewsForMovie(currentUserId, movieId)
+                    
+                    // Filter out the current review to avoid redundancy
+                    val filteredReviews = likedReviews.filter { it.reviewId != currentReviewId }
+                    
+                    if (filteredReviews.isNotEmpty()) {
+                        _likedReviews.postValue(filteredReviews)
+                        
+                        // Get current user's display name
+                        val displayName = prefs.getString("displayName", null) 
+                            ?: prefs.getString("username", "Someone")
+                        _likedByText.postValue("Liked by $displayName")
+                        android.util.Log.d("ReviewDetailViewModel", "Other's review (liked): Show 'Liked by $displayName' with ${filteredReviews.size} reviews")
+                    } else {
+                        // No liked reviews - hide section
+                        _likedReviews.postValue(emptyList())
+                        _likedByText.postValue("")
+                        android.util.Log.d("ReviewDetailViewModel", "Other's review (liked): No other liked reviews, hiding section")
+                    }
+                } else {
+                    // Other user's review that current user has NOT liked - hide section
+                    _likedReviews.postValue(emptyList())
+                    _likedByText.postValue("")
+                    android.util.Log.d("ReviewDetailViewModel", "Other's review (not liked): Hiding section")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ReviewDetailViewModel", "Error loading liked reviews section: ${e.message}", e)
+                _likedReviews.postValue(emptyList())
+                _likedByText.postValue("")
             }
         }
     }
@@ -183,11 +258,34 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun toggleLike() {
-        val currentLiked = _isLiked.value ?: false
-        val currentCount = _likeCount.value ?: 0
-
-        _isLiked.value = !currentLiked
-        _likeCount.value = if (!currentLiked) currentCount + 1 else currentCount - 1
+        val userId = prefs.getInt("userId", 0)
+        val review = _review.value ?: return
+        val reviewId = review.reviewId
+        
+        if (reviewId == 0) {
+            // This is a log entry, not a review - cannot be liked
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                val result = repository.toggleReviewLike(userId, reviewId)
+                if (result != null) {
+                    val (isLiked, likeCount) = result
+                    _isLiked.postValue(isLiked)
+                    _likeCount.postValue(likeCount)
+                    android.util.Log.d("ReviewDetailViewModel", "Like toggled successfully: isLiked=$isLiked, count=$likeCount")
+                    
+                    // Reload liked reviews section to reflect new like status
+                    // Only relevant for other user's reviews (shows "Liked by..." when current user likes)
+                    loadLikedReviewsSection(userId, review.userId, review.movieId, review.reviewId, isLiked)
+                } else {
+                    android.util.Log.e("ReviewDetailViewModel", "Failed to toggle like")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ReviewDetailViewModel", "Error toggling like: ${e.message}", e)
+            }
+        }
     }
 
     fun toggleCommentLike(comment: Comment) {
@@ -253,6 +351,38 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
     
     fun clearReplyTarget() {
         _replyingTo.value = null
+    }
+    
+    fun deleteComment(commentId: Int) {
+        val userId = prefs.getInt("userId", 0)
+        viewModelScope.launch {
+            try {
+                val success = repository.deleteReviewComment(userId, commentId)
+                if (success) {
+                    // Remove the comment from the list
+                    val updatedComments = _comments.value?.mapNotNull { comment ->
+                        if (comment.id == commentId) {
+                            // This is the comment to delete
+                            null
+                        } else if (comment.replies.any { it.id == commentId }) {
+                            // This comment has a reply to delete
+                            comment.replies.removeAll { it.id == commentId }
+                            comment
+                        } else {
+                            comment
+                        }
+                    } ?: emptyList()
+                    
+                    _comments.postValue(updatedComments)
+                    
+                    // Update comment count
+                    val totalCount = updatedComments.sumOf { 1 + it.replies.size }
+                    _commentCount.postValue(totalCount)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ReviewDetailViewModel", "Error deleting comment: ${e.message}", e)
+            }
+        }
     }
     
     private val _deleteStatus = MutableLiveData<Boolean>()

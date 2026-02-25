@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\MovieMediaController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\UserActivityController;
+use App\Http\Controllers\Api\V1\NotificationController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -78,6 +79,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/users/{userId}/movies/{movieId}/like', [UserActivityController::class, 'toggleLike']);
     Route::get('/users/{userId}/movies/{movieId}/like', [UserActivityController::class, 'checkLike']);
     
+    // Review Likes
+    Route::post('/users/{userId}/reviews/{reviewId}/like', [UserActivityController::class, 'toggleReviewLike']);
+    Route::get('/users/{userId}/reviews/{reviewId}/like', [UserActivityController::class, 'checkReviewLike']);
+    Route::get('/users/{userId}/movies/{movieId}/liked-reviews', [UserActivityController::class, 'getLikedReviewsForMovie']);
+    
     // Watchlist
     Route::post('/users/{userId}/movies/{movieId}/watchlist', [UserActivityController::class, 'toggleWatchlist']);
     Route::get('/users/{userId}/movies/{movieId}/watchlist', [UserActivityController::class, 'checkWatchlist']);
@@ -90,6 +96,12 @@ Route::prefix('v1')->group(function () {
     // Review Comments
     Route::get('reviews/{reviewId}/comments', [UserActivityController::class, 'getReviewComments'])->where('reviewId', '[0-9]+');
     Route::post('users/{userId}/reviews/{reviewId}/comments', [UserActivityController::class, 'addReviewComment'])->where('reviewId', '[0-9]+');
+    Route::delete('users/{userId}/comments/{commentId}', [UserActivityController::class, 'deleteReviewComment'])->where(['userId' => '[0-9]+', 'commentId' => '[0-9]+']);
+    
+    // Notifications
+    Route::get('users/{userId}/notifications', [NotificationController::class, 'getNotifications'])->where('userId', '[0-9]+');
+    Route::put('users/{userId}/notifications/{notificationId}/read', [NotificationController::class, 'markAsRead'])->where(['userId' => '[0-9]+', 'notificationId' => '[0-9]+']);
+    Route::put('users/{userId}/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->where('userId', '[0-9]+');
     
     // Film List by Category
     Route::get('/films/category', [FilmListController::class, 'getFilmsByCategory']);
