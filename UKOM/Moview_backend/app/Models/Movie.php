@@ -24,6 +24,22 @@ class Movie extends Model
     ];
 
     /**
+     * Get the average rating for the movie (calculated from ratings table)
+     */
+    public function getRatingAverageAttribute()
+    {
+        return $this->ratings()->avg('rating') ?? 0;
+    }
+    
+    /**
+     * Get total reviews count
+     */
+    public function getTotalReviewsAttribute()
+    {
+        return $this->ratings()->count();
+    }
+
+    /**
      * Get all media (posters & backdrops) for the movie
      */
     public function movieMedia()

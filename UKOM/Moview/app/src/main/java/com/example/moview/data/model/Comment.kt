@@ -11,5 +11,6 @@ data class Comment(
     val likeCount: Int,
     var isLiked: Boolean = false,
     val parentId: Int? = null,
-    val replies: MutableList<Comment> = mutableListOf()
+    val replies: MutableList<Comment> = mutableListOf(),
+    val status: String = "published" // published, deleted, flagged, hidden
 )

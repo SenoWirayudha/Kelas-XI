@@ -533,6 +533,7 @@ class MovieRepository {
             timeAgo = formatCommentTime(dto.created_at),
             likeCount = 0,  // TODO: Implement comment likes
             parentId = dto.parent_id,
+            status = dto.status,
             replies = replies
         )
     }
@@ -563,7 +564,8 @@ class MovieRepository {
                     commentText = dto.content,
                     timeAgo = "Just now",
                     likeCount = 0,
-                    parentId = dto.parent_id
+                    parentId = dto.parent_id,
+                    status = dto.status
                 )
             } else {
                 null
@@ -580,6 +582,16 @@ class MovieRepository {
             response.success
         } catch (e: Exception) {
             android.util.Log.e("MovieRepository", "Error deleting comment: ${e.message}", e)
+            false
+        }
+    }
+    
+    suspend fun flagReviewComment(userId: Int, commentId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.flagReviewComment(userId, commentId)
+            response.success
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error flagging comment: ${e.message}", e)
             false
         }
     }

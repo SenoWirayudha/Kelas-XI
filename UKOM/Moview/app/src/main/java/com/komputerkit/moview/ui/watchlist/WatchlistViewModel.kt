@@ -23,11 +23,6 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
     
     private var allItems: List<WatchlistItem> = emptyList()
     
-    init {
-        val userId = prefs.getInt("userId", 0)
-        loadWatchlist(userId)
-    }
-    
     fun loadWatchlist(userId: Int) {
         if (userId == 0) return
         

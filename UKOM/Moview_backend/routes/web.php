@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CastCrewManagementController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ActivityController;
 use App\Http\Controllers\Admin\ReviewController;
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AuthController;
 
 // Public Routes
@@ -54,10 +55,12 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     // Cast & Crew Management
     Route::get('/persons', [CastCrewController::class, 'getPersons'])->name('persons.list');
     Route::post('/films/{id}/cast-crew', [CastCrewController::class, 'store'])->name('films.castcrew.store');
+    Route::put('/films/{id}/cast-crew/{moviePersonId}', [CastCrewController::class, 'update'])->name('films.castcrew.update');
     Route::delete('/films/{id}/cast-crew/{moviePersonId}', [CastCrewController::class, 'destroy'])->name('films.castcrew.destroy');
     
     // Users Management (UI only - dummy data)
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::post('/users/{id}/ban', [UserController::class, 'ban'])->name('users.ban');
     
     // User Activity
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
@@ -74,8 +77,13 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     // Reviews Management
     Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');
     
-    // Analytics (UI only - dummy data)
-    Route::get('/analytics', function () {
-        return view('admin.analytics.index');
-    })->name('analytics.index');
+    // Comments Management
+    Route::get('/comments', [\App\Http\Controllers\Admin\CommentController::class, 'index'])->name('comments.index');
+    Route::get('/comments/notifications', [\App\Http\Controllers\Admin\CommentController::class, 'notifications'])->name('comments.notifications');
+    Route::post('/comments/{id}/flag', [\App\Http\Controllers\Admin\CommentController::class, 'flag'])->name('comments.flag');
+    Route::post('/comments/{id}/delete', [\App\Http\Controllers\Admin\CommentController::class, 'delete'])->name('comments.delete');
+    Route::post('/comments/{id}/restore', [\App\Http\Controllers\Admin\CommentController::class, 'restore'])->name('comments.restore');
+    
+    // Analytics
+    Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
 });

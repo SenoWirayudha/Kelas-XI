@@ -317,6 +317,7 @@ data class ReviewCommentDto(
     val display_name: String?,
     val profile_photo: String?,
     val parent_id: Int? = null,
+    val status: String = "published",
     val replies: List<ReviewCommentDto>? = null
 )
 

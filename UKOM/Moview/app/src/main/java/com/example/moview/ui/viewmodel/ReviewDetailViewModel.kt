@@ -245,16 +245,25 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
     private fun loadComments(reviewId: Int) {
         viewModelScope.launch {
             try {
+                android.util.Log.d("ReviewDetailVM", "Loading comments for review: $reviewId")
                 val comments = repository.getReviewComments(reviewId)
+                android.util.Log.d("ReviewDetailVM", "Loaded ${comments.size} comments")
                 _comments.postValue(comments)
                 // Calculate total count including replies
                 val totalCount = comments.sumOf { 1 + it.replies.size }
+                android.util.Log.d("ReviewDetailVM", "Total with replies: $totalCount")
                 _commentCount.postValue(totalCount)
             } catch (e: Exception) {
                 android.util.Log.e("ReviewDetailViewModel", "Error loading comments: ${e.message}", e)
                 _comments.postValue(emptyList())
             }
         }
+    }
+    
+    fun refreshComments() {
+        val reviewId = _review.value?.id ?: return
+        android.util.Log.d("ReviewDetailVM", "Refreshing comments...")
+        loadComments(reviewId)
     }
 
     fun toggleLike() {
@@ -308,38 +317,24 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
         val reviewId = _review.value?.id ?: return
         val parentId = _replyingTo.value?.id  // Get parent comment ID if replying
         
+        android.util.Log.d("ReviewDetailVM", "Adding comment to review: $reviewId")
+        
         viewModelScope.launch {
             try {
                 val newComment = repository.addReviewComment(userId, reviewId, commentText, parentId)
                 if (newComment != null) {
-                    if (parentId != null) {
-                        // This is a reply - need to add it to the parent's replies list
-                        val updatedComments = _comments.value?.map { comment ->
-                            if (comment.id == parentId) {
-                                comment.replies.add(newComment)
-                                comment
-                            } else {
-                                comment
-                            }
-                        }
-                        _comments.postValue(updatedComments ?: emptyList())
-                        // Recalculate total count including replies
-                        val totalCount = (updatedComments ?: emptyList()).sumOf { 1 + it.replies.size }
-                        _commentCount.postValue(totalCount)
-                    } else {
-                        // Top-level comment - add to the top of the list
-                        val updatedComments = mutableListOf(newComment)
-                        updatedComments.addAll(_comments.value ?: emptyList())
-                        _comments.postValue(updatedComments)
-                        // Calculate total count including replies
-                        val totalCount = updatedComments.sumOf { 1 + it.replies.size }
-                        _commentCount.postValue(totalCount)
-                    }
+                    android.util.Log.d("ReviewDetailVM", "Comment added successfully, ID: ${newComment.id}")
                     // Clear reply target after successful comment
                     _replyingTo.postValue(null)
+                    // Wait a bit for server to commit data, then refresh
+                    kotlinx.coroutines.delay(500)
+                    android.util.Log.d("ReviewDetailVM", "Refreshing after add comment...")
+                    refreshComments()
+                } else {
+                    android.util.Log.e("ReviewDetailVM", "Failed to add comment - newComment is null")
                 }
             } catch (e: Exception) {
-                // Handle error silently or log it
+                android.util.Log.e("ReviewDetailVM", "Error adding comment: ${e.message}", e)
                 e.printStackTrace()
             }
         }
@@ -359,28 +354,26 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
             try {
                 val success = repository.deleteReviewComment(userId, commentId)
                 if (success) {
-                    // Remove the comment from the list
-                    val updatedComments = _comments.value?.mapNotNull { comment ->
-                        if (comment.id == commentId) {
-                            // This is the comment to delete
-                            null
-                        } else if (comment.replies.any { it.id == commentId }) {
-                            // This comment has a reply to delete
-                            comment.replies.removeAll { it.id == commentId }
-                            comment
-                        } else {
-                            comment
-                        }
-                    } ?: emptyList()
-                    
-                    _comments.postValue(updatedComments)
-                    
-                    // Update comment count
-                    val totalCount = updatedComments.sumOf { 1 + it.replies.size }
-                    _commentCount.postValue(totalCount)
+                    // Auto-refresh comments from server to ensure sync
+                    refreshComments()
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ReviewDetailViewModel", "Error deleting comment: ${e.message}", e)
+            }
+        }
+    }
+    
+    fun flagComment(commentId: Int) {
+        val userId = prefs.getInt("userId", 0)
+        viewModelScope.launch {
+            try {
+                val success = repository.flagReviewComment(userId, commentId)
+                if (success) {
+                    // Auto-refresh comments from server to ensure sync
+                    refreshComments()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ReviewDetailViewModel", "Error flagging comment: ${e.message}", e)
             }
         }
     }

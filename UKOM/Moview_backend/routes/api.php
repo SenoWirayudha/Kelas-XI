@@ -97,6 +97,7 @@ Route::prefix('v1')->group(function () {
     Route::get('reviews/{reviewId}/comments', [UserActivityController::class, 'getReviewComments'])->where('reviewId', '[0-9]+');
     Route::post('users/{userId}/reviews/{reviewId}/comments', [UserActivityController::class, 'addReviewComment'])->where('reviewId', '[0-9]+');
     Route::delete('users/{userId}/comments/{commentId}', [UserActivityController::class, 'deleteReviewComment'])->where(['userId' => '[0-9]+', 'commentId' => '[0-9]+']);
+    Route::post('users/{userId}/comments/{commentId}/flag', [UserActivityController::class, 'flagReviewComment'])->where(['userId' => '[0-9]+', 'commentId' => '[0-9]+']);
     
     // Notifications
     Route::get('users/{userId}/notifications', [NotificationController::class, 'getNotifications'])->where('userId', '[0-9]+');

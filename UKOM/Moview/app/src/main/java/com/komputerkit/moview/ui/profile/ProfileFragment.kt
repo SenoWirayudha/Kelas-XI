@@ -79,14 +79,22 @@ class ProfileFragment : Fragment() {
         super.onResume()
         Log.d("ProfileFragment", "onResume() - Reloading profile data")
         
-        // Reload profile data
-        if (isOwnProfile) {
-            viewModel.reloadProfile()
-        } else {
-            viewModel.loadProfileData(targetUserId)
-            // Reload follow status for other user's profile
-            val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
-            val currentUserId = prefs.getInt("userId", 0)
+        // Re-calculate isOwnProfile and targetUserId in case user switched accounts
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        val requestedUserId = args.userId
+        
+        // If userId is 0 or same as current user, show own profile
+        isOwnProfile = requestedUserId == 0 || requestedUserId == currentUserId
+        targetUserId = if (isOwnProfile) currentUserId else requestedUserId
+        
+        Log.d("ProfileFragment", "onResume() - currentUserId: $currentUserId, requestedUserId: $requestedUserId, targetUserId: $targetUserId, isOwnProfile: $isOwnProfile")
+        
+        // Reload profile data with correct userId
+        viewModel.loadProfileData(targetUserId)
+        
+        // Reload follow status if viewing another user's profile
+        if (!isOwnProfile) {
             viewModel.checkFollowStatus(currentUserId, targetUserId)
         }
     }
@@ -123,8 +131,8 @@ class ProfileFragment : Fragment() {
         findNavController().currentBackStackEntry?.savedStateHandle?.let { savedStateHandle ->
             savedStateHandle.getLiveData<Boolean>("profile_updated").observe(viewLifecycleOwner) { updated ->
                 if (updated == true) {
-                    // Reload profile data from API
-                    viewModel.reloadProfile()
+                    // Reload profile data from API (use targetUserId which is set in onViewCreated/onResume)
+                    viewModel.loadProfileData(targetUserId)
                     
                     // Get the profile photo URL directly from savedStateHandle
                     val photoUrl = savedStateHandle.get<String>("profile_photo_url")

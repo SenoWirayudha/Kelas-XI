@@ -46,17 +46,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val _followActionResult = MutableLiveData<FollowActionResult?>()
     val followActionResult: LiveData<FollowActionResult?> = _followActionResult
     
-    init {
-        Log.d("ProfileViewModel", "ProfileViewModel initialized")
-        loadProfileData()
-    }
-    
-    // Public method to reload profile data (called when profile updated)
-    fun reloadProfile() {
-        loadProfileData()
-    }
-    
-    fun loadProfileData(userId: Int = 0) {
+    fun loadProfileData(userId: Int) {
         val targetUserId = if (userId > 0) userId else prefs.getInt("userId", 0)
         
         Log.d("ProfileViewModel", "=== START Loading profile for userId: $targetUserId ===")

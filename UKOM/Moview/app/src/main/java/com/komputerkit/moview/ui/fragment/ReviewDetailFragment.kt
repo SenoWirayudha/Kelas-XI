@@ -300,10 +300,15 @@ class ReviewDetailFragment : Fragment() {
     }
 
     private fun showCommentsBottomSheet() {
+        // Always refresh data when showing bottom sheet
+        viewModel.refreshComments()
+        
         if (commentsBottomSheet == null) {
             commentsBottomSheet = BottomSheetDialog(requireContext(), R.style.BottomSheetDialogTheme)
             commentsBinding = BottomSheetCommentsBinding.inflate(layoutInflater)
             commentsBottomSheet?.setContentView(commentsBinding!!.root)
+            
+            setupCommentsBottomSheet()
             
             // Setup bottom sheet behavior
             commentsBottomSheet?.setOnShowListener { dialog ->
@@ -312,12 +317,24 @@ class ReviewDetailFragment : Fragment() {
                 )
                 bottomSheet?.let {
                     val behavior = BottomSheetBehavior.from(it)
+                    
+                    // Set max height to 75% of screen, prevent full screen expansion
+                    val displayMetrics = resources.displayMetrics
+                    val screenHeight = displayMetrics.heightPixels
+                    val maxHeight = (screenHeight * 0.75).toInt()
+                    
+                    // Set fixed height
+                    val layoutParams = it.layoutParams
+                    layoutParams.height = maxHeight
+                    it.layoutParams = layoutParams
+                    
+                    behavior.peekHeight = maxHeight
                     behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                    behavior.isHideable = true
                     behavior.skipCollapsed = true
+                    behavior.isDraggable = true
                 }
             }
-            
-            setupCommentsBottomSheet()
         }
         
         commentsBottomSheet?.show()
@@ -339,6 +356,9 @@ class ReviewDetailFragment : Fragment() {
                 },
                 onDeleteClick = { comment ->
                     showDeleteCommentDialog(comment)
+                },
+                onFlagClick = { comment ->
+                    showFlagCommentDialog(comment)
                 }
             )
             
@@ -349,11 +369,27 @@ class ReviewDetailFragment : Fragment() {
             
             // Observe comments
             viewModel.comments.observe(viewLifecycleOwner) { comments ->
+                android.util.Log.d("ReviewDetail", "Comments updated: ${comments.size} top-level comments")
                 commentAdapter.submitList(comments)
                 // Count all comments including replies
                 val totalCount = comments.sumOf { 1 + it.replies.size }
+                android.util.Log.d("ReviewDetail", "Total count with replies: $totalCount")
                 tvTitle.text = "Comments ($totalCount)"
+                // Stop refresh animation if it's running
+                swipeRefresh.isRefreshing = false
             }
+            
+            // Setup swipe to refresh
+            swipeRefresh.setOnRefreshListener {
+                viewModel.refreshComments()
+            }
+            
+            // Set refresh colors
+            swipeRefresh.setColorSchemeResources(
+                R.color.accent_blue,
+                R.color.pink_like,
+                R.color.star_yellow
+            )
             
             btnClose.setOnClickListener {
                 commentsBottomSheet?.dismiss()
@@ -443,6 +479,12 @@ class ReviewDetailFragment : Fragment() {
             if (commentText.isNotEmpty()) {
                 viewModel.addComment(commentText)
                 addCommentSheet.dismiss()
+                Toast.makeText(requireContext(), "Comment posted", Toast.LENGTH_SHORT).show()
+                
+                // Refresh comments list after a delay to ensure server has processed
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    viewModel.refreshComments()
+                }, 500)
             }
         }
         
@@ -687,6 +729,18 @@ class ReviewDetailFragment : Fragment() {
             .setMessage("Are you sure you want to delete this comment?")
             .setPositiveButton("Delete") { _, _ ->
                 viewModel.deleteComment(comment.id)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun showFlagCommentDialog(comment: Comment) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Report Comment")
+            .setMessage("Report this comment as inappropriate?")
+            .setPositiveButton("Report") { _, _ ->
+                viewModel.flagComment(comment.id)
+                Toast.makeText(requireContext(), "Comment reported", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .show()

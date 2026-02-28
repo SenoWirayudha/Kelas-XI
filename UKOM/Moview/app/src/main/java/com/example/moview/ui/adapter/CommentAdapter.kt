@@ -16,7 +16,8 @@ class CommentAdapter(
     private val currentUserId: Int,
     private val onProfileClick: (Int) -> Unit,
     private val onReplyClick: (Comment) -> Unit,
-    private val onDeleteClick: (Comment) -> Unit
+    private val onDeleteClick: (Comment) -> Unit,
+    private val onFlagClick: (Comment) -> Unit
 ) : ListAdapter<Comment, CommentAdapter.CommentViewHolder>(CommentDiffCallback()) {
 
     private var flattenedComments: List<Pair<Comment, Boolean>> = emptyList()
@@ -89,12 +90,19 @@ class CommentAdapter(
                     onProfileClick(comment.userId)
                 }
 
-                tvReplyButton.setOnClickListener {
-                    onReplyClick(comment)
+                // Hide reply button for deleted comments
+                if (comment.status != "deleted") {
+                    tvReplyButton.visibility = View.VISIBLE
+                    tvReplyButton.setOnClickListener {
+                        onReplyClick(comment)
+                    }
+                } else {
+                    tvReplyButton.visibility = View.GONE
+                    tvReplyButton.setOnClickListener(null)
                 }
                 
-                // Show menu icon only for own comments
-                if (comment.userId == currentUserId) {
+                // Show menu icon for all comments except deleted ones
+                if (comment.status != "deleted") {
                     ivMenu.visibility = View.VISIBLE
                     ivMenu.setOnClickListener { view ->
                         showPopupMenu(view, comment)
@@ -108,11 +116,23 @@ class CommentAdapter(
         
         private fun showPopupMenu(view: View, comment: Comment) {
             val popup = PopupMenu(view.context, view)
-            popup.menuInflater.inflate(R.menu.menu_comment, popup.menu)
+            // Show different menu based on comment ownership
+            if (comment.userId == currentUserId) {
+                // Own comment - show delete option
+                popup.menuInflater.inflate(R.menu.menu_comment, popup.menu)
+            } else {
+                // Other user's comment - show report option
+                popup.menuInflater.inflate(R.menu.menu_comment_flag, popup.menu)
+            }
+            
             popup.setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
                     R.id.action_delete -> {
                         onDeleteClick(comment)
+                        true
+                    }
+                    R.id.action_report -> {
+                        onFlagClick(comment)
                         true
                     }
                     else -> false

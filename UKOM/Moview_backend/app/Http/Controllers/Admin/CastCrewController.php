@@ -49,6 +49,32 @@ class CastCrewController extends Controller
             ->with('success', 'Cast/Crew berhasil dihapus!');
     }
 
+    public function update(Request $request, $movieId, $moviePersonId)
+    {
+        $request->validate([
+            'character_name' => 'nullable|string|max:255',
+            'job' => 'nullable|string|max:255',
+        ]);
+
+        $moviePerson = MoviePerson::findOrFail($moviePersonId);
+
+        // Ensure movie person belongs to this movie
+        if ($moviePerson->movie_id != $movieId) {
+            abort(404);
+        }
+
+        // Update character_name for cast or job for crew
+        if ($moviePerson->role_type === 'cast') {
+            $moviePerson->character_name = $request->character_name;
+        } else {
+            $moviePerson->job = $request->job;
+        }
+        $moviePerson->save();
+
+        return redirect()->route('admin.films.cast-crew', $movieId)
+            ->with('success', 'Cast/Crew berhasil diupdate!');
+    }
+
     // Get all persons for dropdown
     public function getPersons(Request $request)
     {

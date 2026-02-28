@@ -163,12 +163,30 @@ class FilmController extends Controller
         ];
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $films = Movie::with([
+        // Get filter parameters
+        $search = $request->input('search');
+        $status = $request->input('status');
+        
+        // Build query
+        $query = Movie::with([
             'movieGenres.genre',
             'movieServices.service'
-        ])->get();
+        ]);
+        
+        // Apply search filter
+        if ($search) {
+            $query->where('title', 'like', "%{$search}%");
+        }
+        
+        // Apply status filter
+        if ($status) {
+            $query->where('status', $status);
+        }
+        
+        // Paginate results
+        $films = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
         
         return view('admin.films.index', compact('films'));
     }
@@ -255,7 +273,8 @@ class FilmController extends Controller
             'movieLanguages.language',
             'movieProductionHouses.productionHouse',
             'movieServices.service',
-            'moviePersons.person'
+            'moviePersons.person',
+            'ratings'
         ])->findOrFail($id);
 
         return view('admin.films.show', compact('movie'));
@@ -438,30 +457,22 @@ class FilmController extends Controller
 
     public function reviews($id)
     {
-        $films = $this->getDummyFilms();
-        $film = collect($films)->firstWhere('id', (int)$id);
+        $movie = Movie::with(['reviews.user', 'ratings'])->findOrFail($id);
         
-        if (!$film) {
-            abort(404);
+        $reviews = $movie->reviews()->with('user')->orderBy('created_at', 'desc')->get();
+        
+        // Calculate rating distribution from ratings table
+        $totalRatings = $movie->ratings->count();
+        $ratingDistribution = [];
+        for ($i = 5; $i >= 1; $i--) {
+            $count = $movie->ratings->where('rating', $i)->count();
+            $percentage = $totalRatings > 0 
+                ? ($count / $totalRatings) * 100 
+                : 0;
+            $ratingDistribution[$i] = number_format($percentage, 1);
         }
-
-        $reviews = $this->getDummyReviews($id);
         
-        // Dummy rating distribution
-        $ratingDistribution = [
-            10 => 65,
-            9 => 20,
-            8 => 10,
-            7 => 3,
-            6 => 1,
-            5 => 0.5,
-            4 => 0.3,
-            3 => 0.1,
-            2 => 0.05,
-            1 => 0.05,
-        ];
-        
-        return view('admin.films.reviews', compact('film', 'reviews', 'ratingDistribution'));
+        return view('admin.films.reviews', compact('movie', 'reviews', 'ratingDistribution'));
     }
 
     public function updateServices(Request $request, $id)

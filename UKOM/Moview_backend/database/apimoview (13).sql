@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 25 Feb 2026 pada 07.33
+-- Waktu pembuatan: 28 Feb 2026 pada 16.50
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -103,7 +103,12 @@ INSERT INTO `diaries` (`id`, `user_id`, `film_id`, `review_id`, `watched_at`, `r
 (25, 3, 34, 17, '2026-02-14', 4, 0, 'Aku suka sinema Horeg ini', 1, '2026-02-14 01:28:09', '2026-02-14 01:28:09'),
 (26, 5, 37, 18, '2026-02-14', 5, 1, 'Keren, Absolut cinema', 0, '2026-02-14 04:00:21', '2026-02-14 04:00:21'),
 (27, 5, 34, 19, '2026-02-25', 4, 1, 'Sangar', 0, '2026-02-24 18:16:47', '2026-02-24 18:16:47'),
-(28, 5, 10, 20, '2026-02-25', 5, 1, 'Heartwarming', 0, '2026-02-24 20:53:12', '2026-02-24 20:53:12');
+(28, 5, 10, 20, '2026-02-25', 5, 1, 'Heartwarming', 0, '2026-02-24 20:53:12', '2026-02-24 20:53:12'),
+(29, 5, 14, 21, '2026-02-28', 5, 1, 'Film yang dikemas dengan cara absurd, nyeleneh, simbolik, dan lucu. Bercerita tentang seorang pria (March) yang kehilangan istrinya (Nat) karena polusi debu, lalu sang istri kembali sebagai hantu di dalam vacuum cleaner. Film ini bukan hanya fokus pada romansa March dan Nat, melainkan pada trauma dan ingatan yang belum selesai. Saat tragedi penindakan militer 2010 di Bangkok disinggung, absurditasnya berubah menjadi satire pahit tentang memori kolektif yang tak bisa begitu saja disingkirkan.', 0, '2026-02-28 04:47:40', '2026-02-28 04:47:40'),
+(30, 5, 42, 22, '2026-02-28', 4, 1, 'Astagfirullah', 0, '2026-02-28 04:53:23', '2026-02-28 04:53:23'),
+(31, 5, 30, 23, '2026-02-28', 5, 1, 'Sedih banggettt', 0, '2026-02-28 04:53:49', '2026-02-28 04:53:49'),
+(32, 5, 41, 24, '2026-02-28', 5, 1, 'Sunyi mamposss', 0, '2026-02-28 04:54:43', '2026-02-28 04:54:43'),
+(33, 5, 2, 25, '2026-02-28', 5, 1, 'AH AH AH AH', 0, '2026-02-28 08:30:02', '2026-02-28 08:30:02');
 
 -- --------------------------------------------------------
 
@@ -125,7 +130,10 @@ CREATE TABLE `followers` (
 
 INSERT INTO `followers` (`id`, `user_id`, `follower_id`, `created_at`, `updated_at`) VALUES
 (5, 5, 3, '2026-02-24 22:19:47', '2026-02-24 22:19:47'),
-(6, 3, 5, '2026-02-24 22:29:34', '2026-02-24 22:29:34');
+(6, 3, 5, '2026-02-24 22:29:34', '2026-02-24 22:29:34'),
+(7, 3, 6, '2026-02-28 03:10:44', '2026-02-28 03:10:44'),
+(8, 5, 6, '2026-02-28 03:11:08', '2026-02-28 03:11:08'),
+(10, 6, 5, '2026-02-28 08:32:26', '2026-02-28 08:32:26');
 
 -- --------------------------------------------------------
 
@@ -233,7 +241,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (26, '2026_02_07_000004_add_watched_at_to_reviews_table', 6),
 (27, '2026_02_11_add_is_rewatched_to_diaries', 7),
 (28, '2026_02_14_add_is_rewatched_to_reviews', 8),
-(29, '2026_02_25_000001_create_notifications_table', 9);
+(29, '2026_02_25_000001_create_notifications_table', 9),
+(30, '2026_02_28_141730_update_review_comments_status_column', 10);
 
 -- --------------------------------------------------------
 
@@ -265,11 +274,11 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (2, 'The Handmaiden', '2016', 168, 'NC-17', '1930s Korea, in the period of Japanese occupation, a new girl, Sookee, is hired as a handmaiden to a Japanese heiress, Hideko, who lives a secluded life on a large countryside estate with her domineering Uncle Kouzuki.', 'movies/2/poster/5KaUYiDyVYHpvYEbJUtByHpmOjigmpveskbTvF15.webp', 'movies/2/backdrop/7tPjR22RtGA8q4n8UaDamlnFPxHJDcLFLBB1lufy.webp', 'https://youtu.be/whldChqCsYk?si=_MK_uXDiQjqukebH', 'published', '2026-01-30 06:37:18', '2026-01-30 21:13:30'),
 (3, 'Perfect Days', '2023', 123, 'PG', 'Hirayama seems utterly content with his simple life as a cleaner of toilets in Tokyo.', 'movies/3/poster/lNUXiqFkQiylVswXRL0CXpQQyO5w8A64VVJ1XwZc.webp', 'movies/3/backdrop/IYVzP15BMaVLXAtW6RJH9hLU4O3xTwz6EirgPiCp.webp', NULL, 'published', '2026-01-30 06:37:18', '2026-01-30 21:03:36'),
 (4, 'Past Lives', '2023', 105, 'PG-13', 'Nora and Hae Sung, two deeply connected childhood friends, are wrest apart after Nora\'s family emigrates from South Korea.', 'movies/4/poster/hBWu8LFNnvKg6Gnd3D8GFHhqLS0rLKMlBp9hIMtx.webp', 'movies/4/backdrop/Ai4eeJWC12mAwSHaBvgwzlRUgyWVaIxeOGdyZ4Ag.webp', NULL, 'published', '2026-01-30 06:37:18', '2026-01-30 21:42:16'),
-(5, 'Resurrection', '2025', 160, 'R', 'In a future where humanity has surrendered its ability to dream in exchange for immortality, an outcast finds illusion, nightmarish visions, and beauty in an intoxicating world of his own making.', 'movies/5/poster/iXl1MJ57vGlRi2GvQFLgPYmsifXdgikhRepquaqC.webp', 'movies/5/backdrop/P23DLxZaJZ1S6XAnAuhfJ4SloMLfLIuLBIlv4Wav.webp', 'https://youtu.be/ZIJezWgFUEY?si=Jpy_MBO8xS7IhmsA', 'published', '2026-01-30 06:37:18', '2026-02-14 03:41:37'),
+(5, 'Resurrection', '2025', 160, 'R', 'In a future where humanity has surrendered its ability to dream in exchange for immortality, an outcast finds illusion, nightmarish visions, and beauty in an intoxicating world of his own making.', 'movies/5/poster/yhKBpNYCQLXQAKJG3xD3Qu7o49EtGYpBzgM3ux4C.webp', 'movies/5/backdrop/P23DLxZaJZ1S6XAnAuhfJ4SloMLfLIuLBIlv4Wav.webp', 'https://youtu.be/ZIJezWgFUEY?si=Jpy_MBO8xS7IhmsA', 'published', '2026-01-30 06:37:18', '2026-02-28 04:43:41'),
 (6, 'Sore: Istri Dari Masa Depan', '2025', 119, 'PG', 'A young man living alone in Croatia encounters a woman who claims to be his wife from the future, sent on a mission to help him correct his bad habits and improve his lifestyle.', 'movies/6/poster/FhAgMgFumfx1blIzWkSBy4FyN0CxfW59fzpiPhYn.webp', 'movies/6/backdrop/c2nt7XkzgOZ8T5RC2qIKTuVn1zke4C3Qgu9JZKTZ.webp', 'https://youtu.be/CZJWXm5KKyM?si=78R4C1eRm3FNYdrv', 'published', '2026-01-30 22:53:21', '2026-01-30 23:02:35'),
 (7, 'Jatuh Cinta Seperti di Film-Film', '2023', 118, 'PG-13', 'Bagus, a screenwriter, reunites with his high school friend and crush, Hana, who is still grieving from the loss of her husband. He wants to convince her to fall in love once again, just like in the movies.', 'movies/7/poster/mvjIEh7YHK6ruRW6cFlomGqB1zhiGCHrlmhRnlma.webp', 'movies/7/backdrop/ztVPySl8mh5j6V5AHd3cSgh4HS41NJ06oj07wiyu.webp', 'https://youtu.be/F6jPobzz-ag?si=qEEc1W9VBvl_QaO1', 'published', '2026-01-30 23:06:54', '2026-01-30 23:10:24'),
 (8, '\"Wuthering Heights\"', '2026', 136, 'R', 'Tragedy strikes when Heathcliff falls in love with Catherine Earnshaw, a woman from a wealthy family in 18th-century England.', 'movies/8/poster/uuaS50XVV9EDYQYtvbTe41EQqv5fFVWKShQo3sbs.webp', 'movies/8/backdrop/Na2VQgAGvNfG32r8ZkBcW6gYUlz6bk6g5j7IMi0u.webp', NULL, 'published', '2026-01-30 23:23:17', '2026-01-30 23:28:09'),
-(9, 'Kokuho', '2025', 174, 'R', 'Nagasaki, 1964: Following the death of his yakuza father, 15-year-old Kikuo is taken under the wing of a famous kabuki actor. Alongside Shunsuke, the actor’s only son, he decides to dedicate himself to this traditional form of theatre. For decades, the two young men grow and evolve together – and one will become the greatest Japanese master of the art of kabuki.', 'movies/9/poster/jjU63J5nEzTMsQCgJUs3i4RBo5tj8gschDTVHyxd.webp', 'movies/9/backdrop/yxvyoYjoyyKIcnI5NEpHYZZO2yxHnUfflVQynODO.webp', NULL, 'published', '2026-01-31 02:47:29', '2026-01-31 02:52:01'),
+(9, 'Kokuho', '2025', 174, 'R', 'Nagasaki, 1964: Following the death of his yakuza father, 15-year-old Kikuo is taken under the wing of a famous kabuki actor. Alongside Shunsuke, the actor’s only son, he decides to dedicate himself to this traditional form of theatre. For decades, the two young men grow and evolve together – and one will become the greatest Japanese master of the art of kabuki.', 'movies/9/poster/jjU63J5nEzTMsQCgJUs3i4RBo5tj8gschDTVHyxd.webp', 'movies/9/backdrop/yxvyoYjoyyKIcnI5NEpHYZZO2yxHnUfflVQynODO.webp', 'https://youtu.be/Y0KfXj3Skao?si=w1QQcdOb5uHYylAV', 'published', '2026-01-31 02:47:29', '2026-02-28 05:12:58'),
 (10, 'Sentimental Value', '2025', 133, 'PG-13', 'Sisters Nora and Agnes reunite with their estranged father, the charismatic Gustav, a once-renowned director who offers stage actress Nora a role in what he hopes will be his comeback film. When Nora turns it down, she soon discovers he has given her part to an eager young Hollywood star.', 'movies/10/poster/0WjHMZ4RSpw30YVH9Boi3WF7sSKRWAiQM6sCiPWL.webp', 'movies/10/backdrop/rMqzPyh7Af2WFdIXZ1QCvRHh5fTsZ3RGbQ7UnNPr.webp', 'https://youtu.be/lKbcKQN5Yrw?si=VVVKOvSx9Oe60on3', 'published', '2026-02-01 00:53:48', '2026-02-01 01:25:17'),
 (11, 'It Was Just an Accident', '2025', 103, 'PG-13', 'An unassuming mechanic is reminded of his time in an Iranian prison when he encounters a man he suspects to be his sadistic jailhouse captor.', 'movies/11/poster/eHmpYjkkzCHaHKyLjHqBTlyVJTVcFzYWBMb3CekT.webp', 'movies/11/backdrop/casiXSWhcY2FaCewF33ozxNEG140w36AqiAxrbRM.webp', 'https://youtu.be/nF04v-ze2Yc?si=NjQPWXOJMejfIEHv', 'published', '2026-02-01 01:09:15', '2026-02-01 01:25:26'),
 (12, 'The Voice of Hind Rajab', '2025', 89, 'PG', 'January 29, 2024. Red Crescent volunteers receive an emergency call. A five-year old girl is trapped in a car under fire in Gaza, pleading for rescue. While trying to keep her on the line, they do everything they can to get an ambulance to her. Her name was Hind Rajab.', 'movies/12/poster/WARIEsnc3Iegg3dYrivlQA9AsH6K05XtmoalB3jy.webp', 'movies/12/backdrop/y96DkRBguGbmad3k17I4CVojlH2FhAMU0jQ3nrMn.webp', 'https://youtu.be/hrssPpqv6vc?si=JOircuAacdAtx_Xa', 'published', '2026-02-01 01:15:50', '2026-02-01 01:25:35'),
@@ -303,7 +312,9 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (40, 'Parasite', '2019', 133, 'R', 'Semua menganggur, keluarga Ki-taek memiliki minat khusus pada Taman kaya dan glamor untuk mata pencaharian mereka sampai mereka terjerat dalam insiden tak terduga.', 'movies/40/poster/SvSfwrfxD7hJAvBxzRtOpH0j4EhYtX85Rr06aLEO.webp', 'movies/40/backdrop/QxXVHoZs8uJideK5jAYcA1euj1t2eDimF7iVD8yj.webp', 'https://youtu.be/isOGD_7hNIY?si=3AXXub_f4PlJugz7', 'published', '2026-02-15 02:45:50', '2026-02-15 02:53:47'),
 (41, 'The Seed of the Sacred Fig', '2024', 167, 'PG-13', 'Investigating judge Iman grapples with paranoia amid political unrest in Tehran. When his gun vanishes, he suspects his wife and daughters, imposing draconian measures that strain family ties as societal rules crumble.', 'movies/41/poster/WSd66avb0rUipB7BWCtVHysM5XhapwznCtIqqEhC.webp', 'movies/41/backdrop/IozpJYooh5NkPNJ9aBgtc8kxoYIfFTvATD9X8aJX.webp', 'https://youtu.be/nbKLGsf1Syg?si=lIlQVo7sBGlZ-fQf', 'published', '2026-02-15 02:51:41', '2026-02-15 02:53:37'),
 (42, 'Anora', '2024', 139, 'NC-17', 'Seorang pekerja seks muda dari Brooklyn mendapatkan kesempatan di cerita Cinderella ketika dia bertemu dan secara impulsif menikahi putra seorang oligarki. Setelah berita mencapai Rusia, dongengnya terancam ketika orang tuanya berangkat untuk membuat pernikahan dibatalkan.', 'movies/42/poster/l5fk2wtNZXNW6UgWzMZIqzDeLyu86XPly4XnstFA.webp', 'movies/42/backdrop/EMSgOND1nz7oJidfmhZmpIW33IScghkrY1cjmNYu.webp', 'https://youtu.be/GuPkfvxmtdw?si=gYtldKVFp3d6BPCQ', 'published', '2026-02-15 03:05:16', '2026-02-15 03:40:49'),
-(43, 'Portrait of a Lady on Fire', '2019', 121, 'NC-17', 'DON\'T REGRET. REMEMBER.\r\n\r\nOn an isolated island in Brittany at the end of the eighteenth century, a female painter is obliged to paint a wedding portrait of a young woman.', 'movies/43/poster/uYxlams4WAuuNZgMKzjPYmkqTH4EENrEwg47kcew.webp', 'movies/43/backdrop/k5NpxCa2lHXLFZRXOOiJgWjmaAjvY1TcD6Xw58tI.webp', 'https://youtu.be/R-fQPTwma9o?si=ETFBNdjeB9bSLB3y', 'published', '2026-02-24 18:12:14', '2026-02-24 18:15:36');
+(43, 'Portrait of a Lady on Fire', '2019', 121, 'NC-17', 'DON\'T REGRET. REMEMBER.\r\n\r\nOn an isolated island in Brittany at the end of the eighteenth century, a female painter is obliged to paint a wedding portrait of a young woman.', 'movies/43/poster/uYxlams4WAuuNZgMKzjPYmkqTH4EENrEwg47kcew.webp', 'movies/43/backdrop/k5NpxCa2lHXLFZRXOOiJgWjmaAjvY1TcD6Xw58tI.webp', 'https://youtu.be/R-fQPTwma9o?si=ETFBNdjeB9bSLB3y', 'published', '2026-02-24 18:12:14', '2026-02-24 18:15:36'),
+(44, 'Call Me by Your Name', '2017', 132, 'NC-17', 'IS IT BETTER TO SPEAK OR DIE?\r\n\r\nIn the summer of 1983, a 17-year-old Elio spends his days in his family\'s villa in Italy. One day Oliver, a graduate student, arrives to assist Elio\'s father, a professor of Greco-Roman culture. Soon, Elio and Oliver discover a summer that will alter their lives forever.', 'movies/44/poster/B3ScRDIq9R8n0e2VYlwJzNlN7kblrbtQyOyL3HNc.webp', 'movies/44/backdrop/P8L14z6T3907ArTab2pxdE4IAMqjqUzh13LeMG4z.webp', 'https://youtu.be/Z9AYPxH5NTM?si=0nw-7Nb6TascWXN8', 'published', '2026-02-28 05:39:03', '2026-02-28 05:41:49'),
+(45, 'Sorry, Baby', '2025', 104, 'R', 'WELCOME TO THE WORLD.\r\n\r\nAgnes feels stuck. Unlike her best friend, Lydie, who’s moved to New York and is now expecting a baby, Agnes still lives in the New England house they once shared as graduate students, now working as a professor at her alma mater. A ‘bad thing’ happened to Agnes a few years ago and, since then, despite her best efforts, life hasn’t gotten back on track.', 'movies/45/poster/ixkERvrumhCKAlISB7mZUU7efKAnTbJNC3M3qQVg.webp', 'movies/45/backdrop/hZMMgpkaT2kPmOSiUZxO2W1NmLU9dOUXK8zCAkLI.webp', 'https://youtu.be/Rc0jgWoZo9w?si=KJIEEg4va5cW_rf2', 'draft', '2026-02-28 06:59:35', '2026-02-28 07:04:35');
 
 -- --------------------------------------------------------
 
@@ -392,7 +403,14 @@ INSERT INTO `movie_countries` (`movie_id`, `country_id`) VALUES
 (41, 5),
 (41, 6),
 (42, 1),
-(43, 5);
+(43, 5),
+(44, 1),
+(44, 5),
+(44, 12),
+(44, 20),
+(45, 1),
+(45, 5),
+(45, 11);
 
 -- --------------------------------------------------------
 
@@ -504,7 +522,11 @@ INSERT INTO `movie_genres` (`movie_id`, `genre_id`) VALUES
 (42, 7),
 (42, 11),
 (43, 7),
-(43, 11);
+(43, 11),
+(44, 7),
+(44, 11),
+(45, 4),
+(45, 7);
 
 -- --------------------------------------------------------
 
@@ -585,7 +607,11 @@ INSERT INTO `movie_languages` (`movie_id`, `language_id`) VALUES
 (42, 1),
 (42, 12),
 (43, 5),
-(43, 8);
+(43, 8),
+(44, 1),
+(44, 5),
+(44, 8),
+(45, 1);
 
 -- --------------------------------------------------------
 
@@ -619,7 +645,11 @@ INSERT INTO `movie_likes` (`id`, `user_id`, `film_id`, `created_at`) VALUES
 (16, 5, 37, '2026-02-14 04:00:06'),
 (18, 5, 2, '2026-02-14 04:00:36'),
 (19, 5, 34, '2026-02-24 18:16:37'),
-(20, 5, 10, '2026-02-24 20:52:59');
+(20, 5, 10, '2026-02-24 20:52:59'),
+(21, 5, 14, '2026-02-28 04:46:56'),
+(22, 5, 42, '2026-02-28 04:53:14'),
+(23, 5, 30, '2026-02-28 04:53:39'),
+(24, 5, 41, '2026-02-28 04:54:31');
 
 -- --------------------------------------------------------
 
@@ -648,7 +678,7 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (7, 3, 'poster', 'movies/3/poster/lNUXiqFkQiylVswXRL0CXpQQyO5w8A64VVJ1XwZc.webp', 1, '2026-01-31 04:01:05'),
 (8, 3, 'backdrop', 'movies/3/backdrop/IYVzP15BMaVLXAtW6RJH9hLU4O3xTwz6EirgPiCp.webp', 1, '2026-01-31 04:03:30'),
 (9, 4, 'poster', 'movies/4/poster/hBWu8LFNnvKg6Gnd3D8GFHhqLS0rLKMlBp9hIMtx.webp', 1, '2026-01-31 04:12:43'),
-(10, 5, 'poster', 'movies/5/poster/iXl1MJ57vGlRi2GvQFLgPYmsifXdgikhRepquaqC.webp', 1, '2026-01-31 04:30:24'),
+(10, 5, 'poster', 'movies/5/poster/iXl1MJ57vGlRi2GvQFLgPYmsifXdgikhRepquaqC.webp', 0, '2026-01-31 04:30:24'),
 (11, 5, 'backdrop', 'movies/5/backdrop/P23DLxZaJZ1S6XAnAuhfJ4SloMLfLIuLBIlv4Wav.webp', 1, '2026-01-31 04:30:42'),
 (12, 4, 'backdrop', 'movies/4/backdrop/Ai4eeJWC12mAwSHaBvgwzlRUgyWVaIxeOGdyZ4Ag.webp', 1, '2026-01-31 04:42:09'),
 (13, 6, 'poster', 'movies/6/poster/FhAgMgFumfx1blIzWkSBy4FyN0CxfW59fzpiPhYn.webp', 1, '2026-01-31 06:01:42'),
@@ -773,7 +803,12 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (132, 30, 'backdrop', 'movies/30/backdrop/WcvLzELjaCn7l5vXy52iqwdXPfW3hSq4zqFiLKn7.webp', 0, '2026-02-25 03:32:50'),
 (133, 30, 'backdrop', 'movies/30/backdrop/Qz3OzImArUT2ouHC746OeaMv2CKFF1GIwV4muUVj.webp', 0, '2026-02-25 03:32:55'),
 (134, 30, 'backdrop', 'movies/30/backdrop/18MgPasmVhGN6jRM4yqxyJC9AMFRgELdX3uI3o9f.webp', 0, '2026-02-25 03:33:00'),
-(135, 30, 'backdrop', 'movies/30/backdrop/0wGPYPHTVirlfxklQ9dxyXZ4xHvjI9DiWbt3mMi8.webp', 0, '2026-02-25 03:33:26');
+(135, 30, 'backdrop', 'movies/30/backdrop/0wGPYPHTVirlfxklQ9dxyXZ4xHvjI9DiWbt3mMi8.webp', 0, '2026-02-25 03:33:26'),
+(136, 5, 'poster', 'movies/5/poster/yhKBpNYCQLXQAKJG3xD3Qu7o49EtGYpBzgM3ux4C.webp', 1, '2026-02-28 11:43:35'),
+(137, 44, 'poster', 'movies/44/poster/B3ScRDIq9R8n0e2VYlwJzNlN7kblrbtQyOyL3HNc.webp', 1, '2026-02-28 12:41:23'),
+(138, 44, 'backdrop', 'movies/44/backdrop/P8L14z6T3907ArTab2pxdE4IAMqjqUzh13LeMG4z.webp', 1, '2026-02-28 12:41:33'),
+(139, 45, 'poster', 'movies/45/poster/ixkERvrumhCKAlISB7mZUU7efKAnTbJNC3M3qQVg.webp', 1, '2026-02-28 14:01:04'),
+(140, 45, 'backdrop', 'movies/45/backdrop/hZMMgpkaT2kPmOSiUZxO2W1NmLU9dOUXK8zCAkLI.webp', 1, '2026-02-28 14:01:16');
 
 -- --------------------------------------------------------
 
@@ -863,7 +898,30 @@ INSERT INTO `movie_persons` (`id`, `movie_id`, `person_id`, `role_type`, `charac
 (70, 27, 4, 'crew', NULL, 'Writer', 6),
 (71, 27, 56, 'crew', NULL, 'Writer', 7),
 (72, 27, 57, 'crew', NULL, 'Writer', 8),
-(73, 27, 58, 'crew', NULL, 'Writer', 9);
+(73, 27, 58, 'crew', NULL, 'Writer', 9),
+(74, 11, 60, 'cast', 'Vahid', NULL, 0),
+(75, 11, 61, 'cast', 'Shiva', NULL, 1),
+(76, 11, 64, 'cast', 'Eghbal', NULL, 2),
+(77, 11, 62, 'cast', 'Golrokh', NULL, 3),
+(78, 11, 63, 'cast', 'Ali', NULL, 4),
+(79, 11, 65, 'cast', 'Hamid', NULL, 5),
+(80, 11, 59, 'crew', NULL, 'Director', 6),
+(81, 11, 59, 'crew', NULL, 'Writer', 7),
+(82, 30, 67, 'cast', 'Agnes', NULL, 0),
+(83, 30, 68, 'cast', 'Will', NULL, 1),
+(84, 30, 71, 'cast', 'Mary', NULL, 2),
+(85, 30, 70, 'cast', 'Bartholomew', NULL, 3),
+(86, 30, 69, 'cast', 'Hamnet', NULL, 4),
+(87, 30, 66, 'crew', NULL, 'Director', 5),
+(88, 30, 66, 'crew', NULL, 'Writer', 6),
+(89, 31, 73, 'cast', 'Marty Mauser', NULL, 0),
+(90, 31, 74, 'cast', 'Rachel Mizler', NULL, 1),
+(91, 31, 72, 'crew', NULL, 'Director', 2),
+(92, 31, 72, 'crew', NULL, 'Writer', 3),
+(93, 45, 75, 'cast', 'Agnes', NULL, 0),
+(94, 45, 76, 'cast', 'Lydie', NULL, 1),
+(95, 45, 75, 'crew', NULL, 'Director', 2),
+(96, 45, 75, 'crew', NULL, 'Writer', 3);
 
 -- --------------------------------------------------------
 
@@ -958,7 +1016,10 @@ INSERT INTO `movie_production_houses` (`movie_id`, `production_house_id`) VALUES
 (43, 16),
 (43, 18),
 (43, 20),
-(43, 50);
+(43, 50),
+(44, 51),
+(44, 52),
+(45, 4);
 
 -- --------------------------------------------------------
 
@@ -988,7 +1049,6 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (38, 10, 11, 'rent', '2026-02-24', 0),
 (41, 11, 11, 'rent', NULL, 0),
 (54, 1, 11, 'stream', NULL, 1),
-(56, 14, 11, 'stream', '2026-02-17', 1),
 (58, 3, 11, 'rent', NULL, 0),
 (64, 15, 4, 'stream', NULL, 0),
 (92, 19, 11, 'stream', NULL, 0),
@@ -1005,9 +1065,6 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (125, 25, 11, 'stream', NULL, 0),
 (126, 24, 11, 'stream', NULL, 0),
 (128, 26, 11, 'stream', NULL, 0),
-(129, 9, 9, 'stream', '2026-02-18', 0),
-(130, 9, 10, 'stream', '2026-02-18', 0),
-(131, 9, 12, 'stream', '2026-02-18', 0),
 (132, 17, 9, 'stream', '2026-04-23', 0),
 (133, 17, 10, 'stream', '2026-04-23', 0),
 (134, 17, 12, 'stream', '2026-04-23', 0),
@@ -1015,16 +1072,10 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (141, 23, 11, 'stream', NULL, 0),
 (142, 28, 5, 'rent', NULL, 0),
 (143, 28, 5, 'buy', NULL, 0),
-(150, 30, 9, 'stream', '2026-02-27', 0),
-(151, 30, 10, 'stream', '2026-02-27', 0),
-(152, 30, 12, 'stream', '2026-02-27', 0),
 (159, 32, 9, 'stream', NULL, 1),
 (160, 32, 10, 'stream', NULL, 1),
 (161, 32, 12, 'stream', NULL, 1),
 (166, 12, 11, 'rent', '2026-03-26', 0),
-(167, 31, 10, 'stream', '2026-02-25', 0),
-(168, 31, 11, 'rent', NULL, 1),
-(169, 31, 12, 'stream', '2026-02-25', 0),
 (171, 35, 11, 'stream', NULL, 0),
 (172, 36, 5, 'rent', NULL, 0),
 (173, 36, 5, 'buy', NULL, 0),
@@ -1034,7 +1085,20 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (180, 38, 11, 'stream', NULL, 0),
 (182, 39, 1, 'stream', NULL, 0),
 (183, 41, 11, 'stream', NULL, 0),
-(186, 42, 4, 'stream', NULL, 0);
+(186, 42, 4, 'stream', NULL, 0),
+(187, 5, 11, 'stream', NULL, 0),
+(188, 30, 9, 'stream', NULL, 0),
+(189, 30, 10, 'stream', NULL, 0),
+(190, 30, 12, 'stream', NULL, 0),
+(191, 14, 11, 'rent', NULL, 0),
+(192, 31, 9, 'stream', NULL, 0),
+(193, 31, 10, 'stream', NULL, 0),
+(194, 31, 12, 'stream', NULL, 0),
+(198, 9, 9, 'stream', NULL, 0),
+(199, 9, 10, 'stream', NULL, 0),
+(200, 9, 12, 'stream', NULL, 0),
+(203, 44, 1, 'stream', NULL, 0),
+(206, 45, 11, 'stream', NULL, 0);
 
 -- --------------------------------------------------------
 
@@ -1068,7 +1132,15 @@ INSERT INTO `notifications` (`id`, `user_id`, `actor_id`, `type`, `film_id`, `re
 (6, 3, 5, 'reply_comment', 10, 16, 'Mafia film replied to your comment on Sentimental Value', 1, '2026-02-24 22:30:49', '2026-02-24 22:30:49'),
 (7, 3, 5, 'comment_review', 10, 17, 'Mafia film commented on your review of Sentimental Value', 1, '2026-02-24 22:31:06', '2026-02-24 22:31:06'),
 (8, 5, 3, 'like_review', 34, 19, 'Sengefilm liked your ★★★★ review of Sirāt', 1, '2026-02-24 23:17:25', '2026-02-24 23:17:25'),
-(9, 5, 3, 'comment_review', 34, 18, 'Sengefilm commented on your review of Sirāt', 1, '2026-02-24 23:17:37', '2026-02-24 23:17:37');
+(9, 5, 3, 'comment_review', 34, 18, 'Sengefilm commented on your review of Sirāt', 1, '2026-02-24 23:17:37', '2026-02-24 23:17:37'),
+(10, 3, 6, 'follow', NULL, NULL, 'Mopud followed you', 0, '2026-02-28 03:10:44', '2026-02-28 03:10:44'),
+(11, 5, 6, 'follow', NULL, NULL, 'Mopud followed you', 1, '2026-02-28 03:11:08', '2026-02-28 03:11:08'),
+(12, 6, 5, 'follow', NULL, NULL, 'Mafia film followed you', 0, '2026-02-28 03:12:04', '2026-02-28 03:12:04'),
+(13, 3, 5, 'comment_review', 34, 19, 'Mafia film commented on your review of Sirāt', 0, '2026-02-28 07:30:19', '2026-02-28 07:30:19'),
+(14, 3, 5, 'comment_review', 16, 20, 'Mafia film commented on your review of The Secret Agent', 0, '2026-02-28 08:00:01', '2026-02-28 08:00:01'),
+(15, 3, 5, 'comment_review', 34, 21, 'Mafia film commented on your review of Sirāt', 0, '2026-02-28 08:15:58', '2026-02-28 08:15:58'),
+(16, 6, 5, 'follow', NULL, NULL, 'Mafia film followed you', 0, '2026-02-28 08:32:26', '2026-02-28 08:32:26'),
+(17, 3, 5, 'like_review', 34, 15, 'Mafia film liked your ★★★★ review of Sirāt', 0, '2026-02-28 08:32:43', '2026-02-28 08:32:43');
 
 -- --------------------------------------------------------
 
@@ -1147,7 +1219,26 @@ INSERT INTO `persons` (`id`, `full_name`, `primary_role`, `photo_path`, `bio`, `
 (55, 'Yeom Hye-ran', 'Actor', 'persons/VeLl9Q2m5vCVDp9m6pbiNhaNBex2S77pGdSQ8YHg.webp', 'Yeom Hye-ran is a Korean actress born in 1976.', NULL, NULL, '2026-02-15 03:22:22', '2026-02-15 03:22:22'),
 (56, 'Lee Kyoung-mi', 'Writer', 'persons/oCyqBbNoCFTxqtpbptNujnMGKsDEsSEu5IYrFQm2.webp', 'Lee Kyoung-mi (Korean: 이경미 born December 1973) is a South Korean film director and screenwriter. She was born in Seoul, and graduated with a Russian degree from Hankuk University of Foreign Studies. After working at a company for three years, she entered the School of Film, TV & Multimedia of the Korea National University of Arts, graduating with a major in Filmmaking in 2004. Her short film Feel Good Story, about an employee given the task of figuring out how her company can evade paying taxes, garnered several awards in the film festival circuit in 2004. Lee made her feature directorial debut with Crush and Blush (2008), a black comedy about an obsessive teacher and an outcast student who bond over their shared misanthropy; a critic called it \"one of those rare films from an up-and-coming auteur that shows both guts and playfulness.\" It was the first film to be produced by Park Chan-wook; Lee had previously worked as a scripter/assistant director on Park\'s 2005 film Sympathy for Lady Vengeance. Crush and Blush premiered at the 13th Busan International Film Festival, and was released in theaters on October 16, 2008. Lee won Best New Director and Best Screenplay at the Blue Dragon Film Awards in 2008.', NULL, NULL, '2026-02-15 03:22:59', '2026-02-15 03:22:59'),
 (57, 'Don McKellar', 'Writer', 'persons/wZmPcnMluLht6YD7JNes2rLEC2fW9Nm8Wfx52kRV.webp', 'Don McKellar CM (born August 17, 1963) is a Canadian actor, writer, playwright, and filmmaker. He was part of a loosely-affiliated group of filmmakers to emerge from Toronto known as the Toronto New Wave.\r\n\r\nHe is known for directing and writing the film Last Night, which won the Prix de la Jeunesse at the 1998 Cannes Film Festival, as well as his screenplays for films such as Thirty Two Short Films About Glenn Gould, The Red Violin, and Blindness. McKellar frequently acts in his own projects, and has also appeared in Atom Egoyan\'s Exotica and David Cronenberg\'s eXistenZ and Crimes of the Future.\r\n\r\nHe is also known for being a fixture on Canadian television, with series including Twitch City, Odd Job Jack, and Slings & Arrows, as well as writing the book for the popular Tony Award-winning musical The Drowsy Chaperone. He is an eight-time nominee and two-time Genie Award winner.', NULL, NULL, '2026-02-15 03:23:37', '2026-02-15 03:23:37'),
-(58, 'Lee Ja-hye', 'Writer', 'persons/BNoOb4fegRISoyQBLNUxrysEz0C02nVzZ2zNzgc3.webp', NULL, NULL, NULL, '2026-02-15 03:24:05', '2026-02-15 03:24:05');
+(58, 'Lee Ja-hye', 'Writer', 'persons/BNoOb4fegRISoyQBLNUxrysEz0C02nVzZ2zNzgc3.webp', NULL, NULL, NULL, '2026-02-15 03:24:05', '2026-02-15 03:24:05'),
+(59, 'Jafar Panahi', 'Director', 'persons/mPIFdjALJgBH4Ps61i34xOam3RTnICbTiehNA5nu.webp', 'Jafar Panahi (born in July 11, 1960) is a representative of Iranian “New Wave.” He is one of the leaders of contemporary Iranian cinema. Panahi’s work, from his first attempts to discuss social issues to his later and braver discussions of taboo topics in Iran are a creative reflection on the nature of cinema and human society, and are imbued with humanity. In 2010, the court in Iran sentenced Jafar Panahi to six years in prison. In addition, according to the sentence, Panahi was banned from making films for 20 years, giving interviews to local and international media outlets, and leaving Iran. Three Faces was his fourth film (after This Is Not a Film, Closed Curtain, and Taxi) shot after his arrest. The director did not attend the premiere due to being banned from leaving Iran. Panahi is a student of Abbas Kiarostami, whose influence is especially clear in Three Faces, reminiscent of such acclaimed masterpieces as The Wind Will Carry Us and Taste of Cherry.', NULL, NULL, '2026-02-28 05:13:59', '2026-02-28 05:13:59'),
+(60, 'Vahid Mobasseri', 'Actor', 'persons/XhmdnR4XRx02VjGXgJbKDKi9N6YwUFm28jLTzU8C.webp', 'Mobasseri is an Iranian actor. He has appeared in numerous works across both cinema and television drama, most notably the film Khers Nist (No Bears) and It Was Just an Accident, both directed by the renowned filmmaker Jafar Panahi.', NULL, NULL, '2026-02-28 05:14:51', '2026-02-28 05:14:51'),
+(61, 'Mariam Afshari', 'Actor', 'persons/LiGn15jJYleDlNphki5C7zFeqf0MVHKpTFmuuAJE.webp', 'Afshari is an actress known for her role as Shiva in Iranian director Jafar Panahi\'s film \"It Was Just an Accident\" (2025), which won the Palme d’Or at the 78th Cannes Film Festival. She is also recognized for her work in the 2017 series Parisa. Afshari is a karate instructor and referee. In 2025 she got a Berlin Artist-in-Residence fellowship.', NULL, NULL, '2026-02-28 05:15:23', '2026-02-28 05:15:23'),
+(62, 'Hadis Pakbaten', 'Actor', 'persons/AWZZ5qcvxhhintrIWntRgi0adVupUx44irCYhaTs.webp', NULL, NULL, NULL, '2026-02-28 05:16:01', '2026-02-28 05:16:01'),
+(63, 'Majid Panahi', 'Actor', 'persons/UJU52ZgvJtYELbOmKsWhb7ksovkzUjy4wgy8YqTc.webp', NULL, NULL, NULL, '2026-02-28 05:16:25', '2026-02-28 05:16:25');
+INSERT INTO `persons` (`id`, `full_name`, `primary_role`, `photo_path`, `bio`, `date_of_birth`, `nationality`, `created_at`, `updated_at`) VALUES
+(64, 'Ebrahim Azizi', 'Actor', 'persons/XAdAtLp8YnNBFmf7p2pwEY5lf7hgiXlNn4jAnoX3.webp', NULL, NULL, NULL, '2026-02-28 05:16:58', '2026-02-28 05:16:58'),
+(65, 'Mohamad Ali Elyasmehr', 'Actor', 'persons/FlzpJKPWr0rRliMwbqher3Ts1uiSIuWBPiqE5pC2.webp', NULL, NULL, NULL, '2026-02-28 05:17:19', '2026-02-28 05:17:19'),
+(66, 'Chloé Zhao', 'Director', 'persons/txaD1iOi2YkFIIKG6cLl8fiXxaUU3mmUWDShNbnK.webp', 'Chloé Zhao (born Zhao Ting, in Chinese: 赵婷; 31 March 1982) is a Chinese-born filmmaker. She is known primarily for her work on independent films. For her film Nomadland (2020), Zhao is the second of three women to win the Academy Award for Best Director.\r\n\r\nSongs My Brothers Taught Me (2015), her debut feature film, premiered at Sundance Film Festival to critical acclaim and earned a nomination for the Independent Spirit Award for Best First Feature. The Rider (2017) was critically acclaimed and received nominations for the Independent Spirit Award for Best Film and Best Director.\r\n\r\nZhao garnered international recognition with the American film Nomadland (2020), which she wrote, produced, edited and directed, and which won numerous accolades, including the Golden Lion at the Venice Film Festival and the People\'s Choice Award at the Toronto International Film Festival. Earning four Academy Award nominations for the film, Zhao won Best Picture and Best Director, becoming the first woman of color to win the latter. She also won awards for directing at the Directors Guild of America Awards, Golden Globe Awards, and British Academy Film Awards, becoming the second female winner of each of them.\r\n\r\nZhao co-wrote and directed the Marvel Cinematic Universe superhero film Eternals (2021). Her latest film, Hamnet, premiered at the 52nd Telluride Film Festival to critical acclaim.', NULL, NULL, '2026-02-28 05:23:39', '2026-02-28 05:23:39'),
+(67, 'Jessie Buckley', 'Actor', 'persons/Q2ayqe01GuTTvuJXUEdGDUpI40roTAX2QZ4qZW0a.webp', 'Jessie Buckley (born December 28, 1989) is an Irish actress and singer. The accolades she has received include a Golden Globe Award, a Laurence Olivier Award, nominations for an Academy Award and three BAFTA Awards.\r\n\r\nBuckley began her career in 2008 as a contestant on the BBC TV talent show I\'d Do Anything, in which she came second. A RADA graduate, her early onscreen appearances were in BBC television series, such as War & Peace (2016) and Taboo (2017). Buckley made her film debut playing the lead role in Beast (2017) and had her breakthrough starring in the musical film Wild Rose (2018). Her performance as an aspiring country music singer in the latter earned her a nomination for the BAFTA Award for Best Actress in a Leading Role.\r\n\r\nBuckley\'s career progressed with starring roles in the HBO miniseries Chernobyl (2019), I\'m Thinking of Ending Things (2020), season four of Fargo (2020), The Lost Daughter (2021), Men (2022) and Women Talking (2022). Her performance in The Lost Daughter earned her nominations for the BAFTA Award for Best Actress in a Supporting Role and the Academy Award for Best Supporting Actress. Buckley\'s portrayal of Sally Bowles in a 2021 West End theatre revival of Cabaret won her the Laurence Olivier Award for Best Actress in a Musical. \r\n\r\nIn 2022, she released the collaborative album For All Our Days That Tear the Heart with Bernard Butler, which was shortlisted for the 2022 Mercury Prize.', NULL, NULL, '2026-02-28 05:24:45', '2026-02-28 05:24:45'),
+(68, 'Paul Mescal', 'Actor', 'persons/PjKBEqLnkgBl7OkcqUnuLDlu6Rg4RXxsPjp1fLOQ.webp', 'Paul Colm Michael Mescal (/ˈmɛskəl/ MESS-kəl; born 2 February 1996) is an Irish actor. Born in Maynooth, he studied acting at The Lir Academy and then performed in plays in Dublin theatres. He rose to fame with his role in the miniseries Normal People (2020), earning a BAFTA TV Award and a nomination for a Primetime Emmy Award.\r\n\r\nMescal progressed to film acting with roles in the psychological dramas The Lost Daughter (2021) and God\'s Creatures (2022). His starring roles as a troubled father in Aftersun (2022) and a mysterious neighbour in All of Us Strangers (2023) earned him nominations for BAFTA Film Awards in addition to a nomination for an Academy Award for the former. He received a Laurence Olivier Award for his portrayal of Stanley Kowalski in a 2022 revival of the play A Streetcar Named Desire. Mescal expanded to big-budget films with a leading role in the historical action film Gladiator II (2024).', NULL, NULL, '2026-02-28 05:25:15', '2026-02-28 05:25:15'),
+(69, 'Jacobi Jupe', 'Actor', 'persons/ufAlc87r65Tbr9EJ5z1wA3CC8a3t7ztgfTb6YQn2.webp', 'Jacobi Jupe (born July 2013) is a British actor, best known for portraying Hamnet Shakespeare in Hamnet (2025). He is also the younger brother of actor Noah Jupe.', NULL, NULL, '2026-02-28 05:25:47', '2026-02-28 05:25:47'),
+(70, 'Joe Alwyn', 'Actor', 'persons/AhXM1ELOrhXUSCnbGPHrQxBfll3fna7V2Ldc0Sjl.webp', 'Joseph Matthew Alwyn (born 21 February 1991) is an English actor. Alwyn made his feature film debut as the titular character in Ang Lee\'s 2016 war drama Billy Lynn\'s Long Halftime Walk and has since played roles in films such as The Favourite (2018), Boy Erased (2018), Mary Queen of Scots (2018), Harriet (2019), Catherine Called Birdy (2022), and The Brutalist (2024), as well as the BBC and Hulu drama series Conversations with Friends (2022).', NULL, NULL, '2026-02-28 05:26:21', '2026-02-28 05:26:21'),
+(71, 'Emily Watson', 'Actor', 'persons/ZjFDlxoJ3eiMI9RaLIgrjCbSva836OKATXscRrPN.webp', 'Emily Margaret Watson (born 14 January 1967) is an English actress. She began her career on stage and joined the Royal Shakespeare Company in 1992. In 2002, she starred in productions of Twelfth Night and Uncle Vanya at the Donmar Warehouse. She was nominated for the Olivier Award for Best Actress for the latter. She was nominated for the Academy Award for Best Actress for her debut film role as a newlywed in Lars von Trier\'s Breaking the Waves (1996) and for her portrayal of Jacqueline du Pré in Anand Tucker\'s Hilary and Jackie (1998).\r\n\r\nWatson\'s other films include The Boxer (1997), Angela\'s Ashes (1999), Gosford Park (2001),  Punch-Drunk Love (2002), Red Dragon (2002), The Life and Death of Peter Sellers (2004), Corpse Bride (2005), Miss Potter (2006), Synecdoche, New York (2008), Oranges and Sunshine (2010), War Horse (2011), The Theory of Everything (2014), Kingsman: The Golden Circle (2017), God\'s Creatures (2022), and Small Things like These (2024). \r\n\r\nShe was nominated for a Primetime Emmy Award and a Golden Globe Award for her role in the HBO miniseries Chernobyl. She won the British Academy Television Award for Best Actress for playing Janet Leach in the 2011 ITV television biopic Appropriate Adult. She was nominated for the International Emmy Award for Best Actress for the 2017 BBC miniseries Apple Tree Yard. In 2024, she portrayed the lead role of Valya Harkonnen in the HBO science fiction series Dune: Prophecy.', NULL, NULL, '2026-02-28 05:26:54', '2026-02-28 05:26:54'),
+(72, 'Josh Safdie', 'Director', 'persons/uFcnClKoe6m5coqqvqojoCqwwcxIsKIVsVmGFoLy.webp', 'Joshua Henry Safdie (born April 3, 1984) is an American filmmaker and screenwriter, best known for his work with his younger brother, Benny Safdie, as one half of the acclaimed Safdie Brothers. Together, they developed a reputation for raw, urgent storytelling in films such as Heaven Knows What (2014), Good Time (2017), and Uncut Gems (2019).\r\n\r\nIn 2024, it was reported that the Safdie Brothers would no longer co-direct and would instead pursue solo projects. Josh’s first feature since the split is Marty Supreme, starring Timothée Chalamet, scheduled for release on December 25, 2025.', NULL, NULL, '2026-02-28 05:30:38', '2026-02-28 05:30:38'),
+(73, 'Timothée Chalamet', 'Actor', 'persons/gyWHzB3UR8E3VLpy6XhRr0AVhTFo0VWfTiZ9PtnK.webp', 'Timothée Hal Chalamet (born December 27, 1995) is an American actor. He began his career appearing in the drama series Homeland in 2012. Two years later, he made his film debut in the comedy-drama Men, Women & Children and appeared in Christopher Nolan\'s science fiction film Interstellar. He came into attention in Luca Guadagnino\'s coming-of-age film Call Me by Your Name (2017). Alongside supporting roles in Greta Gerwig\'s films Lady Bird (2017) and Little Women (2019), he took on starring roles in Beautiful Boy (2018) and Dune (2021).', NULL, NULL, '2026-02-28 05:31:20', '2026-02-28 05:31:20'),
+(74, 'Odessa A\'zion', 'Actor', 'persons/hMCnYBtWwrb5eb1TY86qEWpYYWwWS5LhZKkQviRz.webp', 'Odessa Zion Segall Adlon (born June 17, 2000), often known as Odessa A\'zion, is an American actress. On television, she is known for her roles in the CBS series Fam (2019), the Netflix series Grand Army (2020), and the HBO series I Love LA (2025). Her films include Hellraiser (2022), The Inhabitant (2022), Sitting in Bars with Cake (2023), Fresh Kills (2024), Until Dawn (2025), and Marty Supreme (2025).', NULL, NULL, '2026-02-28 05:31:54', '2026-02-28 05:31:54'),
+(75, 'Eva Victor', 'Actor', 'persons/TPktPTr0yIAU4XqOlZtCqZVjMIjzQuJY16hFIAzS.webp', 'Eva Victor (born 1994) is an American actor, writer, and director. They featured in the television series Billions from 2020 to 2023. They made their directorial debut with the self-starring independent film Sorry, Baby (2025).', NULL, NULL, '2026-02-28 07:02:27', '2026-02-28 07:02:27'),
+(76, 'Naomi Ackie', 'Actor', 'persons/4HDciOzj3dE3jXoOC53A3qrKrWcOAah1x3bvOuVd.webp', 'Naomi Sarah Ackie (born 22 August 1992) is an English actress. She is known for her television roles in The End of the F***ing World (2019), for which she won the BAFTA TV Award for Best Supporting Actress, and Master of None (2021). Her film roles include Star Wars: The Rise of Skywalker (2019), I Wanna Dance with Somebody (2022), Blink Twice (2024), Sorry, Baby (2025), and Mickey 17 (2025).', NULL, NULL, '2026-02-28 07:02:57', '2026-02-28 07:02:57');
 
 -- --------------------------------------------------------
 
@@ -1181,12 +1272,14 @@ INSERT INTO `production_houses` (`id`, `name`) VALUES
 (30, 'Excellent Cadaver'),
 (49, 'FilmNation Entertaiment'),
 (35, 'Forka Films'),
+(52, 'Frenesy Film'),
 (21, 'GDH'),
 (39, 'Giraffe Pictures'),
 (15, 'GKIDS Films'),
 (36, 'Imajinari'),
 (38, 'Jagartha'),
 (12, 'Janus Films'),
+(51, 'La Cinéfacture'),
 (3, 'Legendary Pictures'),
 (50, 'Lilies Films'),
 (20, 'Madman Films'),
@@ -1253,9 +1346,13 @@ INSERT INTO `ratings` (`id`, `user_id`, `film_id`, `rating`, `created_at`, `upda
 (16, 3, 34, 4, '2026-02-10 22:35:43', '2026-02-10 22:40:53'),
 (17, 3, 37, 0, '2026-02-14 02:53:28', '2026-02-14 02:53:28'),
 (18, 5, 37, 5, '2026-02-14 04:00:04', '2026-02-14 04:00:04'),
-(19, 5, 2, 5, '2026-02-14 04:00:33', '2026-02-14 04:00:33'),
+(19, 5, 2, 5, '2026-02-14 04:00:33', '2026-02-28 08:29:51'),
 (20, 5, 34, 4, '2026-02-24 18:16:35', '2026-02-24 18:16:35'),
-(21, 5, 10, 5, '2026-02-24 20:52:58', '2026-02-24 20:52:58');
+(21, 5, 10, 5, '2026-02-24 20:52:58', '2026-02-24 20:52:58'),
+(22, 5, 14, 5, '2026-02-28 04:46:55', '2026-02-28 04:46:55'),
+(23, 5, 42, 4, '2026-02-28 04:53:13', '2026-02-28 04:53:13'),
+(24, 5, 30, 5, '2026-02-28 04:53:39', '2026-02-28 04:53:39'),
+(25, 5, 41, 5, '2026-02-28 04:54:29', '2026-02-28 04:54:29');
 
 -- --------------------------------------------------------
 
@@ -1300,7 +1397,12 @@ INSERT INTO `reviews` (`id`, `user_id`, `film_id`, `rating`, `title`, `content`,
 (17, 3, 34, 4, NULL, 'Aku suka sinema Horeg ini', NULL, 0, 0, 1, '2026-02-14', 'published', '2026-02-14 01:28:08', '2026-02-14 01:28:08'),
 (18, 5, 37, 5, NULL, 'Keren, Absolut cinema', NULL, 0, 1, 0, '2026-02-14', 'published', '2026-02-14 04:00:21', '2026-02-14 04:00:21'),
 (19, 5, 34, 4, NULL, 'Sangar', NULL, 0, 1, 0, '2026-02-25', 'published', '2026-02-24 18:16:47', '2026-02-24 18:16:47'),
-(20, 5, 10, 5, NULL, 'Heartwarming', NULL, 0, 1, 0, '2026-02-25', 'published', '2026-02-24 20:53:12', '2026-02-24 20:53:12');
+(20, 5, 10, 5, NULL, 'Heartwarming', NULL, 0, 1, 0, '2026-02-25', 'published', '2026-02-24 20:53:12', '2026-02-24 20:53:12'),
+(21, 5, 14, 5, NULL, 'Film yang dikemas dengan cara absurd, nyeleneh, simbolik, dan lucu. Bercerita tentang seorang pria (March) yang kehilangan istrinya (Nat) karena polusi debu, lalu sang istri kembali sebagai hantu di dalam vacuum cleaner. Film ini bukan hanya fokus pada romansa March dan Nat, melainkan pada trauma dan ingatan yang belum selesai. Saat tragedi penindakan militer 2010 di Bangkok disinggung, absurditasnya berubah menjadi satire pahit tentang memori kolektif yang tak bisa begitu saja disingkirkan.', NULL, 0, 1, 0, '2026-02-28', 'published', '2026-02-28 04:47:40', '2026-02-28 04:47:40'),
+(22, 5, 42, 4, NULL, 'Astagfirullah', NULL, 0, 1, 0, '2026-02-28', 'published', '2026-02-28 04:53:23', '2026-02-28 04:53:23'),
+(23, 5, 30, 5, NULL, 'Sedih banggettt', NULL, 0, 1, 0, '2026-02-28', 'published', '2026-02-28 04:53:49', '2026-02-28 04:53:49'),
+(24, 5, 41, 5, NULL, 'Sunyi mamposss', NULL, 0, 1, 0, '2026-02-28', 'published', '2026-02-28 04:54:43', '2026-02-28 04:54:43'),
+(25, 5, 2, 5, NULL, 'AH AH AH AH', NULL, 0, 1, 0, '2026-02-28', 'published', '2026-02-28 08:30:02', '2026-02-28 08:30:02');
 
 -- --------------------------------------------------------
 
@@ -1314,7 +1416,7 @@ CREATE TABLE `review_comments` (
   `user_id` bigint(20) UNSIGNED NOT NULL,
   `content` text NOT NULL,
   `parent_id` bigint(20) UNSIGNED DEFAULT NULL,
-  `status` enum('published','hidden') NOT NULL DEFAULT 'published',
+  `status` enum('published','flagged','deleted','hidden') NOT NULL DEFAULT 'published',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1327,7 +1429,7 @@ INSERT INTO `review_comments` (`id`, `review_id`, `user_id`, `content`, `parent_
 (1, 12, 3, 'tes', NULL, 'published', '2026-02-07 05:11:31', '2026-02-07 05:11:31'),
 (2, 12, 3, 'Oke', 1, 'published', '2026-02-10 18:25:45', '2026-02-10 18:25:45'),
 (3, 12, 3, 'bagus', 2, 'published', '2026-02-10 18:26:42', '2026-02-10 18:26:42'),
-(4, 12, 3, 'Waw', NULL, 'published', '2026-02-10 18:27:00', '2026-02-10 18:27:00'),
+(4, 12, 3, 'Waw', NULL, 'deleted', '2026-02-10 18:27:00', '2026-02-28 08:08:32'),
 (5, 12, 3, 'oke', 4, 'published', '2026-02-10 18:27:07', '2026-02-10 18:27:07'),
 (9, 11, 3, '<i><b><u>waw</u></b></i>', NULL, 'published', '2026-02-10 19:49:58', '2026-02-10 19:49:58'),
 (10, 11, 3, '<b><i>ya</i></b>', NULL, 'published', '2026-02-10 20:07:51', '2026-02-10 20:07:51'),
@@ -1337,7 +1439,12 @@ INSERT INTO `review_comments` (`id`, `review_id`, `user_id`, `content`, `parent_
 (15, 20, 3, 'tes lagi', 14, 'published', '2026-02-24 22:20:09', '2026-02-24 22:20:09'),
 (16, 11, 5, 'Thanks', 12, 'published', '2026-02-24 22:30:49', '2026-02-24 22:30:49'),
 (17, 11, 5, 'Tess', NULL, 'published', '2026-02-24 22:31:06', '2026-02-24 22:31:06'),
-(18, 19, 3, 'Horeg banget jir', NULL, 'published', '2026-02-24 23:17:37', '2026-02-24 23:17:37');
+(18, 19, 3, 'Horeg banget jir', NULL, 'published', '2026-02-24 23:17:37', '2026-02-24 23:17:37'),
+(20, 12, 5, 'HAI KAK MUTUALAN YOK', NULL, 'deleted', '2026-02-28 08:00:01', '2026-02-28 08:00:18'),
+(23, 24, 5, 'Emang bagus ni film', NULL, 'published', '2026-02-28 08:28:08', '2026-02-28 08:28:08'),
+(24, 25, 5, 'WOW', NULL, 'published', '2026-02-28 08:34:00', '2026-02-28 08:34:00'),
+(25, 23, 5, 'WOW<br>', NULL, 'published', '2026-02-28 08:34:27', '2026-02-28 08:34:27'),
+(26, 25, 5, 'Tes', NULL, 'published', '2026-02-28 08:41:20', '2026-02-28 08:41:20');
 
 -- --------------------------------------------------------
 
@@ -1361,7 +1468,8 @@ INSERT INTO `review_likes` (`id`, `review_id`, `user_id`, `created_at`, `updated
 (1, 17, 5, '2026-02-24 18:07:10', '2026-02-24 18:07:10'),
 (3, 20, 3, '2026-02-24 22:19:53', '2026-02-24 22:19:53'),
 (4, 11, 5, '2026-02-24 22:30:23', '2026-02-24 22:30:23'),
-(5, 19, 3, '2026-02-24 23:17:25', '2026-02-24 23:17:25');
+(5, 19, 3, '2026-02-24 23:17:25', '2026-02-24 23:17:25'),
+(6, 15, 5, '2026-02-28 08:32:43', '2026-02-28 08:32:43');
 
 -- --------------------------------------------------------
 
@@ -1423,7 +1531,8 @@ INSERT INTO `users` (`id`, `username`, `email`, `password`, `role`, `status`, `j
 (2, 'testuser', 'user@moview.com', '$2y$12$edj58OcYoXoiJsd22IwnnennCMGix0o98Y0ZJchd1VnnVwRMsH2rC', 'user', 'active', '2026-01-30 23:34:38', 'MnwxNzY5ODQxNjc0fDY5N2RhNDBhNTE4NDQ=', '2026-01-30 23:34:38', '2026-01-30 23:41:14'),
 (3, 'Sengefilm', 'tes@gmail.com', '$2y$12$lDfKXQIoqKTaeAdU.FpQX.Oqu.8Plbzprn6YOMhkIa9KCLtHN1KTK', 'user', 'active', '2026-01-30 23:49:39', 'M3wxNzcyMDAxMTY2fDY5OWU5NzhlYzZkMzI=', '2026-01-30 23:49:39', '2026-02-24 23:32:46'),
 (4, 'NewUser185', 'newuser_1769846806@test.com', '$2y$12$r0tcTwJt.eLjMs1n5pgdi.k9gPXqhujHx90XqkT0QMgkNLXZHrmly', 'user', 'active', '2026-01-31 01:06:46', 'bmV3dXNlcl8xNzY5ODQ2ODA2QHRlc3QuY29tfDE3Njk4NDY4MDZ8Njk3ZGI4MTY3Njk0Zg==', '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
-(5, 'Mafia film', 'filmin@gmail.com', '$2y$12$eO1QTww7vMctvv7QWvNk0uB9Bk2C/aedqb./wlW.Q9dURDjbKISZG', 'user', 'active', '2026-02-14 03:59:49', 'NXwxNzcyMDAwMjg5fDY5OWU5NDIxYjgyZDk=', '2026-02-14 03:59:49', '2026-02-24 23:18:09');
+(5, 'Mafia film', 'filmin@gmail.com', '$2y$12$eO1QTww7vMctvv7QWvNk0uB9Bk2C/aedqb./wlW.Q9dURDjbKISZG', 'user', 'active', '2026-02-14 03:59:49', 'NXwxNzcyMjczNTA3fDY5YTJiZjYzNTlkMDQ=', '2026-02-14 03:59:49', '2026-02-28 03:11:47'),
+(6, 'Mopud', 'NewAcc@gmail.com', '$2y$12$5IZiuwVxT4H79twcw314mOyI.SUlG9nYY2.vjNVqCcw9uQE4wiLgq', 'user', 'active', '2026-02-28 03:10:19', 'TmV3QWNjQGdtYWlsLmNvbXwxNzcyMjczNDE4fDY5YTJiZjBhZTc0ZjA=', '2026-02-28 03:10:19', '2026-02-28 03:10:19');
 
 -- --------------------------------------------------------
 
@@ -1451,7 +1560,20 @@ INSERT INTO `user_activities` (`id`, `user_id`, `type`, `film_id`, `meta`, `crea
 (3, 5, 'reply_comment', 10, '{\"review_id\":\"11\",\"parent_comment_id\":\"12\",\"comment_id\":16,\"parent_comment_owner_id\":3}', '2026-02-24 22:30:49', '2026-02-24 22:30:49'),
 (4, 5, 'comment_review', 10, '{\"review_id\":\"11\",\"comment_id\":17,\"review_owner_id\":3}', '2026-02-24 22:31:06', '2026-02-24 22:31:06'),
 (5, 3, 'like_review', 34, '{\"review_id\":\"19\",\"review_owner_id\":5}', '2026-02-24 23:17:25', '2026-02-24 23:17:25'),
-(6, 3, 'comment_review', 34, '{\"review_id\":\"19\",\"comment_id\":18,\"review_owner_id\":5}', '2026-02-24 23:17:37', '2026-02-24 23:17:37');
+(6, 3, 'comment_review', 34, '{\"review_id\":\"19\",\"comment_id\":18,\"review_owner_id\":5}', '2026-02-24 23:17:37', '2026-02-24 23:17:37'),
+(7, 6, 'follow', NULL, '{\"followed_user_id\":\"3\"}', '2026-02-28 03:10:44', '2026-02-28 03:10:44'),
+(8, 6, 'follow', NULL, '{\"followed_user_id\":\"5\"}', '2026-02-28 03:11:08', '2026-02-28 03:11:08'),
+(9, 5, 'follow', NULL, '{\"followed_user_id\":\"6\"}', '2026-02-28 03:12:04', '2026-02-28 03:12:04'),
+(10, 5, 'comment_review', 34, '{\"review_id\":\"17\",\"comment_id\":19,\"review_owner_id\":3}', '2026-02-28 07:30:19', '2026-02-28 07:30:19'),
+(11, 5, 'comment_review', 16, '{\"review_id\":\"12\",\"comment_id\":20,\"review_owner_id\":3}', '2026-02-28 08:00:01', '2026-02-28 08:00:01'),
+(12, 5, 'comment_review', 34, '{\"review_id\":\"17\",\"comment_id\":21,\"review_owner_id\":3}', '2026-02-28 08:15:58', '2026-02-28 08:15:58'),
+(13, 5, 'reply_comment', 34, '{\"review_id\":\"17\",\"parent_comment_id\":\"21\",\"comment_id\":22,\"parent_comment_owner_id\":5}', '2026-02-28 08:16:36', '2026-02-28 08:16:36'),
+(14, 5, 'comment_review', 41, '{\"review_id\":\"24\",\"comment_id\":23,\"review_owner_id\":5}', '2026-02-28 08:28:08', '2026-02-28 08:28:08'),
+(15, 5, 'follow', NULL, '{\"followed_user_id\":\"6\"}', '2026-02-28 08:32:26', '2026-02-28 08:32:26'),
+(16, 5, 'like_review', 34, '{\"review_id\":\"15\",\"review_owner_id\":3}', '2026-02-28 08:32:43', '2026-02-28 08:32:43'),
+(17, 5, 'comment_review', 2, '{\"review_id\":\"25\",\"comment_id\":24,\"review_owner_id\":5}', '2026-02-28 08:34:00', '2026-02-28 08:34:00'),
+(18, 5, 'comment_review', 30, '{\"review_id\":\"23\",\"comment_id\":25,\"review_owner_id\":5}', '2026-02-28 08:34:27', '2026-02-28 08:34:27'),
+(19, 5, 'comment_review', 2, '{\"review_id\":\"25\",\"comment_id\":26,\"review_owner_id\":5}', '2026-02-28 08:41:20', '2026-02-28 08:41:20');
 
 -- --------------------------------------------------------
 
@@ -1509,7 +1631,8 @@ INSERT INTO `user_profiles` (`id`, `user_id`, `display_name`, `profile_photo`, `
 (1, 3, 'Sengefilm', 'profiles/profile_3_1769941056.jpg', 'movies/33/backdrop/aEQkBKlhO1OJePmQyzPxnu9sMW1nOyLsxw2HSEVb.webp', 1, 'Tes', 'Sidoarjo, Indonesia', '2026-01-31 00:38:49', '2026-02-14 02:58:25'),
 (2, 4, 'NewUser185', NULL, NULL, 0, NULL, NULL, '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
 (3, 1, NULL, NULL, NULL, 1, 'This is my new bio', NULL, '2026-01-31 03:41:40', '2026-01-31 03:41:40'),
-(4, 5, 'Mafia film', 'profiles/profile_5_1771067279.jpg', 'movies/30/backdrop/WcvLzELjaCn7l5vXy52iqwdXPfW3hSq4zqFiLKn7.webp', 1, NULL, NULL, '2026-02-14 03:59:49', '2026-02-24 20:51:30');
+(4, 5, 'Mafia film', 'profiles/profile_5_1771067279.jpg', 'movies/30/backdrop/WcvLzELjaCn7l5vXy52iqwdXPfW3hSq4zqFiLKn7.webp', 1, NULL, NULL, '2026-02-14 03:59:49', '2026-02-24 20:51:30'),
+(5, 6, 'Mopud', NULL, NULL, 0, NULL, NULL, '2026-02-28 03:10:19', '2026-02-28 03:10:19');
 
 -- --------------------------------------------------------
 
@@ -1723,8 +1846,8 @@ ALTER TABLE `review_comments`
   ADD KEY `review_comments_review_id_index` (`review_id`),
   ADD KEY `review_comments_user_id_index` (`user_id`),
   ADD KEY `review_comments_parent_id_index` (`parent_id`),
-  ADD KEY `review_comments_status_index` (`status`),
-  ADD KEY `review_comments_created_at_index` (`created_at`);
+  ADD KEY `review_comments_created_at_index` (`created_at`),
+  ADD KEY `review_comments_status_index` (`status`);
 
 --
 -- Indeks untuk tabel `review_likes`
@@ -1806,13 +1929,13 @@ ALTER TABLE `countries`
 -- AUTO_INCREMENT untuk tabel `diaries`
 --
 ALTER TABLE `diaries`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 
 --
 -- AUTO_INCREMENT untuk tabel `followers`
 --
 ALTER TABLE `followers`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT untuk tabel `genres`
@@ -1830,79 +1953,79 @@ ALTER TABLE `languages`
 -- AUTO_INCREMENT untuk tabel `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- AUTO_INCREMENT untuk tabel `movies`
 --
 ALTER TABLE `movies`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_likes`
 --
 ALTER TABLE `movie_likes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_media`
 --
 ALTER TABLE `movie_media`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=136;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=141;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_persons`
 --
 ALTER TABLE `movie_persons`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=74;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=97;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_services`
 --
 ALTER TABLE `movie_services`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=187;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=207;
 
 --
 -- AUTO_INCREMENT untuk tabel `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT untuk tabel `persons`
 --
 ALTER TABLE `persons`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=77;
 
 --
 -- AUTO_INCREMENT untuk tabel `production_houses`
 --
 ALTER TABLE `production_houses`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
 
 --
 -- AUTO_INCREMENT untuk tabel `ratings`
 --
 ALTER TABLE `ratings`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT untuk tabel `reviews`
 --
 ALTER TABLE `reviews`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT untuk tabel `review_comments`
 --
 ALTER TABLE `review_comments`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT untuk tabel `review_likes`
 --
 ALTER TABLE `review_likes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT untuk tabel `services`
@@ -1914,13 +2037,13 @@ ALTER TABLE `services`
 -- AUTO_INCREMENT untuk tabel `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_activities`
 --
 ALTER TABLE `user_activities`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`
@@ -1932,7 +2055,7 @@ ALTER TABLE `user_favorite_films`
 -- AUTO_INCREMENT untuk tabel `user_profiles`
 --
 ALTER TABLE `user_profiles`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT untuk tabel `watchlists`

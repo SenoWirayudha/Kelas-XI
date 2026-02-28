@@ -47,6 +47,17 @@ class ReviewFragment : Fragment() {
         observeViewModel()
     }
     
+    override fun onResume() {
+        super.onResume()
+        
+        // Get userId from args or use current user
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        
+        viewModel.loadReviews(targetUserId)
+    }
+    
     private fun setupRecyclerView() {
         adapter = ReviewAdapter { review ->
             navigateToReviewDetail(review)

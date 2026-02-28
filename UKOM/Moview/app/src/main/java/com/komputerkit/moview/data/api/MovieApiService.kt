@@ -295,6 +295,12 @@ interface MovieApiService {
         @Path("commentId") commentId: Int
     ): ApiResponse<Any>
     
+    @POST("users/{userId}/comments/{commentId}/flag")
+    suspend fun flagReviewComment(
+        @Path("userId") userId: Int,
+        @Path("commentId") commentId: Int
+    ): ApiResponse<Any>
+    
     // Review Likes
     @POST("users/{userId}/reviews/{reviewId}/like")
     suspend fun toggleReviewLike(

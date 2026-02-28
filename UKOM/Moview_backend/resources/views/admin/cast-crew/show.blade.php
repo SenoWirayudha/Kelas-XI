@@ -190,17 +190,21 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                    {{ $moviePerson->role }}
+                                    {{ ucfirst($moviePerson->role_type) }}
                                 </span>
                             </td>
                             <td class="px-6 py-4">
                                 <div class="text-sm text-gray-900">
-                                    {{ $moviePerson->character_name ?? '-' }}
+                                    @if($moviePerson->role_type === 'cast')
+                                        {{ $moviePerson->character_name ?? '-' }}
+                                    @else
+                                        {{ $moviePerson->job ?? '-' }}
+                                    @endif
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900">
-                                    {{ $movie->release_date ? $movie->release_date->format('Y') : 'TBA' }}
+                                    {{ $movie->release_year ?? 'TBA' }}
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">

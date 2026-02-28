@@ -1232,18 +1232,19 @@ class UserActivityController extends Controller
     public function getReviewComments($reviewId)
     {
         try {
-            // Get all comments for this review
+            // Get all comments for this review (excluding hidden ones)
             $allComments = DB::table('review_comments')
                 ->join('users', 'review_comments.user_id', '=', 'users.id')
                 ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
                 ->where('review_comments.review_id', $reviewId)
-                ->where('review_comments.status', 'published')
+                ->whereIn('review_comments.status', ['published', 'deleted', 'flagged'])
                 ->select(
                     'review_comments.id',
                     'review_comments.review_id',
                     'review_comments.user_id',
                     'review_comments.content',
                     'review_comments.parent_id',
+                    'review_comments.status',
                     'review_comments.created_at',
                     'users.username',
                     'user_profiles.display_name',
@@ -1257,6 +1258,11 @@ class UserActivityController extends Controller
             $repliesByParentId = [];
 
             foreach ($allComments as $comment) {
+                // Replace content with "Comment removed" if deleted
+                if ($comment->status === 'deleted') {
+                    $comment->content = 'Comment removed';
+                }
+                
                 if ($comment->parent_id === null) {
                     $comment->replies = [];
                     $topLevelComments[] = $comment;
@@ -1431,12 +1437,12 @@ class UserActivityController extends Controller
                 ], 404);
             }
             
-            // Delete replies first (if any)
+            // Delete replies first (if this is a parent comment)
             DB::table('review_comments')
                 ->where('parent_id', $commentId)
                 ->delete();
             
-            // Delete the comment
+            // Actually delete the comment (hard delete)
             DB::table('review_comments')
                 ->where('id', $commentId)
                 ->delete();
@@ -1449,6 +1455,52 @@ class UserActivityController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete comment: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Flag a comment as inappropriate
+     */
+    public function flagReviewComment($userId, $commentId)
+    {
+        try {
+            // Check if comment exists
+            $comment = DB::table('review_comments')
+                ->where('id', $commentId)
+                ->first();
+            
+            if (!$comment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Comment not found'
+                ], 404);
+            }
+            
+            // User cannot flag their own comment
+            if ($comment->user_id == $userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot flag your own comment'
+                ], 400);
+            }
+            
+            // Mark comment as flagged
+            DB::table('review_comments')
+                ->where('id', $commentId)
+                ->update(['status' => 'flagged', 'updated_at' => now()]);
+            
+            // Create notification for admin
+            // You can implement admin notification logic here
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Comment has been flagged for review'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to flag comment: ' . $e->getMessage()
             ], 500);
         }
     }

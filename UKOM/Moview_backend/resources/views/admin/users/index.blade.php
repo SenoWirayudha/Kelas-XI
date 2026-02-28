@@ -46,31 +46,84 @@
 
 <!-- Search & Filters -->
 <div class="bg-white rounded-lg shadow p-6 mb-6">
-    <div class="flex flex-wrap gap-4">
-        <div class="flex-1 min-w-[200px]">
-            <div class="relative">
-                <input type="text" placeholder="Search users by name or email..." 
-                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+    <form method="GET" action="{{ route('admin.users.index') }}" id="filterForm">
+        <div class="flex flex-wrap gap-4">
+            <div class="flex-1 min-w-[200px]">
+                <div class="relative">
+                    <input type="text" 
+                           name="search" 
+                           value="{{ request('search') }}"
+                           placeholder="Search users by name or email..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
             </div>
+            <select name="status" 
+                    class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onchange="document.getElementById('filterForm').submit()">
+                <option value="">All Users</option>
+                <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
+                <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                <option value="banned" {{ request('status') == 'banned' ? 'selected' : '' }}>Banned</option>
+            </select>
+            <select name="role" 
+                    class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onchange="document.getElementById('filterForm').submit()">
+                <option value="">All Roles</option>
+                <option value="admin" {{ request('role') == 'admin' ? 'selected' : '' }}>Admin</option>
+                <option value="user" {{ request('role') == 'user' ? 'selected' : '' }}>User</option>
+            </select>
+            <button type="submit" 
+                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <i class="fas fa-filter mr-2"></i>Filter
+            </button>
+            @if(request()->hasAny(['search', 'status', 'role']))
+                <a href="{{ route('admin.users.index') }}" 
+                   class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                    <i class="fas fa-times mr-2"></i>Clear
+                </a>
+            @endif
         </div>
-        <select class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Users</option>
-            <option>Active</option>
-            <option>Inactive</option>
-            <option>Banned</option>
-        </select>
-        <select class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Roles</option>
-            <option>Admin</option>
-            <option>Regular</option>
-        </select>
-        <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg" onclick="alert('Add user (UI only)')">
-            <i class="fas fa-plus mr-2"></i>
-            Add User
-        </button>
+    </form>
+</div>
+
+<!-- Active Filters Display -->
+@if(request()->hasAny(['search', 'status', 'role']))
+<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+    <div class="flex items-center flex-wrap gap-2">
+        <span class="text-sm font-semibold text-blue-900">
+            <i class="fas fa-filter mr-1"></i>Active Filters:
+        </span>
+        @if(request('search'))
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
+                Search: {{ request('search') }}
+                <a href="{{ request()->fullUrlWithQuery(['search' => null]) }}" class="ml-2 hover:text-blue-200">
+                    <i class="fas fa-times"></i>
+                </a>
+            </span>
+        @endif
+        @if(request('status'))
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
+                Status: {{ ucfirst(request('status')) }}
+                <a href="{{ request()->fullUrlWithQuery(['status' => null]) }}" class="ml-2 hover:text-blue-200">
+                    <i class="fas fa-times"></i>
+                </a>
+            </span>
+        @endif
+        @if(request('role'))
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
+                Role: {{ ucfirst(request('role')) }}
+                <a href="{{ request()->fullUrlWithQuery(['role' => null]) }}" class="ml-2 hover:text-blue-200">
+                    <i class="fas fa-times"></i>
+                </a>
+            </span>
+        @endif
+        <span class="text-sm text-blue-700 ml-auto">
+            Showing {{ $users->total() }} result{{ $users->total() != 1 ? 's' : '' }}
+        </span>
     </div>
 </div>
+@endif
 
 <!-- Users Table -->
 <div class="bg-white rounded-lg shadow overflow-hidden">
@@ -117,15 +170,22 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div class="flex justify-end space-x-2">
-                        <button class="text-blue-600 hover:text-blue-900" title="View Profile" onclick="alert('View profile feature coming soon')">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="text-indigo-600 hover:text-indigo-900" title="Edit" onclick="alert('Edit user feature coming soon')">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="text-red-600 hover:text-red-900" title="Ban/Delete" onclick="alert('Ban user feature coming soon')">
+                        @if($user->status !== 'banned')
+                        <form action="{{ route('admin.users.ban', $user->id) }}" method="POST" style="display: inline;">
+                            @csrf
+                            @method('POST')
+                            <button type="submit" 
+                                    class="text-red-600 hover:text-red-900" 
+                                    title="Ban User" 
+                                    onclick="return confirm('Are you sure you want to ban this user?')">
+                                <i class="fas fa-ban"></i>
+                            </button>
+                        </form>
+                        @else
+                        <span class="text-gray-400" title="Already Banned">
                             <i class="fas fa-ban"></i>
-                        </button>
+                        </span>
+                        @endif
                     </div>
                 </td>
             </tr>
@@ -142,14 +202,14 @@
 </div>
 
 <!-- Pagination -->
-<div class="mt-6 flex justify-between items-center">
-    <p class="text-sm text-gray-600">Showing {{ $users->count() }} of {{ number_format($totalUsers) }} results</p>
-    <div class="flex space-x-2">
-        <button class="px-3 py-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300" disabled>Previous</button>
-        <button class="px-3 py-1 bg-blue-600 text-white rounded">1</button>
-        <button class="px-3 py-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300">2</button>
-        <button class="px-3 py-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300">3</button>
-        <button class="px-3 py-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300">Next</button>
+<div class="mt-6">
+    <div class="flex justify-between items-center">
+        <p class="text-sm text-gray-600">
+            Showing {{ $users->firstItem() ?? 0 }} to {{ $users->lastItem() ?? 0 }} of {{ $users->total() }} users
+        </p>
+        <div>
+            {{ $users->links() }}
+        </div>
     </div>
 </div>
 @endsection

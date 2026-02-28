@@ -5,24 +5,74 @@
 @section('page-subtitle', 'Manage your film collection')
 
 @section('content')
-<div class="mb-6 flex justify-between items-center">
-    <div class="flex space-x-4">
-        <div class="relative">
-            <input type="text" placeholder="Search films..." 
-                   class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+<!-- Search & Filters -->
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <form method="GET" action="{{ route('admin.films.index') }}" id="filterForm">
+        <div class="mb-4 flex justify-between items-center flex-wrap gap-4">
+            <div class="flex space-x-4 flex-1">
+                <div class="relative flex-1 min-w-[200px]">
+                    <input type="text" 
+                           name="search"
+                           value="{{ request('search') }}"
+                           placeholder="Search films..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+                <select name="status"
+                        class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onchange="document.getElementById('filterForm').submit()">
+                    <option value="">All Status</option>
+                    <option value="published" {{ request('status') == 'published' ? 'selected' : '' }}>Published</option>
+                    <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Draft</option>
+                </select>
+                <button type="submit" 
+                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-filter mr-2"></i>Filter
+                </button>
+                @if(request()->hasAny(['search', 'status']))
+                    <a href="{{ route('admin.films.index') }}" 
+                       class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                        <i class="fas fa-times mr-2"></i>Clear
+                    </a>
+                @endif
+            </div>
+            <a href="{{ route('admin.films.create') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center whitespace-nowrap">
+                <i class="fas fa-plus mr-2"></i>
+                Add New Film
+            </a>
         </div>
-        <select class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Status</option>
-            <option>Published</option>
-            <option>Draft</option>
-        </select>
-    </div>
-    <a href="{{ route('admin.films.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center">
-        <i class="fas fa-plus mr-2"></i>
-        Add New Film
-    </a>
+    </form>
 </div>
+
+<!-- Active Filters Display -->
+@if(request()->hasAny(['search', 'status']))
+<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+    <div class="flex items-center flex-wrap gap-2">
+        <span class="text-sm font-semibold text-blue-900">
+            <i class="fas fa-filter mr-1"></i>Active Filters:
+        </span>
+        @if(request('search'))
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
+                Search: {{ request('search') }}
+                <a href="{{ request()->fullUrlWithQuery(['search' => null]) }}" class="ml-2 hover:text-blue-200">
+                    <i class="fas fa-times"></i>
+                </a>
+            </span>
+        @endif
+        @if(request('status'))
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
+                Status: {{ ucfirst(request('status')) }}
+                <a href="{{ request()->fullUrlWithQuery(['status' => null]) }}" class="ml-2 hover:text-blue-200">
+                    <i class="fas fa-times"></i>
+                </a>
+            </span>
+        @endif
+        <span class="text-sm text-blue-700 ml-auto">
+            Showing {{ $films->total() }} result{{ $films->total() != 1 ? 's' : '' }}
+        </span>
+    </div>
+</div>
+@endif
 
 <!-- Stats Cards -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -54,7 +104,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Draft</p>
-                <p class="text-3xl font-bold text-yellow-600">{{ collect($films)->where('status', 'Draft')->count() }}</p>
+                <p class="text-3xl font-bold text-yellow-600">{{ $films->where('status', 'draft')->count() }}</p>
             </div>
             <div class="bg-yellow-100 p-3 rounded-full">
                 <i class="fas fa-edit text-yellow-600 text-2xl"></i>
@@ -63,24 +113,8 @@
     </div>
 </div>
 
-<!-- View Toggle -->
-<div class="mb-4 flex justify-end" x-data="{ view: 'table' }">
-    <div class="bg-white rounded-lg shadow-sm p-1 flex">
-        <button @click="view = 'table'" 
-                :class="view === 'table' ? 'bg-blue-600 text-white' : 'text-gray-600'"
-                class="px-4 py-2 rounded transition">
-            <i class="fas fa-table"></i> Table
-        </button>
-        <button @click="view = 'grid'" 
-                :class="view === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-600'"
-                class="px-4 py-2 rounded transition">
-            <i class="fas fa-th-large"></i> Grid
-        </button>
-    </div>
-</div>
-
 <!-- Films Table View -->
-<div class="bg-white rounded-lg shadow overflow-hidden" x-data="{ view: 'table' }" x-show="view === 'table'">
+<div class="bg-white rounded-lg shadow overflow-hidden">
     <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
             <tr>
@@ -152,52 +186,17 @@
     </table>
 </div>
 
-<!-- Films Grid View -->
-<div x-data="{ view: 'table' }" x-show="view === 'grid'" x-cloak>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        @foreach($films as $film)
-        @php
-            $poster = $film->posters()->where('is_default', true)->first() ?? $film->posters()->first();
-        @endphp
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition">
-            <div class="relative">
-                <img src="{{ $poster ? asset('storage/' . $poster->media_path) : 'https://via.placeholder.com/300x450' }}" alt="{{ $film->title }}" class="w-full h-96 object-cover">
-                <div class="absolute top-2 right-2">
-                    <span class="px-3 py-1 text-xs font-semibold rounded-full 
-                        {{ $film->status === 'published' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white' }}">
-                        {{ ucfirst($film->status) }}
-                    </span>
-                </div>
-                <div class="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm">
-                    <i class="fas fa-star text-yellow-400"></i> {{ number_format($film->rating_average ?? 0, 1) }}
-                </div>
-            </div>
-            <div class="p-4">
-                <h3 class="font-bold text-lg mb-1 truncate">{{ $film->title }}</h3>
-                <p class="text-gray-600 text-sm mb-2">{{ $film->release_year }} • {{ $film->duration }} min</p>
-                <p class="text-gray-500 text-xs mb-3">{{ $film->movieGenres->pluck('genre.name')->implode(', ') }}</p>
-                
-                <div class="flex justify-between items-center pt-3 border-t">
-                    <a href="{{ route('admin.films.show', $film->id) }}" 
-                       class="text-blue-600 hover:text-blue-800 text-sm">
-                        <i class="fas fa-eye"></i> View
-                    </a>
-                    <a href="{{ route('admin.films.edit', $film->id) }}" 
-                       class="text-indigo-600 hover:text-indigo-800 text-sm">
-                        <i class="fas fa-edit"></i> Edit
-                    </a>
-                    <button class="text-red-600 hover:text-red-800 text-sm" onclick="alert('Delete action (UI only)')">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </div>
-            </div>
+<!-- Pagination -->
+<div class="mt-6">
+    <div class="flex justify-between items-center">
+        <p class="text-sm text-gray-600">
+            Showing {{ $films->firstItem() ?? 0 }} to {{ $films->lastItem() ?? 0 }} of {{ $films->total() }} films
+        </p>
+        <div>
+            {{ $films->links() }}
         </div>
-        @endforeach
     </div>
 </div>
-
-<!-- Pagination (dummy) -->
-<div class="mt-6 flex justify-between items-center">
     <p class="text-sm text-gray-600">Showing 1 to {{ count($films) }} of {{ count($films) }} results</p>
     <div class="flex space-x-2">
         <button class="px-3 py-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300" disabled>Previous</button>

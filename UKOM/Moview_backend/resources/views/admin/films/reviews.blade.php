@@ -1,18 +1,18 @@
 @extends('layouts.admin')
 
-@section('title', 'Reviews - ' . $film['title'])
+@section('title', 'Reviews - ' . $movie->title)
 @section('page-title', 'Reviews & Ratings Overview')
-@section('page-subtitle', $film['title'])
+@section('page-subtitle', $movie->title)
 
 @section('content')
 <!-- Back Button -->
 <div class="mb-6 flex space-x-3">
-    <a href="{{ route('admin.films.show', $film['id']) }}" class="text-blue-600 hover:text-blue-800 flex items-center">
+    <a href="{{ route('admin.films.show', $movie->id) }}" class="text-blue-600 hover:text-blue-800 flex items-center">
         <i class="fas fa-arrow-left mr-2"></i>
         Back to Film
     </a>
     <span class="text-gray-400">|</span>
-    <a href="{{ route('admin.films.edit', $film['id']) }}" class="text-indigo-600 hover:text-indigo-800 flex items-center">
+    <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-indigo-600 hover:text-indigo-800 flex items-center">
         <i class="fas fa-edit mr-2"></i>
         Edit Film Details
     </a>
@@ -20,28 +20,31 @@
 
 <!-- Film Info Banner -->
 <div class="bg-white rounded-lg shadow mb-6 p-4 flex items-center space-x-4">
-    <img src="{{ $film['poster'] }}" alt="{{ $film['title'] }}" class="w-16 h-24 object-cover rounded">
+    @php
+        $poster = $movie->posters()->where('is_default', true)->first() ?? $movie->posters()->first();
+    @endphp
+    <img src="{{ $poster ? asset('storage/' . $poster->media_path) : 'https://via.placeholder.com/100x150' }}" alt="{{ $movie->title }}" class="w-16 h-24 object-cover rounded">
     <div class="flex-1">
-        <h3 class="text-xl font-bold">{{ $film['title'] }}</h3>
-        <p class="text-gray-600">{{ $film['year'] }} • {{ implode(', ', $film['genres']) }}</p>
+        <h3 class="text-xl font-bold">{{ $movie->title }}</h3>
+        <p class="text-gray-600">{{ $movie->release_year }} • {{ $movie->movieGenres->pluck('genre.name')->implode(', ') }}</p>
     </div>
     <div class="text-right">
         <div class="flex items-center justify-end mb-1">
             <i class="fas fa-star text-yellow-400 text-3xl mr-2"></i>
-            <span class="text-4xl font-bold">{{ $film['rating_average'] }}</span>
-            <span class="text-gray-500 ml-1">/10</span>
+            <span class="text-4xl font-bold">{{ number_format($movie->rating_average ?? 0, 1) }}</span>
+            <span class="text-gray-500 ml-1">/5</span>
         </div>
-        <p class="text-sm text-gray-600">{{ number_format($film['total_reviews']) }} reviews</p>
+        <p class="text-sm text-gray-600">{{ number_format($movie->reviews->count()) }} reviews</p>
     </div>
 </div>
 
 <!-- Stats Cards -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
     <div class="bg-white rounded-lg shadow p-6">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Average Rating</p>
-                <p class="text-3xl font-bold text-yellow-600">{{ $film['rating_average'] }}</p>
+                <p class="text-3xl font-bold text-yellow-600">{{ number_format($movie->rating_average ?? 0, 1) }}/5</p>
             </div>
             <div class="bg-yellow-100 p-3 rounded-full">
                 <i class="fas fa-star text-yellow-600 text-2xl"></i>
@@ -53,34 +56,10 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Total Reviews</p>
-                <p class="text-3xl font-bold text-blue-600">{{ number_format($film['total_reviews']) }}</p>
+                <p class="text-3xl font-bold text-blue-600">{{ number_format($movie->reviews->count()) }}</p>
             </div>
             <div class="bg-blue-100 p-3 rounded-full">
                 <i class="fas fa-comments text-blue-600 text-2xl"></i>
-            </div>
-        </div>
-    </div>
-    
-    <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-gray-500 text-sm">Pending Moderation</p>
-                <p class="text-3xl font-bold text-orange-600">12</p>
-            </div>
-            <div class="bg-orange-100 p-3 rounded-full">
-                <i class="fas fa-clock text-orange-600 text-2xl"></i>
-            </div>
-        </div>
-    </div>
-    
-    <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-gray-500 text-sm">Flagged Reviews</p>
-                <p class="text-3xl font-bold text-red-600">3</p>
-            </div>
-            <div class="bg-red-100 p-3 rounded-full">
-                <i class="fas fa-flag text-red-600 text-2xl"></i>
             </div>
         </div>
     </div>
@@ -95,7 +74,7 @@
         </h2>
         
         <div class="space-y-3">
-            @foreach(range(10, 1) as $rating)
+            @foreach(range(5, 1) as $rating)
             @php
                 $percentage = $ratingDistribution[$rating] ?? 0;
             @endphp
@@ -109,28 +88,6 @@
                 <span class="text-sm text-gray-600 w-12 text-right">{{ number_format($percentage, 1) }}%</span>
             </div>
             @endforeach
-        </div>
-
-        <div class="mt-6 pt-6 border-t">
-            <h3 class="font-semibold mb-3">Review Summary</h3>
-            <div class="space-y-2 text-sm">
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Excellent (9-10):</span>
-                    <span class="font-bold text-green-600">85%</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Good (7-8):</span>
-                    <span class="font-bold text-blue-600">13%</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Average (5-6):</span>
-                    <span class="font-bold text-yellow-600">1.5%</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Poor (1-4):</span>
-                    <span class="font-bold text-red-600">0.5%</span>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -160,152 +117,50 @@
 
         <!-- Reviews -->
         <div class="space-y-4">
-            @foreach($reviews as $review)
+            @forelse($reviews as $review)
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-start justify-between mb-3">
                     <div class="flex items-center space-x-3">
                         <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                            {{ substr($review['user'], 0, 1) }}
+                            {{ substr($review->user->username ?? 'U', 0, 1) }}
                         </div>
                         <div>
-                            <p class="font-bold">{{ $review['user'] }}</p>
-                            <p class="text-sm text-gray-500">{{ date('M d, Y', strtotime($review['date'])) }}</p>
+                            <p class="font-bold">{{ $review->user->username ?? 'Unknown User' }}</p>
+                            <p class="text-sm text-gray-500">{{ $review->created_at->format('M d, Y') }}</p>
                         </div>
                     </div>
                     <div class="flex items-center space-x-2">
                         <div class="flex items-center bg-yellow-100 px-3 py-1 rounded-full">
                             <i class="fas fa-star text-yellow-500 mr-1"></i>
-                            <span class="font-bold text-yellow-700">{{ $review['rating'] }}/10</span>
+                            <span class="font-bold text-yellow-700">{{ $review->rating }}/5</span>
                         </div>
+                        <span class="px-3 py-1 text-xs font-semibold rounded-full 
+                            {{ $review->status === 'published' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                            {{ ucfirst($review->status) }}
+                        </span>
                     </div>
                 </div>
                 
-                <p class="text-gray-700 mb-4">{{ $review['comment'] }}</p>
+                @if($review->title)
+                <p class="font-semibold text-gray-800 mb-2">{{ $review->title }}</p>
+                @endif
+                <p class="text-gray-700 mb-4">{{ $review->content }}</p>
                 
-                <div class="flex items-center justify-between pt-3 border-t">
-                    <div class="flex items-center space-x-4 text-sm text-gray-600">
-                        <button class="flex items-center space-x-1 hover:text-green-600" onclick="alert('Helpful action (UI only)')">
-                            <i class="fas fa-thumbs-up"></i>
-                            <span>{{ rand(10, 100) }}</span>
-                        </button>
-                        <button class="flex items-center space-x-1 hover:text-red-600" onclick="alert('Not helpful action (UI only)')">
-                            <i class="fas fa-thumbs-down"></i>
-                            <span>{{ rand(0, 10) }}</span>
-                        </button>
-                        <button class="flex items-center space-x-1 hover:text-blue-600" onclick="alert('Reply action (UI only)')">
-                            <i class="fas fa-reply"></i>
-                            <span>Reply</span>
-                        </button>
-                    </div>
-                    
+                <div class="flex items-center justify-end pt-3 border-t">
                     <div class="flex space-x-2">
-                        <button class="text-green-600 hover:text-green-800 px-3 py-1 text-sm" title="Approve" onclick="alert('Approve review (UI only)')">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button class="text-yellow-600 hover:text-yellow-800 px-3 py-1 text-sm" title="Flag" onclick="alert('Flag review (UI only)')">
-                            <i class="fas fa-flag"></i>
-                        </button>
                         <button class="text-red-600 hover:text-red-800 px-3 py-1 text-sm" title="Delete" onclick="if(confirm('Delete this review?')) alert('Deleted (UI only)')">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
             </div>
-            @endforeach
-        </div>
-
-        <!-- Load More -->
-        <div class="text-center">
-            <button class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg" onclick="alert('Load more (UI only)')">
-                <i class="fas fa-chevron-down mr-2"></i>
-                Load More Reviews
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Review Analytics (Additional Section) -->
-<div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-bold mb-4 flex items-center">
-            <i class="fas fa-chart-line text-green-600 mr-2"></i>
-            Review Trends
-        </h3>
-        <div class="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-            <div class="text-center text-gray-400">
-                <i class="fas fa-chart-area text-6xl mb-3"></i>
-                <p>Chart Placeholder</p>
-                <p class="text-sm">Reviews over time graph</p>
+            @empty
+            <div class="bg-white rounded-lg shadow p-8 text-center">
+                <i class="fas fa-comments text-gray-300 text-6xl mb-4"></i>
+                <p class="text-gray-500 text-lg">No reviews yet</p>
             </div>
+            @endforelse
         </div>
-    </div>
-
-    <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-bold mb-4 flex items-center">
-            <i class="fas fa-tags text-purple-600 mr-2"></i>
-            Common Keywords
-        </h3>
-        <div class="flex flex-wrap gap-2">
-            @foreach(['masterpiece', 'excellent', 'great acting', 'emotional', 'must watch', 'brilliant', 'compelling', 'powerful', 'outstanding', 'classic', 'unforgettable', 'inspiring'] as $keyword)
-            <span class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
-                {{ $keyword }}
-            </span>
-            @endforeach
-        </div>
-        <div class="mt-6 pt-6 border-t">
-            <h4 class="font-semibold mb-3">Sentiment Analysis</h4>
-            <div class="space-y-2">
-                <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-600">Positive</span>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-32 bg-gray-200 rounded-full h-2">
-                            <div class="bg-green-500 h-2 rounded-full" style="width: 92%"></div>
-                        </div>
-                        <span class="text-sm font-bold">92%</span>
-                    </div>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-600">Neutral</span>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-32 bg-gray-200 rounded-full h-2">
-                            <div class="bg-gray-500 h-2 rounded-full" style="width: 6%"></div>
-                        </div>
-                        <span class="text-sm font-bold">6%</span>
-                    </div>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-600">Negative</span>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-32 bg-gray-200 rounded-full h-2">
-                            <div class="bg-red-500 h-2 rounded-full" style="width: 2%"></div>
-                        </div>
-                        <span class="text-sm font-bold">2%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Bulk Actions -->
-<div class="mt-6 bg-white rounded-lg shadow p-6">
-    <h3 class="text-lg font-semibold mb-4 flex items-center">
-        <i class="fas fa-tasks text-indigo-600 mr-2"></i>
-        Bulk Actions
-    </h3>
-    <div class="flex flex-wrap gap-3">
-        <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg" onclick="alert('Approve all pending (UI only)')">
-            <i class="fas fa-check-double mr-2"></i>
-            Approve All Pending
-        </button>
-        <button class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg" onclick="alert('Export reviews (UI only)')">
-            <i class="fas fa-download mr-2"></i>
-            Export Reviews
-        </button>
-        <button class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg" onclick="if(confirm('Delete all flagged?')) alert('Deleted (UI only)')">
-            <i class="fas fa-trash-alt mr-2"></i>
-            Delete All Flagged
-        </button>
     </div>
 </div>
 @endsection

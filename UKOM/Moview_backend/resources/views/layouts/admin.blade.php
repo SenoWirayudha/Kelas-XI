@@ -8,18 +8,24 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         [x-cloak] { display: none !important; }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
     </style>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="bg-gray-100">
     <div class="min-h-screen flex">
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-900 text-white flex-shrink-0">
+        <aside class="w-64 bg-gray-900 text-white flex-shrink-0 h-screen sticky top-0">
             <div class="p-6">
                 <h1 class="text-2xl font-bold text-blue-400">🎬 Moview Admin</h1>
             </div>
             
-            <nav class="mt-6">
+            <nav class="mt-6 flex-1 overflow-y-auto">
                 <a href="{{ route('admin.films.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.films.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-film mr-3"></i>
                     <span>Films</span>
@@ -40,13 +46,13 @@
                     <i class="fas fa-star mr-3"></i>
                     <span>Reviews</span>
                 </a>
+                <a href="{{ route('admin.comments.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.comments.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-comments mr-3"></i>
+                    <span>Comments</span>
+                </a>
                 <a href="{{ route('admin.analytics.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.analytics.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-chart-bar mr-3"></i>
                     <span>Analytics</span>
-                </a>
-                <a href="#" class="flex items-center px-6 py-3 hover:bg-gray-800 text-gray-400">
-                    <i class="fas fa-cog mr-3"></i>
-                    <span>Settings</span>
                 </a>
             </nav>
 
@@ -83,10 +89,70 @@
                         <p class="text-sm text-gray-500">@yield('page-subtitle', '')</p>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <button class="p-2 text-gray-600 hover:text-gray-900 relative">
-                            <i class="fas fa-bell text-xl"></i>
-                            <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-                        </button>
+                        <div x-data="{ 
+                            open: false, 
+                            notifications: [],
+                            count: 0,
+                            loading: false,
+                            async loadNotifications() {
+                                if (this.loading) return;
+                                this.loading = true;
+                                try {
+                                    const response = await fetch('{{ route('admin.comments.notifications') }}');
+                                    const html = await response.text();
+                                    this.$refs.dropdown.innerHTML = html;
+                                } catch (e) {
+                                    console.error('Failed to load notifications', e);
+                                } finally {
+                                    this.loading = false;
+                                }
+                            },
+                            async init() {
+                                // Load count on page load
+                                try {
+                                    const response = await fetch('{{ route('admin.comments.index') }}');
+                                    const text = await response.text();
+                                    const parser = new DOMParser();
+                                    const doc = parser.parseFromString(text, 'text/html');
+                                    const flaggedCard = doc.querySelector('[data-flagged-count]');
+                                    if (flaggedCard) {
+                                        this.count = parseInt(flaggedCard.dataset.flaggedCount) || 0;
+                                    }
+                                } catch (e) {
+                                    console.error('Failed to load count', e);
+                                }
+                            }
+                        }" class="relative">
+                            <button @click="open = !open; if(open && notifications.length === 0) loadNotifications()" 
+                                    class="p-2 text-gray-600 hover:text-gray-900 relative">
+                                <i class="fas fa-bell text-xl"></i>
+                                <span x-show="count > 0" 
+                                      x-text="count > 99 ? '99+' : count"
+                                      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1"></span>
+                            </button>
+                            
+                            <!-- Notification Dropdown -->
+                            <div x-show="open" 
+                                 @click.away="open = false"
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="transform opacity-0 scale-95"
+                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="transform opacity-100 scale-100"
+                                 x-transition:leave-end="transform opacity-0 scale-95"
+                                 class="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50 border border-gray-200"
+                                 x-cloak>
+                                <div class="p-4 border-b border-gray-200">
+                                    <h3 class="text-lg font-semibold text-gray-800">Flagged Comments</h3>
+                                </div>
+                                <div x-ref="dropdown" class="max-h-96 overflow-y-auto">
+                                    <div class="p-8 text-center text-gray-500">
+                                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                        <p>Loading...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="flex items-center space-x-2">
                             <span class="text-sm text-gray-600">{{ date('l, M d, Y') }}</span>
                         </div>
