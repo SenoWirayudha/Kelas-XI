@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ReviewComment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CommentController extends Controller
 {
@@ -77,8 +78,26 @@ class CommentController extends Controller
             ->limit(10)
             ->get();
             
-        $flaggedCount = $flaggedComments->count();
+        // Get recent flagged reviews (last 10)
+        $flaggedReviews = DB::table('reviews')
+            ->join('users', 'reviews.user_id', '=', 'users.id')
+            ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
+            ->join('movies', 'reviews.film_id', '=', 'movies.id')
+            ->where('reviews.status', 'flagged')
+            ->select(
+                'reviews.id',
+                'reviews.content',
+                'reviews.updated_at',
+                'user_profiles.display_name',
+                'users.username',
+                'movies.title as movie_title'
+            )
+            ->orderBy('reviews.updated_at', 'desc')
+            ->limit(10)
+            ->get();
+            
+        $flaggedCount = $flaggedComments->count() + $flaggedReviews->count();
         
-        return view('admin.partials.notifications', compact('flaggedComments', 'flaggedCount'));
+        return view('admin.partials.notifications', compact('flaggedComments', 'flaggedReviews', 'flaggedCount'));
     }
 }

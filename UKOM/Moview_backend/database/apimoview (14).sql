@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 28 Feb 2026 pada 16.50
+-- Waktu pembuatan: 01 Mar 2026 pada 11.52
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -108,7 +108,7 @@ INSERT INTO `diaries` (`id`, `user_id`, `film_id`, `review_id`, `watched_at`, `r
 (30, 5, 42, 22, '2026-02-28', 4, 1, 'Astagfirullah', 0, '2026-02-28 04:53:23', '2026-02-28 04:53:23'),
 (31, 5, 30, 23, '2026-02-28', 5, 1, 'Sedih banggettt', 0, '2026-02-28 04:53:49', '2026-02-28 04:53:49'),
 (32, 5, 41, 24, '2026-02-28', 5, 1, 'Sunyi mamposss', 0, '2026-02-28 04:54:43', '2026-02-28 04:54:43'),
-(33, 5, 2, 25, '2026-02-28', 5, 1, 'AH AH AH AH', 0, '2026-02-28 08:30:02', '2026-02-28 08:30:02');
+(33, 5, 2, 25, '2026-02-28', 5, 1, 'Review: bAGUSSSS', 0, '2026-02-28 08:30:02', '2026-03-01 03:32:28');
 
 -- --------------------------------------------------------
 
@@ -242,7 +242,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (27, '2026_02_11_add_is_rewatched_to_diaries', 7),
 (28, '2026_02_14_add_is_rewatched_to_reviews', 8),
 (29, '2026_02_25_000001_create_notifications_table', 9),
-(30, '2026_02_28_141730_update_review_comments_status_column', 10);
+(30, '2026_02_28_141730_update_review_comments_status_column', 10),
+(31, '2026_03_01_102005_add_flagged_status_to_reviews_table', 11);
 
 -- --------------------------------------------------------
 
@@ -314,7 +315,9 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (42, 'Anora', '2024', 139, 'NC-17', 'Seorang pekerja seks muda dari Brooklyn mendapatkan kesempatan di cerita Cinderella ketika dia bertemu dan secara impulsif menikahi putra seorang oligarki. Setelah berita mencapai Rusia, dongengnya terancam ketika orang tuanya berangkat untuk membuat pernikahan dibatalkan.', 'movies/42/poster/l5fk2wtNZXNW6UgWzMZIqzDeLyu86XPly4XnstFA.webp', 'movies/42/backdrop/EMSgOND1nz7oJidfmhZmpIW33IScghkrY1cjmNYu.webp', 'https://youtu.be/GuPkfvxmtdw?si=gYtldKVFp3d6BPCQ', 'published', '2026-02-15 03:05:16', '2026-02-15 03:40:49'),
 (43, 'Portrait of a Lady on Fire', '2019', 121, 'NC-17', 'DON\'T REGRET. REMEMBER.\r\n\r\nOn an isolated island in Brittany at the end of the eighteenth century, a female painter is obliged to paint a wedding portrait of a young woman.', 'movies/43/poster/uYxlams4WAuuNZgMKzjPYmkqTH4EENrEwg47kcew.webp', 'movies/43/backdrop/k5NpxCa2lHXLFZRXOOiJgWjmaAjvY1TcD6Xw58tI.webp', 'https://youtu.be/R-fQPTwma9o?si=ETFBNdjeB9bSLB3y', 'published', '2026-02-24 18:12:14', '2026-02-24 18:15:36'),
 (44, 'Call Me by Your Name', '2017', 132, 'NC-17', 'IS IT BETTER TO SPEAK OR DIE?\r\n\r\nIn the summer of 1983, a 17-year-old Elio spends his days in his family\'s villa in Italy. One day Oliver, a graduate student, arrives to assist Elio\'s father, a professor of Greco-Roman culture. Soon, Elio and Oliver discover a summer that will alter their lives forever.', 'movies/44/poster/B3ScRDIq9R8n0e2VYlwJzNlN7kblrbtQyOyL3HNc.webp', 'movies/44/backdrop/P8L14z6T3907ArTab2pxdE4IAMqjqUzh13LeMG4z.webp', 'https://youtu.be/Z9AYPxH5NTM?si=0nw-7Nb6TascWXN8', 'published', '2026-02-28 05:39:03', '2026-02-28 05:41:49'),
-(45, 'Sorry, Baby', '2025', 104, 'R', 'WELCOME TO THE WORLD.\r\n\r\nAgnes feels stuck. Unlike her best friend, Lydie, who’s moved to New York and is now expecting a baby, Agnes still lives in the New England house they once shared as graduate students, now working as a professor at her alma mater. A ‘bad thing’ happened to Agnes a few years ago and, since then, despite her best efforts, life hasn’t gotten back on track.', 'movies/45/poster/ixkERvrumhCKAlISB7mZUU7efKAnTbJNC3M3qQVg.webp', 'movies/45/backdrop/hZMMgpkaT2kPmOSiUZxO2W1NmLU9dOUXK8zCAkLI.webp', 'https://youtu.be/Rc0jgWoZo9w?si=KJIEEg4va5cW_rf2', 'draft', '2026-02-28 06:59:35', '2026-02-28 07:04:35');
+(45, 'Sorry, Baby', '2025', 104, 'R', 'WELCOME TO THE WORLD.\r\n\r\nAgnes feels stuck. Unlike her best friend, Lydie, who’s moved to New York and is now expecting a baby, Agnes still lives in the New England house they once shared as graduate students, now working as a professor at her alma mater. A ‘bad thing’ happened to Agnes a few years ago and, since then, despite her best efforts, life hasn’t gotten back on track.', 'movies/45/poster/ixkERvrumhCKAlISB7mZUU7efKAnTbJNC3M3qQVg.webp', 'movies/45/backdrop/hZMMgpkaT2kPmOSiUZxO2W1NmLU9dOUXK8zCAkLI.webp', 'https://youtu.be/Rc0jgWoZo9w?si=KJIEEg4va5cW_rf2', 'published', '2026-02-28 06:59:35', '2026-03-01 03:17:13'),
+(46, 'Taste of Cherry', '1997', 99, 'G', 'A middle-aged Tehranian man, Mr. Badii is intent on killing himself and seeks someone to bury him after his demise. Driving around the city, the seemingly well-to-do Badii meets with numerous people, including a Muslim student, asking them to take on the job, but initially he has little luck. Eventually, Badii finds a man who is up for the task because he needs the money, but his new associate soon tries to talk him out of committing suicide.', 'movies/46/poster/Cl5nyTnVAe0YYv83H5w0AzuBeXXPVp0Nw5XRSMYR.webp', 'movies/46/backdrop/WB3VFln0ATVM1MI2PgbZ2bZKqMM1EBNF2QtpPg5Y.webp', 'https://youtu.be/ukmYdGwVqPg?si=BsH4EkNRZOqRL93C', 'published', '2026-03-01 03:22:09', '2026-03-01 03:25:02'),
+(47, 'One Battle After Another', '2025', 162, 'R', 'SOME SEARCH FOR BATTLE, OTHERS ARE BORN INTO IT.\r\n\r\nBob revolusioner yang tercuci hidup dalam keadaan paranoia yang dirajam, bertahan hidup di luar jaringan dengan putrinya yang bersemangat dan mandiri, Willa. Ketika musuh bebuyutannya muncul kembali setelah 16 tahun dan dia hilang, mantan radikal berebut untuk menemukannya, ayah dan anak perempuan keduanya berjuang melawan konsekuensi dari masa lalunya.', 'movies/47/poster/n1eGXOYIksIUcbKgOAEKRixrqMkp6ueDOJNP4z8x.webp', 'movies/47/backdrop/PY14kRf8lJNkWghAyuVmE3ahPafRlfBlijnr70fw.webp', 'https://youtu.be/feOQFKv2Lw4?si=sUm7mFYTXDXynEY1', 'published', '2026-03-01 03:29:17', '2026-03-01 03:30:46');
 
 -- --------------------------------------------------------
 
@@ -410,7 +413,10 @@ INSERT INTO `movie_countries` (`movie_id`, `country_id`) VALUES
 (44, 20),
 (45, 1),
 (45, 5),
-(45, 11);
+(45, 11),
+(46, 5),
+(46, 16),
+(47, 1);
 
 -- --------------------------------------------------------
 
@@ -526,7 +532,12 @@ INSERT INTO `movie_genres` (`movie_id`, `genre_id`) VALUES
 (44, 7),
 (44, 11),
 (45, 4),
-(45, 7);
+(45, 7),
+(46, 7),
+(47, 1),
+(47, 4),
+(47, 5),
+(47, 13);
 
 -- --------------------------------------------------------
 
@@ -611,7 +622,11 @@ INSERT INTO `movie_languages` (`movie_id`, `language_id`) VALUES
 (44, 1),
 (44, 5),
 (44, 8),
-(45, 1);
+(45, 1),
+(46, 15),
+(47, 1),
+(47, 5),
+(47, 6);
 
 -- --------------------------------------------------------
 
@@ -808,7 +823,11 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (137, 44, 'poster', 'movies/44/poster/B3ScRDIq9R8n0e2VYlwJzNlN7kblrbtQyOyL3HNc.webp', 1, '2026-02-28 12:41:23'),
 (138, 44, 'backdrop', 'movies/44/backdrop/P8L14z6T3907ArTab2pxdE4IAMqjqUzh13LeMG4z.webp', 1, '2026-02-28 12:41:33'),
 (139, 45, 'poster', 'movies/45/poster/ixkERvrumhCKAlISB7mZUU7efKAnTbJNC3M3qQVg.webp', 1, '2026-02-28 14:01:04'),
-(140, 45, 'backdrop', 'movies/45/backdrop/hZMMgpkaT2kPmOSiUZxO2W1NmLU9dOUXK8zCAkLI.webp', 1, '2026-02-28 14:01:16');
+(140, 45, 'backdrop', 'movies/45/backdrop/hZMMgpkaT2kPmOSiUZxO2W1NmLU9dOUXK8zCAkLI.webp', 1, '2026-02-28 14:01:16'),
+(141, 46, 'poster', 'movies/46/poster/Cl5nyTnVAe0YYv83H5w0AzuBeXXPVp0Nw5XRSMYR.webp', 1, '2026-03-01 10:24:38'),
+(142, 46, 'backdrop', 'movies/46/backdrop/WB3VFln0ATVM1MI2PgbZ2bZKqMM1EBNF2QtpPg5Y.webp', 1, '2026-03-01 10:24:51'),
+(143, 47, 'poster', 'movies/47/poster/n1eGXOYIksIUcbKgOAEKRixrqMkp6ueDOJNP4z8x.webp', 1, '2026-03-01 10:30:26'),
+(144, 47, 'backdrop', 'movies/47/backdrop/PY14kRf8lJNkWghAyuVmE3ahPafRlfBlijnr70fw.webp', 1, '2026-03-01 10:30:35');
 
 -- --------------------------------------------------------
 
@@ -1019,7 +1038,11 @@ INSERT INTO `movie_production_houses` (`movie_id`, `production_house_id`) VALUES
 (43, 50),
 (44, 51),
 (44, 52),
-(45, 4);
+(45, 4),
+(46, 12),
+(46, 53),
+(46, 54),
+(47, 1);
 
 -- --------------------------------------------------------
 
@@ -1098,7 +1121,9 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (199, 9, 10, 'stream', NULL, 0),
 (200, 9, 12, 'stream', NULL, 0),
 (203, 44, 1, 'stream', NULL, 0),
-(206, 45, 11, 'stream', NULL, 0);
+(210, 45, 11, 'stream', NULL, 0),
+(212, 46, 11, 'stream', NULL, 0),
+(213, 47, 4, 'stream', NULL, 0);
 
 -- --------------------------------------------------------
 
@@ -1140,7 +1165,10 @@ INSERT INTO `notifications` (`id`, `user_id`, `actor_id`, `type`, `film_id`, `re
 (14, 3, 5, 'comment_review', 16, 20, 'Mafia film commented on your review of The Secret Agent', 0, '2026-02-28 08:00:01', '2026-02-28 08:00:01'),
 (15, 3, 5, 'comment_review', 34, 21, 'Mafia film commented on your review of Sirāt', 0, '2026-02-28 08:15:58', '2026-02-28 08:15:58'),
 (16, 6, 5, 'follow', NULL, NULL, 'Mafia film followed you', 0, '2026-02-28 08:32:26', '2026-02-28 08:32:26'),
-(17, 3, 5, 'like_review', 34, 15, 'Mafia film liked your ★★★★ review of Sirāt', 0, '2026-02-28 08:32:43', '2026-02-28 08:32:43');
+(17, 3, 5, 'like_review', 34, 15, 'Mafia film liked your ★★★★ review of Sirāt', 0, '2026-02-28 08:32:43', '2026-02-28 08:32:43'),
+(18, 3, 5, 'like_review', 2, 6, 'Mafia film liked your ★★★★★ review of The Handmaiden', 0, '2026-03-01 03:00:17', '2026-03-01 03:00:17'),
+(19, 3, 5, 'like_review', 34, 17, 'Mafia film liked your ★★★★ review of Sirāt', 0, '2026-03-01 03:01:25', '2026-03-01 03:01:25'),
+(20, 3, 5, 'like_review', 34, 17, 'Mafia film liked your ★★★★ review of Sirāt', 0, '2026-03-01 03:01:27', '2026-03-01 03:01:27');
 
 -- --------------------------------------------------------
 
@@ -1279,6 +1307,8 @@ INSERT INTO `production_houses` (`id`, `name`) VALUES
 (36, 'Imajinari'),
 (38, 'Jagartha'),
 (12, 'Janus Films'),
+(53, 'Kanoon'),
+(54, 'Kiarostami Foundation'),
 (51, 'La Cinéfacture'),
 (3, 'Legendary Pictures'),
 (50, 'Lilies Films'),
@@ -1372,7 +1402,7 @@ CREATE TABLE `reviews` (
   `is_liked` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Whether user liked this movie when writing review',
   `is_rewatched` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Whether this review was written during a rewatch (not first watch)',
   `watched_at` date DEFAULT NULL COMMENT 'Date when the movie was watched',
-  `status` enum('published','hidden','deleted') NOT NULL DEFAULT 'published',
+  `status` enum('published','hidden','deleted','flagged') DEFAULT 'published',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1383,7 +1413,7 @@ CREATE TABLE `reviews` (
 
 INSERT INTO `reviews` (`id`, `user_id`, `film_id`, `rating`, `title`, `content`, `backdrop_path`, `is_spoiler`, `is_liked`, `is_rewatched`, `watched_at`, `status`, `created_at`, `updated_at`) VALUES
 (5, 3, 19, 3, NULL, 'Jeleq banget dah, membingungkan', NULL, 0, 0, 0, NULL, 'published', '2026-02-06 07:02:11', '2026-02-06 07:02:11'),
-(6, 3, 2, 5, NULL, 'Sangat sangat dibikin melongo banget', NULL, 0, 0, 0, NULL, 'published', '2026-02-06 07:33:09', '2026-02-07 03:01:34'),
+(6, 3, 2, 5, NULL, 'Sangat sangat dibikin melongo banget', NULL, 0, 0, 0, NULL, 'published', '2026-02-06 07:33:09', '2026-03-01 03:52:10'),
 (7, 3, 7, 5, NULL, 'tes', NULL, 0, 0, 0, NULL, 'published', '2026-02-07 03:13:46', '2026-02-07 03:13:46'),
 (8, 3, 26, 4, NULL, 'Gila Bangt', NULL, 0, 0, 0, NULL, 'published', '2026-02-07 03:20:50', '2026-02-07 04:03:27'),
 (9, 3, 15, 5, NULL, 'Emang bagus banget nget nget', NULL, 0, 0, 0, NULL, 'published', '2026-02-07 03:29:43', '2026-02-07 03:29:43'),
@@ -1402,7 +1432,7 @@ INSERT INTO `reviews` (`id`, `user_id`, `film_id`, `rating`, `title`, `content`,
 (22, 5, 42, 4, NULL, 'Astagfirullah', NULL, 0, 1, 0, '2026-02-28', 'published', '2026-02-28 04:53:23', '2026-02-28 04:53:23'),
 (23, 5, 30, 5, NULL, 'Sedih banggettt', NULL, 0, 1, 0, '2026-02-28', 'published', '2026-02-28 04:53:49', '2026-02-28 04:53:49'),
 (24, 5, 41, 5, NULL, 'Sunyi mamposss', NULL, 0, 1, 0, '2026-02-28', 'published', '2026-02-28 04:54:43', '2026-02-28 04:54:43'),
-(25, 5, 2, 5, NULL, 'AH AH AH AH', NULL, 0, 1, 0, '2026-02-28', 'published', '2026-02-28 08:30:02', '2026-02-28 08:30:02');
+(25, 5, 2, 5, NULL, 'bAGUSSSS', NULL, 0, 1, 0, '2026-02-28', 'published', '2026-02-28 08:30:02', '2026-03-01 03:32:28');
 
 -- --------------------------------------------------------
 
@@ -1444,7 +1474,10 @@ INSERT INTO `review_comments` (`id`, `review_id`, `user_id`, `content`, `parent_
 (23, 24, 5, 'Emang bagus ni film', NULL, 'published', '2026-02-28 08:28:08', '2026-02-28 08:28:08'),
 (24, 25, 5, 'WOW', NULL, 'published', '2026-02-28 08:34:00', '2026-02-28 08:34:00'),
 (25, 23, 5, 'WOW<br>', NULL, 'published', '2026-02-28 08:34:27', '2026-02-28 08:34:27'),
-(26, 25, 5, 'Tes', NULL, 'published', '2026-02-28 08:41:20', '2026-02-28 08:41:20');
+(26, 25, 5, 'Tes', NULL, 'published', '2026-02-28 08:41:20', '2026-02-28 08:41:20'),
+(27, 25, 5, 'tes', NULL, 'published', '2026-02-28 09:09:08', '2026-02-28 09:09:08'),
+(28, 25, 5, 'tes lagi', NULL, 'published', '2026-02-28 09:09:14', '2026-02-28 09:09:14'),
+(29, 25, 5, 'lagi', 24, 'published', '2026-02-28 09:09:23', '2026-02-28 09:09:23');
 
 -- --------------------------------------------------------
 
@@ -1465,11 +1498,12 @@ CREATE TABLE `review_likes` (
 --
 
 INSERT INTO `review_likes` (`id`, `review_id`, `user_id`, `created_at`, `updated_at`) VALUES
-(1, 17, 5, '2026-02-24 18:07:10', '2026-02-24 18:07:10'),
 (3, 20, 3, '2026-02-24 22:19:53', '2026-02-24 22:19:53'),
 (4, 11, 5, '2026-02-24 22:30:23', '2026-02-24 22:30:23'),
 (5, 19, 3, '2026-02-24 23:17:25', '2026-02-24 23:17:25'),
-(6, 15, 5, '2026-02-28 08:32:43', '2026-02-28 08:32:43');
+(6, 15, 5, '2026-02-28 08:32:43', '2026-02-28 08:32:43'),
+(7, 6, 5, '2026-03-01 03:00:17', '2026-03-01 03:00:17'),
+(9, 17, 5, '2026-03-01 03:01:27', '2026-03-01 03:01:27');
 
 -- --------------------------------------------------------
 
@@ -1573,7 +1607,13 @@ INSERT INTO `user_activities` (`id`, `user_id`, `type`, `film_id`, `meta`, `crea
 (16, 5, 'like_review', 34, '{\"review_id\":\"15\",\"review_owner_id\":3}', '2026-02-28 08:32:43', '2026-02-28 08:32:43'),
 (17, 5, 'comment_review', 2, '{\"review_id\":\"25\",\"comment_id\":24,\"review_owner_id\":5}', '2026-02-28 08:34:00', '2026-02-28 08:34:00'),
 (18, 5, 'comment_review', 30, '{\"review_id\":\"23\",\"comment_id\":25,\"review_owner_id\":5}', '2026-02-28 08:34:27', '2026-02-28 08:34:27'),
-(19, 5, 'comment_review', 2, '{\"review_id\":\"25\",\"comment_id\":26,\"review_owner_id\":5}', '2026-02-28 08:41:20', '2026-02-28 08:41:20');
+(19, 5, 'comment_review', 2, '{\"review_id\":\"25\",\"comment_id\":26,\"review_owner_id\":5}', '2026-02-28 08:41:20', '2026-02-28 08:41:20'),
+(20, 5, 'comment_review', 2, '{\"review_id\":\"25\",\"comment_id\":27,\"review_owner_id\":5}', '2026-02-28 09:09:08', '2026-02-28 09:09:08'),
+(21, 5, 'comment_review', 2, '{\"review_id\":\"25\",\"comment_id\":28,\"review_owner_id\":5}', '2026-02-28 09:09:14', '2026-02-28 09:09:14'),
+(22, 5, 'reply_comment', 2, '{\"review_id\":\"25\",\"parent_comment_id\":\"24\",\"comment_id\":29,\"parent_comment_owner_id\":5}', '2026-02-28 09:09:23', '2026-02-28 09:09:23'),
+(23, 5, 'like_review', 2, '{\"review_id\":\"6\",\"review_owner_id\":3}', '2026-03-01 03:00:17', '2026-03-01 03:00:17'),
+(24, 5, 'like_review', 34, '{\"review_id\":\"17\",\"review_owner_id\":3}', '2026-03-01 03:01:25', '2026-03-01 03:01:25'),
+(25, 5, 'like_review', 34, '{\"review_id\":\"17\",\"review_owner_id\":3}', '2026-03-01 03:01:27', '2026-03-01 03:01:27');
 
 -- --------------------------------------------------------
 
@@ -1953,13 +1993,13 @@ ALTER TABLE `languages`
 -- AUTO_INCREMENT untuk tabel `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT untuk tabel `movies`
 --
 ALTER TABLE `movies`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_likes`
@@ -1971,7 +2011,7 @@ ALTER TABLE `movie_likes`
 -- AUTO_INCREMENT untuk tabel `movie_media`
 --
 ALTER TABLE `movie_media`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=141;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=145;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_persons`
@@ -1983,13 +2023,13 @@ ALTER TABLE `movie_persons`
 -- AUTO_INCREMENT untuk tabel `movie_services`
 --
 ALTER TABLE `movie_services`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=207;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=214;
 
 --
 -- AUTO_INCREMENT untuk tabel `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT untuk tabel `persons`
@@ -2001,7 +2041,7 @@ ALTER TABLE `persons`
 -- AUTO_INCREMENT untuk tabel `production_houses`
 --
 ALTER TABLE `production_houses`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
 
 --
 -- AUTO_INCREMENT untuk tabel `ratings`
@@ -2019,13 +2059,13 @@ ALTER TABLE `reviews`
 -- AUTO_INCREMENT untuk tabel `review_comments`
 --
 ALTER TABLE `review_comments`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT untuk tabel `review_likes`
 --
 ALTER TABLE `review_likes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT untuk tabel `services`
@@ -2043,7 +2083,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT untuk tabel `user_activities`
 --
 ALTER TABLE `user_activities`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`

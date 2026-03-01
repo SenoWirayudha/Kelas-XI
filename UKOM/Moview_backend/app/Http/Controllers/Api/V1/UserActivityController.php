@@ -295,7 +295,7 @@ class UserActivityController extends Controller
                          ->where('backdrop.is_default', '=', 1);
                 })
                 ->where('reviews.id', $reviewId)
-                ->where('reviews.status', 'published')
+                ->whereIn('reviews.status', ['published', 'flagged'])  // Allow flagged reviews to be viewed
                 ->select(
                     'reviews.id as review_id',
                     'reviews.user_id',
@@ -1222,6 +1222,49 @@ class UserActivityController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Flag a review as inappropriate
+     */
+    public function flagReview(Request $request, $userId, $reviewId)
+    {
+        try {
+            // Check if review exists
+            $review = DB::table('reviews')
+                ->where('id', $reviewId)
+                ->first();
+            
+            if (!$review) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Review not found'
+                ], 404);
+            }
+            
+            // Check if user is not flagging their own review
+            if ($review->user_id == $userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot flag your own review'
+                ], 403);
+            }
+            
+            // Update review status to flagged
+            DB::table('reviews')
+                ->where('id', $reviewId)
+                ->update(['status' => 'flagged']);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Review flagged successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to flag review: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -494,6 +494,16 @@ class MovieRepository {
         }
     }
     
+    suspend fun flagReview(userId: Int, reviewId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.flagReview(userId, reviewId)
+            response.success
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error flagging review: ${e.message}", e)
+            false
+        }
+    }
+    
     suspend fun getReviewComments(reviewId: Int): List<com.komputerkit.moview.data.model.Comment> = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getReviewComments(reviewId)

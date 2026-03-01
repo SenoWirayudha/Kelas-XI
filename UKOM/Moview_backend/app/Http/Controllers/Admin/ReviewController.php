@@ -88,4 +88,39 @@ class ReviewController extends Controller
             'flaggedReviews'
         ));
     }
+    
+    /**
+     * Delete a flagged review (hard delete)
+     */
+    public function delete($id)
+    {
+        try {
+            $review = Review::findOrFail($id);
+            
+            // Hard delete the review
+            $review->delete();
+            
+            return redirect()->back()->with('success', 'Review deleted successfully');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to delete review: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Restore (approve) a flagged review
+     */
+    public function restore($id)
+    {
+        try {
+            $review = Review::findOrFail($id);
+            
+            // Set status back to published
+            $review->status = 'published';
+            $review->save();
+            
+            return redirect()->back()->with('success', 'Review approved successfully');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to approve review: ' . $e->getMessage());
+        }
+    }
 }

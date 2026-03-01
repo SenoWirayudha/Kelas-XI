@@ -76,6 +76,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     
     // Reviews Management
     Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');
+    Route::delete('/reviews/{id}/delete', [ReviewController::class, 'delete'])->name('reviews.delete');
+    Route::post('/reviews/{id}/restore', [ReviewController::class, 'restore'])->name('reviews.restore');
     
     // Comments Management
     Route::get('/comments', [\App\Http\Controllers\Admin\CommentController::class, 'index'])->name('comments.index');

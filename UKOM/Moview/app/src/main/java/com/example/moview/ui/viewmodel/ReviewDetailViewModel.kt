@@ -144,8 +144,7 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                 
                 // Logic:
                 // 1. Own review: Show "YOU LIKED" if user has liked other reviews for this movie
-                // 2. Other's review that current user liked: Show "Liked by [username]" if user has liked other reviews for this movie
-                // 3. Other's review that current user NOT liked: Hide section
+                // 2. Other's review: Show "Liked by [reviewer's username]" if reviewer has liked other reviews for this movie
                 
                 if (isOwnReview) {
                     // This is user's own review - show "YOU LIKED" section
@@ -164,9 +163,9 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                         _likedByText.postValue("")
                         android.util.Log.d("ReviewDetailViewModel", "Own review: No liked reviews, hiding section")
                     }
-                } else if (isCurrentUserLikedReview) {
-                    // This is other user's review that current user liked
-                    val likedReviews = repository.getLikedReviewsForMovie(currentUserId, movieId)
+                } else {
+                    // This is other user's review - show reviews that REVIEWER has liked
+                    val likedReviews = repository.getLikedReviewsForMovie(reviewUserId, movieId)
                     
                     // Filter out the current review to avoid redundancy
                     val filteredReviews = likedReviews.filter { it.reviewId != currentReviewId }
@@ -174,22 +173,16 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                     if (filteredReviews.isNotEmpty()) {
                         _likedReviews.postValue(filteredReviews)
                         
-                        // Get current user's display name
-                        val displayName = prefs.getString("displayName", null) 
-                            ?: prefs.getString("username", "Someone")
-                        _likedByText.postValue("Liked by $displayName")
-                        android.util.Log.d("ReviewDetailViewModel", "Other's review (liked): Show 'Liked by $displayName' with ${filteredReviews.size} reviews")
+                        // Get reviewer's display name from current review
+                        val reviewerName = _review.value?.userName ?: "User"
+                        _likedByText.postValue("Liked by $reviewerName")
+                        android.util.Log.d("ReviewDetailViewModel", "Other's review: Show 'Liked by $reviewerName' with ${filteredReviews.size} reviews")
                     } else {
-                        // No liked reviews - hide section
+                        // Reviewer has no other liked reviews - hide section
                         _likedReviews.postValue(emptyList())
                         _likedByText.postValue("")
-                        android.util.Log.d("ReviewDetailViewModel", "Other's review (liked): No other liked reviews, hiding section")
+                        android.util.Log.d("ReviewDetailViewModel", "Other's review: Reviewer has no other liked reviews, hiding section")
                     }
-                } else {
-                    // Other user's review that current user has NOT liked - hide section
-                    _likedReviews.postValue(emptyList())
-                    _likedByText.postValue("")
-                    android.util.Log.d("ReviewDetailViewModel", "Other's review (not liked): Hiding section")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ReviewDetailViewModel", "Error loading liked reviews section: ${e.message}", e)
@@ -402,5 +395,21 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
     // Legacy method for backward compatibility
     fun deleteReview(reviewId: Int) {
         deleteEntry(reviewId, 0)
+    }
+    
+    private val _flagStatus = MutableLiveData<Boolean>()
+    val flagStatus: LiveData<Boolean> = _flagStatus
+    
+    fun flagReview(reviewId: Int) {
+        val userId = prefs.getInt("userId", 0)
+        viewModelScope.launch {
+            try {
+                val success = repository.flagReview(userId, reviewId)
+                _flagStatus.postValue(success)
+            } catch (e: Exception) {
+                android.util.Log.e("ReviewDetailViewModel", "Error flagging review: ${e.message}", e)
+                _flagStatus.postValue(false)
+            }
+        }
     }
 }

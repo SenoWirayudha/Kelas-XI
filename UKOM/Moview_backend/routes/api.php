@@ -92,6 +92,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/users/{userId}/movies/{movieId}/review', [UserActivityController::class, 'saveReview']);
     Route::put('users/{userId}/reviews/{reviewId}', [UserActivityController::class, 'updateReview'])->where('reviewId', '[0-9]+');
     Route::delete('users/{userId}/reviews/{reviewId}', [UserActivityController::class, 'deleteReview'])->where('reviewId', '[0-9]+');
+    Route::post('users/{userId}/reviews/{reviewId}/flag', [UserActivityController::class, 'flagReview'])->where(['userId' => '[0-9]+', 'reviewId' => '[0-9]+']);
     
     // Review Comments
     Route::get('reviews/{reviewId}/comments', [UserActivityController::class, 'getReviewComments'])->where('reviewId', '[0-9]+');

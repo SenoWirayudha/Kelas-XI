@@ -154,6 +154,12 @@ interface MovieApiService {
         @Path("userId") userId: Int,
         @Path("diaryId") diaryId: Int
     ): ApiResponse<Unit>
+    
+    @POST("users/{userId}/reviews/{reviewId}/flag")
+    suspend fun flagReview(
+        @Path("userId") userId: Int,
+        @Path("reviewId") reviewId: Int
+    ): ApiResponse<Unit>
 
     @GET("users/{userId}/likes")
     suspend fun getUserLikes(

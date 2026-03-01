@@ -106,12 +106,13 @@ class ReviewDetailFragment : Fragment() {
 
                 tvUsername.text = review.userName
                 
-                // Show 3-dot menu only if this is current user's review
+                // Always show 3-dot menu (different menu for own vs other's review)
+                btnMoreOptions.visibility = View.VISIBLE
+                
+                // Check if own review for like button
                 val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
                 val currentUserId = prefs.getInt("userId", 0)
                 val isOwnReview = review.userId == currentUserId
-                
-                btnMoreOptions.visibility = if (isOwnReview) View.VISIBLE else View.GONE
                 
                 // Disable like button for own review
                 ivLikeIcon.isEnabled = !isOwnReview
@@ -231,6 +232,16 @@ class ReviewDetailFragment : Fragment() {
                 findNavController().navigateUp()
             } else {
                 Toast.makeText(requireContext(), "Failed to delete", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        viewModel.flagStatus.observe(viewLifecycleOwner) { success ->
+            if (success) {
+                Toast.makeText(requireContext(), "Review reported successfully", Toast.LENGTH_SHORT).show()
+                // Hide menu after reporting
+                binding.btnMoreOptions.visibility = View.GONE
+            } else {
+                Toast.makeText(requireContext(), "Failed to report review", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -661,23 +672,63 @@ class ReviewDetailFragment : Fragment() {
     }
     
     private fun showOptionsMenu(view: View) {
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+        val currentUserId = prefs.getInt("userId", 0)
+        val reviewUserId = viewModel.review.value?.userId ?: 0
+        val isOwnReview = currentUserId == reviewUserId
+        
+        if (isOwnReview) {
+            // Show edit/delete menu for own review
+            val popup = PopupMenu(requireContext(), view)
+            popup.menuInflater.inflate(R.menu.menu_review_options, popup.menu)
+            
+            popup.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.action_edit -> {
+                        navigateToEditReview()
+                        true
+                    }
+                    R.id.action_delete -> {
+                        showDeleteConfirmation()
+                        true
+                    }
+                    else -> false
+                }
+            }
+            popup.show()
+        } else {
+            // Show report menu for other's review
+            showReportMenu(view)
+        }
+    }
+    
+    private fun showReportMenu(view: View) {
         val popup = PopupMenu(requireContext(), view)
-        popup.menuInflater.inflate(R.menu.menu_review_options, popup.menu)
+        popup.menuInflater.inflate(R.menu.menu_review_report, popup.menu)
         
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
-                R.id.action_edit -> {
-                    navigateToEditReview()
-                    true
-                }
-                R.id.action_delete -> {
-                    showDeleteConfirmation()
+                R.id.action_report -> {
+                    showReportConfirmation()
                     true
                 }
                 else -> false
             }
         }
         popup.show()
+    }
+    
+    private fun showReportConfirmation() {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Report Review")
+            .setMessage("Are you sure you want to report this review? It will be flagged for admin review.")
+            .setPositiveButton("Report") { _, _ ->
+                viewModel.review.value?.let { review ->
+                    viewModel.flagReview(review.reviewId)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
     
     private fun navigateToEditReview() {
