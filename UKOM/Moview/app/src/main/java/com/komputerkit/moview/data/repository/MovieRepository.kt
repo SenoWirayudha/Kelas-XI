@@ -60,36 +60,10 @@ class MovieRepository {
         }
     }
     
+    // Deprecated - use getFriendsActivity(userId) instead
     suspend fun getFriendActivities(): List<FriendActivity> = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.getHome()
-            if (response.success && response.data != null) {
-                response.data.new_from_friends.map { review ->
-                    FriendActivity(
-                        id = review.review_id,
-                        user = User(
-                            id = review.user.id,
-                            username = review.user.username,
-                            profilePhotoUrl = "",
-                            email = "",
-                            bio = ""
-                        ),
-                        movie = review.movie.toMovie(),
-                        rating = review.rating.toFloat(),
-                        likeCount = 0,
-                        isRewatch = false,
-                        hasReview = true,
-                        reviewText = "",
-                        timestamp = System.currentTimeMillis()
-                    )
-                }
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
+        // This method is deprecated, returns empty list
+        emptyList()
     }
     
     suspend fun searchMovies(query: String): List<Movie> = withContext(Dispatchers.IO) {
@@ -738,6 +712,48 @@ class MovieRepository {
         }
     }
     
+    suspend fun getFriendsActivity(userId: Int): List<FriendActivity> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getFriendsActivity(userId)
+            if (response.success && response.data != null) {
+                response.data.map { dto ->
+                    FriendActivity(
+                        id = dto.id,
+                        activityType = dto.activity_type,
+                        user = User(
+                            id = dto.user.id,
+                            username = dto.user.username,
+                            profilePhotoUrl = dto.user.profile_photo ?: ""
+                        ),
+                        movie = Movie(
+                            id = dto.movie.id,
+                            title = dto.movie.title,
+                            posterUrl = dto.movie.poster_path,
+                            averageRating = null,
+                            genre = null,
+                            releaseYear = null,
+                            description = null
+                        ),
+                        rating = dto.rating,
+                        likeCount = dto.like_count,
+                        isRewatch = dto.is_rewatched,
+                        hasReview = dto.has_review,
+                        reviewId = dto.review_id,
+                        diaryId = dto.diary_id,
+                        reviewText = "",
+                        timestamp = dto.timestamp
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error fetching friends activity", e)
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
     suspend fun followUser(userId: Int, targetUserId: Int): Boolean = withContext(Dispatchers.IO) {
         try {
             android.util.Log.d("MovieRepository", "Following user: currentUser=$userId, target=$targetUserId")
@@ -1042,65 +1058,83 @@ class MovieRepository {
         return listOf(
             FriendActivity(
                 id = 1,
+                activityType = "review",
                 user = users[0],
                 movie = movies[0],
                 rating = 5.0f,
                 likeCount = 24,
                 isRewatch = false,
                 hasReview = true,
+                reviewId = 1,
+                diaryId = 0,
                 reviewText = "Absolutely masterpiece! The story keeps you engaged from start to finish.",
                 timestamp = System.currentTimeMillis() - 3600000 // 1 hour ago
             ),
             FriendActivity(
                 id = 2,
+                activityType = "diary",
                 user = users[1],
                 movie = movies[2],
                 rating = 4.5f,
                 likeCount = 18,
                 isRewatch = true,
                 hasReview = false,
+                reviewId = 0,
+                diaryId = 2,
                 timestamp = System.currentTimeMillis() - 7200000 // 2 hours ago
             ),
             FriendActivity(
                 id = 3,
+                activityType = "review",
                 user = users[2],
                 movie = movies[5],
                 rating = 4.8f,
                 likeCount = 32,
                 isRewatch = false,
                 hasReview = true,
+                reviewId = 3,
+                diaryId = 0,
                 reviewText = "Mind-bending and visually stunning. Nolan at his best!",
                 timestamp = System.currentTimeMillis() - 10800000 // 3 hours ago
             ),
             FriendActivity(
                 id = 4,
+                activityType = "review",
                 user = users[3],
                 movie = movies[7],
                 rating = 5.0f,
                 likeCount = 45,
                 isRewatch = true,
                 hasReview = true,
+                reviewId = 4,
+                diaryId = 0,
                 reviewText = "Watched it for the 3rd time and still amazed by the emotional depth and scientific accuracy.",
                 timestamp = System.currentTimeMillis() - 14400000 // 4 hours ago
             ),
             FriendActivity(
                 id = 5,
+                activityType = "diary",
                 user = users[4],
                 movie = movies[4],
                 rating = 4.0f,
                 likeCount = 12,
                 isRewatch = false,
                 hasReview = false,
+                reviewId = 0,
+                diaryId = 5,
                 timestamp = System.currentTimeMillis() - 18000000 // 5 hours ago
             ),
             FriendActivity(
                 id = 6,
+                activityType = "review",
                 user = users[0],
                 movie = movies[3],
                 rating = 4.7f,
                 likeCount = 28,
                 isRewatch = true,
                 hasReview = true,
+                reviewId = 6,
+                diaryId = 0,
                 reviewText = "Tarantino's storytelling is unmatched. Every scene is iconic.",
                 timestamp = System.currentTimeMillis() - 21600000 // 6 hours ago
             )

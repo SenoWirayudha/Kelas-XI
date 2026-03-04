@@ -59,9 +59,30 @@ class FriendActivityNewAdapter(
             // Show review icon if activity has review
             binding.icHasReview.visibility = if (activity.hasReview) View.VISIBLE else View.GONE
             
-            // Handle click
-            binding.root.setOnClickListener {
-                onActivityClick(activity)
+            // Show rewatch icon if activity is rewatch
+            binding.ivRewatch.visibility = if (activity.isRewatch) View.VISIBLE else View.GONE
+            
+            // Handle click on poster
+            binding.ivPoster.setOnClickListener {
+                android.util.Log.d("FriendActivityAdapter", "========================================")
+                android.util.Log.d("FriendActivityAdapter", "Poster clicked!")
+                android.util.Log.d("FriendActivityAdapter", "Activity ID: ${activity.id}")
+                android.util.Log.d("FriendActivityAdapter", "Activity Type: ${activity.activityType}")
+                android.util.Log.d("FriendActivityAdapter", "Has Review: ${activity.hasReview}")
+                android.util.Log.d("FriendActivityAdapter", "Review ID: ${activity.reviewId}")
+                android.util.Log.d("FriendActivityAdapter", "Diary ID: ${activity.diaryId}")
+                android.util.Log.d("FriendActivityAdapter", "User: ${activity.user.username}")
+                android.util.Log.d("FriendActivityAdapter", "Movie: ${activity.movie.title}")
+                
+                android.util.Log.d("FriendActivityAdapter", "About to call onActivityClick callback...")
+                try {
+                    onActivityClick(activity)
+                    android.util.Log.d("FriendActivityAdapter", "onActivityClick() returned successfully")
+                } catch (e: Exception) {
+                    android.util.Log.e("FriendActivityAdapter", "!!! ERROR calling onActivityClick !!!", e)
+                    e.printStackTrace()
+                }
+                android.util.Log.d("FriendActivityAdapter", "========================================")
             }
             
             // Long press on poster to show movie actions

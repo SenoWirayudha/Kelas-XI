@@ -104,7 +104,8 @@
                 android:layout_height="wrap_content"
                 android:paddingStart="16dp"
                 android:clipToPadding="false"
-                tools:listitem="@layout/item_friend_activity" />
+                android:visibility="visible"
+                tools:listitem="@layout/item_friend_activity_new" />
 
         </LinearLayout>
 

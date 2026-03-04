@@ -658,6 +658,173 @@ class UserActivityController extends Controller
         }
     }
 
+    public function getFriendsRecentActivity($userId)
+    {
+        try {
+            // Get list of users that current user follows
+            $followedUserIds = DB::table('followers')
+                ->where('follower_id', $userId)
+                ->pluck('user_id')
+                ->toArray();
+
+            if (empty($followedUserIds)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => []
+                ]);
+            }
+
+            // Get most recent activity (diary or review) per followed user
+            $activities = DB::select("
+                SELECT 
+                    activity_id,
+                    activity_type,
+                    user_id,
+                    username,
+                    display_name,
+                    profile_photo,
+                    film_id as movie_id,
+                    title,
+                    poster_path,
+                    rating,
+                    is_rewatched,
+                    has_review,
+                    review_id,
+                    diary_id,
+                    timestamp,
+                    like_count
+                FROM (
+                    SELECT 
+                        activity_id,
+                        activity_type,
+                        user_id,
+                        username,
+                        display_name,
+                        profile_photo,
+                        film_id,
+                        title,
+                        poster_path,
+                        rating,
+                        is_rewatched,
+                        has_review,
+                        review_id,
+                        diary_id,
+                        timestamp,
+                        like_count,
+                        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY timestamp DESC) as rn
+                    FROM (
+                        SELECT 
+                            d.id as activity_id,
+                            'diary' as activity_type,
+                            u.id as user_id,
+                            u.username,
+                            up.display_name,
+                            up.profile_photo,
+                            d.film_id,
+                            m.title,
+                            mm.media_path as poster_path,
+                            d.rating,
+                            d.is_rewatched,
+                            false as has_review,
+                            0 as review_id,
+                            d.id as diary_id,
+                            UNIX_TIMESTAMP(d.watched_at) as timestamp,
+                            0 as like_count
+                        FROM diaries d
+                        INNER JOIN users u ON d.user_id = u.id
+                        LEFT JOIN user_profiles up ON u.id = up.user_id
+                        LEFT JOIN movies m ON d.film_id = m.id
+                        LEFT JOIN movie_media mm ON m.id = mm.movie_id AND mm.media_type = 'poster'
+                        WHERE d.user_id IN (" . implode(',', array_map('intval', $followedUserIds)) . ")
+                        
+                        UNION ALL
+                        
+                        SELECT 
+                            r.id as activity_id,
+                            'review' as activity_type,
+                            u.id as user_id,
+                            u.username,
+                            up.display_name,
+                            up.profile_photo,
+                            r.film_id,
+                            m.title,
+                            mm.media_path as poster_path,
+                            r.rating,
+                            r.is_rewatched,
+                            true as has_review,
+                            r.id as review_id,
+                            0 as diary_id,
+                            UNIX_TIMESTAMP(r.created_at) as timestamp,
+                            0 as like_count
+                        FROM reviews r
+                        INNER JOIN users u ON r.user_id = u.id
+                        LEFT JOIN user_profiles up ON u.id = up.user_id
+                        LEFT JOIN movies m ON r.film_id = m.id
+                        LEFT JOIN movie_media mm ON m.id = mm.movie_id AND mm.media_type = 'poster'
+                        WHERE r.user_id IN (" . implode(',', array_map('intval', $followedUserIds)) . ")
+                        AND r.status IN ('published', 'flagged')
+                    ) as all_activities
+                ) as ranked_activities
+                WHERE rn = 1
+                ORDER BY timestamp DESC
+            ");
+
+            // Build full URLs for posters and profile photos
+            $activitiesWithUrls = array_map(function($activity) {
+                $profilePhotoUrl = null;
+                if ($activity->profile_photo) {
+                    if (!str_starts_with($activity->profile_photo, 'http')) {
+                        $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$activity->profile_photo}";
+                    } else {
+                        $profilePhotoUrl = $activity->profile_photo;
+                    }
+                }
+
+                $posterUrl = null;
+                if ($activity->poster_path) {
+                    if (!str_starts_with($activity->poster_path, 'http')) {
+                        $posterUrl = "http://10.0.2.2:8000/storage/{$activity->poster_path}";
+                    } else {
+                        $posterUrl = $activity->poster_path;
+                    }
+                }
+
+                return [
+                    'id' => (int)$activity->activity_id,
+                    'activity_type' => $activity->activity_type,
+                    'user' => [
+                        'id' => (int)$activity->user_id,
+                        'username' => $activity->username,
+                        'display_name' => $activity->display_name,
+                        'profile_photo' => $profilePhotoUrl
+                    ],
+                    'movie' => [
+                        'id' => (int)$activity->movie_id,
+                        'title' => $activity->title,
+                        'poster_path' => $posterUrl
+                    ],
+                    'rating' => (float)$activity->rating,
+                    'is_rewatched' => (bool)$activity->is_rewatched,
+                    'has_review' => (bool)$activity->has_review,
+                    'review_id' => (int)$activity->review_id,
+                    'diary_id' => (int)$activity->diary_id,
+                    'timestamp' => (int)$activity->timestamp,
+                    'like_count' => (int)$activity->like_count
+                ];
+            }, $activities);
+
+            return response()->json([
+                'success' => true,
+                'data' => $activitiesWithUrls
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch friends activity: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     /**
      * Save or update user rating for a movie
      */

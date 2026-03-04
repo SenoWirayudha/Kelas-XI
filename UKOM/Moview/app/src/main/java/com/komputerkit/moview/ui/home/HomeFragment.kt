@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.home
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -33,6 +34,14 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        // Get user ID from SharedPreferences
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        val userId = prefs.getInt("userId", 0)
+        android.util.Log.d("HomeFragment", "Retrieved userId from SharedPreferences: $userId")
+        
+        // Set userId to ViewModel
+        viewModel.setUserId(userId)
+        
         setupRecyclerViews()
         observeViewModel()
         setupClickListeners()
@@ -56,17 +65,47 @@ class HomeFragment : Fragment() {
         }
 
         // Setup Friend Activities RecyclerView (Horizontal)
-        friendActivityAdapter = FriendActivityNewAdapter { activity ->
-            if (activity.hasReview) {
-                // Navigate to Review Detail if activity has a review
-                val action = HomeFragmentDirections.actionHomeToReviewDetail(activity.id)
-                findNavController().navigate(action)
-            } else {
-                // Navigate to Film Detail if no review
-                val action = HomeFragmentDirections.actionHomeToMovieDetail(activity.movie.id)
-                findNavController().navigate(action)
+        friendActivityAdapter = FriendActivityNewAdapter(
+            onActivityClick = { activity ->
+                android.util.Log.d("HomeFragment", "")
+                android.util.Log.d("HomeFragment", "========================================")
+                android.util.Log.d("HomeFragment", "=== CALLBACK INVOKED IN HOME FRAGMENT ===")
+                android.util.Log.d("HomeFragment", "========================================")
+                
+                try {
+                    android.util.Log.d("HomeFragment", "Activity received: ID=${activity.id}, Type=${activity.activityType}")
+                    android.util.Log.d("HomeFragment", "hasReview=${activity.hasReview}, reviewId=${activity.reviewId}, diaryId=${activity.diaryId}")
+                    android.util.Log.d("HomeFragment", "User: ${activity.user.username}, Movie: ${activity.movie.title}")
+                    
+                    // Navigate to Review Detail for both diary and review
+                    val reviewId = if (activity.hasReview) activity.reviewId else activity.diaryId
+                    val isLog = !activity.hasReview
+                    
+                    android.util.Log.d("HomeFragment", "Calculated: reviewId=$reviewId, isLog=$isLog")
+                    
+                    if (reviewId > 0) {
+                        android.util.Log.d("HomeFragment", "ReviewId is valid, creating navigation action...")
+                        val action = HomeFragmentDirections.actionHomeToReviewDetail(
+                            reviewId = reviewId,
+                            isLog = isLog
+                        )
+                        android.util.Log.d("HomeFragment", "Navigation action created successfully")
+                        android.util.Log.d("HomeFragment", "Calling findNavController().navigate()...")
+                        findNavController().navigate(action)
+                        android.util.Log.d("HomeFragment", "Navigation command executed!")
+                    } else {
+                        android.util.Log.e("HomeFragment", "ERROR: Invalid reviewId: $reviewId")
+                        Toast.makeText(requireContext(), "Cannot open this activity (invalid ID)", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeFragment", "!!! EXCEPTION IN CALLBACK !!!", e)
+                    e.printStackTrace()
+                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+                
+                android.util.Log.d("HomeFragment", "========================================")
             }
-        }
+        )
         binding.rvFriendActivities.apply {
             adapter = friendActivityAdapter
             layoutManager = LinearLayoutManager(
@@ -79,11 +118,27 @@ class HomeFragment : Fragment() {
 
     private fun observeViewModel() {
         viewModel.popularMovies.observe(viewLifecycleOwner) { movies ->
+            android.util.Log.d("HomeFragment", "Popular movies received: ${movies.size} items")
             movieCardAdapter.submitList(movies)
         }
 
         viewModel.friendActivities.observe(viewLifecycleOwner) { activities ->
-            friendActivityAdapter.submitList(activities)
+            android.util.Log.d("HomeFragment", "Friend activities received: ${activities.size} items")
+            if (activities.isEmpty()) {
+                android.util.Log.d("HomeFragment", "No friend activities to display")
+                binding.rvFriendActivities.visibility = View.GONE
+            } else {
+                android.util.Log.d("HomeFragment", "Displaying ${activities.size} friend activities")
+                binding.rvFriendActivities.visibility = View.VISIBLE
+                friendActivityAdapter.submitList(activities)
+            }
+        }
+        
+        viewModel.error.observe(viewLifecycleOwner) { error ->
+            error?.let {
+                android.util.Log.e("HomeFragment", "Error loading data: $it")
+                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+            }
         }
     }
     

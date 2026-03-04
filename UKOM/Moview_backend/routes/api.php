@@ -64,6 +64,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/users/{userId}/watchlist', [UserActivityController::class, 'getWatchlist']);
     Route::get('/users/{userId}/followers', [UserActivityController::class, 'getFollowers']);
     Route::get('/users/{userId}/following', [UserActivityController::class, 'getFollowing']);
+    Route::get('/users/{userId}/friends-activity', [UserActivityController::class, 'getFriendsRecentActivity']);
     
     // Follow/Unfollow
     Route::post('/users/{userId}/follow/{targetUserId}', [UserActivityController::class, 'followUser']);

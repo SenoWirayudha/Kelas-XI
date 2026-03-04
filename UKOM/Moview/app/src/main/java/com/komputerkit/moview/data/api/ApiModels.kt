@@ -50,6 +50,33 @@ data class FriendReviewDto(
     val created_at: String
 )
 
+data class FriendActivityDto(
+    val id: Int,
+    val activity_type: String, // "diary" or "review"
+    val user: FriendActivityUserDto,
+    val movie: FriendActivityMovieDto,
+    val rating: Float,
+    val is_rewatched: Boolean,
+    val has_review: Boolean,
+    val review_id: Int,
+    val diary_id: Int,
+    val timestamp: Long,
+    val like_count: Int
+)
+
+data class FriendActivityUserDto(
+    val id: Int,
+    val username: String,
+    val display_name: String?,
+    val profile_photo: String?
+)
+
+data class FriendActivityMovieDto(
+    val id: Int,
+    val title: String,
+    val poster_path: String?
+)
+
 data class UserDto(
     val id: Int,
     val username: String
