@@ -1,6 +1,9 @@
 package com.komputerkit.moview.ui.home
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -10,9 +13,10 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentHomeNewBinding
 
-class HomeFragment : Fragment() {
+class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
     private var _binding: FragmentHomeNewBinding? = null
     private val binding get() = _binding!!
@@ -21,6 +25,9 @@ class HomeFragment : Fragment() {
     
     private lateinit var movieCardAdapter: MovieCardAdapter
     private lateinit var friendActivityAdapter: FriendActivityNewAdapter
+    private lateinit var nowShowingAdapter: TheatricalMovieAdapter
+    private lateinit var upcomingAdapter: TheatricalMovieAdapter
+    private lateinit var academyAwardAdapter: MovieCardAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -43,6 +50,7 @@ class HomeFragment : Fragment() {
         viewModel.setUserId(userId)
         
         setupRecyclerViews()
+        setupSwipeRefresh()
         observeViewModel()
         setupClickListeners()
     }
@@ -104,6 +112,14 @@ class HomeFragment : Fragment() {
                 }
                 
                 android.util.Log.d("HomeFragment", "========================================")
+            },
+            onProfileClick = { activity ->
+                try {
+                    val action = HomeFragmentDirections.actionHomeToProfile(activity.user.id)
+                    findNavController().navigate(action)
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeFragment", "Profile navigation error", e)
+                }
             }
         )
         binding.rvFriendActivities.apply {
@@ -112,6 +128,50 @@ class HomeFragment : Fragment() {
                 requireContext(),
                 LinearLayoutManager.HORIZONTAL,
                 false
+            )
+        }
+
+        // Setup Now Showing RecyclerView (Horizontal)
+        nowShowingAdapter = TheatricalMovieAdapter(
+            onMovieClick = { movie ->
+                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            },
+            onBuyTicketClick = { openTixIdApp() }
+        )
+        binding.rvNowShowing.apply {
+            adapter = nowShowingAdapter
+            layoutManager = LinearLayoutManager(
+                requireContext(), LinearLayoutManager.HORIZONTAL, false
+            )
+        }
+
+        // Setup Upcoming RecyclerView (Horizontal)
+        upcomingAdapter = TheatricalMovieAdapter(
+            onMovieClick = { movie ->
+                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            },
+            showDateBadge = true
+        )
+        binding.rvUpcoming.apply {
+            adapter = upcomingAdapter
+            layoutManager = LinearLayoutManager(
+                requireContext(), LinearLayoutManager.HORIZONTAL, false
+            )
+        }
+
+        // Setup Academy Award RecyclerView (Horizontal)
+        academyAwardAdapter = MovieCardAdapter(
+            onMovieClick = { movie ->
+                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            }
+        )
+        binding.rvAcademyAward.apply {
+            adapter = academyAwardAdapter
+            layoutManager = LinearLayoutManager(
+                requireContext(), LinearLayoutManager.HORIZONTAL, false
             )
         }
     }
@@ -134,17 +194,75 @@ class HomeFragment : Fragment() {
             }
         }
         
+        viewModel.nowShowingMovies.observe(viewLifecycleOwner) { movies ->
+            nowShowingAdapter.submitList(movies)
+        }
+
+        viewModel.upcomingMovies.observe(viewLifecycleOwner) { movies ->
+            upcomingAdapter.submitList(movies)
+        }
+
+        viewModel.academyAwardMovies.observe(viewLifecycleOwner) { movies ->
+            academyAwardAdapter.submitList(movies)
+        }
+
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
                 android.util.Log.e("HomeFragment", "Error loading data: $it")
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
             }
         }
+        
+        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            binding.swipeRefresh.isRefreshing = isLoading
+        }
+    }
+    
+    private fun setupSwipeRefresh() {
+        binding.swipeRefresh.setOnRefreshListener(this)
     }
     
     private fun setupClickListeners() {
         binding.btnSeeAll.setOnClickListener {
-            Toast.makeText(requireContext(), "See All Popular Movies", Toast.LENGTH_SHORT).show()
+            android.util.Log.d("HomeFragment", "See All Popular clicked")
+            val action = HomeFragmentDirections.actionHomeToPopularMovies()
+            findNavController().navigate(action)
+        }
+        
+        binding.btnSeeAllFriends.setOnClickListener {
+            android.util.Log.d("HomeFragment", "See All Friends clicked")
+            val action = HomeFragmentDirections.actionHomeToFriendActivities()
+            findNavController().navigate(action)
+        }
+        binding.btnSeeAllNowShowing.setOnClickListener {
+            val action = HomeFragmentDirections.actionHomeToNowShowing()
+            findNavController().navigate(action)
+        }
+
+        binding.btnSeeAllUpcoming.setOnClickListener {
+            val action = HomeFragmentDirections.actionHomeToUpcoming()
+            findNavController().navigate(action)
+        }
+    }
+
+    override fun onRefresh() {
+        android.util.Log.d("HomeFragment", "Refreshing home data")
+        viewModel.refreshData()
+    }
+
+    private fun openTixIdApp() {
+        val url = "https://app.tix.id/cities"
+        val tixPackage = "id.tix.app"
+        try {
+            requireContext().packageManager.getPackageInfo(tixPackage, 0)
+            // TIX ID is installed — open it directly
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                setPackage(tixPackage)
+            }
+            startActivity(intent)
+        } catch (e: PackageManager.NameNotFoundException) {
+            // Not installed — fall back to browser
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         }
     }
 

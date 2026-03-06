@@ -41,6 +41,21 @@
         <action
             android:id="@+id/action_home_to_reviewDetail"
             app:destination="@id/reviewDetailFragment" />
+        <action
+            android:id="@+id/action_home_to_friendActivities"
+            app:destination="@id/friendActivitiesFragment" />
+        <action
+            android:id="@+id/action_home_to_popularMovies"
+            app:destination="@id/popularMoviesFragment" />
+        <action
+            android:id="@+id/action_home_to_profile"
+            app:destination="@id/navigation_profile" />
+        <action
+            android:id="@+id/action_home_to_nowShowing"
+            app:destination="@id/nowShowingFragment" />
+        <action
+            android:id="@+id/action_home_to_upcoming"
+            app:destination="@id/upcomingFragment" />
     </fragment>
 
     <fragment
@@ -222,6 +237,27 @@
         <action
             android:id="@+id/action_following_to_profile"
             app:destination="@id/navigation_profile" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/friendActivitiesFragment"
+        android:name="com.komputerkit.moview.ui.social.FriendActivitiesFragment"
+        android:label="New From Friends">
+        <action
+            android:id="@+id/action_friendActivities_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
+        <action
+            android:id="@+id/action_friendActivities_to_profile"
+            app:destination="@id/navigation_profile" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/popularMoviesFragment"
+        android:name="com.komputerkit.moview.ui.popular.PopularMoviesFragment"
+        android:label="Popular This Week">
+        <action
+            android:id="@+id/action_popularMovies_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
     </fragment>
 
     <fragment
@@ -424,6 +460,24 @@
             app:destination="@id/loginFragment"
             app:popUpTo="@id/nav_graph"
             app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nowShowingFragment"
+        android:name="com.komputerkit.moview.ui.theatrical.NowShowingFragment"
+        android:label="Now Showing in Theaters">
+        <action
+            android:id="@+id/action_nowShowing_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/upcomingFragment"
+        android:name="com.komputerkit.moview.ui.theatrical.UpcomingFragment"
+        android:label="Upcoming in Theaters">
+        <action
+            android:id="@+id/action_upcoming_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
     </fragment>
 
 </navigation>

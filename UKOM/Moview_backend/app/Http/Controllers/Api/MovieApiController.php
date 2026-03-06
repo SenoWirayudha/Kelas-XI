@@ -16,15 +16,26 @@ class MovieApiController extends Controller
      */
     public function home()
     {
-        // Popular this week (most watched/rated in last 7 days)
-        $popularMovies = Movie::with(['genres'])
-            ->where('status', 'published')
-            ->withCount(['ratings as recent_ratings' => function ($query) {
-                $query->where('created_at', '>=', now()->subDays(7));
-            }])
-            ->orderBy('recent_ratings', 'desc')
+        // Popular this week (most watched/rated in last 7 days) - based on total ratings count
+        $popularMovieIds = DB::table('ratings')
+            ->select('film_id', DB::raw('COUNT(*) as view_count'))
+            ->whereBetween('created_at', [
+                now()->subWeek(),
+                now()
+            ])
+            ->groupBy('film_id')
+            ->orderBy('view_count', 'desc')
             ->limit(10)
-            ->get();
+            ->pluck('film_id');
+        
+        $popularMovies = Movie::with(['genres'])
+            ->whereIn('id', $popularMovieIds)
+            ->where('status', 'published')
+            ->get()
+            ->sortBy(function($movie) use ($popularMovieIds) {
+                return array_search($movie->id, $popularMovieIds->toArray());
+            })
+            ->values();
         
         // Recent reviews from users
         $recentReviews = Review::with(['user', 'movie.genres'])
@@ -79,6 +90,42 @@ class MovieApiController extends Controller
                 'per_page' => $movies->perPage(),
                 'total' => $movies->total(),
             ]
+        ]);
+    }
+    
+    /**
+     * Get popular movies this week (most watched in last 7 days)
+     */
+    public function popularThisWeek(Request $request)
+    {
+        $limit = $request->get('limit', 50);
+        
+        // Popular this week (most watched/rated in last 7 days) - based on total ratings count
+        $popularMovieIds = DB::table('ratings')
+            ->select('film_id', DB::raw('COUNT(*) as view_count'))
+            ->whereBetween('created_at', [
+                now()->subWeek(),
+                now()
+            ])
+            ->groupBy('film_id')
+            ->orderBy('view_count', 'desc')
+            ->limit($limit)
+            ->pluck('film_id');
+        
+        $movies = Movie::with(['genres'])
+            ->whereIn('id', $popularMovieIds)
+            ->where('status', 'published')
+            ->get()
+            ->sortBy(function($movie) use ($popularMovieIds) {
+                return array_search($movie->id, $popularMovieIds->toArray());
+            })
+            ->values();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $movies->map(function ($movie) {
+                return $this->formatMovieCard($movie);
+            })
         ]);
     }
     
@@ -475,7 +522,118 @@ class MovieApiController extends Controller
             'data' => $results
         ]);
     }
-    
+
+    /**
+     * Get movies currently showing in Indonesian theaters
+     * (theatrical services, is_coming_soon = 0)
+     */
+    public function nowShowing(Request $request)
+    {
+        $limit = $request->get('limit', 0); // 0 = all
+
+        $query = DB::table('movie_services as ms')
+            ->join('movies as m', 'ms.movie_id', '=', 'm.id')
+            ->join('services as s', 'ms.service_id', '=', 's.id')
+            ->where('s.type', 'theatrical')
+            ->where('ms.is_coming_soon', 0)
+            ->where('m.status', 'published')
+            // Only films that are already out (release_date <= today or no date set)
+            ->where(function ($q) {
+                $q->whereNull('ms.release_date')
+                  ->orWhere('ms.release_date', '<=', now()->toDateString());
+            })
+            ->select(
+                'm.id', 'm.title', 'm.release_year as year',
+                DB::raw("IF(m.default_poster_path IS NOT NULL, CONCAT('" . url('storage/') . "/', m.default_poster_path), NULL) as poster_path"),
+                'ms.release_date', 'ms.is_coming_soon',
+                DB::raw('(SELECT g.name FROM movie_genres mg JOIN genres g ON mg.genre_id = g.id WHERE mg.movie_id = m.id ORDER BY g.id LIMIT 1) as genre')
+            )
+            ->groupBy('m.id', 'm.title', 'm.release_year', 'm.default_poster_path', 'ms.release_date', 'ms.is_coming_soon')
+            // Most recently released first; NULL dates at the end
+            ->orderByRaw('ms.release_date IS NULL ASC, ms.release_date DESC');
+
+        if ($limit > 0) {
+            $query->limit($limit);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $query->get()
+        ]);
+    }
+
+    /**
+     * Get upcoming movies in Indonesian theaters
+     * (theatrical services, is_coming_soon = 1)
+     */
+    public function upcoming(Request $request)
+    {
+        $limit = $request->get('limit', 0); // 0 = all
+
+        $query = DB::table('movie_services as ms')
+            ->join('movies as m', 'ms.movie_id', '=', 'm.id')
+            ->join('services as s', 'ms.service_id', '=', 's.id')
+            ->where('s.type', 'theatrical')
+            ->where('m.status', 'published')
+            // Upcoming = is_coming_soon=1 OR has a future release date
+            ->where(function ($q) {
+                $q->where('ms.is_coming_soon', 1)
+                  ->orWhere('ms.release_date', '>', now()->toDateString());
+            })
+            ->select(
+                'm.id', 'm.title', 'm.release_year as year',
+                DB::raw("IF(m.default_poster_path IS NOT NULL, CONCAT('" . url('storage/') . "/', m.default_poster_path), NULL) as poster_path"),
+                'ms.release_date', 'ms.is_coming_soon',
+                DB::raw('(SELECT g.name FROM movie_genres mg JOIN genres g ON mg.genre_id = g.id WHERE mg.movie_id = m.id ORDER BY g.id LIMIT 1) as genre')
+            )
+            ->groupBy('m.id', 'm.title', 'm.release_year', 'm.default_poster_path', 'ms.release_date', 'ms.is_coming_soon')
+            // Nearest release date first, null dates ("Coming Soon") at the end
+            ->orderByRaw('ms.release_date IS NULL ASC, ms.release_date ASC');
+
+        if ($limit > 0) {
+            $query->limit($limit);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $query->get()
+        ]);
+    }
+
+    /**
+     * Get Academy Award nominees (Best Picture, 98th)
+     * Hardcoded film IDs - add more by appending to the array below.
+     *
+     * TO ADD A NEW FILM:
+     * 1. Find the film's ID in the movies table (check /api/v1/movies or database)
+     * 2. Append the ID to the $nomineeIds array below
+     * 3. Save - no migration needed
+     *
+     * Current nominees:
+     *   47 = One Battle After Another
+     *   15 = Sinners
+     *   30 = Hamnet
+     *   31 = Marty Supreme
+     *   16 = The Secret Agent
+     *   10 = Sentimental Value
+     */
+    public function academyAwardNominees()
+    {
+        $nomineeIds = [47, 15, 30, 31, 16, 10, 58];
+
+        $movies = Movie::with(['genres'])
+            ->whereIn('id', $nomineeIds)
+            ->where('status', 'published')
+            ->get()
+            ->sortBy(fn($m) => array_search($m->id, $nomineeIds))
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $movies->map(fn($m) => $this->formatMovieCard($m))
+        ]);
+    }
+
     /**
      * Format movie for card display (used in lists)
      */

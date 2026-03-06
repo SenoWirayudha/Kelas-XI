@@ -479,3 +479,13 @@ data class NotificationResponse(
     val yesterday: List<NotificationDto>,
     val last_week: List<NotificationDto>
 )
+
+data class TheatricalMovieDto(
+    val id: Int,
+    val title: String,
+    val year: Int,
+    val poster_path: String?,
+    val release_date: String?,
+    val is_coming_soon: Int,  // 0 = now showing, 1 = upcoming
+    val genre: String? = null
+)

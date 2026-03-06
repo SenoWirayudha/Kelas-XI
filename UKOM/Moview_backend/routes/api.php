@@ -25,7 +25,11 @@ Route::prefix('v1')->group(function () {
     // Home Screen
     Route::get('/home', [MovieApiController::class, 'home']);
     Route::get('/popular', [MovieApiController::class, 'popular']);
+    Route::get('/popular-this-week', [MovieApiController::class, 'popularThisWeek']);
     Route::get('/recent-reviews', [MovieApiController::class, 'recentReviews']);
+    Route::get('/now-showing', [MovieApiController::class, 'nowShowing']);
+    Route::get('/upcoming', [MovieApiController::class, 'upcoming']);
+    Route::get('/academy-award-nominees', [MovieApiController::class, 'academyAwardNominees']);
     
     // Movies
     Route::get('/movies', [MovieApiController::class, 'index']);
@@ -65,6 +69,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/users/{userId}/followers', [UserActivityController::class, 'getFollowers']);
     Route::get('/users/{userId}/following', [UserActivityController::class, 'getFollowing']);
     Route::get('/users/{userId}/friends-activity', [UserActivityController::class, 'getFriendsRecentActivity']);
+    Route::get('/users/{userId}/friends-activity-all', [UserActivityController::class, 'getAllFriendsActivity']);
     
     // Follow/Unfollow
     Route::post('/users/{userId}/follow/{targetUserId}', [UserActivityController::class, 'followUser']);

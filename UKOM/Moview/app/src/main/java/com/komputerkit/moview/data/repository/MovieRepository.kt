@@ -8,6 +8,7 @@ import com.komputerkit.moview.data.api.SearchResponse
 import com.komputerkit.moview.data.api.UserProfileResponse
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.data.model.Movie
+import com.komputerkit.moview.data.model.TheatricalMovie
 import com.komputerkit.moview.data.model.LikedReview
 import com.komputerkit.moview.data.model.User
 import com.komputerkit.moview.data.model.Notification
@@ -51,6 +52,36 @@ class MovieRepository {
             val response = apiService.getHome()
             if (response.success && response.data != null) {
                 response.data.popular_this_week.map { it.toMovie() }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    // Get top popular movies this week with limit (for "See All" page)
+    suspend fun getPopularMoviesThisWeekAll(limit: Int = 50): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getPopularThisWeek(limit = limit)
+            if (response.success && response.data != null) {
+                response.data.map { it.toMovie() }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    // Get top popular movies with limit (for "See All" page)
+    suspend fun getPopularMovies(limit: Int = 50): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getPopular(page = 1, perPage = limit)
+            if (response.success && response.data != null) {
+                response.data.map { it.toMovie() }
             } else {
                 emptyList()
             }
@@ -713,45 +744,103 @@ class MovieRepository {
     }
     
     suspend fun getFriendsActivity(userId: Int): List<FriendActivity> = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.getFriendsActivity(userId)
-            if (response.success && response.data != null) {
-                response.data.map { dto ->
-                    FriendActivity(
-                        id = dto.id,
-                        activityType = dto.activity_type,
-                        user = User(
-                            id = dto.user.id,
-                            username = dto.user.username,
-                            profilePhotoUrl = dto.user.profile_photo ?: ""
-                        ),
-                        movie = Movie(
-                            id = dto.movie.id,
-                            title = dto.movie.title,
-                            posterUrl = dto.movie.poster_path,
-                            averageRating = null,
-                            genre = null,
-                            releaseYear = null,
-                            description = null
-                        ),
-                        rating = dto.rating,
-                        likeCount = dto.like_count,
-                        isRewatch = dto.is_rewatched,
-                        hasReview = dto.has_review,
-                        reviewId = dto.review_id,
-                        diaryId = dto.diary_id,
-                        reviewText = "",
-                        timestamp = dto.timestamp
-                    )
+        var lastException: Exception? = null
+        repeat(3) { attempt ->
+            try {
+                val response = apiService.getFriendsActivity(userId)
+                if (response.success && response.data != null) {
+                    return@withContext response.data.map { dto ->
+                        FriendActivity(
+                            id = dto.id,
+                            activityType = dto.activity_type,
+                            user = User(
+                                id = dto.user.id,
+                                username = dto.user.username,
+                                profilePhotoUrl = dto.user.profile_photo ?: ""
+                            ),
+                            movie = Movie(
+                                id = dto.movie.id,
+                                title = dto.movie.title,
+                                posterUrl = dto.movie.poster_path,
+                                averageRating = null,
+                                genre = null,
+                                releaseYear = null,
+                                description = null
+                            ),
+                            rating = dto.rating,
+                            likeCount = dto.like_count,
+                            isRewatch = dto.is_rewatched,
+                            hasReview = dto.has_review,
+                            reviewId = dto.review_id,
+                            diaryId = dto.diary_id,
+                            reviewText = "",
+                            timestamp = dto.timestamp
+                        )
+                    }
                 }
-            } else {
-                emptyList()
+                return@withContext emptyList()
+            } catch (e: java.io.EOFException) {
+                android.util.Log.w("MovieRepository", "EOFException on getFriendsActivity attempt ${attempt + 1}, retrying...", e)
+                lastException = e
+                if (attempt < 2) kotlinx.coroutines.delay(300L)
+            } catch (e: Exception) {
+                android.util.Log.e("MovieRepository", "Error fetching friends activity", e)
+                e.printStackTrace()
+                return@withContext emptyList()
             }
-        } catch (e: Exception) {
-            android.util.Log.e("MovieRepository", "Error fetching friends activity", e)
-            e.printStackTrace()
-            emptyList()
         }
+        android.util.Log.e("MovieRepository", "getFriendsActivity failed after 3 attempts", lastException)
+        emptyList()
+    }
+    
+    suspend fun getAllFriendsActivity(userId: Int): List<FriendActivity> = withContext(Dispatchers.IO) {
+        var lastException: Exception? = null
+        repeat(3) { attempt ->
+            try {
+                val response = apiService.getAllFriendsActivity(userId)
+                if (response.success && response.data != null) {
+                    return@withContext response.data.map { dto ->
+                        FriendActivity(
+                            id = dto.id,
+                            activityType = dto.activity_type,
+                            user = User(
+                                id = dto.user.id,
+                                username = dto.user.username,
+                                profilePhotoUrl = dto.user.profile_photo ?: ""
+                            ),
+                            movie = Movie(
+                                id = dto.movie.id,
+                                title = dto.movie.title,
+                                posterUrl = dto.movie.poster_path,
+                                averageRating = null,
+                                genre = null,
+                                releaseYear = null,
+                                description = null
+                            ),
+                            rating = dto.rating,
+                            likeCount = dto.like_count,
+                            isRewatch = dto.is_rewatched,
+                            hasReview = dto.has_review,
+                            reviewId = dto.review_id,
+                            diaryId = dto.diary_id,
+                            reviewText = "",
+                            timestamp = dto.timestamp
+                        )
+                    }
+                }
+                return@withContext emptyList()
+            } catch (e: java.io.EOFException) {
+                android.util.Log.w("MovieRepository", "EOFException on getAllFriendsActivity attempt ${attempt + 1}, retrying...", e)
+                lastException = e
+                if (attempt < 2) kotlinx.coroutines.delay(300L)
+            } catch (e: Exception) {
+                android.util.Log.e("MovieRepository", "Error fetching all friends activity", e)
+                e.printStackTrace()
+                return@withContext emptyList()
+            }
+        }
+        android.util.Log.e("MovieRepository", "getAllFriendsActivity failed after 3 attempts", lastException)
+        emptyList()
     }
     
     suspend fun followUser(userId: Int, targetUserId: Int): Boolean = withContext(Dispatchers.IO) {
@@ -1665,6 +1754,68 @@ class MovieRepository {
             android.util.Log.e("MovieRepository", "saveReview exception: ${e.message}", e)
             e.printStackTrace()
             false
+        }
+    }
+
+    suspend fun getNowShowingMovies(limit: Int = 10): List<TheatricalMovie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getNowShowing(limit = limit)
+            if (response.success && response.data != null) {
+                response.data.map { dto ->
+                    TheatricalMovie(
+                        id = dto.id,
+                        title = dto.title,
+                        posterUrl = dto.poster_path,
+                        releaseDate = dto.release_date,
+                        isComingSoon = dto.is_coming_soon == 1,
+                        genre = dto.genre,
+                        year = dto.year
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun getUpcomingMovies(): List<TheatricalMovie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUpcoming()
+            if (response.success && response.data != null) {
+                response.data.map { dto ->
+                    TheatricalMovie(
+                        id = dto.id,
+                        title = dto.title,
+                        posterUrl = dto.poster_path,
+                        releaseDate = dto.release_date,
+                        isComingSoon = dto.is_coming_soon == 1,
+                        genre = dto.genre,
+                        year = dto.year
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun getAcademyAwardMovies(): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getAcademyAwardNominees()
+            if (response.success && response.data != null) {
+                response.data.map { it.toMovie() }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
         }
     }
 }

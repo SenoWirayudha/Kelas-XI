@@ -119,13 +119,12 @@ class UserActivityController extends Controller
         try {
             $diaries = DB::table('diaries')
                 ->join('movies', 'diaries.film_id', '=', 'movies.id')
-                ->leftJoin('movie_media as poster_media', function($join) {
-                    $join->on('movies.id', '=', 'poster_media.movie_id')
-                         ->where('poster_media.media_type', '=', 'poster')
-                         ->where('poster_media.is_default', '=', 1);
-                })
                 ->leftJoin('reviews', function($join) {
                     $join->on('diaries.review_id', '=', 'reviews.id');
+                })
+                ->leftJoin('ratings', function($join) use ($userId) {
+                    $join->on('diaries.film_id', '=', 'ratings.film_id')
+                         ->where('ratings.user_id', '=', $userId);
                 })
                 ->where('diaries.user_id', $userId)
                 ->select(
@@ -138,11 +137,11 @@ class UserActivityController extends Controller
                     'movies.id as movie_id',
                     'movies.title',
                     'movies.release_year as year',
-                    'poster_media.media_path as poster_path',
+                    'movies.default_poster_path as poster_path',
                     'reviews.id as review_id',
-                    DB::raw('COALESCE(reviews.rating, diaries.rating) as rating'), // Use review rating first, fallback to diary snapshot
+                    DB::raw('COALESCE(reviews.rating, diaries.rating, ratings.rating) as rating'),
                     'reviews.content as review_content',
-                    DB::raw('COALESCE(reviews.is_liked, diaries.is_liked) as is_liked'), // Use review snapshot, fallback to diary snapshot
+                    DB::raw('COALESCE(reviews.is_liked, diaries.is_liked) as is_liked'),
                     DB::raw('CASE WHEN reviews.content IS NOT NULL THEN "review" ELSE "log" END as type')
                 )
                 ->orderBy('diaries.watched_at', 'desc')
@@ -170,7 +169,7 @@ class UserActivityController extends Controller
                     'watched_at' => $diary->watched_at,
                     'note' => $diary->note,
                     'review_id' => $diary->review_id,
-                    'rating' => $diary->rating,
+                    'rating' => $diary->rating ?? 0,
                     'review_content' => $diary->review_content,
                     'is_liked' => (bool)$diary->is_liked,
                     'is_rewatched' => (bool)$diary->is_rewatched,
@@ -367,36 +366,33 @@ class UserActivityController extends Controller
                 ->join('users', 'diaries.user_id', '=', 'users.id')
                 ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
                 ->leftJoin('reviews', 'diaries.review_id', '=', 'reviews.id')
-                ->leftJoin('movie_media as poster', function($join) {
-                    $join->on('movies.id', '=', 'poster.movie_id')
-                         ->where('poster.media_type', '=', 'poster')
-                         ->where('poster.is_default', '=', 1);
-                })
-                ->leftJoin('movie_media as backdrop', function($join) {
-                    $join->on('movies.id', '=', 'backdrop.movie_id')
-                         ->where('backdrop.media_type', '=', 'backdrop')
-                         ->where('backdrop.is_default', '=', 1);
+                ->leftJoin('ratings', function($join) {
+                    $join->on('diaries.film_id', '=', 'ratings.film_id')
+                         ->on('diaries.user_id', '=', 'ratings.user_id');
                 })
                 ->where('diaries.id', $diaryId)
-                ->where('diaries.user_id', $userId)
                 ->select(
                     'diaries.id as diary_id',
                     DB::raw('COALESCE(diaries.review_id, 0) as review_id'),
                     'diaries.user_id',
                     'diaries.film_id as movie_id',
-                    DB::raw('COALESCE(reviews.rating, diaries.rating) as rating'),  // Prioritize review rating, fallback to diary rating
-                    DB::raw('COALESCE(reviews.is_liked, diaries.is_liked) as is_liked'),  // Prioritize review is_liked, fallback to diary is_liked
+                    DB::raw('COALESCE(reviews.rating, diaries.rating, ratings.rating) as rating'),
+                    'diaries.is_liked as snapshot_is_liked',
+                    DB::raw('COALESCE(reviews.is_liked, diaries.is_liked) as is_liked'),
                     DB::raw('COALESCE(reviews.content, NULL) as review_text'),
-                    DB::raw('COALESCE(reviews.watched_at, diaries.watched_at) as watched_at'),  // Prioritize review watched_at
+                    DB::raw('COALESCE(reviews.watched_at, diaries.watched_at) as watched_at'),
+                    'diaries.is_rewatched',
                     'diaries.created_at',
                     'movies.id',
                     'movies.title',
                     'movies.release_year as year',
-                    'poster.media_path as poster_path',
-                    'backdrop.media_path as backdrop_path',
+                    'movies.default_poster_path as poster_path',
+                    'movies.default_backdrop_path as backdrop_path',
                     'users.username',
                     'user_profiles.display_name',
-                    'user_profiles.profile_photo'
+                    'user_profiles.profile_photo',
+                    DB::raw('0 as like_count'),  // Diaries don't have likes, only reviews do
+                    DB::raw('0 as comment_count')  // Diaries don't have comments, only reviews do
                 )
                 ->first();
 
@@ -413,12 +409,62 @@ class UserActivityController extends Controller
 
             \Log::info("Diary entry found", ['diary' => $diary]);
 
-            // Cast is_liked to boolean
-            $diary->is_liked = (bool)$diary->is_liked;
+            // Build full URLs for images
+            $posterUrl = null;
+            if ($diary->poster_path) {
+                if (!str_starts_with($diary->poster_path, 'http')) {
+                    $posterUrl = "http://10.0.2.2:8000/storage/{$diary->poster_path}";
+                } else {
+                    $posterUrl = $diary->poster_path;
+                }
+            }
+
+            $backdropUrl = null;
+            if ($diary->backdrop_path) {
+                if (!str_starts_with($diary->backdrop_path, 'http')) {
+                    $backdropUrl = "http://10.0.2.2:8000/storage/{$diary->backdrop_path}";
+                } else {
+                    $backdropUrl = $diary->backdrop_path;
+                }
+            }
+
+            $profilePhotoUrl = null;
+            if ($diary->profile_photo) {
+                if (!str_starts_with($diary->profile_photo, 'http')) {
+                    $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$diary->profile_photo}";
+                } else {
+                    $profilePhotoUrl = $diary->profile_photo;
+                }
+            }
+
+            // Build response with full URLs
+            $response = [
+                'diary_id' => $diary->diary_id,
+                'review_id' => $diary->review_id ?? 0,
+                'user_id' => $diary->user_id,
+                'movie_id' => $diary->movie_id,
+                'rating' => $diary->rating ?? 0,  // Ensure rating is never null
+                'snapshot_is_liked' => (bool)$diary->snapshot_is_liked,
+                'is_liked' => (bool)$diary->is_liked,
+                'is_rewatched' => (bool)$diary->is_rewatched,
+                'review_text' => $diary->review_text,
+                'watched_at' => $diary->watched_at,
+                'created_at' => $diary->created_at,
+                'id' => $diary->id,
+                'title' => $diary->title,
+                'year' => $diary->year,
+                'poster_path' => $posterUrl,
+                'backdrop_path' => $backdropUrl,
+                'username' => $diary->username,
+                'display_name' => $diary->display_name,
+                'profile_photo' => $profilePhotoUrl,
+                'like_count' => $diary->like_count ?? 0,
+                'comment_count' => $diary->comment_count ?? 0
+            ];
 
             return response()->json([
                 'success' => true,
-                'data' => $diary
+                'data' => $response
             ]);
         } catch (\Exception $e) {
             \Log::error("Error in getDiaryDetail", [
@@ -674,98 +720,39 @@ class UserActivityController extends Controller
                 ]);
             }
 
-            // Get most recent activity (diary or review) per followed user
+            // Get most recent activity per followed user from diaries
+            // This includes both logs (review_id null) and reviews (review_id not null)
             $activities = DB::select("
                 SELECT 
-                    activity_id,
-                    activity_type,
-                    user_id,
-                    username,
-                    display_name,
-                    profile_photo,
-                    film_id as movie_id,
-                    title,
-                    poster_path,
-                    rating,
-                    is_rewatched,
-                    has_review,
-                    review_id,
-                    diary_id,
-                    timestamp,
-                    like_count
+                    d.id as activity_id,
+                    CASE WHEN r.id IS NOT NULL AND r.content IS NOT NULL THEN 'review' ELSE 'diary' END as activity_type,
+                    u.id as user_id,
+                    u.username,
+                    up.display_name,
+                    up.profile_photo,
+                    d.film_id as movie_id,
+                    m.title,
+                    m.default_poster_path as poster_path,
+                    COALESCE(r.rating, d.rating, rat.rating) as rating,
+                    d.is_rewatched,
+                    CASE WHEN r.id IS NOT NULL AND r.content IS NOT NULL THEN true ELSE false END as has_review,
+                    COALESCE(r.id, 0) as review_id,
+                    d.id as diary_id,
+                    UNIX_TIMESTAMP(d.watched_at) as timestamp,
+                    0 as like_count
                 FROM (
                     SELECT 
-                        activity_id,
-                        activity_type,
-                        user_id,
-                        username,
-                        display_name,
-                        profile_photo,
-                        film_id,
-                        title,
-                        poster_path,
-                        rating,
-                        is_rewatched,
-                        has_review,
-                        review_id,
-                        diary_id,
-                        timestamp,
-                        like_count,
-                        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY timestamp DESC) as rn
-                    FROM (
-                        SELECT 
-                            d.id as activity_id,
-                            'diary' as activity_type,
-                            u.id as user_id,
-                            u.username,
-                            up.display_name,
-                            up.profile_photo,
-                            d.film_id,
-                            m.title,
-                            mm.media_path as poster_path,
-                            d.rating,
-                            d.is_rewatched,
-                            false as has_review,
-                            0 as review_id,
-                            d.id as diary_id,
-                            UNIX_TIMESTAMP(d.watched_at) as timestamp,
-                            0 as like_count
-                        FROM diaries d
-                        INNER JOIN users u ON d.user_id = u.id
-                        LEFT JOIN user_profiles up ON u.id = up.user_id
-                        LEFT JOIN movies m ON d.film_id = m.id
-                        LEFT JOIN movie_media mm ON m.id = mm.movie_id AND mm.media_type = 'poster'
-                        WHERE d.user_id IN (" . implode(',', array_map('intval', $followedUserIds)) . ")
-                        
-                        UNION ALL
-                        
-                        SELECT 
-                            r.id as activity_id,
-                            'review' as activity_type,
-                            u.id as user_id,
-                            u.username,
-                            up.display_name,
-                            up.profile_photo,
-                            r.film_id,
-                            m.title,
-                            mm.media_path as poster_path,
-                            r.rating,
-                            r.is_rewatched,
-                            true as has_review,
-                            r.id as review_id,
-                            0 as diary_id,
-                            UNIX_TIMESTAMP(r.created_at) as timestamp,
-                            0 as like_count
-                        FROM reviews r
-                        INNER JOIN users u ON r.user_id = u.id
-                        LEFT JOIN user_profiles up ON u.id = up.user_id
-                        LEFT JOIN movies m ON r.film_id = m.id
-                        LEFT JOIN movie_media mm ON m.id = mm.movie_id AND mm.media_type = 'poster'
-                        WHERE r.user_id IN (" . implode(',', array_map('intval', $followedUserIds)) . ")
-                        AND r.status IN ('published', 'flagged')
-                    ) as all_activities
-                ) as ranked_activities
-                WHERE rn = 1
+                        d.*,
+                        ROW_NUMBER() OVER (PARTITION BY d.user_id ORDER BY d.watched_at DESC) as rn
+                    FROM diaries d
+                    WHERE d.user_id IN (" . implode(',', array_map('intval', $followedUserIds)) . ")
+                ) d
+                INNER JOIN users u ON d.user_id = u.id
+                LEFT JOIN user_profiles up ON u.id = up.user_id
+                LEFT JOIN movies m ON d.film_id = m.id
+                LEFT JOIN reviews r ON d.review_id = r.id AND r.status IN ('published', 'flagged')
+                LEFT JOIN ratings rat ON d.film_id = rat.film_id AND d.user_id = rat.user_id
+                WHERE d.rn = 1
                 ORDER BY timestamp DESC
             ");
 
@@ -803,7 +790,7 @@ class UserActivityController extends Controller
                         'title' => $activity->title,
                         'poster_path' => $posterUrl
                     ],
-                    'rating' => (float)$activity->rating,
+                    'rating' => (float)($activity->rating ?? 0),
                     'is_rewatched' => (bool)$activity->is_rewatched,
                     'has_review' => (bool)$activity->has_review,
                     'review_id' => (int)$activity->review_id,
@@ -821,6 +808,117 @@ class UserActivityController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch friends activity: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all recent activities from followed users (up to 10 activities per user)
+     */
+    public function getAllFriendsActivity($userId)
+    {
+        try {
+            // Get list of users that current user follows
+            $followedUserIds = DB::table('followers')
+                ->where('follower_id', $userId)
+                ->pluck('user_id')
+                ->toArray();
+
+            if (empty($followedUserIds)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => []
+                ]);
+            }
+
+            // Get up to 10 most recent activities per followed user from diaries
+            // This includes both logs (review_id null) and reviews (review_id not null)
+            $activities = DB::select("
+                SELECT 
+                    d.id as activity_id,
+                    CASE WHEN r.id IS NOT NULL AND r.content IS NOT NULL THEN 'review' ELSE 'diary' END as activity_type,
+                    u.id as user_id,
+                    u.username,
+                    up.display_name,
+                    up.profile_photo,
+                    d.film_id as movie_id,
+                    m.title,
+                    m.default_poster_path as poster_path,
+                    COALESCE(r.rating, d.rating, rat.rating) as rating,
+                    d.is_rewatched,
+                    CASE WHEN r.id IS NOT NULL AND r.content IS NOT NULL THEN true ELSE false END as has_review,
+                    COALESCE(r.id, 0) as review_id,
+                    d.id as diary_id,
+                    UNIX_TIMESTAMP(d.watched_at) as timestamp,
+                    0 as like_count
+                FROM (
+                    SELECT 
+                        d.*,
+                        ROW_NUMBER() OVER (PARTITION BY d.user_id ORDER BY d.watched_at DESC) as rn
+                    FROM diaries d
+                    WHERE d.user_id IN (" . implode(',', array_map('intval', $followedUserIds)) . ")
+                ) d
+                INNER JOIN users u ON d.user_id = u.id
+                LEFT JOIN user_profiles up ON u.id = up.user_id
+                LEFT JOIN movies m ON d.film_id = m.id
+                LEFT JOIN reviews r ON d.review_id = r.id AND r.status IN ('published', 'flagged')
+                LEFT JOIN ratings rat ON d.film_id = rat.film_id AND d.user_id = rat.user_id
+                WHERE d.rn <= 10
+                ORDER BY timestamp DESC
+            ");
+
+            // Build full URLs for posters and profile photos
+            $activitiesWithUrls = array_map(function($activity) {
+                $profilePhotoUrl = null;
+                if ($activity->profile_photo) {
+                    if (!str_starts_with($activity->profile_photo, 'http')) {
+                        $profilePhotoUrl = "http://10.0.2.2:8000/storage/{$activity->profile_photo}";
+                    } else {
+                        $profilePhotoUrl = $activity->profile_photo;
+                    }
+                }
+
+                $posterUrl = null;
+                if ($activity->poster_path) {
+                    if (!str_starts_with($activity->poster_path, 'http')) {
+                        $posterUrl = "http://10.0.2.2:8000/storage/{$activity->poster_path}";
+                    } else {
+                        $posterUrl = $activity->poster_path;
+                    }
+                }
+
+                return [
+                    'id' => (int)$activity->activity_id,
+                    'activity_type' => $activity->activity_type,
+                    'user' => [
+                        'id' => (int)$activity->user_id,
+                        'username' => $activity->username,
+                        'display_name' => $activity->display_name,
+                        'profile_photo' => $profilePhotoUrl
+                    ],
+                    'movie' => [
+                        'id' => (int)$activity->movie_id,
+                        'title' => $activity->title,
+                        'poster_path' => $posterUrl
+                    ],
+                    'rating' => (float)($activity->rating ?? 0),
+                    'is_rewatched' => (bool)$activity->is_rewatched,
+                    'has_review' => (bool)$activity->has_review,
+                    'review_id' => (int)$activity->review_id,
+                    'diary_id' => (int)$activity->diary_id,
+                    'timestamp' => (int)$activity->timestamp,
+                    'like_count' => (int)$activity->like_count
+                ];
+            }, $activities);
+
+            return response()->json([
+                'success' => true,
+                'data' => $activitiesWithUrls
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch all friends activity: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -1198,17 +1296,11 @@ class UserActivityController extends Controller
                     }
                 }
             } else {
-                // No review text provided, get most recent review if exists for linking
-                $existingReview = DB::table('reviews')
-                    ->where('user_id', $userId)
-                    ->where('film_id', $movieId)
-                    ->orderBy('created_at', 'desc')
-                    ->first();
-                
-                if ($existingReview) {
-                    $reviewId = $existingReview->id;
-                    \Log::info("Linking to most recent review id: $reviewId (no new review text)");
-                }
+                // No review text = this is a LOG entry
+                // Do NOT link to any existing review - review_id should stay null
+                // Each log is an independent watch entry without review
+                $reviewId = null;
+                \Log::info("No review text provided - creating LOG entry (review_id=null)");
             }
             
             // Always save to diary (for both review and log)

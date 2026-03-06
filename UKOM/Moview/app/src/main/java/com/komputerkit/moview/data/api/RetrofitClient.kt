@@ -1,5 +1,7 @@
 package com.komputerkit.moview.data.api
 
+import okhttp3.ConnectionPool
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -18,11 +20,24 @@ object RetrofitClient {
         level = HttpLoggingInterceptor.Level.BODY
     }
     
+    // Force Connection: close on every request so PHP dev server never
+    // returns a stale keep-alive connection that causes EOFException
+    private val connectionCloseInterceptor = Interceptor { chain ->
+        val request = chain.request().newBuilder()
+            .header("Connection", "close")
+            .build()
+        chain.proceed(request)
+    }
+    
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
+        .addInterceptor(connectionCloseInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
+        // Disable connection pooling to prevent stale connection reuse
+        .connectionPool(ConnectionPool(0, 1, TimeUnit.NANOSECONDS))
+        .retryOnConnectionFailure(true)
         .build()
     
     private val retrofit = Retrofit.Builder()

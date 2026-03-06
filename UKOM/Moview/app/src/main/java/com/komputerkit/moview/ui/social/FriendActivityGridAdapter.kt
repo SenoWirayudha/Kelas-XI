@@ -1,22 +1,20 @@
-package com.komputerkit.moview.ui.home
+package com.komputerkit.moview.ui.social
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.FriendActivity
-import com.komputerkit.moview.databinding.ItemFriendActivityNewBinding
+import com.komputerkit.moview.databinding.ItemFriendActivityGridBinding
 import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.loadThumbnail
 import com.komputerkit.moview.util.loadAvatar
 import kotlin.math.roundToInt
 
-class FriendActivityNewAdapter(
+class FriendActivityGridAdapter(
     private val onActivityClick: (FriendActivity) -> Unit = {},
-    private val onProfileClick: (FriendActivity) -> Unit = {},
-    private val onLongPressGoToFilm: ((FriendActivity) -> Unit)? = null
-) : RecyclerView.Adapter<FriendActivityNewAdapter.FriendActivityViewHolder>() {
+    private val onProfileClick: (FriendActivity) -> Unit = {}
+) : RecyclerView.Adapter<FriendActivityGridAdapter.FriendActivityViewHolder>() {
     
     private var activities: List<FriendActivity> = emptyList()
     
@@ -26,7 +24,7 @@ class FriendActivityNewAdapter(
     }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FriendActivityViewHolder {
-        val binding = ItemFriendActivityNewBinding.inflate(
+        val binding = ItemFriendActivityGridBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
@@ -41,7 +39,7 @@ class FriendActivityNewAdapter(
     override fun getItemCount(): Int = activities.size
     
     inner class FriendActivityViewHolder(
-        private val binding: ItemFriendActivityNewBinding
+        private val binding: ItemFriendActivityGridBinding
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(activity: FriendActivity) {
@@ -69,25 +67,8 @@ class FriendActivityNewAdapter(
 
             // Handle click on poster
             binding.ivPoster.setOnClickListener {
-                android.util.Log.d("FriendActivityAdapter", "========================================")
-                android.util.Log.d("FriendActivityAdapter", "Poster clicked!")
-                android.util.Log.d("FriendActivityAdapter", "Activity ID: ${activity.id}")
-                android.util.Log.d("FriendActivityAdapter", "Activity Type: ${activity.activityType}")
-                android.util.Log.d("FriendActivityAdapter", "Has Review: ${activity.hasReview}")
-                android.util.Log.d("FriendActivityAdapter", "Review ID: ${activity.reviewId}")
-                android.util.Log.d("FriendActivityAdapter", "Diary ID: ${activity.diaryId}")
-                android.util.Log.d("FriendActivityAdapter", "User: ${activity.user.username}")
-                android.util.Log.d("FriendActivityAdapter", "Movie: ${activity.movie.title}")
-                
-                android.util.Log.d("FriendActivityAdapter", "About to call onActivityClick callback...")
-                try {
-                    onActivityClick(activity)
-                    android.util.Log.d("FriendActivityAdapter", "onActivityClick() returned successfully")
-                } catch (e: Exception) {
-                    android.util.Log.e("FriendActivityAdapter", "!!! ERROR calling onActivityClick !!!", e)
-                    e.printStackTrace()
-                }
-                android.util.Log.d("FriendActivityAdapter", "========================================")
+                android.util.Log.d("FriendActivityGridAdapter", "Activity clicked: ${activity.id}")
+                onActivityClick(activity)
             }
             
             // Long press on poster to show movie actions
@@ -96,7 +77,7 @@ class FriendActivityNewAdapter(
                     context = view.context,
                     movie = activity.movie,
                     isFromMovieDetail = false,
-                    onGoToFilm = { movie -> onLongPressGoToFilm?.invoke(activity) }
+                    onGoToFilm = { movie -> onActivityClick(activity) }
                 )
                 true
             }

@@ -36,6 +36,11 @@ interface MovieApiService {
         @Query("per_page") perPage: Int = 20
     ): PaginatedResponse<MovieCardDto>
     
+    @GET("popular-this-week")
+    suspend fun getPopularThisWeek(
+        @Query("limit") limit: Int = 50
+    ): ApiResponse<List<MovieCardDto>>
+    
     @GET("recent-reviews")
     suspend fun getRecentReviews(
         @Query("page") page: Int = 1,
@@ -183,6 +188,11 @@ interface MovieApiService {
     
     @GET("users/{userId}/friends-activity")
     suspend fun getFriendsActivity(
+        @Path("userId") userId: Int
+    ): ApiResponse<List<FriendActivityDto>>
+    
+    @GET("users/{userId}/friends-activity-all")
+    suspend fun getAllFriendsActivity(
         @Path("userId") userId: Int
     ): ApiResponse<List<FriendActivityDto>>
     
@@ -347,4 +357,17 @@ interface MovieApiService {
     suspend fun markAllNotificationsAsRead(
         @Path("userId") userId: Int
     ): ApiResponse<Any>
+
+    @GET("now-showing")
+    suspend fun getNowShowing(
+        @Query("limit") limit: Int = 10
+    ): ApiResponse<List<TheatricalMovieDto>>
+
+    @GET("upcoming")
+    suspend fun getUpcoming(
+        @Query("limit") limit: Int = 0
+    ): ApiResponse<List<TheatricalMovieDto>>
+
+    @GET("academy-award-nominees")
+    suspend fun getAcademyAwardNominees(): ApiResponse<List<MovieCardDto>>
 }

@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.data.model.Movie
+import com.komputerkit.moview.data.model.TheatricalMovie
 import com.komputerkit.moview.data.repository.MovieRepository
 import kotlinx.coroutines.launch
 
@@ -15,6 +16,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     
     private val repository = MovieRepository()
     private var userId: Int = 0
+    private var retryCount = 0
+    private val maxRetries = 2
     
     init {
         android.util.Log.d("HomeViewModel", "Initialized")
@@ -25,7 +28,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     
     private val _friendActivities = MutableLiveData<List<FriendActivity>>()
     val friendActivities: LiveData<List<FriendActivity>> = _friendActivities
-    
+
+    private val _nowShowingMovies = MutableLiveData<List<TheatricalMovie>>()
+    val nowShowingMovies: LiveData<List<TheatricalMovie>> = _nowShowingMovies
+
+    private val _upcomingMovies = MutableLiveData<List<TheatricalMovie>>()
+    val upcomingMovies: LiveData<List<TheatricalMovie>> = _upcomingMovies
+
+    private val _academyAwardMovies = MutableLiveData<List<Movie>>()
+    val academyAwardMovies: LiveData<List<Movie>> = _academyAwardMovies
+
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
     
@@ -41,7 +53,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun loadData() {
         viewModelScope.launch {
             try {
-                android.util.Log.d("HomeViewModel", "Loading data for userId: $userId")
+                android.util.Log.d("HomeViewModel", "Loading data for userId: $userId (attempt ${retryCount + 1})")
                 _isLoading.value = true
                 _error.value = null
                 
@@ -59,13 +71,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     emptyList()
                 }
                 
+                val nowShowing = repository.getNowShowingMovies(limit = 10)
+                val upcoming = repository.getUpcomingMovies()
+                val academyAward = repository.getAcademyAwardMovies()
+
                 _popularMovies.value = movies
                 _friendActivities.value = activities
+                _nowShowingMovies.value = nowShowing
+                _upcomingMovies.value = upcoming
+                _academyAwardMovies.value = academyAward
+                retryCount = 0
                 android.util.Log.d("HomeViewModel", "Data loaded successfully")
                 
             } catch (e: Exception) {
-                android.util.Log.e("HomeViewModel", "Error loading data", e)
+                android.util.Log.e("HomeViewModel", "Error loading data (attempt ${retryCount + 1})", e)
+                
+                if (retryCount < maxRetries) {
+                    retryCount++
+                    _isLoading.value = false
+                    kotlinx.coroutines.delay(500)
+                    loadData()
+                    return@launch
+                }
+                
                 _error.value = "Failed to load data: ${e.message}"
+                retryCount = 0
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
