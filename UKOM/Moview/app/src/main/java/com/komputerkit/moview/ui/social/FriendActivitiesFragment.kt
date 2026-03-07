@@ -99,8 +99,9 @@ class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListene
             layoutManager = gridLayoutManager
             adapter = this@FriendActivitiesFragment.adapter
             
-            // Add spacing between items
-            addItemDecoration(GridSpacingItemDecoration(3, 16, true))
+            // Add spacing between items — 12dp to match home "New from Friends" section gap
+            val spacingPx = (12 * resources.displayMetrics.density).toInt()
+            addItemDecoration(GridSpacingItemDecoration(3, spacingPx, false))
         }
     }
     

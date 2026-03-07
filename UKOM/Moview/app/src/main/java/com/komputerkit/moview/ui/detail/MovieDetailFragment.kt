@@ -32,7 +32,6 @@ class MovieDetailFragment : Fragment() {
     
     private lateinit var castAdapter: CastAdapter
     private lateinit var crewAdapter: CrewAdapter
-    private lateinit var similarMovieAdapter: SimilarMovieAdapter
     private lateinit var movieServiceAdapter: MovieServiceAdapter
     
     private var currentMovie: com.komputerkit.moview.data.model.Movie? = null
@@ -70,20 +69,6 @@ class MovieDetailFragment : Fragment() {
             adapter = castAdapter
             layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         }
-        
-        // Similar Movies
-        val navigateToMovie: (Movie) -> Unit = { movie ->
-            val action = MovieDetailFragmentDirections.actionMovieDetailSelf(movie.id)
-            findNavController().navigate(action)
-        }
-        similarMovieAdapter = SimilarMovieAdapter(
-            onMovieClick = navigateToMovie,
-            onLongPressGoToFilm = navigateToMovie
-        )
-        binding.rvSimilarFilms.apply {
-            adapter = similarMovieAdapter
-            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
-        }
     }
     
     private fun setupObservers() {
@@ -115,7 +100,24 @@ class MovieDetailFragment : Fragment() {
             
             // Load images with optimization (caching, resizing, smooth transition)
             binding.ivPoster.loadPoster(movie.posterUrl)
-            binding.ivBackdrop.loadBackdrop(movie.backdropUrl)
+            if (movie.backdropUrl.isNullOrBlank()) {
+                binding.frameBackdrop.visibility = View.GONE
+                val infoParams = binding.layoutMovieInfo.layoutParams as android.widget.LinearLayout.LayoutParams
+                infoParams.topMargin = 0
+                binding.layoutMovieInfo.layoutParams = infoParams
+                val titleParams = binding.layoutTitleInfo.layoutParams as android.widget.LinearLayout.LayoutParams
+                titleParams.gravity = android.view.Gravity.TOP
+                binding.layoutTitleInfo.layoutParams = titleParams
+            } else {
+                binding.frameBackdrop.visibility = View.VISIBLE
+                val infoParams = binding.layoutMovieInfo.layoutParams as android.widget.LinearLayout.LayoutParams
+                infoParams.topMargin = -resources.getDimensionPixelSize(com.komputerkit.moview.R.dimen.backdrop_overlap)
+                binding.layoutMovieInfo.layoutParams = infoParams
+                val titleParams = binding.layoutTitleInfo.layoutParams as android.widget.LinearLayout.LayoutParams
+                titleParams.gravity = android.view.Gravity.BOTTOM
+                binding.layoutTitleInfo.layoutParams = titleParams
+                binding.ivBackdrop.loadBackdrop(movie.backdropUrl)
+            }
             
             // Show/hide trailer button based on trailer availability
             if (!movie.trailerUrl.isNullOrEmpty()) {
@@ -162,9 +164,6 @@ class MovieDetailFragment : Fragment() {
                 layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
             }
             crewAdapter.submitList(movie.crew)
-            
-            // Similar movies
-            similarMovieAdapter.submitList(movie.similarMovies)
             
             // Where to Watch - determine theatrical vs streaming
             updateWhereToWatch(movie)
@@ -277,7 +276,7 @@ class MovieDetailFragment : Fragment() {
             // Determine if upcoming or now showing
             val now = java.util.Date()
             val hasUpcoming = movie.theatricalServices.any { service ->
-                service.release_date?.let { dateString ->
+                service.is_coming_soon || service.release_date?.let { dateString ->
                     try {
                         val parser = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
                         val releaseDate = parser.parse(dateString)
@@ -334,10 +333,6 @@ class MovieDetailFragment : Fragment() {
             findNavController().navigateUp()
         }
         
-        binding.btnShare.setOnClickListener {
-            Toast.makeText(requireContext(), "Share", Toast.LENGTH_SHORT).show()
-        }
-        
         binding.btnWatchTrailer.setOnClickListener {
             openTrailer()
         }
@@ -375,20 +370,19 @@ class MovieDetailFragment : Fragment() {
             isDescriptionExpanded = !isDescriptionExpanded
         }
         
-        binding.btnSeeAllReviews.setOnClickListener {
+        val navigateToReviews: () -> Unit = {
             viewModel.movie.value?.let { movie ->
                 val action = MovieDetailFragmentDirections
                     .actionMovieDetailToReviewsList(movie.id, movie.title ?: "Movie")
                 findNavController().navigate(action)
             }
         }
+
+        binding.btnSeeAllReviews.setOnClickListener { navigateToReviews() }
+        binding.cardReviews.setOnClickListener { navigateToReviews() }
         
         binding.btnOpenActions.setOnClickListener {
             showMovieActionsBottomSheet()
-        }
-        
-        binding.btnViewAll.setOnClickListener {
-            Toast.makeText(requireContext(), "View all similar films", Toast.LENGTH_SHORT).show()
         }
         
         // Tab switching

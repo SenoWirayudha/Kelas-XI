@@ -25,16 +25,6 @@
             android:layout_marginStart="16dp"
             app:tint="@color/white" />
 
-        <ImageView
-            android:id="@+id/btn_share"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_share"
-            android:contentDescription="Share"
-            android:layout_gravity="end"
-            android:layout_marginEnd="32dp"
-            app:tint="@color/white" />
-
     </androidx.appcompat.widget.Toolbar>
 
     <!-- Scrollable Content -->
@@ -53,6 +43,7 @@
 
             <!-- Backdrop Image with Gradient Fade -->
             <FrameLayout
+                android:id="@+id/frame_backdrop"
                 android:layout_width="match_parent"
                 android:layout_height="250dp">
 
@@ -75,6 +66,7 @@
 
             <!-- Movie Info Section -->
             <LinearLayout
+                android:id="@+id/layout_movie_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
@@ -100,6 +92,7 @@
 
                 <!-- Title & Info -->
                 <LinearLayout
+                    android:id="@+id/layout_title_info"
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
@@ -309,10 +302,13 @@
                 </com.google.android.material.card.MaterialCardView>
 
                 <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_reviews"
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
+                    android:clickable="true"
+                    android:focusable="true"
                     app:cardBackgroundColor="@color/dark_surface"
                     app:cardCornerRadius="8dp"
                     app:strokeWidth="1dp"
@@ -865,51 +861,6 @@
                     </LinearLayout>
 
                 </LinearLayout>
-
-            </LinearLayout>
-
-            <!-- Similar Films -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingHorizontal="16dp"
-                android:layout_marginTop="24dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:layout_height="wrap_content"
-                        android:text="Similar Films"
-                        android:textColor="@color/white"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/btn_view_all"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="View All"
-                        android:textColor="#1E88E5"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                </LinearLayout>
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_similar_films"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal"
-                    tools:itemCount="3"
-                    tools:listitem="@layout/item_similar_movie" />
 
             </LinearLayout>
 

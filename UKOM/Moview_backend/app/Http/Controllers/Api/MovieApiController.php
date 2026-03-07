@@ -330,28 +330,50 @@ class MovieApiController extends Controller
      */
     public function reviews($id, Request $request)
     {
-        $perPage = $request->get('per_page', 10);
-        
-        $reviews = Review::where('film_id', $id)
-            ->where('status', 'approved')
-            ->with('user')
-            ->orderBy('created_at', 'desc')
+        $perPage = $request->get('per_page', 20);
+
+        $reviews = DB::table('reviews')
+            ->join('users', 'reviews.user_id', '=', 'users.id')
+            ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
+            ->where('reviews.film_id', $id)
+            ->whereIn('reviews.status', ['published', 'flagged'])
+            ->orderByRaw('(SELECT COUNT(*) FROM review_likes WHERE review_likes.review_id = reviews.id) DESC')
+            ->orderBy('reviews.created_at', 'desc')
+            ->select(
+                'reviews.id',
+                'reviews.user_id',
+                'users.username',
+                'user_profiles.profile_photo',
+                'reviews.rating',
+                'reviews.title',
+                'reviews.content',
+                'reviews.is_spoiler',
+                'reviews.created_at'
+            )
             ->paginate($perPage);
-        
+
         return response()->json([
             'success' => true,
             'data' => $reviews->map(function ($review) {
+                $profilePhoto = null;
+                if ($review->profile_photo) {
+                    $profilePhoto = str_starts_with($review->profile_photo, 'http')
+                        ? $review->profile_photo
+                        : 'http://10.0.2.2:8000/storage/' . $review->profile_photo;
+                }
+
                 return [
                     'id' => $review->id,
                     'user' => [
-                        'id' => $review->user->id,
-                        'username' => $review->user->username,
+                        'id' => $review->user_id,
+                        'username' => $review->username,
+                        'profile_photo' => $profilePhoto,
                     ],
                     'rating' => $review->rating,
                     'title' => $review->title,
                     'content' => $review->content,
-                    'is_spoiler' => $review->is_spoiler,
-                    'created_at' => $review->created_at->format('Y-m-d H:i:s'),
+                    'is_spoiler' => (bool) $review->is_spoiler,
+                    'created_at' => $review->created_at,
                 ];
             }),
             'pagination' => [
@@ -543,12 +565,12 @@ class MovieApiController extends Controller
                   ->orWhere('ms.release_date', '<=', now()->toDateString());
             })
             ->select(
-                'm.id', 'm.title', 'm.release_year as year',
+                'm.id', 'm.title', 'm.release_year as year', 'm.age_rating',
                 DB::raw("IF(m.default_poster_path IS NOT NULL, CONCAT('" . url('storage/') . "/', m.default_poster_path), NULL) as poster_path"),
                 'ms.release_date', 'ms.is_coming_soon',
                 DB::raw('(SELECT g.name FROM movie_genres mg JOIN genres g ON mg.genre_id = g.id WHERE mg.movie_id = m.id ORDER BY g.id LIMIT 1) as genre')
             )
-            ->groupBy('m.id', 'm.title', 'm.release_year', 'm.default_poster_path', 'ms.release_date', 'ms.is_coming_soon')
+            ->groupBy('m.id', 'm.title', 'm.release_year', 'm.age_rating', 'm.default_poster_path', 'ms.release_date', 'ms.is_coming_soon')
             // Most recently released first; NULL dates at the end
             ->orderByRaw('ms.release_date IS NULL ASC, ms.release_date DESC');
 
@@ -581,12 +603,12 @@ class MovieApiController extends Controller
                   ->orWhere('ms.release_date', '>', now()->toDateString());
             })
             ->select(
-                'm.id', 'm.title', 'm.release_year as year',
+                'm.id', 'm.title', 'm.release_year as year', 'm.age_rating',
                 DB::raw("IF(m.default_poster_path IS NOT NULL, CONCAT('" . url('storage/') . "/', m.default_poster_path), NULL) as poster_path"),
                 'ms.release_date', 'ms.is_coming_soon',
                 DB::raw('(SELECT g.name FROM movie_genres mg JOIN genres g ON mg.genre_id = g.id WHERE mg.movie_id = m.id ORDER BY g.id LIMIT 1) as genre')
             )
-            ->groupBy('m.id', 'm.title', 'm.release_year', 'm.default_poster_path', 'ms.release_date', 'ms.is_coming_soon')
+            ->groupBy('m.id', 'm.title', 'm.release_year', 'm.age_rating', 'm.default_poster_path', 'ms.release_date', 'ms.is_coming_soon')
             // Nearest release date first, null dates ("Coming Soon") at the end
             ->orderByRaw('ms.release_date IS NULL ASC, ms.release_date ASC');
 

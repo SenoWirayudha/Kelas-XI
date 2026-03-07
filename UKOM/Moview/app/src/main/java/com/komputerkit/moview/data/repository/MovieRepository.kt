@@ -2,6 +2,7 @@ package com.komputerkit.moview.data.repository
 
 import android.util.Log
 import com.komputerkit.moview.data.api.MovieCardDto
+import com.komputerkit.moview.data.api.MovieReviewDto
 import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.data.api.ReviewCommentDto
 import com.komputerkit.moview.data.api.SearchResponse
@@ -662,6 +663,36 @@ class MovieRepository {
         } catch (e: Exception) {
             android.util.Log.e("MovieRepository", "Error getting liked reviews for movie: ${e.message}", e)
             emptyList()
+        }
+    }
+    
+    /**
+     * Check if user has rewatch for a specific film (2+ diary entries)
+     */
+    suspend fun hasRewatch(userId: Int, filmId: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.hasRewatch(userId, filmId)
+            response.success && response.data?.has_rewatch == true
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error checking rewatch: ${e.message}", e)
+            false
+        }
+    }
+    
+    /**
+     * Get user's activity (diary + reviews) for a specific film
+     */
+    suspend fun getUserFilmActivity(userId: Int, filmId: Int): com.komputerkit.moview.data.api.UserFilmActivityResponse? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserFilmActivity(userId, filmId)
+            if (response.success && response.data != null) {
+                response.data
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error getting user film activity: ${e.message}", e)
+            null
         }
     }
     
@@ -1769,7 +1800,8 @@ class MovieRepository {
                         releaseDate = dto.release_date,
                         isComingSoon = dto.is_coming_soon == 1,
                         genre = dto.genre,
-                        year = dto.year
+                        year = dto.year,
+                        ageRating = dto.age_rating
                     )
                 }
             } else {
@@ -1793,7 +1825,8 @@ class MovieRepository {
                         releaseDate = dto.release_date,
                         isComingSoon = dto.is_coming_soon == 1,
                         genre = dto.genre,
-                        year = dto.year
+                        year = dto.year,
+                        ageRating = dto.age_rating
                     )
                 }
             } else {
@@ -1813,6 +1846,16 @@ class MovieRepository {
             } else {
                 emptyList()
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun getMovieReviews(movieId: Int): List<MovieReviewDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getMovieReviews(movieId)
+            if (response.success) response.data else emptyList()
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()

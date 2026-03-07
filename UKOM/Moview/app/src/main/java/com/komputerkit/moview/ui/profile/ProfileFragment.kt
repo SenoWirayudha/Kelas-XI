@@ -198,6 +198,13 @@ class ProfileFragment : Fragment() {
                     isLog = false
                 )
                 findNavController().navigate(action)
+            },
+            onLogClick = { diaryId ->
+                val action = ProfileFragmentDirections.actionProfileToReviewDetail(
+                    reviewId = diaryId,
+                    isLog = true
+                )
+                findNavController().navigate(action)
             }
         )
         binding.rvRecentActivity.apply {

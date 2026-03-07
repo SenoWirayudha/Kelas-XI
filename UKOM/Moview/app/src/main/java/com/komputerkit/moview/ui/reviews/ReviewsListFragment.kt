@@ -50,12 +50,18 @@ class ReviewsListFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        reviewsAdapter = ReviewsAdapter { review ->
-            // Navigate to Review Detail
-            val action = ReviewsListFragmentDirections
-                .actionReviewsListToReviewDetail(review.id)
-            findNavController().navigate(action)
-        }
+        reviewsAdapter = ReviewsAdapter(
+            onReviewClick = { review ->
+                val action = ReviewsListFragmentDirections
+                    .actionReviewsListToReviewDetail(review.id, false)
+                findNavController().navigate(action)
+            },
+            onUserClick = { userId ->
+                val action = ReviewsListFragmentDirections
+                    .actionReviewsListToProfile(userId)
+                findNavController().navigate(action)
+            }
+        )
         
         binding.rvReviews.apply {
             adapter = reviewsAdapter
@@ -66,6 +72,10 @@ class ReviewsListFragment : Fragment() {
     private fun setupObservers() {
         viewModel.reviews.observe(viewLifecycleOwner) { reviews ->
             reviewsAdapter.submitList(reviews)
+        }
+        viewModel.userHasWatched.observe(viewLifecycleOwner) { hasWatched ->
+            reviewsAdapter.userHasWatched = hasWatched
+            reviewsAdapter.notifyDataSetChanged()
         }
     }
 

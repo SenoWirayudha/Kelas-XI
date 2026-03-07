@@ -75,7 +75,8 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
                         userId = userId,
                         movieId = dto.id,
                         isLiked = dto.is_liked,
-                        isRewatch = dto.is_rewatched
+                        isRewatch = dto.is_rewatched,
+                        isSpoiler = dto.is_spoiler
                     )
                 }
                 

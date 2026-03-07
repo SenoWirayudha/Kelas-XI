@@ -55,6 +55,15 @@ class TheatricalMovieAdapter(
             binding.tvMovieInfo.text = parts.joinToString(" • ")
             binding.tvMovieInfo.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
 
+            // Age rating badge (always shown if present, regardless of section)
+            val rating = movie.ageRating?.takeIf { it.isNotBlank() && it != "NR" }
+            if (rating != null) {
+                binding.tvAgeRating.visibility = View.VISIBLE
+                binding.tvAgeRating.text = rating
+            } else {
+                binding.tvAgeRating.visibility = View.GONE
+            }
+
             if (showDateBadge || movie.isComingSoon) {
                 binding.vScrim.visibility = View.VISIBLE
                 binding.tvBadge.visibility = View.VISIBLE
@@ -72,7 +81,7 @@ class TheatricalMovieAdapter(
                 }
                 binding.tvBadge.text = badgeText
             } else {
-                binding.vScrim.visibility = View.GONE
+                binding.vScrim.visibility = if (rating != null) View.VISIBLE else View.GONE
                 binding.tvBadge.visibility = View.GONE
             }
 

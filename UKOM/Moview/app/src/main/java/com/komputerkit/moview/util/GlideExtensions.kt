@@ -84,13 +84,17 @@ fun ImageView.loadThumbnail(url: String?, placeholder: Drawable? = null) {
 
 // Load profile/avatar image with circular crop
 fun ImageView.loadAvatar(url: String?, placeholder: Drawable? = null) {
+    if (url.isNullOrEmpty()) {
+        this.setImageResource(R.drawable.ic_default_profile)
+        return
+    }
     Glide.with(this.context)
         .load(url)
         .thumbnail(0.1f) // Load low-res thumbnail first
         .apply(
             RequestOptions()
-                .placeholder(placeholder ?: context.getDrawable(R.drawable.ic_launcher_background))
-                .error(R.drawable.ic_launcher_background)
+                .placeholder(placeholder ?: context.getDrawable(R.drawable.ic_default_profile))
+                .error(R.drawable.ic_default_profile)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .circleCrop() // Circle crop handles sizing
         )

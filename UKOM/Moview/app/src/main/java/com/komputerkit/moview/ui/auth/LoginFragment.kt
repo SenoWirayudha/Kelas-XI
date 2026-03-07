@@ -51,10 +51,6 @@ class LoginFragment : Fragment() {
         binding.tvSignUp.setOnClickListener {
             findNavController().navigate(R.id.action_login_to_signUp)
         }
-        
-        binding.tvForgotPassword.setOnClickListener {
-            Toast.makeText(requireContext(), "Forgot Password - Coming Soon", Toast.LENGTH_SHORT).show()
-        }
     }
     
     private fun setupEmailValidation() {

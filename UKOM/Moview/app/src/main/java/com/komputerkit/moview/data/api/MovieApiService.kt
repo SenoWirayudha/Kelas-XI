@@ -57,6 +57,13 @@ interface MovieApiService {
     suspend fun getMovieDetail(
         @Path("id") id: Int
     ): ApiResponse<MovieDetailDto>
+
+    @GET("movies/{id}/reviews")
+    suspend fun getMovieReviews(
+        @Path("id") id: Int,
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20
+    ): PaginatedResponse<MovieReviewDto>
     
     @GET("persons/{id}")
     suspend fun getPersonDetail(
@@ -340,6 +347,19 @@ interface MovieApiService {
         @Path("userId") userId: Int,
         @Path("movieId") movieId: Int
     ): ApiResponse<List<LikedReviewDto>>
+    
+    // Rewatch check for activity badge
+    @GET("users/{userId}/films/{filmId}/has-rewatch")
+    suspend fun hasRewatch(
+        @Path("userId") userId: Int,
+        @Path("filmId") filmId: Int
+    ): ApiResponse<HasRewatchResponse>
+    
+    @GET("users/{userId}/films/{filmId}/activity")
+    suspend fun getUserFilmActivity(
+        @Path("userId") userId: Int,
+        @Path("filmId") filmId: Int
+    ): ApiResponse<UserFilmActivityResponse>
     
     // Notifications
     @GET("users/{userId}/notifications")

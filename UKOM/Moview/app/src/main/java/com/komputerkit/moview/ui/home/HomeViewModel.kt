@@ -44,10 +44,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
     
+    var savedScrollY: Int = 0
+
     fun setUserId(id: Int) {
         android.util.Log.d("HomeViewModel", "Setting userId: $id")
         userId = id
-        loadData()
+        // Only load if data hasn't been fetched yet; on back-navigation the ViewModel
+        // survives so we preserve the cached data (and scroll position).
+        if (_popularMovies.value == null) {
+            loadData()
+        }
     }
     
     private fun loadData() {

@@ -20,5 +20,6 @@ data class Review(
     val timeAgo: String = "",
     val commentCount: Int = 0,
     val hasTag: Boolean = false,
-    val tag: String = ""
+    val tag: String = "",
+    val isSpoiler: Boolean = false
 )

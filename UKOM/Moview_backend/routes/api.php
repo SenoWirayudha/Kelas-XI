@@ -60,6 +60,10 @@ Route::prefix('v1')->group(function () {
     Route::delete('users/{userId}/diary/{diaryId}', [UserActivityController::class, 'deleteDiary'])->where('diaryId', '[0-9]+');
     Route::get('users/{userId}/movies/{movieId}/watch-count', [UserActivityController::class, 'getWatchCount'])->where(['userId' => '[0-9]+', 'movieId' => '[0-9]+']);
     
+    // User Film Activity (for rewatch badge)
+    Route::get('users/{userId}/films/{filmId}/has-rewatch', [UserActivityController::class, 'hasRewatch'])->where(['userId' => '[0-9]+', 'filmId' => '[0-9]+']);
+    Route::get('users/{userId}/films/{filmId}/activity', [UserActivityController::class, 'getUserFilmActivity'])->where(['userId' => '[0-9]+', 'filmId' => '[0-9]+']);
+    
     // Reviews routes - specific before general
     Route::get('users/{userId}/reviews/{reviewId}', [UserActivityController::class, 'getReviewDetail'])->where('reviewId', '[0-9]+');
     Route::get('users/{userId}/reviews', [UserActivityController::class, 'getReviews']);

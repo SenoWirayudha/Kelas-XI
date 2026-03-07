@@ -95,8 +95,13 @@ class ReviewDetailFragment : Fragment() {
     private fun setupObservers() {
         viewModel.review.observe(viewLifecycleOwner) { review ->
             binding.apply {
-                // Load backdrop using extension for fast loading
-                ivBackdrop.loadBackdrop(review.movie.backdropUrl)
+                // Load backdrop – hide if film has none
+                if (review.movie.backdropUrl.isNullOrBlank()) {
+                    backdropContainer.visibility = View.GONE
+                } else {
+                    backdropContainer.visibility = View.VISIBLE
+                    ivBackdrop.loadBackdrop(review.movie.backdropUrl)
+                }
 
                 // Load profile photo using extension with circular crop
                 ivProfile.loadProfilePhoto(review.userAvatar)
@@ -188,6 +193,7 @@ class ReviewDetailFragment : Fragment() {
                 if (isLog) {
                     // Hide review-specific elements for log entries
                     tvReviewText.visibility = View.GONE
+                    cardSpoilerOverlay.visibility = View.GONE
                     layoutActions.visibility = View.GONE  // Like, Comment, Share buttons
                     tvMoreFrom.visibility = View.GONE
                     rvLikedMovies.visibility = View.GONE
@@ -195,12 +201,22 @@ class ReviewDetailFragment : Fragment() {
                     // Change label from "REVIEWED BY" to "LOGGED BY"
                     tvReviewerName.text = "LOGGED BY"
                 } else {
-                    // Show all elements for reviews
-                    tvReviewText.visibility = View.VISIBLE
-                    layoutActions.visibility = View.VISIBLE  // Show like, comment, share buttons
-                    // tvMoreFrom and rvLikedMovies visibility will be set by liked movies observers
-                    
+                    // Visibility of tvReviewText controlled by isSpoilerHidden observer
+                    layoutActions.visibility = View.VISIBLE
                     tvReviewerName.text = "REVIEWED BY"
+                }
+            }
+        }
+
+        viewModel.isSpoilerHidden.observe(viewLifecycleOwner) { isSpoilerHidden ->
+            val isLog = viewModel.isLog.value ?: false
+            if (!isLog) {
+                if (isSpoilerHidden) {
+                    binding.tvReviewText.visibility = View.GONE
+                    binding.cardSpoilerOverlay.visibility = View.VISIBLE
+                } else {
+                    binding.tvReviewText.visibility = View.VISIBLE
+                    binding.cardSpoilerOverlay.visibility = View.GONE
                 }
             }
         }
@@ -222,6 +238,11 @@ class ReviewDetailFragment : Fragment() {
         // Observe liked by text ("YOU LIKED" or "Liked by...")
         viewModel.likedByText.observe(viewLifecycleOwner) { text ->
             binding.tvMoreFrom.text = text
+        }
+        
+        // Observe has rewatch for activity badge
+        viewModel.hasRewatch.observe(viewLifecycleOwner) { hasRewatch ->
+            binding.tvActivityBadge.visibility = if (hasRewatch) View.VISIBLE else View.GONE
         }
         
         viewModel.deleteStatus.observe(viewLifecycleOwner) { success ->
@@ -262,7 +283,21 @@ class ReviewDetailFragment : Fragment() {
             }
         }
 
+        binding.tvUsername.setOnClickListener {
+            viewModel.review.value?.let { review ->
+                val action = ReviewDetailFragmentDirections.actionReviewDetailToProfile(review.userId)
+                findNavController().navigate(action)
+            }
+        }
+
         binding.cardPoster.setOnClickListener {
+            viewModel.review.value?.let { review ->
+                val action = ReviewDetailFragmentDirections.actionReviewDetailToMovieDetail(review.movie.id)
+                findNavController().navigate(action)
+            }
+        }
+
+        binding.tvMovieTitle.setOnClickListener {
             viewModel.review.value?.let { review ->
                 val action = ReviewDetailFragmentDirections.actionReviewDetailToMovieDetail(review.movie.id)
                 findNavController().navigate(action)
@@ -305,8 +340,21 @@ class ReviewDetailFragment : Fragment() {
             showCommentsBottomSheet()
         }
 
-        binding.ivShareIcon.setOnClickListener {
-            // TODO: Implement share functionality
+        // Tap spoiler overlay to reveal review text
+        binding.cardSpoilerOverlay.setOnClickListener {
+            binding.cardSpoilerOverlay.visibility = View.GONE
+            binding.tvReviewText.visibility = View.VISIBLE
+        }
+        
+        // Activity badge click - navigate to UserFilmActivity screen
+        binding.tvActivityBadge.setOnClickListener {
+            val userId = viewModel.reviewerUserId.value ?: 0
+            val filmId = viewModel.reviewMovieId.value ?: 0
+            
+            if (userId > 0 && filmId > 0) {
+                val action = ReviewDetailFragmentDirections.actionReviewDetailToUserFilmActivity(userId, filmId)
+                findNavController().navigate(action)
+            }
         }
     }
 

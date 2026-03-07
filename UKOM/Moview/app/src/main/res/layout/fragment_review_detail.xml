@@ -266,21 +266,75 @@
                     tools:text="MASTERPIECE" />
             </LinearLayout>
 
-            <!-- Review Text -->
-            <TextView
-                android:id="@+id/tv_review_text"
+            <!-- Review Text + Spoiler Overlay wrapper -->
+            <FrameLayout
+                android:id="@+id/frame_review_content"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:layout_marginTop="24dp"
                 android:layout_marginEnd="16dp"
-                android:lineSpacingExtra="4dp"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/layout_tags"
-                tools:text="A haunting masterpiece. Nolan delivers a spectacle that is both visually stunning and emotionally devastating." />
+                app:layout_constraintTop_toBottomOf="@id/layout_tags">
+
+                <TextView
+                    android:id="@+id/tv_review_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp"
+                    android:visibility="gone"
+                    tools:text="A haunting masterpiece. Nolan delivers a spectacle that is both visually stunning and emotionally devastating." />
+
+                <!-- Spoiler Overlay -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_spoiler_overlay"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    app:cardBackgroundColor="#1A1828"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="28dp">
+
+                        <ImageView
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:contentDescription="Spoiler"
+                            android:src="@drawable/ic_visibility_off"
+                            app:tint="#666666" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:gravity="center"
+                            android:text="Review may contain spoilers."
+                            android:textColor="#888888"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:gravity="center"
+                            android:text="Tap to reveal"
+                            android:textColor="#555555"
+                            android:textSize="12sp" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </FrameLayout>
 
             <!-- Action Buttons -->
             <LinearLayout
@@ -294,7 +348,7 @@
                 android:orientation="horizontal"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tv_review_text">
+                app:layout_constraintTop_toBottomOf="@id/frame_review_content">
 
                 <ImageView
                     android:id="@+id/iv_like_icon"
@@ -331,26 +385,6 @@
                     android:textSize="15sp"
                     tools:text="45" />
 
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_weight="1" />
-
-                <ImageView
-                    android:id="@+id/iv_share_icon"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:contentDescription="Share"
-                    android:src="@drawable/ic_share"
-                    app:tint="@color/text_secondary" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="Share Review"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="15sp" />
             </LinearLayout>
 
             <!-- More from reviewer section (placeholder) -->
@@ -385,6 +419,30 @@
                 app:layout_constraintTop_toBottomOf="@id/tv_more_from"
                 tools:itemCount="4"
                 tools:listitem="@layout/item_poster_small" />
+
+            <!-- Activity Badge for Rewatch -->
+            <TextView
+                android:id="@+id/tv_activity_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="32dp"
+                android:background="@drawable/badge_activity_background"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="16dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="8dp"
+                android:text="VIEW ALL ACTIVITY"
+                android:textColor="@color/colorAccent"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/rv_liked_movies" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.core.widget.NestedScrollView>

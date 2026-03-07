@@ -9,4 +9,7 @@
     <!-- Comment Dimensions -->
     <dimen name="comment_padding">16dp</dimen>
     <dimen name="reply_indent">56dp</dimen>
+
+    <!-- Film Detail backdrop overlap for poster/title section -->
+    <dimen name="backdrop_overlap">50dp</dimen>
 </resources>

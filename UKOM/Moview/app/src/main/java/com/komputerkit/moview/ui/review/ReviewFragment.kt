@@ -42,7 +42,7 @@ class ReviewFragment : Fragment() {
         
         viewModel.loadReviews(targetUserId)
         
-        setupRecyclerView()
+        setupRecyclerView(currentUserId, targetUserId)
         setupClickListeners()
         observeViewModel()
     }
@@ -58,10 +58,11 @@ class ReviewFragment : Fragment() {
         viewModel.loadReviews(targetUserId)
     }
     
-    private fun setupRecyclerView() {
+    private fun setupRecyclerView(currentUserId: Int, targetUserId: Int) {
         adapter = ReviewAdapter { review ->
             navigateToReviewDetail(review)
         }
+        adapter.isOwnProfile = (currentUserId == targetUserId)
         
         binding.rvReviews.layoutManager = LinearLayoutManager(requireContext())
         binding.rvReviews.adapter = adapter

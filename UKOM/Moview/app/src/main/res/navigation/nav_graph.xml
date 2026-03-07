@@ -383,6 +383,9 @@
         <action
             android:id="@+id/action_reviewsList_to_reviewDetail"
             app:destination="@id/reviewDetailFragment" />
+        <action
+            android:id="@+id/action_reviewsList_to_profile"
+            app:destination="@id/navigation_profile" />
     </fragment>
 
     <fragment
@@ -428,6 +431,27 @@
         <action
             android:id="@+id/action_reviewDetail_to_editReview"
             app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_reviewDetail_to_userFilmActivity"
+            app:destination="@id/userFilmActivityFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/userFilmActivityFragment"
+        android:name="com.komputerkit.moview.ui.fragment.UserFilmActivityFragment"
+        android:label="User Film Activity">
+        <argument
+            android:name="userId"
+            app:argType="integer" />
+        <argument
+            android:name="filmId"
+            app:argType="integer" />
+        <action
+            android:id="@+id/action_userFilmActivity_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
+        <action
+            android:id="@+id/action_userFilmActivity_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
     </fragment>
 
     <fragment

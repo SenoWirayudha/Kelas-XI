@@ -2,6 +2,7 @@ package com.komputerkit.moview.ui.review
 
 import android.text.Html
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -14,6 +15,8 @@ class ReviewAdapter(
     private val onReviewClick: (Review) -> Unit
 ) : ListAdapter<Review, ReviewAdapter.ReviewViewHolder>(ReviewDiffCallback()) {
 
+    var isOwnProfile: Boolean = true
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ReviewViewHolder {
         val binding = ItemReviewBinding.inflate(
             LayoutInflater.from(parent.context),
@@ -24,7 +27,7 @@ class ReviewAdapter(
     }
 
     override fun onBindViewHolder(holder: ReviewViewHolder, position: Int) {
-        holder.bind(getItem(position))
+        holder.bind(getItem(position), isOwnProfile)
     }
 
     class ReviewViewHolder(
@@ -32,7 +35,7 @@ class ReviewAdapter(
         private val onReviewClick: (Review) -> Unit
     ) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(review: Review) {
+        fun bind(review: Review, isOwnProfile: Boolean) {
             binding.tvTitle.text = review.movie.title
             binding.tvYear.text = review.movie.releaseYear.toString()
             
@@ -42,15 +45,37 @@ class ReviewAdapter(
             } else {
                 review.dateLabel
             }
-            
-            // Render HTML in review text
-            val reviewHtml = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                Html.fromHtml(review.reviewText, Html.FROM_HTML_MODE_COMPACT)
+
+            // Spoiler: hide preview if spoiler and not own profile
+            val showSpoiler = review.isSpoiler && !isOwnProfile
+            if (showSpoiler) {
+                binding.tvReviewPreview.visibility = View.GONE
+                binding.layoutSpoilerOverlay.visibility = View.VISIBLE
             } else {
-                @Suppress("DEPRECATION")
-                Html.fromHtml(review.reviewText)
+                // Render HTML in review text
+                val reviewHtml = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    Html.fromHtml(review.reviewText, Html.FROM_HTML_MODE_COMPACT)
+                } else {
+                    @Suppress("DEPRECATION")
+                    Html.fromHtml(review.reviewText)
+                }
+                binding.tvReviewPreview.text = reviewHtml
+                binding.tvReviewPreview.visibility = View.VISIBLE
+                binding.layoutSpoilerOverlay.visibility = View.GONE
             }
-            binding.tvReviewPreview.text = reviewHtml
+
+            // Tap spoiler overlay to reveal
+            binding.layoutSpoilerOverlay.setOnClickListener {
+                val reviewHtml = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    Html.fromHtml(review.reviewText, Html.FROM_HTML_MODE_COMPACT)
+                } else {
+                    @Suppress("DEPRECATION")
+                    Html.fromHtml(review.reviewText)
+                }
+                binding.tvReviewPreview.text = reviewHtml
+                binding.tvReviewPreview.visibility = View.VISIBLE
+                binding.layoutSpoilerOverlay.visibility = View.GONE
+            }
 
             // Display star rating - rating is already in 0-5 scale
             val starCount = review.rating.toInt().coerceIn(0, 5)
@@ -58,10 +83,10 @@ class ReviewAdapter(
             binding.tvRatingStars.text = stars
 
             // Show liked icon if movie is liked
-            binding.ivLiked.visibility = if (review.isLiked) android.view.View.VISIBLE else android.view.View.GONE
+            binding.ivLiked.visibility = if (review.isLiked) View.VISIBLE else View.GONE
 
             // Show rewatch icon if this is a rewatch
-            binding.ivRewatch.visibility = if (review.isRewatch) android.view.View.VISIBLE else android.view.View.GONE
+            binding.ivRewatch.visibility = if (review.isRewatch) View.VISIBLE else View.GONE
 
             // Load poster using Glide extension for fast loading
             binding.ivPoster.loadPoster(review.movie.posterUrl)

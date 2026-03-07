@@ -5,10 +5,11 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@color/dark_background"
+    android:clickable="true"
+    android:focusable="true"
     android:paddingHorizontal="16dp"
     android:paddingVertical="16dp">
 
-    <!-- Movie Poster -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_poster"
         android:layout_width="100dp"
@@ -28,13 +29,12 @@
             tools:src="@color/dark_card" />
     </androidx.cardview.widget.CardView>
 
-    <!-- Movie Title -->
     <TextView
         android:id="@+id/tv_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginEnd="60dp"
+        android:layout_marginEnd="16dp"
         android:ellipsize="end"
         android:maxLines="2"
         android:textColor="@color/text_primary"
@@ -43,9 +43,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/card_poster"
         app:layout_constraintTop_toTopOf="@id/card_poster"
-        tools:text="Dune: Part Two" />
+        tools:text="Sirat" />
 
-    <!-- Release Year with Stars and Like -->
     <LinearLayout
         android:id="@+id/layout_year_rating"
         android:layout_width="0dp"
@@ -65,7 +64,7 @@
             android:layout_height="wrap_content"
             android:textColor="@color/text_secondary"
             android:textSize="14sp"
-            tools:text="1994" />
+            tools:text="2025" />
 
         <TextView
             android:id="@+id/tv_rating_stars"
@@ -74,7 +73,7 @@
             android:layout_marginStart="8dp"
             android:textColor="@color/star_green"
             android:textSize="12sp"
-            tools:text="★★★★★" />
+            tools:text="" />
 
         <ImageView
             android:id="@+id/iv_liked"
@@ -87,20 +86,8 @@
             app:tint="@color/pink_like"
             tools:visibility="visible" />
 
-        <ImageView
-            android:id="@+id/iv_rewatch"
-            android:layout_width="12dp"
-            android:layout_height="12dp"
-            android:layout_marginStart="6dp"
-            android:src="@drawable/ic_rewatch"
-            android:contentDescription="Rewatch"
-            android:visibility="gone"
-            app:tint="@color/teal_watched"
-            tools:visibility="visible" />
-
     </LinearLayout>
 
-    <!-- Review Date -->
     <TextView
         android:id="@+id/tv_date"
         android:layout_width="0dp"
@@ -113,9 +100,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/card_poster"
         app:layout_constraintTop_toBottomOf="@id/layout_year_rating"
-        tools:text="Rewatched Mar 15, 2024" />
+        tools:text="Watched Feb 14, 2026" />
 
-    <!-- Review Text Preview -->
     <TextView
         android:id="@+id/tv_review_preview"
         android:layout_width="0dp"
@@ -126,46 +112,14 @@
         android:ellipsize="end"
         android:lineSpacingExtra="2dp"
         android:maxLines="2"
-        android:visibility="gone"
         android:textColor="@color/text_secondary"
         android:textSize="14sp"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/card_poster"
         app:layout_constraintTop_toBottomOf="@id/tv_date"
-        tools:text="A visual masterpiece that surpasses the first part in every way. The sca..." />
+        tools:text="Aku suka sinema Horeg ini" />
 
-    <!-- Spoiler Overlay -->
-    <LinearLayout
-        android:id="@+id/layout_spoiler_overlay"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="10dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/card_poster"
-        app:layout_constraintTop_toBottomOf="@id/tv_date">
-
-        <ImageView
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:contentDescription="Spoiler"
-            android:src="@drawable/ic_visibility_off"
-            app:tint="#666666" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="Review may contain spoilers."
-            android:textColor="#666666"
-            android:textSize="13sp" />
-
-    </LinearLayout>
-
-    <!-- Divider -->
     <View
         android:layout_width="0dp"
         android:layout_height="1dp"

@@ -53,6 +53,11 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         setupSwipeRefresh()
         observeViewModel()
         setupClickListeners()
+
+        // Restore scroll position saved before navigating away
+        binding.nestedScrollView.post {
+            binding.nestedScrollView.scrollTo(0, viewModel.savedScrollY)
+        }
     }
 
     private fun setupRecyclerViews() {
@@ -264,6 +269,12 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             // Not installed — fall back to browser
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Save scroll position so it can be restored when returning from a sub-screen
+        viewModel.savedScrollY = binding.nestedScrollView.scrollY
     }
 
     override fun onDestroyView() {

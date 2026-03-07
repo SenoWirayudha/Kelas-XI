@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 06 Mar 2026 pada 17.15
+-- Waktu pembuatan: 07 Mar 2026 pada 16.47
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -113,7 +113,8 @@ INSERT INTO `diaries` (`id`, `user_id`, `film_id`, `review_id`, `watched_at`, `r
 (35, 5, 25, 27, '2026-03-06', 5, 1, '<b>JWC 2025</b>', 0, '2026-03-06 05:53:21', '2026-03-06 05:53:21'),
 (36, 6, 46, 28, '2026-03-06', 5, 1, 'We all carry our own weight, but still hope someone grabs us before we fall.', 0, '2026-03-06 06:04:36', '2026-03-06 06:04:36'),
 (38, 6, 30, NULL, '2026-03-06', 5, 0, 'Watched this film', 0, '2026-03-06 06:46:56', '2026-03-06 06:46:56'),
-(39, 6, 46, NULL, '2026-03-06', 5, 1, 'Watched this film', 1, '2026-03-06 07:30:59', '2026-03-06 07:30:59');
+(39, 6, 46, NULL, '2026-03-06', 5, 1, 'Watched this film', 1, '2026-03-06 07:30:59', '2026-03-06 07:30:59'),
+(40, 6, 48, 29, '2026-03-07', 4, 1, 'Cute banget', 0, '2026-03-07 08:23:44', '2026-03-07 08:23:44');
 
 -- --------------------------------------------------------
 
@@ -138,7 +139,8 @@ INSERT INTO `followers` (`id`, `user_id`, `follower_id`, `created_at`, `updated_
 (6, 3, 5, '2026-02-24 22:29:34', '2026-02-24 22:29:34'),
 (7, 3, 6, '2026-02-28 03:10:44', '2026-02-28 03:10:44'),
 (8, 5, 6, '2026-02-28 03:11:08', '2026-02-28 03:11:08'),
-(10, 6, 5, '2026-02-28 08:32:26', '2026-02-28 08:32:26');
+(10, 6, 5, '2026-02-28 08:32:26', '2026-02-28 08:32:26'),
+(11, 6, 3, '2026-03-07 08:39:11', '2026-03-07 08:39:11');
 
 -- --------------------------------------------------------
 
@@ -281,7 +283,7 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (3, 'Perfect Days', '2023', 123, 'PG', 'Hirayama seems utterly content with his simple life as a cleaner of toilets in Tokyo.', 'movies/3/poster/lNUXiqFkQiylVswXRL0CXpQQyO5w8A64VVJ1XwZc.webp', 'movies/3/backdrop/IYVzP15BMaVLXAtW6RJH9hLU4O3xTwz6EirgPiCp.webp', NULL, 'published', '2026-01-30 06:37:18', '2026-01-30 21:03:36'),
 (4, 'Past Lives', '2023', 105, 'PG-13', 'Nora and Hae Sung, two deeply connected childhood friends, are wrest apart after Nora\'s family emigrates from South Korea.', 'movies/4/poster/hBWu8LFNnvKg6Gnd3D8GFHhqLS0rLKMlBp9hIMtx.webp', 'movies/4/backdrop/Ai4eeJWC12mAwSHaBvgwzlRUgyWVaIxeOGdyZ4Ag.webp', NULL, 'published', '2026-01-30 06:37:18', '2026-01-30 21:42:16'),
 (5, 'Resurrection', '2025', 160, 'R', 'In a future where humanity has surrendered its ability to dream in exchange for immortality, an outcast finds illusion, nightmarish visions, and beauty in an intoxicating world of his own making.', 'movies/5/poster/yhKBpNYCQLXQAKJG3xD3Qu7o49EtGYpBzgM3ux4C.webp', 'movies/5/backdrop/P23DLxZaJZ1S6XAnAuhfJ4SloMLfLIuLBIlv4Wav.webp', 'https://youtu.be/ZIJezWgFUEY?si=Jpy_MBO8xS7IhmsA', 'published', '2026-01-30 06:37:18', '2026-02-28 04:43:41'),
-(6, 'Sore: Istri Dari Masa Depan', '2025', 119, 'PG', 'A young man living alone in Croatia encounters a woman who claims to be his wife from the future, sent on a mission to help him correct his bad habits and improve his lifestyle.', 'movies/6/poster/FhAgMgFumfx1blIzWkSBy4FyN0CxfW59fzpiPhYn.webp', 'movies/6/backdrop/c2nt7XkzgOZ8T5RC2qIKTuVn1zke4C3Qgu9JZKTZ.webp', 'https://youtu.be/CZJWXm5KKyM?si=78R4C1eRm3FNYdrv', 'published', '2026-01-30 22:53:21', '2026-01-30 23:02:35'),
+(6, 'Sore: Istri Dari Masa Depan', '2025', 119, 'PG', 'A young man living alone in Croatia encounters a woman who claims to be his wife from the future, sent on a mission to help him correct his bad habits and improve his lifestyle.', 'movies/6/poster/FhAgMgFumfx1blIzWkSBy4FyN0CxfW59fzpiPhYn.webp', 'movies/6/backdrop/c2nt7XkzgOZ8T5RC2qIKTuVn1zke4C3Qgu9JZKTZ.webp', 'https://youtu.be/CZJWXm5KKyM?si=78R4C1eRm3FNYdrv', 'published', '2026-01-30 22:53:21', '2026-03-07 05:56:22'),
 (7, 'Jatuh Cinta Seperti di Film-Film', '2023', 118, 'PG-13', 'Bagus, a screenwriter, reunites with his high school friend and crush, Hana, who is still grieving from the loss of her husband. He wants to convince her to fall in love once again, just like in the movies.', 'movies/7/poster/mvjIEh7YHK6ruRW6cFlomGqB1zhiGCHrlmhRnlma.webp', 'movies/7/backdrop/ztVPySl8mh5j6V5AHd3cSgh4HS41NJ06oj07wiyu.webp', 'https://youtu.be/F6jPobzz-ag?si=qEEc1W9VBvl_QaO1', 'published', '2026-01-30 23:06:54', '2026-01-30 23:10:24'),
 (8, '\"Wuthering Heights\"', '2026', 136, 'R', 'Tragedy strikes when Heathcliff falls in love with Catherine Earnshaw, a woman from a wealthy family in 18th-century England.', 'movies/8/poster/uuaS50XVV9EDYQYtvbTe41EQqv5fFVWKShQo3sbs.webp', 'movies/8/backdrop/Na2VQgAGvNfG32r8ZkBcW6gYUlz6bk6g5j7IMi0u.webp', NULL, 'published', '2026-01-30 23:23:17', '2026-01-30 23:28:09'),
 (9, 'Kokuho', '2025', 174, 'R', 'Nagasaki, 1964: Following the death of his yakuza father, 15-year-old Kikuo is taken under the wing of a famous kabuki actor. Alongside Shunsuke, the actor’s only son, he decides to dedicate himself to this traditional form of theatre. For decades, the two young men grow and evolve together – and one will become the greatest Japanese master of the art of kabuki.', 'movies/9/poster/jjU63J5nEzTMsQCgJUs3i4RBo5tj8gschDTVHyxd.webp', 'movies/9/backdrop/yxvyoYjoyyKIcnI5NEpHYZZO2yxHnUfflVQynODO.webp', 'https://youtu.be/Y0KfXj3Skao?si=w1QQcdOb5uHYylAV', 'published', '2026-01-31 02:47:29', '2026-02-28 05:12:58'),
@@ -307,7 +309,7 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (29, 'Ponyo', '2008', 100, 'G', 'When Sosuke, a young boy who lives on a clifftop overlooking the sea, rescues a stranded goldfish named Ponyo, he discovers more than he bargained for. Ponyo is a curious, energetic young creature who yearns to be human, but even as she causes chaos around the house, her father, a powerful sorcerer, schemes to return Ponyo to the sea.', 'movies/29/poster/B0QMbELlOTmq5uMN3Pai2qTWT4oXkn49DbuDDini.webp', 'movies/29/backdrop/BfeG9CBUqy0NQywmRViGM4lCMsnlQwKaR5upnDAM.webp', 'https://youtu.be/h6XP82TyFWw?si=zooozS-BdbJiFZC_', 'published', '2026-02-07 02:00:21', '2026-02-07 02:04:33'),
 (30, 'Hamnet', '2025', 126, 'PG-13', 'The powerful story of love and loss that inspired the creation of Shakespeare\'s timeless masterpiece, Hamlet.', 'movies/30/poster/krUjfCdqoImYYS6FYaAw4X9oW3F1gJs5fPN6m2FU.webp', 'movies/30/backdrop/BcCXuv2Bbf6JT1he4wzbuaq5qr0MctMFGg6nlaGt.webp', 'https://youtu.be/xYcgQMxQwmk?si=wdQswysXXgi61e6L', 'published', '2026-02-07 02:50:18', '2026-02-07 02:55:39'),
 (31, 'Marty Supreme', '2025', 150, 'R', 'Marty Mauser, a young man with a dream no one respects, goes to hell and back in pursuit of greatness.', 'movies/31/poster/7i8w1eBBicdFWL8Hr7Rb1U5c9Rq7zCMF4KVZ0e4b.webp', 'movies/31/backdrop/XIApNBZz0xgsqOK466QBIWiG648Oxsmt9nEYGKSM.webp', 'https://youtu.be/s9gSuKaKcqM?si=eVioWdw8Y1PAcMvN', 'published', '2026-02-07 02:53:09', '2026-02-07 02:55:27'),
-(32, 'Empat Musim Pertiwi', '2026', NULL, NULL, 'Released from prison, a woman returns to her village and tries to face the four seasons of her past. The lack of welcome from the villagers, and even her family, leads her into a power that is hidden underneath the fog. Aiming to heal, a sexual assault survivor takes a journey to redefine her own meaning of home, family, and peace.', 'movies/32/poster/sfI4BqK2JF0PFbVxRSyjlOrZTHTTflS63hZ16MWD.webp', 'movies/32/backdrop/082ckOHMdnSOw49yhrIneepvnUp5c2uEAvXTnv33.webp', NULL, 'published', '2026-02-07 02:58:07', '2026-02-07 03:15:16'),
+(32, 'Empat Musim Pertiwi', '2026', NULL, NULL, 'Released from prison, a woman returns to her village and tries to face the four seasons of her past. The lack of welcome from the villagers, and even her family, leads her into a power that is hidden underneath the fog. Aiming to heal, a sexual assault survivor takes a journey to redefine her own meaning of home, family, and peace.', 'movies/32/poster/sfI4BqK2JF0PFbVxRSyjlOrZTHTTflS63hZ16MWD.webp', NULL, NULL, 'published', '2026-02-07 02:58:07', '2026-03-07 14:54:36'),
 (33, 'Memoir of a Snail', '2024', 94, 'R', 'Life can only be understood backwards, but we have to live it forwards.\r\n\r\nForcibly separated from her twin brother when they are orphaned, a melancholic misfit learns how to find confidence within herself amid the clutter of misfortunes and everyday life.', 'movies/33/poster/J5owMINkJ3DonUXRwHI1HGjxuQsX6k4QRVsOLDlz.webp', 'movies/33/backdrop/aEQkBKlhO1OJePmQyzPxnu9sMW1nOyLsxw2HSEVb.webp', 'https://youtu.be/Ehc8cc7g31I?si=82r2CmF33HXveWeQ', 'published', '2026-02-07 04:28:03', '2026-02-14 03:45:33'),
 (34, 'Sirāt', '2025', 115, 'PG-13', 'A man and his son arrive at a rave lost in the mountains of Morocco. They are looking for Marina, their daughter and sister, who disappeared months ago at another rave. Driven by fate, they decide to follow a group of ravers in search of one last party, in hopes Marina will be there.', 'movies/34/poster/JSGyu7yh2e361AgDYmiKsaektf0tulHoMP5dUt7t.webp', 'movies/34/backdrop/P6zjYdmEnbGl2zhJ4MKJgpznDVt2Vd6zAEvIx8aG.webp', 'https://youtu.be/ww-IXHXvS70?si=XbsNMgfstgIwknaG', 'published', '2026-02-10 17:29:02', '2026-02-14 03:44:37'),
 (35, 'Oldboy', '2003', 120, 'NC-17', 'Oldboy bercerita tentang Oh Dae-su (Choi Min-sik) yang secara tiba-tiba diculik oleh sekelompok orang. Tanpa mengerti permasalahannya, Oh Dae-su kemudian dikurung di sebuah ruangan misterius. Di tengah-tengah masa kurungannya, melalui siaran berita di televisi, Oh Dae-su mendapati bahwa dirinya telah menjadi buronan karena dituduh membunuh istrinya sendiri. Dari sana kemudian ia bertekad untuk kabur dan membalas dendam kepada orang yang mengurungnya. 15 tahun berselang, tiba-tiba Oh Dae-su terbebas dari kurungannya. Ia tidak mengerti mengapa dirinya bisa keluar dari ruangan tersebut. Oh Dae-su kemudian memulai pencarian dan mencoba memecahkan misteri di balik penculikannya. Dalam upayanya tersebut, Oh Dae-su bertemu seorang pelayan restoran sushi yang bernama Mi Do (Kang Hye-jung).', 'movies/35/poster/KlBQcWzL6yGhPxWrCX2GH42lX1THzjLmRq7LCufN.webp', 'movies/35/backdrop/UhRzQarPn4u3fO0FMUyaahompOhn6xMvnVPyLRXz.webp', 'https://youtu.be/tAaBkFChaRg?si=nFXqf1y5MdI2aPjM', 'published', '2026-02-14 01:24:31', '2026-02-14 01:33:21'),
@@ -334,7 +336,9 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (56, 'The Odyssey', '2026', NULL, 'Not Rated', 'Odysseus, raja legendaris Yunani dari Ithaca, memulai perjalanan panjang dan berbahaya untuk pulang setelah Perang Troya, yang mengisahkan perjumpaannya dengan makhluk-makhluk mitologis seperti Cyclops Polyphemus, para Siren, dan penyihir-dewi Circe.', 'movies/56/poster/wjCxfI0QELS9bfRVpgSmFTDLntAvpk3QRCUxIkpl.webp', 'movies/56/backdrop/E1tFNMQW17MwGFCCrn8klDMYKgT0GSLtRvVYpE5j.webp', 'https://youtu.be/Mzw2ttJD2qQ?si=fUJFEDqn1xP1be-_', 'published', '2026-03-06 05:05:38', '2026-03-06 05:11:40'),
 (57, 'The Drama', '2026', 105, 'R', 'YOU ARE CORDIALLY INVITED TO…\r\n\r\nA happily engaged couple is put to the test when an unexpected turn sends their wedding week off the rails.', 'movies/57/poster/jfOI3jXS6ajQ6xjp5nS7DTcseFNo0KhSDbRW7hU6.webp', 'movies/57/backdrop/blSnUwrUJV6cECqUDc9v4imYZ3RF7HnBiWk5oep9.webp', 'https://youtu.be/6zmKcUa4Xxk?si=4W3t4w-Tvf4FUKtC', 'published', '2026-03-06 05:22:24', '2026-03-06 05:24:36'),
 (58, 'Train Dreams', '2025', 102, 'PG-13', 'Seorang penebang kayu menjalani kehidupan yang bersahaja sambil merasakan cinta dan kehilangan selama era perubahan besar di Amerika pada awal abad ke-20.', 'movies/58/poster/6TZOf0CctRYmBc75XiH10AnwmWQm6rJrwEkEUxVz.webp', 'movies/58/backdrop/1YZCt6EFJwt1jK1qZZzqtNLb9NHETlPf8PjnhBhA.webp', 'https://youtu.be/_Nk8TrBHOrA?si=3B5067hrK8MPmuU7', 'published', '2026-03-06 08:42:39', '2026-03-06 08:44:55'),
-(59, 'Project Y', '2025', 109, 'R', 'TWO WOMEN. ONE HEIST. ZERO REGRETS.\r\n\r\nTrapped in Gangnam\'s most dangerous streets, Mi-sun and Do-kyung stake everything on one last desperate gamble—only to uncover a hidden stash of dirty cash and gold that could finally buy their freedom.', 'movies/59/poster/XP5qdlLTbWiMb4c9A3AMo5IUoGSW0T6IinosCJrs.webp', 'movies/59/backdrop/sjeRUBwAiaoEWVbRTThjDKjzxppaTgjsbw51ndVN.webp', 'https://youtu.be/7eHRUPxUeNk?si=ZTrOU8F5SxB3J0gQ', 'published', '2026-03-06 09:08:50', '2026-03-06 09:11:38');
+(59, 'Project Y', '2025', 109, 'R', 'TWO WOMEN. ONE HEIST. ZERO REGRETS.\r\n\r\nTrapped in Gangnam\'s most dangerous streets, Mi-sun and Do-kyung stake everything on one last desperate gamble—only to uncover a hidden stash of dirty cash and gold that could finally buy their freedom.', 'movies/59/poster/XP5qdlLTbWiMb4c9A3AMo5IUoGSW0T6IinosCJrs.webp', 'movies/59/backdrop/sjeRUBwAiaoEWVbRTThjDKjzxppaTgjsbw51ndVN.webp', 'https://youtu.be/7eHRUPxUeNk?si=ZTrOU8F5SxB3J0gQ', 'published', '2026-03-06 09:08:50', '2026-03-06 09:11:38'),
+(60, 'Minions & Monsters', '2026', NULL, 'Not Rated', 'HOLLYWOOD HAS A MONSTER PROBLEM.\r\n\r\nThis is the rambunctious, ridiculous and totally true story of how the Minions conquered Hollywood, became movie stars, lost everything, unleashed monsters onto the world and then banded together to try and save the planet from the mayhem they had just created.', 'movies/60/poster/OoeeHR1tzAje20KfJRrVJP9cF4kbF8RpGWM5BlJg.webp', 'movies/60/backdrop/PVThcJigOlF6uv0VnDbSU1uDlO28IhCHekHA9r9j.webp', 'https://youtu.be/ZSdOwt-G49w?si=7UBhTQgI-SgdGarC', 'published', '2026-03-07 05:18:58', '2026-03-07 05:20:49'),
+(61, 'Dune: Part Three', '2026', NULL, 'Not Rated', 'The third and final installment in Villeneuve\'s Dune trilogy. Based on Frank Herbert\'s novel Dune Messiah.', 'movies/61/poster/IYMbLhV00IHX4yAQAIC3WIUMBb6mRd5DY3WOJCMx.webp', NULL, NULL, 'published', '2026-03-07 07:58:36', '2026-03-07 07:59:37');
 
 -- --------------------------------------------------------
 
@@ -449,7 +453,9 @@ INSERT INTO `movie_countries` (`movie_id`, `country_id`) VALUES
 (56, 15),
 (57, 1),
 (58, 1),
-(59, 3);
+(59, 3),
+(60, 1),
+(61, 1);
 
 -- --------------------------------------------------------
 
@@ -602,7 +608,14 @@ INSERT INTO `movie_genres` (`movie_id`, `genre_id`) VALUES
 (57, 11),
 (58, 7),
 (59, 5),
-(59, 7);
+(59, 7),
+(60, 2),
+(60, 3),
+(60, 4),
+(60, 8),
+(60, 16),
+(61, 2),
+(61, 12);
 
 -- --------------------------------------------------------
 
@@ -703,7 +716,9 @@ INSERT INTO `movie_languages` (`movie_id`, `language_id`) VALUES
 (56, 1),
 (57, 1),
 (58, 1),
-(59, 2);
+(59, 2),
+(60, 1),
+(61, 1);
 
 -- --------------------------------------------------------
 
@@ -744,7 +759,8 @@ INSERT INTO `movie_likes` (`id`, `user_id`, `film_id`, `created_at`) VALUES
 (24, 5, 41, '2026-02-28 04:54:31'),
 (25, 5, 46, '2026-03-06 04:55:29'),
 (26, 5, 25, '2026-03-06 05:53:04'),
-(27, 6, 46, '2026-03-06 05:59:04');
+(27, 6, 46, '2026-03-06 05:59:04'),
+(28, 6, 48, '2026-03-07 08:23:30');
 
 -- --------------------------------------------------------
 
@@ -856,7 +872,6 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (90, 31, 'poster', 'movies/31/poster/7i8w1eBBicdFWL8Hr7Rb1U5c9Rq7zCMF4KVZ0e4b.webp', 1, '2026-02-07 09:55:01'),
 (91, 31, 'backdrop', 'movies/31/backdrop/XIApNBZz0xgsqOK466QBIWiG648Oxsmt9nEYGKSM.webp', 1, '2026-02-07 09:55:12'),
 (92, 32, 'poster', 'movies/32/poster/sfI4BqK2JF0PFbVxRSyjlOrZTHTTflS63hZ16MWD.webp', 1, '2026-02-07 10:01:07'),
-(93, 32, 'backdrop', 'movies/32/backdrop/082ckOHMdnSOw49yhrIneepvnUp5c2uEAvXTnv33.webp', 1, '2026-02-07 10:10:31'),
 (94, 33, 'poster', 'movies/33/poster/J5owMINkJ3DonUXRwHI1HGjxuQsX6k4QRVsOLDlz.webp', 1, '2026-02-07 11:29:28'),
 (95, 33, 'backdrop', 'movies/33/backdrop/aEQkBKlhO1OJePmQyzPxnu9sMW1nOyLsxw2HSEVb.webp', 1, '2026-02-07 11:29:41'),
 (96, 34, 'poster', 'movies/34/poster/JSGyu7yh2e361AgDYmiKsaektf0tulHoMP5dUt7t.webp', 1, '2026-02-11 00:30:35'),
@@ -931,7 +946,17 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (165, 58, 'poster', 'movies/58/poster/6TZOf0CctRYmBc75XiH10AnwmWQm6rJrwEkEUxVz.webp', 1, '2026-03-06 15:44:36'),
 (166, 58, 'backdrop', 'movies/58/backdrop/1YZCt6EFJwt1jK1qZZzqtNLb9NHETlPf8PjnhBhA.webp', 1, '2026-03-06 15:44:45'),
 (167, 59, 'poster', 'movies/59/poster/XP5qdlLTbWiMb4c9A3AMo5IUoGSW0T6IinosCJrs.webp', 1, '2026-03-06 16:11:16'),
-(168, 59, 'backdrop', 'movies/59/backdrop/sjeRUBwAiaoEWVbRTThjDKjzxppaTgjsbw51ndVN.webp', 1, '2026-03-06 16:11:26');
+(168, 59, 'backdrop', 'movies/59/backdrop/sjeRUBwAiaoEWVbRTThjDKjzxppaTgjsbw51ndVN.webp', 1, '2026-03-06 16:11:26'),
+(169, 60, 'poster', 'movies/60/poster/OoeeHR1tzAje20KfJRrVJP9cF4kbF8RpGWM5BlJg.webp', 1, '2026-03-07 12:20:26'),
+(170, 60, 'backdrop', 'movies/60/backdrop/PVThcJigOlF6uv0VnDbSU1uDlO28IhCHekHA9r9j.webp', 1, '2026-03-07 12:20:38'),
+(171, 6, 'backdrop', 'movies/6/backdrop/jxFuJqu4bx3lr79q6MXgZvVgw6IkVyxrvb89n8SC.jpg', 0, '2026-03-07 12:55:47'),
+(172, 6, 'backdrop', 'movies/6/backdrop/OXbOz16KtEslRWMB6pHXLDa00k4OqX9ZdpnAl2w8.jpg', 0, '2026-03-07 12:56:00'),
+(173, 6, 'backdrop', 'movies/6/backdrop/9tvbWuQqaQ8KOsYo17YRHzdDwEG3BUTa0HMU7kQK.jpg', 0, '2026-03-07 12:56:13'),
+(174, 6, 'backdrop', 'movies/6/backdrop/yK09LOOD6wHRs0WLD8EHukT236qVgqJunqBqauVQ.jpg', 0, '2026-03-07 12:56:29'),
+(175, 6, 'backdrop', 'movies/6/backdrop/YdyAeDhRF0Zhh8t34RcMXUdYJh8qF5yUQg1LMKYq.jpg', 0, '2026-03-07 12:56:37'),
+(176, 6, 'backdrop', 'movies/6/backdrop/eCto4LE3XEO0RcX0rXK8eysyNDSQFHo2pKKX9aC7.jpg', 0, '2026-03-07 12:59:46'),
+(177, 6, 'backdrop', 'movies/6/backdrop/1KjyOTakwzfNDOt3xIaSHsGzngLpXfXokWseQZkl.jpg', 0, '2026-03-07 12:59:53'),
+(178, 61, 'poster', 'movies/61/poster/IYMbLhV00IHX4yAQAIC3WIUMBb6mRd5DY3WOJCMx.webp', 1, '2026-03-07 14:59:09');
 
 -- --------------------------------------------------------
 
@@ -1168,7 +1193,10 @@ INSERT INTO `movie_production_houses` (`movie_id`, `production_house_id`) VALUES
 (58, 67),
 (58, 68),
 (59, 69),
-(59, 70);
+(59, 70),
+(60, 2),
+(60, 71),
+(61, 3);
 
 -- --------------------------------------------------------
 
@@ -1274,7 +1302,13 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (292, 58, 1, 'stream', NULL, 0),
 (296, 59, 9, 'stream', NULL, 0),
 (297, 59, 10, 'stream', NULL, 0),
-(298, 59, 12, 'stream', NULL, 0);
+(298, 59, 12, 'stream', NULL, 0),
+(299, 60, 9, 'stream', NULL, 1),
+(300, 60, 10, 'stream', NULL, 1),
+(301, 60, 12, 'stream', NULL, 1),
+(305, 61, 9, 'stream', NULL, 1),
+(306, 61, 10, 'stream', NULL, 1),
+(307, 61, 12, 'stream', NULL, 1);
 
 -- --------------------------------------------------------
 
@@ -1320,7 +1354,8 @@ INSERT INTO `notifications` (`id`, `user_id`, `actor_id`, `type`, `film_id`, `re
 (18, 3, 5, 'like_review', 2, 6, 'Mafia film liked your ★★★★★ review of The Handmaiden', 0, '2026-03-01 03:00:17', '2026-03-01 03:00:17'),
 (19, 3, 5, 'like_review', 34, 17, 'Mafia film liked your ★★★★ review of Sirāt', 0, '2026-03-01 03:01:25', '2026-03-01 03:01:25'),
 (20, 3, 5, 'like_review', 34, 17, 'Mafia film liked your ★★★★ review of Sirāt', 0, '2026-03-01 03:01:27', '2026-03-01 03:01:27'),
-(21, 5, 6, 'like_review', 46, 26, 'Mopud liked your ★★★★★ review of Taste of Cherry', 0, '2026-03-06 06:05:15', '2026-03-06 06:05:15');
+(21, 5, 6, 'like_review', 46, 26, 'Mopud liked your ★★★★★ review of Taste of Cherry', 0, '2026-03-06 06:05:15', '2026-03-06 06:05:15'),
+(22, 6, 3, 'follow', NULL, NULL, 'Sengefilm followed you', 0, '2026-03-07 08:39:11', '2026-03-07 08:39:11');
 
 -- --------------------------------------------------------
 
@@ -1461,6 +1496,7 @@ INSERT INTO `production_houses` (`id`, `name`) VALUES
 (21, 'GDH'),
 (39, 'Giraffe Pictures'),
 (15, 'GKIDS Films'),
+(71, 'Illumination'),
 (36, 'Imajinari'),
 (38, 'Jagartha'),
 (12, 'Janus Films'),
@@ -1554,7 +1590,8 @@ INSERT INTO `ratings` (`id`, `user_id`, `film_id`, `rating`, `created_at`, `upda
 (26, 5, 46, 5, '2026-03-06 04:55:27', '2026-03-06 04:55:27'),
 (27, 5, 25, 5, '2026-03-06 05:53:02', '2026-03-06 05:53:02'),
 (28, 6, 46, 5, '2026-03-06 05:59:00', '2026-03-06 05:59:03'),
-(29, 6, 30, 5, '2026-03-06 06:46:30', '2026-03-06 06:46:32');
+(29, 6, 30, 5, '2026-03-06 06:46:30', '2026-03-06 06:46:32'),
+(30, 6, 48, 4, '2026-03-07 08:23:29', '2026-03-07 08:23:29');
 
 -- --------------------------------------------------------
 
@@ -1607,7 +1644,8 @@ INSERT INTO `reviews` (`id`, `user_id`, `film_id`, `rating`, `title`, `content`,
 (25, 5, 2, 5, NULL, 'bAGUSSSS', NULL, 0, 1, 0, '2026-02-28', 'published', '2026-02-28 08:30:02', '2026-03-01 03:32:28'),
 (26, 5, 46, 5, NULL, 'Sangat sangat tragis teman teman', NULL, 0, 1, 0, '2026-03-06', 'published', '2026-03-06 04:55:52', '2026-03-06 04:55:52'),
 (27, 5, 25, 5, NULL, '<b>JWC 2025</b>', NULL, 0, 1, 0, '2026-03-06', 'published', '2026-03-06 05:53:21', '2026-03-06 05:53:21'),
-(28, 6, 46, 5, NULL, 'We all carry our own weight, but still hope someone grabs us before we fall.', NULL, 0, 1, 0, '2026-03-06', 'published', '2026-03-06 06:04:36', '2026-03-06 06:04:36');
+(28, 6, 46, 5, NULL, 'We all carry our own weight, but still hope someone grabs us before we fall.', NULL, 0, 1, 0, '2026-03-06', 'published', '2026-03-06 06:04:36', '2026-03-06 06:04:36'),
+(29, 6, 48, 4, NULL, 'Cute banget', NULL, 1, 1, 0, '2026-03-07', 'published', '2026-03-07 08:23:44', '2026-03-07 08:23:44');
 
 -- --------------------------------------------------------
 
@@ -1739,7 +1777,7 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `role`, `status`, `joined_at`, `remember_token`, `created_at`, `updated_at`) VALUES
 (1, 'NewUsername', 'admin@moview.com', '$2y$12$knpNEAbZAOkT711/AZFX/eisyn6LBQCcShqiWp1YctQm5g8Oi8pZW', 'admin', 'active', '2026-01-30 20:29:53', NULL, '2026-01-30 20:29:53', '2026-01-30 20:29:53'),
 (2, 'testuser', 'user@moview.com', '$2y$12$edj58OcYoXoiJsd22IwnnennCMGix0o98Y0ZJchd1VnnVwRMsH2rC', 'user', 'active', '2026-01-30 23:34:38', 'MnwxNzY5ODQxNjc0fDY5N2RhNDBhNTE4NDQ=', '2026-01-30 23:34:38', '2026-01-30 23:41:14'),
-(3, 'Sengefilm', 'tes@gmail.com', '$2y$12$lDfKXQIoqKTaeAdU.FpQX.Oqu.8Plbzprn6YOMhkIa9KCLtHN1KTK', 'user', 'active', '2026-01-30 23:49:39', 'M3wxNzcyMDAxMTY2fDY5OWU5NzhlYzZkMzI=', '2026-01-30 23:49:39', '2026-02-24 23:32:46'),
+(3, 'Sengefilm', 'tes@gmail.com', '$2y$12$lDfKXQIoqKTaeAdU.FpQX.Oqu.8Plbzprn6YOMhkIa9KCLtHN1KTK', 'user', 'active', '2026-01-30 23:49:39', 'M3wxNzcyODk3MTE5fDY5YWM0MzVmOTE5OTc=', '2026-01-30 23:49:39', '2026-03-07 08:25:19'),
 (4, 'NewUser185', 'newuser_1769846806@test.com', '$2y$12$r0tcTwJt.eLjMs1n5pgdi.k9gPXqhujHx90XqkT0QMgkNLXZHrmly', 'user', 'active', '2026-01-31 01:06:46', 'bmV3dXNlcl8xNzY5ODQ2ODA2QHRlc3QuY29tfDE3Njk4NDY4MDZ8Njk3ZGI4MTY3Njk0Zg==', '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
 (5, 'Mafia film', 'filmin@gmail.com', '$2y$12$eO1QTww7vMctvv7QWvNk0uB9Bk2C/aedqb./wlW.Q9dURDjbKISZG', 'user', 'active', '2026-02-14 03:59:49', 'NXwxNzcyMjczNTA3fDY5YTJiZjYzNTlkMDQ=', '2026-02-14 03:59:49', '2026-02-28 03:11:47'),
 (6, 'Mopud', 'NewAcc@gmail.com', '$2y$12$5IZiuwVxT4H79twcw314mOyI.SUlG9nYY2.vjNVqCcw9uQE4wiLgq', 'user', 'active', '2026-02-28 03:10:19', 'NnwxNzcyODAxNjg2fDY5YWFjZTk2N2I2MzU=', '2026-02-28 03:10:19', '2026-03-06 05:54:46');
@@ -1790,7 +1828,8 @@ INSERT INTO `user_activities` (`id`, `user_id`, `type`, `film_id`, `meta`, `crea
 (23, 5, 'like_review', 2, '{\"review_id\":\"6\",\"review_owner_id\":3}', '2026-03-01 03:00:17', '2026-03-01 03:00:17'),
 (24, 5, 'like_review', 34, '{\"review_id\":\"17\",\"review_owner_id\":3}', '2026-03-01 03:01:25', '2026-03-01 03:01:25'),
 (25, 5, 'like_review', 34, '{\"review_id\":\"17\",\"review_owner_id\":3}', '2026-03-01 03:01:27', '2026-03-01 03:01:27'),
-(26, 6, 'like_review', 46, '{\"review_id\":\"26\",\"review_owner_id\":5}', '2026-03-06 06:05:15', '2026-03-06 06:05:15');
+(26, 6, 'like_review', 46, '{\"review_id\":\"26\",\"review_owner_id\":5}', '2026-03-06 06:05:15', '2026-03-06 06:05:15'),
+(27, 3, 'follow', NULL, '{\"followed_user_id\":\"6\"}', '2026-03-07 08:39:11', '2026-03-07 08:39:11');
 
 -- --------------------------------------------------------
 
@@ -1819,7 +1858,8 @@ INSERT INTO `user_favorite_films` (`id`, `user_id`, `film_id`, `position`, `crea
 (282, 5, 30, 1, '2026-02-24 20:51:30', '2026-02-24 20:51:30'),
 (283, 5, 14, 2, '2026-02-24 20:51:30', '2026-02-24 20:51:30'),
 (284, 5, 42, 3, '2026-02-24 20:51:30', '2026-02-24 20:51:30'),
-(285, 5, 37, 4, '2026-02-24 20:51:30', '2026-02-24 20:51:30');
+(285, 5, 37, 4, '2026-02-24 20:51:30', '2026-02-24 20:51:30'),
+(288, 6, 6, 1, '2026-03-07 06:06:25', '2026-03-07 06:06:25');
 
 -- --------------------------------------------------------
 
@@ -1849,7 +1889,7 @@ INSERT INTO `user_profiles` (`id`, `user_id`, `display_name`, `profile_photo`, `
 (2, 4, 'NewUser185', NULL, NULL, 0, NULL, NULL, '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
 (3, 1, NULL, NULL, NULL, 1, 'This is my new bio', NULL, '2026-01-31 03:41:40', '2026-01-31 03:41:40'),
 (4, 5, 'Mafia film', 'profiles/profile_5_1771067279.jpg', 'movies/30/backdrop/WcvLzELjaCn7l5vXy52iqwdXPfW3hSq4zqFiLKn7.webp', 1, NULL, NULL, '2026-02-14 03:59:49', '2026-02-24 20:51:30'),
-(5, 6, 'Mopud', NULL, NULL, 0, NULL, NULL, '2026-02-28 03:10:19', '2026-02-28 03:10:19');
+(5, 6, 'Mopud', NULL, 'movies/6/backdrop/YdyAeDhRF0Zhh8t34RcMXUdYJh8qF5yUQg1LMKYq.jpg', 1, NULL, NULL, '2026-02-28 03:10:19', '2026-03-07 06:06:25');
 
 -- --------------------------------------------------------
 
@@ -1872,7 +1912,8 @@ CREATE TABLE `watchlists` (
 INSERT INTO `watchlists` (`id`, `user_id`, `film_id`, `created_at`, `updated_at`) VALUES
 (2, 3, 13, '2026-02-03 20:36:44', NULL),
 (3, 3, 14, '2026-02-03 20:41:10', NULL),
-(4, 3, 17, '2026-02-03 20:56:41', NULL);
+(4, 3, 17, '2026-02-03 20:56:41', NULL),
+(6, 6, 55, '2026-03-07 05:34:17', NULL);
 
 --
 -- Indexes for dumped tables
@@ -2146,13 +2187,13 @@ ALTER TABLE `countries`
 -- AUTO_INCREMENT untuk tabel `diaries`
 --
 ALTER TABLE `diaries`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
 
 --
 -- AUTO_INCREMENT untuk tabel `followers`
 --
 ALTER TABLE `followers`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT untuk tabel `genres`
@@ -2176,19 +2217,19 @@ ALTER TABLE `migrations`
 -- AUTO_INCREMENT untuk tabel `movies`
 --
 ALTER TABLE `movies`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=60;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=62;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_likes`
 --
 ALTER TABLE `movie_likes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_media`
 --
 ALTER TABLE `movie_media`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=169;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=179;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_persons`
@@ -2200,13 +2241,13 @@ ALTER TABLE `movie_persons`
 -- AUTO_INCREMENT untuk tabel `movie_services`
 --
 ALTER TABLE `movie_services`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=299;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=308;
 
 --
 -- AUTO_INCREMENT untuk tabel `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT untuk tabel `persons`
@@ -2218,19 +2259,19 @@ ALTER TABLE `persons`
 -- AUTO_INCREMENT untuk tabel `production_houses`
 --
 ALTER TABLE `production_houses`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=71;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72;
 
 --
 -- AUTO_INCREMENT untuk tabel `ratings`
 --
 ALTER TABLE `ratings`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- AUTO_INCREMENT untuk tabel `reviews`
 --
 ALTER TABLE `reviews`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT untuk tabel `review_comments`
@@ -2260,13 +2301,13 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT untuk tabel `user_activities`
 --
 ALTER TABLE `user_activities`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`
 --
 ALTER TABLE `user_favorite_films`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=286;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=289;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_profiles`
@@ -2278,7 +2319,7 @@ ALTER TABLE `user_profiles`
 -- AUTO_INCREMENT untuk tabel `watchlists`
 --
 ALTER TABLE `watchlists`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)

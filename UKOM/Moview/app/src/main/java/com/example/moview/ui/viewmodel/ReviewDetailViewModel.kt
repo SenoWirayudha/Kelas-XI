@@ -35,6 +35,9 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
 
     private val _isLog = MutableLiveData<Boolean>()
     val isLog: LiveData<Boolean> = _isLog
+
+    private val _isSpoilerHidden = MutableLiveData<Boolean>()
+    val isSpoilerHidden: LiveData<Boolean> = _isSpoilerHidden
     
     // Track which comment is being replied to
     private val _replyingTo = MutableLiveData<Comment?>()
@@ -46,6 +49,16 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
     
     private val _likedByText = MutableLiveData<String>()
     val likedByText: LiveData<String> = _likedByText
+
+    // Rewatch check - for activity badge
+    private val _hasRewatch = MutableLiveData<Boolean>()
+    val hasRewatch: LiveData<Boolean> = _hasRewatch
+    
+    private val _reviewerUserId = MutableLiveData<Int>()
+    val reviewerUserId: LiveData<Int> = _reviewerUserId
+    
+    private val _reviewMovieId = MutableLiveData<Int>()
+    val reviewMovieId: LiveData<Int> = _reviewMovieId
 
     fun loadReview(reviewId: Int, isLog: Boolean = false) {
         val userId = prefs.getInt("userId", 0)
@@ -123,6 +136,19 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                     
                     // Set current like status from review_likes table for like button
                     _isLiked.postValue(reviewDto.is_liked)
+                    
+                    // Save reviewer userId and movieId for activity badge
+                    _reviewerUserId.postValue(reviewDto.user_id)
+                    _reviewMovieId.postValue(reviewDto.movie_id)
+
+                    // Determine spoiler visibility: hide if spoiler AND user hasn't watched the film
+                    val isSpoiler = reviewDto.is_spoiler
+                    val ratingResponse = if (userId > 0) repository.getRating(userId, reviewDto.movie_id) else null
+                    val userHasWatched = ratingResponse?.is_watched ?: false
+                    _isSpoilerHidden.postValue(isSpoiler && !userHasWatched)
+                    
+                    // Check if reviewer has rewatch for this movie (for activity badge)
+                    checkRewatch(reviewDto.user_id, reviewDto.movie_id)
                     
                     loadComments(reviewId)
                     
@@ -409,6 +435,21 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
             } catch (e: Exception) {
                 android.util.Log.e("ReviewDetailViewModel", "Error flagging review: ${e.message}", e)
                 _flagStatus.postValue(false)
+            }
+        }
+    }
+    
+    /**
+     * Check if user has rewatch for a specific film (2+ diary entries)
+     */
+    private fun checkRewatch(userId: Int, filmId: Int) {
+        viewModelScope.launch {
+            try {
+                val hasRewatchResult = repository.hasRewatch(userId, filmId)
+                _hasRewatch.postValue(hasRewatchResult)
+            } catch (e: Exception) {
+                android.util.Log.e("ReviewDetailViewModel", "Error checking rewatch: ${e.message}", e)
+                _hasRewatch.postValue(false)
             }
         }
     }

@@ -294,6 +294,22 @@ data class WatchCountDto(
     val watch_count: Int
 )
 
+data class MovieReviewUserDto(
+    val id: Int,
+    val username: String,
+    val profile_photo: String?
+)
+
+data class MovieReviewDto(
+    val id: Int,
+    val user: MovieReviewUserDto,
+    val rating: Int?,
+    val title: String?,
+    val content: String?,
+    val is_spoiler: Boolean = false,
+    val created_at: String
+)
+
 data class UserReviewDto(
     val review_id: Int,
     val id: Int,
@@ -331,7 +347,8 @@ data class ReviewDetailDto(
     val display_name: String?,
     val profile_photo: String?,
     val like_count: Int = 0,
-    val comment_count: Int = 0
+    val comment_count: Int = 0,
+    val is_spoiler: Boolean = false
 )
 
 data class ReviewCommentDto(
@@ -487,5 +504,69 @@ data class TheatricalMovieDto(
     val poster_path: String?,
     val release_date: String?,
     val is_coming_soon: Int,  // 0 = now showing, 1 = upcoming
-    val genre: String? = null
+    val genre: String? = null,
+    val age_rating: String? = null
+)
+
+// Rewatch and User Film Activity
+data class HasRewatchResponse(
+    val has_rewatch: Boolean,
+    val diary_count: Int
+)
+
+data class UserFilmActivityResponse(
+    val movie: MovieInfoDto,
+    val user: UserActivityInfoDto,
+    val diaries: List<DiaryActivityDto>,
+    val reviews: List<ReviewActivityDto>,
+    val diary_count: Int,
+    val review_count: Int
+)
+
+data class MovieInfoDto(
+    val id: Int,
+    val title: String,
+    val year: Int,
+    val poster_path: String?
+)
+
+data class UserActivityInfoDto(
+    val id: Int,
+    val username: String,
+    val display_name: String
+)
+
+data class DiaryActivityDto(
+    val diary_id: Int,
+    val film_id: Int,
+    val movie_id: Int,
+    val title: String,
+    val year: Int,
+    val poster_path: String?,
+    val watched_at: String,
+    val note: String?,
+    val rating: Int,
+    val is_liked: Boolean,
+    val is_rewatched: Boolean,
+    val review_id: Int,
+    val review_content: String?,
+    val type: String,
+    val created_at: String
+)
+
+data class ReviewActivityDto(
+    val review_id: Int,
+    val film_id: Int,
+    val movie_id: Int,
+    val title: String,
+    val year: Int,
+    val poster_path: String?,
+    val rating: Int,
+    val is_liked: Boolean,
+    val watched_at: String?,
+    val review_title: String?,
+    val content: String,
+    val is_spoiler: Boolean,
+    val created_at: String,
+    val updated_at: String
 )

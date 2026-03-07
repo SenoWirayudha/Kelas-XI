@@ -13,7 +13,8 @@ import kotlin.math.roundToInt
 class RecentActivityAdapter(
     private val onMovieClick: ((DiaryEntry) -> Unit)? = null,
     private val onLongPressGoToFilm: ((DiaryEntry) -> Unit)? = null,
-    private val onReviewClick: ((Int) -> Unit)? = null
+    private val onReviewClick: ((Int) -> Unit)? = null,
+    private val onLogClick: ((Int) -> Unit)? = null
 ) : RecyclerView.Adapter<RecentActivityAdapter.RecentActivityViewHolder>() {
     
     private var activities: List<DiaryEntry> = emptyList()
@@ -56,10 +57,13 @@ class RecentActivityAdapter(
             // Show review icon if has review
             binding.ivReview.visibility = if (entry.hasReview) View.VISIBLE else View.GONE
             
-            // Click poster - if has review go to review detail, otherwise go to movie detail
+            // Click poster - if has review go to review detail, if log go to log detail, otherwise go to movie detail
             binding.ivPoster.setOnClickListener {
                 if (entry.hasReview && entry.reviewId != null && entry.reviewId > 0) {
                     onReviewClick?.invoke(entry.reviewId)
+                } else if (entry.id > 0) {
+                    // Log entry - navigate to diary detail with isLog=true
+                    onLogClick?.invoke(entry.id)
                 } else {
                     onMovieClick?.invoke(entry)
                 }

@@ -304,6 +304,7 @@ class UserActivityController extends Controller
                     'reviews.is_rewatched',  // Whether this review was written during rewatch
                     'reviews.watched_at',
                     'reviews.content as review_text',
+                    'reviews.is_spoiler',
                     'reviews.created_at',
                     'movies.id',
                     'movies.title',
@@ -325,9 +326,10 @@ class UserActivityController extends Controller
                 ], 404);
             }
 
-            // Cast snapshot_is_liked and is_rewatched to boolean
+            // Cast snapshot_is_liked, is_rewatched, and is_spoiler to boolean
             $review->snapshot_is_liked = (bool)$review->snapshot_is_liked;
             $review->is_rewatched = (bool)$review->is_rewatched;
+            $review->is_spoiler = (bool)$review->is_spoiler;
             
             // Check current user's like status from review_likes table
             $currentUserLiked = DB::table('review_likes')
@@ -2101,6 +2103,207 @@ class UserActivityController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get liked reviews: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Check if user has rewatch for a specific film (2+ diary entries)
+     */
+    public function hasRewatch($userId, $filmId)
+    {
+        try {
+            $diaryCount = DB::table('diaries')
+                ->where('user_id', $userId)
+                ->where('film_id', $filmId)
+                ->count();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'has_rewatch' => $diaryCount >= 2,
+                    'diary_count' => $diaryCount
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check rewatch: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user's activity (diary + reviews) for a specific film
+     */
+    public function getUserFilmActivity($userId, $filmId)
+    {
+        try {
+            // Get movie info
+            $movie = DB::table('movies')
+                ->leftJoin('movie_media', function($join) {
+                    $join->on('movies.id', '=', 'movie_media.movie_id')
+                         ->where('movie_media.media_type', '=', 'poster')
+                         ->where('movie_media.is_default', '=', 1);
+                })
+                ->where('movies.id', $filmId)
+                ->select(
+                    'movies.id',
+                    'movies.title',
+                    'movies.release_year as year',
+                    'movie_media.media_path as poster_path'
+                )
+                ->first();
+
+            if (!$movie) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Movie not found'
+                ], 404);
+            }
+
+            // Build poster URL
+            $posterUrl = null;
+            if ($movie->poster_path) {
+                if (!str_starts_with($movie->poster_path, 'http')) {
+                    $posterUrl = "http://10.0.2.2:8000/storage/{$movie->poster_path}";
+                } else {
+                    $posterUrl = $movie->poster_path;
+                }
+            }
+
+            // Get user info
+            $user = DB::table('users')
+                ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
+                ->where('users.id', $userId)
+                ->select(
+                    'users.id',
+                    'users.username',
+                    'user_profiles.display_name'
+                )
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            $displayName = $user->display_name ?: $user->username;
+
+            // Get all diary entries for this film
+            $diaries = DB::table('diaries')
+                ->leftJoin('reviews', function($join) {
+                    $join->on('diaries.review_id', '=', 'reviews.id');
+                })
+                ->leftJoin('ratings', function($join) use ($userId) {
+                    $join->on('diaries.film_id', '=', 'ratings.film_id')
+                         ->where('ratings.user_id', '=', $userId);
+                })
+                ->where('diaries.user_id', $userId)
+                ->where('diaries.film_id', $filmId)
+                ->select(
+                    'diaries.id as diary_id',
+                    'diaries.film_id',
+                    'diaries.watched_at',
+                    'diaries.note',
+                    'diaries.is_rewatched',
+                    'diaries.created_at',
+                    'reviews.id as review_id',
+                    DB::raw('COALESCE(reviews.rating, diaries.rating, ratings.rating) as rating'),
+                    'reviews.content as review_content',
+                    DB::raw('COALESCE(reviews.is_liked, diaries.is_liked) as is_liked'),
+                    DB::raw('CASE WHEN reviews.content IS NOT NULL THEN "review" ELSE "log" END as type')
+                )
+                ->orderBy('diaries.watched_at', 'desc')
+                ->orderBy('diaries.created_at', 'desc')
+                ->get();
+
+            $diariesData = $diaries->map(function($diary) use ($movie, $posterUrl) {
+                return [
+                    'diary_id' => $diary->diary_id,
+                    'film_id' => $diary->film_id,
+                    'movie_id' => $movie->id,
+                    'title' => $movie->title,
+                    'year' => $movie->year,
+                    'poster_path' => $posterUrl,
+                    'watched_at' => $diary->watched_at,
+                    'note' => $diary->note,
+                    'review_id' => $diary->review_id,
+                    'rating' => $diary->rating ?? 0,
+                    'review_content' => $diary->review_content,
+                    'is_liked' => (bool)$diary->is_liked,
+                    'is_rewatched' => (bool)$diary->is_rewatched,
+                    'type' => $diary->type,
+                    'created_at' => $diary->created_at
+                ];
+            });
+
+            // Get all reviews for this film
+            $reviews = DB::table('reviews')
+                ->where('reviews.user_id', $userId)
+                ->where('reviews.film_id', $filmId)
+                ->where('reviews.status', 'published')
+                ->select(
+                    'reviews.id as review_id',
+                    'reviews.film_id',
+                    'reviews.rating',
+                    'reviews.is_liked',
+                    'reviews.watched_at',
+                    'reviews.title as review_title',
+                    'reviews.content',
+                    'reviews.is_spoiler',
+                    'reviews.created_at',
+                    'reviews.updated_at'
+                )
+                ->orderBy('reviews.created_at', 'desc')
+                ->get();
+
+            $reviewsData = $reviews->map(function($review) use ($movie, $posterUrl) {
+                return [
+                    'review_id' => $review->review_id,
+                    'film_id' => $review->film_id,
+                    'movie_id' => $movie->id,
+                    'title' => $movie->title,
+                    'year' => $movie->year,
+                    'poster_path' => $posterUrl,
+                    'rating' => $review->rating ?? 0,
+                    'is_liked' => (bool)$review->is_liked,
+                    'watched_at' => $review->watched_at,
+                    'review_title' => $review->review_title,
+                    'content' => $review->content,
+                    'is_spoiler' => (bool)$review->is_spoiler,
+                    'created_at' => $review->created_at,
+                    'updated_at' => $review->updated_at
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'movie' => [
+                        'id' => $movie->id,
+                        'title' => $movie->title,
+                        'year' => $movie->year,
+                        'poster_path' => $posterUrl
+                    ],
+                    'user' => [
+                        'id' => $user->id,
+                        'username' => $user->username,
+                        'display_name' => $displayName
+                    ],
+                    'diaries' => $diariesData,
+                    'reviews' => $reviewsData,
+                    'diary_count' => $diariesData->count(),
+                    'review_count' => $reviewsData->count()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch user film activity: ' . $e->getMessage()
             ], 500);
         }
     }

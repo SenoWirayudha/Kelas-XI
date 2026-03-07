@@ -72,8 +72,9 @@ class PopularMoviesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             layoutManager = gridLayoutManager
             adapter = this@PopularMoviesFragment.adapter
             
-            // Add spacing between items
-            addItemDecoration(GridSpacingItemDecoration(3, 16, true))
+            // Add spacing between items — 12dp to match New From Friends section gap
+            val spacingPx = (12 * resources.displayMetrics.density).toInt()
+            addItemDecoration(GridSpacingItemDecoration(3, spacingPx, false))
         }
     }
     

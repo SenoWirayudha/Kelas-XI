@@ -45,7 +45,8 @@ class UpcomingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         binding.rvMovies.apply {
             layoutManager = GridLayoutManager(requireContext(), 3)
             adapter = this@UpcomingFragment.adapter
-            addItemDecoration(GridSpacingItemDecoration(3, 16, true))
+            val spacingPx = (12 * resources.displayMetrics.density).toInt()
+            addItemDecoration(GridSpacingItemDecoration(3, spacingPx, false))
         }
 
         binding.swipeRefresh.setOnRefreshListener(this)
