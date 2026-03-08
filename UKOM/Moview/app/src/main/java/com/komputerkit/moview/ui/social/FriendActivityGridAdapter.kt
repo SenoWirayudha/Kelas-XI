@@ -13,7 +13,10 @@ import kotlin.math.roundToInt
 
 class FriendActivityGridAdapter(
     private val onActivityClick: (FriendActivity) -> Unit = {},
-    private val onProfileClick: (FriendActivity) -> Unit = {}
+    private val onProfileClick: (FriendActivity) -> Unit = {},
+    private val onGoToFilm: ((FriendActivity) -> Unit)? = null,
+    private val onLogFilm: ((FriendActivity) -> Unit)? = null,
+    private val onChangePoster: ((FriendActivity) -> Unit)? = null
 ) : RecyclerView.Adapter<FriendActivityGridAdapter.FriendActivityViewHolder>() {
     
     private var activities: List<FriendActivity> = emptyList()
@@ -77,7 +80,9 @@ class FriendActivityGridAdapter(
                     context = view.context,
                     movie = activity.movie,
                     isFromMovieDetail = false,
-                    onGoToFilm = { movie -> onActivityClick(activity) }
+                    onGoToFilm = { movie -> (onGoToFilm ?: { onActivityClick(activity) }).invoke(activity) },
+                    onLogFilm = { onLogFilm?.invoke(activity) },
+                    onChangePoster = { onChangePoster?.invoke(activity) }
                 )
                 true
             }

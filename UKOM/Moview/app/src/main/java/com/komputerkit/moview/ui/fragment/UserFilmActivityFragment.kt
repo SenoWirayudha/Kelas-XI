@@ -10,8 +10,11 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.google.android.material.tabs.TabLayoutMediator
+import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.FragmentUserFilmActivityBinding
 import com.komputerkit.moview.ui.viewmodel.UserFilmActivityViewModel
+import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.util.loadPoster
 
 class UserFilmActivityFragment : Fragment() {
     private var _binding: FragmentUserFilmActivityBinding? = null
@@ -63,6 +66,48 @@ class UserFilmActivityFragment : Fragment() {
     private fun setupObservers() {
         viewModel.activityTitle.observe(viewLifecycleOwner) { title ->
             binding.tvTitle.text = title
+        }
+
+        viewModel.movie.observe(viewLifecycleOwner) { movieInfo ->
+            val posterUrl = movieInfo.poster_path
+            if (!posterUrl.isNullOrEmpty()) {
+                binding.ivMoviePoster.visibility = View.VISIBLE
+                binding.ivMoviePoster.loadPoster(posterUrl)
+            }
+
+            val movieModel = Movie(
+                id = movieInfo.id,
+                title = movieInfo.title,
+                posterUrl = posterUrl,
+                averageRating = null,
+                genre = null,
+                releaseYear = movieInfo.year,
+                description = null
+            )
+
+            binding.ivMoviePoster.setOnLongClickListener { view ->
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = movieModel,
+                    isFromMovieDetail = false,
+                    onGoToFilm = {
+                        val action = UserFilmActivityFragmentDirections
+                            .actionUserFilmActivityToMovieDetail(movieInfo.id)
+                        findNavController().navigate(action)
+                    },
+                    onLogFilm = {
+                        val action = UserFilmActivityFragmentDirections
+                            .actionUserFilmActivityToLogFilm(movieInfo.id)
+                        findNavController().navigate(action)
+                    },
+                    onChangePoster = {
+                        val action = UserFilmActivityFragmentDirections
+                            .actionUserFilmActivityToPosterBackdrop(movieInfo.id, false)
+                        findNavController().navigate(action)
+                    }
+                )
+                true
+            }
         }
     }
     

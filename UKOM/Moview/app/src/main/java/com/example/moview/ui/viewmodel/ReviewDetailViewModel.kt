@@ -11,6 +11,7 @@ import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.LikedReview
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -97,7 +98,7 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                         else -> "http://10.0.2.2:8000/storage/${reviewDto.profile_photo}"
                     }
                     
-                    val movie = Movie(
+                    val rawMovie = Movie(
                         id = reviewDto.movie_id,
                         title = reviewDto.title,
                         posterUrl = posterUrl,
@@ -107,6 +108,11 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                         description = "",
                         backdropUrl = backdropUrl
                     )
+
+                    // Apply custom media using the same type the entry was saved under
+                    val mediaType = if (isActuallyLog) "logged" else "reviews"
+                    val batchMap = repository.batchCustomMedia(reviewDto.user_id, listOf(reviewDto.movie_id), mediaType)
+                    val movie = listOf(rawMovie).applyCustomMedia(batchMap).first()
                     
                     val review = Review(
                         id = if (isActuallyLog) reviewDto.diary_id else reviewDto.review_id,

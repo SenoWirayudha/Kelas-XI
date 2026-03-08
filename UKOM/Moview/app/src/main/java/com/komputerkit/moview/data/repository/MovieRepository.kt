@@ -311,6 +311,16 @@ class MovieRepository {
             0
         }
     }
+
+    suspend fun getWatchInfo(userId: Int, movieId: Int): com.komputerkit.moview.data.api.WatchCountDto? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getWatchCount(userId, movieId)
+            if (response.success) response.data else null
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error getting watch info: ${e.message}", e)
+            null
+        }
+    }
     
     private fun formatDiaryDate(dateString: String): String {
         return try {
@@ -795,7 +805,7 @@ class MovieRepository {
                                 posterUrl = dto.movie.poster_path,
                                 averageRating = null,
                                 genre = null,
-                                releaseYear = null,
+                                releaseYear = dto.movie.year,
                                 description = null
                             ),
                             rating = dto.rating,
@@ -845,7 +855,7 @@ class MovieRepository {
                                 posterUrl = dto.movie.poster_path,
                                 averageRating = null,
                                 genre = null,
-                                releaseYear = null,
+                                releaseYear = dto.movie.year,
                                 description = null
                             ),
                             rating = dto.rating,
@@ -1859,6 +1869,84 @@ class MovieRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
+        }
+    }
+
+    suspend fun getCustomMedia(
+        userId: Int,
+        movieId: Int,
+        type: String = "films",
+        diariesId: Int? = null,
+        favoriteId: Int? = null
+    ): Map<String, com.komputerkit.moview.data.api.ChangeMediaResponseDto?> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getCustomMedia(userId, movieId, type, diariesId, favoriteId)
+            if (response.success && response.data != null) response.data else emptyMap()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyMap()
+        }
+    }
+
+    suspend fun saveChangeMedia(
+        userId: Int,
+        filmId: Int,
+        mediaId: Int,
+        type: String = "films",
+        diariesId: Int? = null,
+        favoriteId: Int? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.setChangeMedia(
+                userId,
+                com.komputerkit.moview.data.api.ChangeMediaRequest(
+                    film_id = filmId,
+                    media_id = mediaId,
+                    type = type,
+                    diaries_id = diariesId,
+                    favorite_id = favoriteId
+                )
+            )
+            response.success
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun batchCustomMedia(
+        userId: Int,
+        filmIds: List<Int>,
+        type: String = "films"
+    ): Map<Int, com.komputerkit.moview.data.api.DisplayMediaEntry> = withContext(Dispatchers.IO) {
+        if (filmIds.isEmpty()) return@withContext emptyMap()
+        try {
+            val response = apiService.batchDisplayMedia(
+                userId,
+                com.komputerkit.moview.data.api.BatchDisplayMediaRequest(film_ids = filmIds, type = type)
+            )
+            if (response.success && response.data != null) {
+                response.data.mapKeys { it.key.toInt() }
+            } else emptyMap()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyMap()
+        }
+    }
+
+    suspend fun getDisplayMedia(
+        movieId: Int,
+        viewerUserId: Int? = null,
+        type: String = "films",
+        diariesId: Int? = null,
+        favoriteId: Int? = null
+    ): com.komputerkit.moview.data.api.DisplayMediaEntry? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getDisplayMedia(movieId, viewerUserId, type, diariesId, favoriteId)
+            if (response.success) response.data else null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 }

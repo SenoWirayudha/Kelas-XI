@@ -56,6 +56,14 @@ class FilmographyFragment : Fragment() {
                 val action = FilmographyFragmentDirections
                     .actionFilmographyToMovieDetail(movie.id)
                 findNavController().navigate(action)
+            },
+            onLogFilm = { movie ->
+                val action = FilmographyFragmentDirections.actionFilmographyToLogFilm(movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = FilmographyFragmentDirections.actionFilmographyToPosterBackdrop(movie.id, false)
+                findNavController().navigate(action)
             }
         )
         

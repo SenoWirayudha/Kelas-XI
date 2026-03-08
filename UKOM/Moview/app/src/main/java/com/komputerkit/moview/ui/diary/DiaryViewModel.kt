@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.DiaryEntry
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.launch
 
 class DiaryViewModel(application: Application) : AndroidViewModel(application) {
@@ -43,10 +44,22 @@ class DiaryViewModel(application: Application) : AndroidViewModel(application) {
                 val entries = repository.getUserDiary(targetUserId)
                 android.util.Log.d("DiaryViewModel", "Fetched ${entries.size} diary entries")
                 
+                // Apply custom media: use "logged" type for plain log entries, "reviews" type for reviewed entries
+                val loggedIds = entries.filter { !it.hasReview }.map { it.movie.id }.distinct()
+                val reviewIds = entries.filter { it.hasReview }.map { it.movie.id }.distinct()
+                val loggedMedia = if (loggedIds.isNotEmpty()) repository.batchCustomMedia(targetUserId, loggedIds, "logged") else emptyMap()
+                val reviewMedia = if (reviewIds.isNotEmpty()) repository.batchCustomMedia(targetUserId, reviewIds, "reviews") else emptyMap()
+                val updatedEntries = entries.map { entry ->
+                    val mediaMap = if (entry.hasReview) reviewMedia else loggedMedia
+                    val custom = mediaMap[entry.movie.id] ?: return@map entry
+                    val movies = listOf(entry.movie).applyCustomMedia(mapOf(entry.movie.id to custom))
+                    entry.copy(movie = movies.first())
+                }
+                
                 // Group entries by month/year and create header items
                 val items = mutableListOf<DiaryItem>()
                 var currentMonth = ""
-                entries.forEach { entry ->
+                updatedEntries.forEach { entry ->
                     if (entry.monthYear != currentMonth) {
                         currentMonth = entry.monthYear
                         items.add(DiaryItem.Header(currentMonth))

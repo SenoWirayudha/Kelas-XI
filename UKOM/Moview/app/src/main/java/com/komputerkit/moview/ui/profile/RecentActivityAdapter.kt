@@ -13,8 +13,10 @@ import kotlin.math.roundToInt
 class RecentActivityAdapter(
     private val onMovieClick: ((DiaryEntry) -> Unit)? = null,
     private val onLongPressGoToFilm: ((DiaryEntry) -> Unit)? = null,
-    private val onReviewClick: ((Int) -> Unit)? = null,
-    private val onLogClick: ((Int) -> Unit)? = null
+    private val onReviewClick: ((Int, Int) -> Unit)? = null,  // (reviewId, diaryId)
+    private val onLogClick: ((Int) -> Unit)? = null,
+    private val onLogFilm: ((DiaryEntry) -> Unit)? = null,
+    private val onChangePoster: ((DiaryEntry) -> Unit)? = null
 ) : RecyclerView.Adapter<RecentActivityAdapter.RecentActivityViewHolder>() {
     
     private var activities: List<DiaryEntry> = emptyList()
@@ -60,7 +62,7 @@ class RecentActivityAdapter(
             // Click poster - if has review go to review detail, if log go to log detail, otherwise go to movie detail
             binding.ivPoster.setOnClickListener {
                 if (entry.hasReview && entry.reviewId != null && entry.reviewId > 0) {
-                    onReviewClick?.invoke(entry.reviewId)
+                    onReviewClick?.invoke(entry.reviewId, entry.id)
                 } else if (entry.id > 0) {
                     // Log entry - navigate to diary detail with isLog=true
                     onLogClick?.invoke(entry.id)
@@ -79,7 +81,9 @@ class RecentActivityAdapter(
                     isFromMovieDetail = false,
                     onGoToFilm = { movie ->
                         onLongPressGoToFilm?.invoke(entry)
-                    }
+                    },
+                    onLogFilm = { onLogFilm?.invoke(entry) },
+                    onChangePoster = { onChangePoster?.invoke(entry) }
                 )
                 true
             }

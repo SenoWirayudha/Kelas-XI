@@ -14,7 +14,9 @@ import com.komputerkit.moview.util.loadThumbnail
 
 class WatchlistAdapter(
     private val onItemClick: (WatchlistItem) -> Unit,
-    private val onItemLongClick: (WatchlistItem) -> Unit
+    private val onItemLongClick: (WatchlistItem) -> Unit,
+    private val onLogFilm: ((WatchlistItem) -> Unit)? = null,
+    private val onChangePoster: ((WatchlistItem) -> Unit)? = null
 ) : ListAdapter<WatchlistItem, WatchlistAdapter.WatchlistViewHolder>(WatchlistDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): WatchlistViewHolder {
@@ -23,7 +25,7 @@ class WatchlistAdapter(
             parent,
             false
         )
-        return WatchlistViewHolder(binding, onItemClick, onItemLongClick)
+        return WatchlistViewHolder(binding, onItemClick, onItemLongClick, onLogFilm, onChangePoster)
     }
 
     override fun onBindViewHolder(holder: WatchlistViewHolder, position: Int) {
@@ -33,7 +35,9 @@ class WatchlistAdapter(
     class WatchlistViewHolder(
         private val binding: ItemFilmGridBinding,
         private val onItemClick: (WatchlistItem) -> Unit,
-        private val onItemLongClick: (WatchlistItem) -> Unit
+        private val onItemLongClick: (WatchlistItem) -> Unit,
+        private val onLogFilm: ((WatchlistItem) -> Unit)? = null,
+        private val onChangePoster: ((WatchlistItem) -> Unit)? = null
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: WatchlistItem) {
@@ -53,7 +57,9 @@ class WatchlistAdapter(
                     context = view.context,
                     movie = item.movie,
                     isFromMovieDetail = false,
-                    onGoToFilm = { movie -> onItemClick(item) }
+                    onGoToFilm = { movie -> onItemClick(item) },
+                    onLogFilm = { onLogFilm?.invoke(item) },
+                    onChangePoster = { onChangePoster?.invoke(item) }
                 )
                 true
             }

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\UserActivityController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\PosterBackdropController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -120,4 +121,11 @@ Route::prefix('v1')->group(function () {
     
     // Search
     Route::get('/search', [MovieApiController::class, 'search']);
+
+    // Change Media (custom poster/backdrop)
+    Route::post('users/{userId}/change-media', [PosterBackdropController::class, 'setMedia'])->where('userId', '[0-9]+');
+    Route::get('users/{userId}/movies/{movieId}/custom-media', [PosterBackdropController::class, 'getMedia'])->where(['userId' => '[0-9]+', 'movieId' => '[0-9]+']);
+    Route::delete('users/{userId}/movies/{movieId}/change-media', [PosterBackdropController::class, 'deleteMedia'])->where(['userId' => '[0-9]+', 'movieId' => '[0-9]+']);
+    Route::post('users/{userId}/batch-display-media', [PosterBackdropController::class, 'batchDisplayMedia'])->where('userId', '[0-9]+');
+    Route::get('movies/{movieId}/display-media', [PosterBackdropController::class, 'getDisplayMedia'])->where('movieId', '[0-9]+');
 });

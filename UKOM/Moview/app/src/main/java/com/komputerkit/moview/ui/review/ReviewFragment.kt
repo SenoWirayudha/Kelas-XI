@@ -59,9 +59,19 @@ class ReviewFragment : Fragment() {
     }
     
     private fun setupRecyclerView(currentUserId: Int, targetUserId: Int) {
-        adapter = ReviewAdapter { review ->
-            navigateToReviewDetail(review)
-        }
+        adapter = ReviewAdapter(
+            onReviewClick = { review ->
+                navigateToReviewDetail(review)
+            },
+            onLogFilm = { review ->
+                val action = ReviewFragmentDirections.actionReviewToLogFilm(review.movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { review ->
+                val action = ReviewFragmentDirections.actionReviewToPosterBackdrop(review.movie.id, false)
+                findNavController().navigate(action)
+            }
+        )
         adapter.isOwnProfile = (currentUserId == targetUserId)
         
         binding.rvReviews.layoutManager = LinearLayoutManager(requireContext())

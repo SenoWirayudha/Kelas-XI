@@ -70,7 +70,11 @@ class ProfileController extends Controller
                         'title' => $movie->title,
                         'year' => $movie->release_year,
                         'poster_path' => $posterUrl,
-                        'position' => $fav->position
+                        'position' => $fav->position,
+                        'favorite_id' => DB::table('user_favorite_films')
+                            ->where('user_id', $userId)
+                            ->where('film_id', $movie->id)
+                            ->value('id'),
                     ];
                 }
             }
@@ -243,6 +247,17 @@ class ProfileController extends Controller
         try {
             $favorites = $request->input('favorites', []);
 
+            // Snapshot current favorites before deleting: film_id => favorite_id
+            $oldFavorites = DB::table('user_favorite_films')
+                ->where('user_id', $userId)
+                ->pluck('id', 'film_id')
+                ->toArray(); // [film_id => favorite_id]
+
+            $newFilmIds = array_values(array_filter($favorites, fn($f) => $f && is_numeric($f)));
+
+            // Films being removed entirely (were in old list but not in new list)
+            $removedFilmIds = array_keys(array_diff_key($oldFavorites, array_flip($newFilmIds)));
+
             // Delete existing favorites
             DB::table('user_favorite_films')
                 ->where('user_id', $userId)
@@ -252,13 +267,69 @@ class ProfileController extends Controller
             foreach ($favorites as $index => $filmId) {
                 if ($filmId && $index < 4) {
                     DB::table('user_favorite_films')->insert([
-                        'user_id' => $userId,
-                        'film_id' => $filmId,
-                        'position' => $index + 1,
+                        'user_id'    => $userId,
+                        'film_id'    => $filmId,
+                        'position'   => $index + 1,
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
                 }
+            }
+
+            // Snapshot new favorites: film_id => new_favorite_id
+            $newFavorites = DB::table('user_favorite_films')
+                ->where('user_id', $userId)
+                ->pluck('id', 'film_id')
+                ->toArray();
+
+            // 1. Delete custom media for removed favorites
+            if (!empty($removedFilmIds)) {
+                foreach ($removedFilmIds as $filmId) {
+                    $oldFavId = $oldFavorites[$filmId];
+                    DB::table('user_change_medias')
+                        ->where('user_id', $userId)
+                        ->where('film_id', $filmId)
+                        ->where('type', 'favorites')
+                        ->where('favorite_id', $oldFavId)
+                        ->delete();
+                }
+            }
+
+            // 2. Update favorite_id for films that stayed (old favorite_id → new favorite_id)
+            foreach ($newFilmIds as $filmId) {
+                if (!isset($oldFavorites[$filmId]) || !isset($newFavorites[$filmId])) continue;
+                $oldFavId = $oldFavorites[$filmId];
+                $newFavId = $newFavorites[$filmId];
+                if ($oldFavId === $newFavId) continue; // no change needed
+
+                DB::table('user_change_medias')
+                    ->where('user_id', $userId)
+                    ->where('film_id', $filmId)
+                    ->where('type', 'favorites')
+                    ->where('favorite_id', $oldFavId)
+                    ->update(['favorite_id' => $newFavId, 'updated_at' => now()]);
+            }
+
+            // 3. Adopt stale NULL-favorite_id rows for films still in favorites:
+            //    stamp the correct new favorite_id so they become valid.
+            //    Rows whose film is no longer in favorites get deleted.
+            foreach ($newFilmIds as $filmId) {
+                if (!isset($newFavorites[$filmId])) continue;
+                DB::table('user_change_medias')
+                    ->where('user_id', $userId)
+                    ->where('film_id', $filmId)
+                    ->where('type', 'favorites')
+                    ->whereNull('favorite_id')
+                    ->update(['favorite_id' => $newFavorites[$filmId], 'updated_at' => now()]);
+            }
+            // Delete NULL rows for films no longer in favorites
+            if (!empty($removedFilmIds)) {
+                DB::table('user_change_medias')
+                    ->where('user_id', $userId)
+                    ->where('type', 'favorites')
+                    ->whereIn('film_id', $removedFilmIds)
+                    ->whereNull('favorite_id')
+                    ->delete();
             }
 
             return response()->json([
@@ -548,6 +619,7 @@ class ProfileController extends Controller
                 ->where('uf.user_id', $userId)
                 ->orderBy('uf.position')
                 ->get([
+                    'uf.id as favorite_id',
                     'm.id',
                     'm.title',
                     'm.release_year as year',

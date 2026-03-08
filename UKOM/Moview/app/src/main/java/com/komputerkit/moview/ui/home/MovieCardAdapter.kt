@@ -11,7 +11,9 @@ import com.komputerkit.moview.util.loadThumbnail
 
 class MovieCardAdapter(
     private val onMovieClick: (Movie) -> Unit,
-    private val onLongPressGoToFilm: ((Movie) -> Unit)? = null
+    private val onLongPressGoToFilm: ((Movie) -> Unit)? = null,
+    private val onLogFilm: ((Movie) -> Unit)? = null,
+    private val onChangePoster: ((Movie) -> Unit)? = null
 ) : RecyclerView.Adapter<MovieCardAdapter.MovieCardViewHolder>() {
     
     private var movies: List<Movie> = emptyList()
@@ -57,7 +59,9 @@ class MovieCardAdapter(
                     context = view.context,
                     movie = movie,
                     isFromMovieDetail = false,
-                    onGoToFilm = onLongPressGoToFilm ?: onMovieClick
+                    onGoToFilm = onLongPressGoToFilm ?: onMovieClick,
+                    onLogFilm = onLogFilm,
+                    onChangePoster = onChangePoster
                 )
                 true
             }

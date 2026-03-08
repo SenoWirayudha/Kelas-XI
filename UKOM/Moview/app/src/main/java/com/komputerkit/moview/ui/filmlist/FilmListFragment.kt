@@ -48,10 +48,20 @@ class FilmListFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        adapter = FilmGridAdapter { movie ->
-            val action = FilmListFragmentDirections.actionFilmListToMovieDetail(movie.id)
-            findNavController().navigate(action)
-        }
+        adapter = FilmGridAdapter(
+            onMovieClick = { movie ->
+                val action = FilmListFragmentDirections.actionFilmListToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            },
+            onLogFilm = { movie ->
+                val action = FilmListFragmentDirections.actionFilmListToLogFilm(movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = FilmListFragmentDirections.actionFilmListToPosterBackdrop(movie.id, false)
+                findNavController().navigate(action)
+            }
+        )
         
         binding.rvFilms.apply {
             layoutManager = GridLayoutManager(requireContext(), 4)

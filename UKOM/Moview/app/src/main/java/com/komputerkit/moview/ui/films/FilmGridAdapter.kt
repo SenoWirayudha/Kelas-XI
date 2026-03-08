@@ -17,7 +17,9 @@ import com.komputerkit.moview.util.MovieActionsHelper
 class FilmGridAdapter(
     private val onMovieClick: (Movie) -> Unit,
     private val onReviewClick: ((Movie) -> Unit)? = null,
-    private val onLongPressGoToFilm: ((Movie) -> Unit)? = null
+    private val onLongPressGoToFilm: ((Movie) -> Unit)? = null,
+    private val onLogFilm: ((Movie) -> Unit)? = null,
+    private val onChangePoster: ((Movie) -> Unit)? = null
 ) : ListAdapter<Movie, FilmGridAdapter.FilmViewHolder>(FilmDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilmViewHolder {
@@ -26,7 +28,7 @@ class FilmGridAdapter(
             parent,
             false
         )
-        return FilmViewHolder(binding, onMovieClick, onReviewClick, onLongPressGoToFilm)
+        return FilmViewHolder(binding, onMovieClick, onReviewClick, onLongPressGoToFilm, onLogFilm, onChangePoster)
     }
 
     override fun onBindViewHolder(holder: FilmViewHolder, position: Int) {
@@ -37,7 +39,9 @@ class FilmGridAdapter(
         private val binding: ItemFilmGridBinding,
         private val onMovieClick: (Movie) -> Unit,
         private val onReviewClick: ((Movie) -> Unit)?,
-        private val onLongPressGoToFilm: ((Movie) -> Unit)?
+        private val onLongPressGoToFilm: ((Movie) -> Unit)?,
+        private val onLogFilm: ((Movie) -> Unit)?,
+        private val onChangePoster: ((Movie) -> Unit)?
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(movie: Movie) {
@@ -83,7 +87,9 @@ class FilmGridAdapter(
                     context = view.context,
                     movie = movie,
                     isFromMovieDetail = false,
-                    onGoToFilm = onLongPressGoToFilm ?: onMovieClick
+                    onGoToFilm = onLongPressGoToFilm ?: onMovieClick,
+                    onLogFilm = onLogFilm,
+                    onChangePoster = onChangePoster
                 )
                 true
             }

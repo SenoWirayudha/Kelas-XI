@@ -7,7 +7,9 @@ data class Artwork(
     val label: String,
     val width: Int,
     val height: Int,
-    val isSelected: Boolean = false
+    val isSelected: Boolean = false,
+    val isDefault: Boolean = false,
+    val badgeLabels: List<String> = emptyList()
 )
 
 enum class ArtworkType {

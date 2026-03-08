@@ -37,6 +37,14 @@ class BackdropArtworkAdapter(
         fun bind(artwork: Artwork) {
             binding.tvLabel.text = artwork.label
 
+            // Badge: show all applicable badges (e.g. "FAVORITE · FILM") or hide if none
+            if (artwork.badgeLabels.isNotEmpty()) {
+                binding.tvContextBadge.text = artwork.badgeLabels.joinToString(" · ")
+                binding.tvContextBadge.visibility = View.VISIBLE
+            } else {
+                binding.tvContextBadge.visibility = View.GONE
+            }
+
             Glide.with(binding.root.context)
                 .load(artwork.url)
                 .thumbnail(0.15f)

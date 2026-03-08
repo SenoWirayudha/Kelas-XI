@@ -9,10 +9,13 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemFilmGridBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.loadThumbnail
 
 class FilmGridAdapter(
-    private val onMovieClick: (Movie) -> Unit
+    private val onMovieClick: (Movie) -> Unit,
+    private val onLogFilm: ((Movie) -> Unit)? = null,
+    private val onChangePoster: ((Movie) -> Unit)? = null
 ) : ListAdapter<Movie, FilmGridAdapter.FilmViewHolder>(FilmDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilmViewHolder {
@@ -25,14 +28,14 @@ class FilmGridAdapter(
     }
 
     override fun onBindViewHolder(holder: FilmViewHolder, position: Int) {
-        holder.bind(getItem(position), onMovieClick)
+        holder.bind(getItem(position), onMovieClick, onLogFilm, onChangePoster)
     }
 
     class FilmViewHolder(
         private val binding: ItemFilmGridBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(movie: Movie, onClick: (Movie) -> Unit) {
+        fun bind(movie: Movie, onClick: (Movie) -> Unit, onLogFilm: ((Movie) -> Unit)? = null, onChangePoster: ((Movie) -> Unit)? = null) {
             // Clear previous image to prevent recycling issues
             binding.ivPoster.setImageDrawable(null)
             
@@ -68,6 +71,18 @@ class FilmGridAdapter(
             
             binding.posterContainer.setOnClickListener {
                 onClick(movie)
+            }
+
+            binding.posterContainer.setOnLongClickListener { view ->
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = movie,
+                    isFromMovieDetail = false,
+                    onGoToFilm = onClick,
+                    onLogFilm = onLogFilm,
+                    onChangePoster = onChangePoster
+                )
+                true
             }
         }
         

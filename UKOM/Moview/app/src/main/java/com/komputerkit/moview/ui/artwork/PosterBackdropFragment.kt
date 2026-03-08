@@ -41,7 +41,12 @@ class PosterBackdropFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        viewModel.loadMovie(args.movieId)
+        viewModel.loadMovie(
+            movieId = args.movieId,
+            contextType = args.contextType,
+            favoriteId = args.favoriteId.takeIf { it > 0 },
+            diariesId = args.diariesId.takeIf { it > 0 }
+        )
         
         setupRecyclerViews()
         setupClickListeners()
@@ -101,6 +106,28 @@ class PosterBackdropFragment : Fragment() {
         viewModel.backdrops.observe(viewLifecycleOwner) { backdrops ->
             backdropAdapter.submitList(backdrops)
         }
+
+        viewModel.saveResult.observe(viewLifecycleOwner) { success ->
+            if (success == null) return@observe
+            viewModel.clearSaveResult()
+            if (success) {
+                val selectedBackdropPath = viewModel.selectedArtwork.value?.url
+                if (selectedBackdropPath != null && currentTab == ArtworkType.BACKDROP) {
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(
+                        "selected_backdrop_path",
+                        selectedBackdropPath
+                    )
+                }
+                // Signal all previous screens to refresh their artwork
+                findNavController().previousBackStackEntry?.savedStateHandle?.set(
+                    "artwork_saved", true
+                )
+                Toast.makeText(requireContext(), "Artwork saved successfully!", Toast.LENGTH_SHORT).show()
+                findNavController().navigateUp()
+            } else {
+                Toast.makeText(requireContext(), "Failed to save artwork", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
     
     private fun switchToTab(type: ArtworkType) {
@@ -151,24 +178,9 @@ class PosterBackdropFragment : Fragment() {
     }
     
     private fun saveCover() {
-        val success = viewModel.saveArtwork()
-        
-        if (success) {
-            // Get selected artwork path to send back to EditProfileFragment
-            val selectedBackdropPath = viewModel.selectedArtwork.value?.url
-            if (selectedBackdropPath != null && currentTab == ArtworkType.BACKDROP) {
-                // Send backdrop path back to EditProfileFragment
-                findNavController().previousBackStackEntry?.savedStateHandle?.set(
-                    "selected_backdrop_path",
-                    selectedBackdropPath
-                )
-            }
-            
-            Toast.makeText(requireContext(), "Artwork saved successfully!", Toast.LENGTH_SHORT).show()
-            findNavController().navigateUp()
-        } else {
-            Toast.makeText(requireContext(), "Failed to save artwork", Toast.LENGTH_SHORT).show()
-        }
+        val favoriteId = args.favoriteId.takeIf { it > 0 }
+        val diariesId = args.diariesId.takeIf { it > 0 }
+        viewModel.saveArtwork(movieId = args.movieId, type = args.contextType, favoriteId = favoriteId, diariesId = diariesId)
     }
 
     override fun onDestroyView() {

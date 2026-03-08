@@ -9,6 +9,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
@@ -92,7 +93,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     _backdropUrl.postValue(profileData.profile.backdrop_url)
                     
                     // Convert favorites ke Movie list
-                    val favorites = profileData.favorites.map { fav ->
+                    val rawFavorites = profileData.favorites.map { fav ->
                         Log.d("ProfileViewModel", "Favorite: ${fav.title}, poster: ${fav.poster_path}")
                         
                         // Check if user has review for this movie
@@ -108,9 +109,14 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                             description = "",
                             hasReview = userReview != null,
                             reviewId = userReview?.review_id ?: 0,
-                            userRating = 0f
+                            userRating = 0f,
+                            favoriteId = fav.favorite_id
                         )
                     }
+                    val favCustomMedia = repository.batchCustomMedia(
+                        targetUserId, rawFavorites.map { it.id }, "favorites"
+                    )
+                    val favorites = rawFavorites.applyCustomMedia(favCustomMedia)
                     Log.d("ProfileViewModel", "Posting ${favorites.size} favorites")
                     _favoriteMovies.postValue(favorites)
                     
@@ -136,8 +142,18 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     // Load recent activity from diary (latest 4 entries)
                     try {
                         val diaryEntries = repository.getUserDiary(targetUserId)
-                        _recentActivity.postValue(diaryEntries.take(4))
-                        Log.d("ProfileViewModel", "Loaded ${diaryEntries.take(4).size} recent diary entries")
+                        val loggedIds = diaryEntries.filter { !it.hasReview }.map { it.movie.id }.distinct()
+                        val reviewIds = diaryEntries.filter { it.hasReview }.map { it.movie.id }.distinct()
+                        val loggedMedia = if (loggedIds.isNotEmpty()) repository.batchCustomMedia(targetUserId, loggedIds, "logged") else emptyMap()
+                        val reviewMedia = if (reviewIds.isNotEmpty()) repository.batchCustomMedia(targetUserId, reviewIds, "reviews") else emptyMap()
+                        val resolvedDiary = diaryEntries.map { entry ->
+                            val mediaMap = if (entry.hasReview) reviewMedia else loggedMedia
+                            val custom = mediaMap[entry.movie.id] ?: return@map entry
+                            val resolved = listOf(entry.movie).applyCustomMedia(mapOf(entry.movie.id to custom)).first()
+                            entry.copy(movie = resolved)
+                        }
+                        _recentActivity.postValue(resolvedDiary.take(4))
+                        Log.d("ProfileViewModel", "Loaded ${resolvedDiary.take(4).size} recent diary entries")
                     } catch (e: Exception) {
                         Log.e("ProfileViewModel", "Error loading recent activity", e)
                         _recentActivity.postValue(emptyList())

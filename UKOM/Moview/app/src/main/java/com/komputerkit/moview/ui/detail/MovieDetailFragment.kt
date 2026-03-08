@@ -57,6 +57,16 @@ class MovieDetailFragment : Fragment() {
         
         // Load movie details
         viewModel.loadMovieDetails(args.movieId)
+
+        // Reload when returning from artwork change
+        findNavController().currentBackStackEntry?.savedStateHandle
+            ?.getLiveData("artwork_saved", false)
+            ?.observe(viewLifecycleOwner) { saved ->
+                if (saved) {
+                    findNavController().currentBackStackEntry?.savedStateHandle?.set("artwork_saved", false)
+                    viewModel.loadMovieDetails(args.movieId)
+                }
+            }
     }
     
     private fun setupRecyclerViews() {
@@ -462,6 +472,13 @@ class MovieDetailFragment : Fragment() {
                     // Reload movie data after rating is saved
                     Log.d("MovieDetailFragment", "Rating saved, reloading movie data for id=${movie.id}")
                     viewModel.loadMovieDetails(movie.id)
+                },
+                onWatchedTap = { reviewId, isLog ->
+                    val action = MovieDetailFragmentDirections.actionMovieDetailToReviewDetail(
+                        reviewId = reviewId,
+                        isLog = isLog
+                    )
+                    findNavController().navigate(action)
                 }
             )
         }

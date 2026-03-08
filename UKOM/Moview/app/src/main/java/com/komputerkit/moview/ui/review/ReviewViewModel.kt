@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -81,8 +82,18 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 
                 android.util.Log.d("ReviewViewModel", "Converted to ${reviewList.size} Review objects")
-                _reviews.postValue(reviewList)
-                _reviewCount.postValue(reviewList.size)
+
+                // Apply custom media for review posters
+                val movieIds = reviewList.map { it.movie.id }
+                val customMedia = if (movieIds.isNotEmpty()) repository.batchCustomMedia(userId, movieIds, "reviews") else emptyMap()
+                val resolvedList = if (customMedia.isNotEmpty()) reviewList.map { review ->
+                    val entry = customMedia[review.movie.id] ?: return@map review
+                    val resolved = listOf(review.movie).applyCustomMedia(mapOf(review.movie.id to entry)).first()
+                    review.copy(movie = resolved)
+                } else reviewList
+
+                _reviews.postValue(resolvedList)
+                _reviewCount.postValue(resolvedList.size)
             } catch (e: Exception) {
                 android.util.Log.e("ReviewViewModel", "Error loading reviews: ${e.message}", e)
                 _reviews.postValue(emptyList())

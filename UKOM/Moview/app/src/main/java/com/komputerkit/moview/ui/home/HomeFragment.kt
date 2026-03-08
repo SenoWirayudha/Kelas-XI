@@ -58,6 +58,16 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         binding.nestedScrollView.post {
             binding.nestedScrollView.scrollTo(0, viewModel.savedScrollY)
         }
+
+        // Reload when returning from artwork change
+        findNavController().currentBackStackEntry?.savedStateHandle
+            ?.getLiveData("artwork_saved", false)
+            ?.observe(viewLifecycleOwner) { saved ->
+                if (saved) {
+                    findNavController().currentBackStackEntry?.savedStateHandle?.set("artwork_saved", false)
+                    viewModel.refreshData()
+                }
+            }
     }
 
     private fun setupRecyclerViews() {
@@ -65,6 +75,14 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         movieCardAdapter = MovieCardAdapter(
             onMovieClick = { movie ->
                 val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            },
+            onLogFilm = { movie ->
+                val action = HomeFragmentDirections.actionHomeToLogFilm(movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = HomeFragmentDirections.actionHomeToPosterBackdrop(movie.id, false)
                 findNavController().navigate(action)
             }
         )
@@ -125,6 +143,30 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 } catch (e: Exception) {
                     android.util.Log.e("HomeFragment", "Profile navigation error", e)
                 }
+            },
+            onLongPressGoToFilm = { activity ->
+                try {
+                    val action = HomeFragmentDirections.actionHomeToMovieDetail(activity.movie.id)
+                    findNavController().navigate(action)
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeFragment", "Movie detail navigation error", e)
+                }
+            },
+            onLogFilm = { activity ->
+                try {
+                    val action = HomeFragmentDirections.actionHomeToLogFilm(activity.movie.id)
+                    findNavController().navigate(action)
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeFragment", "Log film navigation error", e)
+                }
+            },
+            onChangePoster = { activity ->
+                try {
+                    val action = HomeFragmentDirections.actionHomeToPosterBackdrop(activity.movie.id, false)
+                    findNavController().navigate(action)
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeFragment", "Change poster navigation error", e)
+                }
             }
         )
         binding.rvFriendActivities.apply {
@@ -142,7 +184,19 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
                 findNavController().navigate(action)
             },
-            onBuyTicketClick = { openTixIdApp() }
+            onBuyTicketClick = { openTixIdApp() },
+            onLongPressGoToFilm = { movie ->
+                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            },
+            onLogFilm = { movie ->
+                val action = HomeFragmentDirections.actionHomeToLogFilm(movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = HomeFragmentDirections.actionHomeToPosterBackdrop(movie.id, false)
+                findNavController().navigate(action)
+            }
         )
         binding.rvNowShowing.apply {
             adapter = nowShowingAdapter
@@ -157,7 +211,19 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
                 findNavController().navigate(action)
             },
-            showDateBadge = true
+            showDateBadge = true,
+            onLongPressGoToFilm = { movie ->
+                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            },
+            onLogFilm = { movie ->
+                val action = HomeFragmentDirections.actionHomeToLogFilm(movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = HomeFragmentDirections.actionHomeToPosterBackdrop(movie.id, false)
+                findNavController().navigate(action)
+            }
         )
         binding.rvUpcoming.apply {
             adapter = upcomingAdapter
@@ -170,6 +236,14 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         academyAwardAdapter = MovieCardAdapter(
             onMovieClick = { movie ->
                 val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            },
+            onLogFilm = { movie ->
+                val action = HomeFragmentDirections.actionHomeToLogFilm(movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = HomeFragmentDirections.actionHomeToPosterBackdrop(movie.id, false)
                 findNavController().navigate(action)
             }
         )

@@ -68,6 +68,21 @@ class DiaryFragment : Fragment() {
             },
             onMenuClick = { entry ->
                 // Show menu options (will implement later)
+            },
+            onPosterLongClick = { entry ->
+                val action = DiaryFragmentDirections.actionDiaryToMovieDetail(entry.movie.id)
+                findNavController().navigate(action)
+            },
+            onLogFilm = { entry ->
+                val action = DiaryFragmentDirections.actionDiaryToLogFilm(entry.movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { entry ->
+                val contextType = if (entry.hasReview) "reviews" else "logged"
+                val action = DiaryFragmentDirections.actionDiaryToPosterBackdrop(
+                    entry.movie.id, false, contextType, 0, entry.id
+                )
+                findNavController().navigate(action)
             }
         )
         
@@ -92,14 +107,16 @@ class DiaryFragment : Fragment() {
             // Navigate to Review Detail if entry has a review
             val action = DiaryFragmentDirections.actionDiaryToReviewDetail(
                 reviewId = entry.movie.reviewId,
-                isLog = false
+                isLog = false,
+                diaryId = entry.id   // pass the diary ID so poster-change uses it
             )
             findNavController().navigate(action)
         } else {
             // Navigate to Review Detail as Log (without review text)
             val action = DiaryFragmentDirections.actionDiaryToReviewDetail(
                 reviewId = entry.id,  // Pass diary_id as reviewId for log entries
-                isLog = true
+                isLog = true,
+                diaryId = entry.id
             )
             findNavController().navigate(action)
         }

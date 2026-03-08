@@ -33,13 +33,24 @@
 
             <TextView
                 android:id="@+id/tv_title"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
+                android:layout_gravity="center_vertical"
+                android:layout_weight="1"
                 android:textColor="@color/text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 tools:text="User's Activity for Movie Title" />
+
+            <ImageView
+                android:id="@+id/iv_movie_poster"
+                android:layout_width="36dp"
+                android:layout_height="54dp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="Movie poster"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
 
         </androidx.appcompat.widget.Toolbar>
 

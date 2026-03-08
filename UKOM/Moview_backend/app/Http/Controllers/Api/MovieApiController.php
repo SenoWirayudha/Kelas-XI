@@ -641,7 +641,7 @@ class MovieApiController extends Controller
      */
     public function academyAwardNominees()
     {
-        $nomineeIds = [47, 15, 30, 31, 16, 10, 58];
+        $nomineeIds = [66, 47, 15, 30, 67, 31, 16, 10, 58];
 
         $movies = Movie::with(['genres'])
             ->whereIn('id', $nomineeIds)

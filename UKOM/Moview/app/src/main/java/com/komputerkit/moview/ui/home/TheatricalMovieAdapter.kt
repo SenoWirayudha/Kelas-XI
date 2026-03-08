@@ -4,8 +4,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.TheatricalMovie
 import com.komputerkit.moview.databinding.ItemTheatricalMovieBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.loadThumbnail
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -14,7 +16,10 @@ class TheatricalMovieAdapter(
     private val onMovieClick: (TheatricalMovie) -> Unit,
     private val onBuyTicketClick: ((TheatricalMovie) -> Unit)? = null,
     /** When true every item shows the date/coming-soon badge (use for Upcoming section) */
-    private val showDateBadge: Boolean = false
+    private val showDateBadge: Boolean = false,
+    private val onLongPressGoToFilm: ((TheatricalMovie) -> Unit)? = null,
+    private val onLogFilm: ((TheatricalMovie) -> Unit)? = null,
+    private val onChangePoster: ((TheatricalMovie) -> Unit)? = null
 ) : RecyclerView.Adapter<TheatricalMovieAdapter.TheatricalMovieViewHolder>() {
 
     private var movies: List<TheatricalMovie> = emptyList()
@@ -93,6 +98,27 @@ class TheatricalMovieAdapter(
             }
 
             binding.root.setOnClickListener { onMovieClick(movie) }
+
+            binding.root.setOnLongClickListener { view ->
+                val movieModel = Movie(
+                    id = movie.id,
+                    title = movie.title,
+                    posterUrl = movie.posterUrl,
+                    averageRating = null,
+                    genre = movie.genre,
+                    releaseYear = movie.year,
+                    description = null
+                )
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = movieModel,
+                    isFromMovieDetail = false,
+                    onGoToFilm = { onLongPressGoToFilm?.invoke(movie) ?: onMovieClick(movie) },
+                    onLogFilm = { onLogFilm?.invoke(movie) },
+                    onChangePoster = { onChangePoster?.invoke(movie) }
+                )
+                true
+            }
         }
     }
 }

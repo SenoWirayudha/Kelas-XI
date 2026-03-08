@@ -174,6 +174,19 @@ class ProfileFragment : Fragment() {
                     isLog = false
                 )
                 findNavController().navigate(action)
+            },
+            onLogFilm = { movie ->
+                val action = ProfileFragmentDirections.actionProfileToLogFilm(movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie, favoriteId ->
+                val action = ProfileFragmentDirections.actionProfileToPosterBackdrop(
+                    movieId = movie.id,
+                    openBackdropsTab = false,
+                    contextType = "favorites",
+                    favoriteId = favoriteId ?: 0
+                )
+                findNavController().navigate(action)
             }
         )
         binding.rvFavorites.apply {
@@ -192,17 +205,30 @@ class ProfileFragment : Fragment() {
                 val action = ProfileFragmentDirections.actionProfileToMovieDetail(entry.movie.id)
                 findNavController().navigate(action)
             },
-            onReviewClick = { reviewId ->
+            onReviewClick = { reviewId, diaryId ->
                 val action = ProfileFragmentDirections.actionProfileToReviewDetail(
                     reviewId = reviewId,
-                    isLog = false
+                    isLog = false,
+                    diaryId = diaryId
                 )
                 findNavController().navigate(action)
             },
             onLogClick = { diaryId ->
                 val action = ProfileFragmentDirections.actionProfileToReviewDetail(
                     reviewId = diaryId,
-                    isLog = true
+                    isLog = true,
+                    diaryId = diaryId
+                )
+                findNavController().navigate(action)
+            },
+            onLogFilm = { entry ->
+                val action = ProfileFragmentDirections.actionProfileToLogFilm(entry.movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { entry ->
+                val contextType = if (entry.hasReview) "reviews" else "logged"
+                val action = ProfileFragmentDirections.actionProfileToPosterBackdrop(
+                    entry.movie.id, false, contextType, 0, entry.id
                 )
                 findNavController().navigate(action)
             }

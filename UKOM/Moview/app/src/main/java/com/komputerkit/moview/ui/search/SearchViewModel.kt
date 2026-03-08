@@ -1,10 +1,13 @@
 package com.komputerkit.moview.ui.search
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.TmdbImageUrl
+import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -35,9 +38,10 @@ data class SearchUiState(
 )
 
 @OptIn(FlowPreview::class)
-class SearchViewModel : ViewModel() {
+class SearchViewModel(application: Application) : AndroidViewModel(application) {
     
     private val repository = MovieRepository()
+    private val prefs = application.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
     
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
@@ -149,7 +153,7 @@ class SearchViewModel : ViewModel() {
     private suspend fun searchMovies(query: String): List<Movie> = withContext(Dispatchers.Default) {
         try {
             val response = repository.search(query, "movies")
-            response?.movies?.map { dto ->
+            val movies = response?.movies?.map { dto ->
                 Movie(
                     id = dto.id,
                     title = dto.title,
@@ -163,7 +167,12 @@ class SearchViewModel : ViewModel() {
                     pgRating = dto.rating,
                     watchedCount = "${dto.watched_count} views"
                 )
-            } ?: emptyList()
+            } ?: return@withContext emptyList()
+            val userId = prefs.getInt("userId", 0)
+            if (userId > 0 && movies.isNotEmpty()) {
+                val customMedia = repository.batchCustomMedia(userId, movies.map { it.id }, "films")
+                movies.applyCustomMedia(customMedia)
+            } else movies
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()

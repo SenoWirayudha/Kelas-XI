@@ -68,6 +68,14 @@ class FilmsFragment : Fragment() {
                 // Review icon click - navigate to Review Detail
                 val action = FilmsFragmentDirections.actionFilmsToReviewDetail(movie.reviewId)
                 findNavController().navigate(action)
+            },
+            onLogFilm = { movie ->
+                val action = FilmsFragmentDirections.actionFilmsToLogFilm(movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = FilmsFragmentDirections.actionFilmsToPosterBackdrop(movie.id, false)
+                findNavController().navigate(action)
             }
         )
         

@@ -378,38 +378,6 @@
 
         </LinearLayout>
 
-        <!-- Divider -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#2E3A47" />
-
-        <!-- Share -->
-        <LinearLayout
-            android:id="@+id/btn_share_bottom"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingVertical="16dp"
-            android:background="?attr/selectableItemBackground">
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_share"
-                app:tint="@color/text_secondary" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:text="Share"
-                android:textColor="@color/text_primary"
-                android:textSize="16sp" />
-
-        </LinearLayout>
-
     </LinearLayout>
 
     <!-- Close Button -->

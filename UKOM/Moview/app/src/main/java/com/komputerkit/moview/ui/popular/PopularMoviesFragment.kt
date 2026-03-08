@@ -64,6 +64,22 @@ class PopularMoviesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                     android.util.Log.e("PopularMoviesFragment", "Navigation error", e)
                     Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
+            },
+            onLogFilm = { movie ->
+                try {
+                    val action = PopularMoviesFragmentDirections.actionPopularMoviesToLogFilm(movie.id)
+                    findNavController().navigate(action)
+                } catch (e: Exception) {
+                    android.util.Log.e("PopularMoviesFragment", "Log film navigation error", e)
+                }
+            },
+            onChangePoster = { movie ->
+                try {
+                    val action = PopularMoviesFragmentDirections.actionPopularMoviesToPosterBackdrop(movie.id, false)
+                    findNavController().navigate(action)
+                } catch (e: Exception) {
+                    android.util.Log.e("PopularMoviesFragment", "Change poster navigation error", e)
+                }
             }
         )
         

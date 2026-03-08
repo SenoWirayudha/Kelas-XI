@@ -271,14 +271,7 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/tv_edit_favorites"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Edit all"
-                    android:textColor="@color/accent_blue"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+
             </LinearLayout>
 
             <!-- Favorites Grid -->

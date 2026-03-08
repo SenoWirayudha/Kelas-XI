@@ -9,10 +9,13 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.databinding.ItemReviewBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.loadPoster
 
 class ReviewAdapter(
-    private val onReviewClick: (Review) -> Unit
+    private val onReviewClick: (Review) -> Unit,
+    private val onLogFilm: ((Review) -> Unit)? = null,
+    private val onChangePoster: ((Review) -> Unit)? = null
 ) : ListAdapter<Review, ReviewAdapter.ReviewViewHolder>(ReviewDiffCallback()) {
 
     var isOwnProfile: Boolean = true
@@ -23,7 +26,7 @@ class ReviewAdapter(
             parent,
             false
         )
-        return ReviewViewHolder(binding, onReviewClick)
+        return ReviewViewHolder(binding, onReviewClick, onLogFilm, onChangePoster)
     }
 
     override fun onBindViewHolder(holder: ReviewViewHolder, position: Int) {
@@ -32,7 +35,9 @@ class ReviewAdapter(
 
     class ReviewViewHolder(
         private val binding: ItemReviewBinding,
-        private val onReviewClick: (Review) -> Unit
+        private val onReviewClick: (Review) -> Unit,
+        private val onLogFilm: ((Review) -> Unit)? = null,
+        private val onChangePoster: ((Review) -> Unit)? = null
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(review: Review, isOwnProfile: Boolean) {
@@ -97,6 +102,18 @@ class ReviewAdapter(
 
             binding.ivPoster.setOnClickListener {
                 onReviewClick(review)
+            }
+
+            binding.ivPoster.setOnLongClickListener { view ->
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = review.movie,
+                    isFromMovieDetail = false,
+                    onGoToFilm = { onReviewClick(review) },
+                    onLogFilm = { onLogFilm?.invoke(review) },
+                    onChangePoster = { onChangePoster?.invoke(review) }
+                )
+                true
             }
         }
     }

@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 // Data classes for crew detail
 data class Role(val name: String, val films: List<Film>)
-data class Film(val id: Int, val posterUrl: String, val year: String)
+data class Film(val id: Int, val posterUrl: String, val year: String, val title: String = "")
 
 class CrewDetailFragment : Fragment() {
 
@@ -58,11 +58,20 @@ class CrewDetailFragment : Fragment() {
     }
 
     private fun setupFilmographyGrid() {
-        filmographyAdapter = FilmographyAdapter { film ->
-            // Navigate to movie detail
-            val action = CrewDetailFragmentDirections.actionCrewDetailToMovieDetail(film.id)
-            findNavController().navigate(action)
-        }
+        filmographyAdapter = FilmographyAdapter(
+            onFilmClick = { film ->
+                val action = CrewDetailFragmentDirections.actionCrewDetailToMovieDetail(film.id)
+                findNavController().navigate(action)
+            },
+            onLogFilm = { film ->
+                val action = CrewDetailFragmentDirections.actionCrewDetailToLogFilm(film.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { film ->
+                val action = CrewDetailFragmentDirections.actionCrewDetailToPosterBackdrop(film.id, false)
+                findNavController().navigate(action)
+            }
+        )
         
         binding.rvFilmography.apply {
             adapter = filmographyAdapter
@@ -101,7 +110,8 @@ class CrewDetailFragment : Fragment() {
                                 Film(
                                     id = filmDto.id,
                                     posterUrl = filmDto.poster_path ?: "",
-                                    year = filmDto.year.toString()
+                                    year = filmDto.year.toString(),
+                                    title = filmDto.title
                                 )
                             }
                         ))

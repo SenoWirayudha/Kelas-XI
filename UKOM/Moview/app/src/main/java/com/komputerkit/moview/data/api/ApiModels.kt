@@ -74,7 +74,8 @@ data class FriendActivityUserDto(
 data class FriendActivityMovieDto(
     val id: Int,
     val title: String,
-    val poster_path: String?
+    val poster_path: String?,
+    val year: Int? = null
 )
 
 data class UserDto(
@@ -243,7 +244,8 @@ data class FavoriteMovieDto(
     val year: Int,
     val poster_path: String?,
     val backdrop_path: String?,
-    val position: Int
+    val position: Int,
+    val favorite_id: Int? = null
 )
 
 data class UserStatisticsDto(
@@ -291,7 +293,11 @@ data class DiaryEntryDto(
 )
 
 data class WatchCountDto(
-    val watch_count: Int
+    val watch_count: Int,
+    val rewatch_count: Int = 0,
+    val entry_type: String = "none",       // "reviewed", "logged", or "none"
+    val latest_review_id: Int? = null,
+    val latest_diary_id: Int? = null
 )
 
 data class MovieReviewUserDto(
@@ -569,4 +575,42 @@ data class ReviewActivityDto(
     val is_spoiler: Boolean,
     val created_at: String,
     val updated_at: String
+)
+
+// Change Media DTOs
+data class ChangeMediaRequest(
+    val film_id: Int,
+    val media_id: Int,
+    val type: String,
+    val diaries_id: Int? = null,
+    val favorite_id: Int? = null
+)
+
+data class ChangeMediaResponseDto(
+    val id: Int,
+    val user_id: Int,
+    val film_id: Int,
+    val media_id: Int,
+    val media_category: String,
+    val media_path: String?,
+    val type: String,
+    val diaries_id: Int?,
+    val favorite_id: Int?,
+    val updated_at: String?
+)
+
+data class DisplayMediaItem(
+    val id: Int?,
+    val path: String?,
+    val is_default: Boolean
+)
+
+data class DisplayMediaEntry(
+    val poster: DisplayMediaItem?,
+    val backdrop: DisplayMediaItem?
+)
+
+data class BatchDisplayMediaRequest(
+    val film_ids: List<Int>,
+    val type: String = "films"
 )

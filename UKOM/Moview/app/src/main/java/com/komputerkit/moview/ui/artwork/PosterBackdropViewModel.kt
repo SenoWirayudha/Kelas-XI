@@ -1,8 +1,10 @@
 package com.komputerkit.moview.ui.artwork
 
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Artwork
 import com.komputerkit.moview.data.model.ArtworkType
@@ -10,9 +12,10 @@ import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
 import kotlinx.coroutines.launch
 
-class PosterBackdropViewModel : ViewModel() {
+class PosterBackdropViewModel(application: Application) : AndroidViewModel(application) {
     
     private val repository = MovieRepository()
+    private val prefs = application.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
     
     private val _movie = MutableLiveData<Movie>()
     val movie: LiveData<Movie> = _movie
@@ -28,25 +31,51 @@ class PosterBackdropViewModel : ViewModel() {
     
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _saveResult = MutableLiveData<Boolean?>()
+    val saveResult: LiveData<Boolean?> = _saveResult
     
-    fun loadMovie(movieId: Int) {
+    fun loadMovie(movieId: Int, contextType: String = "films", diariesId: Int? = null, favoriteId: Int? = null) {
+        val userId = prefs.getInt("userId", 0)
         viewModelScope.launch {
             _isLoading.value = true
-            
+
             // Load movie details
             val movieDetail = repository.getMovieDetail(movieId)
             if (movieDetail != null) {
                 _movie.value = movieDetail
             }
-            
+
+            // Load custom media for the current context AND the base "films" context
+            // so items saved in both show multiple badges
+            val savedCtx = if (userId > 0) {
+                repository.getCustomMedia(userId, movieId, contextType, diariesId, favoriteId)
+            } else emptyMap()
+            val savedFilms = if (userId > 0 && contextType != "films") {
+                repository.getCustomMedia(userId, movieId, "films")
+            } else savedCtx
+
+            val savedCtxPosterId     = savedCtx["poster"]?.media_id
+            val savedCtxBackdropId   = savedCtx["backdrop"]?.media_id
+            val savedFilmsPosterId   = savedFilms["poster"]?.media_id
+            val savedFilmsBackdropId = savedFilms["backdrop"]?.media_id
+
+            // Badge label for the current context (distinct from "films")
+            val ctxBadge = contextTypeBadge(contextType)
+
             // Load media from API
             val media = repository.getMovieMedia(movieId)
             if (media != null) {
-                _posters.value = media.posters.mapIndexed { index, item ->
+                _posters.value = media.posters.map { item ->
                     val url = when {
                         item.file_path.isNullOrBlank() -> ""
                         item.file_path.startsWith("http") -> item.file_path.replace("127.0.0.1", "10.0.2.2")
                         else -> "http://10.0.2.2:8000/storage/${item.file_path}"
+                    }
+                    val badges = buildList {
+                        if (ctxBadge != null && item.id == savedCtxPosterId) add(ctxBadge)
+                        if (contextType != "films" && item.id == savedFilmsPosterId) add("FILM")
+                        if (isEmpty() && item.is_default) add("DEFAULT")
                     }
                     Artwork(
                         id = item.id,
@@ -55,15 +84,22 @@ class PosterBackdropViewModel : ViewModel() {
                         label = "",
                         width = 0,
                         height = 0,
-                        isSelected = item.is_default
+                        isSelected = item.id == (savedCtxPosterId ?: if (item.is_default) item.id else -1),
+                        isDefault = item.is_default,
+                        badgeLabels = badges
                     )
                 }
-                
-                _backdrops.value = media.backdrops.mapIndexed { index, item ->
+
+                _backdrops.value = media.backdrops.map { item ->
                     val url = when {
                         item.file_path.isNullOrBlank() -> ""
                         item.file_path.startsWith("http") -> item.file_path.replace("127.0.0.1", "10.0.2.2")
                         else -> "http://10.0.2.2:8000/storage/${item.file_path}"
+                    }
+                    val badges = buildList {
+                        if (ctxBadge != null && item.id == savedCtxBackdropId) add(ctxBadge)
+                        if (contextType != "films" && item.id == savedFilmsBackdropId) add("FILM")
+                        if (isEmpty() && item.is_default) add("DEFAULT")
                     }
                     Artwork(
                         id = item.id,
@@ -72,13 +108,15 @@ class PosterBackdropViewModel : ViewModel() {
                         label = "",
                         width = 0,
                         height = 0,
-                        isSelected = item.is_default
+                        isSelected = item.id == (savedCtxBackdropId ?: if (item.is_default) item.id else -1),
+                        isDefault = item.is_default,
+                        badgeLabels = badges
                     )
                 }
-                
+
                 _selectedArtwork.value = _posters.value?.firstOrNull { it.isSelected }
             }
-            
+
             _isLoading.value = false
         }
     }
@@ -86,7 +124,7 @@ class PosterBackdropViewModel : ViewModel() {
     fun selectArtwork(artwork: Artwork) {
         _selectedArtwork.value = artwork
         
-        // Update selection state
+        // Update selection state; preserve badge labels
         if (artwork.type == ArtworkType.POSTER) {
             _posters.value = _posters.value?.map {
                 it.copy(isSelected = it.id == artwork.id)
@@ -98,8 +136,35 @@ class PosterBackdropViewModel : ViewModel() {
         }
     }
     
-    fun saveArtwork(): Boolean {
-        // In a real app, save to repository
-        return true
+    fun saveArtwork(movieId: Int, type: String = "films", diariesId: Int? = null, favoriteId: Int? = null) {
+        val userId = prefs.getInt("userId", 0)
+        val artwork = _selectedArtwork.value
+        if (userId <= 0 || artwork == null) {
+            _saveResult.value = false
+            return
+        }
+        viewModelScope.launch {
+            val success = repository.saveChangeMedia(
+                userId = userId,
+                filmId = movieId,
+                mediaId = artwork.id,
+                type = type,
+                diariesId = diariesId,
+                favoriteId = favoriteId
+            )
+            _saveResult.value = success
+        }
     }
+
+    fun clearSaveResult() {
+        _saveResult.value = null
+    }
+}
+
+private fun contextTypeBadge(type: String): String? = when (type) {
+    "films"     -> "FILM"
+    "reviews"   -> "REVIEW"
+    "logged"    -> "LOG"
+    "favorites" -> "FAVORITE"
+    else        -> null
 }

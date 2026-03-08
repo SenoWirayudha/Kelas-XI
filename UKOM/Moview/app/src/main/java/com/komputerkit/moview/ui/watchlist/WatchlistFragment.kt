@@ -69,6 +69,14 @@ class WatchlistFragment : Fragment() {
             onItemLongClick = { item ->
                 // TODO: Show bottom sheet action panel
                 Toast.makeText(requireContext(), "Long press on ${item.movie.title}", Toast.LENGTH_SHORT).show()
+            },
+            onLogFilm = { item ->
+                val action = WatchlistFragmentDirections.actionWatchlistToLogFilm(item.movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { item ->
+                val action = WatchlistFragmentDirections.actionWatchlistToPosterBackdrop(item.movie.id, false)
+                findNavController().navigate(action)
             }
         )
         

@@ -297,6 +297,38 @@ class ReviewDetailFragment : Fragment() {
             }
         }
 
+        binding.cardPoster.setOnLongClickListener { view ->
+            viewModel.review.value?.let { review ->
+                com.komputerkit.moview.util.MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = review.movie,
+                    isFromMovieDetail = false,
+                    onGoToFilm = {
+                        val action = ReviewDetailFragmentDirections.actionReviewDetailToMovieDetail(review.movie.id)
+                        findNavController().navigate(action)
+                    },
+                    onLogFilm = {
+                        val action = ReviewDetailFragmentDirections.actionReviewDetailToEditReview(
+                            movieId = review.movieId
+                        )
+                        findNavController().navigate(action)
+                    },
+                    onChangePoster = {
+                        val prefs2 = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+                        val isOwn = review.userId == prefs2.getInt("userId", 0)
+                        val ctxType = if (isOwn) (if (args.isLog) "logged" else "reviews") else "films"
+                        // args.diaryId is the user_diaries.id (diary entry PK), always correct
+                        val diariesId = if (isOwn && args.diaryId > 0) args.diaryId else 0
+                        val action = ReviewDetailFragmentDirections.actionReviewDetailToPosterBackdrop(
+                            review.movie.id, false, ctxType, 0, diariesId
+                        )
+                        findNavController().navigate(action)
+                    }
+                )
+            }
+            true
+        }
+
         binding.tvMovieTitle.setOnClickListener {
             viewModel.review.value?.let { review ->
                 val action = ReviewDetailFragmentDirections.actionReviewDetailToMovieDetail(review.movie.id)

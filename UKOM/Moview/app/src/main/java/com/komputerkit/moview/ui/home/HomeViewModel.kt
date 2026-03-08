@@ -10,6 +10,8 @@ import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.TheatricalMovie
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.applyCustomMedia
+import com.komputerkit.moview.util.resolveMediaUrl
 import kotlinx.coroutines.launch
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -81,11 +83,26 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val upcoming = repository.getUpcomingMovies()
                 val academyAward = repository.getAcademyAwardMovies()
 
-                _popularMovies.value = movies
+                // Apply custom media (films-type) for the current user's personalizations
+                val theatricalIds = (nowShowing.map { it.id } + upcoming.map { it.id }).distinct()
+                val allFilmIds = (movies.map { it.id } + academyAward.map { it.id } + theatricalIds).distinct()
+                val customMedia = if (userId > 0 && allFilmIds.isNotEmpty()) {
+                    repository.batchCustomMedia(userId, allFilmIds, "films")
+                } else emptyMap()
+
+                _popularMovies.value = movies.applyCustomMedia(customMedia)
                 _friendActivities.value = activities
-                _nowShowingMovies.value = nowShowing
-                _upcomingMovies.value = upcoming
-                _academyAwardMovies.value = academyAward
+                _nowShowingMovies.value = nowShowing.map { movie ->
+                    val entry = customMedia[movie.id] ?: return@map movie
+                    val customPoster = entry.poster?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
+                    if (customPoster != null) movie.copy(posterUrl = customPoster) else movie
+                }
+                _upcomingMovies.value = upcoming.map { movie ->
+                    val entry = customMedia[movie.id] ?: return@map movie
+                    val customPoster = entry.poster?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
+                    if (customPoster != null) movie.copy(posterUrl = customPoster) else movie
+                }
+                _academyAwardMovies.value = academyAward.applyCustomMedia(customMedia)
                 retryCount = 0
                 android.util.Log.d("HomeViewModel", "Data loaded successfully")
                 

@@ -3,8 +3,12 @@ package com.komputerkit.moview.util
 import android.app.Dialog
 import android.content.Context
 import android.content.ContextWrapper
+import android.graphics.drawable.ColorDrawable
 import android.util.Log
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
@@ -62,7 +66,8 @@ object MovieActionsHelper {
         onGoToFilm: ((Movie) -> Unit)? = null,
         onLogFilm: ((Movie) -> Unit)? = null,
         onChangePoster: ((Movie) -> Unit)? = null,
-        onRatingSaved: (() -> Unit)? = null
+        onRatingSaved: (() -> Unit)? = null,
+        onWatchedTap: ((reviewId: Int, isLog: Boolean) -> Unit)? = null
     ) {
         val bottomSheetDialog = BottomSheetDialog(context)
         val binding = BottomSheetMovieActionsBinding.inflate(LayoutInflater.from(context))
@@ -73,7 +78,7 @@ object MovieActionsHelper {
 
         // Set movie data
         binding.tvMovieTitle.text = movie.title
-        binding.tvMovieYear.text = movie.releaseYear.toString()
+        binding.tvMovieYear.text = movie.releaseYear?.toString() ?: ""
 
         // Hide "Go to film" if already on movie detail page
         binding.btnGoToFilm.visibility = if (isFromMovieDetail) View.GONE else View.VISIBLE
@@ -89,6 +94,8 @@ object MovieActionsHelper {
         
         // Use local variable for current rating (not object-level to prevent state leak)
         var currentRating = 0
+        var watchInfo: com.komputerkit.moview.data.api.WatchCountDto? = null
+        var isWatchedState = false  // tracks current watched toggle state
         
         // Initialize stars to empty state
         val stars = listOf(
@@ -109,10 +116,13 @@ object MovieActionsHelper {
                 val isInWatchlist = repository.checkWatchlist(userId, movie.id)
                 
                 // Load watch count (rewatch count)
-                val watchCount = repository.getWatchCount(userId, movie.id)
-                Log.d("MovieActionsHelper", "Watch count for movie ${movie.id}: $watchCount")
+                val watchInfoResult = repository.getWatchInfo(userId, movie.id)
+                Log.d("MovieActionsHelper", "Watch info for movie ${movie.id}: $watchInfoResult")
                 
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    // Store for use in click listener
+                    watchInfo = watchInfoResult
+
                     // Load rating if exists
                     if (ratingResponse != null) {
                         currentRating = ratingResponse.rating ?: 0
@@ -123,12 +133,15 @@ object MovieActionsHelper {
                         Log.d("MovieActionsHelper", "No rating found for movie ${movie.id}")
                     }
                     
-                    // Icon watch state: from ratings table (is_watched)
+                    // Icon watch state: from ratings table (is_watched), label from entry_type
                     val isWatched = ratingResponse?.is_watched ?: false
-                    updateWatchedButtonState(context, binding, isWatched)
-                    Log.d("MovieActionsHelper", "Watch icon state from ratings.is_watched: $isWatched")
+                    isWatchedState = isWatched
+                    val entryType = watchInfoResult?.entry_type ?: "none"
+                    updateWatchedButtonState(context, binding, isWatched, entryType)
+                    Log.d("MovieActionsHelper", "Watch icon state: isWatched=$isWatched, entryType=$entryType")
                     
                     // Text "Review and log again": from diary entries count
+                    val watchCount = watchInfoResult?.watch_count ?: 0
                     if (watchCount > 0) {
                         // User has logged this movie before - show "Review and log again"
                         binding.tvReviewLogText.text = "Review and log again"
@@ -139,10 +152,11 @@ object MovieActionsHelper {
                         Log.d("MovieActionsHelper", "First time logging - showing 'Review and log'")
                     }
                     
-                    // Show rewatch count if watched more than once
-                    if (watchCount > 1) {
+                    // Show rewatch count (watch_count - 1) if user has rewatched at least once
+                    val rewatchCount = watchInfoResult?.rewatch_count ?: 0
+                    if (rewatchCount > 0) {
                         binding.layoutRewatch.visibility = View.VISIBLE
-                        binding.tvRewatchCount.text = "Rewatch × $watchCount"
+                        binding.tvRewatchCount.text = "Rewatch × $rewatchCount"
                     } else {
                         binding.layoutRewatch.visibility = View.GONE
                     }
@@ -202,21 +216,44 @@ object MovieActionsHelper {
         binding.btnWatched.setOnClickListener {
             if (userId > 0 && actualLifecycleOwner != null) {
                 actualLifecycleOwner.lifecycleScope.launch {
-                    // Save rating directly (0-5 stars, no conversion)
-                    val ratingValue = currentRating
-                    Log.d("MovieActionsHelper", "Saving rating: userId=$userId, movieId=${movie.id}, rating=$ratingValue")
-                    val success = repository.saveRating(userId, movie.id, ratingValue)
-                    if (success) {
-                        // Update UI to "Watched" state (green) BEFORE dismissing
-                        updateWatchedButtonState(context, binding, true)
-                        Toast.makeText(context, "Marked as watched", Toast.LENGTH_SHORT).show()
-                        // Trigger callback to refresh data
-                        onRatingSaved?.invoke()
-                        // Add delay to show color change before dismissing
-                        kotlinx.coroutines.delay(300)
-                        bottomSheetDialog.dismiss()
+                    if (isWatchedState) {
+                        // Already watched → toggle OFF: delete from ratings
+                        Log.d("MovieActionsHelper", "Unwatching: userId=$userId, movieId=${movie.id}")
+                        val success = repository.deleteRating(userId, movie.id)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            if (success) {
+                                isWatchedState = false
+                                watchInfo = null
+                                updateWatchedButtonState(context, binding, false, "none")
+                                // Reset stars
+                                currentRating = 0
+                                updateStars(stars, 0)
+                                binding.layoutRewatch.visibility = View.GONE
+                                binding.tvReviewLogText.text = "Review and log"
+                                Toast.makeText(context, "Removed from watched", Toast.LENGTH_SHORT).show()
+                                onRatingSaved?.invoke()
+                            } else {
+                                Toast.makeText(context, "Failed to unwatch", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     } else {
-                        Toast.makeText(context, "Failed to save", Toast.LENGTH_SHORT).show()
+                        // Not yet watched → mark as watched
+                        val ratingValue = currentRating
+                        Log.d("MovieActionsHelper", "Saving rating: userId=$userId, movieId=${movie.id}, rating=$ratingValue")
+                        val success = repository.saveRating(userId, movie.id, ratingValue)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            if (success) {
+                                isWatchedState = true
+                                // Reload watch info to get updated entry_type
+                                val updatedInfo = repository.getWatchInfo(userId, movie.id)
+                                watchInfo = updatedInfo
+                                updateWatchedButtonState(context, binding, true, updatedInfo?.entry_type ?: "none")
+                                Toast.makeText(context, "Marked as watched", Toast.LENGTH_SHORT).show()
+                                onRatingSaved?.invoke()
+                            } else {
+                                Toast.makeText(context, "Failed to save", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 }
             } else {
@@ -333,11 +370,6 @@ object MovieActionsHelper {
             onChangePoster?.invoke(movie)
         }
 
-        binding.btnShareBottom.setOnClickListener {
-            Toast.makeText(context, "Share ${movie.title}", Toast.LENGTH_SHORT).show()
-            bottomSheetDialog.dismiss()
-        }
-
         binding.btnClose.setOnClickListener {
             bottomSheetDialog.dismiss()
         }
@@ -349,17 +381,13 @@ object MovieActionsHelper {
      * Shows a full screen dialog with the movie poster
      */
     fun showFullPosterDialog(context: Context, movie: Movie) {
-        val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        val dialog = Dialog(context, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen)
         val binding = DialogFullPosterBinding.inflate(LayoutInflater.from(context))
         dialog.setContentView(binding.root)
 
-        // Make it full screen
         dialog.window?.apply {
             setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
-            setFlags(
-                WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN
-            )
+            setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
         }
 
         binding.tvMovieTitle.text = movie.title ?: "Movie"
@@ -392,19 +420,12 @@ object MovieActionsHelper {
 
                 override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
                     binding.progressLoading.visibility = View.GONE
-                    // Show a dark background as fallback
                     binding.ivFullPoster.setBackgroundColor(0xFF1E2530.toInt())
                 }
             })
 
-        binding.btnClose.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        // Also dismiss when clicking on the poster
-        binding.ivFullPoster.setOnClickListener {
-            dialog.dismiss()
-        }
+        binding.btnClose.setOnClickListener { dialog.dismiss() }
+        setupPosterInteraction(binding.ivFullPoster, dialog)
 
         dialog.show()
     }
@@ -413,31 +434,24 @@ object MovieActionsHelper {
      * Show full poster dialog with just a URL
      */
     fun showFullPosterDialog(context: Context, posterUrl: String, title: String = "") {
-        val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        val dialog = Dialog(context, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen)
         val binding = DialogFullPosterBinding.inflate(LayoutInflater.from(context))
         dialog.setContentView(binding.root)
 
         dialog.window?.apply {
             setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
-            setFlags(
-                WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN
-            )
+            setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
         }
 
         binding.tvMovieTitle.text = title
         binding.tvMovieTitle.visibility = if (title.isEmpty()) View.GONE else View.VISIBLE
         binding.progressLoading.visibility = View.VISIBLE
 
-        // Load high resolution poster
-        val fullPosterUrl = if (posterUrl.contains("w500")) {
-            posterUrl.replace("w500", "original")
-        } else if (posterUrl.contains("w342")) {
-            posterUrl.replace("w342", "original")
-        } else if (posterUrl.contains("w185")) {
-            posterUrl.replace("w185", "original")
-        } else {
-            posterUrl
+        val fullPosterUrl = when {
+            posterUrl.contains("w500") -> posterUrl.replace("w500", "original")
+            posterUrl.contains("w342") -> posterUrl.replace("w342", "original")
+            posterUrl.contains("w185") -> posterUrl.replace("w185", "original")
+            else -> posterUrl
         }
 
         Glide.with(context)
@@ -457,18 +471,12 @@ object MovieActionsHelper {
 
                 override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
                     binding.progressLoading.visibility = View.GONE
-                    // Show a dark background as fallback
                     binding.ivFullPoster.setBackgroundColor(0xFF1E2530.toInt())
                 }
             })
 
-        binding.btnClose.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        binding.ivFullPoster.setOnClickListener {
-            dialog.dismiss()
-        }
+        binding.btnClose.setOnClickListener { dialog.dismiss() }
+        setupPosterInteraction(binding.ivFullPoster, dialog)
 
         dialog.show()
     }
@@ -479,14 +487,148 @@ object MovieActionsHelper {
      * @param binding Bottom sheet binding
      * @param isWatched Whether the movie is watched (true = green, false = gray)
      */
+    /**
+     * Attaches pinch-zoom, double-tap-zoom, pan-when-zoomed, and swipe-down-to-dismiss
+     * gesture handling to the poster ImageView inside the full poster dialog.
+     */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun setupPosterInteraction(imageView: ImageView, dialog: Dialog) {
+        val minScale = 1f
+        val maxScale = 3f
+        val doubleTapScale = 2f
+        var currentScale = 1f
+
+        // --- helpers ---
+        fun clampTranslation() {
+            val maxTx = imageView.width  * (currentScale - 1f) / 2f
+            val maxTy = imageView.height * (currentScale - 1f) / 2f
+            imageView.translationX = imageView.translationX.coerceIn(-maxTx, maxTx)
+            imageView.translationY = imageView.translationY.coerceIn(-maxTy, maxTy)
+        }
+
+        fun animateTo(scale: Float, tx: Float = imageView.translationX, ty: Float = imageView.translationY) {
+            imageView.animate().cancel()
+            imageView.animate().scaleX(scale).scaleY(scale).translationX(tx).translationY(ty)
+                .setDuration(200).start()
+            currentScale = scale
+        }
+
+        // --- pinch zoom (ScaleGestureDetector only) ---
+        val scaleDetector = ScaleGestureDetector(
+            imageView.context,
+            object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                override fun onScale(detector: ScaleGestureDetector): Boolean {
+                    currentScale = (currentScale * detector.scaleFactor).coerceIn(minScale, maxScale)
+                    imageView.scaleX = currentScale
+                    imageView.scaleY = currentScale
+                    clampTranslation()
+                    return true
+                }
+            }
+        )
+
+        // --- double-tap only via GestureDetector ---
+        val gestureDetector = GestureDetector(
+            imageView.context,
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onDoubleTap(e: MotionEvent): Boolean {
+                    if (currentScale > minScale + 0.1f) {
+                        animateTo(minScale, 0f, 0f)
+                    } else {
+                        animateTo(doubleTapScale)
+                    }
+                    return true
+                }
+            }
+        )
+        gestureDetector.setIsLongpressEnabled(false)
+
+        // --- manual touch tracking for smooth pan + swipe-down dismiss ---
+        var lastRawX = 0f
+        var lastRawY = 0f
+        var swipeStartRawY = 0f
+        var swipeStartTransY = 0f
+        var isPanning = false
+        var isSwipeDismiss = false
+
+        imageView.setOnTouchListener { v, event ->
+            scaleDetector.onTouchEvent(event)
+            gestureDetector.onTouchEvent(event)
+
+            if (scaleDetector.isInProgress) {
+                isPanning = false
+                isSwipeDismiss = false
+                lastRawX = event.rawX
+                lastRawY = event.rawY
+                return@setOnTouchListener true
+            }
+
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    lastRawX = event.rawX
+                    lastRawY = event.rawY
+                    swipeStartRawY = event.rawY
+                    swipeStartTransY = imageView.translationY
+                    isPanning = false
+                    isSwipeDismiss = false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (event.pointerCount > 1) return@setOnTouchListener true
+
+                    val dx = event.rawX - lastRawX
+                    val dy = event.rawY - lastRawY
+                    lastRawX = event.rawX
+                    lastRawY = event.rawY
+
+                    val isZoomed = currentScale > minScale + 0.1f
+
+                    if (isZoomed) {
+                        // Smooth pan: direct 1:1 raw delta, no GestureDetector lag
+                        imageView.translationX += dx
+                        imageView.translationY += dy
+                        clampTranslation()
+                        isPanning = true
+                    } else {
+                        // Swipe-down to dismiss
+                        val totalDy = event.rawY - swipeStartRawY
+                        if (!isSwipeDismiss && kotlin.math.abs(totalDy) > 12f) {
+                            isSwipeDismiss = true
+                        }
+                        if (isSwipeDismiss && totalDy > 0f) {
+                            v.translationY = swipeStartTransY + totalDy
+                        }
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (event.pointerCount == 1 && currentScale <= minScale + 0.1f) {
+                        val totalDy = event.rawY - swipeStartRawY
+                        if (isSwipeDismiss && totalDy > 180f) {
+                            dialog.dismiss()
+                        } else if (isSwipeDismiss) {
+                            v.animate().translationY(0f).setDuration(200).start()
+                        }
+                    }
+                    isPanning = false
+                    isSwipeDismiss = false
+                }
+            }
+            true
+        }
+    }
+
     private fun updateWatchedButtonState(
         context: Context,
         binding: BottomSheetMovieActionsBinding,
-        isWatched: Boolean
+        isWatched: Boolean,
+        entryType: String = "none"
     ) {
         if (isWatched) {
-            // Watched state - green color
-            binding.tvWatchedLabel.text = "Watched"
+            val label = when (entryType) {
+                "reviewed" -> "Reviewed"
+                "logged"   -> "Logged"
+                else       -> "Watched"
+            }
+            binding.tvWatchedLabel.text = label
             binding.tvWatchedLabel.setTextColor(context.getColor(R.color.star_green))
             binding.cardWatched.strokeColor = context.getColor(R.color.star_green)
             binding.ivWatchedIcon.setColorFilter(context.getColor(R.color.star_green))

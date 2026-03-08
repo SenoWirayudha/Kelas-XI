@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.launch
 
 class LogFilmViewModel : ViewModel() {
@@ -45,7 +46,12 @@ class LogFilmViewModel : ViewModel() {
             // Load movie details from API
             val movieDetail = repository.getMovieDetail(movieId)
             if (movieDetail != null) {
-                _movie.postValue(movieDetail)
+                // Apply custom media (films-type) if user has set custom poster/backdrop
+                val customMedia = if (currentUserId > 0) {
+                    repository.batchCustomMedia(currentUserId, listOf(movieId), "films")
+                } else emptyMap()
+                val resolved = listOf(movieDetail).applyCustomMedia(customMedia).first()
+                _movie.postValue(resolved)
                 Log.d("LogFilmViewModel", "Loaded movie from API: ${movieDetail.title}")
             } else {
                 Log.e("LogFilmViewModel", "Failed to load movie details for id: $movieId")

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\UserChangeMedia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -191,20 +192,46 @@ class UserActivityController extends Controller
     }
 
     /**
-     * Get watch count (diary count) for specific movie
+     * Get watch count (diary count) for specific movie, with entry type and latest IDs
      */
     public function getWatchCount($userId, $movieId)
     {
         try {
-            $count = DB::table('diaries')
-                ->where('user_id', $userId)
-                ->where('film_id', $movieId)
-                ->count();
+            $entries = DB::table('diaries')
+                ->where('diaries.user_id', $userId)
+                ->where('diaries.film_id', $movieId)
+                ->select('diaries.id as diary_id', 'diaries.review_id')
+                ->orderBy('diaries.created_at', 'desc')
+                ->get();
+
+            $count = $entries->count();
+            $rewatchCount = max(0, $count - 1);
+
+            // Latest entry with a review (review_id not null), ordered by most recent first
+            $latestReviewEntry = $entries->first(function ($e) {
+                return !is_null($e->review_id);
+            });
+            $latestDiaryEntry = $entries->first();
+
+            $latestReviewId = $latestReviewEntry ? $latestReviewEntry->review_id : null;
+            $latestDiaryId  = $latestDiaryEntry  ? $latestDiaryEntry->diary_id   : null;
+
+            if ($count === 0) {
+                $entryType = 'none';
+            } elseif (!is_null($latestReviewId)) {
+                $entryType = 'reviewed';
+            } else {
+                $entryType = 'logged';
+            }
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'watch_count' => $count
+                    'watch_count'      => $count,
+                    'rewatch_count'    => $rewatchCount,
+                    'entry_type'       => $entryType,
+                    'latest_review_id' => $latestReviewId,
+                    'latest_diary_id'  => $latestDiaryId,
                 ]
             ]);
         } catch (\Exception $e) {
@@ -734,7 +761,21 @@ class UserActivityController extends Controller
                     up.profile_photo,
                     d.film_id as movie_id,
                     m.title,
-                    m.default_poster_path as poster_path,
+                    COALESCE(
+                        (SELECT mm.media_path FROM user_change_medias ucm
+                         JOIN movie_media mm ON ucm.media_id = mm.id
+                         WHERE ucm.user_id = d.user_id AND ucm.film_id = d.film_id
+                           AND ucm.type IN ('logged', 'reviews') AND ucm.media_category = 'poster'
+                           AND ucm.diaries_id = d.id
+                         ORDER BY ucm.updated_at DESC LIMIT 1),
+                        (SELECT mm.media_path FROM user_change_medias ucm
+                         JOIN movie_media mm ON ucm.media_id = mm.id
+                         WHERE ucm.user_id = d.user_id AND ucm.film_id = d.film_id
+                           AND ucm.type = 'films' AND ucm.media_category = 'poster'
+                         ORDER BY ucm.updated_at DESC LIMIT 1),
+                        m.default_poster_path
+                    ) as poster_path,
+                    m.release_year,
                     COALESCE(r.rating, d.rating, rat.rating) as rating,
                     d.is_rewatched,
                     CASE WHEN r.id IS NOT NULL AND r.content IS NOT NULL THEN true ELSE false END as has_review,
@@ -790,7 +831,8 @@ class UserActivityController extends Controller
                     'movie' => [
                         'id' => (int)$activity->movie_id,
                         'title' => $activity->title,
-                        'poster_path' => $posterUrl
+                        'poster_path' => $posterUrl,
+                        'year' => isset($activity->release_year) ? (int)$activity->release_year : null
                     ],
                     'rating' => (float)($activity->rating ?? 0),
                     'is_rewatched' => (bool)$activity->is_rewatched,
@@ -845,7 +887,21 @@ class UserActivityController extends Controller
                     up.profile_photo,
                     d.film_id as movie_id,
                     m.title,
-                    m.default_poster_path as poster_path,
+                    COALESCE(
+                        (SELECT mm.media_path FROM user_change_medias ucm
+                         JOIN movie_media mm ON ucm.media_id = mm.id
+                         WHERE ucm.user_id = d.user_id AND ucm.film_id = d.film_id
+                           AND ucm.type IN ('logged', 'reviews') AND ucm.media_category = 'poster'
+                           AND ucm.diaries_id = d.id
+                         ORDER BY ucm.updated_at DESC LIMIT 1),
+                        (SELECT mm.media_path FROM user_change_medias ucm
+                         JOIN movie_media mm ON ucm.media_id = mm.id
+                         WHERE ucm.user_id = d.user_id AND ucm.film_id = d.film_id
+                           AND ucm.type = 'films' AND ucm.media_category = 'poster'
+                         ORDER BY ucm.updated_at DESC LIMIT 1),
+                        m.default_poster_path
+                    ) as poster_path,
+                    m.release_year,
                     COALESCE(r.rating, d.rating, rat.rating) as rating,
                     d.is_rewatched,
                     CASE WHEN r.id IS NOT NULL AND r.content IS NOT NULL THEN true ELSE false END as has_review,
@@ -901,7 +957,8 @@ class UserActivityController extends Controller
                     'movie' => [
                         'id' => (int)$activity->movie_id,
                         'title' => $activity->title,
-                        'poster_path' => $posterUrl
+                        'poster_path' => $posterUrl,
+                        'year' => isset($activity->release_year) ? (int)$activity->release_year : null
                     ],
                     'rating' => (float)($activity->rating ?? 0),
                     'is_rewatched' => (bool)$activity->is_rewatched,
@@ -1328,8 +1385,12 @@ class UserActivityController extends Controller
             }
             
             // Always insert new diary entry (for rewatch tracking)
-            DB::table('diaries')->insert($insertData);
-            \Log::info("Created diary entry for user $userId, film $movieId, is_rewatched: " . ($isRewatch ? 'true' : 'false'));
+            $diaryId = DB::table('diaries')->insertGetId($insertData);
+            \Log::info("Created diary entry id=$diaryId for user $userId, film $movieId, is_rewatched: " . ($isRewatch ? 'true' : 'false'));
+
+            // Copy any existing type='films' media the user chose to the new diary context
+            $contextType = $reviewId ? 'reviews' : 'logged';
+            UserChangeMedia::propagateFilmsToContext((int) $userId, (int) $movieId, $diaryId, $contextType);
             
             $message = $isRewatch 
                 ? 'Rewatch logged successfully' 

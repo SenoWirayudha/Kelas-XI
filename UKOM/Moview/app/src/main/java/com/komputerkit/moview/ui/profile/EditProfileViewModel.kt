@@ -8,6 +8,7 @@ import com.komputerkit.moview.data.api.UpdateFavoritesRequest
 import com.komputerkit.moview.data.api.UpdateProfileRequest
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,6 +72,15 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                     }
                 }
                 
+                // Apply custom media (favorites-type) to favorite slot posters
+                val favoriteIds = favoriteSlots.mapNotNull { it.movie?.id }.distinct()
+                val favCustomMedia = if (favoriteIds.isNotEmpty()) repository.batchCustomMedia(userId, favoriteIds, "favorites") else emptyMap()
+                val resolvedSlots = if (favCustomMedia.isNotEmpty()) favoriteSlots.map { slot ->
+                    val movie = slot.movie ?: return@map slot
+                    val entry = favCustomMedia[movie.id] ?: return@map slot
+                    slot.copy(movie = listOf(movie).applyCustomMedia(mapOf(movie.id to entry)).first())
+                } else favoriteSlots
+
                 _uiState.value = EditProfileUiState(
                     username = profileResponse.user.username,
                     bio = profileResponse.profile.bio,
@@ -78,7 +88,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                     backdropEnabled = profileResponse.profile.backdrop_enabled,
                     backdropUrl = profileResponse.profile.backdrop_url,
                     profilePhotoUrl = profileResponse.profile.profile_photo_url,
-                    favoriteSlots = favoriteSlots,
+                    favoriteSlots = resolvedSlots,
                     isLoading = false
                 )
             } catch (e: Exception) {

@@ -6,10 +6,14 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemFilmographyGridBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 
 class FilmographyAdapter(
-    private val onFilmClick: (Film) -> Unit
+    private val onFilmClick: (Film) -> Unit,
+    private val onLogFilm: ((Film) -> Unit)? = null,
+    private val onChangePoster: ((Film) -> Unit)? = null
 ) : ListAdapter<Film, FilmographyAdapter.FilmViewHolder>(FilmDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilmViewHolder {
@@ -38,6 +42,27 @@ class FilmographyAdapter(
             
             binding.root.setOnClickListener {
                 onFilmClick(film)
+            }
+
+            binding.root.setOnLongClickListener { view ->
+                val movie = Movie(
+                    id = film.id,
+                    title = film.title,
+                    posterUrl = film.posterUrl,
+                    averageRating = null,
+                    genre = null,
+                    releaseYear = film.year.toIntOrNull(),
+                    description = null
+                )
+                MovieActionsHelper.showMovieActionsBottomSheet(
+                    context = view.context,
+                    movie = movie,
+                    isFromMovieDetail = false,
+                    onGoToFilm = { onFilmClick(film) },
+                    onLogFilm = { onLogFilm?.invoke(film) },
+                    onChangePoster = { onChangePoster?.invoke(film) }
+                )
+                true
             }
         }
     }

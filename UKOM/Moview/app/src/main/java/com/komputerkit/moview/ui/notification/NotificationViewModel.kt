@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Notification
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.resolveMediaUrl
 import kotlinx.coroutines.launch
 
 class NotificationViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,7 +39,17 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
                 _isLoading.postValue(true)
                 val notifications = repository.getNotificationsAsync(userId)
                 android.util.Log.d("NotificationViewModel", "Received ${notifications.size} notifications")
-                _notifications.postValue(notifications)
+
+                // Apply custom media to notification posters (reviews type — notifications are about reviews)
+                val filmIds = notifications.mapNotNull { it.filmId }.distinct()
+                val customMedia = if (filmIds.isNotEmpty()) repository.batchCustomMedia(userId, filmIds, "reviews") else emptyMap()
+                val resolved = if (customMedia.isNotEmpty()) notifications.map { notif ->
+                    val filmId = notif.filmId ?: return@map notif
+                    val entry = customMedia[filmId] ?: return@map notif
+                    val customPoster = entry.poster?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
+                    if (customPoster != null) notif.copy(moviePoster = customPoster) else notif
+                } else notifications
+                _notifications.postValue(resolved)
             } catch (e: Exception) {
                 android.util.Log.e("NotificationViewModel", "Error loading notifications", e)
                 e.printStackTrace()

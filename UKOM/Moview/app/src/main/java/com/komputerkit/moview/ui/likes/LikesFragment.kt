@@ -73,6 +73,14 @@ class LikesFragment : Fragment() {
             onReviewClick = { movie ->
                 val action = LikesFragmentDirections.actionLikesToReviewDetail(movie.reviewId)
                 findNavController().navigate(action)
+            },
+            onLogFilm = { movie ->
+                val action = LikesFragmentDirections.actionLikesToLogFilm(movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = LikesFragmentDirections.actionLikesToPosterBackdrop(movie.id, false)
+                findNavController().navigate(action)
             }
         )
         

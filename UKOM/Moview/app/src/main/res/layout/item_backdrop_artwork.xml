@@ -29,6 +29,24 @@
             app:layout_constraintTop_toTopOf="parent"
             tools:src="@color/dark_card" />
 
+        <!-- Context type badge (top-left) -->
+        <TextView
+            android:id="@+id/tv_context_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp"
+            android:background="@drawable/bg_badge_rounded"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:textColor="@color/white"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/iv_backdrop"
+            app:layout_constraintTop_toTopOf="@id/iv_backdrop"
+            tools:text="REVIEWS"
+            tools:visibility="visible" />
+
         <!-- Selection Overlay -->
         <View
             android:id="@+id/selection_overlay"

@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.WatchlistItem
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.launch
 
 class WatchlistViewModel(application: Application) : AndroidViewModel(application) {
@@ -29,7 +30,9 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
         _isLoading.value = true
         viewModelScope.launch {
             try {
-                val movies = repository.getUserWatchlist(userId)
+                val rawMovies = repository.getUserWatchlist(userId)
+                val customMedia = repository.batchCustomMedia(userId, rawMovies.map { it.id }, "films")
+                val movies = rawMovies.applyCustomMedia(customMedia)
                 allItems = movies.map { movie ->
                     WatchlistItem(
                         id = movie.id,

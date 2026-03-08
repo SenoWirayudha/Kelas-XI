@@ -15,7 +15,9 @@ import kotlin.math.roundToInt
 class FriendActivityNewAdapter(
     private val onActivityClick: (FriendActivity) -> Unit = {},
     private val onProfileClick: (FriendActivity) -> Unit = {},
-    private val onLongPressGoToFilm: ((FriendActivity) -> Unit)? = null
+    private val onLongPressGoToFilm: ((FriendActivity) -> Unit)? = null,
+    private val onLogFilm: ((FriendActivity) -> Unit)? = null,
+    private val onChangePoster: ((FriendActivity) -> Unit)? = null
 ) : RecyclerView.Adapter<FriendActivityNewAdapter.FriendActivityViewHolder>() {
     
     private var activities: List<FriendActivity> = emptyList()
@@ -96,7 +98,9 @@ class FriendActivityNewAdapter(
                     context = view.context,
                     movie = activity.movie,
                     isFromMovieDetail = false,
-                    onGoToFilm = { movie -> onLongPressGoToFilm?.invoke(activity) }
+                    onGoToFilm = { movie -> onLongPressGoToFilm?.invoke(activity) },
+                    onLogFilm = { onLogFilm?.invoke(activity) },
+                    onChangePoster = { onChangePoster?.invoke(activity) }
                 )
                 true
             }

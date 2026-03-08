@@ -6,9 +6,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.komputerkit.moview.data.api.MovieInfoDto
 import com.komputerkit.moview.data.model.Diary
 import com.komputerkit.moview.data.model.ReviewData
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.resolveMediaUrl
 import kotlinx.coroutines.launch
 
 class UserFilmActivityViewModel(application: Application) : AndroidViewModel(application) {
@@ -26,6 +28,9 @@ class UserFilmActivityViewModel(application: Application) : AndroidViewModel(app
     
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _movie = MutableLiveData<MovieInfoDto>()
+    val movie: LiveData<MovieInfoDto> = _movie
     
     fun loadUserFilmActivity(userId: Int, filmId: Int) {
         android.util.Log.d("UserFilmActivityVM", "loadUserFilmActivity called - userId: $userId, filmId: $filmId")
@@ -41,6 +46,7 @@ class UserFilmActivityViewModel(application: Application) : AndroidViewModel(app
                     // Set title: "{username}'s Activity for {movie title}"
                     val titleText = "${response.user.display_name}'s Activity for ${response.movie.title}"
                     _activityTitle.postValue(titleText)
+                    _movie.postValue(response.movie)
                     
                     android.util.Log.d("UserFilmActivityVM", "Title: $titleText")
                     android.util.Log.d("UserFilmActivityVM", "Diaries count: ${response.diaries.size}")
@@ -83,9 +89,30 @@ class UserFilmActivityViewModel(application: Application) : AndroidViewModel(app
                     }
                     
                     android.util.Log.d("UserFilmActivityVM", "Posting ${diaryList.size} diaries and ${reviewList.size} reviews to LiveData")
-                    
-                    _diaries.postValue(diaryList)
-                    _reviews.postValue(reviewList)
+
+                    // Apply custom media to diary entries by type
+                    val loggedDiaryIds = diaryList.filter { it.type != "review" }.map { it.movie_id }.distinct()
+                    val reviewDiaryIds = diaryList.filter { it.type == "review" }.map { it.movie_id }.distinct()
+                    val loggedBatch = if (loggedDiaryIds.isNotEmpty()) repository.batchCustomMedia(userId, loggedDiaryIds, "logged") else emptyMap()
+                    val reviewDiaryBatch = if (reviewDiaryIds.isNotEmpty()) repository.batchCustomMedia(userId, reviewDiaryIds, "reviews") else emptyMap()
+                    val resolvedDiaries = diaryList.map { diary ->
+                        val batch = if (diary.type == "review") reviewDiaryBatch else loggedBatch
+                        val entry = batch[diary.movie_id] ?: return@map diary
+                        val customPoster = entry.poster?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
+                        if (customPoster != null) diary.copy(poster_path = customPoster) else diary
+                    }
+
+                    // Apply custom media to standalone reviews
+                    val reviewIds = reviewList.map { it.movie_id }.distinct()
+                    val reviewsBatch = if (reviewIds.isNotEmpty()) repository.batchCustomMedia(userId, reviewIds, "reviews") else emptyMap()
+                    val resolvedReviews = reviewList.map { rev ->
+                        val entry = reviewsBatch[rev.movie_id] ?: return@map rev
+                        val customPoster = entry.poster?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
+                        if (customPoster != null) rev.copy(poster_path = customPoster) else rev
+                    }
+
+                    _diaries.postValue(resolvedDiaries)
+                    _reviews.postValue(resolvedReviews)
                 } else {
                     android.util.Log.w("UserFilmActivityVM", "Response is null, posting empty lists")
                     _diaries.postValue(emptyList())

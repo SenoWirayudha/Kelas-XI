@@ -130,6 +130,14 @@ class SearchFragment : Fragment() {
                     val action = SearchFragmentDirections.actionSearchToMovieDetail(movie.id)
                     findNavController().navigate(action)
                 }
+            },
+            onLogFilm = { movie ->
+                val action = SearchFragmentDirections.actionSearchToLogFilm(movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = SearchFragmentDirections.actionSearchToPosterBackdrop(movie.id, false)
+                findNavController().navigate(action)
             }
         )
         binding.rvMovies.apply {

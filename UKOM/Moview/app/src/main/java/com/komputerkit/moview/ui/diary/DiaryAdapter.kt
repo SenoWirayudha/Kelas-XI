@@ -17,7 +17,9 @@ class DiaryAdapter(
     private val onEntryClick: (DiaryEntry) -> Unit,
     private val onLikeClick: (DiaryEntry) -> Unit,
     private val onMenuClick: (DiaryEntry) -> Unit,
-    private val onPosterLongClick: ((DiaryEntry) -> Unit)? = null
+    private val onPosterLongClick: ((DiaryEntry) -> Unit)? = null,
+    private val onLogFilm: ((DiaryEntry) -> Unit)? = null,
+    private val onChangePoster: ((DiaryEntry) -> Unit)? = null
 ) : ListAdapter<DiaryItem, RecyclerView.ViewHolder>(DiaryItemDiffCallback()) {
 
     companion object {
@@ -40,7 +42,7 @@ class DiaryAdapter(
         )
         return when (viewType) {
             TYPE_HEADER -> HeaderViewHolder(binding)
-            else -> EntryViewHolder(binding, onEntryClick, onLikeClick, onMenuClick, onPosterLongClick)
+            else -> EntryViewHolder(binding, onEntryClick, onLikeClick, onMenuClick, onPosterLongClick, onLogFilm, onChangePoster)
         }
     }
 
@@ -66,7 +68,9 @@ class DiaryAdapter(
         private val onEntryClick: (DiaryEntry) -> Unit,
         private val onLikeClick: (DiaryEntry) -> Unit,
         private val onMenuClick: (DiaryEntry) -> Unit,
-        private val onPosterLongClick: ((DiaryEntry) -> Unit)?
+        private val onPosterLongClick: ((DiaryEntry) -> Unit)?,
+        private val onLogFilm: ((DiaryEntry) -> Unit)? = null,
+        private val onChangePoster: ((DiaryEntry) -> Unit)? = null
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(entry: DiaryEntry) {
@@ -103,7 +107,9 @@ class DiaryAdapter(
                     context = view.context,
                     movie = entry.movie,
                     isFromMovieDetail = false,
-                    onGoToFilm = { movie -> onPosterLongClick?.invoke(entry) }
+                    onGoToFilm = { movie -> onPosterLongClick?.invoke(entry) },
+                    onLogFilm = { onLogFilm?.invoke(entry) },
+                    onChangePoster = { onChangePoster?.invoke(entry) }
                 )
                 true
             }

@@ -56,6 +56,12 @@
         <action
             android:id="@+id/action_home_to_upcoming"
             app:destination="@id/upcomingFragment" />
+        <action
+            android:id="@+id/action_home_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_home_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -82,6 +88,12 @@
         <action
             android:id="@+id/action_search_to_userProfile"
             app:destination="@id/navigation_profile" />
+        <action
+            android:id="@+id/action_search_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_search_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -134,6 +146,12 @@
         <action
             android:id="@+id/action_profile_to_editProfile"
             app:destination="@id/editProfileFragment" />
+        <action
+            android:id="@+id/action_profile_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_profile_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -150,6 +168,12 @@
         <action
             android:id="@+id/action_films_to_reviewDetail"
             app:destination="@id/reviewDetailFragment" />
+        <action
+            android:id="@+id/action_films_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_films_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -166,6 +190,12 @@
         <action
             android:id="@+id/action_likes_to_reviewDetail"
             app:destination="@id/reviewDetailFragment" />
+        <action
+            android:id="@+id/action_likes_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_likes_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -182,6 +212,12 @@
         <action
             android:id="@+id/action_diary_to_reviewDetail"
             app:destination="@id/reviewDetailFragment" />
+        <action
+            android:id="@+id/action_diary_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_diary_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -198,6 +234,12 @@
         <action
             android:id="@+id/action_review_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_review_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_review_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -211,6 +253,12 @@
         <action
             android:id="@+id/action_watchlist_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_watchlist_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_watchlist_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -249,6 +297,15 @@
         <action
             android:id="@+id/action_friendActivities_to_profile"
             app:destination="@id/navigation_profile" />
+        <action
+            android:id="@+id/action_friendActivities_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_friendActivities_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
+        <action
+            android:id="@+id/action_friendActivities_to_logFilm"
+            app:destination="@id/logFilmFragment" />
     </fragment>
 
     <fragment
@@ -258,6 +315,12 @@
         <action
             android:id="@+id/action_popularMovies_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_popularMovies_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_popularMovies_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -305,6 +368,18 @@
             android:name="openBackdropsTab"
             android:defaultValue="false"
             app:argType="boolean" />
+        <argument
+            android:name="contextType"
+            android:defaultValue="films"
+            app:argType="string" />
+        <argument
+            android:name="favoriteId"
+            android:defaultValue="0"
+            app:argType="integer" />
+        <argument
+            android:name="diariesId"
+            android:defaultValue="0"
+            app:argType="integer" />
     </fragment>
 
     <fragment
@@ -320,6 +395,9 @@
         <action
             android:id="@+id/action_movieDetail_to_logFilm"
             app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_movieDetail_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
         <action
             android:id="@+id/action_movieDetail_to_posterBackdrop"
             app:destination="@id/posterBackdropFragment" />
@@ -353,6 +431,12 @@
         <action
             android:id="@+id/action_filmList_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_filmList_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_filmList_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -368,6 +452,12 @@
         <action
             android:id="@+id/action_filmography_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_filmography_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_filmography_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -398,6 +488,12 @@
         <action
             android:id="@+id/action_crewDetail_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_crewDetail_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_crewDetail_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -415,6 +511,10 @@
             android:name="openComments"
             app:argType="boolean"
             android:defaultValue="false" />
+        <argument
+            android:name="diaryId"
+            app:argType="integer"
+            android:defaultValue="0" />
         <action
             android:id="@+id/action_reviewDetail_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
@@ -434,6 +534,9 @@
         <action
             android:id="@+id/action_reviewDetail_to_userFilmActivity"
             app:destination="@id/userFilmActivityFragment" />
+        <action
+            android:id="@+id/action_reviewDetail_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -452,6 +555,12 @@
         <action
             android:id="@+id/action_userFilmActivity_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_userFilmActivity_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_userFilmActivity_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment

@@ -91,6 +91,33 @@ class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListene
                 } catch (e: Exception) {
                     android.util.Log.e("FriendActivitiesFragment", "Profile navigation error", e)
                 }
+            },
+            onGoToFilm = { activity ->
+                try {
+                    val action = FriendActivitiesFragmentDirections
+                        .actionFriendActivitiesToMovieDetail(activity.movie.id)
+                    findNavController().navigate(action)
+                } catch (e: Exception) {
+                    android.util.Log.e("FriendActivitiesFragment", "Movie detail navigation error", e)
+                }
+            },
+            onLogFilm = { activity ->
+                try {
+                    val action = FriendActivitiesFragmentDirections
+                        .actionFriendActivitiesToLogFilm(activity.movie.id)
+                    findNavController().navigate(action)
+                } catch (e: Exception) {
+                    android.util.Log.e("FriendActivitiesFragment", "Log film navigation error", e)
+                }
+            },
+            onChangePoster = { activity ->
+                try {
+                    val action = FriendActivitiesFragmentDirections
+                        .actionFriendActivitiesToPosterBackdrop(activity.movie.id, false)
+                    findNavController().navigate(action)
+                } catch (e: Exception) {
+                    android.util.Log.e("FriendActivitiesFragment", "Change poster navigation error", e)
+                }
             }
         )
         

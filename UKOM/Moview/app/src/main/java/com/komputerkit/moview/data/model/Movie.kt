@@ -38,7 +38,8 @@ data class Movie(
     val originalLanguage: String? = null,
     val spokenLanguages: List<String> = emptyList(),
     val productionCountries: List<String> = emptyList(),
-    val productionCompanies: List<String> = emptyList()
+    val productionCompanies: List<String> = emptyList(),
+    val favoriteId: Int? = null
 )
 
 data class CastMember(

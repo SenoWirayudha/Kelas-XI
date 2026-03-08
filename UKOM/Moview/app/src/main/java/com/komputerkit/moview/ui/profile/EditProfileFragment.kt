@@ -336,10 +336,6 @@ class EditProfileFragment : Fragment() {
             performLogout()
         }
         
-        binding.tvEditFavorites.setOnClickListener {
-            // TODO: Navigate to favorites management
-        }
-        
         // Photo picker - click on profile image or camera icon
         binding.ivProfile.setOnClickListener {
             showPhotoOptionsDialog()

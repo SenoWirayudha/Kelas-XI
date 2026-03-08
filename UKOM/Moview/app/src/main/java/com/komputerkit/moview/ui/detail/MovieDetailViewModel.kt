@@ -1,18 +1,22 @@
 package com.komputerkit.moview.ui.detail
 
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.CastMember
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.util.TmdbImageUrl
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.launch
 
-class MovieDetailViewModel : ViewModel() {
+class MovieDetailViewModel(application: Application) : AndroidViewModel(application) {
     
     private val repository = MovieRepository()
+    private val prefs = application.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
     
     private val _movie = MutableLiveData<Movie>()
     val movie: LiveData<Movie> = _movie
@@ -34,7 +38,13 @@ class MovieDetailViewModel : ViewModel() {
             try {
                 val movie = repository.getMovieDetail(movieId)
                 if (movie != null) {
-                    _movie.value = movie
+                    // Apply custom media (films-type) for this user
+                    val userId = prefs.getInt("userId", 0)
+                    val resolved = if (userId > 0) {
+                        val customMedia = repository.batchCustomMedia(userId, listOf(movieId), "films")
+                        listOf(movie).applyCustomMedia(customMedia).first()
+                    } else movie
+                    _movie.value = resolved
                     // Load streaming services
                     _streamingServices.value = listOf("Netflix", "Prime", "YouTube", "MAX", "Disney+")
                 } else {

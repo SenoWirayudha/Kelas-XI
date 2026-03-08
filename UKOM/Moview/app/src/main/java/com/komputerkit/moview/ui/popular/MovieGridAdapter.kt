@@ -9,7 +9,9 @@ import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.loadThumbnail
 
 class MovieGridAdapter(
-    private val onMovieClick: (Movie) -> Unit
+    private val onMovieClick: (Movie) -> Unit,
+    private val onLogFilm: ((Movie) -> Unit)? = null,
+    private val onChangePoster: ((Movie) -> Unit)? = null
 ) : RecyclerView.Adapter<MovieGridAdapter.MovieGridViewHolder>() {
     
     private var movies: List<Movie> = emptyList()
@@ -62,7 +64,9 @@ class MovieGridAdapter(
                     context = view.context,
                     movie = movie,
                     isFromMovieDetail = false,
-                    onGoToFilm = onMovieClick
+                    onGoToFilm = onMovieClick,
+                    onLogFilm = onLogFilm,
+                    onChangePoster = onChangePoster
                 )
                 true
             }

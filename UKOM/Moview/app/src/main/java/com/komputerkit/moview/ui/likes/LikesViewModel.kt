@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.launch
 
 class LikesViewModel(application: Application) : AndroidViewModel(application) {
@@ -32,7 +33,9 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
         _isLoading.value = true
         viewModelScope.launch {
             try {
-                allLikes = repository.getUserLikes(userId)
+                val rawLikes = repository.getUserLikes(userId)
+                val customMedia = repository.batchCustomMedia(userId, rawLikes.map { it.id }, "films")
+                allLikes = rawLikes.applyCustomMedia(customMedia)
                 _likes.postValue(allLikes)
             } catch (e: Exception) {
                 e.printStackTrace()

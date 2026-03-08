@@ -13,7 +13,9 @@ import com.komputerkit.moview.util.MovieActionsHelper
 class FavoriteMovieAdapter(
     private val onMovieClick: (Movie) -> Unit,
     private val onReviewClick: ((Int) -> Unit)? = null,
-    private val onLongPressGoToFilm: ((Movie) -> Unit)? = null
+    private val onLongPressGoToFilm: ((Movie) -> Unit)? = null,
+    private val onLogFilm: ((Movie) -> Unit)? = null,
+    private val onChangePoster: ((Movie, Int?) -> Unit)? = null
 ) : RecyclerView.Adapter<FavoriteMovieAdapter.FavoriteMovieViewHolder>() {
     
     private var movies: List<Movie> = emptyList()
@@ -62,7 +64,9 @@ class FavoriteMovieAdapter(
                     context = view.context,
                     movie = movie,
                     isFromMovieDetail = false,
-                    onGoToFilm = onLongPressGoToFilm ?: onMovieClick
+                    onGoToFilm = onLongPressGoToFilm ?: onMovieClick,
+                    onLogFilm = onLogFilm,
+                    onChangePoster = onChangePoster?.let { cb -> { m -> cb(m, m.favoriteId) } }
                 )
                 true
             }

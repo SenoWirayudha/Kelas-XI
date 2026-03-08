@@ -390,4 +390,43 @@ interface MovieApiService {
 
     @GET("academy-award-nominees")
     suspend fun getAcademyAwardNominees(): ApiResponse<List<MovieCardDto>>
+
+    // Change Media endpoints
+    @POST("users/{userId}/change-media")
+    suspend fun setChangeMedia(
+        @Path("userId") userId: Int,
+        @Body request: ChangeMediaRequest
+    ): ApiResponse<ChangeMediaResponseDto>
+
+    @GET("users/{userId}/movies/{movieId}/custom-media")
+    suspend fun getCustomMedia(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int,
+        @Query("type") type: String = "films",
+        @Query("diaries_id") diariesId: Int? = null,
+        @Query("favorite_id") favoriteId: Int? = null
+    ): ApiResponse<Map<String, ChangeMediaResponseDto?>>
+
+    @DELETE("users/{userId}/movies/{movieId}/change-media")
+    suspend fun deleteChangeMedia(
+        @Path("userId") userId: Int,
+        @Path("movieId") movieId: Int,
+        @Query("type") type: String = "films",
+        @Query("media_category") mediaCategory: String? = null
+    ): SimpleResponse
+
+    @POST("users/{userId}/batch-display-media")
+    suspend fun batchDisplayMedia(
+        @Path("userId") userId: Int,
+        @Body request: BatchDisplayMediaRequest
+    ): ApiResponse<Map<String, DisplayMediaEntry>>
+
+    @GET("movies/{movieId}/display-media")
+    suspend fun getDisplayMedia(
+        @Path("movieId") movieId: Int,
+        @Query("viewer_user_id") viewerUserId: Int? = null,
+        @Query("type") type: String = "films",
+        @Query("diaries_id") diariesId: Int? = null,
+        @Query("favorite_id") favoriteId: Int? = null
+    ): ApiResponse<DisplayMediaEntry>
 }
