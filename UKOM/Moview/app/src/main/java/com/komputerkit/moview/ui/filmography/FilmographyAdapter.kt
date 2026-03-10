@@ -6,6 +6,8 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemFilmographyPosterBinding
 import com.komputerkit.moview.util.MovieActionsHelper
@@ -43,9 +45,18 @@ class FilmographyAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(movie: Movie) {
-            Glide.with(binding.root.context)
-                .load(movie.posterUrl)
-                .into(binding.ivPoster)
+            if (!movie.posterUrl.isNullOrEmpty()) {
+                Glide.with(binding.root.context)
+                    .load(movie.posterUrl)
+                    .placeholder(R.drawable.placeholder_poster)
+                    .error(R.drawable.placeholder_poster)
+                    .diskCacheStrategy(DiskCacheStrategy.NONE)
+                    .skipMemoryCache(true)
+                    .centerCrop()
+                    .into(binding.ivPoster)
+            } else {
+                binding.ivPoster.setImageResource(R.drawable.placeholder_poster)
+            }
             
             binding.root.setOnClickListener {
                 onMovieClick(movie)

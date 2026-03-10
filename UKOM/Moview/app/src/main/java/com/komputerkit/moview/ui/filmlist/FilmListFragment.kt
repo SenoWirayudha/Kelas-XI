@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.filmlist
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -10,8 +11,8 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import com.komputerkit.moview.databinding.FragmentFilmListBinding
-import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.launch
 
 class FilmListFragment : Fragment() {
@@ -19,7 +20,7 @@ class FilmListFragment : Fragment() {
     private var _binding: FragmentFilmListBinding? = null
     private val binding get() = _binding!!
     private val args: FilmListFragmentArgs by navArgs()
-    
+
     private lateinit var adapter: FilmGridAdapter
     private val repository = MovieRepository()
 
@@ -34,19 +35,23 @@ class FilmListFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
         setupToolbar()
         setupRecyclerView()
         loadFilms()
     }
-    
+
+    override fun onResume() {
+        super.onResume()
+        loadFilms()
+    }
+
     private fun setupToolbar() {
         binding.tvTitle.text = args.categoryName
         binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
         }
     }
-    
+
     private fun setupRecyclerView() {
         adapter = FilmGridAdapter(
             onMovieClick = { movie ->
@@ -62,26 +67,32 @@ class FilmListFragment : Fragment() {
                 findNavController().navigate(action)
             }
         )
-        
         binding.rvFilms.apply {
             layoutManager = GridLayoutManager(requireContext(), 4)
             adapter = this@FilmListFragment.adapter
         }
     }
-    
+
     private fun loadFilms() {
         binding.progressBar.visibility = View.VISIBLE
         binding.tvEmpty.visibility = View.GONE
-        
+
+        val userId = requireContext()
+            .getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+            .getInt("userId", 0)
+
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val films = repository.getFilmsByCategory(
-                    args.categoryType,
-                    args.categoryValue
-                )
-                
+                val rawFilms = repository.getFilmsByCategory(args.categoryType, args.categoryValue)
+
+                val films = if (userId > 0 && rawFilms.isNotEmpty()) {
+                    val customMedia = repository.batchCustomMedia(userId, rawFilms.map { it.id }, "films")
+                    rawFilms.applyCustomMedia(customMedia)
+                } else {
+                    rawFilms
+                }
+
                 binding.progressBar.visibility = View.GONE
-                
                 if (films.isEmpty()) {
                     binding.tvEmpty.visibility = View.VISIBLE
                     binding.tvEmpty.text = "No films found for ${args.categoryName}"

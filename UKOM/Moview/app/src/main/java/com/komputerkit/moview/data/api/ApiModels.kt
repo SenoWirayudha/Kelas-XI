@@ -329,7 +329,8 @@ data class UserReviewDto(
     val review_title: String?,
     val content: String,
     val is_spoiler: Boolean,
-    val created_at: String
+    val created_at: String,
+    val diary_id: Int = 0
 )
 
 data class ReviewDetailDto(
@@ -574,7 +575,8 @@ data class ReviewActivityDto(
     val content: String,
     val is_spoiler: Boolean,
     val created_at: String,
-    val updated_at: String
+    val updated_at: String,
+    val diary_id: Int? = null
 )
 
 // Change Media DTOs

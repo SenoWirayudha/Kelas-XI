@@ -21,5 +21,6 @@ data class Review(
     val commentCount: Int = 0,
     val hasTag: Boolean = false,
     val tag: String = "",
-    val isSpoiler: Boolean = false
+    val isSpoiler: Boolean = false,
+    val diaryId: Int = 0
 )

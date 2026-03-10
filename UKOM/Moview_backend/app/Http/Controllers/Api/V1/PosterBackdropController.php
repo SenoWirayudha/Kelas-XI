@@ -25,7 +25,12 @@ use Illuminate\Http\Request;
  * │  favorites – tied to a specific favorite-film slot                      │
  * │                                                                         │
  * │  FALLBACK ORDER (for display)                                           │
- * │    context-specific (reviews|logged|favorites) → films → movie default  │
+ * │    When diaries_id known:  context-specific only → movie default        │
+ * │    When diaries_id null:   context-specific → films → movie default     │
+ * │                                                                         │
+ * │  films-level media is copied to new diary entries at save time via      │
+ * │  UserChangeMedia::propagateFilmsToContext() — later type=films changes  │
+ * │  do NOT retroactively affect existing diary entries.                    │
  * └─────────────────────────────────────────────────────────────────────────┘
  */
 class PosterBackdropController extends Controller

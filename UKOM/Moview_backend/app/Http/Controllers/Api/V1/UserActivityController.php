@@ -138,7 +138,17 @@ class UserActivityController extends Controller
                     'movies.id as movie_id',
                     'movies.title',
                     'movies.release_year as year',
-                    'movies.default_poster_path as poster_path',
+                    DB::raw("COALESCE(
+                        (SELECT mm.media_path FROM user_change_medias ucm
+                         JOIN movie_media mm ON ucm.media_id = mm.id
+                         WHERE ucm.user_id = " . (int)$userId . "
+                           AND ucm.film_id = diaries.film_id
+                           AND ucm.type IN ('logged', 'reviews')
+                           AND ucm.media_category = 'poster'
+                           AND ucm.diaries_id = diaries.id
+                         ORDER BY ucm.updated_at DESC LIMIT 1),
+                        movies.default_poster_path
+                    ) as poster_path"),
                     'reviews.id as review_id',
                     DB::raw('COALESCE(reviews.rating, diaries.rating, ratings.rating) as rating'),
                     'reviews.content as review_content',
@@ -250,11 +260,6 @@ class UserActivityController extends Controller
         try {
             $reviews = DB::table('reviews')
                 ->join('movies', 'reviews.film_id', '=', 'movies.id')
-                ->leftJoin('movie_media', function($join) {
-                    $join->on('movies.id', '=', 'movie_media.movie_id')
-                         ->where('movie_media.media_type', '=', 'poster')
-                         ->where('movie_media.is_default', '=', 1);
-                })
                 ->where('reviews.user_id', $userId)
                 ->where('reviews.status', 'published')
                 ->leftJoin('diaries', function($join) use ($userId) {
@@ -267,7 +272,6 @@ class UserActivityController extends Controller
                     'movies.id',
                     'movies.title',
                     'movies.release_year as year',
-                    'movie_media.media_path as poster_path',
                     'reviews.rating',
                     'reviews.is_liked',
                     'reviews.watched_at',
@@ -275,16 +279,36 @@ class UserActivityController extends Controller
                     'reviews.content',
                     'reviews.is_spoiler',
                     'reviews.created_at',
-                    DB::raw('COALESCE(diaries.is_rewatched, 0) as is_rewatched')
+                    DB::raw('COALESCE(diaries.is_rewatched, 0) as is_rewatched'),
+                    DB::raw('COALESCE(diaries.id, 0) as diary_id'),
+                    DB::raw("COALESCE(
+                        (SELECT mm.media_path FROM user_change_medias ucm
+                         JOIN movie_media mm ON ucm.media_id = mm.id
+                         WHERE ucm.user_id = " . (int)$userId . "
+                           AND ucm.film_id = reviews.film_id
+                           AND ucm.type = 'reviews'
+                           AND ucm.media_category = 'poster'
+                           AND ucm.diaries_id = diaries.id
+                         ORDER BY ucm.updated_at DESC LIMIT 1),
+                        (SELECT mm.media_path FROM movie_media mm
+                         WHERE mm.movie_id = movies.id
+                           AND mm.media_type = 'poster'
+                           AND mm.is_default = 1
+                         LIMIT 1)
+                    ) as poster_path")
                 )
                 ->orderBy('reviews.created_at', 'desc')
                 ->get();
 
-            // Convert is_spoiler, is_liked, and is_rewatched to boolean
+            // Build full poster URLs and cast booleans
             $reviews = $reviews->map(function($review) {
                 $review->is_spoiler = (bool)$review->is_spoiler;
                 $review->is_liked = (bool)$review->is_liked;
                 $review->is_rewatched = (bool)$review->is_rewatched;
+                $review->diary_id = (int)$review->diary_id;
+                if ($review->poster_path && !str_starts_with($review->poster_path, 'http')) {
+                    $review->poster_path = "http://10.0.2.2:8000/storage/{$review->poster_path}";
+                }
                 return $review;
             });
 
@@ -342,7 +366,8 @@ class UserActivityController extends Controller
                     'user_profiles.display_name',
                     'user_profiles.profile_photo',
                     DB::raw('(SELECT COUNT(*) FROM review_likes WHERE review_likes.review_id = reviews.id) as like_count'),
-                    DB::raw('(SELECT COUNT(*) FROM review_comments WHERE review_comments.review_id = reviews.id AND review_comments.status = "published") as comment_count')
+                    DB::raw('(SELECT COUNT(*) FROM review_comments WHERE review_comments.review_id = reviews.id AND review_comments.status = "published") as comment_count'),
+                    DB::raw('COALESCE((SELECT d.id FROM diaries d WHERE d.review_id = reviews.id AND d.user_id = reviews.user_id ORDER BY d.created_at DESC LIMIT 1), 0) as diary_id')
                 )
                 ->first();
 
@@ -357,6 +382,7 @@ class UserActivityController extends Controller
             $review->snapshot_is_liked = (bool)$review->snapshot_is_liked;
             $review->is_rewatched = (bool)$review->is_rewatched;
             $review->is_spoiler = (bool)$review->is_spoiler;
+            $review->diary_id = (int)$review->diary_id;
             
             // Check current user's like status from review_likes table
             $currentUserLiked = DB::table('review_likes')
@@ -768,11 +794,6 @@ class UserActivityController extends Controller
                            AND ucm.type IN ('logged', 'reviews') AND ucm.media_category = 'poster'
                            AND ucm.diaries_id = d.id
                          ORDER BY ucm.updated_at DESC LIMIT 1),
-                        (SELECT mm.media_path FROM user_change_medias ucm
-                         JOIN movie_media mm ON ucm.media_id = mm.id
-                         WHERE ucm.user_id = d.user_id AND ucm.film_id = d.film_id
-                           AND ucm.type = 'films' AND ucm.media_category = 'poster'
-                         ORDER BY ucm.updated_at DESC LIMIT 1),
                         m.default_poster_path
                     ) as poster_path,
                     m.release_year,
@@ -893,11 +914,6 @@ class UserActivityController extends Controller
                          WHERE ucm.user_id = d.user_id AND ucm.film_id = d.film_id
                            AND ucm.type IN ('logged', 'reviews') AND ucm.media_category = 'poster'
                            AND ucm.diaries_id = d.id
-                         ORDER BY ucm.updated_at DESC LIMIT 1),
-                        (SELECT mm.media_path FROM user_change_medias ucm
-                         JOIN movie_media mm ON ucm.media_id = mm.id
-                         WHERE ucm.user_id = d.user_id AND ucm.film_id = d.film_id
-                           AND ucm.type = 'films' AND ucm.media_category = 'poster'
                          ORDER BY ucm.updated_at DESC LIMIT 1),
                         m.default_poster_path
                     ) as poster_path,
@@ -2255,6 +2271,7 @@ class UserActivityController extends Controller
 
             // Get all diary entries for this film
             $diaries = DB::table('diaries')
+                ->join('movies', 'diaries.film_id', '=', 'movies.id')
                 ->leftJoin('reviews', function($join) {
                     $join->on('diaries.review_id', '=', 'reviews.id');
                 })
@@ -2275,20 +2292,40 @@ class UserActivityController extends Controller
                     DB::raw('COALESCE(reviews.rating, diaries.rating, ratings.rating) as rating'),
                     'reviews.content as review_content',
                     DB::raw('COALESCE(reviews.is_liked, diaries.is_liked) as is_liked'),
-                    DB::raw('CASE WHEN reviews.content IS NOT NULL THEN "review" ELSE "log" END as type')
+                    DB::raw('CASE WHEN reviews.content IS NOT NULL THEN "review" ELSE "log" END as type'),
+                    DB::raw("COALESCE(
+                        (SELECT mm.media_path FROM user_change_medias ucm
+                         JOIN movie_media mm ON ucm.media_id = mm.id
+                         WHERE ucm.user_id = " . (int)$userId . "
+                           AND ucm.film_id = diaries.film_id
+                           AND ucm.type IN ('logged', 'reviews')
+                           AND ucm.media_category = 'poster'
+                           AND ucm.diaries_id = diaries.id
+                         ORDER BY ucm.updated_at DESC LIMIT 1),
+                        movies.default_poster_path
+                    ) as diary_poster_path")
                 )
                 ->orderBy('diaries.watched_at', 'desc')
                 ->orderBy('diaries.created_at', 'desc')
                 ->get();
 
-            $diariesData = $diaries->map(function($diary) use ($movie, $posterUrl) {
+            $diariesData = $diaries->map(function($diary) use ($movie) {
+                $rawPath = $diary->diary_poster_path;
+                $diaryPosterUrl = null;
+                if ($rawPath) {
+                    if (!str_starts_with($rawPath, 'http')) {
+                        $diaryPosterUrl = "http://10.0.2.2:8000/storage/{$rawPath}";
+                    } else {
+                        $diaryPosterUrl = $rawPath;
+                    }
+                }
                 return [
                     'diary_id' => $diary->diary_id,
                     'film_id' => $diary->film_id,
                     'movie_id' => $movie->id,
                     'title' => $movie->title,
                     'year' => $movie->year,
-                    'poster_path' => $posterUrl,
+                    'poster_path' => $diaryPosterUrl,
                     'watched_at' => $diary->watched_at,
                     'note' => $diary->note,
                     'review_id' => $diary->review_id,
@@ -2316,19 +2353,49 @@ class UserActivityController extends Controller
                     'reviews.content',
                     'reviews.is_spoiler',
                     'reviews.created_at',
-                    'reviews.updated_at'
+                    'reviews.updated_at',
+                    // The diary entry that owns this review (most recent one)
+                    DB::raw("(SELECT d.id FROM diaries d
+                              WHERE d.review_id = reviews.id
+                                AND d.user_id = " . (int)$userId . "
+                              ORDER BY d.created_at DESC LIMIT 1) as diary_id"),
+                    // Per-review custom poster: reviews context only (no type=films fallback).
+                    // Media is inherited at diary-save time via propagateFilmsToContext.
+                    DB::raw("(SELECT mm.media_path FROM user_change_medias ucm
+                         JOIN movie_media mm ON ucm.media_id = mm.id
+                         WHERE ucm.user_id = " . (int)$userId . "
+                           AND ucm.film_id = reviews.film_id
+                           AND ucm.type = 'reviews'
+                           AND ucm.media_category = 'poster'
+                           AND ucm.diaries_id = (
+                               SELECT d.id FROM diaries d
+                               WHERE d.review_id = reviews.id
+                                 AND d.user_id = " . (int)$userId . "
+                               ORDER BY d.created_at DESC LIMIT 1
+                           )
+                         ORDER BY ucm.updated_at DESC LIMIT 1) as custom_poster_path")
                 )
                 ->orderBy('reviews.created_at', 'desc')
                 ->get();
 
             $reviewsData = $reviews->map(function($review) use ($movie, $posterUrl) {
+                // Use custom poster if available, fall back to movie default
+                $rawCustom = $review->custom_poster_path;
+                $finalPoster = $posterUrl;
+                if ($rawCustom) {
+                    if (!str_starts_with($rawCustom, 'http')) {
+                        $finalPoster = "http://10.0.2.2:8000/storage/{$rawCustom}";
+                    } else {
+                        $finalPoster = $rawCustom;
+                    }
+                }
                 return [
                     'review_id' => $review->review_id,
                     'film_id' => $review->film_id,
                     'movie_id' => $movie->id,
                     'title' => $movie->title,
                     'year' => $movie->year,
-                    'poster_path' => $posterUrl,
+                    'poster_path' => $finalPoster,
                     'rating' => $review->rating ?? 0,
                     'is_liked' => (bool)$review->is_liked,
                     'watched_at' => $review->watched_at,
@@ -2336,7 +2403,8 @@ class UserActivityController extends Controller
                     'content' => $review->content,
                     'is_spoiler' => (bool)$review->is_spoiler,
                     'created_at' => $review->created_at,
-                    'updated_at' => $review->updated_at
+                    'updated_at' => $review->updated_at,
+                    'diary_id' => $review->diary_id,
                 ];
             });
 

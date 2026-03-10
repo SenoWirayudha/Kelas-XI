@@ -63,7 +63,7 @@ class ReviewDetailFragment : Fragment() {
         setupObservers()
         setupClickListeners()
         
-        viewModel.loadReview(args.reviewId, args.isLog)
+        viewModel.loadReview(args.reviewId, args.isLog, args.diaryId)
     }
     
     private fun setupLikedReviewsRecyclerView() {
@@ -89,7 +89,7 @@ class ReviewDetailFragment : Fragment() {
         // Reload review data when returning from edit screen
         // This ensures log entries that were edited to add review text
         // will now show as review detail instead of log detail
-        viewModel.loadReview(args.reviewId, args.isLog)
+        viewModel.loadReview(args.reviewId, args.isLog, args.diaryId)
     }
 
     private fun setupObservers() {
@@ -317,8 +317,11 @@ class ReviewDetailFragment : Fragment() {
                         val prefs2 = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
                         val isOwn = review.userId == prefs2.getInt("userId", 0)
                         val ctxType = if (isOwn) (if (args.isLog) "logged" else "reviews") else "films"
-                        // args.diaryId is the user_diaries.id (diary entry PK), always correct
-                        val diariesId = if (isOwn && args.diaryId > 0) args.diaryId else 0
+                        // Prefer nav-arg diaryId; fall back to the diary_id resolved by the ViewModel
+                        // (covers navigation from ReviewFragment / HomeFragment where args.diaryId = 0)
+                        val resolvedDiaryId = if (args.diaryId > 0) args.diaryId
+                                              else (viewModel.diaryId.value ?: 0)
+                        val diariesId = if (isOwn && resolvedDiaryId > 0) resolvedDiaryId else 0
                         val action = ReviewDetailFragmentDirections.actionReviewDetailToPosterBackdrop(
                             review.movie.id, false, ctxType, 0, diariesId
                         )

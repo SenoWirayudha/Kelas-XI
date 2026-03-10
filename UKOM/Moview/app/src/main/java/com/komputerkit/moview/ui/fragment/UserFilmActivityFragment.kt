@@ -13,8 +13,6 @@ import com.google.android.material.tabs.TabLayoutMediator
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.FragmentUserFilmActivityBinding
 import com.komputerkit.moview.ui.viewmodel.UserFilmActivityViewModel
-import com.komputerkit.moview.util.MovieActionsHelper
-import com.komputerkit.moview.util.loadPoster
 
 class UserFilmActivityFragment : Fragment() {
     private var _binding: FragmentUserFilmActivityBinding? = null
@@ -70,10 +68,6 @@ class UserFilmActivityFragment : Fragment() {
 
         viewModel.movie.observe(viewLifecycleOwner) { movieInfo ->
             val posterUrl = movieInfo.poster_path
-            if (!posterUrl.isNullOrEmpty()) {
-                binding.ivMoviePoster.visibility = View.VISIBLE
-                binding.ivMoviePoster.loadPoster(posterUrl)
-            }
 
             val movieModel = Movie(
                 id = movieInfo.id,
@@ -84,31 +78,18 @@ class UserFilmActivityFragment : Fragment() {
                 releaseYear = movieInfo.year,
                 description = null
             )
-
-            binding.ivMoviePoster.setOnLongClickListener { view ->
-                MovieActionsHelper.showMovieActionsBottomSheet(
-                    context = view.context,
-                    movie = movieModel,
-                    isFromMovieDetail = false,
-                    onGoToFilm = {
-                        val action = UserFilmActivityFragmentDirections
-                            .actionUserFilmActivityToMovieDetail(movieInfo.id)
-                        findNavController().navigate(action)
-                    },
-                    onLogFilm = {
-                        val action = UserFilmActivityFragmentDirections
-                            .actionUserFilmActivityToLogFilm(movieInfo.id)
-                        findNavController().navigate(action)
-                    },
-                    onChangePoster = {
-                        val action = UserFilmActivityFragmentDirections
-                            .actionUserFilmActivityToPosterBackdrop(movieInfo.id, false)
-                        findNavController().navigate(action)
-                    }
-                )
-                true
-            }
         }
+
+        // Reload data after user changes a poster in PosterBackdropFragment
+        findNavController().currentBackStackEntry?.savedStateHandle
+            ?.getLiveData<Boolean>("artwork_saved")
+            ?.observe(viewLifecycleOwner) { saved ->
+                if (saved == true) {
+                    findNavController().currentBackStackEntry?.savedStateHandle
+                        ?.set("artwork_saved", false)
+                    viewModel.loadUserFilmActivity(args.userId, args.filmId)
+                }
+            }
     }
     
     override fun onDestroyView() {

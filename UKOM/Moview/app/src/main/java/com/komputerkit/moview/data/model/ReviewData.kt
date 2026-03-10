@@ -15,5 +15,6 @@ data class ReviewData(
     val review_title: String?,
     val content: String,
     val is_spoiler: Boolean,
-    val created_at: String
+    val created_at: String,
+    val diary_id: Int = 0
 )

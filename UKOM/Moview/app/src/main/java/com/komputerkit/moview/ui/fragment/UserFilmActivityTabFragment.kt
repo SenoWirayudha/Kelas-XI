@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.fragment
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -58,19 +59,73 @@ class UserFilmActivityTabFragment : Fragment() {
         
         when (tabType) {
             TAB_DIARY -> {
-                diaryAdapter = SimpleDiaryAdapter { id, isLog ->
-                    val action = UserFilmActivityFragmentDirections.actionUserFilmActivityToReviewDetail(id, isLog)
-                    findNavController().navigate(action)
-                }
+                val currentUserId = requireContext()
+                    .getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+                    .getInt("userId", 0)
+                val isOwn = (userId == currentUserId)
+
+                diaryAdapter = SimpleDiaryAdapter(
+                    onDiaryClick = { reviewOrDiaryId, isLog, diaryId ->
+                        val action = UserFilmActivityFragmentDirections.actionUserFilmActivityToReviewDetail(
+                            reviewOrDiaryId, isLog, false, diaryId
+                        )
+                        findNavController().navigate(action)
+                    },
+                    onLogFilm = { movieId ->
+                        val action = UserFilmActivityFragmentDirections.actionUserFilmActivityToLogFilm(movieId)
+                        findNavController().navigate(action)
+                    },
+                    onChangePoster = { diary ->
+                        if (isOwn) {
+                            // Own diary: save with the diary-specific context type
+                            val contextType = if (diary.type == "review") "reviews" else "logged"
+                            val action = UserFilmActivityFragmentDirections.actionUserFilmActivityToPosterBackdrop(
+                                diary.movie_id, false, contextType, 0, diary.diary_id
+                            )
+                            findNavController().navigate(action)
+                        } else {
+                            // Other user's page: save as type=films for the current logged-in user
+                            val action = UserFilmActivityFragmentDirections.actionUserFilmActivityToPosterBackdrop(
+                                diary.movie_id, false, "films", 0, 0
+                            )
+                            findNavController().navigate(action)
+                        }
+                    }
+                )
                 binding.rvList.adapter = diaryAdapter
                 android.util.Log.d("UserFilmActivityTab", "Diary adapter set")
             }
             TAB_REVIEWS -> {
-                reviewAdapter = SimpleReviewAdapter { reviewId ->
-                    // Navigate to ReviewDetail
-                    val action = UserFilmActivityFragmentDirections.actionUserFilmActivityToReviewDetail(reviewId)
-                    findNavController().navigate(action)
-                }
+                val currentUserId = requireContext()
+                    .getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+                    .getInt("userId", 0)
+                val isOwn = (userId == currentUserId)
+
+                reviewAdapter = SimpleReviewAdapter(
+                    onReviewClick = { reviewId ->
+                        val action = UserFilmActivityFragmentDirections.actionUserFilmActivityToReviewDetail(reviewId)
+                        findNavController().navigate(action)
+                    },
+                    onLogFilm = { movieId ->
+                        val action = UserFilmActivityFragmentDirections.actionUserFilmActivityToLogFilm(movieId)
+                        findNavController().navigate(action)
+                    },
+                    onChangePoster = { review ->
+                        if (isOwn && review.diary_id > 0) {
+                            // Own review: save with reviews context
+                            val action = UserFilmActivityFragmentDirections.actionUserFilmActivityToPosterBackdrop(
+                                review.movie_id, false, "reviews", 0, review.diary_id
+                            )
+                            findNavController().navigate(action)
+                        } else {
+                            // Other user's page: save as type=films for the current logged-in user
+                            val action = UserFilmActivityFragmentDirections.actionUserFilmActivityToPosterBackdrop(
+                                review.movie_id, false, "films", 0, 0
+                            )
+                            findNavController().navigate(action)
+                        }
+                    }
+                )
                 binding.rvList.adapter = reviewAdapter
                 android.util.Log.d("UserFilmActivityTab", "Review adapter set")
             }

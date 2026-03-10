@@ -8,11 +8,15 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Diary
+import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemDiarySimpleBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.loadPoster
 
 class SimpleDiaryAdapter(
-    private val onDiaryClick: (Int, Boolean) -> Unit
+    private val onDiaryClick: (reviewOrDiaryId: Int, isLog: Boolean, diaryId: Int) -> Unit,
+    private val onChangePoster: ((diary: Diary) -> Unit)? = null,
+    private val onLogFilm: ((movieId: Int) -> Unit)? = null
 ) : ListAdapter<Diary, SimpleDiaryAdapter.DiaryViewHolder>(DiaryDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DiaryViewHolder {
@@ -69,10 +73,30 @@ class SimpleDiaryAdapter(
                 // Otherwise navigate as log entry using diary_id
                 root.setOnClickListener {
                     if (diary.review_id > 0) {
-                        onDiaryClick(diary.review_id, false)
+                        onDiaryClick(diary.review_id, false, diary.diary_id)
                     } else {
-                        onDiaryClick(diary.diary_id, true)
+                        onDiaryClick(diary.diary_id, true, diary.diary_id)
                     }
+                }
+
+                ivPoster.setOnLongClickListener { view ->
+                    val movie = Movie(
+                        id = diary.movie_id,
+                        title = diary.title,
+                        posterUrl = diary.poster_path,
+                        averageRating = null,
+                        genre = null,
+                        releaseYear = diary.year,
+                        description = null
+                    )
+                    MovieActionsHelper.showMovieActionsBottomSheet(
+                        context = view.context,
+                        movie = movie,
+                        isFromMovieDetail = false,
+                        onLogFilm = if (onLogFilm != null) { _ -> onLogFilm.invoke(diary.movie_id) } else null,
+                        onChangePoster = if (onChangePoster != null) { _ -> onChangePoster.invoke(diary) } else null
+                    )
+                    true
                 }
             }
         }

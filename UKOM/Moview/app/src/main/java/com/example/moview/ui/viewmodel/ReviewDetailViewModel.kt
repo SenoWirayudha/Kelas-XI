@@ -11,7 +11,7 @@ import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.LikedReview
 import com.komputerkit.moview.data.repository.MovieRepository
-import com.komputerkit.moview.util.applyCustomMedia
+import com.komputerkit.moview.util.resolveMediaUrl
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -61,7 +61,11 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
     private val _reviewMovieId = MutableLiveData<Int>()
     val reviewMovieId: LiveData<Int> = _reviewMovieId
 
-    fun loadReview(reviewId: Int, isLog: Boolean = false) {
+    // Resolved diary id (cascade: nav arg → api → 0) — used by fragment for poster/backdrop change
+    private val _diaryId = MutableLiveData<Int>(0)
+    val diaryId: LiveData<Int> = _diaryId
+
+    fun loadReview(reviewId: Int, isLog: Boolean = false, diaryId: Int = 0) {
         val userId = prefs.getInt("userId", 0)
         
         viewModelScope.launch {
@@ -109,10 +113,30 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                         backdropUrl = backdropUrl
                     )
 
-                    // Apply custom media using the same type the entry was saved under
+                    // Apply per-diary custom media so rewatch entries don't share the same poster/backdrop.
+                    // Priority: explicit diaryId from nav args → diary_id returned by the API → null.
+                    // This covers all callers (UserFilmActivity, Reviews screen, Home "new from friends").
                     val mediaType = if (isActuallyLog) "logged" else "reviews"
-                    val batchMap = repository.batchCustomMedia(reviewDto.user_id, listOf(reviewDto.movie_id), mediaType)
-                    val movie = listOf(rawMovie).applyCustomMedia(batchMap).first()
+                    val diariesIdToUse = when {
+                        diaryId > 0 -> diaryId
+                        reviewDto.diary_id > 0 -> reviewDto.diary_id
+                        else -> null
+                    }
+                    _diaryId.postValue(diariesIdToUse ?: 0)
+                    val entry = repository.getDisplayMedia(
+                        movieId = reviewDto.movie_id,
+                        viewerUserId = reviewDto.user_id,
+                        type = mediaType,
+                        diariesId = diariesIdToUse
+                    )
+                    val movie = if (entry != null) {
+                        val customPoster = entry.poster?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
+                        val customBackdrop = entry.backdrop?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
+                        rawMovie.copy(
+                            posterUrl = customPoster ?: rawMovie.posterUrl,
+                            backdropUrl = customBackdrop ?: rawMovie.backdropUrl
+                        )
+                    } else rawMovie
                     
                     val review = Review(
                         id = if (isActuallyLog) reviewDto.diary_id else reviewDto.review_id,

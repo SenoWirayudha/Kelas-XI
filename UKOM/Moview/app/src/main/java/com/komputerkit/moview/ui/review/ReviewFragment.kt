@@ -68,7 +68,12 @@ class ReviewFragment : Fragment() {
                 findNavController().navigate(action)
             },
             onChangePoster = { review ->
-                val action = ReviewFragmentDirections.actionReviewToPosterBackdrop(review.movie.id, false)
+                val isOwn = currentUserId == targetUserId
+                val contextType = if (isOwn) "reviews" else "films"
+                val diariesId = if (isOwn && review.diaryId > 0) review.diaryId else 0
+                val action = ReviewFragmentDirections.actionReviewToPosterBackdrop(
+                    review.movie.id, false, contextType, 0, diariesId
+                )
                 findNavController().navigate(action)
             }
         )

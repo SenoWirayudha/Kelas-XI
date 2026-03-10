@@ -142,18 +142,10 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     // Load recent activity from diary (latest 4 entries)
                     try {
                         val diaryEntries = repository.getUserDiary(targetUserId)
-                        val loggedIds = diaryEntries.filter { !it.hasReview }.map { it.movie.id }.distinct()
-                        val reviewIds = diaryEntries.filter { it.hasReview }.map { it.movie.id }.distinct()
-                        val loggedMedia = if (loggedIds.isNotEmpty()) repository.batchCustomMedia(targetUserId, loggedIds, "logged") else emptyMap()
-                        val reviewMedia = if (reviewIds.isNotEmpty()) repository.batchCustomMedia(targetUserId, reviewIds, "reviews") else emptyMap()
-                        val resolvedDiary = diaryEntries.map { entry ->
-                            val mediaMap = if (entry.hasReview) reviewMedia else loggedMedia
-                            val custom = mediaMap[entry.movie.id] ?: return@map entry
-                            val resolved = listOf(entry.movie).applyCustomMedia(mapOf(entry.movie.id to custom)).first()
-                            entry.copy(movie = resolved)
-                        }
-                        _recentActivity.postValue(resolvedDiary.take(4))
-                        Log.d("ProfileViewModel", "Loaded ${resolvedDiary.take(4).size} recent diary entries")
+                        // poster_path is already resolved per-diary by the backend COALESCE
+                        // subquery in getDiary, so no batchCustomMedia call is needed here.
+                        _recentActivity.postValue(diaryEntries.take(4))
+                        Log.d("ProfileViewModel", "Loaded ${diaryEntries.take(4).size} recent diary entries")
                     } catch (e: Exception) {
                         Log.e("ProfileViewModel", "Error loading recent activity", e)
                         _recentActivity.postValue(emptyList())

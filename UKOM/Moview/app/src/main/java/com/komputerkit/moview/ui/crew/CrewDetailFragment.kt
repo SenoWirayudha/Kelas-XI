@@ -14,6 +14,7 @@ import com.google.android.material.tabs.TabLayout
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentCrewDetailBinding
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.resolveMediaUrl
 import kotlinx.coroutines.launch
 
 // Data classes for crew detail
@@ -96,20 +97,29 @@ class CrewDetailFragment : Fragment() {
                     .into(binding.ivProfile)
                 
                 bio = personDetail.bio ?: "No biography available."
-                
+
+                // Fetch user-specific type=films custom posters in one batch
+                val allFilmIds = personDetail.filmography.values.flatten().map { it.id }.distinct()
+                val userId = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE).getInt("userId", 0)
+                val customMedia = if (userId > 0 && allFilmIds.isNotEmpty()) {
+                    repository.batchCustomMedia(userId, allFilmIds, "films")
+                } else emptyMap()
+
                 // Convert filmography to Role objects
                 roles = mutableListOf<Role>().apply {
                     // Always add Bio as first tab
                     add(Role("Bio", emptyList()))
-                    
+
                     // Add each job type as a tab
                     personDetail.filmography.forEach { (job, films) ->
                         add(Role(
                             name = job,
                             films = films.map { filmDto ->
+                                val entry = customMedia[filmDto.id]
+                                val customPoster = entry?.poster?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
                                 Film(
                                     id = filmDto.id,
-                                    posterUrl = filmDto.poster_path ?: "",
+                                    posterUrl = customPoster ?: filmDto.poster_path ?: "",
                                     year = filmDto.year.toString(),
                                     title = filmDto.title
                                 )

@@ -114,7 +114,16 @@ class UserChangeMedia extends Model
 
     /**
      * Get the effective display media (poster + backdrop) for a user/film/context.
-     * Falls through:  context-specific → films → [null if nothing set]
+     *
+     * When `diariesId` is provided (specific diary entry known):
+     *   context-specific (reviews|logged) only → no films fallback
+     *
+     * When `diariesId` is null (context ID unknown):
+     *   context-specific → films → [null if nothing set]
+     *
+     * NOTE: 'films' inheritance is done once at diary-save time via
+     * propagateFilmsToContext(). Later changes to type=films must not
+     * bleed into already-saved diary entries.
      *
      * Returns ['poster' => MediaRow|null, 'backdrop' => MediaRow|null]
      */
@@ -125,8 +134,13 @@ class UserChangeMedia extends Model
         ?int   $diariesId  = null,
         ?int   $favoriteId = null
     ): array {
-        // Collect records from the most-specific type, then fall back to 'films'
-        $typesToCheck = $type !== 'films' ? [$type, 'films'] : ['films'];
+        // Collect records from the most-specific type.
+        // When a specific diary entry is requested (diariesId is set), do NOT fall back
+        // to 'films'. Media is inherited once at diary-save time via propagateFilmsToContext,
+        // so a later type=films change must not bleed into existing diary entries.
+        $typesToCheck = ($type !== 'films')
+            ? ($diariesId !== null ? [$type] : [$type, 'films'])
+            : ['films'];
 
         $resolved = ['poster' => null, 'backdrop' => null];
 

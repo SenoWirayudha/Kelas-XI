@@ -7,12 +7,16 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.R
+import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.ReviewData
 import com.komputerkit.moview.databinding.ItemReviewSimpleBinding
+import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.loadPoster
 
 class SimpleReviewAdapter(
-    private val onReviewClick: (Int) -> Unit
+    private val onReviewClick: (Int) -> Unit,
+    private val onChangePoster: ((review: ReviewData) -> Unit)? = null,
+    private val onLogFilm: ((movieId: Int) -> Unit)? = null
 ) : ListAdapter<ReviewData, SimpleReviewAdapter.ReviewViewHolder>(ReviewDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ReviewViewHolder {
@@ -61,6 +65,26 @@ class SimpleReviewAdapter(
                 // Click listener
                 root.setOnClickListener {
                     onReviewClick(review.review_id)
+                }
+
+                ivPoster.setOnLongClickListener { view ->
+                    val movie = Movie(
+                        id = review.movie_id,
+                        title = review.title,
+                        posterUrl = review.poster_path,
+                        averageRating = null,
+                        genre = null,
+                        releaseYear = review.year,
+                        description = null
+                    )
+                    MovieActionsHelper.showMovieActionsBottomSheet(
+                        context = view.context,
+                        movie = movie,
+                        isFromMovieDetail = false,
+                        onLogFilm = if (onLogFilm != null) { _ -> onLogFilm.invoke(review.movie_id) } else null,
+                        onChangePoster = if (onChangePoster != null) { _ -> onChangePoster.invoke(review) } else null
+                    )
+                    true
                 }
             }
         }
