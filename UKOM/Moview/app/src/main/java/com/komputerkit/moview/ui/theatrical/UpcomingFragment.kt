@@ -39,7 +39,15 @@ class UpcomingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 val action = UpcomingFragmentDirections.actionUpcomingToMovieDetail(movieId = movie.id)
                 findNavController().navigate(action)
             },
-            showDateBadge = true
+            showDateBadge = true,
+            onLogFilm = { movie ->
+                val action = UpcomingFragmentDirections.actionUpcomingToLogFilm(movieId = movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = UpcomingFragmentDirections.actionUpcomingToPosterBackdrop(movieId = movie.id, openBackdropsTab = false)
+                findNavController().navigate(action)
+            }
         )
 
         binding.rvMovies.apply {

@@ -293,7 +293,7 @@ class ProfileFragment : Fragment() {
                 
                 // Load backdrop image
                 Glide.with(this)
-                    .load(backdropUrl)
+                    .load(com.komputerkit.moview.util.ServerConfig.fixUrl(backdropUrl))
                     .into(binding.ivHeaderBg)
                 
                 // Profile photo overlap dengan backdrop

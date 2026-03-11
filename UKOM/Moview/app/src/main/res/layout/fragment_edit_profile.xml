@@ -182,9 +182,20 @@
                         android:background="@android:color/transparent"
                         android:hint="moviebuff_99"
                         android:inputType="text"
+                        android:maxLength="20"
+                        android:maxLines="1"
                         android:textColor="@color/text_primary"
                         android:textColorHint="@color/text_secondary"
                         android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/tv_username_counter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="0/20"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

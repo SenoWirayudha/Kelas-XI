@@ -51,15 +51,15 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="@color/star_green"
-            android:textSize="12sp"
+            android:textSize="10sp"
             tools:text="★★★★★" />
 
         <!-- Rewatch Icon (shown only if rewatched) -->
         <ImageView
             android:id="@+id/iv_rewatch"
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:layout_marginStart="4dp"
+            android:layout_width="11dp"
+            android:layout_height="11dp"
+            android:layout_marginStart="2dp"
             android:src="@drawable/ic_rewatch"
             android:visibility="gone"
             app:tint="@color/teal_watched"
@@ -69,9 +69,9 @@
         <!-- Review Icon (shown only if has review) -->
         <ImageView
             android:id="@+id/iv_review"
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:layout_marginStart="4dp"
+            android:layout_width="11dp"
+            android:layout_height="11dp"
+            android:layout_marginStart="2dp"
             android:src="@drawable/ic_review"
             android:visibility="gone"
             app:tint="@color/text_secondary"

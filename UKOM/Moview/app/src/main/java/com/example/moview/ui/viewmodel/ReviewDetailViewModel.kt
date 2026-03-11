@@ -11,6 +11,7 @@ import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.LikedReview
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.resolveMediaUrl
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -84,23 +85,11 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                     _isLog.postValue(isActuallyLog)
                     
                     // Build full URLs
-                    val posterUrl = when {
-                        reviewDto.poster_path.isNullOrBlank() -> ""
-                        reviewDto.poster_path.startsWith("http") -> reviewDto.poster_path.replace("127.0.0.1", "10.0.2.2")
-                        else -> "http://10.0.2.2:8000/storage/${reviewDto.poster_path}"
-                    }
+                    val posterUrl = ServerConfig.resolveStorageUrl(reviewDto.poster_path)
                     
-                    val backdropUrl = when {
-                        reviewDto.backdrop_path.isNullOrBlank() -> ""
-                        reviewDto.backdrop_path.startsWith("http") -> reviewDto.backdrop_path.replace("127.0.0.1", "10.0.2.2")
-                        else -> "http://10.0.2.2:8000/storage/${reviewDto.backdrop_path}"
-                    }
+                    val backdropUrl = ServerConfig.resolveStorageUrl(reviewDto.backdrop_path)
                     
-                    val profilePhoto = when {
-                        reviewDto.profile_photo.isNullOrBlank() -> ""
-                        reviewDto.profile_photo.startsWith("http") -> reviewDto.profile_photo.replace("127.0.0.1", "10.0.2.2")
-                        else -> "http://10.0.2.2:8000/storage/${reviewDto.profile_photo}"
-                    }
+                    val profilePhoto = ServerConfig.resolveStorageUrl(reviewDto.profile_photo)
                     
                     val rawMovie = Movie(
                         id = reviewDto.movie_id,

@@ -1,5 +1,6 @@
 package com.komputerkit.moview.data.api
 
+import com.komputerkit.moview.util.ServerConfig
 import okhttp3.ConnectionPool
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -10,11 +11,7 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
     
-    // GANTI IP INI dengan IP komputer Anda yang menjalankan Laravel
-    // Jangan gunakan localhost atau 127.0.0.1 karena itu merujuk ke emulator
-    // Gunakan: ipconfig (Windows) atau ifconfig (Mac/Linux) untuk cek IP Anda
-    private const val BASE_URL = "http://10.0.2.2:8000/api/v1/"  // Untuk emulator
-    // Atau gunakan IP lokal Anda, contoh: "http://192.168.1.100:8000/api/v1/"
+    private val BASE_URL = ServerConfig.BASE_URL
     
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY

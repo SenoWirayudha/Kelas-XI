@@ -239,6 +239,65 @@
         app:layout_constraintTop_toTopOf="@id/btn_login"
         tools:visibility="visible" />
 
+    <!-- Divider with "Or" -->
+    <View
+        android:id="@+id/divider_left"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="24dp"
+        android:background="#3A3F49"
+        app:layout_constraintEnd_toStartOf="@id/tv_or"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_login"
+        app:layout_constraintBottom_toBottomOf="@id/tv_or" />
+
+    <TextView
+        android:id="@+id/tv_or"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:text="Or"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toStartOf="@id/divider_right"
+        app:layout_constraintStart_toEndOf="@id/divider_left"
+        app:layout_constraintTop_toBottomOf="@id/btn_login" />
+
+    <View
+        android:id="@+id/divider_right"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:background="#3A3F49"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/tv_or"
+        app:layout_constraintTop_toTopOf="@id/divider_left"
+        app:layout_constraintBottom_toBottomOf="@id/tv_or" />
+
+    <!-- Google Sign-In Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_google_sign_in"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:layout_marginTop="16dp"
+        android:text="Continue with Google"
+        android:textAllCaps="false"
+        android:textColor="@color/text_primary"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:backgroundTint="#1A1F29"
+        app:cornerRadius="16dp"
+        app:icon="@drawable/ic_google"
+        app:iconGravity="textStart"
+        app:iconSize="24dp"
+        app:iconPadding="12dp"
+        app:strokeColor="#3A3F49"
+        app:strokeWidth="1dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_or" />
+
     <!-- Sign Up Link -->
     <LinearLayout
         android:id="@+id/layout_sign_up"
@@ -249,7 +308,7 @@
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btn_login">
+        app:layout_constraintTop_toBottomOf="@id/btn_google_sign_in">
 
         <TextView
             android:layout_width="wrap_content"

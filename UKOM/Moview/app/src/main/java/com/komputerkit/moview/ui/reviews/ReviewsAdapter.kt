@@ -61,7 +61,7 @@ class ReviewsAdapter(
             
             // Load user avatar
             Glide.with(binding.root.context)
-                .load(review.userAvatar)
+                .load(if (!review.userAvatar.isNullOrEmpty()) com.komputerkit.moview.util.ServerConfig.fixUrl(review.userAvatar) else review.userAvatar)
                 .placeholder(R.drawable.ic_profile)
                 .circleCrop()
                 .into(binding.ivUserPhoto)

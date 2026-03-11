@@ -41,16 +41,17 @@ class FilmGridAdapter(
             
             // Load poster with fixed size to prevent stretching
             binding.ivPoster.post {
+                val fixedUrl = if (!movie.posterUrl.isNullOrEmpty()) com.komputerkit.moview.util.ServerConfig.fixUrl(movie.posterUrl) else movie.posterUrl
                 val width = binding.ivPoster.width
                 if (width > 0) {
                     val height = (width * 1.5).toInt() // 2:3 aspect ratio
                     com.bumptech.glide.Glide.with(binding.ivPoster.context)
-                        .load(movie.posterUrl)
+                        .load(fixedUrl)
                         .override(width, height)
                         .centerCrop()
                         .into(binding.ivPoster)
                 } else {
-                    binding.ivPoster.loadThumbnail(movie.posterUrl)
+                    binding.ivPoster.loadThumbnail(fixedUrl)
                 }
             }
             

@@ -587,6 +587,10 @@
                 android:name="openBackdropsTab"
                 android:defaultValue="false"
                 app:argType="boolean" />
+            <argument
+                android:name="contextType"
+                android:defaultValue="profile"
+                app:argType="string" />
         </action>
         <action
             android:id="@+id/action_editProfile_to_login"
@@ -602,6 +606,12 @@
         <action
             android:id="@+id/action_nowShowing_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_nowShowing_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_nowShowing_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
     <fragment
@@ -611,6 +621,12 @@
         <action
             android:id="@+id/action_upcoming_to_movieDetail"
             app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_upcoming_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_upcoming_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
     </fragment>
 
 </navigation>

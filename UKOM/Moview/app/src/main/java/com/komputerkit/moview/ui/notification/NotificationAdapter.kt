@@ -12,7 +12,8 @@ import com.komputerkit.moview.data.model.NotificationType
 import com.komputerkit.moview.databinding.ItemNotificationBinding
 
 class NotificationAdapter(
-    private val onNotificationClick: (Notification) -> Unit
+    private val onNotificationClick: (Notification) -> Unit,
+    private val onAvatarClick: (Notification) -> Unit = {}
 ) : RecyclerView.Adapter<NotificationAdapter.NotificationViewHolder>() {
     
     private var notifications: List<Notification> = emptyList()
@@ -55,8 +56,9 @@ class NotificationAdapter(
             }
             
             // User avatar
+            val avatarUrl = if (!notification.userAvatar.isNullOrEmpty()) com.komputerkit.moview.util.ServerConfig.fixUrl(notification.userAvatar) else notification.userAvatar
             Glide.with(binding.root.context)
-                .load(notification.userAvatar)
+                .load(avatarUrl)
                 .placeholder(R.drawable.ic_profile)
                 .circleCrop()
                 .into(binding.ivUserAvatar)
@@ -68,8 +70,9 @@ class NotificationAdapter(
             // Movie poster (if applicable)
             if (notification.moviePoster != null) {
                 binding.ivMoviePoster.visibility = View.VISIBLE
+                val posterUrl = com.komputerkit.moview.util.ServerConfig.fixUrl(notification.moviePoster)
                 Glide.with(binding.root.context)
-                    .load(notification.moviePoster)
+                    .load(posterUrl)
                     .into(binding.ivMoviePoster)
             } else {
                 binding.ivMoviePoster.visibility = View.GONE
@@ -87,6 +90,11 @@ class NotificationAdapter(
             
             // Unread indicator
             binding.unreadIndicator.visibility = if (!notification.isRead) View.VISIBLE else View.GONE
+            
+            // Avatar click → navigate to user profile
+            binding.ivUserAvatar.setOnClickListener {
+                onAvatarClick(notification)
+            }
             
             // Click handler
             binding.root.setOnClickListener {

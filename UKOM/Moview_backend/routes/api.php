@@ -20,6 +20,7 @@ Route::prefix('v1')->group(function () {
     // Authentication
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/google-login', [AuthController::class, 'googleLogin']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     

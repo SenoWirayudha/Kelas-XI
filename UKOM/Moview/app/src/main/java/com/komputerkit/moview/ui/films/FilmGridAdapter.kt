@@ -47,8 +47,9 @@ class FilmGridAdapter(
         fun bind(movie: Movie) {
             // Load poster with optimization
             if (!movie.posterUrl.isNullOrEmpty()) {
+                val fixedUrl = com.komputerkit.moview.util.ServerConfig.fixUrl(movie.posterUrl)
                 Glide.with(binding.root.context)
-                    .load(movie.posterUrl)
+                    .load(fixedUrl)
                     .thumbnail(0.1f)  // Load 10% thumbnail first for fast preview
                     .placeholder(R.drawable.placeholder_poster)  // Show placeholder while loading
                     .error(R.drawable.placeholder_poster)  // Show placeholder if error

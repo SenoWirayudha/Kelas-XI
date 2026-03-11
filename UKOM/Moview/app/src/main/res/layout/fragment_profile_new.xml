@@ -99,46 +99,58 @@
             </FrameLayout>
 
             <!-- Avatar Container with Follow Button -->
-            <FrameLayout
+            <LinearLayout
                 android:id="@+id/profile_photo_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:orientation="vertical"
                 android:layout_marginTop="-48dp">
 
-                <!-- Profile Photo with Border -->
-                <com.google.android.material.imageview.ShapeableImageView
-                    android:id="@+id/iv_profile_photo"
-                    android:layout_width="96dp"
-                    android:layout_height="96dp"
-                    android:layout_gravity="center_horizontal"
-                    android:scaleType="centerCrop"
-                    android:padding="3dp"
-                    android:background="@drawable/bg_avatar_border"
-                    app:shapeAppearanceOverlay="@style/CircleImageView"
-                    android:elevation="4dp"
-                    tools:src="@tools:sample/avatars" />
+                <!-- Row: Follow Button + Profile Photo centered -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
 
-                <!-- Follow Button (left of profile photo, only visible for other user's profile) -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_follow"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:layout_gravity="center_vertical|start"
-                    android:layout_marginStart="24dp"
-                    android:text="FOLLOW"
-                    android:textSize="12sp"
-                    android:textColor="@color/white"
-                    android:visibility="gone"
-                    app:cornerRadius="4dp"
-                    app:strokeColor="@color/white"
-                    app:strokeWidth="1dp"
-                    app:backgroundTint="@android:color/transparent"
-                    android:paddingStart="20dp"
-                    android:paddingEnd="20dp"
-                    android:elevation="4dp"
-                    tools:visibility="visible" />
+                    <!-- Profile Photo with Border -->
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:id="@+id/iv_profile_photo"
+                        android:layout_width="96dp"
+                        android:layout_height="96dp"
+                        android:scaleType="centerCrop"
+                        android:padding="3dp"
+                        android:background="@drawable/bg_avatar_border"
+                        app:shapeAppearanceOverlay="@style/CircleImageView"
+                        android:elevation="4dp"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        tools:src="@tools:sample/avatars" />
 
-            </FrameLayout>
+                    <!-- Follow Button (left side, vertically centered to bottom half of photo) -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_follow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:layout_marginStart="16dp"
+                        android:text="FOLLOW"
+                        android:textSize="12sp"
+                        android:textColor="@color/white"
+                        android:visibility="gone"
+                        app:cornerRadius="4dp"
+                        app:strokeColor="@color/white"
+                        app:strokeWidth="1dp"
+                        app:backgroundTint="@android:color/transparent"
+                        android:paddingStart="20dp"
+                        android:paddingEnd="20dp"
+                        android:elevation="4dp"
+                        app:layout_constraintBottom_toBottomOf="@id/iv_profile_photo"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="@id/iv_profile_photo"
+                        tools:visibility="visible" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </LinearLayout>
 
             <!-- Profile Info (Below backdrop) -->
             <LinearLayout
@@ -152,11 +164,14 @@
                 <!-- Name -->
                 <TextView
                     android:id="@+id/tv_user_name"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textColor="@color/white"
                     android:textSize="22sp"
                     android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:gravity="center"
                     tools:text="Alex Cinephile" />
 
                 <!-- Bio -->

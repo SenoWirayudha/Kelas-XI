@@ -42,7 +42,15 @@ class NowShowingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 val action = NowShowingFragmentDirections.actionNowShowingToMovieDetail(movieId = movie.id)
                 findNavController().navigate(action)
             },
-            onBuyTicketClick = { openTixIdApp() }
+            onBuyTicketClick = { openTixIdApp() },
+            onLogFilm = { movie ->
+                val action = NowShowingFragmentDirections.actionNowShowingToLogFilm(movieId = movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = NowShowingFragmentDirections.actionNowShowingToPosterBackdrop(movieId = movie.id, openBackdropsTab = false)
+                findNavController().navigate(action)
+            }
         )
 
         binding.rvMovies.apply {

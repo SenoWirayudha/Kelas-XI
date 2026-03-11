@@ -10,6 +10,7 @@ import com.komputerkit.moview.data.model.Artwork
 import com.komputerkit.moview.data.model.ArtworkType
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.ServerConfig
 import kotlinx.coroutines.launch
 
 class PosterBackdropViewModel(application: Application) : AndroidViewModel(application) {
@@ -67,11 +68,7 @@ class PosterBackdropViewModel(application: Application) : AndroidViewModel(appli
             val media = repository.getMovieMedia(movieId)
             if (media != null) {
                 _posters.value = media.posters.map { item ->
-                    val url = when {
-                        item.file_path.isNullOrBlank() -> ""
-                        item.file_path.startsWith("http") -> item.file_path.replace("127.0.0.1", "10.0.2.2")
-                        else -> "http://10.0.2.2:8000/storage/${item.file_path}"
-                    }
+                    val url = ServerConfig.resolveStorageUrl(item.file_path)
                     val badges = buildList {
                         if (ctxBadge != null && item.id == savedCtxPosterId) add(ctxBadge)
                         if (contextType != "films" && item.id == savedFilmsPosterId) add("FILM")
@@ -91,11 +88,7 @@ class PosterBackdropViewModel(application: Application) : AndroidViewModel(appli
                 }
 
                 _backdrops.value = media.backdrops.map { item ->
-                    val url = when {
-                        item.file_path.isNullOrBlank() -> ""
-                        item.file_path.startsWith("http") -> item.file_path.replace("127.0.0.1", "10.0.2.2")
-                        else -> "http://10.0.2.2:8000/storage/${item.file_path}"
-                    }
+                    val url = ServerConfig.resolveStorageUrl(item.file_path)
                     val badges = buildList {
                         if (ctxBadge != null && item.id == savedCtxBackdropId) add(ctxBadge)
                         if (contextType != "films" && item.id == savedFilmsBackdropId) add("FILM")
@@ -144,14 +137,19 @@ class PosterBackdropViewModel(application: Application) : AndroidViewModel(appli
             return
         }
         viewModelScope.launch {
-            val success = repository.saveChangeMedia(
-                userId = userId,
-                filmId = movieId,
-                mediaId = artwork.id,
-                type = type,
-                diariesId = diariesId,
-                favoriteId = favoriteId
-            )
+            val success = if (type == "profile") {
+                // Profile backdrop saves directly to user_profiles.backdrop_path
+                repository.updateUserBackdrop(userId, artwork.url)
+            } else {
+                repository.saveChangeMedia(
+                    userId = userId,
+                    filmId = movieId,
+                    mediaId = artwork.id,
+                    type = type,
+                    diariesId = diariesId,
+                    favoriteId = favoriteId
+                )
+            }
             _saveResult.value = success
         }
     }
@@ -166,5 +164,6 @@ private fun contextTypeBadge(type: String): String? = when (type) {
     "reviews"   -> "REVIEW"
     "logged"    -> "LOG"
     "favorites" -> "FAVORITE"
+    "profile"   -> "PROFILE"
     else        -> null
 }

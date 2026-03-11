@@ -1,5 +1,6 @@
 package com.komputerkit.moview.data.repository
 
+import com.komputerkit.moview.data.api.GoogleLoginRequest
 import com.komputerkit.moview.data.api.LoginRequest
 import com.komputerkit.moview.data.api.RegisterRequest
 import com.komputerkit.moview.data.api.RetrofitClient
@@ -65,6 +66,30 @@ class AuthRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+    
+    suspend fun googleLogin(email: String, displayName: String, googleId: String): Result<LoginData> = withContext(Dispatchers.IO) {
+        try {
+            val request = GoogleLoginRequest(email, displayName, googleId)
+            val response = apiService.googleLogin(request)
+            
+            if (response.success && response.data != null) {
+                val loginData = LoginData(
+                    userId = response.data.user.id,
+                    username = response.data.user.username,
+                    email = response.data.user.email,
+                    role = response.data.user.role,
+                    token = response.data.token,
+                    joinedAt = response.data.user.joined_at
+                )
+                Result.success(loginData)
+            } else {
+                Result.failure(Exception(response.message ?: "Google login failed"))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
         }
     }
 }

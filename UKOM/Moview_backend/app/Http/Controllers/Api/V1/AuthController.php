@@ -287,4 +287,113 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Google Sign-In
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function googleLogin(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'display_name' => 'required|string|max:255',
+            'google_id' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $user = DB::table('users')
+                ->where('email', $request->email)
+                ->first();
+
+            $token = base64_encode($request->email . '|' . time() . '|' . uniqid());
+
+            if ($user) {
+                // Existing user – check status
+                if ($user->status !== 'active') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Your account has been ' . $user->status
+                    ], 403);
+                }
+
+                DB::table('users')
+                    ->where('id', $user->id)
+                    ->update([
+                        'remember_token' => $token,
+                        'updated_at' => now()
+                    ]);
+            } else {
+                // New user – create account
+                $username = preg_replace('/[^a-zA-Z0-9_]/', '', $request->display_name);
+                if (empty($username)) {
+                    $username = 'user';
+                }
+
+                // Ensure unique username
+                $baseUsername = substr($username, 0, 15);
+                $finalUsername = $baseUsername;
+                $counter = 1;
+                while (DB::table('users')->where('username', $finalUsername)->exists()) {
+                    $finalUsername = $baseUsername . $counter;
+                    $counter++;
+                }
+
+                $userId = DB::table('users')->insertGetId([
+                    'username' => $finalUsername,
+                    'email' => $request->email,
+                    'password' => Hash::make(uniqid() . time()),
+                    'role' => 'user',
+                    'status' => 'active',
+                    'remember_token' => $token,
+                    'joined_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+
+                DB::table('user_profiles')->insert([
+                    'user_id' => $userId,
+                    'display_name' => $request->display_name,
+                    'profile_photo' => null,
+                    'backdrop_path' => null,
+                    'bio' => null,
+                    'location' => null,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+
+                $user = DB::table('users')->where('id', $userId)->first();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Login successful',
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'username' => $user->username,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                        'joined_at' => $user->joined_at
+                    ],
+                    'token' => $token
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Google login failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

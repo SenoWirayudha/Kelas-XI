@@ -21,6 +21,9 @@ interface MovieApiService {
     @POST("login")
     suspend fun login(@Body request: LoginRequest): ApiResponse<LoginResponse>
     
+    @POST("google-login")
+    suspend fun googleLogin(@Body request: GoogleLoginRequest): ApiResponse<LoginResponse>
+    
     @POST("logout")
     suspend fun logout(): ApiResponse<Any>
     

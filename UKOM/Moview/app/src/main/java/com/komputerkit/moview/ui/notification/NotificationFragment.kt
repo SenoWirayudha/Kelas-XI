@@ -47,9 +47,14 @@ class NotificationFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        notificationAdapter = NotificationAdapter { notification ->
-            handleNotificationClick(notification)
-        }
+        notificationAdapter = NotificationAdapter(
+            onNotificationClick = { notification ->
+                handleNotificationClick(notification)
+            },
+            onAvatarClick = { notification ->
+                navigateToUserProfile(notification.actorId)
+            }
+        )
         binding.rvNotifications.apply {
             adapter = notificationAdapter
             layoutManager = LinearLayoutManager(requireContext())
@@ -66,6 +71,10 @@ class NotificationFragment : Fragment() {
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
             binding.swipeRefresh.isRefreshing = isLoading
+        }
+        
+        viewModel.unreadCount.observe(viewLifecycleOwner) { count ->
+            updateNotificationBadge(count)
         }
     }
     
@@ -120,5 +129,14 @@ class NotificationFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+    
+    private fun updateNotificationBadge(count: Int) {
+        (activity as? com.komputerkit.moview.MainActivity)?.updateNotificationBadge(count)
+    }
+    
+    private fun navigateToUserProfile(userId: Int) {
+        val action = NotificationFragmentDirections.actionNotificationToProfile(userId)
+        findNavController().navigate(action)
     }
 }

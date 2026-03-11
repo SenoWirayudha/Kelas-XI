@@ -22,6 +22,9 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
     
+    private val _unreadCount = MutableLiveData<Int>(0)
+    val unreadCount: LiveData<Int> = _unreadCount
+    
     fun refresh() {
         loadNotifications()
     }
@@ -50,6 +53,7 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
                     if (customPoster != null) notif.copy(moviePoster = customPoster) else notif
                 } else notifications
                 _notifications.postValue(resolved)
+                _unreadCount.postValue(resolved.count { !it.isRead })
             } catch (e: Exception) {
                 android.util.Log.e("NotificationViewModel", "Error loading notifications", e)
                 e.printStackTrace()
@@ -71,6 +75,7 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
                     _notifications.value = _notifications.value?.map {
                         it.copy(isRead = true)
                     }
+                    _unreadCount.postValue(0)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -89,6 +94,7 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
                     _notifications.value = _notifications.value?.map {
                         if (it.id == notificationId) it.copy(isRead = true) else it
                     }
+                    _unreadCount.postValue(_notifications.value?.count { !it.isRead } ?: 0)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

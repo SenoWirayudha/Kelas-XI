@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "700958718358",
+    "project_id": "moview-12536",
+    "storage_bucket": "moview-12536.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:700958718358:android:67280ef5a18005bfc945b7",
+        "android_client_info": {
+          "package_name": "com.komputerkit.moview"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "700958718358-l9mvgpehg6mqre0lja84d7dhv8s0fme6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.komputerkit.moview",
+            "certificate_hash": "2eea2d8b38164287fcc3eee0df9aaee42af4c197"
+          }
+        },
+        {
+          "client_id": "700958718358-co3b1fggq687clu8bh37td87lqdvlok0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCyWDQWHLmyi1Lz9tj20skOMJCgg12FiUY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "700958718358-co3b1fggq687clu8bh37td87lqdvlok0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

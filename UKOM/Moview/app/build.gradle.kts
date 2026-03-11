@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("androidx.navigation.safeargs.kotlin")
     id("kotlin-kapt")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -80,6 +81,12 @@ dependencies {
     // Coroutines for async operations
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    
+    // Firebase (google-services plugin)
+    implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
+    
+    // Google Sign-In
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
     
     // Flexbox Layout
     implementation("com.google.android.flexbox:flexbox:3.0.0")

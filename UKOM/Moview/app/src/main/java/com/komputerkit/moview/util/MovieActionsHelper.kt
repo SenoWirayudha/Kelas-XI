@@ -215,6 +215,38 @@ object MovieActionsHelper {
         // Setup click listeners
         binding.btnWatched.setOnClickListener {
             if (userId > 0 && actualLifecycleOwner != null) {
+                val currentEntryType = watchInfo?.entry_type ?: "none"
+                // If "Reviewed" or "Logged", navigate to detail instead of toggling
+                if (isWatchedState && (currentEntryType == "reviewed" || currentEntryType == "logged")) {
+                    val reviewId = watchInfo?.latest_review_id ?: 0
+                    val diaryId = watchInfo?.latest_diary_id ?: 0
+                    val isLog = currentEntryType == "logged"
+                    val navId = if (isLog) diaryId else reviewId
+                    if (navId > 0) {
+                        if (onWatchedTap != null) {
+                            bottomSheetDialog.dismiss()
+                            onWatchedTap.invoke(navId, isLog)
+                        } else {
+                            // Try to find NavController from context
+                            try {
+                                val activity = context as android.app.Activity
+                                val navController = androidx.navigation.Navigation.findNavController(
+                                    activity, R.id.nav_host_fragment
+                                )
+                                bottomSheetDialog.dismiss()
+                                val bundle = android.os.Bundle().apply {
+                                    putInt("reviewId", navId)
+                                    putBoolean("isLog", isLog)
+                                    if (isLog) putInt("diaryId", diaryId)
+                                }
+                                navController.navigate(R.id.reviewDetailFragment, bundle)
+                            } catch (e: Exception) {
+                                Log.e("MovieActionsHelper", "Cannot navigate to review detail", e)
+                            }
+                        }
+                        return@setOnClickListener
+                    }
+                }
                 actualLifecycleOwner.lifecycleScope.launch {
                     if (isWatchedState) {
                         // Already watched → toggle OFF: delete from ratings
@@ -403,8 +435,9 @@ object MovieActionsHelper {
             }
         }
 
+        val fixedPosterUrl = if (posterUrl != null) ServerConfig.fixUrl(posterUrl) else posterUrl
         Glide.with(context)
-            .load(posterUrl)
+            .load(fixedPosterUrl)
             .into(object : com.bumptech.glide.request.target.CustomTarget<android.graphics.drawable.Drawable>() {
                 override fun onResourceReady(
                     resource: android.graphics.drawable.Drawable,
@@ -454,8 +487,9 @@ object MovieActionsHelper {
             else -> posterUrl
         }
 
+        val fixedFullPosterUrl = ServerConfig.fixUrl(fullPosterUrl)
         Glide.with(context)
-            .load(fullPosterUrl)
+            .load(fixedFullPosterUrl)
             .into(object : com.bumptech.glide.request.target.CustomTarget<android.graphics.drawable.Drawable>() {
                 override fun onResourceReady(
                     resource: android.graphics.drawable.Drawable,
@@ -550,6 +584,7 @@ object MovieActionsHelper {
         var swipeStartTransY = 0f
         var isPanning = false
         var isSwipeDismiss = false
+        var skipNextMove = false
 
         imageView.setOnTouchListener { v, event ->
             scaleDetector.onTouchEvent(event)
@@ -558,8 +593,7 @@ object MovieActionsHelper {
             if (scaleDetector.isInProgress) {
                 isPanning = false
                 isSwipeDismiss = false
-                lastRawX = event.rawX
-                lastRawY = event.rawY
+                skipNextMove = true
                 return@setOnTouchListener true
             }
 
@@ -571,9 +605,22 @@ object MovieActionsHelper {
                     swipeStartTransY = imageView.translationY
                     isPanning = false
                     isSwipeDismiss = false
+                    skipNextMove = false
+                }
+                MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_POINTER_UP -> {
+                    skipNextMove = true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    if (event.pointerCount > 1) return@setOnTouchListener true
+                    if (event.pointerCount > 1) {
+                        return@setOnTouchListener true
+                    }
+
+                    if (skipNextMove) {
+                        lastRawX = event.rawX
+                        lastRawY = event.rawY
+                        skipNextMove = false
+                        return@setOnTouchListener true
+                    }
 
                     val dx = event.rawX - lastRawX
                     val dy = event.rawY - lastRawY
@@ -583,7 +630,6 @@ object MovieActionsHelper {
                     val isZoomed = currentScale > minScale + 0.1f
 
                     if (isZoomed) {
-                        // Smooth pan: direct 1:1 raw delta, no GestureDetector lag
                         imageView.translationX += dx
                         imageView.translationY += dy
                         clampTranslation()
@@ -600,7 +646,7 @@ object MovieActionsHelper {
                     }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (event.pointerCount == 1 && currentScale <= minScale + 0.1f) {
+                    if (currentScale <= minScale + 0.1f) {
                         val totalDy = event.rawY - swipeStartRawY
                         if (isSwipeDismiss && totalDy > 180f) {
                             dialog.dismiss()
@@ -610,6 +656,7 @@ object MovieActionsHelper {
                     }
                     isPanning = false
                     isSwipeDismiss = false
+                    skipNextMove = false
                 }
             }
             true

@@ -46,8 +46,9 @@ class RecentActivityAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(entry: DiaryEntry) {
+            val posterUrl = if (!entry.movie.posterUrl.isNullOrEmpty()) com.komputerkit.moview.util.ServerConfig.fixUrl(entry.movie.posterUrl) else entry.movie.posterUrl
             Glide.with(binding.root.context)
-                .load(entry.movie.posterUrl)
+                .load(posterUrl)
                 .into(binding.ivPoster)
             
             // Show rating stars

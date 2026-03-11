@@ -20,9 +20,10 @@ fun ImageView.loadPoster(url: String?, placeholder: Drawable? = null) {
         this.setImageResource(R.drawable.placeholder_poster)
         return
     }
+    val fixedUrl = ServerConfig.fixUrl(url)
     
     Glide.with(this.context)
-        .load(url)
+        .load(fixedUrl)
         .thumbnail(0.1f) // Load low-res thumbnail first for instant display
         .apply(
             RequestOptions()
@@ -42,9 +43,10 @@ fun ImageView.loadBackdrop(url: String?, placeholder: Drawable? = null) {
         this.setImageResource(android.R.color.transparent)
         return
     }
+    val fixedUrl = ServerConfig.fixUrl(url)
     
     Glide.with(this.context)
-        .load(url)
+        .load(fixedUrl)
         .thumbnail(0.1f) // Load low-res thumbnail first
         .apply(
             RequestOptions()
@@ -62,9 +64,10 @@ fun ImageView.loadThumbnail(url: String?, placeholder: Drawable? = null) {
     // Get ImageView dimensions to override Glide sizing
     val width = this.layoutParams?.width ?: ViewGroup.LayoutParams.WRAP_CONTENT
     val height = this.layoutParams?.height ?: ViewGroup.LayoutParams.WRAP_CONTENT
+    val fixedUrl = if (!url.isNullOrEmpty()) ServerConfig.fixUrl(url) else url
     
     val requestBuilder = Glide.with(this.context)
-        .load(url)
+        .load(fixedUrl)
         .apply(
             RequestOptions()
                 .placeholder(placeholder ?: context.getDrawable(R.drawable.ic_launcher_background))
@@ -88,8 +91,9 @@ fun ImageView.loadAvatar(url: String?, placeholder: Drawable? = null) {
         this.setImageResource(R.drawable.ic_default_profile)
         return
     }
+    val fixedUrl = ServerConfig.fixUrl(url)
     Glide.with(this.context)
-        .load(url)
+        .load(fixedUrl)
         .thumbnail(0.1f) // Load low-res thumbnail first
         .apply(
             RequestOptions()
@@ -104,8 +108,9 @@ fun ImageView.loadAvatar(url: String?, placeholder: Drawable? = null) {
 
 // Load logo/icon with small size
 fun ImageView.loadLogo(url: String?, placeholder: Drawable? = null) {
+    val fixedUrl = if (!url.isNullOrEmpty()) ServerConfig.fixUrl(url) else url
     Glide.with(this.context)
-        .load(url)
+        .load(fixedUrl)
         .thumbnail(0.1f) // Load low-res thumbnail first
         .apply(
             RequestOptions()
@@ -125,9 +130,10 @@ fun ImageView.loadProfilePhoto(url: String?) {
         this.setImageResource(R.drawable.ic_default_profile)
         return
     }
+    val fixedUrl = ServerConfig.fixUrl(url)
     
     Glide.with(this.context)
-        .load(url)
+        .load(fixedUrl)
         .thumbnail(0.1f) // Load low-res thumbnail first for instant display
         .apply(
             RequestOptions()

@@ -15,6 +15,7 @@ import com.komputerkit.moview.data.model.User
 import com.komputerkit.moview.data.model.Notification
 import com.komputerkit.moview.data.model.NotificationType
 import com.komputerkit.moview.data.model.NotificationSection
+import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.TmdbImageUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -27,11 +28,7 @@ class MovieRepository {
     
     // Konversi dari DTO ke Model
     private fun MovieCardDto.toMovie(): Movie {
-        val posterUrl = when {
-            this.poster_path.isNullOrBlank() -> ""
-            this.poster_path.startsWith("http") -> this.poster_path.replace("127.0.0.1", "10.0.2.2")
-            else -> "http://10.0.2.2:8000/storage/${this.poster_path}"
-        }
+        val posterUrl = ServerConfig.resolveStorageUrl(this.poster_path)
         
         return Movie(
             id = this.id,
@@ -257,11 +254,7 @@ class MovieRepository {
             if (response.success && response.data != null) {
                 response.data.map { dto ->
                     // Build full URL for poster
-                    val posterUrl = when {
-                        dto.poster_path.isNullOrBlank() -> ""
-                        dto.poster_path.startsWith("http") -> dto.poster_path.replace("127.0.0.1", "10.0.2.2")
-                        else -> "http://10.0.2.2:8000/storage/${dto.poster_path}"
-                    }
+                    val posterUrl = ServerConfig.resolveStorageUrl(dto.poster_path)
                     
                     val movie = Movie(
                         id = dto.movie_id,
@@ -402,11 +395,7 @@ class MovieRepository {
                 
                 response.data.map { filmDto ->
                     // Format poster URL
-                    val posterUrl = when {
-                        filmDto.poster_path.isNullOrBlank() -> ""
-                        filmDto.poster_path.startsWith("http") -> filmDto.poster_path.replace("127.0.0.1", "10.0.2.2")
-                        else -> "http://10.0.2.2:8000/storage/${filmDto.poster_path}"
-                    }
+                    val posterUrl = ServerConfig.resolveStorageUrl(filmDto.poster_path)
                     
                     // Check if user has review for this film
                     val review = userReviews.find { it.id == filmDto.id }
@@ -536,15 +525,7 @@ class MovieRepository {
     
     private fun mapDtoToComment(dto: ReviewCommentDto): com.komputerkit.moview.data.model.Comment {
         // Build profile photo URL
-        val profilePhotoUrl = if (!dto.profile_photo.isNullOrBlank()) {
-            if (dto.profile_photo.startsWith("http")) {
-                dto.profile_photo.replace("127.0.0.1", "10.0.2.2")
-            } else {
-                "http://10.0.2.2:8000/storage/${dto.profile_photo}"
-            }
-        } else {
-            ""
-        }
+        val profilePhotoUrl = ServerConfig.resolveStorageUrl(dto.profile_photo)
         
         // Recursively map replies
         val replies = dto.replies?.map { replyDto -> mapDtoToComment(replyDto) }?.toMutableList() ?: mutableListOf()
@@ -571,15 +552,7 @@ class MovieRepository {
                 val dto = response.data
                 
                 // Build profile photo URL
-                val profilePhotoUrl = if (!dto.profile_photo.isNullOrBlank()) {
-                    if (dto.profile_photo.startsWith("http")) {
-                        dto.profile_photo.replace("127.0.0.1", "10.0.2.2")
-                    } else {
-                        "http://10.0.2.2:8000/storage/${dto.profile_photo}"
-                    }
-                } else {
-                    ""
-                }
+                val profilePhotoUrl = ServerConfig.resolveStorageUrl(dto.profile_photo)
                 
                 com.komputerkit.moview.data.model.Comment(
                     id = dto.id,

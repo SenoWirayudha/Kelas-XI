@@ -87,6 +87,25 @@ class EditProfileFragment : Fragment() {
         setupClickListeners()
         setupBackdropToggle()
         setupNavigationResultListener()
+        setupUsernameCounter()
+    }
+
+    private fun setupUsernameCounter() {
+        binding.tvUsernameCounter.text = "${binding.etUsername.text.length}/20"
+        binding.etUsername.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val len = s?.length ?: 0
+                binding.tvUsernameCounter.text = "$len/20"
+                binding.tvUsernameCounter.setTextColor(
+                    if (len == 20)
+                        android.graphics.Color.parseColor("#FF5252")
+                    else
+                        requireContext().getColor(R.color.text_secondary)
+                )
+            }
+        })
     }
     
     private fun setupRecyclerView() {
@@ -315,7 +334,7 @@ class EditProfileFragment : Fragment() {
             // Toggle ON: Show backdrop (clear/sharp)
             binding.ivBackdrop.visibility = View.VISIBLE
             Glide.with(requireContext())
-                .load(currentBackdropUrl)
+                .load(com.komputerkit.moview.util.ServerConfig.fixUrl(currentBackdropUrl!!))
                 .into(binding.ivBackdrop)
         } else {
             // Toggle OFF: Hide backdrop completely
@@ -410,7 +429,8 @@ class EditProfileFragment : Fragment() {
             // Navigate to Poster & Backdrop screen with actual movie ID
             val action = EditProfileFragmentDirections.actionEditProfileToPosterBackdrop(
                 movieId = firstFavoriteMovie.id,
-                openBackdropsTab = true // Opens in Backdrop mode
+                openBackdropsTab = true, // Opens in Backdrop mode
+                contextType = "profile"
             )
             findNavController().navigate(action)
         } else {
@@ -431,6 +451,10 @@ class EditProfileFragment : Fragment() {
         // Validate
         if (username.isEmpty()) {
             binding.etUsername.error = "Username cannot be empty"
+            return
+        }
+        if (username.length > 20) {
+            binding.etUsername.error = "Username max 20 characters"
             return
         }
         

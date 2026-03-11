@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.ServerConfig
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -49,11 +50,7 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
                     android.util.Log.d("ReviewViewModel", "Review: ${dto.review_id} - ${dto.title} - ${dto.content}")
                     
                     // Build full poster URL
-                    val posterUrl = when {
-                        dto.poster_path.isNullOrBlank() -> ""
-                        dto.poster_path.startsWith("http") -> dto.poster_path.replace("127.0.0.1", "10.0.2.2")
-                        else -> "http://10.0.2.2:8000/storage/${dto.poster_path}"
-                    }
+                    val posterUrl = ServerConfig.resolveStorageUrl(dto.poster_path)
                     
                     val movie = Movie(
                         id = dto.id,

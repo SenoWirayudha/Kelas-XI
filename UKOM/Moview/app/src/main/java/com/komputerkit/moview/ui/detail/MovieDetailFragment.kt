@@ -395,6 +395,13 @@ class MovieDetailFragment : Fragment() {
             showMovieActionsBottomSheet()
         }
         
+        // Tap poster to show full poster dialog
+        binding.ivPoster.setOnClickListener {
+            currentMovie?.let { movie ->
+                MovieActionsHelper.showFullPosterDialog(requireContext(), movie)
+            }
+        }
+        
         // Tab switching
         binding.tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
