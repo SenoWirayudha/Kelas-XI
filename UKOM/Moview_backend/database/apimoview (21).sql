@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 11 Mar 2026 pada 06.22
+-- Waktu pembuatan: 12 Mar 2026 pada 14.50
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -20,6 +20,29 @@ SET time_zone = "+00:00";
 --
 -- Database: `apimoview`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `cinemas`
+--
+
+CREATE TABLE `cinemas` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `service_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `cinema_name` varchar(150) NOT NULL,
+  `city` varchar(100) NOT NULL DEFAULT '',
+  `address` varchar(255) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data untuk tabel `cinemas`
+--
+
+INSERT INTO `cinemas` (`id`, `service_id`, `cinema_name`, `city`, `address`, `created_at`, `updated_at`) VALUES
+(1, 9, 'Ciplaz Sidoarjo XXI', 'Sidoarjo', 'City Plaza Sidoarjo Lt.2 Jln. Diponegoro No. 2 Sidoarjo - Jawa Timur', '2026-03-12 04:40:08', '2026-03-12 04:40:08');
 
 -- --------------------------------------------------------
 
@@ -53,6 +76,7 @@ INSERT INTO `countries` (`id`, `name`) VALUES
 (4, 'Japan'),
 (14, 'Norway'),
 (18, 'Saudi Arabia'),
+(25, 'Singapore'),
 (3, 'South Korea'),
 (11, 'Spain'),
 (19, 'Thailand'),
@@ -260,7 +284,12 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (29, '2026_02_25_000001_create_notifications_table', 9),
 (30, '2026_02_28_141730_update_review_comments_status_column', 10),
 (31, '2026_03_01_102005_add_flagged_status_to_reviews_table', 11),
-(32, '2026_03_08_000001_create_user_change_medias_table', 12);
+(32, '2026_03_08_000001_create_user_change_medias_table', 12),
+(33, '2026_03_12_000001_alter_cinemas_add_booking_fields', 13),
+(34, '2026_03_12_000002_add_updated_at_to_cinemas', 14),
+(35, '2026_03_12_000003_add_layout_fields_to_seats', 15),
+(36, '2026_03_12_122804_add_seat_type_to_seats_table', 16),
+(37, '2026_03_12_132950_add_status_to_schedules_table', 17);
 
 -- --------------------------------------------------------
 
@@ -356,7 +385,10 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (66, 'Bugonia', '2025', 118, 'R', 'IT ALL STARTS WITH SOMETHING MAGNIFICENT.\r\n\r\nTwo conspiracy obsessed young men kidnap the high-powered CEO of a major company, convinced that she is an alien intent on destroying planet Earth.', 'movies/66/poster/aZc33jVipgjoAVIJsAAGrh3uASkoNbIH9kVpC2fA.webp', 'movies/66/backdrop/a97vNViAILHA0zuKRQ4yhn0gyy7pWqbu9mroFfhh.webp', 'https://youtu.be/bd_5HcTujfc?si=t9kasDnxlIub8eKs', 'published', '2026-03-08 03:14:07', '2026-03-08 03:17:31'),
 (67, 'Frankenstein', '2025', 150, 'R', 'ONLY MONSTERS PLAY GOD.\r\n\r\nDr. Victor Frankenstein, a brilliant but egotistical scientist, brings a creature to life in a monstrous experiment that ultimately leads to the undoing of both the creator and his tragic creation.', 'movies/67/poster/HOz4LpWSG1OMh11HvRX5cu9AUP2dNp6KUyLsMkYh.webp', 'movies/67/backdrop/wQ1Hq5Frpq2UTmzqjMVzD89EYRqjIfMoW7N4jf0b.webp', 'https://youtu.be/8aulMPhE12g?si=5Qt_AvMYqscswfAA', 'published', '2026-03-08 04:31:20', '2026-03-08 04:33:07'),
 (68, 'Happy Together', '1997', 96, 'Not Rated', 'LONELY PEOPLE ARE ALL THE SAME.\r\n\r\nA couple travels from Hong Kong to Argentina to revive their relationship but experience turbulence when both men\'s lives drift in separate directions.', 'movies/68/poster/BtC8ocLwu32R02guNZWFuugQpWpielgR2SL4Fb1h.webp', 'movies/68/backdrop/JVdNDnpDSV0TYA4wzW2gv8sbvzcD8eKZgy3147fB.webp', 'https://youtu.be/5VPvFaAWX9U?si=3aRY02MODz5reA-y', 'published', '2026-03-08 07:47:22', '2026-03-08 07:51:48'),
-(69, 'Linda Linda Linda', '2005', 114, 'PG-13', 'HIGH SCHOOL GIRLS PLAY THE BLUE HEARTS!\r\n\r\nOnly three days before their high school festival, guitarist Kei, drummer Kyoko, and bassist Nozomi are forced to recruit a new lead vocalist for their band. They choose Korean exchange student Son, though her comprehension of Japanese is a bit rough! It\'s a race against time as the group struggles to learn three songs for the festival\'s rock concert—including a classic \'80s song by the Japanese punk rock band The Blue Hearts called \"Linda Linda\".', 'movies/69/poster/ydrnX2PAFAD6RIP8F5dotG5KZm2TsGRW9NnzicSR.webp', 'movies/69/backdrop/I7xwq4dcIqulCvCFsy4mbvvjAw30qmA7tw9Knj6z.webp', 'https://youtu.be/YIIkWjdiF0U?si=IcInaEr3cS8rWu4t', 'published', '2026-03-10 02:59:18', '2026-03-10 03:04:27');
+(69, 'Linda Linda Linda', '2005', 114, 'PG-13', 'HIGH SCHOOL GIRLS PLAY THE BLUE HEARTS!\r\n\r\nOnly three days before their high school festival, guitarist Kei, drummer Kyoko, and bassist Nozomi are forced to recruit a new lead vocalist for their band. They choose Korean exchange student Son, though her comprehension of Japanese is a bit rough! It\'s a race against time as the group struggles to learn three songs for the festival\'s rock concert—including a classic \'80s song by the Japanese punk rock band The Blue Hearts called \"Linda Linda\".', 'movies/69/poster/ydrnX2PAFAD6RIP8F5dotG5KZm2TsGRW9NnzicSR.webp', 'movies/69/backdrop/I7xwq4dcIqulCvCFsy4mbvvjAw30qmA7tw9Knj6z.webp', 'https://youtu.be/YIIkWjdiF0U?si=IcInaEr3cS8rWu4t', 'published', '2026-03-10 02:59:18', '2026-03-10 03:04:27'),
+(70, 'Tunggu Aku Sukses Nanti', '2026', 110, 'PG-13', 'Arga, unemployed for three years, is a constant source of family ridicule every Eid. Pressured by difficult economy, marriage, his younger sibling’s college tuition, and plans to sell his grandmother’s house, he struggles to find work to prove himself.', 'movies/70/poster/Y0zt4Cbtb9yCTjOTpdgU7DwbmmhX1VrT02IH4BCz.webp', 'movies/70/backdrop/5LZTkaWdsxgadAUNHeEv4HX3BEBKip5P5klehPaV.webp', 'https://youtu.be/f2TXOlaxMdU?si=PBibLF9QaCP81iN4', 'published', '2026-03-12 01:12:49', '2026-03-12 01:19:23'),
+(71, 'Pelangi di Mars', '2026', 112, 'G', 'Pelangi is an Indonesian child born on Mars. Together with her robot friends, she embarks on a great journey that will determine the future of Earth. Can they overcome it?', 'movies/71/poster/jIPJnpJhnM0rgQ9IvCQBysNFox6d5yQeYOqg1Pcv.webp', 'movies/71/backdrop/0uY7YAfrFuAbF1eb6ZAY2djsitn2Wg2o7pRn2niX.webp', 'https://youtu.be/nSoRBPSsdWg?si=TYjIMQPSpUnKbgqr', 'published', '2026-03-12 01:16:43', '2026-03-12 01:19:58'),
+(72, 'Crocodile Tears', '2024', 96, 'R', 'An overbearing mother who lives with her son in a secluded crocodile farm spirals out of control when her son sees the outside world and falls for a girl for the first time.', 'movies/72/poster/4ehxd7mSWRvIWMrhnQUxO6tflwSr4pDKLnobNXuk.webp', 'movies/72/backdrop/9T495IzpJHEFoolQAhogftvOSQjvScmGRYnAjMYC.webp', 'https://youtu.be/zNtNhvEeskQ?si=1a6PYASbThBBM5L4', 'published', '2026-03-12 01:28:06', '2026-03-12 01:30:34');
 
 -- --------------------------------------------------------
 
@@ -487,7 +519,13 @@ INSERT INTO `movie_countries` (`movie_id`, `country_id`) VALUES
 (68, 3),
 (68, 4),
 (68, 24),
-(69, 4);
+(69, 4),
+(70, 13),
+(71, 13),
+(72, 5),
+(72, 6),
+(72, 13),
+(72, 25);
 
 -- --------------------------------------------------------
 
@@ -669,7 +707,15 @@ INSERT INTO `movie_genres` (`movie_id`, `genre_id`) VALUES
 (68, 11),
 (69, 4),
 (69, 7),
-(69, 18);
+(69, 18),
+(70, 4),
+(70, 7),
+(71, 2),
+(71, 7),
+(71, 12),
+(71, 16),
+(72, 7),
+(72, 13);
 
 -- --------------------------------------------------------
 
@@ -781,7 +827,10 @@ INSERT INTO `movie_languages` (`movie_id`, `language_id`) VALUES
 (66, 1),
 (67, 1),
 (68, 21),
-(69, 3);
+(69, 3),
+(70, 13),
+(71, 13),
+(72, 13);
 
 -- --------------------------------------------------------
 
@@ -1165,7 +1214,26 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (319, 67, 'poster', 'movies/67/poster/dc6PijHeTUD9r7lAmAIri1okxH7dqUPYfEncVdGB.webp', 0, '2026-03-11 00:49:52'),
 (320, 67, 'poster', 'movies/67/poster/HhjA4qNeKowjXbwhNzWiZzIgWvoiPXrTXMVr2VaA.webp', 0, '2026-03-11 00:49:56'),
 (321, 4, 'poster', 'movies/4/poster/HrlSw9twZV2UiTzHH8R88m0UJNY8k3M4R7IKw8Hg.jpg', 0, '2026-03-11 01:07:20'),
-(322, 4, 'poster', 'movies/4/poster/6hygRuu9H3tWGlCYzHHPDAPkmYQgfOL5tfP1m7Mh.jpg', 0, '2026-03-11 01:07:32');
+(322, 4, 'poster', 'movies/4/poster/6hygRuu9H3tWGlCYzHHPDAPkmYQgfOL5tfP1m7Mh.jpg', 0, '2026-03-11 01:07:32'),
+(323, 70, 'poster', 'movies/70/poster/Y0zt4Cbtb9yCTjOTpdgU7DwbmmhX1VrT02IH4BCz.webp', 1, '2026-03-12 08:14:13'),
+(324, 70, 'backdrop', 'movies/70/backdrop/5LZTkaWdsxgadAUNHeEv4HX3BEBKip5P5klehPaV.webp', 1, '2026-03-12 08:14:24'),
+(325, 71, 'poster', 'movies/71/poster/jIPJnpJhnM0rgQ9IvCQBysNFox6d5yQeYOqg1Pcv.webp', 1, '2026-03-12 08:17:43'),
+(327, 71, 'poster', 'movies/71/poster/K5DQzOw14RVFVoc6GioaKX4EhUKmcfoTXy9qMKU2.webp', 0, '2026-03-12 08:18:03'),
+(328, 71, 'poster', 'movies/71/poster/VNfLi4C07bHBfEcdjDSPyHvIo82wzNnIyJXihnVr.webp', 0, '2026-03-12 08:18:07'),
+(329, 71, 'backdrop', 'movies/71/backdrop/0uY7YAfrFuAbF1eb6ZAY2djsitn2Wg2o7pRn2niX.webp', 1, '2026-03-12 08:18:12'),
+(330, 72, 'poster', 'movies/72/poster/4ehxd7mSWRvIWMrhnQUxO6tflwSr4pDKLnobNXuk.webp', 1, '2026-03-12 08:29:57'),
+(331, 72, 'backdrop', 'movies/72/backdrop/9T495IzpJHEFoolQAhogftvOSQjvScmGRYnAjMYC.webp', 1, '2026-03-12 08:30:06'),
+(332, 3, 'poster', 'movies/3/poster/0bP0UcE9VDYYkPFp3eABxsTA3xmK2o4HwX6hC94I.jpg', 0, '2026-03-12 09:29:24'),
+(333, 3, 'poster', 'movies/3/poster/MFCUI49l8ksIQou1YXF4giTO7R4pwY9MreHPIaMB.jpg', 0, '2026-03-12 09:29:29'),
+(334, 3, 'poster', 'movies/3/poster/Eep3pjLbHdXau6wBJx66IsNUmflv0XHUHCJcFnRp.jpg', 0, '2026-03-12 09:29:35'),
+(335, 3, 'poster', 'movies/3/poster/1279yqNJP5qV8mjZcRZ6yhJO3gYAhAcQr60mvEsn.webp', 0, '2026-03-12 09:29:48'),
+(336, 3, 'poster', 'movies/3/poster/mgQKlfRyAGurQs3lShPOz7YqNqqmmPtXjLZ2Ap8Z.webp', 0, '2026-03-12 09:30:02'),
+(337, 3, 'poster', 'movies/3/poster/OxxTEkh6aW8l1CH1PnODsKceaFzbyEIZ8wj5YvIP.webp', 0, '2026-03-12 09:30:17'),
+(338, 3, 'poster', 'movies/3/poster/Em0sG8eee5YS4ilHmKs3UWtazEkvwxdtGHUoyMjK.webp', 0, '2026-03-12 09:30:31'),
+(339, 3, 'poster', 'movies/3/poster/l0S1LCqrn0hnAw82oL3E7J5mA7EQSthOjtrpKF78.webp', 0, '2026-03-12 09:30:38'),
+(340, 3, 'poster', 'movies/3/poster/hCHetijt2xTw05rueEdgOoFHXGcV9mK0e8L69rfh.webp', 0, '2026-03-12 09:30:47'),
+(341, 3, 'poster', 'movies/3/poster/WofGdRPwyZrfdbFqSPQA06SUFIdHvLc9iVjQDK4y.webp', 0, '2026-03-12 09:31:01'),
+(342, 3, 'backdrop', 'movies/3/backdrop/4HNr04JGNQpIZ3y07OH7VaQXp6CSuefL93Er0XLq.webp', 0, '2026-03-12 09:31:23');
 
 -- --------------------------------------------------------
 
@@ -1420,7 +1488,11 @@ INSERT INTO `movie_production_houses` (`movie_id`, `production_house_id`) VALUES
 (66, 79),
 (67, 82),
 (68, 75),
-(68, 78);
+(68, 78),
+(70, 57),
+(70, 58),
+(72, 39),
+(72, 83);
 
 -- --------------------------------------------------------
 
@@ -1537,7 +1609,16 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (316, 62, 12, 'stream', NULL, 1),
 (317, 14, 11, 'stream', NULL, 0),
 (319, 67, 1, 'stream', NULL, 0),
-(322, 69, 11, 'rent', NULL, 0);
+(322, 69, 11, 'rent', NULL, 0),
+(347, 72, 9, 'stream', NULL, 1),
+(348, 72, 10, 'stream', NULL, 1),
+(349, 72, 12, 'stream', NULL, 1),
+(350, 71, 9, 'stream', '2026-03-18', 0),
+(351, 71, 10, 'stream', '2026-03-18', 0),
+(352, 71, 12, 'stream', '2026-03-18', 0),
+(353, 70, 9, 'stream', '2026-03-18', 0),
+(354, 70, 10, 'stream', '2026-03-18', 0),
+(355, 70, 12, 'stream', '2026-03-18', 0);
 
 -- --------------------------------------------------------
 
@@ -1588,6 +1669,56 @@ INSERT INTO `notifications` (`id`, `user_id`, `actor_id`, `type`, `film_id`, `re
 (23, 6, 5, 'like_review', 6, 30, 'Banda Neira liked your ★★★★★ review of Sore: Istri Dari Masa Depan', 0, '2026-03-10 19:00:42', '2026-03-10 19:00:42'),
 (24, 3, 5, 'like_review', 34, 16, 'Banda Neira liked your ★★★★ review of Sirāt', 0, '2026-03-10 19:56:43', '2026-03-10 19:56:43'),
 (25, 3, 5, 'like_review', 34, 16, 'Banda Neira liked your ★★★★ review of Sirāt', 0, '2026-03-10 19:56:44', '2026-03-10 19:56:44');
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `orders`
+--
+
+CREATE TABLE `orders` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `schedule_id` bigint(20) UNSIGNED NOT NULL,
+  `order_code` varchar(50) NOT NULL COMMENT 'Human-readable order reference, e.g. ORD-20260312-XXXX',
+  `total_price` int(10) UNSIGNED NOT NULL COMMENT 'Total in IDR',
+  `status` enum('pending','paid','cancelled','expired') NOT NULL DEFAULT 'pending',
+  `expired_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Midtrans payment window deadline',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `order_seats`
+--
+
+CREATE TABLE `order_seats` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `order_id` bigint(20) UNSIGNED NOT NULL,
+  `seat_id` bigint(20) UNSIGNED NOT NULL,
+  `schedule_id` bigint(20) UNSIGNED NOT NULL COMMENT 'Denormalised for the unique constraint',
+  `price` int(10) UNSIGNED NOT NULL COMMENT 'Snapshot of ticket price at booking time'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `payments`
+--
+
+CREATE TABLE `payments` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `order_id` bigint(20) UNSIGNED NOT NULL,
+  `midtrans_transaction_id` varchar(100) DEFAULT NULL COMMENT 'Midtrans transaction_id returned in charge response',
+  `midtrans_order_id` varchar(100) DEFAULT NULL COMMENT 'order_id sent to Midtrans (= orders.order_code)',
+  `payment_type` varchar(50) DEFAULT NULL COMMENT 'e.g. gopay, bank_transfer, credit_card, qris',
+  `transaction_status` varchar(30) DEFAULT NULL COMMENT 'pending, capture, settlement, deny, cancel, expire, refund',
+  `fraud_status` varchar(20) DEFAULT NULL COMMENT 'accept, challenge, deny (for credit card)',
+  `gross_amount` int(10) UNSIGNED NOT NULL COMMENT 'Amount in IDR',
+  `payment_time` timestamp NULL DEFAULT NULL COMMENT 'Set when settlement notification arrives',
+  `midtrans_raw_response` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Full notification payload from Midtrans for audit' CHECK (json_valid(`midtrans_raw_response`)),
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -1772,6 +1903,7 @@ INSERT INTO `production_houses` (`id`, `name`) VALUES
 (63, 'Summerland'),
 (45, 'Summit Entertainment'),
 (65, 'Syncopy'),
+(83, 'Talamedia'),
 (29, 'The Associated Press'),
 (14, 'TOHO'),
 (2, 'Universal Pictures'),
@@ -1978,6 +2110,694 @@ INSERT INTO `review_likes` (`id`, `review_id`, `user_id`, `created_at`, `updated
 -- --------------------------------------------------------
 
 --
+-- Struktur dari tabel `schedules`
+--
+
+CREATE TABLE `schedules` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `movie_id` bigint(20) UNSIGNED NOT NULL,
+  `studio_id` bigint(20) UNSIGNED NOT NULL,
+  `show_date` date NOT NULL,
+  `show_time` time NOT NULL,
+  `ticket_price` int(10) UNSIGNED NOT NULL COMMENT 'Price in IDR (Rupiah)',
+  `status` enum('active','expired','cancelled') NOT NULL DEFAULT 'active'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data untuk tabel `schedules`
+--
+
+INSERT INTO `schedules` (`id`, `movie_id`, `studio_id`, `show_date`, `show_time`, `ticket_price`, `status`) VALUES
+(2, 48, 1, '2026-03-13', '12:30:00', 35000, 'active'),
+(5, 48, 1, '2026-03-12', '16:00:00', 35000, 'expired');
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `seats`
+--
+
+CREATE TABLE `seats` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `studio_id` bigint(20) UNSIGNED NOT NULL,
+  `seat_row` char(2) NOT NULL COMMENT 'Row letter, e.g. A, B, AA',
+  `seat_number` tinyint(3) UNSIGNED NOT NULL COMMENT 'Column number, e.g. 1-20',
+  `seat_code` varchar(10) NOT NULL COMMENT 'Combined code, e.g. A1, B12',
+  `seat_type` enum('seat','aisle','entrance') NOT NULL DEFAULT 'seat',
+  `position_x` smallint(5) UNSIGNED NOT NULL DEFAULT 0,
+  `position_y` smallint(5) UNSIGNED NOT NULL DEFAULT 0,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data untuk tabel `seats`
+--
+
+INSERT INTO `seats` (`id`, `studio_id`, `seat_row`, `seat_number`, `seat_code`, `seat_type`, `position_x`, `position_y`, `is_active`) VALUES
+(2361, 2, 'A', 1, 'A1', 'seat', 0, 0, 1),
+(2362, 2, 'A', 2, 'A2', 'seat', 1, 0, 1),
+(2363, 2, 'A', 3, 'A3', 'seat', 2, 0, 1),
+(2364, 2, 'A', 4, 'A4', 'seat', 3, 0, 1),
+(2365, 2, 'A', 5, 'A5', 'seat', 4, 0, 1),
+(2366, 2, 'A', 6, 'A6', 'seat', 5, 0, 1),
+(2367, 2, 'A', 7, 'A7', 'seat', 6, 0, 1),
+(2368, 2, 'A', 8, 'A8', 'seat', 7, 0, 1),
+(2369, 2, 'A', 208, '', 'aisle', 8, 0, 0),
+(2370, 2, 'A', 9, 'A9', 'seat', 9, 0, 1),
+(2371, 2, 'A', 10, 'A10', 'seat', 10, 0, 1),
+(2372, 2, 'A', 11, 'A11', 'seat', 11, 0, 1),
+(2373, 2, 'A', 12, 'A12', 'seat', 12, 0, 1),
+(2374, 2, 'A', 13, 'A13', 'seat', 13, 0, 1),
+(2375, 2, 'A', 14, 'A14', 'seat', 14, 0, 1),
+(2376, 2, 'A', 15, 'A15', 'seat', 15, 0, 1),
+(2377, 2, 'B', 1, 'B1', 'seat', 0, 1, 1),
+(2378, 2, 'B', 2, 'B2', 'seat', 1, 1, 1),
+(2379, 2, 'B', 3, 'B3', 'seat', 2, 1, 1),
+(2380, 2, 'B', 4, 'B4', 'seat', 3, 1, 1),
+(2381, 2, 'B', 5, 'B5', 'seat', 4, 1, 1),
+(2382, 2, 'B', 6, 'B6', 'seat', 5, 1, 1),
+(2383, 2, 'B', 7, 'B7', 'seat', 6, 1, 1),
+(2384, 2, 'B', 8, 'B8', 'seat', 7, 1, 1),
+(2385, 2, 'B', 208, '', 'aisle', 8, 1, 0),
+(2386, 2, 'B', 9, 'B9', 'seat', 9, 1, 1),
+(2387, 2, 'B', 10, 'B10', 'seat', 10, 1, 1),
+(2388, 2, 'B', 11, 'B11', 'seat', 11, 1, 1),
+(2389, 2, 'B', 12, 'B12', 'seat', 12, 1, 1),
+(2390, 2, 'B', 13, 'B13', 'seat', 13, 1, 1),
+(2391, 2, 'B', 14, 'B14', 'seat', 14, 1, 1),
+(2392, 2, 'B', 15, 'B15', 'seat', 15, 1, 1),
+(2393, 2, 'C', 1, '', 'entrance', 0, 2, 0),
+(2394, 2, 'C', 2, '', 'entrance', 1, 2, 0),
+(2395, 2, 'C', 3, 'C3', 'seat', 2, 2, 1),
+(2396, 2, 'C', 4, 'C4', 'seat', 3, 2, 1),
+(2397, 2, 'C', 5, 'C5', 'seat', 4, 2, 1),
+(2398, 2, 'C', 6, 'C6', 'seat', 5, 2, 1),
+(2399, 2, 'C', 7, 'C7', 'seat', 6, 2, 1),
+(2400, 2, 'C', 8, 'C8', 'seat', 7, 2, 1),
+(2401, 2, 'C', 208, '', 'aisle', 8, 2, 0),
+(2402, 2, 'C', 9, 'C9', 'seat', 9, 2, 1),
+(2403, 2, 'C', 10, 'C10', 'seat', 10, 2, 1),
+(2404, 2, 'C', 11, 'C11', 'seat', 11, 2, 1),
+(2405, 2, 'C', 12, 'C12', 'seat', 12, 2, 1),
+(2406, 2, 'C', 13, 'C13', 'seat', 13, 2, 1),
+(2407, 2, 'C', 14, 'C14', 'seat', 14, 2, 1),
+(2408, 2, 'C', 15, 'C15', 'seat', 15, 2, 1),
+(2409, 2, 'D', 1, '', 'entrance', 0, 3, 0),
+(2410, 2, 'D', 2, '', 'entrance', 1, 3, 0),
+(2411, 2, 'D', 3, 'D3', 'seat', 2, 3, 1),
+(2412, 2, 'D', 4, 'D4', 'seat', 3, 3, 1),
+(2413, 2, 'D', 5, 'D5', 'seat', 4, 3, 1),
+(2414, 2, 'D', 6, 'D6', 'seat', 5, 3, 1),
+(2415, 2, 'D', 7, 'D7', 'seat', 6, 3, 1),
+(2416, 2, 'D', 8, 'D8', 'seat', 7, 3, 1),
+(2417, 2, 'D', 208, '', 'aisle', 8, 3, 0),
+(2418, 2, 'D', 9, 'D9', 'seat', 9, 3, 1),
+(2419, 2, 'D', 10, 'D10', 'seat', 10, 3, 1),
+(2420, 2, 'D', 11, 'D11', 'seat', 11, 3, 1),
+(2421, 2, 'D', 12, 'D12', 'seat', 12, 3, 1),
+(2422, 2, 'D', 13, 'D13', 'seat', 13, 3, 1),
+(2423, 2, 'D', 14, 'D14', 'seat', 14, 3, 1),
+(2424, 2, 'D', 15, 'D15', 'seat', 15, 3, 1),
+(2425, 2, 'E', 1, '', 'entrance', 0, 4, 0),
+(2426, 2, 'E', 2, '', 'entrance', 1, 4, 0),
+(2427, 2, 'E', 3, 'E3', 'seat', 2, 4, 1),
+(2428, 2, 'E', 4, 'E4', 'seat', 3, 4, 1),
+(2429, 2, 'E', 5, 'E5', 'seat', 4, 4, 1),
+(2430, 2, 'E', 6, 'E6', 'seat', 5, 4, 1),
+(2431, 2, 'E', 7, 'E7', 'seat', 6, 4, 1),
+(2432, 2, 'E', 8, 'E8', 'seat', 7, 4, 1),
+(2433, 2, 'E', 208, '', 'aisle', 8, 4, 0),
+(2434, 2, 'E', 9, 'E9', 'seat', 9, 4, 1),
+(2435, 2, 'E', 10, 'E10', 'seat', 10, 4, 1),
+(2436, 2, 'E', 11, 'E11', 'seat', 11, 4, 1),
+(2437, 2, 'E', 12, 'E12', 'seat', 12, 4, 1),
+(2438, 2, 'E', 13, 'E13', 'seat', 13, 4, 1),
+(2439, 2, 'E', 14, 'E14', 'seat', 14, 4, 1),
+(2440, 2, 'E', 15, 'E15', 'seat', 15, 4, 1),
+(2441, 2, 'F', 1, '', 'entrance', 0, 5, 0),
+(2442, 2, 'F', 2, '', 'entrance', 1, 5, 0),
+(2443, 2, 'F', 3, 'F3', 'seat', 2, 5, 1),
+(2444, 2, 'F', 4, 'F4', 'seat', 3, 5, 1),
+(2445, 2, 'F', 5, 'F5', 'seat', 4, 5, 1),
+(2446, 2, 'F', 6, 'F6', 'seat', 5, 5, 1),
+(2447, 2, 'F', 7, 'F7', 'seat', 6, 5, 1),
+(2448, 2, 'F', 8, 'F8', 'seat', 7, 5, 1),
+(2449, 2, 'F', 208, '', 'aisle', 8, 5, 0),
+(2450, 2, 'F', 9, 'F9', 'seat', 9, 5, 1),
+(2451, 2, 'F', 10, 'F10', 'seat', 10, 5, 1),
+(2452, 2, 'F', 11, 'F11', 'seat', 11, 5, 1),
+(2453, 2, 'F', 12, 'F12', 'seat', 12, 5, 1),
+(2454, 2, 'F', 13, 'F13', 'seat', 13, 5, 1),
+(2455, 2, 'F', 14, 'F14', 'seat', 14, 5, 1),
+(2456, 2, 'F', 15, 'F15', 'seat', 15, 5, 1),
+(2457, 2, 'G', 1, '', 'entrance', 0, 6, 0),
+(2458, 2, 'G', 2, '', 'entrance', 1, 6, 0),
+(2459, 2, 'G', 3, 'G3', 'seat', 2, 6, 1),
+(2460, 2, 'G', 4, 'G4', 'seat', 3, 6, 1),
+(2461, 2, 'G', 5, 'G5', 'seat', 4, 6, 1),
+(2462, 2, 'G', 6, 'G6', 'seat', 5, 6, 1),
+(2463, 2, 'G', 7, 'G7', 'seat', 6, 6, 1),
+(2464, 2, 'G', 8, 'G8', 'seat', 7, 6, 1),
+(2465, 2, 'G', 208, '', 'aisle', 8, 6, 0),
+(2466, 2, 'G', 9, 'G9', 'seat', 9, 6, 1),
+(2467, 2, 'G', 10, 'G10', 'seat', 10, 6, 1),
+(2468, 2, 'G', 11, 'G11', 'seat', 11, 6, 1),
+(2469, 2, 'G', 12, 'G12', 'seat', 12, 6, 1),
+(2470, 2, 'G', 13, 'G13', 'seat', 13, 6, 1),
+(2471, 2, 'G', 14, 'G14', 'seat', 14, 6, 1),
+(2472, 2, 'G', 15, 'G15', 'seat', 15, 6, 1),
+(2473, 2, 'H', 1, '', 'entrance', 0, 7, 0),
+(2474, 2, 'H', 2, '', 'entrance', 1, 7, 0),
+(2475, 2, 'H', 3, 'H3', 'seat', 2, 7, 1),
+(2476, 2, 'H', 4, 'H4', 'seat', 3, 7, 1),
+(2477, 2, 'H', 5, 'H5', 'seat', 4, 7, 1),
+(2478, 2, 'H', 6, 'H6', 'seat', 5, 7, 1),
+(2479, 2, 'H', 7, 'H7', 'seat', 6, 7, 1),
+(2480, 2, 'H', 8, 'H8', 'seat', 7, 7, 1),
+(2481, 2, 'H', 208, '', 'aisle', 8, 7, 0),
+(2482, 2, 'H', 9, 'H9', 'seat', 9, 7, 1),
+(2483, 2, 'H', 10, 'H10', 'seat', 10, 7, 1),
+(2484, 2, 'H', 11, 'H11', 'seat', 11, 7, 1),
+(2485, 2, 'H', 12, 'H12', 'seat', 12, 7, 1),
+(2486, 2, 'H', 13, 'H13', 'seat', 13, 7, 1),
+(2487, 2, 'H', 14, 'H14', 'seat', 14, 7, 1),
+(2488, 2, 'H', 15, 'H15', 'seat', 15, 7, 1),
+(2489, 2, 'I', 1, '', 'entrance', 0, 8, 0),
+(2490, 2, 'I', 2, '', 'entrance', 1, 8, 0),
+(2491, 2, 'I', 3, 'I3', 'seat', 2, 8, 1),
+(2492, 2, 'I', 4, 'I4', 'seat', 3, 8, 1),
+(2493, 2, 'I', 5, 'I5', 'seat', 4, 8, 1),
+(2494, 2, 'I', 6, 'I6', 'seat', 5, 8, 1),
+(2495, 2, 'I', 7, 'I7', 'seat', 6, 8, 1),
+(2496, 2, 'I', 8, 'I8', 'seat', 7, 8, 1),
+(2497, 2, 'I', 208, '', 'aisle', 8, 8, 0),
+(2498, 2, 'I', 9, 'I9', 'seat', 9, 8, 1),
+(2499, 2, 'I', 10, 'I10', 'seat', 10, 8, 1),
+(2500, 2, 'I', 11, 'I11', 'seat', 11, 8, 1),
+(2501, 2, 'I', 12, 'I12', 'seat', 12, 8, 1),
+(2502, 2, 'I', 13, 'I13', 'seat', 13, 8, 1),
+(2503, 2, 'I', 14, 'I14', 'seat', 14, 8, 1),
+(2504, 2, 'I', 15, 'I15', 'seat', 15, 8, 1),
+(2505, 2, 'J', 1, '', 'entrance', 0, 9, 0),
+(2506, 2, 'J', 2, '', 'entrance', 1, 9, 0),
+(2507, 2, 'J', 3, 'J3', 'seat', 2, 9, 1),
+(2508, 2, 'J', 4, 'J4', 'seat', 3, 9, 1),
+(2509, 2, 'J', 5, 'J5', 'seat', 4, 9, 1),
+(2510, 2, 'J', 6, 'J6', 'seat', 5, 9, 1),
+(2511, 2, 'J', 7, 'J7', 'seat', 6, 9, 1),
+(2512, 2, 'J', 8, 'J8', 'seat', 7, 9, 1),
+(2513, 2, 'J', 208, '', 'aisle', 8, 9, 0),
+(2514, 2, 'J', 9, 'J9', 'seat', 9, 9, 1),
+(2515, 2, 'J', 10, 'J10', 'seat', 10, 9, 1),
+(2516, 2, 'J', 11, 'J11', 'seat', 11, 9, 1),
+(2517, 2, 'J', 12, 'J12', 'seat', 12, 9, 1),
+(2518, 2, 'J', 13, 'J13', 'seat', 13, 9, 1),
+(2519, 2, 'J', 14, 'J14', 'seat', 14, 9, 1),
+(2520, 2, 'J', 15, 'J15', 'seat', 15, 9, 1),
+(2521, 1, 'A', 1, 'A1', 'seat', 0, 0, 1),
+(2522, 1, 'A', 2, 'A2', 'seat', 1, 0, 1),
+(2523, 1, 'A', 3, 'A3', 'seat', 2, 0, 1),
+(2524, 1, 'A', 4, 'A4', 'seat', 3, 0, 1),
+(2525, 1, 'A', 5, 'A5', 'seat', 4, 0, 1),
+(2526, 1, 'A', 6, 'A6', 'seat', 5, 0, 1),
+(2527, 1, 'A', 7, 'A7', 'seat', 6, 0, 1),
+(2528, 1, 'A', 8, 'A8', 'seat', 7, 0, 1),
+(2529, 1, 'A', 208, '', 'aisle', 8, 0, 0),
+(2530, 1, 'A', 9, 'A9', 'seat', 9, 0, 1),
+(2531, 1, 'A', 10, 'A10', 'seat', 10, 0, 1),
+(2532, 1, 'A', 11, 'A11', 'seat', 11, 0, 1),
+(2533, 1, 'A', 12, 'A12', 'seat', 12, 0, 1),
+(2534, 1, 'A', 13, 'A13', 'seat', 13, 0, 1),
+(2535, 1, 'A', 14, 'A14', 'seat', 14, 0, 1),
+(2536, 1, 'A', 15, 'A15', 'seat', 15, 0, 1),
+(2537, 1, 'B', 1, 'B1', 'seat', 0, 1, 1),
+(2538, 1, 'B', 2, 'B2', 'seat', 1, 1, 1),
+(2539, 1, 'B', 3, 'B3', 'seat', 2, 1, 1),
+(2540, 1, 'B', 4, 'B4', 'seat', 3, 1, 1),
+(2541, 1, 'B', 5, 'B5', 'seat', 4, 1, 1),
+(2542, 1, 'B', 6, 'B6', 'seat', 5, 1, 1),
+(2543, 1, 'B', 7, 'B7', 'seat', 6, 1, 1),
+(2544, 1, 'B', 8, 'B8', 'seat', 7, 1, 1),
+(2545, 1, 'B', 208, '', 'aisle', 8, 1, 0),
+(2546, 1, 'B', 9, 'B9', 'seat', 9, 1, 1),
+(2547, 1, 'B', 10, 'B10', 'seat', 10, 1, 1),
+(2548, 1, 'B', 11, 'B11', 'seat', 11, 1, 1),
+(2549, 1, 'B', 12, 'B12', 'seat', 12, 1, 1),
+(2550, 1, 'B', 13, 'B13', 'seat', 13, 1, 1),
+(2551, 1, 'B', 14, 'B14', 'seat', 14, 1, 1),
+(2552, 1, 'B', 15, 'B15', 'seat', 15, 1, 1),
+(2553, 1, 'C', 1, '', 'entrance', 0, 2, 0),
+(2554, 1, 'C', 2, '', 'entrance', 1, 2, 0),
+(2555, 1, 'C', 3, 'C3', 'seat', 2, 2, 1),
+(2556, 1, 'C', 4, 'C4', 'seat', 3, 2, 1),
+(2557, 1, 'C', 5, 'C5', 'seat', 4, 2, 1),
+(2558, 1, 'C', 6, 'C6', 'seat', 5, 2, 1),
+(2559, 1, 'C', 7, 'C7', 'seat', 6, 2, 1),
+(2560, 1, 'C', 8, 'C8', 'seat', 7, 2, 1),
+(2561, 1, 'C', 208, '', 'aisle', 8, 2, 0),
+(2562, 1, 'C', 9, 'C9', 'seat', 9, 2, 1),
+(2563, 1, 'C', 10, 'C10', 'seat', 10, 2, 1),
+(2564, 1, 'C', 11, 'C11', 'seat', 11, 2, 1),
+(2565, 1, 'C', 12, 'C12', 'seat', 12, 2, 1),
+(2566, 1, 'C', 13, 'C13', 'seat', 13, 2, 1),
+(2567, 1, 'C', 14, 'C14', 'seat', 14, 2, 1),
+(2568, 1, 'C', 15, 'C15', 'seat', 15, 2, 1),
+(2569, 1, 'D', 1, '', 'entrance', 0, 3, 0),
+(2570, 1, 'D', 2, '', 'entrance', 1, 3, 0),
+(2571, 1, 'D', 3, 'D3', 'seat', 2, 3, 1),
+(2572, 1, 'D', 4, 'D4', 'seat', 3, 3, 1),
+(2573, 1, 'D', 5, 'D5', 'seat', 4, 3, 1),
+(2574, 1, 'D', 6, 'D6', 'seat', 5, 3, 1),
+(2575, 1, 'D', 7, 'D7', 'seat', 6, 3, 1),
+(2576, 1, 'D', 8, 'D8', 'seat', 7, 3, 1),
+(2577, 1, 'D', 208, '', 'aisle', 8, 3, 0),
+(2578, 1, 'D', 9, 'D9', 'seat', 9, 3, 1),
+(2579, 1, 'D', 10, 'D10', 'seat', 10, 3, 1),
+(2580, 1, 'D', 11, 'D11', 'seat', 11, 3, 1),
+(2581, 1, 'D', 12, 'D12', 'seat', 12, 3, 1),
+(2582, 1, 'D', 13, 'D13', 'seat', 13, 3, 1),
+(2583, 1, 'D', 14, 'D14', 'seat', 14, 3, 1),
+(2584, 1, 'D', 15, 'D15', 'seat', 15, 3, 1),
+(2585, 1, 'E', 1, '', 'entrance', 0, 4, 0),
+(2586, 1, 'E', 2, '', 'entrance', 1, 4, 0),
+(2587, 1, 'E', 3, 'E3', 'seat', 2, 4, 1),
+(2588, 1, 'E', 4, 'E4', 'seat', 3, 4, 1),
+(2589, 1, 'E', 5, 'E5', 'seat', 4, 4, 1),
+(2590, 1, 'E', 6, 'E6', 'seat', 5, 4, 1),
+(2591, 1, 'E', 7, 'E7', 'seat', 6, 4, 1),
+(2592, 1, 'E', 8, 'E8', 'seat', 7, 4, 1),
+(2593, 1, 'E', 208, '', 'aisle', 8, 4, 0),
+(2594, 1, 'E', 9, 'E9', 'seat', 9, 4, 1),
+(2595, 1, 'E', 10, 'E10', 'seat', 10, 4, 1),
+(2596, 1, 'E', 11, 'E11', 'seat', 11, 4, 1),
+(2597, 1, 'E', 12, 'E12', 'seat', 12, 4, 1),
+(2598, 1, 'E', 13, 'E13', 'seat', 13, 4, 1),
+(2599, 1, 'E', 14, 'E14', 'seat', 14, 4, 1),
+(2600, 1, 'E', 15, 'E15', 'seat', 15, 4, 1),
+(2601, 1, 'F', 1, '', 'entrance', 0, 5, 0),
+(2602, 1, 'F', 2, '', 'entrance', 1, 5, 0),
+(2603, 1, 'F', 3, 'F3', 'seat', 2, 5, 1),
+(2604, 1, 'F', 4, 'F4', 'seat', 3, 5, 1),
+(2605, 1, 'F', 5, 'F5', 'seat', 4, 5, 1),
+(2606, 1, 'F', 6, 'F6', 'seat', 5, 5, 1),
+(2607, 1, 'F', 7, 'F7', 'seat', 6, 5, 1),
+(2608, 1, 'F', 8, 'F8', 'seat', 7, 5, 1),
+(2609, 1, 'F', 208, '', 'aisle', 8, 5, 0),
+(2610, 1, 'F', 9, 'F9', 'seat', 9, 5, 1),
+(2611, 1, 'F', 10, 'F10', 'seat', 10, 5, 1),
+(2612, 1, 'F', 11, 'F11', 'seat', 11, 5, 1),
+(2613, 1, 'F', 12, 'F12', 'seat', 12, 5, 1),
+(2614, 1, 'F', 13, 'F13', 'seat', 13, 5, 1),
+(2615, 1, 'F', 14, 'F14', 'seat', 14, 5, 1),
+(2616, 1, 'F', 15, 'F15', 'seat', 15, 5, 1),
+(2617, 1, 'G', 1, '', 'entrance', 0, 6, 0),
+(2618, 1, 'G', 2, '', 'entrance', 1, 6, 0),
+(2619, 1, 'G', 3, 'G3', 'seat', 2, 6, 1),
+(2620, 1, 'G', 4, 'G4', 'seat', 3, 6, 1),
+(2621, 1, 'G', 5, 'G5', 'seat', 4, 6, 1),
+(2622, 1, 'G', 6, 'G6', 'seat', 5, 6, 1),
+(2623, 1, 'G', 7, 'G7', 'seat', 6, 6, 1),
+(2624, 1, 'G', 8, 'G8', 'seat', 7, 6, 1),
+(2625, 1, 'G', 208, '', 'aisle', 8, 6, 0),
+(2626, 1, 'G', 9, 'G9', 'seat', 9, 6, 1),
+(2627, 1, 'G', 10, 'G10', 'seat', 10, 6, 1),
+(2628, 1, 'G', 11, 'G11', 'seat', 11, 6, 1),
+(2629, 1, 'G', 12, 'G12', 'seat', 12, 6, 1),
+(2630, 1, 'G', 13, 'G13', 'seat', 13, 6, 1),
+(2631, 1, 'G', 14, 'G14', 'seat', 14, 6, 1),
+(2632, 1, 'G', 15, 'G15', 'seat', 15, 6, 1),
+(2633, 1, 'H', 1, '', 'entrance', 0, 7, 0),
+(2634, 1, 'H', 2, '', 'entrance', 1, 7, 0),
+(2635, 1, 'H', 3, 'H3', 'seat', 2, 7, 1),
+(2636, 1, 'H', 4, 'H4', 'seat', 3, 7, 1),
+(2637, 1, 'H', 5, 'H5', 'seat', 4, 7, 1),
+(2638, 1, 'H', 6, 'H6', 'seat', 5, 7, 1),
+(2639, 1, 'H', 7, 'H7', 'seat', 6, 7, 1),
+(2640, 1, 'H', 8, 'H8', 'seat', 7, 7, 1),
+(2641, 1, 'H', 208, '', 'aisle', 8, 7, 0),
+(2642, 1, 'H', 9, 'H9', 'seat', 9, 7, 1),
+(2643, 1, 'H', 10, 'H10', 'seat', 10, 7, 1),
+(2644, 1, 'H', 11, 'H11', 'seat', 11, 7, 1),
+(2645, 1, 'H', 12, 'H12', 'seat', 12, 7, 1),
+(2646, 1, 'H', 13, 'H13', 'seat', 13, 7, 1),
+(2647, 1, 'H', 14, 'H14', 'seat', 14, 7, 1),
+(2648, 1, 'H', 15, 'H15', 'seat', 15, 7, 1),
+(2649, 1, 'I', 1, '', 'entrance', 0, 8, 0),
+(2650, 1, 'I', 2, '', 'entrance', 1, 8, 0),
+(2651, 1, 'I', 3, 'I3', 'seat', 2, 8, 1),
+(2652, 1, 'I', 4, 'I4', 'seat', 3, 8, 1),
+(2653, 1, 'I', 5, 'I5', 'seat', 4, 8, 1),
+(2654, 1, 'I', 6, 'I6', 'seat', 5, 8, 1),
+(2655, 1, 'I', 7, 'I7', 'seat', 6, 8, 1),
+(2656, 1, 'I', 8, 'I8', 'seat', 7, 8, 1),
+(2657, 1, 'I', 208, '', 'aisle', 8, 8, 0),
+(2658, 1, 'I', 9, 'I9', 'seat', 9, 8, 1),
+(2659, 1, 'I', 10, 'I10', 'seat', 10, 8, 1),
+(2660, 1, 'I', 11, 'I11', 'seat', 11, 8, 1),
+(2661, 1, 'I', 12, 'I12', 'seat', 12, 8, 1),
+(2662, 1, 'I', 13, 'I13', 'seat', 13, 8, 1),
+(2663, 1, 'I', 14, 'I14', 'seat', 14, 8, 1),
+(2664, 1, 'I', 15, 'I15', 'seat', 15, 8, 1),
+(2665, 1, 'J', 1, '', 'entrance', 0, 9, 0),
+(2666, 1, 'J', 2, '', 'entrance', 1, 9, 0),
+(2667, 1, 'J', 3, 'J3', 'seat', 2, 9, 1),
+(2668, 1, 'J', 4, 'J4', 'seat', 3, 9, 1),
+(2669, 1, 'J', 5, 'J5', 'seat', 4, 9, 1),
+(2670, 1, 'J', 6, 'J6', 'seat', 5, 9, 1),
+(2671, 1, 'J', 7, 'J7', 'seat', 6, 9, 1),
+(2672, 1, 'J', 8, 'J8', 'seat', 7, 9, 1),
+(2673, 1, 'J', 208, '', 'aisle', 8, 9, 0),
+(2674, 1, 'J', 9, 'J9', 'seat', 9, 9, 1),
+(2675, 1, 'J', 10, 'J10', 'seat', 10, 9, 1),
+(2676, 1, 'J', 11, 'J11', 'seat', 11, 9, 1),
+(2677, 1, 'J', 12, 'J12', 'seat', 12, 9, 1),
+(2678, 1, 'J', 13, 'J13', 'seat', 13, 9, 1),
+(2679, 1, 'J', 14, 'J14', 'seat', 14, 9, 1),
+(2680, 1, 'J', 15, 'J15', 'seat', 15, 9, 1),
+(2681, 3, 'A', 1, 'A1', 'seat', 0, 0, 1),
+(2682, 3, 'A', 2, 'A2', 'seat', 1, 0, 1),
+(2683, 3, 'A', 3, 'A3', 'seat', 2, 0, 1),
+(2684, 3, 'A', 4, 'A4', 'seat', 3, 0, 1),
+(2685, 3, 'A', 5, 'A5', 'seat', 4, 0, 1),
+(2686, 3, 'A', 6, 'A6', 'seat', 5, 0, 1),
+(2687, 3, 'A', 7, 'A7', 'seat', 6, 0, 1),
+(2688, 3, 'A', 8, 'A8', 'seat', 7, 0, 1),
+(2689, 3, 'A', 208, '', 'aisle', 8, 0, 0),
+(2690, 3, 'A', 9, 'A9', 'seat', 9, 0, 1),
+(2691, 3, 'A', 10, 'A10', 'seat', 10, 0, 1),
+(2692, 3, 'A', 11, 'A11', 'seat', 11, 0, 1),
+(2693, 3, 'A', 12, 'A12', 'seat', 12, 0, 1),
+(2694, 3, 'A', 13, 'A13', 'seat', 13, 0, 1),
+(2695, 3, 'A', 14, 'A14', 'seat', 14, 0, 1),
+(2696, 3, 'A', 15, 'A15', 'seat', 15, 0, 1),
+(2697, 3, 'B', 1, 'B1', 'seat', 0, 1, 1),
+(2698, 3, 'B', 2, 'B2', 'seat', 1, 1, 1),
+(2699, 3, 'B', 3, 'B3', 'seat', 2, 1, 1),
+(2700, 3, 'B', 4, 'B4', 'seat', 3, 1, 1),
+(2701, 3, 'B', 5, 'B5', 'seat', 4, 1, 1),
+(2702, 3, 'B', 6, 'B6', 'seat', 5, 1, 1),
+(2703, 3, 'B', 7, 'B7', 'seat', 6, 1, 1),
+(2704, 3, 'B', 8, 'B8', 'seat', 7, 1, 1),
+(2705, 3, 'B', 208, '', 'aisle', 8, 1, 0),
+(2706, 3, 'B', 9, 'B9', 'seat', 9, 1, 1),
+(2707, 3, 'B', 10, 'B10', 'seat', 10, 1, 1),
+(2708, 3, 'B', 11, 'B11', 'seat', 11, 1, 1),
+(2709, 3, 'B', 12, 'B12', 'seat', 12, 1, 1),
+(2710, 3, 'B', 13, 'B13', 'seat', 13, 1, 1),
+(2711, 3, 'B', 14, 'B14', 'seat', 14, 1, 1),
+(2712, 3, 'B', 15, 'B15', 'seat', 15, 1, 1),
+(2713, 3, 'C', 1, '', 'entrance', 0, 2, 0),
+(2714, 3, 'C', 2, '', 'entrance', 1, 2, 0),
+(2715, 3, 'C', 3, 'C3', 'seat', 2, 2, 1),
+(2716, 3, 'C', 4, 'C4', 'seat', 3, 2, 1),
+(2717, 3, 'C', 5, 'C5', 'seat', 4, 2, 1),
+(2718, 3, 'C', 6, 'C6', 'seat', 5, 2, 1),
+(2719, 3, 'C', 7, 'C7', 'seat', 6, 2, 1),
+(2720, 3, 'C', 8, 'C8', 'seat', 7, 2, 1),
+(2721, 3, 'C', 208, '', 'aisle', 8, 2, 0),
+(2722, 3, 'C', 9, 'C9', 'seat', 9, 2, 1),
+(2723, 3, 'C', 10, 'C10', 'seat', 10, 2, 1),
+(2724, 3, 'C', 11, 'C11', 'seat', 11, 2, 1),
+(2725, 3, 'C', 12, 'C12', 'seat', 12, 2, 1),
+(2726, 3, 'C', 13, 'C13', 'seat', 13, 2, 1),
+(2727, 3, 'C', 14, 'C14', 'seat', 14, 2, 1),
+(2728, 3, 'C', 15, 'C15', 'seat', 15, 2, 1),
+(2729, 3, 'D', 1, '', 'entrance', 0, 3, 0),
+(2730, 3, 'D', 2, '', 'entrance', 1, 3, 0),
+(2731, 3, 'D', 3, 'D3', 'seat', 2, 3, 1),
+(2732, 3, 'D', 4, 'D4', 'seat', 3, 3, 1),
+(2733, 3, 'D', 5, 'D5', 'seat', 4, 3, 1),
+(2734, 3, 'D', 6, 'D6', 'seat', 5, 3, 1),
+(2735, 3, 'D', 7, 'D7', 'seat', 6, 3, 1),
+(2736, 3, 'D', 8, 'D8', 'seat', 7, 3, 1),
+(2737, 3, 'D', 208, '', 'aisle', 8, 3, 0),
+(2738, 3, 'D', 9, 'D9', 'seat', 9, 3, 1),
+(2739, 3, 'D', 10, 'D10', 'seat', 10, 3, 1),
+(2740, 3, 'D', 11, 'D11', 'seat', 11, 3, 1),
+(2741, 3, 'D', 12, 'D12', 'seat', 12, 3, 1),
+(2742, 3, 'D', 13, 'D13', 'seat', 13, 3, 1),
+(2743, 3, 'D', 14, 'D14', 'seat', 14, 3, 1),
+(2744, 3, 'D', 15, 'D15', 'seat', 15, 3, 1),
+(2745, 3, 'E', 1, '', 'entrance', 0, 4, 0),
+(2746, 3, 'E', 2, '', 'entrance', 1, 4, 0),
+(2747, 3, 'E', 3, 'E3', 'seat', 2, 4, 1),
+(2748, 3, 'E', 4, 'E4', 'seat', 3, 4, 1),
+(2749, 3, 'E', 5, 'E5', 'seat', 4, 4, 1),
+(2750, 3, 'E', 6, 'E6', 'seat', 5, 4, 1),
+(2751, 3, 'E', 7, 'E7', 'seat', 6, 4, 1),
+(2752, 3, 'E', 8, 'E8', 'seat', 7, 4, 1),
+(2753, 3, 'E', 208, '', 'aisle', 8, 4, 0),
+(2754, 3, 'E', 9, 'E9', 'seat', 9, 4, 1),
+(2755, 3, 'E', 10, 'E10', 'seat', 10, 4, 1),
+(2756, 3, 'E', 11, 'E11', 'seat', 11, 4, 1),
+(2757, 3, 'E', 12, 'E12', 'seat', 12, 4, 1),
+(2758, 3, 'E', 13, 'E13', 'seat', 13, 4, 1),
+(2759, 3, 'E', 14, 'E14', 'seat', 14, 4, 1),
+(2760, 3, 'E', 15, 'E15', 'seat', 15, 4, 1),
+(2761, 3, 'F', 1, '', 'entrance', 0, 5, 0),
+(2762, 3, 'F', 2, '', 'entrance', 1, 5, 0),
+(2763, 3, 'F', 3, 'F3', 'seat', 2, 5, 1),
+(2764, 3, 'F', 4, 'F4', 'seat', 3, 5, 1),
+(2765, 3, 'F', 5, 'F5', 'seat', 4, 5, 1),
+(2766, 3, 'F', 6, 'F6', 'seat', 5, 5, 1),
+(2767, 3, 'F', 7, 'F7', 'seat', 6, 5, 1),
+(2768, 3, 'F', 8, 'F8', 'seat', 7, 5, 1),
+(2769, 3, 'F', 208, '', 'aisle', 8, 5, 0),
+(2770, 3, 'F', 9, 'F9', 'seat', 9, 5, 1),
+(2771, 3, 'F', 10, 'F10', 'seat', 10, 5, 1),
+(2772, 3, 'F', 11, 'F11', 'seat', 11, 5, 1),
+(2773, 3, 'F', 12, 'F12', 'seat', 12, 5, 1),
+(2774, 3, 'F', 13, 'F13', 'seat', 13, 5, 1),
+(2775, 3, 'F', 14, 'F14', 'seat', 14, 5, 1),
+(2776, 3, 'F', 15, 'F15', 'seat', 15, 5, 1),
+(2777, 3, 'G', 1, '', 'entrance', 0, 6, 0),
+(2778, 3, 'G', 2, '', 'entrance', 1, 6, 0),
+(2779, 3, 'G', 3, 'G3', 'seat', 2, 6, 1),
+(2780, 3, 'G', 4, 'G4', 'seat', 3, 6, 1),
+(2781, 3, 'G', 5, 'G5', 'seat', 4, 6, 1),
+(2782, 3, 'G', 6, 'G6', 'seat', 5, 6, 1),
+(2783, 3, 'G', 7, 'G7', 'seat', 6, 6, 1),
+(2784, 3, 'G', 8, 'G8', 'seat', 7, 6, 1),
+(2785, 3, 'G', 208, '', 'aisle', 8, 6, 0),
+(2786, 3, 'G', 9, 'G9', 'seat', 9, 6, 1),
+(2787, 3, 'G', 10, 'G10', 'seat', 10, 6, 1),
+(2788, 3, 'G', 11, 'G11', 'seat', 11, 6, 1),
+(2789, 3, 'G', 12, 'G12', 'seat', 12, 6, 1),
+(2790, 3, 'G', 13, 'G13', 'seat', 13, 6, 1),
+(2791, 3, 'G', 14, 'G14', 'seat', 14, 6, 1),
+(2792, 3, 'G', 15, 'G15', 'seat', 15, 6, 1),
+(2793, 3, 'H', 1, '', 'entrance', 0, 7, 0),
+(2794, 3, 'H', 2, '', 'entrance', 1, 7, 0),
+(2795, 3, 'H', 3, 'H3', 'seat', 2, 7, 1),
+(2796, 3, 'H', 4, 'H4', 'seat', 3, 7, 1),
+(2797, 3, 'H', 5, 'H5', 'seat', 4, 7, 1),
+(2798, 3, 'H', 6, 'H6', 'seat', 5, 7, 1),
+(2799, 3, 'H', 7, 'H7', 'seat', 6, 7, 1),
+(2800, 3, 'H', 8, 'H8', 'seat', 7, 7, 1),
+(2801, 3, 'H', 208, '', 'aisle', 8, 7, 0),
+(2802, 3, 'H', 9, 'H9', 'seat', 9, 7, 1),
+(2803, 3, 'H', 10, 'H10', 'seat', 10, 7, 1),
+(2804, 3, 'H', 11, 'H11', 'seat', 11, 7, 1),
+(2805, 3, 'H', 12, 'H12', 'seat', 12, 7, 1),
+(2806, 3, 'H', 13, 'H13', 'seat', 13, 7, 1),
+(2807, 3, 'H', 14, 'H14', 'seat', 14, 7, 1),
+(2808, 3, 'H', 15, 'H15', 'seat', 15, 7, 1),
+(2809, 3, 'I', 1, '', 'entrance', 0, 8, 0),
+(2810, 3, 'I', 2, '', 'entrance', 1, 8, 0),
+(2811, 3, 'I', 3, 'I3', 'seat', 2, 8, 1),
+(2812, 3, 'I', 4, 'I4', 'seat', 3, 8, 1),
+(2813, 3, 'I', 5, 'I5', 'seat', 4, 8, 1),
+(2814, 3, 'I', 6, 'I6', 'seat', 5, 8, 1),
+(2815, 3, 'I', 7, 'I7', 'seat', 6, 8, 1),
+(2816, 3, 'I', 8, 'I8', 'seat', 7, 8, 1),
+(2817, 3, 'I', 208, '', 'aisle', 8, 8, 0),
+(2818, 3, 'I', 9, 'I9', 'seat', 9, 8, 1),
+(2819, 3, 'I', 10, 'I10', 'seat', 10, 8, 1),
+(2820, 3, 'I', 11, 'I11', 'seat', 11, 8, 1),
+(2821, 3, 'I', 12, 'I12', 'seat', 12, 8, 1),
+(2822, 3, 'I', 13, 'I13', 'seat', 13, 8, 1),
+(2823, 3, 'I', 14, 'I14', 'seat', 14, 8, 1),
+(2824, 3, 'I', 15, 'I15', 'seat', 15, 8, 1),
+(2825, 3, 'J', 1, '', 'entrance', 0, 9, 0),
+(2826, 3, 'J', 2, '', 'entrance', 1, 9, 0),
+(2827, 3, 'J', 3, 'J3', 'seat', 2, 9, 1),
+(2828, 3, 'J', 4, 'J4', 'seat', 3, 9, 1),
+(2829, 3, 'J', 5, 'J5', 'seat', 4, 9, 1),
+(2830, 3, 'J', 6, 'J6', 'seat', 5, 9, 1),
+(2831, 3, 'J', 7, 'J7', 'seat', 6, 9, 1),
+(2832, 3, 'J', 8, 'J8', 'seat', 7, 9, 1),
+(2833, 3, 'J', 208, '', 'aisle', 8, 9, 0),
+(2834, 3, 'J', 9, 'J9', 'seat', 9, 9, 1),
+(2835, 3, 'J', 10, 'J10', 'seat', 10, 9, 1),
+(2836, 3, 'J', 11, 'J11', 'seat', 11, 9, 1),
+(2837, 3, 'J', 12, 'J12', 'seat', 12, 9, 1),
+(2838, 3, 'J', 13, 'J13', 'seat', 13, 9, 1),
+(2839, 3, 'J', 14, 'J14', 'seat', 14, 9, 1),
+(2840, 3, 'J', 15, 'J15', 'seat', 15, 9, 1),
+(2841, 4, 'A', 1, 'A1', 'seat', 0, 0, 1),
+(2842, 4, 'A', 2, 'A2', 'seat', 1, 0, 1),
+(2843, 4, 'A', 3, 'A3', 'seat', 2, 0, 1),
+(2844, 4, 'A', 4, 'A4', 'seat', 3, 0, 1),
+(2845, 4, 'A', 5, 'A5', 'seat', 4, 0, 1),
+(2846, 4, 'A', 6, 'A6', 'seat', 5, 0, 1),
+(2847, 4, 'A', 7, 'A7', 'seat', 6, 0, 1),
+(2848, 4, 'A', 8, 'A8', 'seat', 7, 0, 1),
+(2849, 4, 'A', 208, '', 'aisle', 8, 0, 0),
+(2850, 4, 'A', 9, 'A9', 'seat', 9, 0, 1),
+(2851, 4, 'A', 10, 'A10', 'seat', 10, 0, 1),
+(2852, 4, 'A', 11, 'A11', 'seat', 11, 0, 1),
+(2853, 4, 'A', 12, 'A12', 'seat', 12, 0, 1),
+(2854, 4, 'A', 13, 'A13', 'seat', 13, 0, 1),
+(2855, 4, 'A', 14, 'A14', 'seat', 14, 0, 1),
+(2856, 4, 'A', 15, 'A15', 'seat', 15, 0, 1),
+(2857, 4, 'B', 1, 'B1', 'seat', 0, 1, 1),
+(2858, 4, 'B', 2, 'B2', 'seat', 1, 1, 1),
+(2859, 4, 'B', 3, 'B3', 'seat', 2, 1, 1),
+(2860, 4, 'B', 4, 'B4', 'seat', 3, 1, 1),
+(2861, 4, 'B', 5, 'B5', 'seat', 4, 1, 1),
+(2862, 4, 'B', 6, 'B6', 'seat', 5, 1, 1),
+(2863, 4, 'B', 7, 'B7', 'seat', 6, 1, 1),
+(2864, 4, 'B', 8, 'B8', 'seat', 7, 1, 1),
+(2865, 4, 'B', 208, '', 'aisle', 8, 1, 0),
+(2866, 4, 'B', 9, 'B9', 'seat', 9, 1, 1),
+(2867, 4, 'B', 10, 'B10', 'seat', 10, 1, 1),
+(2868, 4, 'B', 11, 'B11', 'seat', 11, 1, 1),
+(2869, 4, 'B', 12, 'B12', 'seat', 12, 1, 1),
+(2870, 4, 'B', 13, 'B13', 'seat', 13, 1, 1),
+(2871, 4, 'B', 14, 'B14', 'seat', 14, 1, 1),
+(2872, 4, 'B', 15, 'B15', 'seat', 15, 1, 1),
+(2873, 4, 'C', 1, '', 'entrance', 0, 2, 0),
+(2874, 4, 'C', 2, '', 'entrance', 1, 2, 0),
+(2875, 4, 'C', 3, 'C3', 'seat', 2, 2, 1),
+(2876, 4, 'C', 4, 'C4', 'seat', 3, 2, 1),
+(2877, 4, 'C', 5, 'C5', 'seat', 4, 2, 1),
+(2878, 4, 'C', 6, 'C6', 'seat', 5, 2, 1),
+(2879, 4, 'C', 7, 'C7', 'seat', 6, 2, 1),
+(2880, 4, 'C', 8, 'C8', 'seat', 7, 2, 1),
+(2881, 4, 'C', 208, '', 'aisle', 8, 2, 0),
+(2882, 4, 'C', 9, 'C9', 'seat', 9, 2, 1),
+(2883, 4, 'C', 10, 'C10', 'seat', 10, 2, 1),
+(2884, 4, 'C', 11, 'C11', 'seat', 11, 2, 1),
+(2885, 4, 'C', 12, 'C12', 'seat', 12, 2, 1),
+(2886, 4, 'C', 13, 'C13', 'seat', 13, 2, 1),
+(2887, 4, 'C', 14, 'C14', 'seat', 14, 2, 1),
+(2888, 4, 'C', 15, 'C15', 'seat', 15, 2, 1),
+(2889, 4, 'D', 1, '', 'entrance', 0, 3, 0),
+(2890, 4, 'D', 2, '', 'entrance', 1, 3, 0),
+(2891, 4, 'D', 3, 'D3', 'seat', 2, 3, 1),
+(2892, 4, 'D', 4, 'D4', 'seat', 3, 3, 1),
+(2893, 4, 'D', 5, 'D5', 'seat', 4, 3, 1),
+(2894, 4, 'D', 6, 'D6', 'seat', 5, 3, 1),
+(2895, 4, 'D', 7, 'D7', 'seat', 6, 3, 1),
+(2896, 4, 'D', 8, 'D8', 'seat', 7, 3, 1),
+(2897, 4, 'D', 208, '', 'aisle', 8, 3, 0),
+(2898, 4, 'D', 9, 'D9', 'seat', 9, 3, 1),
+(2899, 4, 'D', 10, 'D10', 'seat', 10, 3, 1),
+(2900, 4, 'D', 11, 'D11', 'seat', 11, 3, 1),
+(2901, 4, 'D', 12, 'D12', 'seat', 12, 3, 1),
+(2902, 4, 'D', 13, 'D13', 'seat', 13, 3, 1),
+(2903, 4, 'D', 14, 'D14', 'seat', 14, 3, 1),
+(2904, 4, 'D', 15, 'D15', 'seat', 15, 3, 1),
+(2905, 4, 'E', 1, '', 'entrance', 0, 4, 0),
+(2906, 4, 'E', 2, '', 'entrance', 1, 4, 0),
+(2907, 4, 'E', 3, 'E3', 'seat', 2, 4, 1),
+(2908, 4, 'E', 4, 'E4', 'seat', 3, 4, 1),
+(2909, 4, 'E', 5, 'E5', 'seat', 4, 4, 1),
+(2910, 4, 'E', 6, 'E6', 'seat', 5, 4, 1),
+(2911, 4, 'E', 7, 'E7', 'seat', 6, 4, 1),
+(2912, 4, 'E', 8, 'E8', 'seat', 7, 4, 1),
+(2913, 4, 'E', 208, '', 'aisle', 8, 4, 0),
+(2914, 4, 'E', 9, 'E9', 'seat', 9, 4, 1),
+(2915, 4, 'E', 10, 'E10', 'seat', 10, 4, 1),
+(2916, 4, 'E', 11, 'E11', 'seat', 11, 4, 1),
+(2917, 4, 'E', 12, 'E12', 'seat', 12, 4, 1),
+(2918, 4, 'E', 13, 'E13', 'seat', 13, 4, 1),
+(2919, 4, 'E', 14, 'E14', 'seat', 14, 4, 1),
+(2920, 4, 'E', 15, 'E15', 'seat', 15, 4, 1),
+(2921, 4, 'F', 1, '', 'entrance', 0, 5, 0),
+(2922, 4, 'F', 2, '', 'entrance', 1, 5, 0),
+(2923, 4, 'F', 3, 'F3', 'seat', 2, 5, 1),
+(2924, 4, 'F', 4, 'F4', 'seat', 3, 5, 1),
+(2925, 4, 'F', 5, 'F5', 'seat', 4, 5, 1),
+(2926, 4, 'F', 6, 'F6', 'seat', 5, 5, 1),
+(2927, 4, 'F', 7, 'F7', 'seat', 6, 5, 1),
+(2928, 4, 'F', 8, 'F8', 'seat', 7, 5, 1),
+(2929, 4, 'F', 208, '', 'aisle', 8, 5, 0),
+(2930, 4, 'F', 9, 'F9', 'seat', 9, 5, 1),
+(2931, 4, 'F', 10, 'F10', 'seat', 10, 5, 1),
+(2932, 4, 'F', 11, 'F11', 'seat', 11, 5, 1),
+(2933, 4, 'F', 12, 'F12', 'seat', 12, 5, 1),
+(2934, 4, 'F', 13, 'F13', 'seat', 13, 5, 1),
+(2935, 4, 'F', 14, 'F14', 'seat', 14, 5, 1),
+(2936, 4, 'F', 15, 'F15', 'seat', 15, 5, 1),
+(2937, 4, 'G', 1, '', 'entrance', 0, 6, 0),
+(2938, 4, 'G', 2, '', 'entrance', 1, 6, 0),
+(2939, 4, 'G', 3, 'G3', 'seat', 2, 6, 1),
+(2940, 4, 'G', 4, 'G4', 'seat', 3, 6, 1),
+(2941, 4, 'G', 5, 'G5', 'seat', 4, 6, 1),
+(2942, 4, 'G', 6, 'G6', 'seat', 5, 6, 1),
+(2943, 4, 'G', 7, 'G7', 'seat', 6, 6, 1),
+(2944, 4, 'G', 8, 'G8', 'seat', 7, 6, 1),
+(2945, 4, 'G', 208, '', 'aisle', 8, 6, 0),
+(2946, 4, 'G', 9, 'G9', 'seat', 9, 6, 1),
+(2947, 4, 'G', 10, 'G10', 'seat', 10, 6, 1),
+(2948, 4, 'G', 11, 'G11', 'seat', 11, 6, 1),
+(2949, 4, 'G', 12, 'G12', 'seat', 12, 6, 1),
+(2950, 4, 'G', 13, 'G13', 'seat', 13, 6, 1),
+(2951, 4, 'G', 14, 'G14', 'seat', 14, 6, 1),
+(2952, 4, 'G', 15, 'G15', 'seat', 15, 6, 1),
+(2953, 4, 'H', 1, '', 'entrance', 0, 7, 0),
+(2954, 4, 'H', 2, '', 'entrance', 1, 7, 0),
+(2955, 4, 'H', 3, 'H3', 'seat', 2, 7, 1),
+(2956, 4, 'H', 4, 'H4', 'seat', 3, 7, 1),
+(2957, 4, 'H', 5, 'H5', 'seat', 4, 7, 1),
+(2958, 4, 'H', 6, 'H6', 'seat', 5, 7, 1),
+(2959, 4, 'H', 7, 'H7', 'seat', 6, 7, 1),
+(2960, 4, 'H', 8, 'H8', 'seat', 7, 7, 1),
+(2961, 4, 'H', 208, '', 'aisle', 8, 7, 0),
+(2962, 4, 'H', 9, 'H9', 'seat', 9, 7, 1),
+(2963, 4, 'H', 10, 'H10', 'seat', 10, 7, 1),
+(2964, 4, 'H', 11, 'H11', 'seat', 11, 7, 1),
+(2965, 4, 'H', 12, 'H12', 'seat', 12, 7, 1),
+(2966, 4, 'H', 13, 'H13', 'seat', 13, 7, 1),
+(2967, 4, 'H', 14, 'H14', 'seat', 14, 7, 1),
+(2968, 4, 'H', 15, 'H15', 'seat', 15, 7, 1),
+(2969, 4, 'I', 1, '', 'entrance', 0, 8, 0),
+(2970, 4, 'I', 2, '', 'entrance', 1, 8, 0),
+(2971, 4, 'I', 3, 'I3', 'seat', 2, 8, 1),
+(2972, 4, 'I', 4, 'I4', 'seat', 3, 8, 1),
+(2973, 4, 'I', 5, 'I5', 'seat', 4, 8, 1),
+(2974, 4, 'I', 6, 'I6', 'seat', 5, 8, 1),
+(2975, 4, 'I', 7, 'I7', 'seat', 6, 8, 1),
+(2976, 4, 'I', 8, 'I8', 'seat', 7, 8, 1),
+(2977, 4, 'I', 208, '', 'aisle', 8, 8, 0),
+(2978, 4, 'I', 9, 'I9', 'seat', 9, 8, 1),
+(2979, 4, 'I', 10, 'I10', 'seat', 10, 8, 1),
+(2980, 4, 'I', 11, 'I11', 'seat', 11, 8, 1),
+(2981, 4, 'I', 12, 'I12', 'seat', 12, 8, 1),
+(2982, 4, 'I', 13, 'I13', 'seat', 13, 8, 1),
+(2983, 4, 'I', 14, 'I14', 'seat', 14, 8, 1),
+(2984, 4, 'I', 15, 'I15', 'seat', 15, 8, 1),
+(2985, 4, 'J', 1, '', 'entrance', 0, 9, 0),
+(2986, 4, 'J', 2, '', 'entrance', 1, 9, 0),
+(2987, 4, 'J', 3, 'J3', 'seat', 2, 9, 1),
+(2988, 4, 'J', 4, 'J4', 'seat', 3, 9, 1),
+(2989, 4, 'J', 5, 'J5', 'seat', 4, 9, 1),
+(2990, 4, 'J', 6, 'J6', 'seat', 5, 9, 1),
+(2991, 4, 'J', 7, 'J7', 'seat', 6, 9, 1),
+(2992, 4, 'J', 8, 'J8', 'seat', 7, 9, 1),
+(2993, 4, 'J', 208, '', 'aisle', 8, 9, 0),
+(2994, 4, 'J', 9, 'J9', 'seat', 9, 9, 1),
+(2995, 4, 'J', 10, 'J10', 'seat', 10, 9, 1),
+(2996, 4, 'J', 11, 'J11', 'seat', 11, 9, 1),
+(2997, 4, 'J', 12, 'J12', 'seat', 12, 9, 1),
+(2998, 4, 'J', 13, 'J13', 'seat', 13, 9, 1),
+(2999, 4, 'J', 14, 'J14', 'seat', 14, 9, 1),
+(3000, 4, 'J', 15, 'J15', 'seat', 15, 9, 1);
+
+-- --------------------------------------------------------
+
+--
 -- Struktur dari tabel `services`
 --
 
@@ -2006,6 +2826,45 @@ INSERT INTO `services` (`id`, `name`, `logo_path`, `type`, `created_at`) VALUES
 (10, 'CGV Cinemas', '/logos/CGV.jpeg', 'theatrical', '2026-01-30 13:33:36'),
 (11, 'Klikfilm', '/logos/klikfilm.webp', 'streaming', '2026-01-31 04:16:49'),
 (12, 'Cinepolis Indonesia', '/logos/Cinepolis.png', 'theatrical', '2026-01-31 04:36:16');
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `studios`
+--
+
+CREATE TABLE `studios` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `cinema_id` bigint(20) UNSIGNED NOT NULL,
+  `studio_name` varchar(100) NOT NULL,
+  `total_seats` smallint(5) UNSIGNED NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data untuk tabel `studios`
+--
+
+INSERT INTO `studios` (`id`, `cinema_id`, `studio_name`, `total_seats`, `created_at`) VALUES
+(1, 1, 'Studio 1', 134, '2026-03-12 11:53:25'),
+(2, 1, 'Studio 2', 134, '2026-03-12 12:13:50'),
+(3, 1, 'Studio 4', 134, '2026-03-12 12:14:44'),
+(4, 1, 'Studio 3', 134, '2026-03-12 13:19:39');
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `tickets`
+--
+
+CREATE TABLE `tickets` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `order_id` bigint(20) UNSIGNED NOT NULL,
+  `seat_id` bigint(20) UNSIGNED NOT NULL,
+  `qr_code` varchar(255) NOT NULL COMMENT 'UUID or signed token for QR scan validation',
+  `is_used` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -2180,7 +3039,16 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (79, 5, 9, 304, 'poster', 'films', NULL, NULL, '2026-03-10 19:16:36', '2026-03-10 19:16:36'),
 (80, 5, 9, 305, 'backdrop', 'films', NULL, NULL, '2026-03-10 19:16:54', '2026-03-10 19:16:54'),
 (81, 5, 69, 274, 'poster', 'films', NULL, NULL, '2026-03-10 19:17:22', '2026-03-10 19:17:22'),
-(82, 5, 69, 276, 'backdrop', 'films', NULL, NULL, '2026-03-10 19:17:32', '2026-03-10 19:17:32');
+(82, 5, 69, 276, 'backdrop', 'films', NULL, NULL, '2026-03-10 19:17:32', '2026-03-10 19:17:32'),
+(83, 9, 5, 80, 'backdrop', 'films', NULL, NULL, '2026-03-12 00:47:11', '2026-03-12 00:47:11'),
+(84, 9, 5, 242, 'poster', 'films', NULL, NULL, '2026-03-12 00:47:23', '2026-03-12 00:47:23'),
+(85, 9, 6, 175, 'backdrop', 'films', NULL, NULL, '2026-03-12 00:48:06', '2026-03-12 00:48:06'),
+(86, 9, 8, 30, 'backdrop', 'films', NULL, NULL, '2026-03-12 02:18:58', '2026-03-12 02:18:58'),
+(87, 9, 2, 240, 'poster', 'favorites', NULL, 456, '2026-03-12 02:26:19', '2026-03-12 02:33:56'),
+(88, 9, 4, 294, 'poster', 'favorites', NULL, 454, '2026-03-12 02:26:42', '2026-03-12 02:33:56'),
+(89, 9, 3, 334, 'poster', 'favorites', NULL, 455, '2026-03-12 02:31:44', '2026-03-12 02:33:56'),
+(90, 9, 53, 300, 'poster', 'films', NULL, NULL, '2026-03-12 02:32:59', '2026-03-12 02:32:59'),
+(91, 9, 67, 318, 'poster', 'films', NULL, NULL, '2026-03-12 02:33:32', '2026-03-12 02:33:32');
 
 -- --------------------------------------------------------
 
@@ -2213,7 +3081,11 @@ INSERT INTO `user_favorite_films` (`id`, `user_id`, `film_id`, `position`, `crea
 (442, 5, 64, 1, '2026-03-10 19:08:59', '2026-03-10 19:08:59'),
 (443, 5, 63, 2, '2026-03-10 19:08:59', '2026-03-10 19:08:59'),
 (444, 5, 65, 3, '2026-03-10 19:08:59', '2026-03-10 19:08:59'),
-(445, 5, 4, 4, '2026-03-10 19:08:59', '2026-03-10 19:08:59');
+(445, 5, 4, 4, '2026-03-10 19:08:59', '2026-03-10 19:08:59'),
+(454, 9, 4, 1, '2026-03-12 02:33:55', '2026-03-12 02:33:55'),
+(455, 9, 3, 2, '2026-03-12 02:33:55', '2026-03-12 02:33:55'),
+(456, 9, 2, 3, '2026-03-12 02:33:56', '2026-03-12 02:33:56'),
+(457, 9, 33, 4, '2026-03-12 02:33:56', '2026-03-12 02:33:56');
 
 -- --------------------------------------------------------
 
@@ -2246,7 +3118,7 @@ INSERT INTO `user_profiles` (`id`, `user_id`, `display_name`, `profile_photo`, `
 (5, 6, 'Mopud', NULL, 'movies/40/backdrop/FdB80qdPGk5ySHxLpcP6QLwfvfXAHTbJ0XK5vMlM.webp', 1, NULL, NULL, '2026-02-28 03:10:19', '2026-03-08 07:38:54'),
 (6, 7, 'seno yu', NULL, NULL, 0, NULL, NULL, '2026-03-10 21:42:54', '2026-03-10 21:42:54'),
 (7, 8, 'tes', NULL, NULL, 0, NULL, NULL, '2026-03-10 21:44:06', '2026-03-10 21:44:06'),
-(8, 9, 'seno yudha', NULL, NULL, 0, NULL, NULL, '2026-03-10 21:47:55', '2026-03-10 21:47:55');
+(8, 9, 'senoyudha', NULL, 'movies/4/backdrop/DZc5GHtHaYLuLl4Ia0RJ046u3GwX1uTeHETeZMuT.webp', 1, NULL, NULL, '2026-03-10 21:47:55', '2026-03-12 02:33:56');
 
 -- --------------------------------------------------------
 
@@ -2278,6 +3150,14 @@ INSERT INTO `watchlists` (`id`, `user_id`, `film_id`, `created_at`, `updated_at`
 --
 -- Indexes for dumped tables
 --
+
+--
+-- Indeks untuk tabel `cinemas`
+--
+ALTER TABLE `cinemas`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_cinemas_name` (`cinema_name`),
+  ADD KEY `cinemas_service_id_foreign` (`service_id`);
 
 --
 -- Indeks untuk tabel `countries`
@@ -2417,6 +3297,36 @@ ALTER TABLE `notifications`
   ADD KEY `notifications_created_at_index` (`created_at`);
 
 --
+-- Indeks untuk tabel `orders`
+--
+ALTER TABLE `orders`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `order_code` (`order_code`),
+  ADD KEY `idx_orders_schedule` (`schedule_id`),
+  ADD KEY `idx_orders_status` (`status`),
+  ADD KEY `idx_orders_expired_at` (`expired_at`);
+
+--
+-- Indeks untuk tabel `order_seats`
+--
+ALTER TABLE `order_seats`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_seat_per_schedule` (`schedule_id`,`seat_id`),
+  ADD KEY `idx_order_seats_order` (`order_id`),
+  ADD KEY `idx_order_seats_seat` (`seat_id`),
+  ADD KEY `idx_order_seats_schedule` (`schedule_id`);
+
+--
+-- Indeks untuk tabel `payments`
+--
+ALTER TABLE `payments`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `midtrans_transaction_id` (`midtrans_transaction_id`),
+  ADD UNIQUE KEY `midtrans_order_id` (`midtrans_order_id`),
+  ADD KEY `idx_payments_order` (`order_id`),
+  ADD KEY `idx_payments_transaction_status` (`transaction_status`);
+
+--
 -- Indeks untuk tabel `persons`
 --
 ALTER TABLE `persons`
@@ -2477,6 +3387,25 @@ ALTER TABLE `review_likes`
   ADD KEY `review_likes_user_id_index` (`user_id`);
 
 --
+-- Indeks untuk tabel `schedules`
+--
+ALTER TABLE `schedules`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_schedule_slot` (`studio_id`,`show_date`,`show_time`),
+  ADD KEY `idx_schedules_movie` (`movie_id`),
+  ADD KEY `idx_schedules_studio` (`studio_id`),
+  ADD KEY `idx_schedules_show_date` (`show_date`);
+
+--
+-- Indeks untuk tabel `seats`
+--
+ALTER TABLE `seats`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_seat_in_studio` (`studio_id`,`seat_row`,`seat_number`),
+  ADD KEY `idx_seats_studio` (`studio_id`),
+  ADD KEY `idx_seats_code` (`studio_id`,`seat_code`);
+
+--
 -- Indeks untuk tabel `services`
 --
 ALTER TABLE `services`
@@ -2484,6 +3413,24 @@ ALTER TABLE `services`
   ADD UNIQUE KEY `name` (`name`),
   ADD KEY `idx_name` (`name`),
   ADD KEY `idx_type` (`type`);
+
+--
+-- Indeks untuk tabel `studios`
+--
+ALTER TABLE `studios`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_studios_cinema` (`cinema_id`);
+
+--
+-- Indeks untuk tabel `tickets`
+--
+ALTER TABLE `tickets`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `qr_code` (`qr_code`),
+  ADD UNIQUE KEY `uq_ticket_seat_order` (`order_id`,`seat_id`),
+  ADD KEY `idx_tickets_order` (`order_id`),
+  ADD KEY `idx_tickets_seat` (`seat_id`),
+  ADD KEY `idx_tickets_qr_code` (`qr_code`);
 
 --
 -- Indeks untuk tabel `users`
@@ -2551,10 +3498,16 @@ ALTER TABLE `watchlists`
 --
 
 --
+-- AUTO_INCREMENT untuk tabel `cinemas`
+--
+ALTER TABLE `cinemas`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
 -- AUTO_INCREMENT untuk tabel `countries`
 --
 ALTER TABLE `countries`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT untuk tabel `diaries`
@@ -2584,13 +3537,13 @@ ALTER TABLE `languages`
 -- AUTO_INCREMENT untuk tabel `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT untuk tabel `movies`
 --
 ALTER TABLE `movies`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=73;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_likes`
@@ -2602,7 +3555,7 @@ ALTER TABLE `movie_likes`
 -- AUTO_INCREMENT untuk tabel `movie_media`
 --
 ALTER TABLE `movie_media`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=323;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=343;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_persons`
@@ -2614,13 +3567,31 @@ ALTER TABLE `movie_persons`
 -- AUTO_INCREMENT untuk tabel `movie_services`
 --
 ALTER TABLE `movie_services`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=323;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=356;
 
 --
 -- AUTO_INCREMENT untuk tabel `notifications`
 --
 ALTER TABLE `notifications`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+
+--
+-- AUTO_INCREMENT untuk tabel `orders`
+--
+ALTER TABLE `orders`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT untuk tabel `order_seats`
+--
+ALTER TABLE `order_seats`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT untuk tabel `payments`
+--
+ALTER TABLE `payments`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT untuk tabel `persons`
@@ -2632,7 +3603,7 @@ ALTER TABLE `persons`
 -- AUTO_INCREMENT untuk tabel `production_houses`
 --
 ALTER TABLE `production_houses`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=83;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=84;
 
 --
 -- AUTO_INCREMENT untuk tabel `ratings`
@@ -2659,10 +3630,34 @@ ALTER TABLE `review_likes`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
+-- AUTO_INCREMENT untuk tabel `schedules`
+--
+ALTER TABLE `schedules`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT untuk tabel `seats`
+--
+ALTER TABLE `seats`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3001;
+
+--
 -- AUTO_INCREMENT untuk tabel `services`
 --
 ALTER TABLE `services`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+
+--
+-- AUTO_INCREMENT untuk tabel `studios`
+--
+ALTER TABLE `studios`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT untuk tabel `tickets`
+--
+ALTER TABLE `tickets`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
@@ -2680,13 +3675,13 @@ ALTER TABLE `user_activities`
 -- AUTO_INCREMENT untuk tabel `user_change_medias`
 --
 ALTER TABLE `user_change_medias`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=83;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=92;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`
 --
 ALTER TABLE `user_favorite_films`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=446;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=458;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_profiles`
@@ -2703,6 +3698,12 @@ ALTER TABLE `watchlists`
 --
 -- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
 --
+
+--
+-- Ketidakleluasaan untuk tabel `cinemas`
+--
+ALTER TABLE `cinemas`
+  ADD CONSTRAINT `cinemas_service_id_foreign` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE SET NULL;
 
 --
 -- Ketidakleluasaan untuk tabel `diaries`
@@ -2783,6 +3784,26 @@ ALTER TABLE `notifications`
   ADD CONSTRAINT `notifications_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
+-- Ketidakleluasaan untuk tabel `orders`
+--
+ALTER TABLE `orders`
+  ADD CONSTRAINT `fk_orders_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `schedules` (`id`);
+
+--
+-- Ketidakleluasaan untuk tabel `order_seats`
+--
+ALTER TABLE `order_seats`
+  ADD CONSTRAINT `fk_order_seats_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_order_seats_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `schedules` (`id`),
+  ADD CONSTRAINT `fk_order_seats_seat` FOREIGN KEY (`seat_id`) REFERENCES `seats` (`id`);
+
+--
+-- Ketidakleluasaan untuk tabel `payments`
+--
+ALTER TABLE `payments`
+  ADD CONSTRAINT `fk_payments_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`);
+
+--
 -- Ketidakleluasaan untuk tabel `ratings`
 --
 ALTER TABLE `ratings`
@@ -2810,6 +3831,32 @@ ALTER TABLE `review_comments`
 ALTER TABLE `review_likes`
   ADD CONSTRAINT `review_likes_review_id_foreign` FOREIGN KEY (`review_id`) REFERENCES `reviews` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `review_likes_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Ketidakleluasaan untuk tabel `schedules`
+--
+ALTER TABLE `schedules`
+  ADD CONSTRAINT `fk_schedules_movie` FOREIGN KEY (`movie_id`) REFERENCES `movies` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_schedules_studio` FOREIGN KEY (`studio_id`) REFERENCES `studios` (`id`) ON DELETE CASCADE;
+
+--
+-- Ketidakleluasaan untuk tabel `seats`
+--
+ALTER TABLE `seats`
+  ADD CONSTRAINT `fk_seats_studio` FOREIGN KEY (`studio_id`) REFERENCES `studios` (`id`) ON DELETE CASCADE;
+
+--
+-- Ketidakleluasaan untuk tabel `studios`
+--
+ALTER TABLE `studios`
+  ADD CONSTRAINT `fk_studios_cinema` FOREIGN KEY (`cinema_id`) REFERENCES `cinemas` (`id`) ON DELETE CASCADE;
+
+--
+-- Ketidakleluasaan untuk tabel `tickets`
+--
+ALTER TABLE `tickets`
+  ADD CONSTRAINT `fk_tickets_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_tickets_seat` FOREIGN KEY (`seat_id`) REFERENCES `seats` (`id`);
 
 --
 -- Ketidakleluasaan untuk tabel `user_activities`

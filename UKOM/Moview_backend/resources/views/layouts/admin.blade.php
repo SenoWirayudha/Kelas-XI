@@ -20,12 +20,12 @@
 <body class="bg-gray-100">
     <div class="min-h-screen flex">
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-900 text-white flex-shrink-0 h-screen sticky top-0">
-            <div class="p-6">
+        <aside class="w-64 bg-gray-900 text-white flex-shrink-0 h-screen sticky top-0 flex flex-col">
+            <div class="p-6 flex-shrink-0">
                 <h1 class="text-2xl font-bold text-blue-400">🎬 Moview Admin</h1>
             </div>
             
-            <nav class="mt-6 flex-1 overflow-y-auto">
+            <nav class="flex-1 overflow-y-auto mt-2">
                 <a href="{{ route('admin.films.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.films.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-film mr-3"></i>
                     <span>Films</span>
@@ -54,9 +54,34 @@
                     <i class="fas fa-chart-bar mr-3"></i>
                     <span>Analytics</span>
                 </a>
+
+                {{-- Cinema Booking --}}
+                <div class="px-6 pt-4 pb-1">
+                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Bioskop</p>
+                </div>
+                <a href="{{ route('admin.cinemas.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.cinemas.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-building mr-3"></i>
+                    <span>Bioskop</span>
+                </a>
+                <a href="{{ route('admin.studios.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.studios.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-door-open mr-3"></i>
+                    <span>Studio</span>
+                </a>
+                <a href="{{ route('admin.schedules.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.schedules.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-calendar-alt mr-3"></i>
+                    <span>Jadwal Tayang</span>
+                </a>
+                <a href="{{ route('admin.orders.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.orders.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-shopping-cart mr-3"></i>
+                    <span>Order Tiket</span>
+                </a>
+                <a href="{{ route('admin.tickets.scanner') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.tickets.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-qrcode mr-3"></i>
+                    <span>Ticket Scanner</span>
+                </a>
             </nav>
 
-            <div class="absolute bottom-0 w-64 p-6 border-t border-gray-800">
+            <div class="flex-shrink-0 p-6 border-t border-gray-800">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
                         <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">

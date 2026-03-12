@@ -1,8 +1,6 @@
 package com.komputerkit.moview.ui.theatrical
 
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -14,6 +12,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentNowShowingBinding
+import com.komputerkit.moview.ui.cinema.MovieScheduleActivity
 import com.komputerkit.moview.ui.home.TheatricalMovieAdapter
 import com.komputerkit.moview.ui.social.GridSpacingItemDecoration
 
@@ -42,7 +41,20 @@ class NowShowingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 val action = NowShowingFragmentDirections.actionNowShowingToMovieDetail(movieId = movie.id)
                 findNavController().navigate(action)
             },
-            onBuyTicketClick = { openTixIdApp() },
+            onBuyTicketClick = { movie ->
+                val intent = Intent(requireContext(), MovieScheduleActivity::class.java).apply {
+                    putExtra(MovieScheduleActivity.EXTRA_MOVIE_ID, movie.id)
+                    putExtra(MovieScheduleActivity.EXTRA_MOVIE_TITLE, movie.title)
+                    putExtra(MovieScheduleActivity.EXTRA_POSTER_URL, movie.posterUrl ?: "")
+                    putExtra(MovieScheduleActivity.EXTRA_BACKDROP_URL, "")
+                    putExtra(MovieScheduleActivity.EXTRA_RATING, 0.0)
+                    putExtra(MovieScheduleActivity.EXTRA_AGE_RATING, movie.ageRating ?: "SU")
+                    putExtra(MovieScheduleActivity.EXTRA_GENRE, movie.genre ?: "")
+                    putExtra(MovieScheduleActivity.EXTRA_DURATION, "")
+                    putExtra(MovieScheduleActivity.EXTRA_DIRECTOR, "")
+                }
+                startActivity(intent)
+            },
             onLogFilm = { movie ->
                 val action = NowShowingFragmentDirections.actionNowShowingToLogFilm(movieId = movie.id)
                 findNavController().navigate(action)
@@ -87,20 +99,6 @@ class NowShowingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     }
 
     override fun onRefresh() { viewModel.loadMovies() }
-
-    private fun openTixIdApp() {
-        val url = "https://app.tix.id/cities"
-        val tixPackage = "id.tix.app"
-        try {
-            requireContext().packageManager.getPackageInfo(tixPackage, 0)
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                setPackage(tixPackage)
-            }
-            startActivity(intent)
-        } catch (e: PackageManager.NameNotFoundException) {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-        }
-    }
 
     override fun onDestroyView() {
         super.onDestroyView()

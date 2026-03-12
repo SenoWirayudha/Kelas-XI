@@ -32,6 +32,17 @@
             android:name="com.yalantis.ucrop.UCropActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+
+        <!-- Cinema Booking Activities -->
+        <activity
+            android:name=".ui.cinema.MovieScheduleActivity"
+            android:theme="@style/Theme.Moview.NoActionBar" />
+        <activity
+            android:name=".ui.cinema.SeatSelectionActivity"
+            android:theme="@style/Theme.Moview.NoActionBar" />
+        <activity
+            android:name=".ui.cinema.OrderSummaryActivity"
+            android:theme="@style/Theme.Moview.NoActionBar" />
     </application>
 
 </manifest>

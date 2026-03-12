@@ -26,6 +26,23 @@ class MainActivity : AppCompatActivity() {
         setupNavigation()
         checkLoginStatus()
         loadUnreadNotificationCount()
+        handleMovieDetailIntent(intent)
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleMovieDetailIntent(intent)
+    }
+
+    private fun handleMovieDetailIntent(intent: android.content.Intent) {
+        val movieId = intent.getIntExtra("navigate_to_movie_id", 0)
+        if (movieId > 0) {
+            intent.removeExtra("navigate_to_movie_id")
+            val action = com.komputerkit.moview.ui.home.HomeFragmentDirections
+                .actionHomeToMovieDetail(movieId)
+            navController.navigate(action)
+        }
     }
     
     private fun setupNavigation() {

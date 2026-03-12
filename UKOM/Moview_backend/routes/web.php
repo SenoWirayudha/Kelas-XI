@@ -10,6 +10,12 @@ use App\Http\Controllers\Admin\ActivityController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\CinemaController;
+use App\Http\Controllers\Admin\StudioController;
+use App\Http\Controllers\Admin\SeatController;
+use App\Http\Controllers\Admin\ScheduleController;
+use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\TicketScannerController;
 
 // Public Routes
 Route::get('/', function () {
@@ -88,4 +94,37 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     
     // Analytics
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+
+    // Schedule Management
+    Route::get('/schedules',                  [ScheduleController::class, 'index'])->name('schedules.index');
+    Route::get('/schedules/create',           [ScheduleController::class, 'create'])->name('schedules.create');
+    Route::post('/schedules',                 [ScheduleController::class, 'store'])->name('schedules.store');
+    Route::delete('/schedules/{id}',          [ScheduleController::class, 'destroy'])->name('schedules.destroy');
+    Route::get('/cinemas/{cinemaId}/studios', [ScheduleController::class, 'studiosByCinema'])->name('cinemas.studios');
+
+    // Cinema Management
+    Route::get('/cinemas',          [CinemaController::class, 'index'])->name('cinemas.index');
+    Route::get('/cinemas/create',   [CinemaController::class, 'create'])->name('cinemas.create');
+    Route::post('/cinemas',         [CinemaController::class, 'store'])->name('cinemas.store');
+    Route::delete('/cinemas/{id}',  [CinemaController::class, 'destroy'])->name('cinemas.destroy');
+
+    // Studio Management
+    Route::get('/studios',          [StudioController::class, 'index'])->name('studios.index');
+    Route::get('/studios/create',   [StudioController::class, 'create'])->name('studios.create');
+    Route::post('/studios',         [StudioController::class, 'store'])->name('studios.store');
+    Route::delete('/studios/{id}',  [StudioController::class, 'destroy'])->name('studios.destroy');
+
+    // Seat Layout Management
+    Route::get('/studios/{studioId}/seats',            [SeatController::class, 'layout'])->name('seats.layout');
+    Route::post('/studios/{studioId}/seats/generate',  [SeatController::class, 'generate'])->name('seats.generate');
+    Route::delete('/studios/{studioId}/seats',         [SeatController::class, 'destroyAll'])->name('seats.destroy-all');
+
+    // Order Management
+    Route::get('/orders',      [AdminOrderController::class, 'index'])->name('orders.index');
+    Route::get('/orders/{id}', [AdminOrderController::class, 'show'])->name('orders.show');
+
+    // Ticket Scanner
+    Route::get('/tickets/scanner',  [TicketScannerController::class, 'index'])->name('tickets.scanner');
+    Route::post('/tickets/scan',    [TicketScannerController::class, 'scan'])->name('tickets.scan');
+    Route::post('/tickets/mark-used', [TicketScannerController::class, 'markUsed'])->name('tickets.mark-used');
 });

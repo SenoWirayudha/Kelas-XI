@@ -15,6 +15,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentHomeNewBinding
+import com.komputerkit.moview.ui.cinema.MovieScheduleActivity
 
 class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
@@ -184,7 +185,7 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
                 findNavController().navigate(action)
             },
-            onBuyTicketClick = { openTixIdApp() },
+            onBuyTicketClick = { movie -> openMovieSchedule(movie) },
             onLongPressGoToFilm = { movie ->
                 val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
                 findNavController().navigate(action)
@@ -327,6 +328,21 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     override fun onRefresh() {
         android.util.Log.d("HomeFragment", "Refreshing home data")
         viewModel.refreshData()
+    }
+
+    private fun openMovieSchedule(movie: com.komputerkit.moview.data.model.TheatricalMovie) {
+        val intent = Intent(requireContext(), MovieScheduleActivity::class.java).apply {
+            putExtra(MovieScheduleActivity.EXTRA_MOVIE_ID, movie.id)
+            putExtra(MovieScheduleActivity.EXTRA_MOVIE_TITLE, movie.title)
+            putExtra(MovieScheduleActivity.EXTRA_POSTER_URL, movie.posterUrl ?: "")
+            putExtra(MovieScheduleActivity.EXTRA_BACKDROP_URL, "")
+            putExtra(MovieScheduleActivity.EXTRA_RATING, 0.0)
+            putExtra(MovieScheduleActivity.EXTRA_AGE_RATING, movie.ageRating ?: "SU")
+            putExtra(MovieScheduleActivity.EXTRA_GENRE, movie.genre ?: "")
+            putExtra(MovieScheduleActivity.EXTRA_DURATION, "")
+            putExtra(MovieScheduleActivity.EXTRA_DIRECTOR, "")
+        }
+        startActivity(intent)
     }
 
     private fun openTixIdApp() {
