@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.cinema.adapter
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -35,15 +36,28 @@ class CinemaScheduleAdapter(
         holder.tvName.text = cinema.cinemaName
         holder.tvType.text = cinema.studioType
         holder.tvPrice.text = cinema.priceRange
+        val context = holder.itemView.context
+        val badgeColor = when (cinema.brand) {
+            CinemaBrand.XXI -> context.getColor(R.color.brand_xxi)
+            CinemaBrand.CGV -> context.getColor(R.color.brand_cgv)
+            CinemaBrand.CINEPOLIS -> context.getColor(R.color.brand_cinepolis)
+            CinemaBrand.OTHER -> null
+        }
         holder.tvBadge.text = when (cinema.brand) {
             CinemaBrand.XXI -> "XXI"
             CinemaBrand.CGV -> "CGV"
             CinemaBrand.CINEPOLIS -> "CINEPOLIS"
             CinemaBrand.OTHER -> ""
         }
+        if (badgeColor == null) {
+            holder.tvBadge.visibility = View.GONE
+        } else {
+            holder.tvBadge.visibility = View.VISIBLE
+            holder.tvBadge.backgroundTintList = ColorStateList.valueOf(badgeColor)
+        }
 
         holder.rvTimes.layoutManager =
-            LinearLayoutManager(holder.itemView.context, LinearLayoutManager.HORIZONTAL, false)
+            LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         holder.rvTimes.adapter = ShowTimeAdapter(cinema.showTimes) { time ->
             onTimeClick(cinema, time)
         }

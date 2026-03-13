@@ -8,11 +8,14 @@ data class ShowDate(
     val day: Int,
     val month: String,
     val label: String,          // "Hari ini", "SEL", "RAB", …
+    val isoDate: String,
+    val isEnabled: Boolean = true,
     val isSelected: Boolean = false
 )
 
 data class ShowTime(
     val time: String,           // "13:20"
+    val scheduleId: Int = 0,
     val isAvailable: Boolean = true
 )
 
@@ -53,6 +56,7 @@ data class PaymentMethod(
 // ── Shared booking intent data ─────────────────────────────────────────────
 
 data class BookingData(
+    val scheduleId: Int = 0,
     val movieTitle: String,
     val moviePosterUrl: String,
     val movieRating: Double,

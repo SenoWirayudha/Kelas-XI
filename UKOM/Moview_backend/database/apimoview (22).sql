@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 12 Mar 2026 pada 14.50
+-- Waktu pembuatan: 13 Mar 2026 pada 15.31
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -260,36 +260,7 @@ CREATE TABLE `migrations` (
 --
 
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
-(1, '0001_01_01_000001_create_cache_table', 1),
-(2, '0001_01_01_000002_create_jobs_table', 1),
-(10, '2026_01_27_000001_create_core_movie_tables', 2),
-(11, '2026_01_28_000001_create_users_table', 2),
-(12, '2026_01_28_000002_create_user_profiles_table', 2),
-(13, '2026_01_28_000003_create_user_favorite_films_table', 2),
-(14, '2026_01_28_000004_create_ratings_table', 2),
-(15, '2026_01_28_000005_create_diaries_table', 2),
-(16, '2026_01_28_000006_create_watchlists_table', 2),
-(17, '2026_01_28_000007_create_followers_table', 2),
-(18, '2026_01_28_000008_create_user_activities_table', 2),
-(19, '2026_01_28_000009_create_reviews_table', 2),
-(20, '2026_01_28_000010_create_review_likes_table', 2),
-(21, '2026_01_28_000011_create_review_comments_table', 2),
-(22, '2026_01_27_000001_create_moview_schema_tables', 1),
-(23, '2026_02_07_000001_add_review_id_to_diaries_table', 3),
-(24, '2026_02_07_000002_add_rating_to_diaries_table', 4),
-(25, '2026_02_07_000003_add_is_liked_to_reviews_and_diaries', 5),
-(26, '2026_02_07_000004_add_watched_at_to_reviews_table', 6),
-(27, '2026_02_11_add_is_rewatched_to_diaries', 7),
-(28, '2026_02_14_add_is_rewatched_to_reviews', 8),
-(29, '2026_02_25_000001_create_notifications_table', 9),
-(30, '2026_02_28_141730_update_review_comments_status_column', 10),
-(31, '2026_03_01_102005_add_flagged_status_to_reviews_table', 11),
-(32, '2026_03_08_000001_create_user_change_medias_table', 12),
-(33, '2026_03_12_000001_alter_cinemas_add_booking_fields', 13),
-(34, '2026_03_12_000002_add_updated_at_to_cinemas', 14),
-(35, '2026_03_12_000003_add_layout_fields_to_seats', 15),
-(36, '2026_03_12_122804_add_seat_type_to_seats_table', 16),
-(37, '2026_03_12_132950_add_status_to_schedules_table', 17);
+(1, '2026_03_13_173212_add_studio_type_to_studios_table', 1);
 
 -- --------------------------------------------------------
 
@@ -2128,8 +2099,10 @@ CREATE TABLE `schedules` (
 --
 
 INSERT INTO `schedules` (`id`, `movie_id`, `studio_id`, `show_date`, `show_time`, `ticket_price`, `status`) VALUES
-(2, 48, 1, '2026-03-13', '12:30:00', 35000, 'active'),
-(5, 48, 1, '2026-03-12', '16:00:00', 35000, 'expired');
+(2, 48, 1, '2026-03-13', '12:30:00', 35000, 'expired'),
+(5, 48, 1, '2026-03-12', '16:00:00', 35000, 'expired'),
+(6, 59, 4, '2026-03-13', '20:15:00', 40000, 'active'),
+(7, 48, 2, '2026-03-13', '20:25:00', 40000, 'active');
 
 -- --------------------------------------------------------
 
@@ -2837,6 +2810,7 @@ CREATE TABLE `studios` (
   `id` bigint(20) UNSIGNED NOT NULL,
   `cinema_id` bigint(20) UNSIGNED NOT NULL,
   `studio_name` varchar(100) NOT NULL,
+  `studio_type` enum('Regular 2D','2D','3D','IMAX') NOT NULL DEFAULT 'Regular 2D',
   `total_seats` smallint(5) UNSIGNED NOT NULL DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -2845,11 +2819,11 @@ CREATE TABLE `studios` (
 -- Dumping data untuk tabel `studios`
 --
 
-INSERT INTO `studios` (`id`, `cinema_id`, `studio_name`, `total_seats`, `created_at`) VALUES
-(1, 1, 'Studio 1', 134, '2026-03-12 11:53:25'),
-(2, 1, 'Studio 2', 134, '2026-03-12 12:13:50'),
-(3, 1, 'Studio 4', 134, '2026-03-12 12:14:44'),
-(4, 1, 'Studio 3', 134, '2026-03-12 13:19:39');
+INSERT INTO `studios` (`id`, `cinema_id`, `studio_name`, `studio_type`, `total_seats`, `created_at`) VALUES
+(1, 1, 'Studio 1', '2D', 134, '2026-03-12 11:53:25'),
+(2, 1, 'Studio 2', '2D', 134, '2026-03-12 12:13:50'),
+(3, 1, 'Studio 4', '2D', 134, '2026-03-12 12:14:44'),
+(4, 1, 'Studio 3', '2D', 134, '2026-03-12 13:19:39');
 
 -- --------------------------------------------------------
 
@@ -3048,7 +3022,9 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (88, 9, 4, 294, 'poster', 'favorites', NULL, 454, '2026-03-12 02:26:42', '2026-03-12 02:33:56'),
 (89, 9, 3, 334, 'poster', 'favorites', NULL, 455, '2026-03-12 02:31:44', '2026-03-12 02:33:56'),
 (90, 9, 53, 300, 'poster', 'films', NULL, NULL, '2026-03-12 02:32:59', '2026-03-12 02:32:59'),
-(91, 9, 67, 318, 'poster', 'films', NULL, NULL, '2026-03-12 02:33:32', '2026-03-12 02:33:32');
+(91, 9, 67, 318, 'poster', 'films', NULL, NULL, '2026-03-12 02:33:32', '2026-03-12 02:33:32'),
+(92, 9, 30, 191, 'poster', 'films', NULL, NULL, '2026-03-13 13:39:03', '2026-03-13 13:39:03'),
+(93, 9, 30, 133, 'backdrop', 'films', NULL, NULL, '2026-03-13 13:39:56', '2026-03-13 13:39:56');
 
 -- --------------------------------------------------------
 
@@ -3537,7 +3513,7 @@ ALTER TABLE `languages`
 -- AUTO_INCREMENT untuk tabel `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT untuk tabel `movies`
@@ -3633,7 +3609,7 @@ ALTER TABLE `review_likes`
 -- AUTO_INCREMENT untuk tabel `schedules`
 --
 ALTER TABLE `schedules`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT untuk tabel `seats`
@@ -3675,7 +3651,7 @@ ALTER TABLE `user_activities`
 -- AUTO_INCREMENT untuk tabel `user_change_medias`
 --
 ALTER TABLE `user_change_medias`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=92;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=94;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`

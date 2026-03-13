@@ -1,8 +1,8 @@
 @extends('layouts.admin')
 
-@section('title', 'Tambah Studio')
-@section('page-title', 'Tambah Studio')
-@section('page-subtitle', 'Tambahkan studio baru ke bioskop')
+@section('title', 'Edit Studio')
+@section('page-title', 'Edit Studio')
+@section('page-subtitle', 'Perbarui data studio bioskop')
 
 @section('content')
 <div class="p-6 max-w-lg">
@@ -24,10 +24,10 @@
             </div>
         @endif
 
-        <form action="{{ route('admin.studios.store') }}" method="POST">
+        <form action="{{ route('admin.studios.update', $studio->id) }}" method="POST">
             @csrf
+            @method('PUT')
 
-            {{-- Bioskop --}}
             <div class="mb-5">
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                     Bioskop <span class="text-red-500">*</span>
@@ -36,21 +36,19 @@
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                     <option value="">-- Pilih Bioskop --</option>
                     @foreach($cinemas as $cinema)
-                        <option value="{{ $cinema->id }}" {{ old('cinema_id') == $cinema->id ? 'selected' : '' }}>
+                        <option value="{{ $cinema->id }}" {{ old('cinema_id', $studio->cinema_id) == $cinema->id ? 'selected' : '' }}>
                             {{ $cinema->cinema_name }}{{ $cinema->city ? ' — ' . $cinema->city : '' }}
                         </option>
                     @endforeach
                 </select>
             </div>
 
-            {{-- Nama Studio --}}
             <div class="mb-5">
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                     Nama Studio <span class="text-red-500">*</span>
                 </label>
                 <input type="text" name="studio_name" required maxlength="100"
-                       value="{{ old('studio_name') }}"
-                       placeholder="Contoh: Studio 1"
+                       value="{{ old('studio_name', $studio->studio_name) }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
             </div>
 
@@ -60,33 +58,27 @@
                 </label>
                 <select name="studio_type" required
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                    <option value="">-- Pilih Studio Type --</option>
                     @foreach($studioTypes as $type)
-                        <option value="{{ $type }}" {{ old('studio_type', 'Regular 2D') === $type ? 'selected' : '' }}>
+                        <option value="{{ $type }}" {{ old('studio_type', $studio->studio_type ?? 'Regular 2D') === $type ? 'selected' : '' }}>
                             {{ $type }}
                         </option>
                     @endforeach
                 </select>
             </div>
 
-            <div class="mb-5">
+            <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Jumlah Kursi <span class="text-red-500">*</span>
+                    Total Seats <span class="text-red-500">*</span>
                 </label>
                 <input type="number" name="total_seats" required min="0" max="999"
-                       value="{{ old('total_seats', 0) }}"
+                       value="{{ old('total_seats', $studio->total_seats) }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-            </div>
-
-            <div class="mb-5 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm">
-                <i class="fas fa-info-circle mr-2"></i>
-                Anda tetap bisa menyesuaikan jumlah kursi melalui <strong>Layout Kursi</strong> setelah studio dibuat.
             </div>
 
             <div class="flex items-center gap-3">
                 <button type="submit"
                         class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
-                    <i class="fas fa-arrow-right mr-2"></i> Simpan &amp; Atur Layout Kursi
+                    <i class="fas fa-save mr-2"></i> Update Studio
                 </button>
                 <a href="{{ route('admin.studios.index') }}"
                    class="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">

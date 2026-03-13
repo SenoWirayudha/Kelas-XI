@@ -381,6 +381,14 @@ interface MovieApiService {
         @Path("userId") userId: Int
     ): ApiResponse<Any>
 
+    @GET("schedules")
+    suspend fun getSchedules(
+        @Query("movie_id") movieId: Int
+    ): ApiResponse<List<ScheduleDto>>
+
+    @GET("cinema-cities")
+    suspend fun getCinemaCities(): ApiResponse<List<String>>
+
     @GET("now-showing")
     suspend fun getNowShowing(
         @Query("limit") limit: Int = 10

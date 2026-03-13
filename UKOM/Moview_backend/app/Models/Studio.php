@@ -8,7 +8,7 @@ class Studio extends Model
 {
     public $timestamps = false;
 
-    protected $fillable = ['cinema_id', 'studio_name', 'total_seats'];
+    protected $fillable = ['cinema_id', 'studio_name', 'studio_type', 'total_seats'];
 
     public function cinema()
     {

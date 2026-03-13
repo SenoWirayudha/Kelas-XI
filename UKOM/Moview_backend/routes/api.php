@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\MovieApiController;
 use App\Http\Controllers\Api\FilmListController;
 use App\Http\Controllers\Api\ScheduleController;
+use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\SeatController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\TicketController;
@@ -135,6 +136,7 @@ Route::prefix('v1')->group(function () {
     Route::get('movies/{movieId}/display-media', [PosterBackdropController::class, 'getDisplayMedia'])->where('movieId', '[0-9]+');
 
     // Cinema Booking
+    Route::get('/cinema-cities', [CinemaController::class, 'cities']);
     Route::get('/schedules', [ScheduleController::class, 'index']);
     Route::get('/seats',     [SeatController::class,    'index']);
     Route::post('/orders',   [OrderController::class,   'store']);

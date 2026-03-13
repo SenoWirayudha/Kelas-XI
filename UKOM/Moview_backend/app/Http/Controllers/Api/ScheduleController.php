@@ -29,6 +29,8 @@ class ScheduleController extends Controller
                 'cinema_name'     => $s->studio->cinema->cinema_name,
                 'cinema_location' => trim($s->studio->cinema->city . ', ' . $s->studio->cinema->address, ', '),
                 'studio_name'     => $s->studio->studio_name,
+                'studio_type'     => $s->studio->studio_type,
+                'status'          => $s->status,
                 'show_date'       => $s->show_date->format('Y-m-d'),
                 'show_time'       => $s->show_time,
                 'ticket_price'    => (float) $s->ticket_price,

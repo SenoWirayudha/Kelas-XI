@@ -98,7 +98,9 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     // Schedule Management
     Route::get('/schedules',                  [ScheduleController::class, 'index'])->name('schedules.index');
     Route::get('/schedules/create',           [ScheduleController::class, 'create'])->name('schedules.create');
+    Route::get('/schedules/{id}/edit',        [ScheduleController::class, 'edit'])->name('schedules.edit');
     Route::post('/schedules',                 [ScheduleController::class, 'store'])->name('schedules.store');
+    Route::put('/schedules/{id}',             [ScheduleController::class, 'update'])->name('schedules.update');
     Route::delete('/schedules/{id}',          [ScheduleController::class, 'destroy'])->name('schedules.destroy');
     Route::get('/cinemas/{cinemaId}/studios', [ScheduleController::class, 'studiosByCinema'])->name('cinemas.studios');
 
@@ -111,7 +113,9 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     // Studio Management
     Route::get('/studios',          [StudioController::class, 'index'])->name('studios.index');
     Route::get('/studios/create',   [StudioController::class, 'create'])->name('studios.create');
+    Route::get('/studios/{id}/edit',[StudioController::class, 'edit'])->name('studios.edit');
     Route::post('/studios',         [StudioController::class, 'store'])->name('studios.store');
+    Route::put('/studios/{id}',     [StudioController::class, 'update'])->name('studios.update');
     Route::delete('/studios/{id}',  [StudioController::class, 'destroy'])->name('studios.destroy');
 
     // Seat Layout Management

@@ -55,6 +55,8 @@ class ScheduleController extends Controller
             'ticket_price' => 'required|numeric|min:0',
         ]);
 
+        $validated['status'] = 'active';
+
         Schedule::create($validated);
 
         return redirect()->route('admin.schedules.index')
@@ -68,6 +70,47 @@ class ScheduleController extends Controller
 
         return redirect()->route('admin.schedules.index')
             ->with('success', 'Jadwal berhasil dihapus.');
+    }
+
+    public function edit($id)
+    {
+        $schedule = Schedule::with(['studio.cinema', 'movie'])->findOrFail($id);
+
+        $movies = Movie::select(
+                'movies.id',
+                'movies.title',
+                DB::raw('MIN(movie_services.release_date) as release_date')
+            )
+            ->join('movie_services', 'movies.id', '=', 'movie_services.movie_id')
+            ->join('services', 'movie_services.service_id', '=', 'services.id')
+            ->where('services.type', 'theatrical')
+            ->where('movie_services.is_coming_soon', 0)
+            ->groupBy('movies.id', 'movies.title')
+            ->orderBy('movies.title')
+            ->get();
+
+        $cinemas = Cinema::orderBy('cinema_name')->get(['id', 'cinema_name', 'city']);
+        $studios = Studio::with('cinema')->orderBy('studio_name')->get();
+
+        return view('admin.schedules.edit', compact('schedule', 'movies', 'cinemas', 'studios'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $schedule = Schedule::findOrFail($id);
+
+        $validated = $request->validate([
+            'movie_id'     => 'required|exists:movies,id',
+            'studio_id'    => 'required|exists:studios,id',
+            'show_date'    => 'required|date',
+            'show_time'    => 'required|date_format:H:i',
+            'ticket_price' => 'required|numeric|min:0',
+        ]);
+
+        $schedule->update($validated);
+
+        return redirect()->route('admin.schedules.index')
+            ->with('success', 'Jadwal berhasil diperbarui.');
     }
 
     /**

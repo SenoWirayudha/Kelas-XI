@@ -5,23 +5,29 @@ import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.komputerkit.moview.databinding.ActivityMovieScheduleBinding
 import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.ui.cinema.adapter.CinemaScheduleAdapter
 import com.komputerkit.moview.ui.cinema.adapter.DateTabAdapter
 import com.komputerkit.moview.ui.cinema.model.*
 import com.komputerkit.moview.util.ServerConfig
-import java.util.Calendar
 import kotlinx.coroutines.launch
 
 class MovieScheduleActivity : AppCompatActivity() {
 
+    private val logTag: String = "MovieScheduleActivity"
+
     private lateinit var binding: ActivityMovieScheduleBinding
+    private lateinit var viewModel: MovieScheduleViewModel
     private lateinit var dateAdapter: DateTabAdapter
     private lateinit var cinemaAdapter: CinemaScheduleAdapter
 
@@ -36,14 +42,16 @@ class MovieScheduleActivity : AppCompatActivity() {
     private var movieDirector: String = ""
     private var selectedDate: ShowDate? = null
     private var selectedCinema: CinemaSchedule? = null
-    private var selectedTime: String? = null
+    private var selectedTime: ShowTime? = null
     private var movieId = 0
     private var movieTrailerUrl = ""
+    private var cities: List<String> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMovieScheduleBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        viewModel = ViewModelProvider(this)[MovieScheduleViewModel::class.java]
 
         // Read intent extras
         movieTitle = intent.getStringExtra(EXTRA_MOVIE_TITLE) ?: "HOPPERS"
@@ -55,6 +63,7 @@ class MovieScheduleActivity : AppCompatActivity() {
         movieDuration = intent.getStringExtra(EXTRA_DURATION) ?: ""
         movieDirector = intent.getStringExtra(EXTRA_DIRECTOR) ?: ""
         movieId = intent.getIntExtra(EXTRA_MOVIE_ID, 0)
+        Log.d(logTag, "onCreate() movieId=$movieId title='$movieTitle'")
 
         populateMovieInfo()
         updateBuyButton()  // start disabled
@@ -63,6 +72,8 @@ class MovieScheduleActivity : AppCompatActivity() {
         setupCinemas()
         setupSearchFilter()
         setupClickListeners()
+        observeViewModel()
+        viewModel.loadCities()
     }
 
     private fun populateMovieInfo() {
@@ -93,22 +104,9 @@ class MovieScheduleActivity : AppCompatActivity() {
     }
 
     private fun setupDates() {
-        val cal = Calendar.getInstance()
-        val monthNames = listOf("Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des")
-        val dayNames = listOf("MIN","SEN","SEL","RAB","KAM","JUM","SAB")
-
-        val dates = (0..6).map { i ->
-            if (i > 0) cal.add(Calendar.DAY_OF_YEAR, 1)
-            ShowDate(
-                day = cal.get(Calendar.DAY_OF_MONTH),
-                month = monthNames[cal.get(Calendar.MONTH)],
-                label = if (i == 0) "Hari ini" else dayNames[cal.get(Calendar.DAY_OF_WEEK) - 1]
-            )
-        }
-        selectedDate = dates.first()
-
-        dateAdapter = DateTabAdapter(dates) { pos ->
-            selectedDate = dates[pos]
+        dateAdapter = DateTabAdapter(emptyList()) { pos ->
+            clearSelectedSchedule()
+            viewModel.setDateByIndex(pos)
         }
         binding.rvDates.layoutManager =
             LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
@@ -116,11 +114,9 @@ class MovieScheduleActivity : AppCompatActivity() {
     }
 
     private fun setupCinemas() {
-        allCinemas = buildSampleCinemas()
-
-        cinemaAdapter = CinemaScheduleAdapter(allCinemas) { cinema, time ->
+        cinemaAdapter = CinemaScheduleAdapter(emptyList()) { cinema, time ->
             selectedCinema = cinema
-            selectedTime = time.time
+            selectedTime = time
             updateBuyButton()
         }
         binding.rvCinemas.layoutManager = LinearLayoutManager(this)
@@ -133,13 +129,16 @@ class MovieScheduleActivity : AppCompatActivity() {
         binding.btnBuyTicket.alpha = if (hasSelection) 1f else 0.45f
     }
 
+    private fun clearSelectedSchedule() {
+        selectedCinema = null
+        selectedTime = null
+        updateBuyButton()
+    }
+
     private fun setupSearchFilter() {
         binding.etSearchCinema.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
-                val query = s.toString().trim().lowercase()
-                val filtered = if (query.isEmpty()) allCinemas
-                else allCinemas.filter { it.cinemaName.lowercase().contains(query) }
-                cinemaAdapter.updateList(filtered)
+                // Explicit filtering is triggered by Filter button.
             }
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -148,6 +147,8 @@ class MovieScheduleActivity : AppCompatActivity() {
 
     private fun setupClickListeners() {
         binding.btnBack.setOnClickListener { finish() }
+        binding.btnCityPicker.setOnClickListener { showCityBottomSheet() }
+        binding.btnFilter.setOnClickListener { applyCinemaFilter() }
 
         binding.ivPoster.setOnClickListener {
             if (movieId > 0) {
@@ -167,16 +168,17 @@ class MovieScheduleActivity : AppCompatActivity() {
 
         binding.btnBuyTicket.setOnClickListener {
             val cinema = selectedCinema ?: allCinemas.firstOrNull() ?: return@setOnClickListener
-            val time = selectedTime ?: cinema.showTimes.firstOrNull()?.time ?: "13:00"
+            val time = selectedTime?.time ?: cinema.showTimes.firstOrNull()?.time ?: "13:00"
             val dateStr = selectedDate?.let { "${it.day} ${it.month}" } ?: "Hari ini"
 
             val bookingData = BookingData(
+                scheduleId = selectedTime?.scheduleId ?: 0,
                 movieTitle = movieTitle,
                 moviePosterUrl = moviePosterUrl,
                 movieRating = movieRating,
                 movieAgeRating = movieAgeRating,
                 cinemaName = cinema.cinemaName,
-                studioName = "STUDIO 1",
+                studioName = cinema.studioType,
                 studioType = cinema.studioType,
                 showDate = dateStr,
                 showTime = time,
@@ -186,6 +188,117 @@ class MovieScheduleActivity : AppCompatActivity() {
             intent.putExtra(SeatSelectionActivity.EXTRA_BOOKING, bookingData)
             startActivity(intent)
         }
+    }
+
+    private fun observeViewModel() {
+        viewModel.uiState.observe(this) { state ->
+            Log.d(
+                logTag,
+                "observeState city=${state.city} loading=${state.isLoading} cinemas=${state.filteredCinemas.size} error=${state.error}"
+            )
+            selectedDate = state.selectedDate
+            cities = state.availableCities
+
+            if (state.dates.isNotEmpty()) {
+                val selectedIndex = state.dates.indexOfFirst { it.isoDate == state.selectedDate?.isoDate }
+                dateAdapter = DateTabAdapter(state.dates, if (selectedIndex >= 0) selectedIndex else 0) { pos ->
+                    clearSelectedSchedule()
+                    viewModel.setDateByIndex(pos)
+                }
+                binding.rvDates.adapter = dateAdapter
+            }
+
+            if (state.city.isNullOrBlank()) {
+                binding.tvSelectedCity.text = "Pilih Kota"
+                binding.tvSelectedCity.setTextColor(getColor(com.komputerkit.moview.R.color.text_secondary))
+            } else {
+                binding.tvSelectedCity.text = state.city
+                binding.tvSelectedCity.setTextColor(getColor(com.komputerkit.moview.R.color.text_primary))
+            }
+
+            binding.tvCityRequired.visibility = if (state.city.isNullOrBlank()) View.VISIBLE else View.GONE
+            binding.layoutScheduleContent.visibility = if (state.city.isNullOrBlank()) View.GONE else View.VISIBLE
+            binding.progressSchedules.visibility = if (state.isLoading) View.VISIBLE else View.GONE
+
+            val noData = !state.isLoading && state.city != null && state.error.isNullOrBlank() && state.filteredCinemas.isEmpty()
+            if (!state.error.isNullOrBlank()) {
+                binding.tvScheduleError.visibility = View.VISIBLE
+                binding.tvScheduleError.text = state.error
+                binding.tvScheduleError.setTextColor(getColor(com.komputerkit.moview.R.color.red))
+                Log.e(logTag, "uiError='${state.error}' movieId=$movieId city=${state.city}")
+            } else if (noData) {
+                binding.tvScheduleError.visibility = View.VISIBLE
+                binding.tvScheduleError.text = "Jadwal tidak ditemukan untuk kota/tanggal/filter ini"
+                binding.tvScheduleError.setTextColor(getColor(com.komputerkit.moview.R.color.text_secondary))
+                Log.w(logTag, "noDataState movieId=$movieId city=${state.city} query='${state.searchQuery}'")
+            } else {
+                binding.tvScheduleError.visibility = View.GONE
+            }
+
+            allCinemas = state.filteredCinemas
+            cinemaAdapter.updateList(allCinemas)
+            if (selectedTime != null) {
+                val stillExists = allCinemas.any { cinema ->
+                    cinema.showTimes.any { it.scheduleId == selectedTime?.scheduleId }
+                }
+                if (!stillExists) {
+                    clearSelectedSchedule()
+                }
+            }
+        }
+    }
+
+    private fun applyCinemaFilter() {
+        val query = binding.etSearchCinema.text?.toString().orEmpty().trim()
+        Log.d(logTag, "applyCinemaFilter() query='$query'")
+        viewModel.setSearchQuery(query)
+        if (query.isBlank()) {
+            Toast.makeText(this, "Menampilkan semua bioskop", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showCityBottomSheet() {
+        if (cities.isEmpty()) {
+            binding.tvScheduleError.visibility = View.VISIBLE
+            binding.tvScheduleError.text = "Daftar kota belum tersedia, coba lagi"
+            return
+        }
+
+        val dialog = BottomSheetDialog(this)
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(32, 24, 32, 24)
+        }
+
+        val title = android.widget.TextView(this).apply {
+            text = "Pilih Kota"
+            textSize = 16f
+            setTextColor(getColor(com.komputerkit.moview.R.color.text_primary))
+            setPadding(0, 0, 0, 12)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+        container.addView(title)
+
+        cities.forEach { city ->
+            val item = android.widget.TextView(this).apply {
+                text = city.toString().trim()
+                textSize = 14f
+                setTextColor(getColor(com.komputerkit.moview.R.color.text_primary))
+                setPadding(8, 20, 8, 20)
+                setOnClickListener {
+                    val selectedCity = city.toString().trim()
+                    clearSelectedSchedule()
+                    viewModel.setCity(selectedCity.toString())
+                    Log.d(logTag, "citySelected=$selectedCity -> loadSchedules(movieId=$movieId)")
+                    viewModel.loadSchedules(movieId)
+                    dialog.dismiss()
+                }
+            }
+            container.addView(item)
+        }
+
+        dialog.setContentView(container)
+        dialog.show()
     }
 
     private fun fetchMovieDetails(movieId: Int) {
@@ -226,33 +339,6 @@ class MovieScheduleActivity : AppCompatActivity() {
             first
         } catch (e: Exception) { 35000 }
     }
-
-    private fun buildSampleCinemas(): List<CinemaSchedule> = listOf(
-        CinemaSchedule(
-            cinemaId = "1", cinemaName = "BG JUNCTION CGV",
-            studioType = "REGULAR 2D", priceRange = "Rp35.000 - Rp40.000",
-            brand = CinemaBrand.CGV,
-            showTimes = listOf(ShowTime("10:00"), ShowTime("13:20"), ShowTime("16:40"), ShowTime("19:55"))
-        ),
-        CinemaSchedule(
-            cinemaId = "2", cinemaName = "CIPLAZ SIDOARJO XXI",
-            studioType = "REGULAR 2D", priceRange = "Rp35.000 - Rp40.000",
-            brand = CinemaBrand.XXI,
-            showTimes = listOf(ShowTime("09:30"), ShowTime("12:00"), ShowTime("13:15"), ShowTime("15:45"), ShowTime("18:30"))
-        ),
-        CinemaSchedule(
-            cinemaId = "3", cinemaName = "DELTA PLAZA XXI",
-            studioType = "REGULAR 2D", priceRange = "Rp35.000 - Rp40.000",
-            brand = CinemaBrand.XXI,
-            showTimes = listOf(ShowTime("11:00"), ShowTime("14:15"), ShowTime("17:30"), ShowTime("20:45"))
-        ),
-        CinemaSchedule(
-            cinemaId = "4", cinemaName = "PAKUWON MALL CGV",
-            studioType = "PREMIERE", priceRange = "Rp60.000 - Rp80.000",
-            brand = CinemaBrand.CGV,
-            showTimes = listOf(ShowTime("10:30"), ShowTime("13:45"), ShowTime("17:00"), ShowTime("20:15"))
-        )
-    )
 
     companion object {
         const val EXTRA_MOVIE_TITLE = "extra_movie_title"

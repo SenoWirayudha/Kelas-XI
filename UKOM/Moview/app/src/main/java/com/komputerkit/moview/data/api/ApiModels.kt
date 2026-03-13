@@ -29,6 +29,18 @@ data class HomeResponse(
     val new_from_friends: List<FriendReviewDto>
 )
 
+data class ScheduleDto(
+    val schedule_id: Int,
+    val cinema_name: String,
+    val cinema_location: String,
+    val studio_name: String,
+    val studio_type: String?,
+    val status: String?,
+    val show_date: String,
+    val show_time: String,
+    val ticket_price: Double
+)
+
 data class MovieCardDto(
     val id: Int,
     val title: String,
