@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Auto-delete schedules whose show date+time has passed — runs every hour
 Schedule::command('schedules:delete-expired')->hourly();
+
+// Auto-cancel stale pending orders to free locked seats quickly
+Schedule::command('orders:cleanup-stale-pending')->everyMinute();

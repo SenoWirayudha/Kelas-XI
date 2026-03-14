@@ -389,6 +389,26 @@ interface MovieApiService {
     @GET("cinema-cities")
     suspend fun getCinemaCities(): ApiResponse<List<String>>
 
+    @GET("seats/layout")
+    suspend fun getSeatLayout(
+        @Query("schedule_id") scheduleId: Int
+    ): ApiResponse<SeatLayoutResponseDto>
+
+    @POST("payment/create")
+    suspend fun createPayment(
+        @Body request: CreatePaymentRequest
+    ): ApiResponse<CreatePaymentResponseDto>
+
+    @POST("payment/status")
+    suspend fun syncPaymentStatus(
+        @Body request: SyncPaymentStatusRequest
+    ): ApiResponse<SyncPaymentStatusResponseDto>
+
+    @GET("users/{userId}/tickets")
+    suspend fun getUserTickets(
+        @Path("userId") userId: Int
+    ): ApiResponse<List<UserTicketHistoryDto>>
+
     @GET("now-showing")
     suspend fun getNowShowing(
         @Query("limit") limit: Int = 10

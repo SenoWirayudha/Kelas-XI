@@ -2,29 +2,33 @@ package com.komputerkit.moview.ui.cinema
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import com.komputerkit.moview.databinding.ActivitySeatSelectionBinding
 import com.komputerkit.moview.ui.cinema.adapter.SeatAdapter
 import com.komputerkit.moview.ui.cinema.model.BookingData
 import com.komputerkit.moview.ui.cinema.model.Seat
-import com.komputerkit.moview.ui.cinema.model.SeatStatus
 import java.text.NumberFormat
 import java.util.Locale
 
 class SeatSelectionActivity : AppCompatActivity() {
 
+    private val logTag = "SeatSelectionActivity"
+
     private lateinit var binding: ActivitySeatSelectionBinding
     private lateinit var seatAdapter: SeatAdapter
+    private lateinit var viewModel: SeatSelectionViewModel
     private lateinit var bookingData: BookingData
-
-    private val columnCount = 9   // columns in the seat grid
+    private var gridLayoutManager: GridLayoutManager? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySeatSelectionBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        viewModel = ViewModelProvider(this)[SeatSelectionViewModel::class.java]
 
         bookingData = (intent.getSerializableExtra(EXTRA_BOOKING) as? BookingData)
             ?: BookingData(
@@ -39,34 +43,48 @@ class SeatSelectionActivity : AppCompatActivity() {
 
         setupSeats()
         setupClickListeners()
+        observeViewModel()
+
+        if (bookingData.scheduleId > 0) {
+            viewModel.loadSeatLayout(bookingData.scheduleId)
+        } else {
+            binding.tvSelectedSeats.text = "Schedule tidak valid"
+            Log.e(logTag, "Missing scheduleId in booking payload")
+        }
     }
 
     private fun setupSeats() {
-        val rows = listOf("A","B","C","D","E","F","G","H","J")
-        val numbers = (4..12).toList()
-
-        // Build seat list; mark some as booked for demo
-        val bookedIds = setOf("B7","B8","B9")
-        val seats = mutableListOf<Seat>()
-        for (row in rows) {
-            for (num in numbers) {
-                val id = "$row$num"
-                seats.add(Seat(row, num,
-                    if (id in bookedIds) SeatStatus.BOOKED else SeatStatus.AVAILABLE))
-            }
-        }
-
-        seatAdapter = SeatAdapter(seats, columnCount, bookingData.ticketPrice) { selected, total ->
+        seatAdapter = SeatAdapter(mutableListOf(), bookingData.ticketPrice) { selected, total ->
             onSeatsChanged(selected, total)
         }
 
-        binding.rvSeats.layoutManager =
-            GridLayoutManager(this, columnCount)
+        gridLayoutManager = GridLayoutManager(this, 1)
+        binding.rvSeats.layoutManager = gridLayoutManager
         binding.rvSeats.adapter = seatAdapter
         binding.rvSeats.itemAnimator = null
+    }
 
-        // Fix each seat cell to a square
-        binding.rvSeats.addItemDecoration(SeatSpaceDecoration(4))
+    private fun observeViewModel() {
+        viewModel.uiState.observe(this) { state ->
+            binding.btnOrderSummary.isEnabled = !state.isLoading && seatAdapter.getSelectedSeats().isNotEmpty()
+            binding.btnOrderSummary.alpha = if (binding.btnOrderSummary.isEnabled) 1f else 0.5f
+
+            if (state.error != null) {
+                binding.tvSelectedSeats.text = state.error
+                Log.e(logTag, "seatLayoutError=${state.error}")
+                return@observe
+            }
+
+            if (state.seats.isNotEmpty()) {
+                val spanCount = state.columns.coerceAtLeast(1)
+                if (gridLayoutManager?.spanCount != spanCount) {
+                    gridLayoutManager = GridLayoutManager(this, spanCount)
+                    binding.rvSeats.layoutManager = gridLayoutManager
+                    binding.rvSeats.adapter = seatAdapter
+                }
+                seatAdapter.submitSeats(state.seats)
+            }
+        }
     }
 
     private fun onSeatsChanged(selected: List<Seat>, total: Int) {
@@ -111,9 +129,11 @@ class SeatSelectionActivity : AppCompatActivity() {
         val selected = seatAdapter.getSelectedSeats()
         val seatsLabel = selected.joinToString(", ") { it.id }
         val total = selected.size * bookingData.ticketPrice
+        val selectedSeatIds = selected.mapNotNull { it.seatId }
+        val bookingPayload = bookingData.copy(selectedSeatIds = selectedSeatIds)
 
         val intent = Intent(this, OrderSummaryActivity::class.java)
-        intent.putExtra(OrderSummaryActivity.EXTRA_BOOKING, bookingData)
+        intent.putExtra(OrderSummaryActivity.EXTRA_BOOKING, bookingPayload)
         intent.putExtra(OrderSummaryActivity.EXTRA_SEATS, seatsLabel)
         intent.putExtra(OrderSummaryActivity.EXTRA_TOTAL, total)
         startActivity(intent)

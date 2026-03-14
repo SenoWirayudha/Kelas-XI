@@ -18,7 +18,7 @@ class ScheduleController extends Controller
             'movie_id' => 'required|integer|exists:movies,id',
         ]);
 
-        $schedules = Schedule::with(['studio.cinema'])
+        $schedules = Schedule::with(['studio.cinema.service'])
             ->where('movie_id', $request->movie_id)
             ->where('show_date', '>=', now()->toDateString())
             ->orderBy('show_date')
@@ -28,6 +28,7 @@ class ScheduleController extends Controller
                 'schedule_id'     => $s->id,
                 'cinema_name'     => $s->studio->cinema->cinema_name,
                 'cinema_location' => trim($s->studio->cinema->city . ', ' . $s->studio->cinema->address, ', '),
+            'service_name'    => $s->studio->cinema->service->name ?? null,
                 'studio_name'     => $s->studio->studio_name,
                 'studio_type'     => $s->studio->studio_type,
                 'status'          => $s->status,

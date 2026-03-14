@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.profile
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -14,6 +15,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentProfileNewBinding
+import com.komputerkit.moview.ui.ticket.TicketHistoryActivity
 import com.komputerkit.moview.util.TmdbImageUrl
 import com.komputerkit.moview.util.loadProfilePhoto
 
@@ -107,10 +109,12 @@ class ProfileFragment : Fragment() {
                 // Opened from bottom nav (args.userId defaults to 0) - hide back, show settings
                 binding.btnBack.visibility = View.GONE
                 binding.btnSettings.visibility = View.VISIBLE
+                binding.btnTicket.visibility = View.VISIBLE
             } else {
                 // Navigated from followers/following/etc (args.userId explicitly set) - show back, hide settings
                 binding.btnBack.visibility = View.VISIBLE
                 binding.btnSettings.visibility = View.GONE
+                binding.btnTicket.visibility = View.GONE
             }
             binding.btnFollow.visibility = View.GONE
         } else {
@@ -118,6 +122,7 @@ class ProfileFragment : Fragment() {
             binding.btnBack.visibility = View.VISIBLE
             binding.btnFollow.visibility = View.VISIBLE
             binding.btnSettings.visibility = View.GONE
+            binding.btnTicket.visibility = View.GONE
         }
         
         // Initialize follow button state
@@ -381,6 +386,10 @@ class ProfileFragment : Fragment() {
         binding.btnSettings.setOnClickListener {
             val action = ProfileFragmentDirections.actionProfileToEditProfile()
             findNavController().navigate(action)
+        }
+
+        binding.btnTicket.setOnClickListener {
+            startActivity(Intent(requireContext(), TicketHistoryActivity::class.java))
         }
         
         // "More" button for recent activity → navigate to diary

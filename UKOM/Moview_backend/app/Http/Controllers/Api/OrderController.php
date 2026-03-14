@@ -8,12 +8,17 @@ use App\Models\OrderSeat;
 use App\Models\Schedule;
 use App\Models\Seat;
 use App\Models\Ticket;
+use App\Services\PendingOrderCleanupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
+    public function __construct(private readonly PendingOrderCleanupService $pendingOrderCleanupService)
+    {
+    }
+
     /**
      * POST /api/v1/orders
      * Body: { schedule_id, seats: [1,2,3], user_id? }
@@ -23,6 +28,8 @@ class OrderController extends Controller
      */
     public function store(Request $request)
     {
+        $this->pendingOrderCleanupService->cleanupExpiredPendingOrders();
+
         $validated = $request->validate([
             'schedule_id' => 'required|integer|exists:schedules,id',
             'seats'       => 'required|array|min:1',
@@ -59,7 +66,7 @@ class OrderController extends Controller
                     'order_code'  => $orderCode,
                     'total_price' => $totalPrice,
                     'status'      => 'pending',
-                    'expired_at'  => now()->addMinutes(15),
+                    'expired_at'  => now()->addMinutes((int) config('services.booking.pending_timeout_minutes', 7)),
                 ]);
 
                 // Create per-seat records and QR tickets

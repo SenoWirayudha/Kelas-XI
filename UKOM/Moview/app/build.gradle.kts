@@ -17,6 +17,14 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        val midtransClientKey =
+            (project.findProperty("MIDTRANS_CLIENT_KEY") as String?) ?: ""
+        val midtransMerchantBaseUrl =
+            (project.findProperty("MIDTRANS_MERCHANT_BASE_URL") as String?) ?: ""
+
+        buildConfigField("String", "MIDTRANS_CLIENT_KEY", "\"$midtransClientKey\"")
+        buildConfigField("String", "MIDTRANS_MERCHANT_BASE_URL", "\"$midtransMerchantBaseUrl\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -37,6 +45,7 @@ android {
         jvmTarget = "11"
     }
     buildFeatures {
+        buildConfig = true
         viewBinding = true
     }
 }
@@ -90,6 +99,9 @@ dependencies {
     
     // Flexbox Layout
     implementation("com.google.android.flexbox:flexbox:3.0.0")
+
+    // Midtrans Snap UI Kit
+    implementation("com.midtrans:uikit:2.4.0-SANDBOX")
     
     // Testing
     testImplementation(libs.junit)

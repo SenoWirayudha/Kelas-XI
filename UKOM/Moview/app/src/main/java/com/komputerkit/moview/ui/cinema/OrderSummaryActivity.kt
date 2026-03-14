@@ -2,60 +2,83 @@ package com.komputerkit.moview.ui.cinema
 
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
+import com.komputerkit.moview.BuildConfig
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ActivityOrderSummaryBinding
-import com.komputerkit.moview.ui.cinema.adapter.PaymentMethodAdapter
 import com.komputerkit.moview.ui.cinema.model.BookingData
-import com.komputerkit.moview.ui.cinema.model.PaymentMethod
 import com.komputerkit.moview.util.ServerConfig
+import com.midtrans.sdk.corekit.callback.TransactionFinishedCallback
+import com.midtrans.sdk.corekit.core.MidtransSDK
+import com.midtrans.sdk.corekit.core.themes.CustomColorTheme
+import com.midtrans.sdk.corekit.models.snap.TransactionResult
+import com.midtrans.sdk.uikit.SdkUIFlowBuilder
 import java.text.NumberFormat
 import java.util.Locale
 
 class OrderSummaryActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityOrderSummaryBinding
+    private val viewModel: OrderSummaryViewModel by viewModels()
     private var countDownTimer: CountDownTimer? = null
-    private lateinit var paymentAdapter: PaymentMethodAdapter
+    private lateinit var bookingData: BookingData
+    private var selectedSeatLabel: String = ""
+    private var latestOrderCode: String? = null
+
+    private val appPrefs by lazy {
+        getSharedPreferences("MoviewPrefs", MODE_PRIVATE)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityOrderSummaryBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val booking = (intent.getSerializableExtra(EXTRA_BOOKING) as? BookingData)
+        bookingData = (intent.getSerializableExtra(EXTRA_BOOKING) as? BookingData)
             ?: BookingData(
                 movieTitle = "HOPPERS", moviePosterUrl = "", movieRating = 9.6,
                 movieAgeRating = "SU", cinemaName = "CIPLAZ SIDOARJO XXI",
                 studioName = "STUDIO 4", studioType = "REGULAR 2D",
                 showDate = "11 Mar", showTime = "13:15", ticketPrice = 35000
             )
-        val seatsLabel = intent.getStringExtra(EXTRA_SEATS) ?: "C8"
-        val rawTotal = intent.getIntExtra(EXTRA_TOTAL, 0)
-        val seatCount = seatsLabel.split(",").size
+        selectedSeatLabel = intent.getStringExtra(EXTRA_SEATS)
+            ?: bookingData.selectedSeatIds.joinToString(",")
+        latestOrderCode = appPrefs.getString(KEY_PENDING_ORDER_CODE, null)
 
-        populateMovieInfo(booking, seatsLabel, seatCount, rawTotal)
-        setupPaymentMethods()
+        val seatCount = calculateSeatCount(selectedSeatLabel, bookingData.selectedSeatIds)
+        populateMovieInfo(bookingData, selectedSeatLabel, seatCount)
+        initializeMidtransSdk()
+        observeViewModel()
         startCountdown(7 * 60 * 1000L)
 
         binding.btnBack.setOnClickListener { finish() }
         binding.btnPay.setOnClickListener {
-            // TODO: complete payment flow
+            val userId = getSharedPreferences("MoviewPrefs", MODE_PRIVATE).getInt("userId", 0)
+            val selectedSeats = bookingData.selectedSeatIds
+            viewModel.createPayment(
+                userId = userId,
+                scheduleId = bookingData.scheduleId,
+                selectedSeats = selectedSeats
+            )
         }
     }
 
     private fun populateMovieInfo(
-        booking: BookingData, seatsLabel: String, seatCount: Int, rawTotal: Int
+        booking: BookingData,
+        seatsLabel: String,
+        seatCount: Int
     ) {
-        val fmt = NumberFormat.getNumberInstance(Locale("id","ID"))
+        val fmt = NumberFormat.getNumberInstance(Locale("id", "ID"))
 
         binding.tvMovieTitle.text = booking.movieTitle
-        binding.tvRating.text = String.format("%.1f", booking.movieRating)
         binding.tvAgeRating.text = booking.movieAgeRating
         binding.tvCinemaStudio.text = "${booking.cinemaName}, ${booking.studioName}"
         binding.tvShowDatetime.text = "${booking.showDate}, ${booking.showTime}"
+        applyBrandBadge(booking.serviceName.ifBlank { booking.cinemaName })
 
         val seatLabel = if (seatCount > 1) "$seatCount TIKET" else "1 TIKET"
         binding.tvTicketCount.text = seatLabel
@@ -71,37 +94,186 @@ class OrderSummaryActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupPaymentMethods() {
-        val methods = listOf(
-            PaymentMethod(
-                id = "dana", name = "DANA",
-                description = "Dapatkan diskon Rp20.000 khusus untuk semua pengguna DANA dengan minimal pembelian Rp80.000.",
-                logoResId = R.drawable.ic_payment_card,
-                promoLabel = "Kartu Kredit/Debit Tersedia"
-            ),
-            PaymentMethod(
-                id = "gopay", name = "GoPay",
-                description = "Cashback 50% maks. 10rb untuk transaksi pertama kamu pakai Aplikasi GoPay.",
-                logoResId = R.drawable.ic_payment_card
-            ),
-            PaymentMethod(
-                id = "shopeepay", name = "ShopeePay/SPayLater",
-                description = "Diskon s/d Rp20.000 untuk semua pengguna dengan minimal transaksi Rp100.000.",
-                logoResId = R.drawable.ic_payment_card
-            ),
-            PaymentMethod(
-                id = "ovo", name = "OVO",
-                description = "Dapatkan Cashback hingga 10.000 dan cashback 99% khusus pengguna OVO Nabung.",
-                logoResId = R.drawable.ic_payment_card
-            )
-        )
+    private fun observeViewModel() {
+        viewModel.uiState.observe(this) { state ->
+            binding.btnPay.isEnabled = !state.isLoading
+            binding.btnPay.text = if (state.isLoading) "MEMPROSES..." else "SELESAIKAN PEMBAYARAN"
 
-        paymentAdapter = PaymentMethodAdapter(methods) { selected ->
-            // Payment method changed
+            state.error?.let {
+                Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+                viewModel.clearError()
+            }
+
+            state.paymentResult?.let { result ->
+                latestOrderCode = result.order_code
+                appPrefs.edit().putString(KEY_PENDING_ORDER_CODE, result.order_code).apply()
+                launchSnapPayment(result.snap_token)
+                viewModel.clearPaymentResult()
+            }
+
+            state.syncMessage?.let {
+                Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+                viewModel.clearSyncMessage()
+            }
+
+            if (state.paymentCompleted) {
+                clearPendingOrderCode()
+                viewModel.clearPaymentCompleted()
+                finish()
+            }
+
+            val syncedOrderStatus = state.syncedOrderStatus
+            if (!syncedOrderStatus.isNullOrBlank()) {
+                if (syncedOrderStatus == "paid" || syncedOrderStatus == "cancelled") {
+                    clearPendingOrderCode()
+                }
+                viewModel.clearSyncedOrderStatus()
+            }
         }
-        binding.rvPaymentMethods.layoutManager = LinearLayoutManager(this)
-        binding.rvPaymentMethods.adapter = paymentAdapter
-        binding.rvPaymentMethods.addItemDecoration(SeatSpaceDecoration(4))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val pendingOrderCode = latestOrderCode ?: appPrefs.getString(KEY_PENDING_ORDER_CODE, null)
+        if (!pendingOrderCode.isNullOrBlank()) {
+            latestOrderCode = pendingOrderCode
+            viewModel.syncPaymentStatus(pendingOrderCode)
+        }
+    }
+
+    private fun clearPendingOrderCode() {
+        latestOrderCode = null
+        appPrefs.edit().remove(KEY_PENDING_ORDER_CODE).apply()
+    }
+
+    private fun initializeMidtransSdk() {
+        val clientKey = BuildConfig.MIDTRANS_CLIENT_KEY
+        if (clientKey.isBlank()) return
+
+        val merchantBaseUrl = if (BuildConfig.MIDTRANS_MERCHANT_BASE_URL.isNotBlank()) {
+            BuildConfig.MIDTRANS_MERCHANT_BASE_URL
+        } else {
+            "http://${ServerConfig.HOST}:8000/api/"
+        }
+
+        SdkUIFlowBuilder.init()
+            .setClientKey(clientKey)
+            .setContext(applicationContext)
+            .setMerchantBaseUrl(merchantBaseUrl)
+            .setTransactionFinishedCallback(TransactionFinishedCallback { result: TransactionResult? ->
+                runOnUiThread {
+                    handleTransactionResult(result)
+                }
+            })
+            .setColorTheme(
+                CustomColorTheme(
+                    "#4A4CE8",
+                    "#4A4CE8",
+                    "#4A4CE8"
+                )
+            )
+            .enableLog(true)
+            .buildSDK()
+    }
+
+    private fun launchSnapPayment(snapToken: String) {
+        val clientKey = BuildConfig.MIDTRANS_CLIENT_KEY
+        if (clientKey.isBlank()) {
+            Toast.makeText(this, "MIDTRANS_CLIENT_KEY belum diisi", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        runCatching {
+            MidtransSDK.getInstance().startPaymentUiFlow(this, snapToken)
+        }.onFailure {
+            Toast.makeText(this, "Gagal membuka Snap UI", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun handleTransactionResult(result: TransactionResult?) {
+        if (result == null) {
+            Toast.makeText(this, "Pembayaran dibatalkan", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val status = result.status ?: ""
+        val orderCode = latestOrderCode
+
+        if (!orderCode.isNullOrBlank()) {
+            when (status) {
+                TransactionResult.STATUS_SUCCESS,
+                TransactionResult.STATUS_PENDING,
+                TransactionResult.STATUS_FAILED,
+                TransactionResult.STATUS_INVALID -> {
+                    viewModel.syncPaymentStatus(orderCode)
+                    return
+                }
+            }
+        }
+
+        when (status) {
+            TransactionResult.STATUS_SUCCESS -> {
+                Toast.makeText(this, "Pembayaran berhasil", Toast.LENGTH_SHORT).show()
+            }
+            TransactionResult.STATUS_PENDING -> {
+                Toast.makeText(this, "Pembayaran pending", Toast.LENGTH_SHORT).show()
+            }
+            TransactionResult.STATUS_FAILED -> {
+                Toast.makeText(this, "Pembayaran gagal", Toast.LENGTH_SHORT).show()
+            }
+            TransactionResult.STATUS_INVALID -> {
+                Toast.makeText(this, "Transaksi tidak valid", Toast.LENGTH_SHORT).show()
+            }
+            else -> {
+                Toast.makeText(this, "Status transaksi: $status", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun calculateSeatCount(seatsLabel: String, selectedSeatIds: List<Int>): Int {
+        val labelCount = seatsLabel
+            .split(",")
+            .map { it.trim() }
+            .count { it.isNotBlank() }
+        return when {
+            labelCount > 0 -> labelCount
+            selectedSeatIds.isNotEmpty() -> selectedSeatIds.size
+            else -> 1
+        }
+    }
+
+    private fun applyBrandBadge(source: String) {
+        val normalized = source.uppercase(Locale.getDefault())
+        val brandText: String
+        val colorRes: Int
+
+        when {
+            normalized.contains("XXI") -> {
+                brandText = "XXI"
+                colorRes = R.color.brand_xxi
+            }
+            normalized.contains("CGV") -> {
+                brandText = "CGV"
+                colorRes = R.color.brand_cgv
+            }
+            normalized.contains("CINEPOLIS") -> {
+                brandText = "CINEPOLIS"
+                colorRes = R.color.brand_cinepolis
+            }
+            else -> {
+                brandText = if (bookingData.serviceName.isNotBlank()) bookingData.serviceName else "BIOSKOP"
+                colorRes = R.color.accent_blue
+            }
+        }
+
+        binding.tvBrand.text = brandText
+        val background = binding.tvBrand.background.mutate()
+        val color = ContextCompat.getColor(this, colorRes)
+        if (background is android.graphics.drawable.GradientDrawable) {
+            background.setColor(color)
+        } else {
+            binding.tvBrand.setBackgroundColor(color)
+        }
     }
 
     private fun startCountdown(millisTotal: Long) {
@@ -128,5 +300,6 @@ class OrderSummaryActivity : AppCompatActivity() {
         const val EXTRA_BOOKING = "extra_booking"
         const val EXTRA_SEATS = "extra_seats"
         const val EXTRA_TOTAL = "extra_total"
+        private const val KEY_PENDING_ORDER_CODE = "pending_order_code"
     }
 }

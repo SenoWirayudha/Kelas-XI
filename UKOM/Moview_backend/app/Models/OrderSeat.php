@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrderSeat extends Model
 {
+    public $timestamps = false;
+
     protected $fillable = ['order_id', 'seat_id', 'schedule_id', 'price'];
 
     protected $casts = [

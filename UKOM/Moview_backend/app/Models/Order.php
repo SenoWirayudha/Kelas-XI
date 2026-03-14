@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
+    public $timestamps = false;
+
     protected $fillable = [
         'schedule_id', 'user_id', 'order_code',
         'total_price', 'status', 'expired_at',
@@ -19,6 +21,11 @@ class Order extends Model
     public function schedule()
     {
         return $this->belongsTo(Schedule::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function orderSeats()

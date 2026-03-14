@@ -177,6 +177,7 @@ class MovieScheduleActivity : AppCompatActivity() {
                 moviePosterUrl = moviePosterUrl,
                 movieRating = movieRating,
                 movieAgeRating = movieAgeRating,
+                serviceName = cinema.serviceName,
                 cinemaName = cinema.cinemaName,
                 studioName = cinema.studioType,
                 studioType = cinema.studioType,

@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'midtrans' => [
+        'server_key' => env('MIDTRANS_SERVER_KEY'),
+        'client_key' => env('MIDTRANS_CLIENT_KEY'),
+        'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
+    ],
+
+    'booking' => [
+        'service_fee' => env('BOOKING_SERVICE_FEE', 4000),
+        'pending_timeout_minutes' => env('BOOKING_PENDING_TIMEOUT_MINUTES', 7),
+    ],
+
 ];

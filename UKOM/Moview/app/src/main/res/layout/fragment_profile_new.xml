@@ -46,6 +46,16 @@
                 android:alpha="0"
                 tools:text="Alex Cinephile" />
 
+            <ImageView
+                android:id="@+id/btn_ticket"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="16dp"
+                android:contentDescription="Ticket History"
+                android:src="@drawable/ic_ticket"
+                android:visibility="visible"
+                app:tint="@color/white" />
+
             <!-- Settings Button (only visible for own profile) -->
             <ImageView
                 android:id="@+id/btn_settings"

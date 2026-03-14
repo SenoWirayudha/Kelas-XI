@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\SeatController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\TicketController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\V1\MovieMediaController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ProfileController;
@@ -138,7 +139,13 @@ Route::prefix('v1')->group(function () {
     // Cinema Booking
     Route::get('/cinema-cities', [CinemaController::class, 'cities']);
     Route::get('/schedules', [ScheduleController::class, 'index']);
+    Route::get('/seats/layout', [SeatController::class, 'layout']);
     Route::get('/seats',     [SeatController::class,    'index']);
+    Route::post('/payment/create', [PaymentController::class, 'create']);
+    Route::post('/payment/status', [PaymentController::class, 'status']);
     Route::post('/orders',   [OrderController::class,   'store']);
+    Route::get('/users/{userId}/tickets', [TicketController::class, 'history'])->where('userId', '[0-9]+');
     Route::get('/ticket',    [TicketController::class,  'show']);
 });
+
+Route::post('/payment/callback', [PaymentController::class, 'callback']);

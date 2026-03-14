@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Ticket extends Model
 {
+    public $timestamps = false;
+
     protected $fillable = ['order_id', 'seat_id', 'qr_code', 'is_used'];
 
     protected $casts = [

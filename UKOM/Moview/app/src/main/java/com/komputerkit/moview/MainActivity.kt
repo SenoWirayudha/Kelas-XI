@@ -7,7 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
-import androidx.navigation.ui.setupWithNavController
+import androidx.navigation.ui.NavigationUI
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
@@ -49,9 +49,8 @@ class MainActivity : AppCompatActivity() {
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
-        
-        // Setup Bottom Navigation with Navigation Component
-        binding.bottomNavigation.setupWithNavController(navController)
+
+        NavigationUI.setupWithNavController(binding.bottomNavigation, navController)
         
         // Hide bottom navigation on login screen
         navController.addOnDestinationChangedListener { _, destination, _ ->
@@ -62,6 +61,13 @@ class MainActivity : AppCompatActivity() {
                 else -> {
                     binding.bottomNavigation.visibility = View.VISIBLE
                 }
+            }
+
+            when (destination.id) {
+                R.id.navigation_home -> binding.bottomNavigation.menu.findItem(R.id.navigation_home)?.isChecked = true
+                R.id.navigation_profile -> binding.bottomNavigation.menu.findItem(R.id.navigation_profile)?.isChecked = true
+                R.id.navigation_search -> binding.bottomNavigation.menu.findItem(R.id.navigation_search)?.isChecked = true
+                R.id.navigation_notification -> binding.bottomNavigation.menu.findItem(R.id.navigation_notification)?.isChecked = true
             }
         }
     }
@@ -85,14 +91,15 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val repository = MovieRepository()
-                val notifications = repository.getNotificationsAsync(userId)
-                val unreadCount = notifications.count { !it.isRead }
-                updateNotificationBadge(unreadCount)
+                repository.getNotificationsAsync(userId)
             } catch (_: Exception) { }
         }
     }
     
     fun updateNotificationBadge(count: Int) {
+        val menuItem = binding.bottomNavigation.menu.findItem(R.id.navigation_notification)
+        if (menuItem == null) return
+
         if (count > 0) {
             val badge = binding.bottomNavigation.getOrCreateBadge(R.id.navigation_notification)
             badge.number = count

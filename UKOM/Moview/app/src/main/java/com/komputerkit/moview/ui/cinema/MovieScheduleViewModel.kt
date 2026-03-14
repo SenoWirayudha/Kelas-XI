@@ -250,6 +250,7 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
                 CinemaSchedule(
                     cinemaId = cinemaName,
                     cinemaName = cinemaName,
+                    serviceName = first.service_name?.trim().orEmpty(),
                     studioType = first.studio_type?.takeIf { it.isNotBlank() } ?: first.studio_name,
                     priceRange = formatRupiah(first.ticket_price.toInt()),
                     brand = detectBrand(cinemaName),

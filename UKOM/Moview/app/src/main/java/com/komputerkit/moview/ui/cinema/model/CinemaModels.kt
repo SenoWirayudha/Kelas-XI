@@ -22,6 +22,7 @@ data class ShowTime(
 data class CinemaSchedule(
     val cinemaId: String,
     val cinemaName: String,
+    val serviceName: String = "",
     val studioType: String,     // "REGULAR 2D"
     val priceRange: String,     // "Rp35.000 – Rp40.000"
     val brand: CinemaBrand,
@@ -35,12 +36,19 @@ enum class CinemaBrand { XXI, CGV, CINEPOLIS, OTHER }
 
 enum class SeatStatus { AVAILABLE, BOOKED, SELECTED }
 
+enum class SeatType { SEAT, AISLE, ENTRANCE }
+
 data class Seat(
+    val seatId: Int? = null,
     val row: String,            // "A"
     val number: Int,            // 4
+    val seatCode: String? = null,
+    val positionX: Int = 0,
+    val positionY: Int = 0,
+    val type: SeatType = SeatType.SEAT,
     val status: SeatStatus = SeatStatus.AVAILABLE
 ) : Serializable {
-    val id: String get() = "$row$number"
+    val id: String get() = seatCode ?: if (row.isNotBlank() && number > 0) "$row$number" else ""
 }
 
 // ── Order Summary Screen ───────────────────────────────────────────────────
@@ -61,11 +69,13 @@ data class BookingData(
     val moviePosterUrl: String,
     val movieRating: Double,
     val movieAgeRating: String,
+    val serviceName: String = "",
     val cinemaName: String,
     val studioName: String,
     val studioType: String,
     val showDate: String,
     val showTime: String,
+    val selectedSeatIds: List<Int> = emptyList(),
     val ticketPrice: Int,
     val serviceCharge: Int = 4000
 ) : Serializable

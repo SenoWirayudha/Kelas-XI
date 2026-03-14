@@ -33,12 +33,90 @@ data class ScheduleDto(
     val schedule_id: Int,
     val cinema_name: String,
     val cinema_location: String,
+    val service_name: String?,
     val studio_name: String,
     val studio_type: String?,
     val status: String?,
     val show_date: String,
     val show_time: String,
     val ticket_price: Double
+)
+
+data class SeatLayoutResponseDto(
+    val studio_id: Int,
+    val rows: Int,
+    val columns: Int,
+    val seats: List<SeatLayoutSeatDto>
+)
+
+data class SeatLayoutSeatDto(
+    val seat_id: Int?,
+    val seat_code: String?,
+    val row: String?,
+    val row_index: Int,
+    val column: Int,
+    val seat_type: String,
+    val status: String?
+)
+
+data class CreatePaymentRequest(
+    val user_id: Int,
+    val schedule_id: Int,
+    val selected_seats: List<Int>
+)
+
+data class CreatePaymentResponseDto(
+    val order_id: Int,
+    val order_code: String,
+    val snap_token: String,
+    val redirect_url: String?
+)
+
+data class SyncPaymentStatusRequest(
+    val order_code: String
+)
+
+data class SyncPaymentStatusResponseDto(
+    val order_code: String,
+    val order_status: String,
+    val transaction_status: String?,
+    val payment_type: String?
+)
+
+data class UserTicketHistoryDto(
+    val order_id: Int,
+    val order_code: String,
+    val order_status: String,
+    val movie: UserTicketMovieDto,
+    val cinema: UserTicketCinemaDto,
+    val studio: UserTicketStudioDto,
+    val schedule: UserTicketScheduleDto,
+    val seats: List<UserTicketSeatDto>
+)
+
+data class UserTicketMovieDto(
+    val id: Int,
+    val title: String,
+    val poster_path: String?
+)
+
+data class UserTicketCinemaDto(
+    val name: String
+)
+
+data class UserTicketStudioDto(
+    val name: String,
+    val type: String?
+)
+
+data class UserTicketScheduleDto(
+    val show_date: String?,
+    val show_time: String?
+)
+
+data class UserTicketSeatDto(
+    val seat_id: Int,
+    val seat_code: String?
 )
 
 data class MovieCardDto(

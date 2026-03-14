@@ -43,6 +43,9 @@
         <activity
             android:name=".ui.cinema.OrderSummaryActivity"
             android:theme="@style/Theme.Moview.NoActionBar" />
+        <activity
+            android:name=".ui.ticket.TicketHistoryActivity"
+            android:theme="@style/Theme.Moview.NoActionBar" />
     </application>
 
 </manifest>
