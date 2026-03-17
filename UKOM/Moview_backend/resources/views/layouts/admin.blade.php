@@ -77,7 +77,7 @@
                 </a>
                 <a href="{{ route('admin.tickets.scanner') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.tickets.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-qrcode mr-3"></i>
-                    <span>Ticket Scanner</span>
+                    <span>Scan Tiket</span>
                 </a>
             </nav>
 

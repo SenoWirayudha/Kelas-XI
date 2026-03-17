@@ -1,136 +1,296 @@
 @extends('layouts.admin')
 
-@section('title', 'Ticket Scanner')
-@section('page-title', 'Ticket Scanner')
-@section('page-subtitle', 'Scan atau masukkan QR Code untuk memvalidasi tiket')
+@section('title', 'Scan Tiket')
+@section('page-title', 'Scan Tiket')
+@section('page-subtitle', 'Scan QR tiket dengan kamera atau input manual kode tiket')
 
 @section('content')
-<div class="p-6 max-w-xl">
+<div class="max-w-4xl mx-auto" x-data="ticketScanner()">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow p-5">
+            <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <i class="fas fa-camera text-blue-500"></i>
+                Kamera Scanner
+            </h3>
 
-    {{-- Feedback alerts --}}
-    @if(session('scan_success'))
-        <div class="mb-5 px-4 py-3 bg-green-100 border border-green-400 text-green-800 rounded-lg flex items-center gap-2">
-            <i class="fas fa-check-circle text-xl"></i>
-            <span>{{ session('scan_success') }}</span>
-        </div>
-    @endif
+            <div class="mb-3 text-xs text-gray-500">
+                Kamera tidak aktif otomatis. Tekan Aktifkan Kamera saat akan scan.
+            </div>
 
-    @if(session('scan_error'))
-        <div class="mb-5 px-4 py-3 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center gap-2">
-            <i class="fas fa-exclamation-circle text-xl"></i>
-            <span>{{ session('scan_error') }}</span>
-        </div>
-    @endif
+            <div id="scanner-wrapper" class="rounded-xl border-2 border-gray-200 overflow-hidden transition-all duration-300">
+                <div id="scanner-reader" class="w-full min-h-[280px]"></div>
+            </div>
 
-    {{-- Scan Form --}}
-    <div class="bg-white rounded-xl shadow p-6 mb-6">
-        <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
-            <i class="fas fa-qrcode text-blue-500 text-lg"></i> Masukkan QR Code
-        </h3>
-        <form action="{{ route('admin.tickets.scan') }}" method="POST">
-            @csrf
-            <div class="flex gap-3">
-                <input type="text" name="qr_code"
-                       value="{{ old('qr_code') }}"
-                       placeholder="Contoh: ABCDEFGHIJKL-12-5"
-                       autofocus
-                       class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono">
-                <button type="submit"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
-                    <i class="fas fa-search mr-1"></i> Cari
+            <div class="mt-4 flex items-center gap-2">
+                <button type="button"
+                        @click="startCamera"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition disabled:opacity-50"
+                        :disabled="cameraActive || isProcessing">
+                    <i class="fas fa-video mr-1"></i> Aktifkan Kamera
+                </button>
+                <button type="button"
+                        @click="stopCamera"
+                        class="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm rounded-lg transition disabled:opacity-50"
+                        :disabled="!cameraActive || isProcessing">
+                    <i class="fas fa-video-slash mr-1"></i> Matikan Kamera
                 </button>
             </div>
-            @error('qr_code')
-                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-            @enderror
-        </form>
-    </div>
+            <div class="mt-2 text-xs" :class="cameraActive ? 'text-green-600' : 'text-gray-500'" x-text="cameraActive ? 'Kamera aktif' : 'Kamera nonaktif'"></div>
+        </div>
 
-    {{-- Ticket Result --}}
-    @isset($ticket)
-    @php
-        $schedule = $ticket->order->schedule;
-        $cinema   = $schedule?->studio?->cinema;
-        $movie    = $schedule?->movie;
-    @endphp
-    <div class="bg-white rounded-xl shadow overflow-hidden">
-        {{-- Header strip --}}
-        <div class="{{ $ticket->is_used ? 'bg-red-500' : 'bg-green-500' }} px-6 py-4 flex items-center justify-between">
-            <div class="flex items-center gap-3 text-white">
-                <i class="fas fa-ticket-alt text-2xl"></i>
-                <div>
-                    <p class="font-bold text-lg">{{ $ticket->is_used ? 'Tiket Sudah Digunakan' : 'Tiket Valid' }}</p>
-                    <p class="text-sm opacity-90">QR: <span class="font-mono">{{ $ticket->qr_code }}</span></p>
+        <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow p-5">
+                <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <i class="fas fa-keyboard text-blue-500"></i>
+                    Input Manual
+                </h3>
+                <form @submit.prevent="submitManualCode" class="space-y-3">
+                    <input type="text"
+                           x-model.trim="manualCode"
+                           placeholder="Contoh: MOV-ABC123"
+                           class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <button type="submit"
+                            class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50"
+                            :disabled="isProcessing || !manualCode">
+                        <i class="fas fa-check-circle mr-1"></i> Validasi Tiket
+                    </button>
+                </form>
+            </div>
+
+            <div x-show="result"
+                 x-transition
+                 class="rounded-xl shadow p-5 border"
+                 :class="isSuccess ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'">
+                <div class="flex items-start gap-3">
+                    <i class="text-2xl mt-0.5"
+                       :class="isSuccess ? 'fas fa-circle-check text-green-600' : 'fas fa-circle-xmark text-red-600'"></i>
+                    <div>
+                        <p class="font-bold"
+                           :class="isSuccess ? 'text-green-800' : 'text-red-800'"
+                           x-text="result?.message || '-'"></p>
+
+                        <template x-if="isSuccess && result?.data">
+                            <div class="mt-3 text-sm text-gray-700 space-y-1">
+                                <p><span class="text-gray-500">Kode Tiket:</span> <span class="font-mono font-semibold" x-text="result.data.ticket_code || '-'"></span></p>
+                                <p><span class="text-gray-500">Film:</span> <span class="font-medium" x-text="result.data.movie_title || '-'"></span></p>
+                                <p><span class="text-gray-500">Bioskop:</span> <span x-text="result.data.cinema_name || '-'"></span></p>
+                                <p><span class="text-gray-500">Kursi:</span> <span class="font-semibold" x-text="(result.data.seat_codes || []).join(', ') || '-'"></span></p>
+                            </div>
+                        </template>
+
+                        <template x-if="isSuccess && canConfirm">
+                            <button type="button"
+                                    @click="confirmTicket"
+                                    class="mt-4 w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+                                    :disabled="isProcessing">
+                                <i class="fas fa-check mr-1"></i> Konfirmasi Tiket Masuk
+                            </button>
+                        </template>
+                    </div>
                 </div>
             </div>
-            @if($ticket->is_used)
-                <i class="fas fa-times-circle text-4xl text-white opacity-80"></i>
-            @else
-                <i class="fas fa-check-circle text-4xl text-white opacity-80"></i>
-            @endif
         </div>
-
-        {{-- Details --}}
-        <div class="p-6 space-y-3 text-sm">
-            <div class="flex justify-between border-b pb-2">
-                <span class="text-gray-500">Order Code</span>
-                <span class="font-mono font-bold text-blue-700">{{ $ticket->order->order_code }}</span>
-            </div>
-            <div class="flex justify-between border-b pb-2">
-                <span class="text-gray-500">Film</span>
-                <span class="font-medium text-gray-800">{{ $movie?->title ?? '-' }}</span>
-            </div>
-            <div class="flex justify-between border-b pb-2">
-                <span class="text-gray-500">Bioskop</span>
-                <span class="text-gray-700">{{ $cinema?->cinema_name ?? '-' }}</span>
-            </div>
-            <div class="flex justify-between border-b pb-2">
-                <span class="text-gray-500">Studio</span>
-                <span class="text-gray-700">{{ $schedule?->studio?->studio_name ?? '-' }}</span>
-            </div>
-            <div class="flex justify-between border-b pb-2">
-                <span class="text-gray-500">Tanggal &amp; Jam</span>
-                <span class="text-gray-700">
-                    {{ $schedule ? \Carbon\Carbon::parse($schedule->show_date)->isoFormat('D MMM Y') : '-' }}
-                    pukul {{ $schedule ? substr($schedule->show_time, 0, 5) : '-' }}
-                </span>
-            </div>
-            <div class="flex justify-between border-b pb-2">
-                <span class="text-gray-500">Kursi</span>
-                <span class="font-bold text-gray-800">{{ $ticket->seat?->seat_code ?? '-' }}</span>
-            </div>
-            <div class="flex justify-between">
-                <span class="text-gray-500">Status Tiket</span>
-                @if($ticket->is_used)
-                    <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Sudah Digunakan</span>
-                @else
-                    <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Belum Digunakan</span>
-                @endif
-            </div>
-        </div>
-
-        {{-- Action --}}
-        @if(!$ticket->is_used)
-        <div class="px-6 pb-6">
-            <form action="{{ route('admin.tickets.mark-used') }}" method="POST">
-                @csrf
-                <input type="hidden" name="ticket_id" value="{{ $ticket->id }}">
-                <button type="submit"
-                        onclick="return confirm('Tandai tiket ini sebagai sudah digunakan?')"
-                        class="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2">
-                    <i class="fas fa-check"></i> Validasi &amp; Tandai Sudah Digunakan
-                </button>
-            </form>
-        </div>
-        @else
-        <div class="px-6 pb-6">
-            <div class="w-full py-3 bg-red-50 border border-red-200 text-red-600 text-sm font-medium rounded-lg text-center">
-                <i class="fas fa-ban mr-2"></i> Tiket ini tidak dapat digunakan kembali.
-            </div>
-        </div>
-        @endif
     </div>
-    @endisset
-
 </div>
 @endsection
+
+@push('scripts')
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script>
+function ticketScanner() {
+    return {
+        scanner: null,
+        scannerReady: false,
+        cameraActive: false,
+        isProcessing: false,
+        manualCode: '',
+        result: null,
+        isSuccess: false,
+        canConfirm: false,
+        pendingTicketCode: null,
+        lastScannedCode: null,
+        lastScannedAt: 0,
+        csrfToken: '{{ csrf_token() }}',
+        scanPreviewApiUrl: '{{ url('/api/tickets/scan/preview') }}',
+        scanConfirmApiUrl: '{{ url('/api/tickets/scan') }}',
+
+        init() {},
+
+        async startCamera() {
+            if (this.scannerReady || this.cameraActive) {
+                return;
+            }
+
+            if (!this.scanner) {
+                this.scanner = new Html5Qrcode('scanner-reader');
+            }
+
+            try {
+                await this.scanner.start(
+                    { facingMode: 'environment' },
+                    { fps: 10, qrbox: 240 },
+                    (decodedText) => this.onQrDetected(decodedText)
+                );
+                this.scannerReady = true;
+                this.cameraActive = true;
+            } catch (error) {
+                this.cameraActive = false;
+                this.showResult(false, { message: 'Kamera tidak dapat diakses. Gunakan input manual.' });
+            }
+        },
+
+        async stopCamera() {
+            try {
+                if (this.scanner && this.scannerReady) {
+                    await this.scanner.stop();
+                }
+            } catch (_) {}
+
+            this.scannerReady = false;
+            this.cameraActive = false;
+        },
+
+        async onQrDetected(decodedText) {
+            const code = (decodedText || '').trim();
+            if (!code || this.isProcessing) {
+                return;
+            }
+
+            const now = Date.now();
+            if (code === this.lastScannedCode && (now - this.lastScannedAt) < 2500) {
+                return;
+            }
+
+            this.lastScannedCode = code;
+            this.lastScannedAt = now;
+            await this.previewTicket(code, true);
+        },
+
+        async submitManualCode() {
+            if (!this.manualCode || this.isProcessing) {
+                return;
+            }
+            await this.previewTicket(this.manualCode, false);
+        },
+
+        async previewTicket(ticketCode, fromCamera = false) {
+            this.isProcessing = true;
+            this.canConfirm = false;
+            this.pendingTicketCode = null;
+
+            try {
+                const response = await fetch(this.scanPreviewApiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ ticket_code: ticketCode }),
+                });
+
+                let payload = null;
+                try {
+                    payload = await response.json();
+                } catch (_) {
+                    payload = { message: 'Respon server tidak valid.' };
+                }
+
+                const success = response.ok && payload?.success;
+                this.showResult(success, payload || { message: 'Terjadi kesalahan saat validasi tiket.' });
+
+                if (success) {
+                    this.pendingTicketCode = ticketCode;
+                    this.canConfirm = true;
+                    if (fromCamera) {
+                        await this.stopCamera();
+                    }
+                }
+            } catch (error) {
+                this.showResult(false, { message: 'Gagal menghubungi server. Coba lagi.' });
+            } finally {
+                this.isProcessing = false;
+                this.manualCode = '';
+            }
+        },
+
+        async confirmTicket() {
+            if (!this.pendingTicketCode || this.isProcessing) {
+                return;
+            }
+
+            this.isProcessing = true;
+            try {
+                const response = await fetch(this.scanConfirmApiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ ticket_code: this.pendingTicketCode }),
+                });
+
+                let payload = null;
+                try {
+                    payload = await response.json();
+                } catch (_) {
+                    payload = { message: 'Respon server tidak valid.' };
+                }
+
+                const success = response.ok && payload?.success;
+                this.showResult(success, payload || { message: 'Terjadi kesalahan saat konfirmasi tiket.' });
+
+                if (success) {
+                    this.canConfirm = false;
+                    this.pendingTicketCode = null;
+                }
+            } catch (error) {
+                this.showResult(false, { message: 'Gagal menghubungi server. Coba lagi.' });
+            } finally {
+                this.isProcessing = false;
+            }
+        },
+
+        showResult(success, payload) {
+            this.isSuccess = success;
+            this.result = payload;
+            this.playBeep(success);
+            this.animateScannerBorder(success);
+        },
+
+        animateScannerBorder(success) {
+            const wrapper = document.getElementById('scanner-wrapper');
+            if (!wrapper) {
+                return;
+            }
+
+            wrapper.classList.remove('border-gray-200', 'border-green-500', 'border-red-500', 'animate-pulse');
+            wrapper.classList.add(success ? 'border-green-500' : 'border-red-500', 'animate-pulse');
+
+            setTimeout(() => {
+                wrapper.classList.remove('border-green-500', 'border-red-500', 'animate-pulse');
+                wrapper.classList.add('border-gray-200');
+            }, 1000);
+        },
+
+        playBeep(success) {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = context.createOscillator();
+            const gainNode = context.createGain();
+
+            oscillator.type = 'sine';
+            oscillator.frequency.value = success ? 880 : 320;
+            gainNode.gain.value = 0.08;
+
+            oscillator.connect(gainNode);
+            gainNode.connect(context.destination);
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.12);
+        }
+    }
+}
+</script>
+@endpush

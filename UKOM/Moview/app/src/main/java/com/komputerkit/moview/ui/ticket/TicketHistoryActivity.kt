@@ -1,138 +1,175 @@
 package com.komputerkit.moview.ui.ticket
 
+import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.komputerkit.moview.data.api.RetrofitClient
+import com.komputerkit.moview.MainActivity
+import com.komputerkit.moview.data.model.Movie
+import com.komputerkit.moview.data.repository.MovieRepository
+import com.google.android.material.tabs.TabLayoutMediator
 import com.komputerkit.moview.databinding.ActivityTicketHistoryBinding
-import com.komputerkit.moview.util.ServerConfig
-import kotlinx.coroutines.Dispatchers
+import com.komputerkit.moview.util.MovieActionsHelper
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 class TicketHistoryActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityTicketHistoryBinding
-    private lateinit var adapter: TicketHistoryAdapter
+    private val viewModel: TicketHistoryViewModel by viewModels()
+    private val movieRepository = MovieRepository()
+    private val refreshHandler = Handler(Looper.getMainLooper())
+    private val refreshRunnable = object : Runnable {
+        override fun run() {
+            loadTicketHistory()
+            refreshHandler.postDelayed(this, AUTO_REFRESH_INTERVAL_MS)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityTicketHistoryBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setupRecyclerView()
         setupClicks()
+        setupTabs()
+        observeViewModel()
         loadTicketHistory()
-    }
-
-    private fun setupRecyclerView() {
-        adapter = TicketHistoryAdapter { item ->
-            when (item.status) {
-                TicketStatus.PAID -> {
-                    Toast.makeText(this, "Buka QR tiket: ${item.title}", Toast.LENGTH_SHORT).show()
-                }
-
-                TicketStatus.EXPIRED -> {
-                    Toast.makeText(this, "Buka detail tiket: ${item.title}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        binding.rvTicketHistory.layoutManager = LinearLayoutManager(this)
-        binding.rvTicketHistory.adapter = adapter
     }
 
     private fun setupClicks() {
         binding.btnBack.setOnClickListener { finish() }
     }
 
-    private fun loadTicketHistory() {
-        val userId = getSharedPreferences("MoviewPrefs", MODE_PRIVATE).getInt("userId", 0)
-        if (userId <= 0) {
-            adapter.submitList(emptyList())
-            Toast.makeText(this, "User belum login.", Toast.LENGTH_SHORT).show()
-            return
-        }
+    private fun setupTabs() {
+        binding.viewPager.adapter = TicketHistoryPagerAdapter(this)
 
-        lifecycleScope.launch {
-            try {
-                val response = withContext(Dispatchers.IO) {
-                    RetrofitClient.movieApiService.getUserTickets(userId)
-                }
+        TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
+            tab.text = when (position) {
+                0 -> "Tiket Aktif"
+                1 -> "Riwayat Transaksi"
+                else -> ""
+            }
+        }.attach()
 
-                if (!response.success) {
-                    Toast.makeText(
-                        this@TicketHistoryActivity,
-                        response.message ?: "Gagal memuat riwayat tiket.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    adapter.submitList(emptyList())
-                    return@launch
-                }
+        val initialTab = intent.getIntExtra(EXTRA_INITIAL_TAB, 0)
+        binding.viewPager.setCurrentItem(initialTab.coerceIn(0, 1), false)
+    }
 
-                val items = response.data.orEmpty().map { dto ->
-                    val seats = dto.seats.mapNotNull { it.seat_code }.filter { it.isNotBlank() }
-                    val studioType = dto.studio.type?.takeIf { it.isNotBlank() }
-                    val studioInfo = if (studioType != null) {
-                        "${dto.studio.name} • $studioType"
-                    } else {
-                        dto.studio.name
-                    }
-
-                    TicketHistoryItem(
-                        posterUrl = ServerConfig.resolveStorageUrl(dto.movie.poster_path),
-                        title = dto.movie.title,
-                        cinemaName = dto.cinema.name,
-                        studioInfo = studioInfo,
-                        showDate = formatDate(dto.schedule.show_date),
-                        showTime = formatTime(dto.schedule.show_time),
-                        seatInfo = if (seats.isEmpty()) "Seat: -" else "Seat: ${seats.joinToString(", ")}",
-                        status = if (dto.order_status.equals("paid", ignoreCase = true)) {
-                            TicketStatus.PAID
-                        } else {
-                            TicketStatus.EXPIRED
-                        }
-                    )
-                }
-
-                adapter.submitList(items)
-
-                if (items.isEmpty()) {
-                    Toast.makeText(
-                        this@TicketHistoryActivity,
-                        "Belum ada riwayat tiket.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(
-                    this@TicketHistoryActivity,
-                    e.message ?: "Terjadi kesalahan saat memuat riwayat tiket.",
-                    Toast.LENGTH_SHORT
-                ).show()
-                adapter.submitList(emptyList())
+    private fun observeViewModel() {
+        viewModel.errorMessage.observe(this) { message ->
+            if (!message.isNullOrBlank()) {
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun formatDate(rawDate: String?): String {
-        if (rawDate.isNullOrBlank()) return "-"
-        return try {
-            val parser = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-            val formatter = SimpleDateFormat("dd MMM yyyy", Locale.forLanguageTag("id-ID"))
-            val date = parser.parse(rawDate)
-            if (date != null) formatter.format(date) else rawDate
-        } catch (_: Exception) {
-            rawDate
+    private fun loadTicketHistory() {
+        val userId = getSharedPreferences("MoviewPrefs", MODE_PRIVATE).getInt("userId", 0)
+        if (userId <= 0) {
+            Toast.makeText(this, "User belum login.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        viewModel.loadTickets(userId)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        loadTicketHistory()
+        refreshHandler.postDelayed(refreshRunnable, AUTO_REFRESH_INTERVAL_MS)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        refreshHandler.removeCallbacks(refreshRunnable)
+    }
+
+    fun onTicketActionClicked(item: TicketHistoryItem) {
+        if (item.status == TicketStatus.ACTIVE && item.ticketCode.isNotBlank()) {
+            val intent = Intent(this, TicketQrActivity::class.java).apply {
+                putExtra(TicketQrActivity.EXTRA_ORDER_ID, item.orderId)
+                putExtra(TicketQrActivity.EXTRA_TICKET_CODE, item.ticketCode)
+            }
+            startActivity(intent)
+            return
+        }
+
+        if (item.movieId <= 0) {
+            Toast.makeText(this, "Film tidak ditemukan.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch {
+            val detailMovie = movieRepository.getMovieDetail(item.movieId)
+            val movie = detailMovie ?: Movie(
+                id = item.movieId,
+                title = item.title,
+                posterUrl = item.posterUrl,
+                averageRating = null,
+                genre = null,
+                releaseYear = null,
+                description = null
+            )
+
+            MovieActionsHelper.showMovieActionsBottomSheet(
+                context = this@TicketHistoryActivity,
+                movie = movie,
+                lifecycleOwner = this@TicketHistoryActivity,
+                isFromMovieDetail = false,
+                onGoToFilm = { selectedMovie ->
+                    navigateToMovieDetail(selectedMovie.id)
+                },
+                onLogFilm = { selectedMovie ->
+                    navigateToLogFilm(selectedMovie.id)
+                },
+                onChangePoster = { selectedMovie ->
+                    navigateToPosterBackdrop(selectedMovie.id)
+                }
+            )
         }
     }
 
-    private fun formatTime(rawTime: String?): String {
-        if (rawTime.isNullOrBlank()) return "-"
-        return if (rawTime.length >= 5) rawTime.substring(0, 5) else rawTime
+    fun onTicketMovieClicked(item: TicketHistoryItem) {
+        if (item.movieId <= 0) {
+            Toast.makeText(this, "Film tidak ditemukan.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        navigateToMovieDetail(item.movieId)
+    }
+
+    private fun navigateToMovieDetail(movieId: Int) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra("navigate_to_movie_id", movieId)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        startActivity(intent)
+    }
+
+    private fun navigateToLogFilm(movieId: Int) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra("navigate_to_log_film_movie_id", movieId)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        startActivity(intent)
+    }
+
+    private fun navigateToPosterBackdrop(movieId: Int) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra("navigate_to_poster_backdrop_movie_id", movieId)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        startActivity(intent)
+    }
+
+    companion object {
+        const val EXTRA_INITIAL_TAB = "extra_initial_tab"
+        const val TAB_ACTIVE = 0
+        const val TAB_HISTORY = 1
+        private const val AUTO_REFRESH_INTERVAL_MS = 15000L
     }
 }

@@ -46,6 +46,7 @@ class MovieScheduleActivity : AppCompatActivity() {
     private var movieId = 0
     private var movieTrailerUrl = ""
     private var cities: List<String> = emptyList()
+    private var isPreorderMovie: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,7 +64,9 @@ class MovieScheduleActivity : AppCompatActivity() {
         movieDuration = intent.getStringExtra(EXTRA_DURATION) ?: ""
         movieDirector = intent.getStringExtra(EXTRA_DIRECTOR) ?: ""
         movieId = intent.getIntExtra(EXTRA_MOVIE_ID, 0)
+        isPreorderMovie = intent.getBooleanExtra(EXTRA_IS_PREORDER, false)
         Log.d(logTag, "onCreate() movieId=$movieId title='$movieTitle'")
+        viewModel.setPreorderMode(isPreorderMovie)
 
         populateMovieInfo()
         updateBuyButton()  // start disabled
@@ -351,5 +354,6 @@ class MovieScheduleActivity : AppCompatActivity() {
         const val EXTRA_DURATION = "extra_duration"
         const val EXTRA_DIRECTOR = "extra_director"
         const val EXTRA_MOVIE_ID = "extra_movie_id"
+        const val EXTRA_IS_PREORDER = "extra_is_preorder"
     }
 }

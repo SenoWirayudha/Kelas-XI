@@ -3,6 +3,7 @@ package com.komputerkit.moview.ui.home
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewGroup.MarginLayoutParams
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.TheatricalMovie
@@ -17,6 +18,7 @@ class TheatricalMovieAdapter(
     private val onBuyTicketClick: ((TheatricalMovie) -> Unit)? = null,
     /** When true every item shows the date/coming-soon badge (use for Upcoming section) */
     private val showDateBadge: Boolean = false,
+    private val gridMode: Boolean = false,
     private val onLongPressGoToFilm: ((TheatricalMovie) -> Unit)? = null,
     private val onLogFilm: ((TheatricalMovie) -> Unit)? = null,
     private val onChangePoster: ((TheatricalMovie) -> Unit)? = null
@@ -47,6 +49,16 @@ class TheatricalMovieAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(movie: TheatricalMovie) {
+            if (gridMode) {
+                binding.root.layoutParams = (binding.root.layoutParams as RecyclerView.LayoutParams).apply {
+                    width = ViewGroup.LayoutParams.MATCH_PARENT
+                    if (this is MarginLayoutParams) {
+                        marginEnd = 0
+                        marginStart = 0
+                    }
+                }
+            }
+
             binding.ivPoster.loadThumbnail(movie.posterUrl)
 
             // Title
@@ -69,7 +81,9 @@ class TheatricalMovieAdapter(
                 binding.tvAgeRating.visibility = View.GONE
             }
 
-            if (showDateBadge || movie.isComingSoon) {
+            binding.tvPreorderBadge.visibility = if (movie.isPreorder) View.VISIBLE else View.GONE
+
+            if (showDateBadge) {
                 binding.vScrim.visibility = View.VISIBLE
                 binding.tvBadge.visibility = View.VISIBLE
                 val badgeText = if (!movie.releaseDate.isNullOrBlank()) {

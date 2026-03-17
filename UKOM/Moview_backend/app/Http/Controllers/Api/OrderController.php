@@ -11,6 +11,7 @@ use App\Models\Ticket;
 use App\Services\PendingOrderCleanupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class OrderController extends Controller
@@ -60,14 +61,28 @@ class OrderController extends Controller
                 $totalPrice = $schedule->ticket_price * count($seatIds);
                 $orderCode  = 'ORD-' . date('Ymd') . '-' . strtoupper(Str::random(6));
 
-                $order = Order::create([
+                $orderPayload = [
                     'schedule_id' => $schedule->id,
                     'user_id'     => $validated['user_id'] ?? null,
                     'order_code'  => $orderCode,
                     'total_price' => $totalPrice,
                     'status'      => 'pending',
                     'expired_at'  => now()->addMinutes((int) config('services.booking.pending_timeout_minutes', 7)),
-                ]);
+                ];
+
+                if (Schema::hasColumn('orders', 'ticket_code')) {
+                    $orderPayload['ticket_code'] = Order::generateUniqueTicketCode();
+                }
+
+                if (Schema::hasColumn('orders', 'is_scanned')) {
+                    $orderPayload['is_scanned'] = false;
+                }
+
+                if (Schema::hasColumn('orders', 'scanned_at')) {
+                    $orderPayload['scanned_at'] = null;
+                }
+
+                $order = Order::create($orderPayload);
 
                 // Create per-seat records and QR tickets
                 foreach ($seatIds as $seatId) {

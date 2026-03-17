@@ -36,7 +36,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/popular-this-week', [MovieApiController::class, 'popularThisWeek']);
     Route::get('/recent-reviews', [MovieApiController::class, 'recentReviews']);
     Route::get('/now-showing', [MovieApiController::class, 'nowShowing']);
+    Route::get('/preorder', [MovieApiController::class, 'preorder']);
     Route::get('/upcoming', [MovieApiController::class, 'upcoming']);
+    Route::get('/movies/now-showing', [MovieApiController::class, 'nowShowing']);
+    Route::get('/movies/preorder', [MovieApiController::class, 'preorder']);
+    Route::get('/movies/upcoming', [MovieApiController::class, 'upcoming']);
     Route::get('/academy-award-nominees', [MovieApiController::class, 'academyAwardNominees']);
     
     // Movies
@@ -145,7 +149,17 @@ Route::prefix('v1')->group(function () {
     Route::post('/payment/status', [PaymentController::class, 'status']);
     Route::post('/orders',   [OrderController::class,   'store']);
     Route::get('/users/{userId}/tickets', [TicketController::class, 'history'])->where('userId', '[0-9]+');
+    Route::get('/users/{userId}/tickets/{orderId}/qr', [TicketController::class, 'qrDetail'])
+        ->where(['userId' => '[0-9]+', 'orderId' => '[0-9]+']);
+    Route::post('/tickets/scan/preview', [TicketController::class, 'scanPreview']);
+    Route::post('/tickets/scan', [TicketController::class, 'scan']);
     Route::get('/ticket',    [TicketController::class,  'show']);
 });
 
 Route::post('/payment/callback', [PaymentController::class, 'callback']);
+Route::post('/tickets/scan/preview', [TicketController::class, 'scanPreview']);
+Route::post('/tickets/scan', [TicketController::class, 'scan']);
+Route::get('/schedules', [ScheduleController::class, 'index']);
+Route::get('/movies/now-showing', [MovieApiController::class, 'nowShowing']);
+Route::get('/movies/preorder', [MovieApiController::class, 'preorder']);
+Route::get('/movies/upcoming', [MovieApiController::class, 'upcoming']);

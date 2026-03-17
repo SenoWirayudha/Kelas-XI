@@ -34,6 +34,21 @@
 
             </androidx.cardview.widget.CardView>
 
+            <TextView
+                android:id="@+id/tv_preorder_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|start"
+                android:layout_margin="6dp"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:background="@drawable/bg_badge_preorder"
+                android:text="PRE ORDER"
+                android:textColor="@android:color/white"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
             <!-- Bottom gradient scrim for badge readability -->
             <View
                 android:id="@+id/v_scrim"

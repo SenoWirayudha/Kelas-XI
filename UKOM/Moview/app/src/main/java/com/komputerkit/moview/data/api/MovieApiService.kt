@@ -409,12 +409,29 @@ interface MovieApiService {
         @Path("userId") userId: Int
     ): ApiResponse<List<UserTicketHistoryDto>>
 
-    @GET("now-showing")
+    @GET("users/{userId}/tickets/{orderId}/qr")
+    suspend fun getTicketQrDetail(
+        @Path("userId") userId: Int,
+        @Path("orderId") orderId: Int,
+        @Query("ticket_code") ticketCode: String
+    ): ApiResponse<TicketQrDetailDto>
+
+    @POST("tickets/scan")
+    suspend fun scanTicket(
+        @Body request: TicketScanRequest
+    ): ApiResponse<TicketScanResponseDto>
+
+    @GET("movies/now-showing")
     suspend fun getNowShowing(
         @Query("limit") limit: Int = 10
     ): ApiResponse<List<TheatricalMovieDto>>
 
-    @GET("upcoming")
+    @GET("movies/preorder")
+    suspend fun getPreorder(
+        @Query("limit") limit: Int = 0
+    ): ApiResponse<List<TheatricalMovieDto>>
+
+    @GET("movies/upcoming")
     suspend fun getUpcoming(
         @Query("limit") limit: Int = 0
     ): ApiResponse<List<TheatricalMovieDto>>

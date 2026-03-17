@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Movie;
+use App\Models\Person;
 use App\Models\Rating;
 use App\Models\Review;
 use Illuminate\Http\Request;
@@ -11,6 +12,31 @@ use Illuminate\Support\Facades\DB;
 
 class MovieApiController extends Controller
 {
+    private function mapTheatricalMovie(Movie $movie, bool $isPreorder): array
+    {
+        $theatricalReleaseDate = $movie->movieServices
+            ->map(fn($movieService) => $movieService->release_date)
+            ->filter()
+            ->sort()
+            ->first();
+
+        $isComingSoon = $movie->movieServices
+            ->contains(fn($movieService) => (int) ($movieService->is_coming_soon ?? 0) === 1);
+
+        return [
+            'id' => $movie->id,
+            'title' => $movie->title,
+            'poster' => $movie->default_poster_path ? url('storage/' . $movie->default_poster_path) : null,
+            'year' => (int) $movie->release_year,
+            'age_rating' => $movie->age_rating,
+            'genre' => $movie->genres->pluck('name')->first(),
+            'release_date' => $theatricalReleaseDate,
+            'is_coming_soon' => $isComingSoon ? 1 : 0,
+            'is_preorder' => $isPreorder,
+            'has_schedule' => $movie->schedules->isNotEmpty(),
+        ];
+    }
+
     /**
      * Get home screen data
      */
@@ -553,34 +579,75 @@ class MovieApiController extends Controller
     {
         $limit = $request->get('limit', 0); // 0 = all
 
-        $query = DB::table('movie_services as ms')
-            ->join('movies as m', 'ms.movie_id', '=', 'm.id')
-            ->join('services as s', 'ms.service_id', '=', 's.id')
-            ->where('s.type', 'theatrical')
-            ->where('ms.is_coming_soon', 0)
-            ->where('m.status', 'published')
-            // Only films that are already out (release_date <= today or no date set)
-            ->where(function ($q) {
-                $q->whereNull('ms.release_date')
-                  ->orWhere('ms.release_date', '<=', now()->toDateString());
+        $query = Movie::with([
+                'movieServices' => fn($movieServiceQuery) => $movieServiceQuery
+                    ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical')),
+                'schedules:id,movie_id',
+                'genres:id,name',
+            ])
+            ->where('status', 'published')
+            ->where(function ($movieQuery) {
+                // Now Showing original: theatrical + release_date null + is_coming_soon=0
+                $movieQuery->whereHas('movieServices', fn($movieServiceQuery) => $movieServiceQuery
+                    ->whereNull('release_date')
+                    ->where('is_coming_soon', 0)
+                    ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical')))
+                    // Merge preorder into now showing: theatrical + release_date not null + has schedule
+                    ->orWhere(function ($preorderQuery) {
+                        $preorderQuery->whereHas('movieServices', fn($movieServiceQuery) => $movieServiceQuery
+                            ->whereNotNull('release_date')
+                            ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical')))
+                            ->whereHas('schedules');
+                    });
             })
-            ->select(
-                'm.id', 'm.title', 'm.release_year as year', 'm.age_rating',
-                DB::raw("IF(m.default_poster_path IS NOT NULL, CONCAT('" . url('storage/') . "/', m.default_poster_path), NULL) as poster_path"),
-                'ms.release_date', 'ms.is_coming_soon',
-                DB::raw('(SELECT g.name FROM movie_genres mg JOIN genres g ON mg.genre_id = g.id WHERE mg.movie_id = m.id ORDER BY g.id LIMIT 1) as genre')
-            )
-            ->groupBy('m.id', 'm.title', 'm.release_year', 'm.age_rating', 'm.default_poster_path', 'ms.release_date', 'ms.is_coming_soon')
-            // Most recently released first; NULL dates at the end
-            ->orderByRaw('ms.release_date IS NULL ASC, ms.release_date DESC');
+            ->orderByDesc('id');
 
-        if ($limit > 0) {
-            $query->limit($limit);
+        if ((int) $limit > 0) {
+            $query->limit((int) $limit);
         }
+
+        $movies = $query->get();
 
         return response()->json([
             'success' => true,
-            'data' => $query->get()
+            'data' => $movies->map(fn(Movie $movie) => $this->mapTheatricalMovie($movie, $movie->schedules->isNotEmpty() && $movie->movieServices->contains(fn($movieService) => !empty($movieService->release_date))))->values(),
+        ]);
+    }
+
+    /**
+     * Get theatrical preorder movies
+     * Rules:
+     * - service.type = theatrical
+     * - release_date IS NOT NULL
+     * - has schedule (EXISTS schedules)
+     */
+    public function preorder(Request $request)
+    {
+        $limit = $request->get('limit', 0); // 0 = all
+
+        $query = Movie::with([
+                'movieServices' => fn($movieServiceQuery) => $movieServiceQuery
+                    ->whereNotNull('release_date')
+                    ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical')),
+                'schedules:id,movie_id',
+                'genres:id,name',
+            ])
+            ->where('status', 'published')
+            ->whereHas('movieServices', fn($movieServiceQuery) => $movieServiceQuery
+                ->whereNotNull('release_date')
+                ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical')))
+            ->whereHas('schedules')
+            ->orderByDesc('id');
+
+        if ((int) $limit > 0) {
+            $query->limit((int) $limit);
+        }
+
+        $movies = $query->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $movies->map(fn(Movie $movie) => $this->mapTheatricalMovie($movie, true))->values(),
         ]);
     }
 
@@ -592,33 +659,54 @@ class MovieApiController extends Controller
     {
         $limit = $request->get('limit', 0); // 0 = all
 
-        $query = DB::table('movie_services as ms')
-            ->join('movies as m', 'ms.movie_id', '=', 'm.id')
-            ->join('services as s', 'ms.service_id', '=', 's.id')
-            ->where('s.type', 'theatrical')
-            ->where('m.status', 'published')
-            // Upcoming = is_coming_soon=1 OR has a future release date
-            ->where(function ($q) {
-                $q->where('ms.is_coming_soon', 1)
-                  ->orWhere('ms.release_date', '>', now()->toDateString());
+        $query = Movie::with([
+                'movieServices' => fn($movieServiceQuery) => $movieServiceQuery
+                    ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical')),
+                'schedules:id,movie_id',
+                'genres:id,name',
+            ])
+            ->where('status', 'published')
+            ->whereHas('movieServices', function ($movieServiceQuery) {
+                $movieServiceQuery
+                    ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical'))
+                    ->where(function ($conditionQuery) {
+                        // release_date exists OR marked coming soon
+                        $conditionQuery->whereNotNull('release_date')
+                            ->orWhere('is_coming_soon', 1);
+                    });
             })
-            ->select(
-                'm.id', 'm.title', 'm.release_year as year', 'm.age_rating',
-                DB::raw("IF(m.default_poster_path IS NOT NULL, CONCAT('" . url('storage/') . "/', m.default_poster_path), NULL) as poster_path"),
-                'ms.release_date', 'ms.is_coming_soon',
-                DB::raw('(SELECT g.name FROM movie_genres mg JOIN genres g ON mg.genre_id = g.id WHERE mg.movie_id = m.id ORDER BY g.id LIMIT 1) as genre')
-            )
-            ->groupBy('m.id', 'm.title', 'm.release_year', 'm.age_rating', 'm.default_poster_path', 'ms.release_date', 'ms.is_coming_soon')
-            // Nearest release date first, null dates ("Coming Soon") at the end
-            ->orderByRaw('ms.release_date IS NULL ASC, ms.release_date ASC');
+            ->whereDoesntHave('schedules')
+            ->orderByDesc('id');
 
-        if ($limit > 0) {
-            $query->limit($limit);
+        if ((int) $limit > 0) {
+            $query->limit((int) $limit);
         }
+
+        $movies = $query->get();
+
+        $sortedMovies = $movies->sortBy(function (Movie $movie) {
+            $hasReleaseDate = $movie->movieServices
+                ->contains(fn($movieService) => !empty($movieService->release_date));
+
+            $isComingSoon = $movie->movieServices
+                ->contains(fn($movieService) => (int) ($movieService->is_coming_soon ?? 0) === 1);
+
+            $releaseDate = $movie->movieServices
+                ->map(fn($movieService) => $movieService->release_date)
+                ->filter()
+                ->sort()
+                ->first() ?? '9999-12-31';
+
+            return [
+                $hasReleaseDate ? 0 : 1,
+                $releaseDate,
+                $isComingSoon ? 1 : 0,
+            ];
+        })->values();
 
         return response()->json([
             'success' => true,
-            'data' => $query->get()
+            'data' => $sortedMovies->map(fn(Movie $movie) => $this->mapTheatricalMovie($movie, false))->values(),
         ]);
     }
 
@@ -682,7 +770,7 @@ class MovieApiController extends Controller
      */
     public function personDetail($id)
     {
-        $person = \App\Models\Person::with(['moviePersons.movie.genres'])
+        $person = Person::with(['moviePersons.movie.genres'])
             ->find($id);
         
         if (!$person) {

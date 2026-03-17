@@ -1779,9 +1779,36 @@ class MovieRepository {
                     TheatricalMovie(
                         id = dto.id,
                         title = dto.title,
-                        posterUrl = dto.poster_path,
+                        posterUrl = dto.poster,
                         releaseDate = dto.release_date,
-                        isComingSoon = dto.is_coming_soon == 1,
+                        isPreorder = dto.is_preorder,
+                        hasSchedule = dto.has_schedule,
+                        genre = dto.genre,
+                        year = dto.year,
+                        ageRating = dto.age_rating
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun getPreorderMovies(limit: Int = 0): List<TheatricalMovie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getPreorder(limit = limit)
+            if (response.success && response.data != null) {
+                response.data.map { dto ->
+                    TheatricalMovie(
+                        id = dto.id,
+                        title = dto.title,
+                        posterUrl = dto.poster,
+                        releaseDate = dto.release_date,
+                        isPreorder = dto.is_preorder,
+                        hasSchedule = dto.has_schedule,
                         genre = dto.genre,
                         year = dto.year,
                         ageRating = dto.age_rating
@@ -1804,9 +1831,10 @@ class MovieRepository {
                     TheatricalMovie(
                         id = dto.id,
                         title = dto.title,
-                        posterUrl = dto.poster_path,
+                        posterUrl = dto.poster,
                         releaseDate = dto.release_date,
-                        isComingSoon = dto.is_coming_soon == 1,
+                        isPreorder = dto.is_preorder,
+                        hasSchedule = dto.has_schedule,
                         genre = dto.genre,
                         year = dto.year,
                         ageRating = dto.age_rating

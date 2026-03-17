@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 14 Mar 2026 pada 15.04
+-- Waktu pembuatan: 17 Mar 2026 pada 14.36
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -67,7 +67,8 @@ CREATE TABLE `cinemas` (
 
 INSERT INTO `cinemas` (`id`, `service_id`, `cinema_name`, `city`, `address`, `created_at`, `updated_at`) VALUES
 (1, 9, 'Ciplaz Sidoarjo XXI', 'Sidoarjo', 'City Plaza Sidoarjo Lt.2 Jln. Diponegoro No. 2 Sidoarjo - Jawa Timur', '2026-03-12 04:40:08', '2026-03-12 04:40:08'),
-(2, 12, 'Lippo Plaza Sidoarjo Cinepolis', 'Sidoarjo', 'Lippo Plaza Sidoarjo Lt. 1 Jl. Jati Raya No. 1 Jati,  kec. Sidoarjo, Jawa Timur , Sidoarjo', '2026-03-14 10:30:09', '2026-03-14 10:30:09');
+(2, 12, 'Lippo Plaza Sidoarjo Cinepolis', 'Sidoarjo', 'Lippo Plaza Sidoarjo Lt. 1 Jl. Jati Raya No. 1 Jati,  kec. Sidoarjo, Jawa Timur , Sidoarjo', '2026-03-14 10:30:09', '2026-03-14 10:30:09'),
+(3, 9, 'Transmart Sidoarjo XXI', 'Sidoarjo', 'Transmart Sidoarjo Lt. 3, Jl. Raya Taman Tiara No. 35', '2026-03-17 10:13:49', '2026-03-17 10:13:49');
 
 -- --------------------------------------------------------
 
@@ -339,7 +340,9 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (1, '2026_03_13_173212_add_studio_type_to_studios_table', 1),
 (2, '0001_01_01_000001_create_cache_table', 2),
 (3, '0001_01_01_000002_create_jobs_table', 2),
-(4, '2026_03_14_200500_add_user_id_to_orders_table', 3);
+(4, '2026_03_14_200500_add_user_id_to_orders_table', 3),
+(5, '2026_03_17_210000_add_ticket_scan_fields_to_orders_table', 4),
+(6, '2026_03_17_230000_drop_unique_seat_per_schedule_on_order_seats', 5);
 
 -- --------------------------------------------------------
 
@@ -427,7 +430,7 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (58, 'Train Dreams', '2025', 102, 'PG-13', 'Seorang penebang kayu menjalani kehidupan yang bersahaja sambil merasakan cinta dan kehilangan selama era perubahan besar di Amerika pada awal abad ke-20.', 'movies/58/poster/6TZOf0CctRYmBc75XiH10AnwmWQm6rJrwEkEUxVz.webp', 'movies/58/backdrop/1YZCt6EFJwt1jK1qZZzqtNLb9NHETlPf8PjnhBhA.webp', 'https://youtu.be/_Nk8TrBHOrA?si=3B5067hrK8MPmuU7', 'published', '2026-03-06 08:42:39', '2026-03-06 08:44:55'),
 (59, 'Project Y', '2025', 109, 'R', 'TWO WOMEN. ONE HEIST. ZERO REGRETS.\r\n\r\nTrapped in Gangnam\'s most dangerous streets, Mi-sun and Do-kyung stake everything on one last desperate gamble—only to uncover a hidden stash of dirty cash and gold that could finally buy their freedom.', 'movies/59/poster/XP5qdlLTbWiMb4c9A3AMo5IUoGSW0T6IinosCJrs.webp', 'movies/59/backdrop/sjeRUBwAiaoEWVbRTThjDKjzxppaTgjsbw51ndVN.webp', 'https://youtu.be/7eHRUPxUeNk?si=ZTrOU8F5SxB3J0gQ', 'published', '2026-03-06 09:08:50', '2026-03-06 09:11:38'),
 (60, 'Minions & Monsters', '2026', NULL, 'Not Rated', 'HOLLYWOOD HAS A MONSTER PROBLEM.\r\n\r\nThis is the rambunctious, ridiculous and totally true story of how the Minions conquered Hollywood, became movie stars, lost everything, unleashed monsters onto the world and then banded together to try and save the planet from the mayhem they had just created.', 'movies/60/poster/OoeeHR1tzAje20KfJRrVJP9cF4kbF8RpGWM5BlJg.webp', 'movies/60/backdrop/PVThcJigOlF6uv0VnDbSU1uDlO28IhCHekHA9r9j.webp', 'https://youtu.be/ZSdOwt-G49w?si=7UBhTQgI-SgdGarC', 'published', '2026-03-07 05:18:58', '2026-03-07 05:20:49'),
-(61, 'Dune: Part Three', '2026', NULL, 'Not Rated', 'The third and final installment in Villeneuve\'s Dune trilogy. Based on Frank Herbert\'s novel Dune Messiah.', 'movies/61/poster/IYMbLhV00IHX4yAQAIC3WIUMBb6mRd5DY3WOJCMx.webp', NULL, NULL, 'published', '2026-03-07 07:58:36', '2026-03-07 07:59:37'),
+(61, 'Dune: Part Three', '2026', NULL, 'Not Rated', 'The third and final installment in Villeneuve\'s Dune trilogy. Based on Frank Herbert\'s novel Dune Messiah.', 'movies/61/poster/DQAL7zvclKCfLa2UxOd6pDEGYcINUw6bRJYKMTKh.webp', NULL, NULL, 'published', '2026-03-07 07:58:36', '2026-03-17 09:36:07'),
 (62, 'Laut Bercerita', '2026', NULL, 'Not Rated', 'Plot under wraps.', 'movies/62/poster/MjFAk1WG9YyhrLo9FHfQqzWT6eJXup0k9cDQKv8Y.webp', 'movies/62/backdrop/7BSaYt4ZKsnb8YZaReLxVRDX77aYlTrVRRuAHiNQ.webp', 'https://youtu.be/oLdbnzuuGA4?si=QUZZycCJEpwjmIr6', 'published', '2026-03-07 23:32:04', '2026-03-07 23:34:11'),
 (63, 'In the Mood for Love', '2000', 99, 'PG', 'FEEL THE HEAT, KEEP THE FEELING BURNING, LET THE SENSATION EXPLODE.\r\n\r\nTwo neighbors form a strong bond after both suspect extramarital activities of their spouses. However, they agree to keep their bond platonic so as not to commit similar wrongs.', 'movies/63/poster/My9U2eLJupjK5pUsuYTYthze0y7i89rGnmDOI3mx.webp', 'movies/63/backdrop/0y9HwV5zOGfAWtSSUfTFK8HWo5dSmcKSFGrxl4FD.webp', 'https://youtu.be/m8GuedsQnWQ?si=PkBBnsr19pbEz334', 'published', '2026-03-07 23:57:07', '2026-03-08 00:02:08'),
 (64, 'Fallen Angels', '1995', 98, 'Not Rated', 'THE NIGHT\'S FULL OF WEIRDOS.\r\n\r\nAn assassin goes through obstacles as he attempts to escape his violent lifestyle despite the opposition of his partner, who is secretly attracted to him.', 'movies/64/poster/XqmqD5dNgzXCHf7lNAZRtUIw82hNhcIJryiV0LNW.webp', 'movies/64/backdrop/CeCPOU5MO8PCqPZ37p4Cm39md4PjL3V0YakSh06f.webp', 'https://youtu.be/uxaT19BlH0M?si=SkF3-aysgcDouAwc', 'published', '2026-03-08 00:04:52', '2026-03-08 00:06:16'),
@@ -924,7 +927,9 @@ INSERT INTO `movie_likes` (`id`, `user_id`, `film_id`, `created_at`) VALUES
 (27, 6, 46, '2026-03-06 05:59:04'),
 (28, 6, 48, '2026-03-07 08:23:30'),
 (30, 6, 6, '2026-03-08 05:12:45'),
-(31, 5, 5, '2026-03-10 06:00:58');
+(31, 5, 5, '2026-03-10 06:00:58'),
+(33, 9, 4, '2026-03-17 11:58:32'),
+(34, 9, 70, '2026-03-17 12:14:24');
 
 -- --------------------------------------------------------
 
@@ -1120,7 +1125,7 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (175, 6, 'backdrop', 'movies/6/backdrop/YdyAeDhRF0Zhh8t34RcMXUdYJh8qF5yUQg1LMKYq.jpg', 0, '2026-03-07 12:56:37'),
 (176, 6, 'backdrop', 'movies/6/backdrop/eCto4LE3XEO0RcX0rXK8eysyNDSQFHo2pKKX9aC7.jpg', 0, '2026-03-07 12:59:46'),
 (177, 6, 'backdrop', 'movies/6/backdrop/1KjyOTakwzfNDOt3xIaSHsGzngLpXfXokWseQZkl.jpg', 0, '2026-03-07 12:59:53'),
-(178, 61, 'poster', 'movies/61/poster/IYMbLhV00IHX4yAQAIC3WIUMBb6mRd5DY3WOJCMx.webp', 1, '2026-03-07 14:59:09'),
+(178, 61, 'poster', 'movies/61/poster/IYMbLhV00IHX4yAQAIC3WIUMBb6mRd5DY3WOJCMx.webp', 0, '2026-03-07 14:59:09'),
 (179, 62, 'poster', 'movies/62/poster/MjFAk1WG9YyhrLo9FHfQqzWT6eJXup0k9cDQKv8Y.webp', 1, '2026-03-08 06:33:35'),
 (180, 62, 'backdrop', 'movies/62/backdrop/7BSaYt4ZKsnb8YZaReLxVRDX77aYlTrVRRuAHiNQ.webp', 1, '2026-03-08 06:33:45'),
 (181, 63, 'poster', 'movies/63/poster/My9U2eLJupjK5pUsuYTYthze0y7i89rGnmDOI3mx.webp', 1, '2026-03-08 07:01:47'),
@@ -1283,7 +1288,8 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (339, 3, 'poster', 'movies/3/poster/l0S1LCqrn0hnAw82oL3E7J5mA7EQSthOjtrpKF78.webp', 0, '2026-03-12 09:30:38'),
 (340, 3, 'poster', 'movies/3/poster/hCHetijt2xTw05rueEdgOoFHXGcV9mK0e8L69rfh.webp', 0, '2026-03-12 09:30:47'),
 (341, 3, 'poster', 'movies/3/poster/WofGdRPwyZrfdbFqSPQA06SUFIdHvLc9iVjQDK4y.webp', 0, '2026-03-12 09:31:01'),
-(342, 3, 'backdrop', 'movies/3/backdrop/4HNr04JGNQpIZ3y07OH7VaQXp6CSuefL93Er0XLq.webp', 0, '2026-03-12 09:31:23');
+(342, 3, 'backdrop', 'movies/3/backdrop/4HNr04JGNQpIZ3y07OH7VaQXp6CSuefL93Er0XLq.webp', 0, '2026-03-12 09:31:23'),
+(343, 61, 'poster', 'movies/61/poster/DQAL7zvclKCfLa2UxOd6pDEGYcINUw6bRJYKMTKh.webp', 1, '2026-03-17 09:36:01');
 
 -- --------------------------------------------------------
 
@@ -1731,8 +1737,11 @@ CREATE TABLE `orders` (
   `schedule_id` bigint(20) UNSIGNED NOT NULL,
   `user_id` bigint(20) UNSIGNED DEFAULT NULL,
   `order_code` varchar(50) NOT NULL COMMENT 'Human-readable order reference, e.g. ORD-20260312-XXXX',
+  `ticket_code` varchar(255) DEFAULT NULL,
   `total_price` int(10) UNSIGNED NOT NULL COMMENT 'Total in IDR',
   `status` enum('pending','paid','cancelled','expired') NOT NULL DEFAULT 'pending',
+  `is_scanned` tinyint(1) NOT NULL DEFAULT 0,
+  `scanned_at` datetime DEFAULT NULL,
   `expired_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Midtrans payment window deadline',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1741,14 +1750,22 @@ CREATE TABLE `orders` (
 -- Dumping data untuk tabel `orders`
 --
 
-INSERT INTO `orders` (`id`, `schedule_id`, `user_id`, `order_code`, `total_price`, `status`, `expired_at`, `created_at`) VALUES
-(1, 8, 9, 'ORD-20260314191753-IIVVWE', 49000, 'paid', '2026-03-14 12:29:54', '2026-03-14 12:17:53'),
-(2, 8, 9, 'ORD-20260314193152-YQCKWQ', 49000, 'paid', '2026-03-14 12:46:30', '2026-03-14 12:31:52'),
-(3, 8, 9, 'ORD-20260314194257-SP2NNJ', 49000, 'paid', '2026-03-14 13:12:20', '2026-03-14 12:42:57'),
-(4, 8, 9, 'ORD-20260314194339-DIJJX7', 49000, 'paid', '2026-03-14 13:12:36', '2026-03-14 12:43:39'),
-(5, 8, 9, 'ORD-20260314194753-B1ATWB', 49000, 'paid', '2026-03-14 12:51:08', '2026-03-14 12:47:53'),
-(6, 8, 9, 'ORD-20260314195300-NK9AE0', 49000, 'paid', '2026-03-14 12:58:51', '2026-03-14 12:53:00'),
-(7, 8, 9, 'ORD-20260314200015-WDDCO9', 49000, 'paid', '2026-03-14 13:00:59', '2026-03-14 13:00:15');
+INSERT INTO `orders` (`id`, `schedule_id`, `user_id`, `order_code`, `ticket_code`, `total_price`, `status`, `is_scanned`, `scanned_at`, `expired_at`, `created_at`) VALUES
+(1, 8, 9, 'ORD-20260314191753-IIVVWE', NULL, 49000, 'paid', 0, NULL, '2026-03-14 12:29:54', '2026-03-14 12:17:53'),
+(2, 8, 9, 'ORD-20260314193152-YQCKWQ', NULL, 49000, 'paid', 0, NULL, '2026-03-14 12:46:30', '2026-03-14 12:31:52'),
+(3, 8, 9, 'ORD-20260314194257-SP2NNJ', NULL, 49000, 'paid', 0, NULL, '2026-03-14 13:12:20', '2026-03-14 12:42:57'),
+(4, 8, 9, 'ORD-20260314194339-DIJJX7', NULL, 49000, 'paid', 0, NULL, '2026-03-14 13:12:36', '2026-03-14 12:43:39'),
+(5, 8, 9, 'ORD-20260314194753-B1ATWB', NULL, 49000, 'paid', 0, NULL, '2026-03-14 12:51:08', '2026-03-14 12:47:53'),
+(6, 8, 9, 'ORD-20260314195300-NK9AE0', NULL, 49000, 'paid', 0, NULL, '2026-03-14 12:58:51', '2026-03-14 12:53:00'),
+(7, 8, 9, 'ORD-20260314200015-WDDCO9', NULL, 49000, 'paid', 0, NULL, '2026-03-14 13:00:59', '2026-03-14 13:00:15'),
+(8, 10, 9, 'ORD-20260317162606-KIVTGB', 'MOV-NXMBXD', 78000, 'cancelled', 0, NULL, '2026-03-17 09:40:53', '2026-03-17 09:26:06'),
+(9, 10, 9, 'ORD-20260317164053-06STDV', 'MOV-CE2WAM', 78000, 'paid', 1, '2026-03-17 17:07:42', '2026-03-17 10:07:42', '2026-03-17 09:40:53'),
+(13, 10, 9, 'ORD-20260317173049-S2UKGV', 'MOV-VDG7R0', 78000, 'paid', 1, '2026-03-17 17:34:14', '2026-03-17 10:34:14', '2026-03-17 10:30:49'),
+(14, 10, 9, 'ORD-20260317175531-MJTII1', 'MOV-9V7JOH', 78000, 'paid', 1, '2026-03-17 17:57:11', '2026-03-17 10:57:11', '2026-03-17 10:55:31'),
+(15, 12, 9, 'ORD-20260317183254-WLHSA5', 'MOV-V3HXCV', 49000, 'paid', 1, '2026-03-17 18:34:42', '2026-03-17 11:34:42', '2026-03-17 11:32:54'),
+(16, 13, 9, 'ORD-20260317192211-MYMPYF', 'MOV-UH8NZJ', 49000, 'cancelled', 0, NULL, '2026-03-17 12:34:10', '2026-03-17 12:22:11'),
+(17, 12, 9, 'ORD-20260317193416-VKZIX8', 'MOV-PCZEDW', 49000, 'cancelled', 0, NULL, '2026-03-17 13:15:56', '2026-03-17 12:34:17'),
+(18, 12, 9, 'ORD-20260317201811-RFTWGC', 'MOV-DTQHVP', 49000, 'paid', 1, '2026-03-17 20:30:57', '2026-03-17 13:30:57', '2026-03-17 13:18:11');
 
 -- --------------------------------------------------------
 
@@ -1775,7 +1792,19 @@ INSERT INTO `order_seats` (`id`, `order_id`, `seat_id`, `schedule_id`, `price`) 
 (4, 4, 2543, 8, 45000),
 (5, 5, 2526, 8, 45000),
 (6, 6, 2525, 8, 45000),
-(7, 7, 2530, 8, 45000);
+(7, 7, 2530, 8, 45000),
+(8, 8, 3011, 10, 35000),
+(9, 8, 3012, 10, 35000),
+(10, 9, 3006, 10, 35000),
+(11, 9, 3007, 10, 35000),
+(15, 13, 3013, 10, 35000),
+(16, 13, 3014, 10, 35000),
+(17, 14, 3011, 10, 35000),
+(18, 14, 3012, 10, 35000),
+(19, 15, 2528, 12, 45000),
+(20, 16, 2521, 13, 45000),
+(21, 17, 2527, 12, 45000),
+(22, 18, 2527, 12, 45000);
 
 -- --------------------------------------------------------
 
@@ -1808,7 +1837,15 @@ INSERT INTO `payments` (`id`, `order_id`, `midtrans_transaction_id`, `midtrans_o
 (4, 4, NULL, 'ORD-20260314194339-DIJJX7', NULL, 'pending', NULL, 49000, NULL, '{\"token\":\"2dbfe4f2-2a12-4282-85c4-74e3fe8a36b3\",\"redirect_url\":\"https:\\/\\/app.sandbox.midtrans.com\\/snap\\/v4\\/redirection\\/2dbfe4f2-2a12-4282-85c4-74e3fe8a36b3\"}', '2026-03-14 12:43:40'),
 (5, 5, '46f3b58a-3289-4789-83ad-c201b7ee52d7', 'ORD-20260314194753-B1ATWB', 'shopeepay', 'settlement', 'accept', 49000, '2026-03-14 12:51:08', '{\"status_code\":\"200\",\"transaction_id\":\"46f3b58a-3289-4789-83ad-c201b7ee52d7\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260314194753-B1ATWB\",\"payment_type\":\"shopeepay\",\"signature_key\":\"2fc42f4196bdef2d8d7213716751384723c2b22ca29cb10da15eab50bebbe44eb0184aad5c5400467c2f4f1cd1c8ea061a5f3b885a0e67252addf566b142a3e5\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"reference_id\":\"A120260314124800ZRfFxnqqzQID-1\",\"shopeepay_reference_number\":\"414461669437583085\",\"transaction_time\":\"2026-03-14 19:48:00\",\"settlement_time\":\"2026-03-14 19:48:11\",\"expiry_time\":\"2026-03-14 20:03:00\"}', '2026-03-14 12:47:54'),
 (6, 6, '3f7afb48-151b-46c9-9eb8-98c9161f0630', 'ORD-20260314195300-NK9AE0', 'shopeepay', 'settlement', 'accept', 49000, '2026-03-14 12:58:51', '{\"status_code\":\"200\",\"transaction_id\":\"3f7afb48-151b-46c9-9eb8-98c9161f0630\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260314195300-NK9AE0\",\"payment_type\":\"shopeepay\",\"signature_key\":\"68c85fd64f5a5ad9f00031e159a0baa86048c100dd180130a02be7ca1fc0cc8c869b53b1f732713c44b5945ac1cefa60681ccc425ae99d6b27279c4810ca707f\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"reference_id\":\"A1202603141253105VgXtcL71NID-1\",\"shopeepay_reference_number\":\"265606686320684797\",\"transaction_time\":\"2026-03-14 19:53:10\",\"settlement_time\":\"2026-03-14 19:53:25\",\"expiry_time\":\"2026-03-14 20:08:10\"}', '2026-03-14 12:53:02'),
-(7, 7, '91733b3e-6c63-4637-afaf-91c6a00b95ea', 'ORD-20260314200015-WDDCO9', 'shopeepay', 'settlement', 'accept', 49000, '2026-03-14 13:00:59', '{\"status_code\":\"200\",\"transaction_id\":\"91733b3e-6c63-4637-afaf-91c6a00b95ea\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260314200015-WDDCO9\",\"payment_type\":\"shopeepay\",\"signature_key\":\"5a2966139120600f4b626c0e9e0229b517efe947597c90a28f129efd694873885a62dd20e7246b16cbf0eef15ef6aa19b554a07c75bf971557ac68059c18c5ad\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"reference_id\":\"A120260314130022Cf9IUJWjNBID-1\",\"shopeepay_reference_number\":\"471435991910061503\",\"transaction_time\":\"2026-03-14 20:00:22\",\"settlement_time\":\"2026-03-14 20:00:30\",\"expiry_time\":\"2026-03-14 20:15:22\"}', '2026-03-14 13:00:16');
+(7, 7, '91733b3e-6c63-4637-afaf-91c6a00b95ea', 'ORD-20260314200015-WDDCO9', 'shopeepay', 'settlement', 'accept', 49000, '2026-03-14 13:00:59', '{\"status_code\":\"200\",\"transaction_id\":\"91733b3e-6c63-4637-afaf-91c6a00b95ea\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260314200015-WDDCO9\",\"payment_type\":\"shopeepay\",\"signature_key\":\"5a2966139120600f4b626c0e9e0229b517efe947597c90a28f129efd694873885a62dd20e7246b16cbf0eef15ef6aa19b554a07c75bf971557ac68059c18c5ad\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"reference_id\":\"A120260314130022Cf9IUJWjNBID-1\",\"shopeepay_reference_number\":\"471435991910061503\",\"transaction_time\":\"2026-03-14 20:00:22\",\"settlement_time\":\"2026-03-14 20:00:30\",\"expiry_time\":\"2026-03-14 20:15:22\"}', '2026-03-14 13:00:16'),
+(8, 8, 'c7c330c4-0aa5-4dc0-b82d-4f63a4a72d5b', 'ORD-20260317162606-KIVTGB', 'shopeepay', 'expire', 'accept', 78000, '2026-03-17 09:40:53', '{\"status_code\":\"201\",\"transaction_id\":\"c7c330c4-0aa5-4dc0-b82d-4f63a4a72d5b\",\"gross_amount\":\"78000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317162606-KIVTGB\",\"payment_type\":\"shopeepay\",\"signature_key\":\"4ea2d711a0dccb430c2c403230862c4e636247ba2eb5fe9eaaca64c0ec6c050e732235d8d1c051ef21658da1018b86efc02df45d561f1208b17e079272b5a726\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"reference_id\":\"A120260317092619N1BIc7igHiID-1\",\"transaction_time\":\"2026-03-17 16:26:19\",\"expiry_time\":\"2026-03-17 16:41:19\",\"actions\":[{\"name\":\"deeplink-redirect\",\"method\":\"GET\",\"url\":\"https:\\/\\/simulator.sandbox.midtrans.com\\/shopeepay\\/payment-pin?referenceId=A120260317092619N1BIc7igHiID-1\"}]}', '2026-03-17 09:26:10'),
+(9, 9, 'c97a4666-491a-4091-b47c-0b0e0fcc76ad', 'ORD-20260317164053-06STDV', 'shopeepay', 'settlement', 'accept', 78000, '2026-03-17 09:41:27', '{\"status_code\":\"200\",\"transaction_id\":\"c97a4666-491a-4091-b47c-0b0e0fcc76ad\",\"gross_amount\":\"78000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317164053-06STDV\",\"payment_type\":\"shopeepay\",\"signature_key\":\"390ed1da5adad111c0ecb9ea0263a073a1bb858fcaef720d1bf9d4231a64dda494354680c8c9353b322a50b9b36db2dcd960294ebe5fd171e2470aa0bf094c69\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":10},\"reference_id\":\"A120260317094103tlQt6GszTEID-1\",\"shopeepay_reference_number\":\"011196712937091077\",\"transaction_time\":\"2026-03-17 16:41:03\",\"settlement_time\":\"2026-03-17 16:41:17\",\"expiry_time\":\"2026-03-17 16:56:03\"}', '2026-03-17 09:40:55'),
+(10, 13, 'b3ab9554-b525-483e-9a29-5eee28f6ff44', 'ORD-20260317173049-S2UKGV', 'shopeepay', 'settlement', 'accept', 78000, '2026-03-17 10:33:48', '{\"status_code\":\"200\",\"transaction_id\":\"b3ab9554-b525-483e-9a29-5eee28f6ff44\",\"gross_amount\":\"78000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317173049-S2UKGV\",\"payment_type\":\"shopeepay\",\"signature_key\":\"cae1159de98f171abf20df70cca4e407f8b4ee1a6c453c92da1dfbee17f71f6fb13e3c5945d50d1dc65c5e3bcc38da2f4748e7b15058249f96b243374afe0005\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":10},\"reference_id\":\"A120260317103054cCA8Qrb01yID-1\",\"shopeepay_reference_number\":\"018825683789089722\",\"transaction_time\":\"2026-03-17 17:30:54\",\"settlement_time\":\"2026-03-17 17:31:13\",\"expiry_time\":\"2026-03-17 17:45:54\"}', '2026-03-17 10:30:51'),
+(11, 14, '287ea407-9158-435e-a0e4-222ea61543d5', 'ORD-20260317175531-MJTII1', 'gopay', 'settlement', 'accept', 78000, '2026-03-17 10:56:16', '{\"status_code\":\"200\",\"transaction_id\":\"287ea407-9158-435e-a0e4-222ea61543d5\",\"gross_amount\":\"78000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317175531-MJTII1\",\"payment_type\":\"gopay\",\"signature_key\":\"59ad9a90924689d9ddacefcce2324c19bf5b7969229239f9fbc0702939ebb0a12d3d12e35623234e84386052897516518c66b11141fc816c9e5e92162c56e115\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":10},\"transaction_time\":\"2026-03-17 17:55:42\",\"settlement_time\":\"2026-03-17 17:56:03\",\"expiry_time\":\"2026-03-17 18:10:42\"}', '2026-03-17 10:55:32'),
+(12, 15, '87c1775c-1e37-40ee-8e77-8435a25c4c32', 'ORD-20260317183254-WLHSA5', 'shopeepay', 'settlement', 'accept', 49000, '2026-03-17 11:33:22', '{\"status_code\":\"200\",\"transaction_id\":\"87c1775c-1e37-40ee-8e77-8435a25c4c32\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317183254-WLHSA5\",\"payment_type\":\"shopeepay\",\"signature_key\":\"f0f2c6d838ef6c641c4540353c56643eb47bd1d40570c09dc221a0a3ad94319b7965f7b9845cdb442099998d774a853111de7dfaaa22cbe05975e80102c4622e\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":12},\"reference_id\":\"A120260317113301UyNoNwiodAID-1\",\"shopeepay_reference_number\":\"001331195580024817\",\"transaction_time\":\"2026-03-17 18:33:01\",\"settlement_time\":\"2026-03-17 18:33:10\",\"expiry_time\":\"2026-03-17 18:48:01\"}', '2026-03-17 11:32:56'),
+(13, 16, '606f34ea-8a09-4082-ba76-fc7f99907070', 'ORD-20260317192211-MYMPYF', 'bank_transfer', 'expire', 'accept', 49000, '2026-03-17 12:34:10', '{\"status_code\":\"201\",\"transaction_id\":\"606f34ea-8a09-4082-ba76-fc7f99907070\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317192211-MYMPYF\",\"payment_type\":\"bank_transfer\",\"signature_key\":\"68228b466c9b68eab83bc853c5c944c2496fafa1fe828c5a5d3cce62136cb8ff264c855356ca1d2fec9f8c126840ecedf33986015cbed4c84ae643433aee8d4e\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":13},\"va_numbers\":[{\"bank\":\"bca\",\"va_number\":\"84068592047067860534649\"}],\"payment_amounts\":[],\"transaction_time\":\"2026-03-17 19:22:28\",\"expiry_time\":\"2026-03-18 19:22:28\"}', '2026-03-17 12:22:13'),
+(14, 17, NULL, 'ORD-20260317193416-VKZIX8', NULL, 'expire', NULL, 49000, '2026-03-17 13:15:56', '{\"token\":\"61236946-fd76-499c-a11b-29d6d62278b8\",\"redirect_url\":\"https:\\/\\/app.sandbox.midtrans.com\\/snap\\/v4\\/redirection\\/61236946-fd76-499c-a11b-29d6d62278b8\"}', '2026-03-17 12:34:19'),
+(15, 18, '2939b20c-1108-4b69-b359-dfed7a2e45a3', 'ORD-20260317201811-RFTWGC', 'bank_transfer', 'settlement', 'accept', 49000, '2026-03-17 13:18:42', '{\"status_code\":\"200\",\"transaction_id\":\"2939b20c-1108-4b69-b359-dfed7a2e45a3\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317201811-RFTWGC\",\"payment_type\":\"bank_transfer\",\"signature_key\":\"6326385fefc4ec78264709f10fe22a4c84be0f58cfe4f17cb26c960f7d15d4cf62ff1dd8ce78dbc8e84d76a4ccc9c95a79fb55bc13eae665574b2adb2302c2de\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":12},\"va_numbers\":[{\"bank\":\"bca\",\"va_number\":\"84068975389638166083388\"}],\"payment_amounts\":[],\"transaction_time\":\"2026-03-17 20:18:22\",\"settlement_time\":\"2026-03-17 20:18:37\",\"expiry_time\":\"2026-03-18 20:18:22\"}', '2026-03-17 13:18:13');
 
 -- --------------------------------------------------------
 
@@ -2063,7 +2100,9 @@ INSERT INTO `ratings` (`id`, `user_id`, `film_id`, `rating`, `created_at`, `upda
 (44, 5, 14, 5, '2026-03-10 08:09:52', '2026-03-10 08:09:52'),
 (45, 5, 10, 5, '2026-03-10 08:09:58', '2026-03-10 08:09:58'),
 (46, 7, 65, 5, '2026-03-10 21:44:57', '2026-03-10 21:44:57'),
-(47, 7, 6, 5, '2026-03-10 21:45:08', '2026-03-10 21:45:08');
+(47, 7, 6, 5, '2026-03-10 21:45:08', '2026-03-10 21:45:08'),
+(48, 9, 4, 5, '2026-03-17 11:58:28', '2026-03-17 11:58:56'),
+(49, 9, 70, 5, '2026-03-17 12:14:03', '2026-03-17 12:14:03');
 
 -- --------------------------------------------------------
 
@@ -2220,10 +2259,14 @@ CREATE TABLE `schedules` (
 INSERT INTO `schedules` (`id`, `movie_id`, `studio_id`, `show_date`, `show_time`, `ticket_price`, `status`) VALUES
 (2, 48, 1, '2026-03-13', '12:30:00', 35000, 'expired'),
 (5, 48, 1, '2026-03-12', '16:00:00', 35000, 'expired'),
-(6, 59, 4, '2026-03-13', '20:15:00', 40000, 'active'),
-(7, 48, 2, '2026-03-13', '20:25:00', 40000, 'active'),
-(8, 48, 1, '2026-03-14', '20:25:00', 45000, 'active'),
-(9, 50, 5, '2026-03-14', '19:45:00', 53000, 'active');
+(6, 59, 4, '2026-03-13', '20:15:00', 40000, 'expired'),
+(7, 48, 2, '2026-03-13', '20:25:00', 40000, 'expired'),
+(8, 48, 1, '2026-03-14', '20:25:00', 45000, 'expired'),
+(9, 50, 5, '2026-03-14', '19:45:00', 53000, 'expired'),
+(10, 48, 5, '2026-03-17', '18:15:00', 35000, 'active'),
+(11, 70, 1, '2026-03-18', '13:25:00', 45000, 'active'),
+(12, 70, 1, '2026-03-18', '15:35:00', 45000, 'active'),
+(13, 70, 1, '2026-03-18', '20:50:00', 45000, 'active');
 
 -- --------------------------------------------------------
 
@@ -3587,7 +3630,688 @@ INSERT INTO `seats` (`id`, `studio_id`, `seat_row`, `seat_number`, `seat_code`, 
 (3696, 8, 'K', 8, 'K8', 'seat', 7, 10, 1),
 (3697, 8, 'K', 9, 'K9', 'seat', 8, 10, 1),
 (3698, 8, 'K', 10, 'K10', 'seat', 9, 10, 1),
-(3699, 8, 'K', 11, 'K11', 'seat', 10, 10, 1);
+(3699, 8, 'K', 11, 'K11', 'seat', 10, 10, 1),
+(3994, 9, 'A', 1, 'A1', 'seat', 0, 0, 1),
+(3995, 9, 'A', 2, 'A2', 'seat', 1, 0, 1),
+(3996, 9, 'A', 3, 'A3', 'seat', 2, 0, 1),
+(3997, 9, 'A', 4, 'A4', 'seat', 3, 0, 1),
+(3998, 9, 'A', 5, 'A5', 'seat', 4, 0, 1),
+(3999, 9, 'A', 6, 'A6', 'seat', 5, 0, 1),
+(4000, 9, 'A', 7, 'A7', 'seat', 6, 0, 1),
+(4001, 9, 'A', 8, 'A8', 'seat', 7, 0, 1),
+(4002, 9, 'A', 208, '', 'aisle', 8, 0, 0),
+(4003, 9, 'A', 9, 'A9', 'seat', 9, 0, 1),
+(4004, 9, 'A', 10, 'A10', 'seat', 10, 0, 1),
+(4005, 9, 'A', 11, 'A11', 'seat', 11, 0, 1),
+(4006, 9, 'A', 12, 'A12', 'seat', 12, 0, 1),
+(4007, 9, 'A', 13, 'A13', 'seat', 13, 0, 1),
+(4008, 9, 'A', 14, 'A14', 'seat', 14, 0, 1),
+(4009, 9, 'A', 15, 'A15', 'seat', 15, 0, 1),
+(4010, 9, 'B', 1, '', 'entrance', 0, 1, 0),
+(4011, 9, 'B', 2, '', 'entrance', 1, 1, 0),
+(4012, 9, 'B', 3, 'B3', 'seat', 2, 1, 1),
+(4013, 9, 'B', 4, 'B4', 'seat', 3, 1, 1),
+(4014, 9, 'B', 5, 'B5', 'seat', 4, 1, 1),
+(4015, 9, 'B', 6, 'B6', 'seat', 5, 1, 1),
+(4016, 9, 'B', 7, 'B7', 'seat', 6, 1, 1),
+(4017, 9, 'B', 8, 'B8', 'seat', 7, 1, 1),
+(4018, 9, 'B', 208, '', 'aisle', 8, 1, 0),
+(4019, 9, 'B', 9, 'B9', 'seat', 9, 1, 1),
+(4020, 9, 'B', 10, 'B10', 'seat', 10, 1, 1),
+(4021, 9, 'B', 11, 'B11', 'seat', 11, 1, 1),
+(4022, 9, 'B', 12, 'B12', 'seat', 12, 1, 1),
+(4023, 9, 'B', 13, 'B13', 'seat', 13, 1, 1),
+(4024, 9, 'B', 14, 'B14', 'seat', 14, 1, 1),
+(4025, 9, 'B', 15, 'B15', 'seat', 15, 1, 1),
+(4026, 9, 'C', 1, '', 'entrance', 0, 2, 0),
+(4027, 9, 'C', 2, '', 'entrance', 1, 2, 0),
+(4028, 9, 'C', 3, 'C3', 'seat', 2, 2, 1),
+(4029, 9, 'C', 4, 'C4', 'seat', 3, 2, 1),
+(4030, 9, 'C', 5, 'C5', 'seat', 4, 2, 1),
+(4031, 9, 'C', 6, 'C6', 'seat', 5, 2, 1),
+(4032, 9, 'C', 7, 'C7', 'seat', 6, 2, 1),
+(4033, 9, 'C', 8, 'C8', 'seat', 7, 2, 1),
+(4034, 9, 'C', 208, '', 'aisle', 8, 2, 0),
+(4035, 9, 'C', 9, 'C9', 'seat', 9, 2, 1),
+(4036, 9, 'C', 10, 'C10', 'seat', 10, 2, 1),
+(4037, 9, 'C', 11, 'C11', 'seat', 11, 2, 1),
+(4038, 9, 'C', 12, 'C12', 'seat', 12, 2, 1),
+(4039, 9, 'C', 13, 'C13', 'seat', 13, 2, 1),
+(4040, 9, 'C', 14, 'C14', 'seat', 14, 2, 1),
+(4041, 9, 'C', 15, 'C15', 'seat', 15, 2, 1),
+(4042, 9, 'D', 1, '', 'entrance', 0, 3, 0),
+(4043, 9, 'D', 2, '', 'entrance', 1, 3, 0),
+(4044, 9, 'D', 3, 'D3', 'seat', 2, 3, 1),
+(4045, 9, 'D', 4, 'D4', 'seat', 3, 3, 1),
+(4046, 9, 'D', 5, 'D5', 'seat', 4, 3, 1),
+(4047, 9, 'D', 6, 'D6', 'seat', 5, 3, 1),
+(4048, 9, 'D', 7, 'D7', 'seat', 6, 3, 1),
+(4049, 9, 'D', 8, 'D8', 'seat', 7, 3, 1),
+(4050, 9, 'D', 208, '', 'aisle', 8, 3, 0),
+(4051, 9, 'D', 9, 'D9', 'seat', 9, 3, 1),
+(4052, 9, 'D', 10, 'D10', 'seat', 10, 3, 1),
+(4053, 9, 'D', 11, 'D11', 'seat', 11, 3, 1),
+(4054, 9, 'D', 12, 'D12', 'seat', 12, 3, 1),
+(4055, 9, 'D', 13, 'D13', 'seat', 13, 3, 1),
+(4056, 9, 'D', 14, 'D14', 'seat', 14, 3, 1),
+(4057, 9, 'D', 15, 'D15', 'seat', 15, 3, 1),
+(4058, 9, 'E', 1, '', 'entrance', 0, 4, 0),
+(4059, 9, 'E', 2, '', 'entrance', 1, 4, 0),
+(4060, 9, 'E', 3, 'E3', 'seat', 2, 4, 1),
+(4061, 9, 'E', 4, 'E4', 'seat', 3, 4, 1),
+(4062, 9, 'E', 5, 'E5', 'seat', 4, 4, 1),
+(4063, 9, 'E', 6, 'E6', 'seat', 5, 4, 1),
+(4064, 9, 'E', 7, 'E7', 'seat', 6, 4, 1),
+(4065, 9, 'E', 8, 'E8', 'seat', 7, 4, 1),
+(4066, 9, 'E', 208, '', 'aisle', 8, 4, 0),
+(4067, 9, 'E', 9, 'E9', 'seat', 9, 4, 1),
+(4068, 9, 'E', 10, 'E10', 'seat', 10, 4, 1),
+(4069, 9, 'E', 11, 'E11', 'seat', 11, 4, 1),
+(4070, 9, 'E', 12, 'E12', 'seat', 12, 4, 1),
+(4071, 9, 'E', 13, 'E13', 'seat', 13, 4, 1),
+(4072, 9, 'E', 14, 'E14', 'seat', 14, 4, 1),
+(4073, 9, 'E', 15, 'E15', 'seat', 15, 4, 1),
+(4074, 9, 'F', 1, '', 'entrance', 0, 5, 0),
+(4075, 9, 'F', 2, '', 'entrance', 1, 5, 0),
+(4076, 9, 'F', 3, 'F3', 'seat', 2, 5, 1),
+(4077, 9, 'F', 4, 'F4', 'seat', 3, 5, 1),
+(4078, 9, 'F', 5, 'F5', 'seat', 4, 5, 1),
+(4079, 9, 'F', 6, 'F6', 'seat', 5, 5, 1),
+(4080, 9, 'F', 7, 'F7', 'seat', 6, 5, 1),
+(4081, 9, 'F', 8, 'F8', 'seat', 7, 5, 1),
+(4082, 9, 'F', 208, '', 'aisle', 8, 5, 0),
+(4083, 9, 'F', 9, 'F9', 'seat', 9, 5, 1),
+(4084, 9, 'F', 10, 'F10', 'seat', 10, 5, 1),
+(4085, 9, 'F', 11, 'F11', 'seat', 11, 5, 1),
+(4086, 9, 'F', 12, 'F12', 'seat', 12, 5, 1),
+(4087, 9, 'F', 13, 'F13', 'seat', 13, 5, 1),
+(4088, 9, 'F', 14, 'F14', 'seat', 14, 5, 1),
+(4089, 9, 'F', 15, 'F15', 'seat', 15, 5, 1),
+(4090, 9, 'G', 1, '', 'entrance', 0, 6, 0),
+(4091, 9, 'G', 2, '', 'entrance', 1, 6, 0),
+(4092, 9, 'G', 3, 'G3', 'seat', 2, 6, 1),
+(4093, 9, 'G', 4, 'G4', 'seat', 3, 6, 1),
+(4094, 9, 'G', 5, 'G5', 'seat', 4, 6, 1),
+(4095, 9, 'G', 6, 'G6', 'seat', 5, 6, 1),
+(4096, 9, 'G', 7, 'G7', 'seat', 6, 6, 1),
+(4097, 9, 'G', 8, 'G8', 'seat', 7, 6, 1),
+(4098, 9, 'G', 208, '', 'aisle', 8, 6, 0),
+(4099, 9, 'G', 9, 'G9', 'seat', 9, 6, 1),
+(4100, 9, 'G', 10, 'G10', 'seat', 10, 6, 1),
+(4101, 9, 'G', 11, 'G11', 'seat', 11, 6, 1),
+(4102, 9, 'G', 12, 'G12', 'seat', 12, 6, 1),
+(4103, 9, 'G', 13, 'G13', 'seat', 13, 6, 1),
+(4104, 9, 'G', 14, 'G14', 'seat', 14, 6, 1),
+(4105, 9, 'G', 15, 'G15', 'seat', 15, 6, 1),
+(4106, 9, 'H', 1, '', 'entrance', 0, 7, 0),
+(4107, 9, 'H', 2, '', 'entrance', 1, 7, 0),
+(4108, 9, 'H', 3, 'H3', 'seat', 2, 7, 1),
+(4109, 9, 'H', 4, 'H4', 'seat', 3, 7, 1),
+(4110, 9, 'H', 5, 'H5', 'seat', 4, 7, 1),
+(4111, 9, 'H', 6, 'H6', 'seat', 5, 7, 1),
+(4112, 9, 'H', 7, 'H7', 'seat', 6, 7, 1),
+(4113, 9, 'H', 8, 'H8', 'seat', 7, 7, 1),
+(4114, 9, 'H', 208, '', 'aisle', 8, 7, 0),
+(4115, 9, 'H', 9, 'H9', 'seat', 9, 7, 1),
+(4116, 9, 'H', 10, 'H10', 'seat', 10, 7, 1),
+(4117, 9, 'H', 11, 'H11', 'seat', 11, 7, 1),
+(4118, 9, 'H', 12, 'H12', 'seat', 12, 7, 1),
+(4119, 9, 'H', 13, 'H13', 'seat', 13, 7, 1),
+(4120, 9, 'H', 14, 'H14', 'seat', 14, 7, 1),
+(4121, 9, 'H', 15, 'H15', 'seat', 15, 7, 1),
+(4122, 9, 'I', 1, '', 'entrance', 0, 8, 0),
+(4123, 9, 'I', 2, '', 'entrance', 1, 8, 0),
+(4124, 9, 'I', 3, 'I3', 'seat', 2, 8, 1),
+(4125, 9, 'I', 4, 'I4', 'seat', 3, 8, 1),
+(4126, 9, 'I', 5, 'I5', 'seat', 4, 8, 1),
+(4127, 9, 'I', 6, 'I6', 'seat', 5, 8, 1),
+(4128, 9, 'I', 7, 'I7', 'seat', 6, 8, 1),
+(4129, 9, 'I', 8, 'I8', 'seat', 7, 8, 1),
+(4130, 9, 'I', 208, '', 'aisle', 8, 8, 0),
+(4131, 9, 'I', 9, 'I9', 'seat', 9, 8, 1),
+(4132, 9, 'I', 10, 'I10', 'seat', 10, 8, 1),
+(4133, 9, 'I', 11, 'I11', 'seat', 11, 8, 1),
+(4134, 9, 'I', 12, 'I12', 'seat', 12, 8, 1),
+(4135, 9, 'I', 13, 'I13', 'seat', 13, 8, 1),
+(4136, 9, 'I', 14, 'I14', 'seat', 14, 8, 1),
+(4137, 9, 'I', 15, 'I15', 'seat', 15, 8, 1),
+(4138, 9, 'J', 1, '', 'entrance', 0, 9, 0),
+(4139, 9, 'J', 2, '', 'entrance', 1, 9, 0),
+(4140, 9, 'J', 3, 'J3', 'seat', 2, 9, 1),
+(4141, 9, 'J', 4, 'J4', 'seat', 3, 9, 1),
+(4142, 9, 'J', 5, 'J5', 'seat', 4, 9, 1),
+(4143, 9, 'J', 6, 'J6', 'seat', 5, 9, 1),
+(4144, 9, 'J', 7, 'J7', 'seat', 6, 9, 1),
+(4145, 9, 'J', 8, 'J8', 'seat', 7, 9, 1),
+(4146, 9, 'J', 208, '', 'aisle', 8, 9, 0),
+(4147, 9, 'J', 9, 'J9', 'seat', 9, 9, 1),
+(4148, 9, 'J', 10, 'J10', 'seat', 10, 9, 1),
+(4149, 9, 'J', 11, 'J11', 'seat', 11, 9, 1),
+(4150, 9, 'J', 12, 'J12', 'seat', 12, 9, 1),
+(4151, 9, 'J', 13, 'J13', 'seat', 13, 9, 1),
+(4152, 9, 'J', 14, 'J14', 'seat', 14, 9, 1),
+(4153, 9, 'J', 15, 'J15', 'seat', 15, 9, 1),
+(4154, 10, 'A', 1, 'A1', 'seat', 0, 0, 1),
+(4155, 10, 'A', 2, 'A2', 'seat', 1, 0, 1),
+(4156, 10, 'A', 3, 'A3', 'seat', 2, 0, 1),
+(4157, 10, 'A', 4, 'A4', 'seat', 3, 0, 1),
+(4158, 10, 'A', 5, 'A5', 'seat', 4, 0, 1),
+(4159, 10, 'A', 6, 'A6', 'seat', 5, 0, 1),
+(4160, 10, 'A', 7, 'A7', 'seat', 6, 0, 1),
+(4161, 10, 'A', 207, '', 'aisle', 7, 0, 0),
+(4162, 10, 'A', 8, 'A8', 'seat', 8, 0, 1),
+(4163, 10, 'A', 9, 'A9', 'seat', 9, 0, 1),
+(4164, 10, 'A', 10, 'A10', 'seat', 10, 0, 1),
+(4165, 10, 'A', 11, 'A11', 'seat', 11, 0, 1),
+(4166, 10, 'A', 12, 'A12', 'seat', 12, 0, 1),
+(4167, 10, 'A', 13, 'A13', 'seat', 13, 0, 1),
+(4168, 10, 'A', 14, 'A14', 'seat', 14, 0, 1),
+(4169, 10, 'A', 15, 'A15', 'seat', 15, 0, 1),
+(4170, 10, 'B', 1, 'B1', 'seat', 0, 1, 1),
+(4171, 10, 'B', 2, 'B2', 'seat', 1, 1, 1),
+(4172, 10, 'B', 3, 'B3', 'seat', 2, 1, 1),
+(4173, 10, 'B', 4, 'B4', 'seat', 3, 1, 1),
+(4174, 10, 'B', 5, 'B5', 'seat', 4, 1, 1),
+(4175, 10, 'B', 6, 'B6', 'seat', 5, 1, 1),
+(4176, 10, 'B', 7, 'B7', 'seat', 6, 1, 1),
+(4177, 10, 'B', 207, '', 'aisle', 7, 1, 0),
+(4178, 10, 'B', 8, 'B8', 'seat', 8, 1, 1),
+(4179, 10, 'B', 9, 'B9', 'seat', 9, 1, 1),
+(4180, 10, 'B', 10, 'B10', 'seat', 10, 1, 1),
+(4181, 10, 'B', 11, 'B11', 'seat', 11, 1, 1),
+(4182, 10, 'B', 12, 'B12', 'seat', 12, 1, 1),
+(4183, 10, 'B', 13, 'B13', 'seat', 13, 1, 1),
+(4184, 10, 'B', 14, '', 'entrance', 14, 1, 0),
+(4185, 10, 'B', 15, '', 'entrance', 15, 1, 0),
+(4186, 10, 'C', 1, 'C1', 'seat', 0, 2, 1),
+(4187, 10, 'C', 2, 'C2', 'seat', 1, 2, 1),
+(4188, 10, 'C', 3, 'C3', 'seat', 2, 2, 1),
+(4189, 10, 'C', 4, 'C4', 'seat', 3, 2, 1),
+(4190, 10, 'C', 5, 'C5', 'seat', 4, 2, 1),
+(4191, 10, 'C', 6, 'C6', 'seat', 5, 2, 1),
+(4192, 10, 'C', 7, 'C7', 'seat', 6, 2, 1),
+(4193, 10, 'C', 207, '', 'aisle', 7, 2, 0),
+(4194, 10, 'C', 8, 'C8', 'seat', 8, 2, 1),
+(4195, 10, 'C', 9, 'C9', 'seat', 9, 2, 1),
+(4196, 10, 'C', 10, 'C10', 'seat', 10, 2, 1),
+(4197, 10, 'C', 11, 'C11', 'seat', 11, 2, 1),
+(4198, 10, 'C', 12, 'C12', 'seat', 12, 2, 1),
+(4199, 10, 'C', 13, 'C13', 'seat', 13, 2, 1),
+(4200, 10, 'C', 14, '', 'entrance', 14, 2, 0),
+(4201, 10, 'C', 15, '', 'entrance', 15, 2, 0),
+(4202, 10, 'D', 1, 'D1', 'seat', 0, 3, 1),
+(4203, 10, 'D', 2, 'D2', 'seat', 1, 3, 1),
+(4204, 10, 'D', 3, 'D3', 'seat', 2, 3, 1),
+(4205, 10, 'D', 4, 'D4', 'seat', 3, 3, 1),
+(4206, 10, 'D', 5, 'D5', 'seat', 4, 3, 1),
+(4207, 10, 'D', 6, 'D6', 'seat', 5, 3, 1),
+(4208, 10, 'D', 7, 'D7', 'seat', 6, 3, 1),
+(4209, 10, 'D', 207, '', 'aisle', 7, 3, 0),
+(4210, 10, 'D', 8, 'D8', 'seat', 8, 3, 1),
+(4211, 10, 'D', 9, 'D9', 'seat', 9, 3, 1),
+(4212, 10, 'D', 10, 'D10', 'seat', 10, 3, 1),
+(4213, 10, 'D', 11, 'D11', 'seat', 11, 3, 1),
+(4214, 10, 'D', 12, 'D12', 'seat', 12, 3, 1),
+(4215, 10, 'D', 13, 'D13', 'seat', 13, 3, 1),
+(4216, 10, 'D', 14, '', 'entrance', 14, 3, 0),
+(4217, 10, 'D', 15, '', 'entrance', 15, 3, 0),
+(4218, 10, 'E', 1, 'E1', 'seat', 0, 4, 1),
+(4219, 10, 'E', 2, 'E2', 'seat', 1, 4, 1),
+(4220, 10, 'E', 3, 'E3', 'seat', 2, 4, 1),
+(4221, 10, 'E', 4, 'E4', 'seat', 3, 4, 1),
+(4222, 10, 'E', 5, 'E5', 'seat', 4, 4, 1),
+(4223, 10, 'E', 6, 'E6', 'seat', 5, 4, 1),
+(4224, 10, 'E', 7, 'E7', 'seat', 6, 4, 1),
+(4225, 10, 'E', 207, '', 'aisle', 7, 4, 0),
+(4226, 10, 'E', 8, 'E8', 'seat', 8, 4, 1),
+(4227, 10, 'E', 9, 'E9', 'seat', 9, 4, 1),
+(4228, 10, 'E', 10, 'E10', 'seat', 10, 4, 1),
+(4229, 10, 'E', 11, 'E11', 'seat', 11, 4, 1),
+(4230, 10, 'E', 12, 'E12', 'seat', 12, 4, 1),
+(4231, 10, 'E', 13, 'E13', 'seat', 13, 4, 1),
+(4232, 10, 'E', 14, '', 'entrance', 14, 4, 0),
+(4233, 10, 'E', 15, '', 'entrance', 15, 4, 0),
+(4234, 10, 'F', 1, 'F1', 'seat', 0, 5, 1),
+(4235, 10, 'F', 2, 'F2', 'seat', 1, 5, 1),
+(4236, 10, 'F', 3, 'F3', 'seat', 2, 5, 1),
+(4237, 10, 'F', 4, 'F4', 'seat', 3, 5, 1),
+(4238, 10, 'F', 5, 'F5', 'seat', 4, 5, 1),
+(4239, 10, 'F', 6, 'F6', 'seat', 5, 5, 1),
+(4240, 10, 'F', 7, 'F7', 'seat', 6, 5, 1),
+(4241, 10, 'F', 207, '', 'aisle', 7, 5, 0),
+(4242, 10, 'F', 8, 'F8', 'seat', 8, 5, 1),
+(4243, 10, 'F', 9, 'F9', 'seat', 9, 5, 1),
+(4244, 10, 'F', 10, 'F10', 'seat', 10, 5, 1),
+(4245, 10, 'F', 11, 'F11', 'seat', 11, 5, 1),
+(4246, 10, 'F', 12, 'F12', 'seat', 12, 5, 1),
+(4247, 10, 'F', 13, 'F13', 'seat', 13, 5, 1),
+(4248, 10, 'F', 14, '', 'entrance', 14, 5, 0),
+(4249, 10, 'F', 15, '', 'entrance', 15, 5, 0),
+(4250, 10, 'G', 1, 'G1', 'seat', 0, 6, 1),
+(4251, 10, 'G', 2, 'G2', 'seat', 1, 6, 1),
+(4252, 10, 'G', 3, 'G3', 'seat', 2, 6, 1),
+(4253, 10, 'G', 4, 'G4', 'seat', 3, 6, 1),
+(4254, 10, 'G', 5, 'G5', 'seat', 4, 6, 1),
+(4255, 10, 'G', 6, 'G6', 'seat', 5, 6, 1),
+(4256, 10, 'G', 7, 'G7', 'seat', 6, 6, 1),
+(4257, 10, 'G', 207, '', 'aisle', 7, 6, 0),
+(4258, 10, 'G', 8, 'G8', 'seat', 8, 6, 1),
+(4259, 10, 'G', 9, 'G9', 'seat', 9, 6, 1),
+(4260, 10, 'G', 10, 'G10', 'seat', 10, 6, 1),
+(4261, 10, 'G', 11, 'G11', 'seat', 11, 6, 1),
+(4262, 10, 'G', 12, 'G12', 'seat', 12, 6, 1),
+(4263, 10, 'G', 13, 'G13', 'seat', 13, 6, 1),
+(4264, 10, 'G', 14, '', 'entrance', 14, 6, 0),
+(4265, 10, 'G', 15, '', 'entrance', 15, 6, 0),
+(4266, 10, 'H', 1, 'H1', 'seat', 0, 7, 1),
+(4267, 10, 'H', 2, 'H2', 'seat', 1, 7, 1),
+(4268, 10, 'H', 3, 'H3', 'seat', 2, 7, 1),
+(4269, 10, 'H', 4, 'H4', 'seat', 3, 7, 1),
+(4270, 10, 'H', 5, 'H5', 'seat', 4, 7, 1),
+(4271, 10, 'H', 6, 'H6', 'seat', 5, 7, 1),
+(4272, 10, 'H', 7, 'H7', 'seat', 6, 7, 1),
+(4273, 10, 'H', 207, '', 'aisle', 7, 7, 0),
+(4274, 10, 'H', 8, 'H8', 'seat', 8, 7, 1),
+(4275, 10, 'H', 9, 'H9', 'seat', 9, 7, 1),
+(4276, 10, 'H', 10, 'H10', 'seat', 10, 7, 1),
+(4277, 10, 'H', 11, 'H11', 'seat', 11, 7, 1),
+(4278, 10, 'H', 12, 'H12', 'seat', 12, 7, 1),
+(4279, 10, 'H', 13, 'H13', 'seat', 13, 7, 1),
+(4280, 10, 'H', 14, '', 'entrance', 14, 7, 0),
+(4281, 10, 'H', 15, '', 'entrance', 15, 7, 0),
+(4282, 10, 'I', 1, 'I1', 'seat', 0, 8, 1),
+(4283, 10, 'I', 2, 'I2', 'seat', 1, 8, 1),
+(4284, 10, 'I', 3, 'I3', 'seat', 2, 8, 1),
+(4285, 10, 'I', 4, 'I4', 'seat', 3, 8, 1),
+(4286, 10, 'I', 5, 'I5', 'seat', 4, 8, 1),
+(4287, 10, 'I', 6, 'I6', 'seat', 5, 8, 1),
+(4288, 10, 'I', 7, 'I7', 'seat', 6, 8, 1),
+(4289, 10, 'I', 207, '', 'aisle', 7, 8, 0),
+(4290, 10, 'I', 8, 'I8', 'seat', 8, 8, 1),
+(4291, 10, 'I', 9, 'I9', 'seat', 9, 8, 1),
+(4292, 10, 'I', 10, 'I10', 'seat', 10, 8, 1),
+(4293, 10, 'I', 11, 'I11', 'seat', 11, 8, 1),
+(4294, 10, 'I', 12, 'I12', 'seat', 12, 8, 1),
+(4295, 10, 'I', 13, 'I13', 'seat', 13, 8, 1),
+(4296, 10, 'I', 14, '', 'entrance', 14, 8, 0),
+(4297, 10, 'I', 15, '', 'entrance', 15, 8, 0),
+(4298, 10, 'J', 1, 'J1', 'seat', 0, 9, 1),
+(4299, 10, 'J', 2, 'J2', 'seat', 1, 9, 1),
+(4300, 10, 'J', 3, 'J3', 'seat', 2, 9, 1),
+(4301, 10, 'J', 4, 'J4', 'seat', 3, 9, 1),
+(4302, 10, 'J', 5, 'J5', 'seat', 4, 9, 1),
+(4303, 10, 'J', 6, 'J6', 'seat', 5, 9, 1),
+(4304, 10, 'J', 7, 'J7', 'seat', 6, 9, 1),
+(4305, 10, 'J', 207, '', 'aisle', 7, 9, 0),
+(4306, 10, 'J', 8, 'J8', 'seat', 8, 9, 1),
+(4307, 10, 'J', 9, 'J9', 'seat', 9, 9, 1),
+(4308, 10, 'J', 10, 'J10', 'seat', 10, 9, 1),
+(4309, 10, 'J', 11, 'J11', 'seat', 11, 9, 1),
+(4310, 10, 'J', 12, 'J12', 'seat', 12, 9, 1),
+(4311, 10, 'J', 13, 'J13', 'seat', 13, 9, 1),
+(4312, 10, 'J', 14, '', 'entrance', 14, 9, 0),
+(4313, 10, 'J', 15, '', 'entrance', 15, 9, 0),
+(4314, 11, 'A', 1, 'A1', 'seat', 0, 0, 1),
+(4315, 11, 'A', 2, 'A2', 'seat', 1, 0, 1),
+(4316, 11, 'A', 3, 'A3', 'seat', 2, 0, 1),
+(4317, 11, 'A', 4, 'A4', 'seat', 3, 0, 1),
+(4318, 11, 'A', 5, 'A5', 'seat', 4, 0, 1),
+(4319, 11, 'A', 6, 'A6', 'seat', 5, 0, 1),
+(4320, 11, 'A', 7, 'A7', 'seat', 6, 0, 1),
+(4321, 11, 'A', 8, 'A8', 'seat', 7, 0, 1),
+(4322, 11, 'A', 208, '', 'aisle', 8, 0, 0),
+(4323, 11, 'A', 9, 'A9', 'seat', 9, 0, 1),
+(4324, 11, 'A', 10, 'A10', 'seat', 10, 0, 1),
+(4325, 11, 'A', 11, 'A11', 'seat', 11, 0, 1),
+(4326, 11, 'A', 12, 'A12', 'seat', 12, 0, 1),
+(4327, 11, 'A', 13, 'A13', 'seat', 13, 0, 1),
+(4328, 11, 'A', 14, 'A14', 'seat', 14, 0, 1),
+(4329, 11, 'A', 15, 'A15', 'seat', 15, 0, 1),
+(4330, 11, 'A', 16, 'A16', 'seat', 16, 0, 1),
+(4331, 11, 'A', 17, 'A17', 'seat', 17, 0, 1),
+(4332, 11, 'A', 18, 'A18', 'seat', 18, 0, 1),
+(4333, 11, 'B', 1, 'B1', 'seat', 0, 1, 1),
+(4334, 11, 'B', 2, 'B2', 'seat', 1, 1, 1),
+(4335, 11, 'B', 3, 'B3', 'seat', 2, 1, 1),
+(4336, 11, 'B', 4, 'B4', 'seat', 3, 1, 1),
+(4337, 11, 'B', 5, 'B5', 'seat', 4, 1, 1),
+(4338, 11, 'B', 6, 'B6', 'seat', 5, 1, 1),
+(4339, 11, 'B', 7, 'B7', 'seat', 6, 1, 1),
+(4340, 11, 'B', 8, 'B8', 'seat', 7, 1, 1),
+(4341, 11, 'B', 208, '', 'aisle', 8, 1, 0),
+(4342, 11, 'B', 9, 'B9', 'seat', 9, 1, 1),
+(4343, 11, 'B', 10, 'B10', 'seat', 10, 1, 1),
+(4344, 11, 'B', 11, 'B11', 'seat', 11, 1, 1),
+(4345, 11, 'B', 12, 'B12', 'seat', 12, 1, 1),
+(4346, 11, 'B', 13, 'B13', 'seat', 13, 1, 1),
+(4347, 11, 'B', 14, 'B14', 'seat', 14, 1, 1),
+(4348, 11, 'B', 15, 'B15', 'seat', 15, 1, 1),
+(4349, 11, 'B', 16, 'B16', 'seat', 16, 1, 1),
+(4350, 11, 'B', 17, '', 'entrance', 17, 1, 0),
+(4351, 11, 'B', 18, '', 'entrance', 18, 1, 0),
+(4352, 11, 'C', 1, 'C1', 'seat', 0, 2, 1),
+(4353, 11, 'C', 2, 'C2', 'seat', 1, 2, 1),
+(4354, 11, 'C', 3, 'C3', 'seat', 2, 2, 1),
+(4355, 11, 'C', 4, 'C4', 'seat', 3, 2, 1),
+(4356, 11, 'C', 5, 'C5', 'seat', 4, 2, 1),
+(4357, 11, 'C', 6, 'C6', 'seat', 5, 2, 1),
+(4358, 11, 'C', 7, 'C7', 'seat', 6, 2, 1),
+(4359, 11, 'C', 8, 'C8', 'seat', 7, 2, 1),
+(4360, 11, 'C', 208, '', 'aisle', 8, 2, 0),
+(4361, 11, 'C', 9, 'C9', 'seat', 9, 2, 1),
+(4362, 11, 'C', 10, 'C10', 'seat', 10, 2, 1),
+(4363, 11, 'C', 11, 'C11', 'seat', 11, 2, 1),
+(4364, 11, 'C', 12, 'C12', 'seat', 12, 2, 1),
+(4365, 11, 'C', 13, 'C13', 'seat', 13, 2, 1),
+(4366, 11, 'C', 14, 'C14', 'seat', 14, 2, 1),
+(4367, 11, 'C', 15, 'C15', 'seat', 15, 2, 1),
+(4368, 11, 'C', 16, 'C16', 'seat', 16, 2, 1),
+(4369, 11, 'C', 17, '', 'entrance', 17, 2, 0),
+(4370, 11, 'C', 18, '', 'entrance', 18, 2, 0),
+(4371, 11, 'D', 1, 'D1', 'seat', 0, 3, 1),
+(4372, 11, 'D', 2, 'D2', 'seat', 1, 3, 1),
+(4373, 11, 'D', 3, 'D3', 'seat', 2, 3, 1),
+(4374, 11, 'D', 4, 'D4', 'seat', 3, 3, 1),
+(4375, 11, 'D', 5, 'D5', 'seat', 4, 3, 1),
+(4376, 11, 'D', 6, 'D6', 'seat', 5, 3, 1),
+(4377, 11, 'D', 7, 'D7', 'seat', 6, 3, 1),
+(4378, 11, 'D', 8, 'D8', 'seat', 7, 3, 1),
+(4379, 11, 'D', 208, '', 'aisle', 8, 3, 0),
+(4380, 11, 'D', 9, 'D9', 'seat', 9, 3, 1),
+(4381, 11, 'D', 10, 'D10', 'seat', 10, 3, 1),
+(4382, 11, 'D', 11, 'D11', 'seat', 11, 3, 1),
+(4383, 11, 'D', 12, 'D12', 'seat', 12, 3, 1),
+(4384, 11, 'D', 13, 'D13', 'seat', 13, 3, 1),
+(4385, 11, 'D', 14, 'D14', 'seat', 14, 3, 1),
+(4386, 11, 'D', 15, 'D15', 'seat', 15, 3, 1),
+(4387, 11, 'D', 16, 'D16', 'seat', 16, 3, 1),
+(4388, 11, 'D', 17, '', 'entrance', 17, 3, 0),
+(4389, 11, 'D', 18, '', 'entrance', 18, 3, 0),
+(4390, 11, 'E', 1, 'E1', 'seat', 0, 4, 1),
+(4391, 11, 'E', 2, 'E2', 'seat', 1, 4, 1),
+(4392, 11, 'E', 3, 'E3', 'seat', 2, 4, 1),
+(4393, 11, 'E', 4, 'E4', 'seat', 3, 4, 1),
+(4394, 11, 'E', 5, 'E5', 'seat', 4, 4, 1),
+(4395, 11, 'E', 6, 'E6', 'seat', 5, 4, 1),
+(4396, 11, 'E', 7, 'E7', 'seat', 6, 4, 1),
+(4397, 11, 'E', 8, 'E8', 'seat', 7, 4, 1),
+(4398, 11, 'E', 208, '', 'aisle', 8, 4, 0),
+(4399, 11, 'E', 9, 'E9', 'seat', 9, 4, 1),
+(4400, 11, 'E', 10, 'E10', 'seat', 10, 4, 1),
+(4401, 11, 'E', 11, 'E11', 'seat', 11, 4, 1),
+(4402, 11, 'E', 12, 'E12', 'seat', 12, 4, 1),
+(4403, 11, 'E', 13, 'E13', 'seat', 13, 4, 1),
+(4404, 11, 'E', 14, 'E14', 'seat', 14, 4, 1),
+(4405, 11, 'E', 15, 'E15', 'seat', 15, 4, 1),
+(4406, 11, 'E', 16, 'E16', 'seat', 16, 4, 1),
+(4407, 11, 'E', 17, '', 'entrance', 17, 4, 0),
+(4408, 11, 'E', 18, '', 'entrance', 18, 4, 0),
+(4409, 11, 'F', 1, 'F1', 'seat', 0, 5, 1),
+(4410, 11, 'F', 2, 'F2', 'seat', 1, 5, 1),
+(4411, 11, 'F', 3, 'F3', 'seat', 2, 5, 1),
+(4412, 11, 'F', 4, 'F4', 'seat', 3, 5, 1),
+(4413, 11, 'F', 5, 'F5', 'seat', 4, 5, 1),
+(4414, 11, 'F', 6, 'F6', 'seat', 5, 5, 1),
+(4415, 11, 'F', 7, 'F7', 'seat', 6, 5, 1),
+(4416, 11, 'F', 8, 'F8', 'seat', 7, 5, 1),
+(4417, 11, 'F', 208, '', 'aisle', 8, 5, 0),
+(4418, 11, 'F', 9, 'F9', 'seat', 9, 5, 1),
+(4419, 11, 'F', 10, 'F10', 'seat', 10, 5, 1),
+(4420, 11, 'F', 11, 'F11', 'seat', 11, 5, 1),
+(4421, 11, 'F', 12, 'F12', 'seat', 12, 5, 1),
+(4422, 11, 'F', 13, 'F13', 'seat', 13, 5, 1),
+(4423, 11, 'F', 14, 'F14', 'seat', 14, 5, 1),
+(4424, 11, 'F', 15, 'F15', 'seat', 15, 5, 1),
+(4425, 11, 'F', 16, 'F16', 'seat', 16, 5, 1),
+(4426, 11, 'F', 17, '', 'entrance', 17, 5, 0),
+(4427, 11, 'F', 18, '', 'entrance', 18, 5, 0),
+(4428, 11, 'G', 1, 'G1', 'seat', 0, 6, 1),
+(4429, 11, 'G', 2, 'G2', 'seat', 1, 6, 1),
+(4430, 11, 'G', 3, 'G3', 'seat', 2, 6, 1),
+(4431, 11, 'G', 4, 'G4', 'seat', 3, 6, 1),
+(4432, 11, 'G', 5, 'G5', 'seat', 4, 6, 1),
+(4433, 11, 'G', 6, 'G6', 'seat', 5, 6, 1),
+(4434, 11, 'G', 7, 'G7', 'seat', 6, 6, 1),
+(4435, 11, 'G', 8, 'G8', 'seat', 7, 6, 1),
+(4436, 11, 'G', 208, '', 'aisle', 8, 6, 0),
+(4437, 11, 'G', 9, 'G9', 'seat', 9, 6, 1),
+(4438, 11, 'G', 10, 'G10', 'seat', 10, 6, 1),
+(4439, 11, 'G', 11, 'G11', 'seat', 11, 6, 1),
+(4440, 11, 'G', 12, 'G12', 'seat', 12, 6, 1),
+(4441, 11, 'G', 13, 'G13', 'seat', 13, 6, 1),
+(4442, 11, 'G', 14, 'G14', 'seat', 14, 6, 1),
+(4443, 11, 'G', 15, 'G15', 'seat', 15, 6, 1),
+(4444, 11, 'G', 16, 'G16', 'seat', 16, 6, 1),
+(4445, 11, 'G', 17, '', 'entrance', 17, 6, 0),
+(4446, 11, 'G', 18, '', 'entrance', 18, 6, 0),
+(4447, 11, 'H', 1, 'H1', 'seat', 0, 7, 1),
+(4448, 11, 'H', 2, 'H2', 'seat', 1, 7, 1),
+(4449, 11, 'H', 3, 'H3', 'seat', 2, 7, 1),
+(4450, 11, 'H', 4, 'H4', 'seat', 3, 7, 1),
+(4451, 11, 'H', 5, 'H5', 'seat', 4, 7, 1),
+(4452, 11, 'H', 6, 'H6', 'seat', 5, 7, 1),
+(4453, 11, 'H', 7, 'H7', 'seat', 6, 7, 1),
+(4454, 11, 'H', 8, 'H8', 'seat', 7, 7, 1),
+(4455, 11, 'H', 208, '', 'aisle', 8, 7, 0),
+(4456, 11, 'H', 9, 'H9', 'seat', 9, 7, 1),
+(4457, 11, 'H', 10, 'H10', 'seat', 10, 7, 1),
+(4458, 11, 'H', 11, 'H11', 'seat', 11, 7, 1),
+(4459, 11, 'H', 12, 'H12', 'seat', 12, 7, 1),
+(4460, 11, 'H', 13, 'H13', 'seat', 13, 7, 1),
+(4461, 11, 'H', 14, 'H14', 'seat', 14, 7, 1),
+(4462, 11, 'H', 15, 'H15', 'seat', 15, 7, 1),
+(4463, 11, 'H', 16, 'H16', 'seat', 16, 7, 1),
+(4464, 11, 'H', 17, '', 'entrance', 17, 7, 0),
+(4465, 11, 'H', 18, '', 'entrance', 18, 7, 0),
+(4466, 11, 'I', 1, 'I1', 'seat', 0, 8, 1),
+(4467, 11, 'I', 2, 'I2', 'seat', 1, 8, 1),
+(4468, 11, 'I', 3, 'I3', 'seat', 2, 8, 1),
+(4469, 11, 'I', 4, 'I4', 'seat', 3, 8, 1),
+(4470, 11, 'I', 5, 'I5', 'seat', 4, 8, 1),
+(4471, 11, 'I', 6, 'I6', 'seat', 5, 8, 1),
+(4472, 11, 'I', 7, 'I7', 'seat', 6, 8, 1),
+(4473, 11, 'I', 8, 'I8', 'seat', 7, 8, 1),
+(4474, 11, 'I', 208, '', 'aisle', 8, 8, 0),
+(4475, 11, 'I', 9, 'I9', 'seat', 9, 8, 1),
+(4476, 11, 'I', 10, 'I10', 'seat', 10, 8, 1),
+(4477, 11, 'I', 11, 'I11', 'seat', 11, 8, 1),
+(4478, 11, 'I', 12, 'I12', 'seat', 12, 8, 1),
+(4479, 11, 'I', 13, 'I13', 'seat', 13, 8, 1),
+(4480, 11, 'I', 14, 'I14', 'seat', 14, 8, 1),
+(4481, 11, 'I', 15, 'I15', 'seat', 15, 8, 1),
+(4482, 11, 'I', 16, 'I16', 'seat', 16, 8, 1),
+(4483, 11, 'I', 17, '', 'entrance', 17, 8, 0),
+(4484, 11, 'I', 18, '', 'entrance', 18, 8, 0),
+(4485, 11, 'J', 1, 'J1', 'seat', 0, 9, 1),
+(4486, 11, 'J', 2, 'J2', 'seat', 1, 9, 1),
+(4487, 11, 'J', 3, 'J3', 'seat', 2, 9, 1),
+(4488, 11, 'J', 4, 'J4', 'seat', 3, 9, 1),
+(4489, 11, 'J', 5, 'J5', 'seat', 4, 9, 1),
+(4490, 11, 'J', 6, 'J6', 'seat', 5, 9, 1),
+(4491, 11, 'J', 7, 'J7', 'seat', 6, 9, 1),
+(4492, 11, 'J', 8, 'J8', 'seat', 7, 9, 1),
+(4493, 11, 'J', 208, '', 'aisle', 8, 9, 0),
+(4494, 11, 'J', 9, 'J9', 'seat', 9, 9, 1),
+(4495, 11, 'J', 10, 'J10', 'seat', 10, 9, 1),
+(4496, 11, 'J', 11, 'J11', 'seat', 11, 9, 1),
+(4497, 11, 'J', 12, 'J12', 'seat', 12, 9, 1),
+(4498, 11, 'J', 13, 'J13', 'seat', 13, 9, 1),
+(4499, 11, 'J', 14, 'J14', 'seat', 14, 9, 1),
+(4500, 11, 'J', 15, 'J15', 'seat', 15, 9, 1),
+(4501, 11, 'J', 16, 'J16', 'seat', 16, 9, 1),
+(4502, 11, 'J', 17, '', 'entrance', 17, 9, 0),
+(4503, 11, 'J', 18, '', 'entrance', 18, 9, 0),
+(4666, 12, 'A', 1, 'A1', 'seat', 0, 0, 1),
+(4667, 12, 'A', 2, 'A2', 'seat', 1, 0, 1),
+(4668, 12, 'A', 3, 'A3', 'seat', 2, 0, 1),
+(4669, 12, 'A', 4, 'A4', 'seat', 3, 0, 1),
+(4670, 12, 'A', 5, 'A5', 'seat', 4, 0, 1),
+(4671, 12, 'A', 6, 'A6', 'seat', 5, 0, 1),
+(4672, 12, 'A', 7, 'A7', 'seat', 6, 0, 1),
+(4673, 12, 'A', 8, 'A8', 'seat', 7, 0, 1),
+(4674, 12, 'A', 208, '', 'aisle', 8, 0, 0),
+(4675, 12, 'A', 9, 'A9', 'seat', 9, 0, 1),
+(4676, 12, 'A', 10, 'A10', 'seat', 10, 0, 1),
+(4677, 12, 'A', 11, 'A11', 'seat', 11, 0, 1),
+(4678, 12, 'A', 12, 'A12', 'seat', 12, 0, 1),
+(4679, 12, 'A', 13, 'A13', 'seat', 13, 0, 1),
+(4680, 12, 'A', 14, 'A14', 'seat', 14, 0, 1),
+(4681, 12, 'A', 15, 'A15', 'seat', 15, 0, 1),
+(4682, 12, 'A', 16, 'A16', 'seat', 16, 0, 1),
+(4683, 12, 'A', 17, 'A17', 'seat', 17, 0, 1),
+(4684, 12, 'A', 18, 'A18', 'seat', 18, 0, 1),
+(4685, 12, 'B', 1, 'B1', 'seat', 0, 1, 1),
+(4686, 12, 'B', 2, 'B2', 'seat', 1, 1, 1),
+(4687, 12, 'B', 3, 'B3', 'seat', 2, 1, 1),
+(4688, 12, 'B', 4, 'B4', 'seat', 3, 1, 1),
+(4689, 12, 'B', 5, 'B5', 'seat', 4, 1, 1),
+(4690, 12, 'B', 6, 'B6', 'seat', 5, 1, 1),
+(4691, 12, 'B', 7, 'B7', 'seat', 6, 1, 1),
+(4692, 12, 'B', 8, 'B8', 'seat', 7, 1, 1),
+(4693, 12, 'B', 208, '', 'aisle', 8, 1, 0),
+(4694, 12, 'B', 9, 'B9', 'seat', 9, 1, 1),
+(4695, 12, 'B', 10, 'B10', 'seat', 10, 1, 1),
+(4696, 12, 'B', 11, 'B11', 'seat', 11, 1, 1),
+(4697, 12, 'B', 12, 'B12', 'seat', 12, 1, 1),
+(4698, 12, 'B', 13, 'B13', 'seat', 13, 1, 1),
+(4699, 12, 'B', 14, 'B14', 'seat', 14, 1, 1),
+(4700, 12, 'B', 15, 'B15', 'seat', 15, 1, 1),
+(4701, 12, 'B', 16, 'B16', 'seat', 16, 1, 1),
+(4702, 12, 'B', 17, '', 'entrance', 17, 1, 0),
+(4703, 12, 'B', 18, '', 'entrance', 18, 1, 0),
+(4704, 12, 'C', 1, 'C1', 'seat', 0, 2, 1),
+(4705, 12, 'C', 2, 'C2', 'seat', 1, 2, 1),
+(4706, 12, 'C', 3, 'C3', 'seat', 2, 2, 1),
+(4707, 12, 'C', 4, 'C4', 'seat', 3, 2, 1),
+(4708, 12, 'C', 5, 'C5', 'seat', 4, 2, 1),
+(4709, 12, 'C', 6, 'C6', 'seat', 5, 2, 1),
+(4710, 12, 'C', 7, 'C7', 'seat', 6, 2, 1),
+(4711, 12, 'C', 8, 'C8', 'seat', 7, 2, 1),
+(4712, 12, 'C', 208, '', 'aisle', 8, 2, 0),
+(4713, 12, 'C', 9, 'C9', 'seat', 9, 2, 1),
+(4714, 12, 'C', 10, 'C10', 'seat', 10, 2, 1),
+(4715, 12, 'C', 11, 'C11', 'seat', 11, 2, 1),
+(4716, 12, 'C', 12, 'C12', 'seat', 12, 2, 1),
+(4717, 12, 'C', 13, 'C13', 'seat', 13, 2, 1),
+(4718, 12, 'C', 14, 'C14', 'seat', 14, 2, 1),
+(4719, 12, 'C', 15, 'C15', 'seat', 15, 2, 1),
+(4720, 12, 'C', 16, 'C16', 'seat', 16, 2, 1),
+(4721, 12, 'C', 17, '', 'entrance', 17, 2, 0),
+(4722, 12, 'C', 18, '', 'entrance', 18, 2, 0),
+(4723, 12, 'D', 1, 'D1', 'seat', 0, 3, 1),
+(4724, 12, 'D', 2, 'D2', 'seat', 1, 3, 1),
+(4725, 12, 'D', 3, 'D3', 'seat', 2, 3, 1),
+(4726, 12, 'D', 4, 'D4', 'seat', 3, 3, 1),
+(4727, 12, 'D', 5, 'D5', 'seat', 4, 3, 1),
+(4728, 12, 'D', 6, 'D6', 'seat', 5, 3, 1),
+(4729, 12, 'D', 7, 'D7', 'seat', 6, 3, 1),
+(4730, 12, 'D', 8, 'D8', 'seat', 7, 3, 1),
+(4731, 12, 'D', 208, '', 'aisle', 8, 3, 0),
+(4732, 12, 'D', 9, 'D9', 'seat', 9, 3, 1),
+(4733, 12, 'D', 10, 'D10', 'seat', 10, 3, 1),
+(4734, 12, 'D', 11, 'D11', 'seat', 11, 3, 1),
+(4735, 12, 'D', 12, 'D12', 'seat', 12, 3, 1),
+(4736, 12, 'D', 13, 'D13', 'seat', 13, 3, 1),
+(4737, 12, 'D', 14, 'D14', 'seat', 14, 3, 1),
+(4738, 12, 'D', 15, 'D15', 'seat', 15, 3, 1),
+(4739, 12, 'D', 16, 'D16', 'seat', 16, 3, 1),
+(4740, 12, 'D', 17, '', 'entrance', 17, 3, 0),
+(4741, 12, 'D', 18, '', 'entrance', 18, 3, 0),
+(4742, 12, 'E', 1, 'E1', 'seat', 0, 4, 1),
+(4743, 12, 'E', 2, 'E2', 'seat', 1, 4, 1),
+(4744, 12, 'E', 3, 'E3', 'seat', 2, 4, 1),
+(4745, 12, 'E', 4, 'E4', 'seat', 3, 4, 1),
+(4746, 12, 'E', 5, 'E5', 'seat', 4, 4, 1),
+(4747, 12, 'E', 6, 'E6', 'seat', 5, 4, 1),
+(4748, 12, 'E', 7, 'E7', 'seat', 6, 4, 1),
+(4749, 12, 'E', 8, 'E8', 'seat', 7, 4, 1),
+(4750, 12, 'E', 208, '', 'aisle', 8, 4, 0),
+(4751, 12, 'E', 9, 'E9', 'seat', 9, 4, 1),
+(4752, 12, 'E', 10, 'E10', 'seat', 10, 4, 1),
+(4753, 12, 'E', 11, 'E11', 'seat', 11, 4, 1),
+(4754, 12, 'E', 12, 'E12', 'seat', 12, 4, 1),
+(4755, 12, 'E', 13, 'E13', 'seat', 13, 4, 1),
+(4756, 12, 'E', 14, 'E14', 'seat', 14, 4, 1),
+(4757, 12, 'E', 15, 'E15', 'seat', 15, 4, 1),
+(4758, 12, 'E', 16, 'E16', 'seat', 16, 4, 1),
+(4759, 12, 'E', 17, '', 'entrance', 17, 4, 0),
+(4760, 12, 'E', 18, '', 'entrance', 18, 4, 0),
+(4761, 12, 'F', 1, 'F1', 'seat', 0, 5, 1),
+(4762, 12, 'F', 2, 'F2', 'seat', 1, 5, 1),
+(4763, 12, 'F', 3, 'F3', 'seat', 2, 5, 1),
+(4764, 12, 'F', 4, 'F4', 'seat', 3, 5, 1),
+(4765, 12, 'F', 5, 'F5', 'seat', 4, 5, 1),
+(4766, 12, 'F', 6, 'F6', 'seat', 5, 5, 1),
+(4767, 12, 'F', 7, 'F7', 'seat', 6, 5, 1),
+(4768, 12, 'F', 8, 'F8', 'seat', 7, 5, 1),
+(4769, 12, 'F', 208, '', 'aisle', 8, 5, 0),
+(4770, 12, 'F', 9, 'F9', 'seat', 9, 5, 1),
+(4771, 12, 'F', 10, 'F10', 'seat', 10, 5, 1),
+(4772, 12, 'F', 11, 'F11', 'seat', 11, 5, 1),
+(4773, 12, 'F', 12, 'F12', 'seat', 12, 5, 1),
+(4774, 12, 'F', 13, 'F13', 'seat', 13, 5, 1),
+(4775, 12, 'F', 14, 'F14', 'seat', 14, 5, 1),
+(4776, 12, 'F', 15, 'F15', 'seat', 15, 5, 1),
+(4777, 12, 'F', 16, 'F16', 'seat', 16, 5, 1),
+(4778, 12, 'F', 17, '', 'entrance', 17, 5, 0),
+(4779, 12, 'F', 18, '', 'entrance', 18, 5, 0),
+(4780, 12, 'G', 1, 'G1', 'seat', 0, 6, 1),
+(4781, 12, 'G', 2, 'G2', 'seat', 1, 6, 1),
+(4782, 12, 'G', 3, 'G3', 'seat', 2, 6, 1),
+(4783, 12, 'G', 4, 'G4', 'seat', 3, 6, 1),
+(4784, 12, 'G', 5, 'G5', 'seat', 4, 6, 1),
+(4785, 12, 'G', 6, 'G6', 'seat', 5, 6, 1),
+(4786, 12, 'G', 7, 'G7', 'seat', 6, 6, 1),
+(4787, 12, 'G', 8, 'G8', 'seat', 7, 6, 1),
+(4788, 12, 'G', 208, '', 'aisle', 8, 6, 0),
+(4789, 12, 'G', 9, 'G9', 'seat', 9, 6, 1),
+(4790, 12, 'G', 10, 'G10', 'seat', 10, 6, 1),
+(4791, 12, 'G', 11, 'G11', 'seat', 11, 6, 1),
+(4792, 12, 'G', 12, 'G12', 'seat', 12, 6, 1),
+(4793, 12, 'G', 13, 'G13', 'seat', 13, 6, 1),
+(4794, 12, 'G', 14, 'G14', 'seat', 14, 6, 1),
+(4795, 12, 'G', 15, 'G15', 'seat', 15, 6, 1),
+(4796, 12, 'G', 16, 'G16', 'seat', 16, 6, 1),
+(4797, 12, 'G', 17, '', 'entrance', 17, 6, 0),
+(4798, 12, 'G', 18, '', 'entrance', 18, 6, 0),
+(4799, 12, 'H', 1, 'H1', 'seat', 0, 7, 1),
+(4800, 12, 'H', 2, 'H2', 'seat', 1, 7, 1),
+(4801, 12, 'H', 3, 'H3', 'seat', 2, 7, 1),
+(4802, 12, 'H', 4, 'H4', 'seat', 3, 7, 1),
+(4803, 12, 'H', 5, 'H5', 'seat', 4, 7, 1),
+(4804, 12, 'H', 6, 'H6', 'seat', 5, 7, 1),
+(4805, 12, 'H', 7, 'H7', 'seat', 6, 7, 1),
+(4806, 12, 'H', 8, 'H8', 'seat', 7, 7, 1),
+(4807, 12, 'H', 208, '', 'aisle', 8, 7, 0),
+(4808, 12, 'H', 9, 'H9', 'seat', 9, 7, 1),
+(4809, 12, 'H', 10, 'H10', 'seat', 10, 7, 1),
+(4810, 12, 'H', 11, 'H11', 'seat', 11, 7, 1),
+(4811, 12, 'H', 12, 'H12', 'seat', 12, 7, 1),
+(4812, 12, 'H', 13, 'H13', 'seat', 13, 7, 1),
+(4813, 12, 'H', 14, 'H14', 'seat', 14, 7, 1),
+(4814, 12, 'H', 15, 'H15', 'seat', 15, 7, 1),
+(4815, 12, 'H', 16, 'H16', 'seat', 16, 7, 1),
+(4816, 12, 'H', 17, '', 'entrance', 17, 7, 0),
+(4817, 12, 'H', 18, '', 'entrance', 18, 7, 0),
+(4818, 12, 'I', 1, 'I1', 'seat', 0, 8, 1),
+(4819, 12, 'I', 2, 'I2', 'seat', 1, 8, 1),
+(4820, 12, 'I', 3, 'I3', 'seat', 2, 8, 1),
+(4821, 12, 'I', 4, 'I4', 'seat', 3, 8, 1),
+(4822, 12, 'I', 5, 'I5', 'seat', 4, 8, 1),
+(4823, 12, 'I', 6, 'I6', 'seat', 5, 8, 1),
+(4824, 12, 'I', 7, 'I7', 'seat', 6, 8, 1),
+(4825, 12, 'I', 8, 'I8', 'seat', 7, 8, 1),
+(4826, 12, 'I', 208, '', 'aisle', 8, 8, 0),
+(4827, 12, 'I', 9, 'I9', 'seat', 9, 8, 1),
+(4828, 12, 'I', 10, 'I10', 'seat', 10, 8, 1),
+(4829, 12, 'I', 11, 'I11', 'seat', 11, 8, 1),
+(4830, 12, 'I', 12, 'I12', 'seat', 12, 8, 1),
+(4831, 12, 'I', 13, 'I13', 'seat', 13, 8, 1),
+(4832, 12, 'I', 14, 'I14', 'seat', 14, 8, 1),
+(4833, 12, 'I', 15, 'I15', 'seat', 15, 8, 1),
+(4834, 12, 'I', 16, 'I16', 'seat', 16, 8, 1),
+(4835, 12, 'I', 17, '', 'entrance', 17, 8, 0),
+(4836, 12, 'I', 18, '', 'entrance', 18, 8, 0);
 
 -- --------------------------------------------------------
 
@@ -3648,7 +4372,11 @@ INSERT INTO `studios` (`id`, `cinema_id`, `studio_name`, `studio_type`, `total_s
 (5, 2, 'Studio 1', 'Regular 2D', 308, '2026-03-14 10:32:17'),
 (6, 2, 'Studio 2', 'Regular 2D', 121, '2026-03-14 10:35:41'),
 (7, 2, 'Studio 3', 'Regular 2D', 121, '2026-03-14 10:37:03'),
-(8, 2, 'Studio 4', 'Regular 2D', 121, '2026-03-14 10:37:22');
+(8, 2, 'Studio 4', 'Regular 2D', 121, '2026-03-14 10:37:22'),
+(9, 3, 'Studio 3', '2D', 132, '2026-03-17 10:14:22'),
+(10, 3, 'Studio 4', '2D', 132, '2026-03-17 10:25:47'),
+(11, 3, 'Studio 2', '2D', 162, '2026-03-17 10:26:49'),
+(12, 3, 'Studio 1', '2D', 146, '2026-03-17 10:28:10');
 
 -- --------------------------------------------------------
 
@@ -3676,7 +4404,19 @@ INSERT INTO `tickets` (`id`, `order_id`, `seat_id`, `qr_code`, `is_used`, `creat
 (4, 4, 2543, 'BA0WKZGRF3BO-4-2543', 0, '2026-03-14 12:43:39'),
 (5, 5, 2526, 'SN2XMV29I8OU-5-2526', 0, '2026-03-14 12:47:53'),
 (6, 6, 2525, 'HNFNXMSHFAXX-6-2525', 0, '2026-03-14 12:53:00'),
-(7, 7, 2530, 'Q2IXSWI7TUKG-7-2530', 0, '2026-03-14 13:00:15');
+(7, 7, 2530, 'Q2IXSWI7TUKG-7-2530', 0, '2026-03-14 13:00:15'),
+(8, 8, 3011, 'K6LSCPTTKC4N-8-3011', 0, '2026-03-17 09:26:06'),
+(9, 8, 3012, 'MALAPWKCYZTC-8-3012', 0, '2026-03-17 09:26:06'),
+(10, 9, 3006, 'MJCHZIMWVSWT-9-3006', 1, '2026-03-17 09:40:53'),
+(11, 9, 3007, 'B07QU78F28PD-9-3007', 1, '2026-03-17 09:40:53'),
+(12, 13, 3013, '2HIYM7AXJRO6-13-3013', 1, '2026-03-17 10:30:49'),
+(13, 13, 3014, '3IWGJJ7OWFAQ-13-3014', 1, '2026-03-17 10:30:49'),
+(14, 14, 3011, 'SUO1YKZDFWK9-14-3011', 1, '2026-03-17 10:55:31'),
+(15, 14, 3012, 'GRWP4JVZBKST-14-3012', 1, '2026-03-17 10:55:31'),
+(16, 15, 2528, 'TSM1ETAZENUZ-15-2528', 1, '2026-03-17 11:32:54'),
+(17, 16, 2521, '7JWRZH4WIOOX-16-2521', 0, '2026-03-17 12:22:11'),
+(18, 17, 2527, '13JBEYX15EF1-17-2527', 0, '2026-03-17 12:34:17'),
+(19, 18, 2527, 'VEN7BU9ODJJP-18-2527', 1, '2026-03-17 13:18:11');
 
 -- --------------------------------------------------------
 
@@ -3862,7 +4602,9 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (90, 9, 53, 300, 'poster', 'films', NULL, NULL, '2026-03-12 02:32:59', '2026-03-12 02:32:59'),
 (91, 9, 67, 318, 'poster', 'films', NULL, NULL, '2026-03-12 02:33:32', '2026-03-12 02:33:32'),
 (92, 9, 30, 191, 'poster', 'films', NULL, NULL, '2026-03-13 13:39:03', '2026-03-13 13:39:03'),
-(93, 9, 30, 133, 'backdrop', 'films', NULL, NULL, '2026-03-13 13:39:56', '2026-03-13 13:39:56');
+(93, 9, 30, 133, 'backdrop', 'films', NULL, NULL, '2026-03-13 13:39:56', '2026-03-13 13:39:56'),
+(94, 9, 4, 298, 'poster', 'films', NULL, NULL, '2026-03-17 11:59:25', '2026-03-17 11:59:25'),
+(95, 9, 48, 213, 'poster', 'films', NULL, NULL, '2026-03-17 12:21:27', '2026-03-17 12:21:27');
 
 -- --------------------------------------------------------
 
@@ -4150,6 +4892,7 @@ ALTER TABLE `notifications`
 ALTER TABLE `orders`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `order_code` (`order_code`),
+  ADD UNIQUE KEY `orders_ticket_code_unique` (`ticket_code`),
   ADD KEY `idx_orders_schedule` (`schedule_id`),
   ADD KEY `idx_orders_status` (`status`),
   ADD KEY `idx_orders_expired_at` (`expired_at`),
@@ -4160,7 +4903,6 @@ ALTER TABLE `orders`
 --
 ALTER TABLE `order_seats`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uq_seat_per_schedule` (`schedule_id`,`seat_id`),
   ADD KEY `idx_order_seats_order` (`order_id`),
   ADD KEY `idx_order_seats_seat` (`seat_id`),
   ADD KEY `idx_order_seats_schedule` (`schedule_id`);
@@ -4350,7 +5092,7 @@ ALTER TABLE `watchlists`
 -- AUTO_INCREMENT untuk tabel `cinemas`
 --
 ALTER TABLE `cinemas`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT untuk tabel `countries`
@@ -4398,7 +5140,7 @@ ALTER TABLE `languages`
 -- AUTO_INCREMENT untuk tabel `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT untuk tabel `movies`
@@ -4410,13 +5152,13 @@ ALTER TABLE `movies`
 -- AUTO_INCREMENT untuk tabel `movie_likes`
 --
 ALTER TABLE `movie_likes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_media`
 --
 ALTER TABLE `movie_media`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=343;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=344;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_persons`
@@ -4440,19 +5182,19 @@ ALTER TABLE `notifications`
 -- AUTO_INCREMENT untuk tabel `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT untuk tabel `order_seats`
 --
 ALTER TABLE `order_seats`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT untuk tabel `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT untuk tabel `persons`
@@ -4470,7 +5212,7 @@ ALTER TABLE `production_houses`
 -- AUTO_INCREMENT untuk tabel `ratings`
 --
 ALTER TABLE `ratings`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
 
 --
 -- AUTO_INCREMENT untuk tabel `reviews`
@@ -4494,13 +5236,13 @@ ALTER TABLE `review_likes`
 -- AUTO_INCREMENT untuk tabel `schedules`
 --
 ALTER TABLE `schedules`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT untuk tabel `seats`
 --
 ALTER TABLE `seats`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3700;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4837;
 
 --
 -- AUTO_INCREMENT untuk tabel `services`
@@ -4512,13 +5254,13 @@ ALTER TABLE `services`
 -- AUTO_INCREMENT untuk tabel `studios`
 --
 ALTER TABLE `studios`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT untuk tabel `tickets`
 --
 ALTER TABLE `tickets`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
@@ -4536,7 +5278,7 @@ ALTER TABLE `user_activities`
 -- AUTO_INCREMENT untuk tabel `user_change_medias`
 --
 ALTER TABLE `user_change_medias`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=94;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=96;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`

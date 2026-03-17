@@ -9,22 +9,33 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ItemTicketHistoryBinding
+import java.text.NumberFormat
+import java.util.Locale
 
 data class TicketHistoryItem(
+    val orderId: Int,
+    val movieId: Int,
+    val ticketCode: String,
+    val orderStatus: String,
+    val totalPrice: Double,
+    val paymentMethod: String,
+    val isScanned: Boolean,
     val posterUrl: String,
     val title: String,
     val cinemaName: String,
     val studioInfo: String,
     val showDate: String,
     val showTime: String,
+    val showEndTimeMillis: Long,
     val seatInfo: String,
     val status: TicketStatus
 )
 
-enum class TicketStatus { PAID, EXPIRED }
+enum class TicketStatus { ACTIVE, USED, EXPIRED }
 
 class TicketHistoryAdapter(
-    private val onPrimaryActionClick: (TicketHistoryItem) -> Unit
+    private val onPrimaryActionClick: (TicketHistoryItem) -> Unit,
+    private val onMovieClick: (TicketHistoryItem) -> Unit
 ) : RecyclerView.Adapter<TicketHistoryAdapter.TicketHistoryViewHolder>() {
 
     private val items = mutableListOf<TicketHistoryItem>()
@@ -59,6 +70,8 @@ class TicketHistoryAdapter(
             binding.tvStudioInfo.text = item.studioInfo
             binding.tvDate.text = "${item.showDate} • ${item.showTime}"
             binding.tvSeat.text = item.seatInfo
+            binding.tvTotalPayment.text = "Total: ${formatToRupiah(item.totalPrice)}"
+            binding.tvPaymentMethod.text = "Metode: ${item.paymentMethod}"
 
             if (item.posterUrl.isBlank()) {
                 binding.ivPoster.setImageResource(R.drawable.ic_movie)
@@ -71,7 +84,7 @@ class TicketHistoryAdapter(
             }
 
             when (item.status) {
-                TicketStatus.PAID -> {
+                TicketStatus.ACTIVE -> {
                     binding.tvStatus.text = "PAID"
                     binding.tvStatus.backgroundTintList = ColorStateList.valueOf(
                         ContextCompat.getColor(context, R.color.star_green)
@@ -85,13 +98,27 @@ class TicketHistoryAdapter(
                     binding.btnPrimary.icon = ContextCompat.getDrawable(context, R.drawable.ic_ticket)
                 }
 
+                TicketStatus.USED -> {
+                    binding.tvStatus.text = "USED"
+                    binding.tvStatus.backgroundTintList = ColorStateList.valueOf(
+                        ContextCompat.getColor(context, R.color.text_secondary)
+                    )
+
+                    binding.btnPrimary.text = "Rate Log Review More"
+                    binding.btnPrimary.backgroundTintList = ColorStateList.valueOf(
+                        ContextCompat.getColor(context, R.color.dark_surface)
+                    )
+                    binding.btnPrimary.setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
+                    binding.btnPrimary.icon = null
+                }
+
                 TicketStatus.EXPIRED -> {
                     binding.tvStatus.text = "EXPIRED"
                     binding.tvStatus.backgroundTintList = ColorStateList.valueOf(
                         ContextCompat.getColor(context, R.color.text_secondary)
                     )
 
-                    binding.btnPrimary.text = "LIHAT DETAIL"
+                    binding.btnPrimary.text = "Rate Log Review More"
                     binding.btnPrimary.backgroundTintList = ColorStateList.valueOf(
                         ContextCompat.getColor(context, R.color.dark_surface)
                     )
@@ -101,6 +128,13 @@ class TicketHistoryAdapter(
             }
 
             binding.btnPrimary.setOnClickListener { onPrimaryActionClick(item) }
+            binding.ivPoster.setOnClickListener { onMovieClick(item) }
+            binding.tvTitle.setOnClickListener { onMovieClick(item) }
+        }
+
+        private fun formatToRupiah(value: Double): String {
+            val formatter = NumberFormat.getNumberInstance(Locale("id", "ID"))
+            return "Rp${formatter.format(value.toLong())}"
         }
     }
 }

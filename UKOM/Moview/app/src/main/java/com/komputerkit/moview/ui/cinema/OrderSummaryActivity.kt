@@ -6,11 +6,14 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
+import android.view.View
+import android.content.Intent
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.BuildConfig
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ActivityOrderSummaryBinding
 import com.komputerkit.moview.ui.cinema.model.BookingData
+import com.komputerkit.moview.ui.ticket.TicketHistoryActivity
 import com.komputerkit.moview.util.ServerConfig
 import com.midtrans.sdk.corekit.callback.TransactionFinishedCallback
 import com.midtrans.sdk.corekit.core.MidtransSDK
@@ -28,6 +31,7 @@ class OrderSummaryActivity : AppCompatActivity() {
     private lateinit var bookingData: BookingData
     private var selectedSeatLabel: String = ""
     private var latestOrderCode: String? = null
+    private var shouldSyncOnResume: Boolean = false
 
     private val appPrefs by lazy {
         getSharedPreferences("MoviewPrefs", MODE_PRIVATE)
@@ -47,7 +51,8 @@ class OrderSummaryActivity : AppCompatActivity() {
             )
         selectedSeatLabel = intent.getStringExtra(EXTRA_SEATS)
             ?: bookingData.selectedSeatIds.joinToString(",")
-        latestOrderCode = appPrefs.getString(KEY_PENDING_ORDER_CODE, null)
+        latestOrderCode = null
+        shouldSyncOnResume = false
 
         val seatCount = calculateSeatCount(selectedSeatLabel, bookingData.selectedSeatIds)
         populateMovieInfo(bookingData, selectedSeatLabel, seatCount)
@@ -59,6 +64,7 @@ class OrderSummaryActivity : AppCompatActivity() {
         binding.btnPay.setOnClickListener {
             val userId = getSharedPreferences("MoviewPrefs", MODE_PRIVATE).getInt("userId", 0)
             val selectedSeats = bookingData.selectedSeatIds
+            shouldSyncOnResume = false
             viewModel.createPayment(
                 userId = userId,
                 scheduleId = bookingData.scheduleId,
@@ -96,8 +102,9 @@ class OrderSummaryActivity : AppCompatActivity() {
 
     private fun observeViewModel() {
         viewModel.uiState.observe(this) { state ->
-            binding.btnPay.isEnabled = !state.isLoading
-            binding.btnPay.text = if (state.isLoading) "MEMPROSES..." else "SELESAIKAN PEMBAYARAN"
+            binding.btnPay.isEnabled = !state.isCreatingPayment
+            binding.btnPay.text = if (state.isCreatingPayment) "MEMPROSES..." else "SELESAIKAN PEMBAYARAN"
+            binding.layoutSyncStatus.visibility = if (state.isSyncingPayment && shouldSyncOnResume) View.VISIBLE else View.GONE
 
             state.error?.let {
                 Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
@@ -107,6 +114,7 @@ class OrderSummaryActivity : AppCompatActivity() {
             state.paymentResult?.let { result ->
                 latestOrderCode = result.order_code
                 appPrefs.edit().putString(KEY_PENDING_ORDER_CODE, result.order_code).apply()
+                shouldSyncOnResume = true
                 launchSnapPayment(result.snap_token)
                 viewModel.clearPaymentResult()
             }
@@ -119,7 +127,8 @@ class OrderSummaryActivity : AppCompatActivity() {
             if (state.paymentCompleted) {
                 clearPendingOrderCode()
                 viewModel.clearPaymentCompleted()
-                finish()
+                navigateToActiveTickets()
+                return@observe
             }
 
             val syncedOrderStatus = state.syncedOrderStatus
@@ -134,9 +143,13 @@ class OrderSummaryActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val pendingOrderCode = latestOrderCode ?: appPrefs.getString(KEY_PENDING_ORDER_CODE, null)
+        if (!shouldSyncOnResume) {
+            return
+        }
+
+        val pendingOrderCode = latestOrderCode
         if (!pendingOrderCode.isNullOrBlank()) {
-            latestOrderCode = pendingOrderCode
+            binding.tvSyncStatus.text = "Menunggu pembayaran selesai..."
             viewModel.syncPaymentStatus(pendingOrderCode)
         }
     }
@@ -205,6 +218,7 @@ class OrderSummaryActivity : AppCompatActivity() {
                 TransactionResult.STATUS_PENDING,
                 TransactionResult.STATUS_FAILED,
                 TransactionResult.STATUS_INVALID -> {
+                    shouldSyncOnResume = true
                     viewModel.syncPaymentStatus(orderCode)
                     return
                 }
@@ -228,6 +242,15 @@ class OrderSummaryActivity : AppCompatActivity() {
                 Toast.makeText(this, "Status transaksi: $status", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun navigateToActiveTickets() {
+        val intent = Intent(this, TicketHistoryActivity::class.java).apply {
+            putExtra(TicketHistoryActivity.EXTRA_INITIAL_TAB, TicketHistoryActivity.TAB_ACTIVE)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        startActivity(intent)
+        finish()
     }
 
     private fun calculateSeatCount(seatsLabel: String, selectedSeatIds: List<Int>): Int {

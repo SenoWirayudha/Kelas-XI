@@ -95,7 +95,7 @@
                         </span>
                     </td>
                     <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
-                        {{ $order->created_at->isoFormat('D MMM Y, HH:mm') }}
+                        {{ $order->created_at ? \Carbon\Carbon::parse($order->created_at)->isoFormat('D MMM Y, HH:mm') : '-' }}
                     </td>
                     <td class="px-4 py-3 text-center">
                         <a href="{{ route('admin.orders.show', $order->id) }}"

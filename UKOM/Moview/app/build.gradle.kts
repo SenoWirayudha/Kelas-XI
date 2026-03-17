@@ -102,6 +102,9 @@ dependencies {
 
     // Midtrans Snap UI Kit
     implementation("com.midtrans:uikit:2.4.0-SANDBOX")
+
+    // QR code generator
+    implementation("com.google.zxing:core:3.5.3")
     
     // Testing
     testImplementation(libs.junit)

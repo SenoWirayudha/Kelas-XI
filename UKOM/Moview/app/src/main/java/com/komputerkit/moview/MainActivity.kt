@@ -3,6 +3,7 @@ package com.komputerkit.moview
 import android.content.Context
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
@@ -39,9 +40,52 @@ class MainActivity : AppCompatActivity() {
         val movieId = intent.getIntExtra("navigate_to_movie_id", 0)
         if (movieId > 0) {
             intent.removeExtra("navigate_to_movie_id")
-            val action = com.komputerkit.moview.ui.home.HomeFragmentDirections
-                .actionHomeToMovieDetail(movieId)
-            navController.navigate(action)
+            try {
+                navController.navigate(
+                    R.id.movieDetailFragment,
+                    Bundle().apply { putInt("movieId", movieId) }
+                )
+            } catch (e: Exception) {
+                Toast.makeText(this, "Gagal membuka detail film", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+
+        val logFilmMovieId = intent.getIntExtra("navigate_to_log_film_movie_id", 0)
+        if (logFilmMovieId > 0) {
+            intent.removeExtra("navigate_to_log_film_movie_id")
+            try {
+                navController.navigate(
+                    R.id.logFilmFragment,
+                    Bundle().apply {
+                        putInt("movieId", logFilmMovieId)
+                        putBoolean("isEditMode", false)
+                        putInt("reviewId", 0)
+                        putString("existingReviewText", null)
+                        putInt("existingRating", 0)
+                        putString("watchedDate", null)
+                    }
+                )
+            } catch (e: Exception) {
+                Toast.makeText(this, "Gagal membuka halaman review/log", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+
+        val posterBackdropMovieId = intent.getIntExtra("navigate_to_poster_backdrop_movie_id", 0)
+        if (posterBackdropMovieId > 0) {
+            intent.removeExtra("navigate_to_poster_backdrop_movie_id")
+            try {
+                navController.navigate(
+                    R.id.posterBackdropFragment,
+                    Bundle().apply {
+                        putInt("movieId", posterBackdropMovieId)
+                        putBoolean("openBackdropsTab", false)
+                    }
+                )
+            } catch (e: Exception) {
+                Toast.makeText(this, "Gagal membuka ganti poster/backdrop", Toast.LENGTH_SHORT).show()
+            }
         }
     }
     

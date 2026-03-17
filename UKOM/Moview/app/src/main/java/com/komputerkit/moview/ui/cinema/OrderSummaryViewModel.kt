@@ -15,7 +15,8 @@ import org.json.JSONObject
 import retrofit2.HttpException
 
 data class OrderSummaryUiState(
-    val isLoading: Boolean = false,
+    val isCreatingPayment: Boolean = false,
+    val isSyncingPayment: Boolean = false,
     val error: String? = null,
     val paymentResult: CreatePaymentResponseDto? = null,
     val syncMessage: String? = null,
@@ -44,7 +45,10 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
             return
         }
 
-        _uiState.value = (_uiState.value ?: OrderSummaryUiState()).copy(isLoading = true, error = null)
+        _uiState.value = (_uiState.value ?: OrderSummaryUiState()).copy(
+            isCreatingPayment = true,
+            error = null
+        )
 
         viewModelScope.launch {
             try {
@@ -59,7 +63,7 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
                 if (response.success && response.data != null) {
                     _uiState.postValue(
                         (_uiState.value ?: OrderSummaryUiState()).copy(
-                            isLoading = false,
+                            isCreatingPayment = false,
                             error = null,
                             paymentResult = response.data
                         )
@@ -67,7 +71,7 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
                 } else {
                     _uiState.postValue(
                         (_uiState.value ?: OrderSummaryUiState()).copy(
-                            isLoading = false,
+                            isCreatingPayment = false,
                             error = response.message ?: "Gagal membuat pembayaran"
                         )
                     )
@@ -90,7 +94,7 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
 
                 _uiState.postValue(
                     (_uiState.value ?: OrderSummaryUiState()).copy(
-                        isLoading = false,
+                        isCreatingPayment = false,
                         error = errorMessage
                     )
                 )
@@ -109,10 +113,13 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
             return
         }
 
-        _uiState.value = (_uiState.value ?: OrderSummaryUiState()).copy(isLoading = true, error = null)
+        _uiState.value = (_uiState.value ?: OrderSummaryUiState()).copy(
+            isSyncingPayment = true,
+            error = null
+        )
 
         viewModelScope.launch {
-            val maxAttempts = 8
+            val maxAttempts = 30
             val retryDelayMs = 2000L
             var lastError: String? = null
 
@@ -127,7 +134,7 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
                         if (orderStatus == "paid") {
                             _uiState.postValue(
                                 (_uiState.value ?: OrderSummaryUiState()).copy(
-                                    isLoading = false,
+                                    isSyncingPayment = false,
                                     error = null,
                                     syncMessage = "Pembayaran berhasil dikonfirmasi",
                                     paymentCompleted = true,
@@ -140,7 +147,7 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
                         if (orderStatus == "cancelled") {
                             _uiState.postValue(
                                 (_uiState.value ?: OrderSummaryUiState()).copy(
-                                    isLoading = false,
+                                    isSyncingPayment = false,
                                     error = null,
                                     syncMessage = "Pembayaran dibatalkan",
                                     paymentCompleted = false,
@@ -178,7 +185,7 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
 
             _uiState.postValue(
                 (_uiState.value ?: OrderSummaryUiState()).copy(
-                    isLoading = false,
+                    isSyncingPayment = false,
                     error = null,
                     syncMessage = lastError ?: "Status pembayaran masih pending, cek lagi beberapa saat.",
                     paymentCompleted = false,

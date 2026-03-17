@@ -341,6 +341,7 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             putExtra(MovieScheduleActivity.EXTRA_GENRE, movie.genre ?: "")
             putExtra(MovieScheduleActivity.EXTRA_DURATION, "")
             putExtra(MovieScheduleActivity.EXTRA_DIRECTOR, "")
+            putExtra(MovieScheduleActivity.EXTRA_IS_PREORDER, movie.isPreorder)
         }
         startActivity(intent)
     }

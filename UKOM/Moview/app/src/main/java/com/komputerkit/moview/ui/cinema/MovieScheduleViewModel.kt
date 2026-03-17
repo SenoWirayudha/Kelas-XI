@@ -34,6 +34,7 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
     private val tag = "MovieScheduleVM"
 
     private val apiService = RetrofitClient.movieApiService
+    private var isPreorderMode: Boolean = false
 
     private val _uiState = MutableLiveData(MovieScheduleUiState())
     val uiState: LiveData<MovieScheduleUiState> = _uiState
@@ -44,6 +45,10 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
             dates = dates,
             selectedDate = dates.firstOrNull()
         )
+    }
+
+    fun setPreorderMode(isPreorder: Boolean) {
+        isPreorderMode = isPreorder
     }
 
     fun loadCities() {
@@ -167,8 +172,12 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
                         .map { it.show_date }
                         .distinct()
                         .sorted()
-                    val enabledDates = currentState.dates.map { date ->
-                        date.copy(isEnabled = availableScheduleDates.contains(date.isoDate))
+                    val enabledDates = if (isPreorderMode) {
+                        buildDatesFromSchedules(availableScheduleDates)
+                    } else {
+                        currentState.dates.map { date ->
+                            date.copy(isEnabled = availableScheduleDates.contains(date.isoDate))
+                        }
                     }
                     val effectiveSelectedDate = when {
                         currentState.selectedDate?.isoDate in availableScheduleDates -> currentState.selectedDate
@@ -322,6 +331,28 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
                 label = if (i == 0) "Hari ini" else dayNames[calendar.get(Calendar.DAY_OF_WEEK) - 1],
                 isoDate = isoFormat.format(calendar.time)
             )
+        }
+    }
+
+    private fun buildDatesFromSchedules(scheduleDates: List<String>): List<ShowDate> {
+        val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
+        val dayNames = listOf("MIN", "SEN", "SEL", "RAB", "KAM", "JUM", "SAB")
+        val parser = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
+        return scheduleDates.mapNotNull { isoDate ->
+            try {
+                val date = parser.parse(isoDate) ?: return@mapNotNull null
+                val calendar = Calendar.getInstance().apply { time = date }
+                ShowDate(
+                    day = calendar.get(Calendar.DAY_OF_MONTH),
+                    month = monthNames[calendar.get(Calendar.MONTH)],
+                    label = dayNames[calendar.get(Calendar.DAY_OF_WEEK) - 1],
+                    isoDate = isoDate,
+                    isEnabled = true
+                )
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 }

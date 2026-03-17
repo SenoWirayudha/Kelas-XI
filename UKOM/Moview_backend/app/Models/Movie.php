@@ -111,6 +111,11 @@ class Movie extends Model
         return $this->hasMany(MovieService::class, 'movie_id');
     }
 
+    public function schedules()
+    {
+        return $this->hasMany(Schedule::class, 'movie_id');
+    }
+
     /**
      * Get ratings for the movie
      */

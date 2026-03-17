@@ -40,6 +40,7 @@ class UpcomingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 findNavController().navigate(action)
             },
             showDateBadge = true,
+            gridMode = true,
             onLogFilm = { movie ->
                 val action = UpcomingFragmentDirections.actionUpcomingToLogFilm(movieId = movie.id)
                 findNavController().navigate(action)

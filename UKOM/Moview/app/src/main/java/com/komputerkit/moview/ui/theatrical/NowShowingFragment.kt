@@ -55,6 +55,7 @@ class NowShowingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 }
                 startActivity(intent)
             },
+            gridMode = true,
             onLogFilm = { movie ->
                 val action = NowShowingFragmentDirections.actionNowShowingToLogFilm(movieId = movie.id)
                 findNavController().navigate(action)

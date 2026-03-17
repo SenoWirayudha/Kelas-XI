@@ -86,7 +86,12 @@ data class SyncPaymentStatusResponseDto(
 data class UserTicketHistoryDto(
     val order_id: Int,
     val order_code: String,
+    val ticket_code: String?,
     val order_status: String,
+    val total_price: Double?,
+    val payment_method: String?,
+    val is_scanned: Boolean,
+    val scanned_at: String?,
     val movie: UserTicketMovieDto,
     val cinema: UserTicketCinemaDto,
     val studio: UserTicketStudioDto,
@@ -117,6 +122,34 @@ data class UserTicketScheduleDto(
 data class UserTicketSeatDto(
     val seat_id: Int,
     val seat_code: String?
+)
+
+data class TicketQrDetailDto(
+    val order_id: Int,
+    val ticket_code: String,
+    val order_status: String,
+    val is_scanned: Boolean,
+    val movie: UserTicketMovieDto,
+    val cinema: TicketQrCinemaDto,
+    val studio: UserTicketStudioDto,
+    val schedule: UserTicketScheduleDto,
+    val seats: List<UserTicketSeatDto>
+)
+
+data class TicketQrCinemaDto(
+    val name: String,
+    val location: String?
+)
+
+data class TicketScanRequest(
+    val ticket_code: String
+)
+
+data class TicketScanResponseDto(
+    val order_id: Int,
+    val ticket_code: String,
+    val is_scanned: Boolean,
+    val scanned_at: String?
 )
 
 data class MovieCardDto(
@@ -603,12 +636,14 @@ data class NotificationResponse(
 data class TheatricalMovieDto(
     val id: Int,
     val title: String,
+    val poster: String?,
     val year: Int,
-    val poster_path: String?,
+    val age_rating: String?,
+    val genre: String?,
     val release_date: String?,
-    val is_coming_soon: Int,  // 0 = now showing, 1 = upcoming
-    val genre: String? = null,
-    val age_rating: String? = null
+    val is_coming_soon: Int,
+    val is_preorder: Boolean,
+    val has_schedule: Boolean
 )
 
 // Rewatch and User Film Activity

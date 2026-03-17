@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -99,7 +100,7 @@ class PaymentController extends Controller
         }
 
         try {
-            $result = DB::transaction(function () use ($schedule, $seatIds, $serviceFeePerSeat, $midtransServerKey, $snapUrl, $user) {
+            $result = DB::transaction(function () use ($schedule, $seatIds, $serviceFeePerSeat, $pendingTimeoutMinutes, $midtransServerKey, $snapUrl, $user) {
                 $validSeatCount = Seat::where('studio_id', $schedule->studio_id)
                     ->whereIn('id', $seatIds)
                     ->where('seat_type', 'seat')
@@ -138,6 +139,18 @@ class PaymentController extends Controller
                     'expired_at' => now()->addMinutes($pendingTimeoutMinutes),
                 ];
 
+                if (Schema::hasColumn('orders', 'ticket_code')) {
+                    $orderPayload['ticket_code'] = Order::generateUniqueTicketCode();
+                }
+
+                if (Schema::hasColumn('orders', 'is_scanned')) {
+                    $orderPayload['is_scanned'] = false;
+                }
+
+                if (Schema::hasColumn('orders', 'scanned_at')) {
+                    $orderPayload['scanned_at'] = null;
+                }
+
                 $order = Order::create($orderPayload);
 
                 foreach ($seatIds as $seatId) {
@@ -162,15 +175,29 @@ class PaymentController extends Controller
                     ->values()
                     ->all();
 
+                $safeUsername = trim((string) ($user->username ?? 'User'));
+                if ($safeUsername === '') {
+                    $safeUsername = 'User';
+                }
+
+                $safeEmail = trim((string) ($user->email ?? 'user@example.com'));
+                if ($safeEmail === '') {
+                    $safeEmail = 'user@example.com';
+                }
+
+                $fallbackPhone = '081234567890';
+
                 $payload = [
                     'transaction_details' => [
                         'order_id' => $orderCode,
                         'gross_amount' => $grossAmount,
                     ],
                     'customer_details' => [
-                        'first_name' => $user->username,
-                        'email' => $user->email,
+                        'first_name' => mb_substr($safeUsername, 0, 50),
+                        'email' => mb_substr($safeEmail, 0, 100),
+                        'phone' => $fallbackPhone,
                     ],
+                    'enabled_payments' => ['shopeepay', 'gopay', 'qris', 'bank_transfer'],
                     'item_details' => [
                         [
                             'id' => 'TICKET-' . $schedule->id,
@@ -185,7 +212,17 @@ class PaymentController extends Controller
                             'name' => 'Biaya Layanan',
                         ],
                     ],
+                    'metadata' => [
+                        'user_id' => $user->id,
+                        'schedule_id' => $schedule->id,
+                    ],
                 ];
+
+                Log::info('Midtrans create payload prepared', [
+                    'order_code' => $orderCode,
+                    'gross_amount' => $grossAmount,
+                    'payment_methods' => $payload['enabled_payments'],
+                ]);
 
                 $snapResponse = Http::withBasicAuth($midtransServerKey, '')
                     ->acceptJson()

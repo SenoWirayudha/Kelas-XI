@@ -128,7 +128,10 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     Route::get('/orders/{id}', [AdminOrderController::class, 'show'])->name('orders.show');
 
     // Ticket Scanner
-    Route::get('/tickets/scanner',  [TicketScannerController::class, 'index'])->name('tickets.scanner');
+    Route::get('/scan-ticket',  [TicketScannerController::class, 'index'])->name('tickets.scanner');
+    Route::get('/tickets/scanner', function () {
+        return redirect()->route('admin.tickets.scanner');
+    });
     Route::post('/tickets/scan',    [TicketScannerController::class, 'scan'])->name('tickets.scan');
     Route::post('/tickets/mark-used', [TicketScannerController::class, 'markUsed'])->name('tickets.mark-used');
 });

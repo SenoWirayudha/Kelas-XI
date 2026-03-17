@@ -61,6 +61,31 @@
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
+            <LinearLayout
+                android:id="@+id/layout_sync_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ProgressBar
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:indeterminate="true" />
+
+                <TextView
+                    android:id="@+id/tv_sync_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Memeriksa status pembayaran..."
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
