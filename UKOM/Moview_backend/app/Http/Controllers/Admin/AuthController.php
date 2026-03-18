@@ -28,6 +28,7 @@ class AuthController extends Controller
         
         $user = User::where('email', $request->email)
             ->where('role', 'admin')
+            ->where('status', 'active')
             ->first();
         
         if ($user && Hash::check($request->password, $user->password)) {

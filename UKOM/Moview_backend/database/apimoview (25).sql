@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 17 Mar 2026 pada 14.36
+-- Waktu pembuatan: 18 Mar 2026 pada 11.26
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -212,7 +212,8 @@ INSERT INTO `followers` (`id`, `user_id`, `follower_id`, `created_at`, `updated_
 (7, 3, 6, '2026-02-28 03:10:44', '2026-02-28 03:10:44'),
 (8, 5, 6, '2026-02-28 03:11:08', '2026-02-28 03:11:08'),
 (10, 6, 5, '2026-02-28 08:32:26', '2026-02-28 08:32:26'),
-(11, 6, 3, '2026-03-07 08:39:11', '2026-03-07 08:39:11');
+(11, 6, 3, '2026-03-07 08:39:11', '2026-03-07 08:39:11'),
+(12, 9, 10, '2026-03-18 10:07:25', '2026-03-18 10:07:25');
 
 -- --------------------------------------------------------
 
@@ -929,7 +930,9 @@ INSERT INTO `movie_likes` (`id`, `user_id`, `film_id`, `created_at`) VALUES
 (30, 6, 6, '2026-03-08 05:12:45'),
 (31, 5, 5, '2026-03-10 06:00:58'),
 (33, 9, 4, '2026-03-17 11:58:32'),
-(34, 9, 70, '2026-03-17 12:14:24');
+(34, 9, 70, '2026-03-17 12:14:24'),
+(35, 9, 67, '2026-03-18 10:08:50'),
+(36, 9, 66, '2026-03-18 10:09:01');
 
 -- --------------------------------------------------------
 
@@ -1622,18 +1625,9 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (218, 48, 10, 'stream', NULL, 0),
 (219, 48, 12, 'stream', NULL, 0),
 (220, 16, 11, 'stream', NULL, 1),
-(221, 49, 9, 'stream', NULL, 0),
-(222, 49, 10, 'stream', NULL, 0),
-(223, 49, 12, 'stream', NULL, 0),
-(224, 50, 9, 'stream', NULL, 0),
-(225, 50, 10, 'stream', NULL, 0),
-(226, 50, 12, 'stream', NULL, 0),
 (233, 51, 9, 'stream', '2026-04-16', 0),
 (234, 51, 10, 'stream', '2026-04-16', 0),
 (235, 51, 12, 'stream', '2026-04-16', 0),
-(242, 52, 9, 'stream', '2026-03-18', 0),
-(243, 52, 10, 'stream', '2026-03-18', 0),
-(244, 52, 12, 'stream', '2026-03-18', 0),
 (257, 54, 9, 'stream', '2026-04-09', 0),
 (258, 54, 10, 'stream', '2026-04-09', 0),
 (259, 54, 12, 'stream', '2026-04-09', 0),
@@ -1651,9 +1645,6 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (289, 57, 12, 'stream', NULL, 1),
 (290, 13, 11, 'stream', NULL, 1),
 (292, 58, 1, 'stream', NULL, 0),
-(296, 59, 9, 'stream', NULL, 0),
-(297, 59, 10, 'stream', NULL, 0),
-(298, 59, 12, 'stream', NULL, 0),
 (299, 60, 9, 'stream', NULL, 1),
 (300, 60, 10, 'stream', NULL, 1),
 (301, 60, 12, 'stream', NULL, 1),
@@ -1669,12 +1660,15 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (347, 72, 9, 'stream', NULL, 1),
 (348, 72, 10, 'stream', NULL, 1),
 (349, 72, 12, 'stream', NULL, 1),
-(350, 71, 9, 'stream', '2026-03-18', 0),
-(351, 71, 10, 'stream', '2026-03-18', 0),
-(352, 71, 12, 'stream', '2026-03-18', 0),
-(353, 70, 9, 'stream', '2026-03-18', 0),
-(354, 70, 10, 'stream', '2026-03-18', 0),
-(355, 70, 12, 'stream', '2026-03-18', 0);
+(356, 70, 9, 'stream', NULL, 0),
+(357, 70, 10, 'stream', NULL, 0),
+(358, 70, 12, 'stream', NULL, 0),
+(359, 71, 9, 'stream', NULL, 0),
+(360, 71, 10, 'stream', NULL, 0),
+(361, 71, 12, 'stream', NULL, 0),
+(362, 52, 9, 'stream', NULL, 0),
+(363, 52, 10, 'stream', NULL, 0),
+(364, 52, 12, 'stream', NULL, 0);
 
 -- --------------------------------------------------------
 
@@ -1724,7 +1718,8 @@ INSERT INTO `notifications` (`id`, `user_id`, `actor_id`, `type`, `film_id`, `re
 (22, 6, 3, 'follow', NULL, NULL, 'Sengefilm followed you', 1, '2026-03-07 08:39:11', '2026-03-07 08:39:11'),
 (23, 6, 5, 'like_review', 6, 30, 'Banda Neira liked your ★★★★★ review of Sore: Istri Dari Masa Depan', 0, '2026-03-10 19:00:42', '2026-03-10 19:00:42'),
 (24, 3, 5, 'like_review', 34, 16, 'Banda Neira liked your ★★★★ review of Sirāt', 0, '2026-03-10 19:56:43', '2026-03-10 19:56:43'),
-(25, 3, 5, 'like_review', 34, 16, 'Banda Neira liked your ★★★★ review of Sirāt', 0, '2026-03-10 19:56:44', '2026-03-10 19:56:44');
+(25, 3, 5, 'like_review', 34, 16, 'Banda Neira liked your ★★★★ review of Sirāt', 0, '2026-03-10 19:56:44', '2026-03-10 19:56:44'),
+(26, 9, 10, 'follow', NULL, NULL, 'sen wir followed you', 1, '2026-03-18 10:07:25', '2026-03-18 10:07:25');
 
 -- --------------------------------------------------------
 
@@ -1765,7 +1760,8 @@ INSERT INTO `orders` (`id`, `schedule_id`, `user_id`, `order_code`, `ticket_code
 (15, 12, 9, 'ORD-20260317183254-WLHSA5', 'MOV-V3HXCV', 49000, 'paid', 1, '2026-03-17 18:34:42', '2026-03-17 11:34:42', '2026-03-17 11:32:54'),
 (16, 13, 9, 'ORD-20260317192211-MYMPYF', 'MOV-UH8NZJ', 49000, 'cancelled', 0, NULL, '2026-03-17 12:34:10', '2026-03-17 12:22:11'),
 (17, 12, 9, 'ORD-20260317193416-VKZIX8', 'MOV-PCZEDW', 49000, 'cancelled', 0, NULL, '2026-03-17 13:15:56', '2026-03-17 12:34:17'),
-(18, 12, 9, 'ORD-20260317201811-RFTWGC', 'MOV-DTQHVP', 49000, 'paid', 1, '2026-03-17 20:30:57', '2026-03-17 13:30:57', '2026-03-17 13:18:11');
+(18, 12, 9, 'ORD-20260317201811-RFTWGC', 'MOV-DTQHVP', 49000, 'paid', 1, '2026-03-17 20:30:57', '2026-03-17 13:30:57', '2026-03-17 13:18:11'),
+(19, 13, 5, 'ORD-20260318171906-LSTWYD', 'MOV-XYAT4N', 49000, 'paid', 1, '2026-03-18 17:20:59', '2026-03-18 10:20:59', '2026-03-18 10:19:06');
 
 -- --------------------------------------------------------
 
@@ -1804,7 +1800,8 @@ INSERT INTO `order_seats` (`id`, `order_id`, `seat_id`, `schedule_id`, `price`) 
 (19, 15, 2528, 12, 45000),
 (20, 16, 2521, 13, 45000),
 (21, 17, 2527, 12, 45000),
-(22, 18, 2527, 12, 45000);
+(22, 18, 2527, 12, 45000),
+(23, 19, 2528, 13, 45000);
 
 -- --------------------------------------------------------
 
@@ -1845,7 +1842,8 @@ INSERT INTO `payments` (`id`, `order_id`, `midtrans_transaction_id`, `midtrans_o
 (12, 15, '87c1775c-1e37-40ee-8e77-8435a25c4c32', 'ORD-20260317183254-WLHSA5', 'shopeepay', 'settlement', 'accept', 49000, '2026-03-17 11:33:22', '{\"status_code\":\"200\",\"transaction_id\":\"87c1775c-1e37-40ee-8e77-8435a25c4c32\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317183254-WLHSA5\",\"payment_type\":\"shopeepay\",\"signature_key\":\"f0f2c6d838ef6c641c4540353c56643eb47bd1d40570c09dc221a0a3ad94319b7965f7b9845cdb442099998d774a853111de7dfaaa22cbe05975e80102c4622e\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":12},\"reference_id\":\"A120260317113301UyNoNwiodAID-1\",\"shopeepay_reference_number\":\"001331195580024817\",\"transaction_time\":\"2026-03-17 18:33:01\",\"settlement_time\":\"2026-03-17 18:33:10\",\"expiry_time\":\"2026-03-17 18:48:01\"}', '2026-03-17 11:32:56'),
 (13, 16, '606f34ea-8a09-4082-ba76-fc7f99907070', 'ORD-20260317192211-MYMPYF', 'bank_transfer', 'expire', 'accept', 49000, '2026-03-17 12:34:10', '{\"status_code\":\"201\",\"transaction_id\":\"606f34ea-8a09-4082-ba76-fc7f99907070\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317192211-MYMPYF\",\"payment_type\":\"bank_transfer\",\"signature_key\":\"68228b466c9b68eab83bc853c5c944c2496fafa1fe828c5a5d3cce62136cb8ff264c855356ca1d2fec9f8c126840ecedf33986015cbed4c84ae643433aee8d4e\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":13},\"va_numbers\":[{\"bank\":\"bca\",\"va_number\":\"84068592047067860534649\"}],\"payment_amounts\":[],\"transaction_time\":\"2026-03-17 19:22:28\",\"expiry_time\":\"2026-03-18 19:22:28\"}', '2026-03-17 12:22:13'),
 (14, 17, NULL, 'ORD-20260317193416-VKZIX8', NULL, 'expire', NULL, 49000, '2026-03-17 13:15:56', '{\"token\":\"61236946-fd76-499c-a11b-29d6d62278b8\",\"redirect_url\":\"https:\\/\\/app.sandbox.midtrans.com\\/snap\\/v4\\/redirection\\/61236946-fd76-499c-a11b-29d6d62278b8\"}', '2026-03-17 12:34:19'),
-(15, 18, '2939b20c-1108-4b69-b359-dfed7a2e45a3', 'ORD-20260317201811-RFTWGC', 'bank_transfer', 'settlement', 'accept', 49000, '2026-03-17 13:18:42', '{\"status_code\":\"200\",\"transaction_id\":\"2939b20c-1108-4b69-b359-dfed7a2e45a3\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317201811-RFTWGC\",\"payment_type\":\"bank_transfer\",\"signature_key\":\"6326385fefc4ec78264709f10fe22a4c84be0f58cfe4f17cb26c960f7d15d4cf62ff1dd8ce78dbc8e84d76a4ccc9c95a79fb55bc13eae665574b2adb2302c2de\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":12},\"va_numbers\":[{\"bank\":\"bca\",\"va_number\":\"84068975389638166083388\"}],\"payment_amounts\":[],\"transaction_time\":\"2026-03-17 20:18:22\",\"settlement_time\":\"2026-03-17 20:18:37\",\"expiry_time\":\"2026-03-18 20:18:22\"}', '2026-03-17 13:18:13');
+(15, 18, '2939b20c-1108-4b69-b359-dfed7a2e45a3', 'ORD-20260317201811-RFTWGC', 'bank_transfer', 'settlement', 'accept', 49000, '2026-03-17 13:18:42', '{\"status_code\":\"200\",\"transaction_id\":\"2939b20c-1108-4b69-b359-dfed7a2e45a3\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317201811-RFTWGC\",\"payment_type\":\"bank_transfer\",\"signature_key\":\"6326385fefc4ec78264709f10fe22a4c84be0f58cfe4f17cb26c960f7d15d4cf62ff1dd8ce78dbc8e84d76a4ccc9c95a79fb55bc13eae665574b2adb2302c2de\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":12},\"va_numbers\":[{\"bank\":\"bca\",\"va_number\":\"84068975389638166083388\"}],\"payment_amounts\":[],\"transaction_time\":\"2026-03-17 20:18:22\",\"settlement_time\":\"2026-03-17 20:18:37\",\"expiry_time\":\"2026-03-18 20:18:22\"}', '2026-03-17 13:18:13'),
+(16, 19, 'd0c35e25-c33b-4355-a8ec-b259ea78375a', 'ORD-20260318171906-LSTWYD', 'gopay', 'settlement', 'accept', 49000, '2026-03-18 10:19:44', '{\"status_code\":\"200\",\"transaction_id\":\"d0c35e25-c33b-4355-a8ec-b259ea78375a\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260318171906-LSTWYD\",\"payment_type\":\"gopay\",\"signature_key\":\"48259bc5883e46c70c66fe4b4fc60f7b8192050e8d0c38e5f23405241599e686d85e32a10ff6dd09c91b4708f895bc47480d13d08d1f7581a51ba9b7b0cb501f\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":13},\"transaction_time\":\"2026-03-18 17:19:18\",\"settlement_time\":\"2026-03-18 17:19:29\",\"expiry_time\":\"2026-03-18 17:34:18\"}', '2026-03-18 10:19:12');
 
 -- --------------------------------------------------------
 
@@ -2102,7 +2100,10 @@ INSERT INTO `ratings` (`id`, `user_id`, `film_id`, `rating`, `created_at`, `upda
 (46, 7, 65, 5, '2026-03-10 21:44:57', '2026-03-10 21:44:57'),
 (47, 7, 6, 5, '2026-03-10 21:45:08', '2026-03-10 21:45:08'),
 (48, 9, 4, 5, '2026-03-17 11:58:28', '2026-03-17 11:58:56'),
-(49, 9, 70, 5, '2026-03-17 12:14:03', '2026-03-17 12:14:03');
+(49, 9, 70, 5, '2026-03-17 12:14:03', '2026-03-17 12:14:03'),
+(50, 9, 67, 5, '2026-03-18 10:08:49', '2026-03-18 10:08:49'),
+(51, 9, 66, 4, '2026-03-18 10:09:00', '2026-03-18 10:09:06'),
+(52, 9, 31, 4, '2026-03-18 10:10:46', '2026-03-18 10:10:46');
 
 -- --------------------------------------------------------
 
@@ -2263,9 +2264,9 @@ INSERT INTO `schedules` (`id`, `movie_id`, `studio_id`, `show_date`, `show_time`
 (7, 48, 2, '2026-03-13', '20:25:00', 40000, 'expired'),
 (8, 48, 1, '2026-03-14', '20:25:00', 45000, 'expired'),
 (9, 50, 5, '2026-03-14', '19:45:00', 53000, 'expired'),
-(10, 48, 5, '2026-03-17', '18:15:00', 35000, 'active'),
-(11, 70, 1, '2026-03-18', '13:25:00', 45000, 'active'),
-(12, 70, 1, '2026-03-18', '15:35:00', 45000, 'active'),
+(10, 48, 5, '2026-03-17', '18:15:00', 35000, 'expired'),
+(11, 70, 1, '2026-03-18', '13:25:00', 45000, 'expired'),
+(12, 70, 1, '2026-03-18', '15:35:00', 45000, 'expired'),
 (13, 70, 1, '2026-03-18', '20:50:00', 45000, 'active');
 
 -- --------------------------------------------------------
@@ -4416,7 +4417,8 @@ INSERT INTO `tickets` (`id`, `order_id`, `seat_id`, `qr_code`, `is_used`, `creat
 (16, 15, 2528, 'TSM1ETAZENUZ-15-2528', 1, '2026-03-17 11:32:54'),
 (17, 16, 2521, '7JWRZH4WIOOX-16-2521', 0, '2026-03-17 12:22:11'),
 (18, 17, 2527, '13JBEYX15EF1-17-2527', 0, '2026-03-17 12:34:17'),
-(19, 18, 2527, 'VEN7BU9ODJJP-18-2527', 1, '2026-03-17 13:18:11');
+(19, 18, 2527, 'VEN7BU9ODJJP-18-2527', 1, '2026-03-17 13:18:11'),
+(20, 19, 2528, 'QP7PQGXCQB7J-19-2528', 1, '2026-03-18 10:19:06');
 
 -- --------------------------------------------------------
 
@@ -4442,15 +4444,16 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `role`, `status`, `joined_at`, `remember_token`, `created_at`, `updated_at`) VALUES
-(1, 'NewUsername', 'admin@moview.com', '$2y$12$knpNEAbZAOkT711/AZFX/eisyn6LBQCcShqiWp1YctQm5g8Oi8pZW', 'admin', 'active', '2026-01-30 20:29:53', NULL, '2026-01-30 20:29:53', '2026-01-30 20:29:53'),
+(1, 'NewUsername', 'admin@moview.com', '$2y$12$knpNEAbZAOkT711/AZFX/eisyn6LBQCcShqiWp1YctQm5g8Oi8pZW', 'admin', 'active', '2026-01-30 20:29:53', 'MXwxNzczODI4Njg5fDY5YmE3YTUxYjZjOGU=', '2026-01-30 20:29:53', '2026-03-18 10:11:29'),
 (2, 'testuser', 'user@moview.com', '$2y$12$edj58OcYoXoiJsd22IwnnennCMGix0o98Y0ZJchd1VnnVwRMsH2rC', 'user', 'active', '2026-01-30 23:34:38', 'MnwxNzY5ODQxNjc0fDY5N2RhNDBhNTE4NDQ=', '2026-01-30 23:34:38', '2026-01-30 23:41:14'),
 (3, 'Sengefilm', 'tes@gmail.com', '$2y$12$lDfKXQIoqKTaeAdU.FpQX.Oqu.8Plbzprn6YOMhkIa9KCLtHN1KTK', 'user', 'active', '2026-01-30 23:49:39', 'M3wxNzcyOTgyMDIxfDY5YWQ4ZjA1NzZlNTE=', '2026-01-30 23:49:39', '2026-03-08 08:00:21'),
 (4, 'NewUser185', 'newuser_1769846806@test.com', '$2y$12$r0tcTwJt.eLjMs1n5pgdi.k9gPXqhujHx90XqkT0QMgkNLXZHrmly', 'user', 'active', '2026-01-31 01:06:46', 'bmV3dXNlcl8xNzY5ODQ2ODA2QHRlc3QuY29tfDE3Njk4NDY4MDZ8Njk3ZGI4MTY3Njk0Zg==', '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
-(5, 'Banda Neira', 'filmin@gmail.com', '$2y$12$eO1QTww7vMctvv7QWvNk0uB9Bk2C/aedqb./wlW.Q9dURDjbKISZG', 'user', 'active', '2026-02-14 03:59:49', 'NXwxNzczMTk0MzUxfDY5YjBjYzZmYWI4NGI=', '2026-02-14 03:59:49', '2026-03-10 18:59:11'),
+(5, 'Banda Neira', 'filmin@gmail.com', '$2y$12$eO1QTww7vMctvv7QWvNk0uB9Bk2C/aedqb./wlW.Q9dURDjbKISZG', 'user', 'active', '2026-02-14 03:59:49', 'NXwxNzczODI5MDMwfDY5YmE3YmE2MjExYzI=', '2026-02-14 03:59:49', '2026-03-18 10:17:10'),
 (6, 'Mopud', 'NewAcc@gmail.com', '$2y$12$5IZiuwVxT4H79twcw314mOyI.SUlG9nYY2.vjNVqCcw9uQE4wiLgq', 'user', 'active', '2026-02-28 03:10:19', 'NnwxNzcyOTgxOTgzfDY5YWQ4ZWRmZGU5YzE=', '2026-02-28 03:10:19', '2026-03-08 07:59:43'),
 (7, 'senoyu', 'senoyud77@gmail.com', '$2y$12$4KeaMB4ugxtR7p7.BlS/Me/0fex6b8W4sJU73171spAW18RqyWzwa', 'user', 'active', '2026-03-10 21:42:54', 'c2Vub3l1ZDc3QGdtYWlsLmNvbXwxNzczMjA0MjU5fDY5YjBmMzIzM2IyOGU=', '2026-03-10 21:42:54', '2026-03-10 21:44:19'),
 (8, 'tes', 'ts@gmail.com', '$2y$12$epLi8ARC/v6bLYprWGQvCuEZ7gxDtDCKxle0piZGgWTDiCD2MJj6K', 'user', 'active', '2026-03-10 21:44:06', 'dHNAZ21haWwuY29tfDE3NzMyMDQyNDV8NjliMGYzMTViZWVmYQ==', '2026-03-10 21:44:06', '2026-03-10 21:44:06'),
-(9, 'senoyudha', 'senoy250@gmail.com', '$2y$12$rotTh/funJ0/AoDKdm1pDONJZVcgbQ57U.ih0E7nCX4x3E6cvuWGi', 'user', 'active', '2026-03-10 21:47:55', 'c2Vub3kyNTBAZ21haWwuY29tfDE3NzMyMDQ0NzV8NjliMGYzZmIzMDkyNw==', '2026-03-10 21:47:55', '2026-03-10 21:47:55');
+(9, 'senoyudha', 'senoy250@gmail.com', '$2y$12$rotTh/funJ0/AoDKdm1pDONJZVcgbQ57U.ih0E7nCX4x3E6cvuWGi', 'user', 'active', '2026-03-10 21:47:55', 'c2Vub3kyNTBAZ21haWwuY29tfDE3NzM4Mjg0Nzh8NjliYTc5N2U2MjI4Zg==', '2026-03-10 21:47:55', '2026-03-18 10:07:58'),
+(10, 'senwir', 'wirsen694@gmail.com', '$2y$12$96Sbt0C7/kZ0YBWrOTc9DeJPNJSKZsF/bWY9icmf//Uy9pc89B42y', 'user', 'active', '2026-03-18 10:07:00', 'd2lyc2VuNjk0QGdtYWlsLmNvbXwxNzczODI4NDIwfDY5YmE3OTQ0MTE0Zjg=', '2026-03-18 10:07:00', '2026-03-18 10:07:00');
 
 -- --------------------------------------------------------
 
@@ -4502,7 +4505,8 @@ INSERT INTO `user_activities` (`id`, `user_id`, `type`, `film_id`, `meta`, `crea
 (27, 3, 'follow', NULL, '{\"followed_user_id\":\"6\"}', '2026-03-07 08:39:11', '2026-03-07 08:39:11'),
 (28, 5, 'like_review', 6, '{\"review_id\":\"30\",\"review_owner_id\":6}', '2026-03-10 19:00:42', '2026-03-10 19:00:42'),
 (29, 5, 'like_review', 34, '{\"review_id\":\"16\",\"review_owner_id\":3}', '2026-03-10 19:56:43', '2026-03-10 19:56:43'),
-(30, 5, 'like_review', 34, '{\"review_id\":\"16\",\"review_owner_id\":3}', '2026-03-10 19:56:44', '2026-03-10 19:56:44');
+(30, 5, 'like_review', 34, '{\"review_id\":\"16\",\"review_owner_id\":3}', '2026-03-10 19:56:44', '2026-03-10 19:56:44'),
+(31, 10, 'follow', NULL, '{\"followed_user_id\":\"9\"}', '2026-03-18 10:07:25', '2026-03-18 10:07:25');
 
 -- --------------------------------------------------------
 
@@ -4549,8 +4553,8 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (34, 6, 46, 257, 'poster', 'films', NULL, NULL, '2026-03-08 07:13:38', '2026-03-08 07:13:38'),
 (35, 6, 27, 232, 'poster', 'favorites', NULL, 341, '2026-03-08 07:39:09', '2026-03-08 07:39:09'),
 (36, 6, 30, 190, 'poster', 'favorites', NULL, NULL, '2026-03-08 07:41:31', '2026-03-08 07:41:31'),
-(38, 5, 64, 184, 'backdrop', 'films', NULL, NULL, '2026-03-08 07:54:41', '2026-03-10 06:07:50'),
-(39, 5, 64, 234, 'poster', 'favorites', NULL, 442, '2026-03-08 07:55:41', '2026-03-10 19:08:59'),
+(38, 5, 64, 184, 'backdrop', 'films', NULL, NULL, '2026-03-08 07:54:41', '2026-03-18 10:23:29'),
+(39, 5, 64, 235, 'poster', 'favorites', NULL, 442, '2026-03-08 07:55:41', '2026-03-18 10:23:12'),
 (40, 5, 63, 216, 'poster', 'favorites', NULL, 443, '2026-03-08 07:55:57', '2026-03-10 19:08:59'),
 (41, 5, 65, 256, 'poster', 'favorites', NULL, 444, '2026-03-08 07:56:08', '2026-03-10 19:08:59'),
 (43, 5, 2, 239, 'poster', 'reviews', 33, NULL, '2026-03-08 07:56:58', '2026-03-08 07:56:58'),
@@ -4573,7 +4577,7 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (61, 5, 30, 190, 'poster', 'reviews', 31, NULL, '2026-03-10 06:00:20', '2026-03-10 06:00:20'),
 (62, 5, 5, 249, 'poster', 'films', NULL, NULL, '2026-03-10 06:00:52', '2026-03-10 19:00:21'),
 (63, 5, 5, 82, 'backdrop', 'films', NULL, NULL, '2026-03-10 06:01:20', '2026-03-10 06:01:20'),
-(64, 5, 5, 247, 'poster', 'reviews', 45, NULL, '2026-03-10 06:01:55', '2026-03-10 06:02:18'),
+(64, 5, 5, 248, 'poster', 'reviews', 45, NULL, '2026-03-10 06:01:55', '2026-03-18 10:24:03'),
 (65, 5, 5, 82, 'backdrop', 'reviews', 45, NULL, '2026-03-10 06:01:55', '2026-03-10 06:01:55'),
 (66, 5, 31, 229, 'poster', 'films', NULL, NULL, '2026-03-10 06:06:31', '2026-03-10 06:06:31'),
 (67, 5, 46, 257, 'poster', 'films', NULL, NULL, '2026-03-10 08:05:54', '2026-03-10 08:05:54'),
@@ -4604,7 +4608,8 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (92, 9, 30, 191, 'poster', 'films', NULL, NULL, '2026-03-13 13:39:03', '2026-03-13 13:39:03'),
 (93, 9, 30, 133, 'backdrop', 'films', NULL, NULL, '2026-03-13 13:39:56', '2026-03-13 13:39:56'),
 (94, 9, 4, 298, 'poster', 'films', NULL, NULL, '2026-03-17 11:59:25', '2026-03-17 11:59:25'),
-(95, 9, 48, 213, 'poster', 'films', NULL, NULL, '2026-03-17 12:21:27', '2026-03-17 12:21:27');
+(95, 9, 48, 213, 'poster', 'films', NULL, NULL, '2026-03-17 12:21:27', '2026-03-17 12:21:27'),
+(96, 5, 64, 184, 'backdrop', 'favorites', NULL, 442, '2026-03-18 10:22:54', '2026-03-18 10:22:54');
 
 -- --------------------------------------------------------
 
@@ -4674,7 +4679,8 @@ INSERT INTO `user_profiles` (`id`, `user_id`, `display_name`, `profile_photo`, `
 (5, 6, 'Mopud', NULL, 'movies/40/backdrop/FdB80qdPGk5ySHxLpcP6QLwfvfXAHTbJ0XK5vMlM.webp', 1, NULL, NULL, '2026-02-28 03:10:19', '2026-03-08 07:38:54'),
 (6, 7, 'seno yu', NULL, NULL, 0, NULL, NULL, '2026-03-10 21:42:54', '2026-03-10 21:42:54'),
 (7, 8, 'tes', NULL, NULL, 0, NULL, NULL, '2026-03-10 21:44:06', '2026-03-10 21:44:06'),
-(8, 9, 'senoyudha', NULL, 'movies/4/backdrop/DZc5GHtHaYLuLl4Ia0RJ046u3GwX1uTeHETeZMuT.webp', 1, NULL, NULL, '2026-03-10 21:47:55', '2026-03-12 02:33:56');
+(8, 9, 'senoyudha', NULL, 'movies/4/backdrop/DZc5GHtHaYLuLl4Ia0RJ046u3GwX1uTeHETeZMuT.webp', 1, NULL, NULL, '2026-03-10 21:47:55', '2026-03-12 02:33:56'),
+(9, 10, 'sen wir', NULL, NULL, 0, NULL, NULL, '2026-03-18 10:07:00', '2026-03-18 10:07:00');
 
 -- --------------------------------------------------------
 
@@ -4701,7 +4707,13 @@ INSERT INTO `watchlists` (`id`, `user_id`, `film_id`, `created_at`, `updated_at`
 (6, 6, 55, '2026-03-07 05:34:17', NULL),
 (7, 5, 31, '2026-03-10 06:06:13', NULL),
 (8, 5, 53, '2026-03-10 19:10:05', NULL),
-(9, 5, 54, '2026-03-10 19:10:08', NULL);
+(9, 5, 54, '2026-03-10 19:10:08', NULL),
+(10, 9, 54, '2026-03-18 10:09:24', NULL),
+(11, 9, 53, '2026-03-18 10:09:32', NULL),
+(12, 9, 51, '2026-03-18 10:09:37', NULL),
+(13, 9, 61, '2026-03-18 10:09:55', NULL),
+(14, 9, 62, '2026-03-18 10:10:01', NULL),
+(15, 9, 72, '2026-03-18 10:10:08', NULL);
 
 --
 -- Indexes for dumped tables
@@ -5116,7 +5128,7 @@ ALTER TABLE `failed_jobs`
 -- AUTO_INCREMENT untuk tabel `followers`
 --
 ALTER TABLE `followers`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT untuk tabel `genres`
@@ -5152,7 +5164,7 @@ ALTER TABLE `movies`
 -- AUTO_INCREMENT untuk tabel `movie_likes`
 --
 ALTER TABLE `movie_likes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_media`
@@ -5170,31 +5182,31 @@ ALTER TABLE `movie_persons`
 -- AUTO_INCREMENT untuk tabel `movie_services`
 --
 ALTER TABLE `movie_services`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=356;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=365;
 
 --
 -- AUTO_INCREMENT untuk tabel `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT untuk tabel `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT untuk tabel `order_seats`
 --
 ALTER TABLE `order_seats`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT untuk tabel `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT untuk tabel `persons`
@@ -5212,7 +5224,7 @@ ALTER TABLE `production_houses`
 -- AUTO_INCREMENT untuk tabel `ratings`
 --
 ALTER TABLE `ratings`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
 
 --
 -- AUTO_INCREMENT untuk tabel `reviews`
@@ -5260,25 +5272,25 @@ ALTER TABLE `studios`
 -- AUTO_INCREMENT untuk tabel `tickets`
 --
 ALTER TABLE `tickets`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_activities`
 --
 ALTER TABLE `user_activities`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_change_medias`
 --
 ALTER TABLE `user_change_medias`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=96;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=97;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`
@@ -5290,13 +5302,13 @@ ALTER TABLE `user_favorite_films`
 -- AUTO_INCREMENT untuk tabel `user_profiles`
 --
 ALTER TABLE `user_profiles`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT untuk tabel `watchlists`
 --
 ALTER TABLE `watchlists`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)

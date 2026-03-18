@@ -22,6 +22,20 @@
             'expired'   => 'bg-gray-100 text-gray-500 border-gray-300',
             default     => 'bg-gray-100 text-gray-500 border-gray-300',
         };
+
+        $formatDateTime = function ($value, string $format = 'D MMMM Y, HH:mm') {
+            if (blank($value)) {
+                return '-';
+            }
+
+            try {
+                return $value instanceof \Carbon\CarbonInterface
+                    ? $value->isoFormat($format)
+                    : \Carbon\Carbon::parse($value)->isoFormat($format);
+            } catch (\Throwable $e) {
+                return (string) $value;
+            }
+        };
     @endphp
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -46,11 +60,11 @@
                 </div>
                 <div class="flex justify-between">
                     <dt class="text-gray-500">Dibuat</dt>
-                    <dd class="text-gray-600">{{ $order->created_at->isoFormat('D MMMM Y, HH:mm') }}</dd>
+                    <dd class="text-gray-600">{{ $formatDateTime($order->created_at) }}</dd>
                 </div>
                 <div class="flex justify-between">
                     <dt class="text-gray-500">Expired At</dt>
-                    <dd class="text-gray-600">{{ $order->expired_at ? $order->expired_at->isoFormat('D MMMM Y, HH:mm') : '-' }}</dd>
+                    <dd class="text-gray-600">{{ $formatDateTime($order->expired_at) }}</dd>
                 </div>
             </dl>
         </div>

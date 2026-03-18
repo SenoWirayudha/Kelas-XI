@@ -45,6 +45,14 @@ class AuthController extends Controller
                 ], 401);
             }
 
+            // Block admin account from Android app login
+            if (($user->role ?? null) === 'admin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Admin account can only login from web admin.'
+                ], 403);
+            }
+
             // Check if user is active
             if ($user->status !== 'active') {
                 return response()->json([
@@ -269,6 +277,13 @@ class AuthController extends Controller
                 ], 401);
             }
 
+            if (($user->role ?? null) === 'admin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Admin account is not allowed in Android app.'
+                ], 403);
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -323,6 +338,13 @@ class AuthController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => 'Your account has been ' . $user->status
+                    ], 403);
+                }
+
+                if (($user->role ?? null) === 'admin') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Admin account can only login from web admin.'
                     ], 403);
                 }
 
