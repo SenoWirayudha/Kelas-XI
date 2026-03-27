@@ -97,10 +97,14 @@ class MainActivity : AppCompatActivity() {
         NavigationUI.setupWithNavController(binding.bottomNavigation, navController)
         
         // Hide bottom navigation on login screen
-        navController.addOnDestinationChangedListener { _, destination, _ ->
+        navController.addOnDestinationChangedListener { _, destination, arguments ->
             when (destination.id) {
                 R.id.loginFragment, R.id.signUpFragment -> {
                     binding.bottomNavigation.visibility = View.GONE
+                }
+                R.id.navigation_search -> {
+                    val isSelectMovieMode = arguments?.getBoolean("selectMovieMode", false) == true
+                    binding.bottomNavigation.visibility = if (isSelectMovieMode) View.GONE else View.VISIBLE
                 }
                 else -> {
                     binding.bottomNavigation.visibility = View.VISIBLE

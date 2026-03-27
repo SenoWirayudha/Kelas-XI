@@ -3,6 +3,8 @@ package com.komputerkit.moview.data.repository
 import android.util.Log
 import com.komputerkit.moview.data.api.MovieCardDto
 import com.komputerkit.moview.data.api.MovieReviewDto
+import com.komputerkit.moview.data.api.MovieSimpleUserDto
+import com.komputerkit.moview.data.api.MovieWatchedUserDto
 import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.data.api.ReviewCommentDto
 import com.komputerkit.moview.data.api.SearchResponse
@@ -36,6 +38,9 @@ class MovieRepository {
             posterUrl = posterUrl,
             averageRating = this.average_rating,
             genre = this.genres.joinToString(", "),
+            genres = this.genres,
+            countries = this.countries,
+            languages = this.languages,
             releaseYear = this.year,
             description = "",
             hasReview = false,
@@ -230,8 +235,12 @@ class MovieRepository {
                         releaseYear = filmDto.year,
                         posterUrl = filmDto.poster_path ?: "",
                         userRating = filmDto.rating ?: 0f,
-                        averageRating = 0f,
-                        genre = "",
+                        averageRating = filmDto.average_rating ?: 0f,
+                        genre = filmDto.genres.joinToString(", "),
+                        genres = filmDto.genres,
+                        countries = filmDto.countries,
+                        languages = filmDto.languages,
+                        activityAtRaw = filmDto.rated_at,
                         description = "",
                         hasReview = review != null,
                         reviewId = review?.review_id ?: 0,
@@ -369,12 +378,16 @@ class MovieRepository {
                         title = filmDto.title,
                         releaseYear = filmDto.year,
                         posterUrl = filmDto.poster_path ?: "",
-                        averageRating = 0f,
-                        genre = "",
+                        averageRating = filmDto.average_rating ?: 0f,
+                        genre = filmDto.genres.joinToString(", "),
+                        genres = filmDto.genres,
+                        countries = filmDto.countries,
+                        languages = filmDto.languages,
+                        activityAtRaw = filmDto.added_at,
                         description = "",
                         hasReview = false,
                         reviewId = 0,
-                        userRating = 0f
+                        userRating = filmDto.rating ?: 0f
                     )
                 }
             } else {
@@ -405,8 +418,12 @@ class MovieRepository {
                         title = filmDto.title,
                         releaseYear = filmDto.year,
                         posterUrl = posterUrl,
-                        averageRating = 0f,
-                        genre = "",
+                        averageRating = filmDto.average_rating ?: 0f,
+                        genre = filmDto.genres.joinToString(", "),
+                        genres = filmDto.genres,
+                        countries = filmDto.countries,
+                        languages = filmDto.languages,
+                        activityAtRaw = filmDto.liked_at,
                         description = "",
                         hasReview = review != null,
                         reviewId = review?.review_id ?: 0,
@@ -444,6 +461,19 @@ class MovieRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        }
+    }
+
+    suspend fun getFilterOptions(): com.komputerkit.moview.data.api.FilterOptionsDto = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getFilterOptions()
+            if (response.success && response.data != null) {
+                response.data
+            } else {
+                com.komputerkit.moview.data.api.FilterOptionsDto()
+            }
+        } catch (e: Exception) {
+            com.komputerkit.moview.data.api.FilterOptionsDto()
         }
     }
     
@@ -1867,6 +1897,46 @@ class MovieRepository {
         try {
             val response = apiService.getMovieReviews(movieId)
             if (response.success) response.data else emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun getMovieWatchedUsers(
+        movieId: Int,
+        filter: String,
+        viewerUserId: Int,
+        limit: Int? = null,
+        prioritizeReview: Boolean? = null
+    ): List<MovieWatchedUserDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getMovieWatchedUsers(
+                id = movieId,
+                filter = filter,
+                viewerUserId = viewerUserId.takeIf { it > 0 },
+                limit = limit,
+                prioritizeReview = prioritizeReview
+            )
+            if (response.success && response.data != null) response.data else emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun getMovieFriendsWantToWatch(
+        movieId: Int,
+        viewerUserId: Int,
+        limit: Int = 10
+    ): List<MovieSimpleUserDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getMovieFriendsWantToWatch(
+                id = movieId,
+                viewerUserId = viewerUserId.takeIf { it > 0 },
+                limit = limit
+            )
+            if (response.success && response.data != null) response.data else emptyList()
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()

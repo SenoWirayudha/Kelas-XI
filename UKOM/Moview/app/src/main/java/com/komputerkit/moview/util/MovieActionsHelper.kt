@@ -13,6 +13,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.navigation.Navigation
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -67,7 +68,8 @@ object MovieActionsHelper {
         onLogFilm: ((Movie) -> Unit)? = null,
         onChangePoster: ((Movie) -> Unit)? = null,
         onRatingSaved: (() -> Unit)? = null,
-        onWatchedTap: ((reviewId: Int, isLog: Boolean) -> Unit)? = null
+        onWatchedTap: ((reviewId: Int, isLog: Boolean) -> Unit)? = null,
+        onShowYourActivityTap: ((movieId: Int, userId: Int) -> Unit)? = null
     ) {
         val bottomSheetDialog = BottomSheetDialog(context)
         val binding = BottomSheetMovieActionsBinding.inflate(LayoutInflater.from(context))
@@ -123,6 +125,9 @@ object MovieActionsHelper {
                     // Store for use in click listener
                     watchInfo = watchInfoResult
 
+                    val watchCount = watchInfoResult?.watch_count ?: 0
+                    binding.btnShowYourActivity.visibility = if (watchCount > 0) View.VISIBLE else View.GONE
+
                     // Load rating if exists
                     if (ratingResponse != null) {
                         currentRating = ratingResponse.rating ?: 0
@@ -141,7 +146,6 @@ object MovieActionsHelper {
                     Log.d("MovieActionsHelper", "Watch icon state: isWatched=$isWatched, entryType=$entryType")
                     
                     // Text "Review and log again": from diary entries count
-                    val watchCount = watchInfoResult?.watch_count ?: 0
                     if (watchCount > 0) {
                         // User has logged this movie before - show "Review and log again"
                         binding.tvReviewLogText.text = "Review and log again"
@@ -205,6 +209,7 @@ object MovieActionsHelper {
             Log.w("MovieActionsHelper", "Cannot load rating: userId=$userId, lifecycleOwner=$actualLifecycleOwner")
             updateStars(stars, 0)
             updateWatchedButtonState(context, binding, false)
+            binding.btnShowYourActivity.visibility = View.GONE
         }
 
         // Setup star rating (pass currentRating via closure)
@@ -255,13 +260,22 @@ object MovieActionsHelper {
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                             if (success) {
                                 isWatchedState = false
-                                watchInfo = null
+                                val updatedInfo = repository.getWatchInfo(userId, movie.id)
+                                watchInfo = updatedInfo
                                 updateWatchedButtonState(context, binding, false, "none")
                                 // Reset stars
                                 currentRating = 0
                                 updateStars(stars, 0)
-                                binding.layoutRewatch.visibility = View.GONE
-                                binding.tvReviewLogText.text = "Review and log"
+                                val updatedWatchCount = updatedInfo?.watch_count ?: 0
+                                binding.btnShowYourActivity.visibility = if (updatedWatchCount > 0) View.VISIBLE else View.GONE
+                                binding.tvReviewLogText.text = if (updatedWatchCount > 0) "Review and log again" else "Review and log"
+                                val updatedRewatchCount = updatedInfo?.rewatch_count ?: 0
+                                if (updatedRewatchCount > 0) {
+                                    binding.layoutRewatch.visibility = View.VISIBLE
+                                    binding.tvRewatchCount.text = "Rewatch × $updatedRewatchCount"
+                                } else {
+                                    binding.layoutRewatch.visibility = View.GONE
+                                }
                                 Toast.makeText(context, "Removed from watched", Toast.LENGTH_SHORT).show()
                                 onRatingSaved?.invoke()
                             } else {
@@ -280,6 +294,16 @@ object MovieActionsHelper {
                                 val updatedInfo = repository.getWatchInfo(userId, movie.id)
                                 watchInfo = updatedInfo
                                 updateWatchedButtonState(context, binding, true, updatedInfo?.entry_type ?: "none")
+                                val updatedWatchCount = updatedInfo?.watch_count ?: 0
+                                binding.btnShowYourActivity.visibility = if (updatedWatchCount > 0) View.VISIBLE else View.GONE
+                                binding.tvReviewLogText.text = if (updatedWatchCount > 0) "Review and log again" else "Review and log"
+                                val updatedRewatchCount = updatedInfo?.rewatch_count ?: 0
+                                if (updatedRewatchCount > 0) {
+                                    binding.layoutRewatch.visibility = View.VISIBLE
+                                    binding.tvRewatchCount.text = "Rewatch × $updatedRewatchCount"
+                                } else {
+                                    binding.layoutRewatch.visibility = View.GONE
+                                }
                                 Toast.makeText(context, "Marked as watched", Toast.LENGTH_SHORT).show()
                                 onRatingSaved?.invoke()
                             } else {
@@ -385,6 +409,54 @@ object MovieActionsHelper {
         binding.btnReviewLog.setOnClickListener {
             bottomSheetDialog.dismiss()
             onLogFilm?.invoke(movie)
+        }
+
+        binding.btnShowYourActivity.setOnClickListener {
+            val info = watchInfo
+            val watchCount = info?.watch_count ?: 0
+            if (watchCount <= 0 || userId <= 0) {
+                return@setOnClickListener
+            }
+
+            bottomSheetDialog.dismiss()
+
+            if (onShowYourActivityTap != null) {
+                onShowYourActivityTap.invoke(movie.id, userId)
+                return@setOnClickListener
+            }
+
+            try {
+                val activity = context as android.app.Activity
+                val navController = Navigation.findNavController(activity, R.id.nav_host_fragment)
+
+                if (watchCount > 1) {
+                    val bundle = android.os.Bundle().apply {
+                        putInt("userId", userId)
+                        putInt("filmId", movie.id)
+                    }
+                    navController.navigate(R.id.userFilmActivityFragment, bundle)
+                } else {
+                    val latestReviewId = info?.latest_review_id ?: 0
+                    val latestDiaryId = info?.latest_diary_id ?: 0
+
+                    if (latestReviewId > 0) {
+                        val bundle = android.os.Bundle().apply {
+                            putInt("reviewId", latestReviewId)
+                            putBoolean("isLog", false)
+                        }
+                        navController.navigate(R.id.reviewDetailFragment, bundle)
+                    } else if (latestDiaryId > 0) {
+                        val bundle = android.os.Bundle().apply {
+                            putInt("reviewId", latestDiaryId)
+                            putBoolean("isLog", true)
+                            putInt("diaryId", latestDiaryId)
+                        }
+                        navController.navigate(R.id.reviewDetailFragment, bundle)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MovieActionsHelper", "Cannot navigate to show your activity", e)
+            }
         }
 
         binding.btnGoToFilm.setOnClickListener {

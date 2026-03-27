@@ -29,6 +29,12 @@ class MovieDetailViewModel(application: Application) : AndroidViewModel(applicat
     
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
+
+    private val _watchedByPreview = MutableLiveData<List<MovieDetailUserPreviewItem>>(emptyList())
+    val watchedByPreview: LiveData<List<MovieDetailUserPreviewItem>> = _watchedByPreview
+
+    private val _wantToWatchPreview = MutableLiveData<List<MovieDetailUserPreviewItem>>(emptyList())
+    val wantToWatchPreview: LiveData<List<MovieDetailUserPreviewItem>> = _wantToWatchPreview
     
     fun loadMovieDetails(movieId: Int) {
         viewModelScope.launch {
@@ -47,6 +53,8 @@ class MovieDetailViewModel(application: Application) : AndroidViewModel(applicat
                     _movie.value = resolved
                     // Load streaming services
                     _streamingServices.value = listOf("Netflix", "Prime", "YouTube", "MAX", "Disney+")
+
+                    loadSocialPreviews(movieId, userId)
                 } else {
                     _error.value = "Movie not found"
                 }
@@ -57,5 +65,50 @@ class MovieDetailViewModel(application: Application) : AndroidViewModel(applicat
                 _isLoading.value = false
             }
         }
+    }
+
+    private suspend fun loadSocialPreviews(movieId: Int, viewerUserId: Int) {
+        if (viewerUserId <= 0) {
+            _watchedByPreview.value = emptyList()
+            _wantToWatchPreview.value = emptyList()
+            return
+        }
+
+        val watchedFriends = repository.getMovieWatchedUsers(
+            movieId = movieId,
+            filter = "friends",
+            viewerUserId = viewerUserId,
+            limit = 10,
+            prioritizeReview = true
+        )
+
+        _watchedByPreview.value = watchedFriends.map { dto ->
+            MovieDetailUserPreviewItem(
+                userId = dto.user.id,
+                profilePhoto = dto.user.profile_photo,
+                starsText = toStarText(dto.rating),
+                reviewId = dto.review_id
+            )
+        }
+
+        val wantToWatch = repository.getMovieFriendsWantToWatch(
+            movieId = movieId,
+            viewerUserId = viewerUserId,
+            limit = 10
+        )
+
+        _wantToWatchPreview.value = wantToWatch.map { dto ->
+            MovieDetailUserPreviewItem(
+                userId = dto.id,
+                profilePhoto = dto.profile_photo,
+                starsText = "",
+                reviewId = null
+            )
+        }
+    }
+
+    private fun toStarText(rating: Int?): String {
+        if (rating == null || rating <= 0) return ""
+        return "★".repeat(rating.coerceAtMost(5))
     }
 }

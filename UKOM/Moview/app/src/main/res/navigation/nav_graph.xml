@@ -405,11 +405,17 @@
             android:id="@+id/action_movieDetail_to_crewDetail"
             app:destination="@id/crewDetailFragment" />
         <action
+            android:id="@+id/action_movieDetail_to_profile"
+            app:destination="@id/navigation_profile" />
+        <action
             android:id="@+id/action_movieDetail_to_filmography"
             app:destination="@id/filmographyFragment" />
         <action
             android:id="@+id/action_movieDetail_to_reviewsList"
             app:destination="@id/reviewsListFragment" />
+        <action
+            android:id="@+id/action_movieDetail_to_watchedUsers"
+            app:destination="@id/movieWatchedUsersFragment" />
         <action
             android:id="@+id/action_movieDetail_to_filmList"
             app:destination="@id/filmListFragment" />
@@ -476,6 +482,32 @@
         <action
             android:id="@+id/action_reviewsList_to_profile"
             app:destination="@id/navigation_profile" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/movieWatchedUsersFragment"
+        android:name="com.komputerkit.moview.ui.watched.MovieWatchedUsersFragment"
+        android:label="Watched Users">
+        <argument
+            android:name="movieId"
+            app:argType="integer" />
+        <argument
+            android:name="movieTitle"
+            app:argType="string" />
+        <argument
+            android:name="initialTab"
+            android:defaultValue="everyone"
+            app:argType="string" />
+        <argument
+            android:name="entrySource"
+            android:defaultValue="watched_by"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_movieWatchedUsers_to_profile"
+            app:destination="@id/navigation_profile" />
+        <action
+            android:id="@+id/action_movieWatchedUsers_to_reviewDetail"
+            app:destination="@id/reviewDetailFragment" />
     </fragment>
 
     <fragment

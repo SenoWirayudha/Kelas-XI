@@ -28,7 +28,6 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     private lateinit var friendActivityAdapter: FriendActivityNewAdapter
     private lateinit var nowShowingAdapter: TheatricalMovieAdapter
     private lateinit var upcomingAdapter: TheatricalMovieAdapter
-    private lateinit var academyAwardAdapter: MovieCardAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -233,27 +232,6 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             )
         }
 
-        // Setup Academy Award RecyclerView (Horizontal)
-        academyAwardAdapter = MovieCardAdapter(
-            onMovieClick = { movie ->
-                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
-                findNavController().navigate(action)
-            },
-            onLogFilm = { movie ->
-                val action = HomeFragmentDirections.actionHomeToLogFilm(movie.id)
-                findNavController().navigate(action)
-            },
-            onChangePoster = { movie ->
-                val action = HomeFragmentDirections.actionHomeToPosterBackdrop(movie.id, false)
-                findNavController().navigate(action)
-            }
-        )
-        binding.rvAcademyAward.apply {
-            adapter = academyAwardAdapter
-            layoutManager = LinearLayoutManager(
-                requireContext(), LinearLayoutManager.HORIZONTAL, false
-            )
-        }
     }
 
     private fun observeViewModel() {
@@ -280,10 +258,6 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
         viewModel.upcomingMovies.observe(viewLifecycleOwner) { movies ->
             upcomingAdapter.submitList(movies)
-        }
-
-        viewModel.academyAwardMovies.observe(viewLifecycleOwner) { movies ->
-            academyAwardAdapter.submitList(movies)
         }
 
         viewModel.error.observe(viewLifecycleOwner) { error ->

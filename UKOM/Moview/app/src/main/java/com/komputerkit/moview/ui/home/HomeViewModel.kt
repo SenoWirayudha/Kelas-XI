@@ -37,9 +37,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _upcomingMovies = MutableLiveData<List<TheatricalMovie>>()
     val upcomingMovies: LiveData<List<TheatricalMovie>> = _upcomingMovies
 
-    private val _academyAwardMovies = MutableLiveData<List<Movie>>()
-    val academyAwardMovies: LiveData<List<Movie>> = _academyAwardMovies
-
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
     
@@ -81,11 +78,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 
                 val nowShowing = repository.getNowShowingMovies(limit = 10)
                 val upcoming = repository.getUpcomingMovies()
-                val academyAward = repository.getAcademyAwardMovies()
 
                 // Apply custom media (films-type) for the current user's personalizations
                 val theatricalIds = (nowShowing.map { it.id } + upcoming.map { it.id }).distinct()
-                val allFilmIds = (movies.map { it.id } + academyAward.map { it.id } + theatricalIds).distinct()
+                val allFilmIds = (movies.map { it.id } + theatricalIds).distinct()
                 val customMedia = if (userId > 0 && allFilmIds.isNotEmpty()) {
                     repository.batchCustomMedia(userId, allFilmIds, "films")
                 } else emptyMap()
@@ -102,7 +98,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     val customPoster = entry.poster?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
                     if (customPoster != null) movie.copy(posterUrl = customPoster) else movie
                 }
-                _academyAwardMovies.value = academyAward.applyCustomMedia(customMedia)
                 retryCount = 0
                 android.util.Log.d("HomeViewModel", "Data loaded successfully")
                 

@@ -33,6 +33,8 @@ class MovieDetailFragment : Fragment() {
     private lateinit var castAdapter: CastAdapter
     private lateinit var crewAdapter: CrewAdapter
     private lateinit var movieServiceAdapter: MovieServiceAdapter
+    private lateinit var watchedByAdapter: MovieDetailUserPreviewAdapter
+    private lateinit var wantToWatchAdapter: MovieDetailUserPreviewAdapter
     
     private var currentMovie: com.komputerkit.moview.data.model.Movie? = null
     private var isDescriptionExpanded = false
@@ -77,6 +79,58 @@ class MovieDetailFragment : Fragment() {
         }
         binding.rvCast.apply {
             adapter = castAdapter
+            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        }
+
+        watchedByAdapter = MovieDetailUserPreviewAdapter(
+            showStars = true,
+            onItemClick = { item ->
+                if ((item.reviewId ?: 0) > 0) {
+                    val action = MovieDetailFragmentDirections
+                        .actionMovieDetailToReviewDetail(item.reviewId ?: 0, false)
+                    findNavController().navigate(action)
+                } else {
+                    val action = MovieDetailFragmentDirections.actionMovieDetailToProfile(item.userId)
+                    findNavController().navigate(action)
+                }
+            },
+            onBadgeClick = {
+                val action = MovieDetailFragmentDirections
+                    .actionMovieDetailToWatchedUsers(
+                        args.movieId,
+                        currentMovie?.title ?: "Movie",
+                        "friends",
+                        "watched_by"
+                    )
+                findNavController().navigate(action)
+            }
+        )
+
+        binding.rvWatchedByPreview.apply {
+            adapter = watchedByAdapter
+            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        }
+
+        wantToWatchAdapter = MovieDetailUserPreviewAdapter(
+            showStars = false,
+            onItemClick = { item ->
+                val action = MovieDetailFragmentDirections.actionMovieDetailToProfile(item.userId)
+                findNavController().navigate(action)
+            },
+            onBadgeClick = {
+                val action = MovieDetailFragmentDirections
+                    .actionMovieDetailToWatchedUsers(
+                        args.movieId,
+                        currentMovie?.title ?: "Movie",
+                        "friends",
+                        "want_to_watch"
+                    )
+                findNavController().navigate(action)
+            }
+        )
+
+        binding.rvWantToWatchPreview.apply {
+            adapter = wantToWatchAdapter
             layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         }
     }
@@ -185,6 +239,16 @@ class MovieDetailFragment : Fragment() {
             binding.tabLayout.post {
                 binding.tabLayout.getTabAt(selectedTabPosition)?.select()
             }
+        }
+
+        viewModel.watchedByPreview.observe(viewLifecycleOwner) { users ->
+            watchedByAdapter.submitList(users)
+            binding.layoutWatchedBySection.visibility = if (users.isEmpty()) View.GONE else View.VISIBLE
+        }
+
+        viewModel.wantToWatchPreview.observe(viewLifecycleOwner) { users ->
+            wantToWatchAdapter.submitList(users)
+            binding.layoutWantToWatchSection.visibility = if (users.isEmpty()) View.GONE else View.VISIBLE
         }
     }
     
@@ -388,11 +452,42 @@ class MovieDetailFragment : Fragment() {
             }
         }
 
+        val navigateToWatchedUsers: () -> Unit = {
+            viewModel.movie.value?.let { movie ->
+                val action = MovieDetailFragmentDirections
+                    .actionMovieDetailToWatchedUsers(movie.id, movie.title ?: "Movie")
+                findNavController().navigate(action)
+            }
+        }
+
         binding.btnSeeAllReviews.setOnClickListener { navigateToReviews() }
         binding.cardReviews.setOnClickListener { navigateToReviews() }
+        binding.cardWatched.setOnClickListener { navigateToWatchedUsers() }
         
         binding.btnOpenActions.setOnClickListener {
             showMovieActionsBottomSheet()
+        }
+
+        binding.btnWatchedByMore.setOnClickListener {
+            val action = MovieDetailFragmentDirections
+                .actionMovieDetailToWatchedUsers(
+                    args.movieId,
+                    currentMovie?.title ?: "Movie",
+                    "friends",
+                    "watched_by"
+                )
+            findNavController().navigate(action)
+        }
+
+        binding.btnWantToWatchMore.setOnClickListener {
+            val action = MovieDetailFragmentDirections
+                .actionMovieDetailToWatchedUsers(
+                    args.movieId,
+                    currentMovie?.title ?: "Movie",
+                    "friends",
+                    "want_to_watch"
+                )
+            findNavController().navigate(action)
         }
         
         // Tap poster to show full poster dialog

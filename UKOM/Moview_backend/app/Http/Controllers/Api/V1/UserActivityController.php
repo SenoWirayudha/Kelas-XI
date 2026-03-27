@@ -9,6 +9,42 @@ use Illuminate\Support\Facades\DB;
 
 class UserActivityController extends Controller
 {
+    private function getMovieFilterMetadata(int $movieId): array
+    {
+        $genres = DB::table('movie_genres')
+            ->join('genres', 'movie_genres.genre_id', '=', 'genres.id')
+            ->where('movie_genres.movie_id', $movieId)
+            ->pluck('genres.name')
+            ->filter()
+            ->values()
+            ->toArray();
+
+        $countries = DB::table('movie_countries')
+            ->join('countries', 'movie_countries.country_id', '=', 'countries.id')
+            ->where('movie_countries.movie_id', $movieId)
+            ->pluck('countries.name')
+            ->filter()
+            ->values()
+            ->toArray();
+
+        $languages = DB::table('movie_languages')
+            ->join('languages', 'movie_languages.language_id', '=', 'languages.id')
+            ->where('movie_languages.movie_id', $movieId)
+            ->pluck('languages.name')
+            ->filter()
+            ->values()
+            ->toArray();
+
+        $avgRating = (float) (DB::table('reviews')->where('film_id', $movieId)->avg('rating') ?? 0);
+
+        return [
+            'genres' => $genres,
+            'countries' => $countries,
+            'languages' => $languages,
+            'average_rating' => round($avgRating, 1),
+        ];
+    }
+
     /**
      * Get user films (rated/watched movies)
      */
@@ -87,6 +123,8 @@ class UserActivityController extends Controller
                         $posterUrl = $film->media_path;
                     }
                 }
+
+                $meta = $this->getMovieFilterMetadata((int)$film->id);
                 
                 return [
                     'id' => $film->id,
@@ -94,6 +132,10 @@ class UserActivityController extends Controller
                     'year' => $film->year,
                     'poster_path' => $posterUrl,
                     'rating' => $film->rating,
+                    'average_rating' => $meta['average_rating'],
+                    'genres' => $meta['genres'],
+                    'countries' => $meta['countries'],
+                    'languages' => $meta['languages'],
                     'rated_at' => $film->activity_date,
                     'is_liked' => (bool)$film->is_liked,
                     'is_in_watchlist' => (bool)$film->is_in_watchlist
@@ -572,6 +614,8 @@ class UserActivityController extends Controller
                         $posterUrl = $like->media_path;
                     }
                 }
+
+                $meta = $this->getMovieFilterMetadata((int)$like->id);
                 
                 return [
                     'id' => $like->id,
@@ -579,6 +623,10 @@ class UserActivityController extends Controller
                     'year' => $like->year,
                     'poster_path' => $posterUrl,
                     'rating' => $like->user_rating ?? 0,
+                    'average_rating' => $meta['average_rating'],
+                    'genres' => $meta['genres'],
+                    'countries' => $meta['countries'],
+                    'languages' => $meta['languages'],
                     'liked_at' => $like->liked_at
                 ];
             });
@@ -629,12 +677,19 @@ class UserActivityController extends Controller
                         $posterUrl = $item->media_path;
                     }
                 }
+
+                $meta = $this->getMovieFilterMetadata((int)$item->id);
                 
                 return [
                     'id' => $item->id,
                     'title' => $item->title,
                     'year' => $item->year,
                     'poster_path' => $posterUrl,
+                    'rating' => null,
+                    'average_rating' => $meta['average_rating'],
+                    'genres' => $meta['genres'],
+                    'countries' => $meta['countries'],
+                    'languages' => $meta['languages'],
                     'added_at' => $item->added_at
                 ];
             });

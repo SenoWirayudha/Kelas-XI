@@ -7,6 +7,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.ui.common.MovieFilterState
+import com.komputerkit.moview.ui.common.MovieFilterUtils
+import com.komputerkit.moview.ui.common.MovieSortMode
+import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.launch
 
@@ -16,6 +20,18 @@ class FilmographyViewModel : ViewModel() {
 
     private val _films = MutableLiveData<List<Movie>>()
     val films: LiveData<List<Movie>> = _films
+
+    private val _genres = MutableLiveData<List<String>>(emptyList())
+    val genres: LiveData<List<String>> = _genres
+
+    private val _countries = MutableLiveData<List<String>>(emptyList())
+    val countries: LiveData<List<String>> = _countries
+
+    private val _languages = MutableLiveData<List<String>>(emptyList())
+    val languages: LiveData<List<String>> = _languages
+
+    private var allFilms: List<Movie> = emptyList()
+    private var filterState = MovieFilterState()
 
     fun loadFilmography(filterType: String, filterValue: String, userId: Int) {
         Log.i("FG", "loadFilmography userId=$userId type=$filterType value=$filterValue")
@@ -38,14 +54,70 @@ class FilmographyViewModel : ViewModel() {
                     }
                     val result = rawFilms.applyCustomMedia(customMedia)
                     result.take(3).forEach { Log.i("FG", "  AFTER id=${it.id} poster=${it.posterUrl}") }
-                    _films.postValue(result)
+                    allFilms = result
                 } else {
-                    _films.postValue(rawFilms)
+                    allFilms = rawFilms
                 }
+
+                val options = repository.getFilterOptions()
+                _genres.postValue(options.genres)
+                _countries.postValue(options.countries)
+                _languages.postValue(options.languages)
+                _films.postValue(MovieFilterUtils.applyFilters(allFilms, filterState))
             } catch (e: Exception) {
                 Log.e("FG", "Exception: ${e.message}", e)
                 _films.postValue(emptyList())
             }
         }
+    }
+
+    private fun applyCurrentFilters() {
+        _films.value = MovieFilterUtils.applyFilters(allFilms, filterState)
+    }
+
+    fun sortByReleaseYear(descending: Boolean) {
+        filterState = filterState.copy(
+            sortMode = MovieSortMode.RELEASE_YEAR,
+            releaseYearDescending = descending
+        )
+        applyCurrentFilters()
+    }
+
+    fun sortByHighestRated(source: RatingSource) {
+        filterState = filterState.copy(
+            sortMode = MovieSortMode.RATING,
+            ratingSource = source,
+            ratingDescending = true
+        )
+        applyCurrentFilters()
+    }
+
+    fun sortByLowestRated(source: RatingSource) {
+        filterState = filterState.copy(
+            sortMode = MovieSortMode.RATING,
+            ratingSource = source,
+            ratingDescending = false
+        )
+        applyCurrentFilters()
+    }
+
+    fun setYear(year: Int?) {
+        filterState = filterState.copy(selectedYear = year)
+        applyCurrentFilters()
+    }
+
+    fun setGenre(genre: String?) {
+        filterState = filterState.copy(selectedGenre = genre)
+        applyCurrentFilters()
+    }
+
+    fun setCountry(country: String?) {
+        filterState = filterState.copy(selectedCountry = country)
+        applyCurrentFilters()
+    }
+
+    fun setLanguage(language: String?) {
+        filterState = filterState.copy(selectedLanguage = language)
+        applyCurrentFilters()
     }
 }

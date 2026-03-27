@@ -69,15 +69,6 @@
                 </select>
             </div>
 
-            <div class="mb-5">
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Jumlah Kursi <span class="text-red-500">*</span>
-                </label>
-                <input type="number" name="total_seats" required min="0" max="999"
-                       value="{{ old('total_seats', 0) }}"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-            </div>
-
             <div class="mb-5 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm">
                 <i class="fas fa-info-circle mr-2"></i>
                 Anda tetap bisa menyesuaikan jumlah kursi melalui <strong>Layout Kursi</strong> setelah studio dibuat.

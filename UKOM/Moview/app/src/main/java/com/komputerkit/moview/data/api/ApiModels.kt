@@ -161,6 +161,8 @@ data class MovieCardDto(
     val poster_path: String?,
     val backdrop_path: String?,
     val genres: List<String>,
+    val countries: List<String> = emptyList(),
+    val languages: List<String> = emptyList(),
     val average_rating: Float,
     val watched_count: Int
 )
@@ -396,11 +398,21 @@ data class UserFilmDto(
     val year: Int,
     val poster_path: String?,
     val rating: Float? = null,
+    val average_rating: Float? = null,
+    val genres: List<String> = emptyList(),
+    val countries: List<String> = emptyList(),
+    val languages: List<String> = emptyList(),
     val rated_at: String? = null,
     val liked_at: String? = null,
     val added_at: String? = null,
     val is_liked: Boolean? = null,
     val is_in_watchlist: Boolean? = null
+)
+
+data class FilterOptionsDto(
+    val genres: List<String> = emptyList(),
+    val countries: List<String> = emptyList(),
+    val languages: List<String> = emptyList()
 )
 
 data class DiaryEntryDto(
@@ -443,6 +455,20 @@ data class MovieReviewDto(
     val content: String?,
     val is_spoiler: Boolean = false,
     val created_at: String
+)
+
+data class MovieWatchedUserDto(
+    val user: MovieReviewUserDto,
+    val rating: Int?,
+    val review_id: Int?,
+    val has_like: Boolean,
+    val has_review: Boolean
+)
+
+data class MovieSimpleUserDto(
+    val id: Int,
+    val username: String,
+    val profile_photo: String?
 )
 
 data class UserReviewDto(

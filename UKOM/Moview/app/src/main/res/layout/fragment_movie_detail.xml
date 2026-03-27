@@ -250,10 +250,13 @@
                 android:layout_marginTop="16dp">
 
                 <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_watched"
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
+                    android:clickable="true"
+                    android:focusable="true"
                     app:cardBackgroundColor="@color/dark_surface"
                     app:cardCornerRadius="8dp"
                     app:strokeWidth="1dp"
@@ -621,6 +624,94 @@
                 android:paddingVertical="14dp"
                 app:cornerRadius="8dp" />
 
+            <!-- Watched By -->
+            <LinearLayout
+                android:id="@+id/layout_watched_by_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:layout_marginTop="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="WATCHED BY"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.08" />
+
+                    <ImageView
+                        android:id="@+id/btn_watched_by_more"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_arrow_right"
+                        android:contentDescription="Open watched users"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_watched_by_preview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:clipToPadding="false"
+                    tools:itemCount="6"
+                    tools:listitem="@layout/item_movie_detail_user_preview" />
+            </LinearLayout>
+
+            <!-- Want To Watch -->
+            <LinearLayout
+                android:id="@+id/layout_want_to_watch_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:layout_marginTop="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="WANT TO WATCH"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.08" />
+
+                    <ImageView
+                        android:id="@+id/btn_want_to_watch_more"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_arrow_right"
+                        android:contentDescription="Open watched users"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_want_to_watch_preview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:clipToPadding="false"
+                    tools:itemCount="6"
+                    tools:listitem="@layout/item_movie_detail_user_preview" />
+            </LinearLayout>
+
             <!-- Where to Watch -->
             <LinearLayout
                 android:id="@+id/layout_where_to_watch"
@@ -628,7 +719,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:paddingHorizontal="16dp"
-                android:layout_marginTop="24dp">
+                android:layout_marginTop="18dp">
 
                 <TextView
                     android:id="@+id/tv_where_to_watch_title"

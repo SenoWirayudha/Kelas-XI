@@ -8,6 +8,10 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.ui.common.MovieFilterState
+import com.komputerkit.moview.ui.common.MovieFilterUtils
+import com.komputerkit.moview.ui.common.MovieSortMode
+import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.applyCustomMedia
 import kotlinx.coroutines.launch
 
@@ -23,6 +27,17 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
     
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _genres = MutableLiveData<List<String>>(emptyList())
+    val genres: LiveData<List<String>> = _genres
+
+    private val _countries = MutableLiveData<List<String>>(emptyList())
+    val countries: LiveData<List<String>> = _countries
+
+    private val _languages = MutableLiveData<List<String>>(emptyList())
+    val languages: LiveData<List<String>> = _languages
+
+    private var filterState = MovieFilterState()
     
     fun loadLikes(userId: Int) {
         if (userId == 0) {
@@ -36,7 +51,11 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
                 val rawLikes = repository.getUserLikes(userId)
                 val customMedia = repository.batchCustomMedia(userId, rawLikes.map { it.id }, "films")
                 allLikes = rawLikes.applyCustomMedia(customMedia)
-                _likes.postValue(allLikes)
+                val options = repository.getFilterOptions()
+                _genres.postValue(options.genres)
+                _countries.postValue(options.countries)
+                _languages.postValue(options.languages)
+                _likes.postValue(MovieFilterUtils.applyFilters(allLikes, filterState))
             } catch (e: Exception) {
                 e.printStackTrace()
                 _likes.postValue(emptyList())
@@ -46,18 +65,58 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
+    private fun applyCurrentFilters() {
+        _likes.value = MovieFilterUtils.applyFilters(allLikes, filterState)
+    }
+
     fun sortByDateLiked() {
-        // Sort by most recently liked (assuming API returns in this order)
-        _likes.value = allLikes
+        filterState = filterState.copy(sortMode = MovieSortMode.DATE)
+        applyCurrentFilters()
     }
     
-    fun sortByHighestRated() {
-        _likes.value = allLikes.sortedByDescending { it.averageRating }
+    fun sortByReleaseYear(descending: Boolean) {
+        filterState = filterState.copy(
+            sortMode = MovieSortMode.RELEASE_YEAR,
+            releaseYearDescending = descending
+        )
+        applyCurrentFilters()
     }
     
-    fun filterByGenre() {
-        // TODO: Implement genre filtering
-        // For now, just show all
-        _likes.value = allLikes
+    fun sortByHighestRated(source: RatingSource) {
+        filterState = filterState.copy(
+            sortMode = MovieSortMode.RATING,
+            ratingSource = source,
+            ratingDescending = true
+        )
+        applyCurrentFilters()
+    }
+
+    fun sortByLowestRated(source: RatingSource) {
+        filterState = filterState.copy(
+            sortMode = MovieSortMode.RATING,
+            ratingSource = source,
+            ratingDescending = false
+        )
+        applyCurrentFilters()
+    }
+
+    fun setYear(year: Int?) {
+        filterState = filterState.copy(selectedYear = year)
+        applyCurrentFilters()
+    }
+
+    fun setGenre(genre: String?) {
+        filterState = filterState.copy(selectedGenre = genre)
+        applyCurrentFilters()
+    }
+
+    fun setCountry(country: String?) {
+        filterState = filterState.copy(selectedCountry = country)
+        applyCurrentFilters()
+    }
+
+    fun setLanguage(language: String?) {
+        filterState = filterState.copy(selectedLanguage = language)
+        applyCurrentFilters()
     }
 }

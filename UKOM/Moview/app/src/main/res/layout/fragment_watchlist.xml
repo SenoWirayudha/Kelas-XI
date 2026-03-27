@@ -43,64 +43,98 @@
     <!-- Filter Chips -->
     <HorizontalScrollView
         android:id="@+id/scroll_chips"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingHorizontal="16dp"
         android:paddingBottom="16dp"
         android:scrollbars="none"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/header">
 
-        <com.google.android.flexbox.FlexboxLayout
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chip_group_filters"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:flexWrap="nowrap">
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chip_all_movies"
-                android:layout_width="wrap_content"
-                android:layout_height="32dp"
-                android:layout_marginEnd="8dp"
-                android:text="All Movies"
-                android:textColor="@color/chip_text_selector"
-                android:textSize="13sp"
-                app:checkedIconVisible="false"
-                app:chipBackgroundColor="@color/chip_background_selector"
-                app:chipCornerRadius="16dp"
-                app:chipMinHeight="32dp"
-                app:chipStartPadding="12dp"
-                app:chipEndPadding="12dp" />
+            android:layout_height="wrap_content">
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_date_added"
                 android:layout_width="wrap_content"
-                android:layout_height="32dp"
-                android:layout_marginEnd="8dp"
+                android:layout_height="wrap_content"
                 android:text="Date Added"
                 android:textColor="@color/chip_text_selector"
-                android:textSize="13sp"
-                app:checkedIconVisible="false"
                 app:chipBackgroundColor="@color/chip_background_selector"
-                app:chipCornerRadius="16dp"
-                app:chipMinHeight="32dp"
-                app:chipStartPadding="12dp"
-                app:chipEndPadding="12dp" />
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chip_unwatched"
+                android:id="@+id/chip_release_year"
                 android:layout_width="wrap_content"
-                android:layout_height="32dp"
-                android:text="Unwatched"
+                android:layout_height="wrap_content"
+                android:text="Release Year"
                 android:textColor="@color/chip_text_selector"
-                android:textSize="13sp"
-                app:checkedIconVisible="false"
                 app:chipBackgroundColor="@color/chip_background_selector"
-                app:chipCornerRadius="16dp"
-                app:chipMinHeight="32dp"
-                app:chipStartPadding="12dp"
-                app:chipEndPadding="12dp" />
-        </com.google.android.flexbox.FlexboxLayout>
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_highest_rated"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Highest Rated"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_lowest_rated"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Lowest Rated"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_year"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Year"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_genre"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Genre"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_country"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Country"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_language"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Language"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+        </com.google.android.material.chip.ChipGroup>
     </HorizontalScrollView>
 
     <!-- Movies Grid -->

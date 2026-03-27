@@ -42,8 +42,10 @@ class StudioController extends Controller
             'cinema_id'   => 'required|exists:cinemas,id',
             'studio_name' => 'required|string|max:100',
             'studio_type' => 'required|in:' . implode(',', $this->studioTypes),
-            'total_seats' => 'required|integer|min:0|max:999',
+            'total_seats' => 'nullable|integer|min:0|max:999',
         ]);
+
+        $validated['total_seats'] = $validated['total_seats'] ?? 0;
 
         $studio = Studio::create($validated);
 

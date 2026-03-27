@@ -111,8 +111,12 @@ class SearchFragment : Fragment() {
         
         // Cancel button
         binding.btnCancel.setOnClickListener {
-            binding.etSearch.text?.clear()
-            viewModel.clearSearch()
+            if (viewModel.uiState.value.isSelectMovieMode) {
+                findNavController().navigateUp()
+            } else {
+                binding.etSearch.text?.clear()
+                viewModel.clearSearch()
+            }
         }
     }
     

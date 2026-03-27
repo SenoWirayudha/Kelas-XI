@@ -53,16 +53,23 @@
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/chip_group_filters"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:singleSelection="true"
-            app:selectionRequired="true">
+            android:layout_height="wrap_content">
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_date_watched"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Date Watched"
-                android:checked="true"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_release_year"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Release Year"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector"
                 app:chipStrokeWidth="0dp"
@@ -79,10 +86,50 @@
                 app:chipCornerRadius="20dp" />
 
             <com.google.android.material.chip.Chip
+                android:id="@+id/chip_lowest_rated"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Lowest Rated"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_year"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Year"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
                 android:id="@+id/chip_genre"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Genre"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_country"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Country"
+                android:textColor="@color/chip_text_selector"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_language"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Language"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector"
                 app:chipStrokeWidth="0dp"

@@ -410,6 +410,200 @@ class MovieApiController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Get watched users for a movie with filter tabs: everyone, liked, friends.
+     */
+    public function watchedUsers($id, Request $request)
+    {
+        $filter = strtolower((string) $request->query('filter', 'everyone'));
+        $viewerUserId = (int) $request->query('viewer_user_id', 0);
+        $limit = max(0, (int) $request->query('limit', 0));
+        $prioritizeReview = filter_var($request->query('prioritize_review', false), FILTER_VALIDATE_BOOLEAN);
+
+        if (!in_array($filter, ['everyone', 'liked', 'friends'], true)) {
+            $filter = 'everyone';
+        }
+
+        $movieExists = DB::table('movies')->where('id', $id)->exists();
+        if (!$movieExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Movie not found',
+            ], 404);
+        }
+
+        $baseUsers = DB::table('ratings')
+            ->where('film_id', $id)
+            ->select('user_id')
+            ->union(
+                DB::table('diaries')
+                    ->where('film_id', $id)
+                    ->select('user_id')
+            );
+
+        $latestDiaryIds = DB::table('diaries')
+            ->where('film_id', $id)
+            ->selectRaw('MAX(id) as id')
+            ->groupBy('user_id');
+
+        $latestDiaries = DB::table('diaries as d')
+            ->joinSub($latestDiaryIds, 'ld', function ($join) {
+                $join->on('d.id', '=', 'ld.id');
+            })
+            ->select('d.user_id', 'd.review_id', 'd.created_at');
+
+        $query = DB::query()
+            ->fromSub($baseUsers, 'mw')
+            ->join('users', 'users.id', '=', 'mw.user_id')
+            ->leftJoin('user_profiles', 'user_profiles.user_id', '=', 'users.id')
+            ->leftJoin('ratings as r', function ($join) use ($id) {
+                $join->on('r.user_id', '=', 'users.id')
+                    ->where('r.film_id', '=', $id);
+            })
+            ->leftJoinSub($latestDiaries, 'd', function ($join) {
+                $join->on('d.user_id', '=', 'users.id');
+            })
+            ->leftJoin('movie_likes as ml', function ($join) use ($id) {
+                $join->on('ml.user_id', '=', 'users.id')
+                    ->where('ml.film_id', '=', $id);
+            });
+
+        if ($filter === 'liked') {
+            $query->whereNotNull('ml.id');
+        }
+
+        if ($filter === 'friends') {
+            if ($viewerUserId <= 0) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            $query->whereExists(function ($sub) use ($viewerUserId) {
+                $sub->select(DB::raw(1))
+                    ->from('followers')
+                    ->whereColumn('followers.user_id', 'users.id')
+                    ->where('followers.follower_id', $viewerUserId);
+            });
+        }
+
+        $users = $query
+            ->select(
+                'users.id as user_id',
+                'users.username',
+                'user_profiles.profile_photo',
+                'r.rating',
+                'd.review_id as review_id',
+                DB::raw('CASE WHEN ml.id IS NULL THEN 0 ELSE 1 END as has_like'),
+                DB::raw('CASE WHEN d.review_id IS NULL THEN 0 ELSE 1 END as has_review'),
+                DB::raw('COALESCE(r.updated_at, d.created_at) as activity_at')
+            );
+
+        if ($prioritizeReview) {
+            $users->orderByRaw('CASE WHEN d.review_id IS NULL THEN 0 ELSE 1 END DESC');
+        }
+
+        $users = $users
+            ->orderByDesc('activity_at')
+            ->orderBy('users.username');
+
+        if ($limit > 0) {
+            $users->limit($limit);
+        }
+
+        $users = $users->get()
+            ->map(function ($item) {
+                $profilePhoto = null;
+                if (!empty($item->profile_photo)) {
+                    $profilePhoto = str_starts_with($item->profile_photo, 'http')
+                        ? $item->profile_photo
+                        : url('storage/' . $item->profile_photo);
+                }
+
+                return [
+                    'user' => [
+                        'id' => (int) $item->user_id,
+                        'username' => $item->username,
+                        'profile_photo' => $profilePhoto,
+                    ],
+                    'rating' => $item->rating !== null ? (int) $item->rating : null,
+                    'review_id' => $item->review_id !== null ? (int) $item->review_id : null,
+                    'has_like' => (bool) $item->has_like,
+                    'has_review' => (bool) $item->has_review,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $users,
+        ]);
+    }
+
+    /**
+     * Get users (followed by viewer) who have this movie in watchlist.
+     */
+    public function friendsWantToWatch($id, Request $request)
+    {
+        $viewerUserId = (int) $request->query('viewer_user_id', 0);
+        $limit = max(1, (int) $request->query('limit', 10));
+
+        if ($viewerUserId <= 0) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        $movieExists = DB::table('movies')->where('id', $id)->exists();
+        if (!$movieExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Movie not found',
+            ], 404);
+        }
+
+        $users = DB::table('watchlists as w')
+            ->join('users', 'users.id', '=', 'w.user_id')
+            ->leftJoin('user_profiles', 'user_profiles.user_id', '=', 'users.id')
+            ->where('w.film_id', $id)
+            ->whereExists(function ($sub) use ($viewerUserId) {
+                $sub->select(DB::raw(1))
+                    ->from('followers')
+                    ->whereColumn('followers.user_id', 'w.user_id')
+                    ->where('followers.follower_id', $viewerUserId);
+            })
+            ->select(
+                'users.id as user_id',
+                'users.username',
+                'user_profiles.profile_photo'
+            )
+            ->orderByDesc('w.created_at')
+            ->limit($limit)
+            ->get()
+            ->map(function ($item) {
+                $profilePhoto = null;
+                if (!empty($item->profile_photo)) {
+                    $profilePhoto = str_starts_with($item->profile_photo, 'http')
+                        ? $item->profile_photo
+                        : url('storage/' . $item->profile_photo);
+                }
+
+                return [
+                    'id' => (int) $item->user_id,
+                    'username' => $item->username,
+                    'profile_photo' => $profilePhoto,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $users,
+        ]);
+    }
     
     /**
      * Get movie cast and crew

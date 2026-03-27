@@ -8,6 +8,29 @@ use Illuminate\Support\Facades\DB;
 
 class FilmListController extends Controller
 {
+    public function getFilterOptions()
+    {
+        try {
+            $genres = DB::table('genres')->orderBy('name')->pluck('name')->filter()->values();
+            $countries = DB::table('countries')->orderBy('name')->pluck('name')->filter()->values();
+            $languages = DB::table('languages')->orderBy('name')->pluck('name')->filter()->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'genres' => $genres,
+                    'countries' => $countries,
+                    'languages' => $languages,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching filter options: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function getFilmsByCategory(Request $request)
     {
         $type  = $request->input('type');  // genre, production_house, country, language, year
@@ -70,6 +93,18 @@ class FilmListController extends Controller
                     ->pluck('genres.name')
                     ->toArray();
 
+                $countries = DB::table('movie_countries')
+                    ->join('countries', 'movie_countries.country_id', '=', 'countries.id')
+                    ->where('movie_countries.movie_id', $movie->id)
+                    ->pluck('countries.name')
+                    ->toArray();
+
+                $languages = DB::table('movie_languages')
+                    ->join('languages', 'movie_languages.language_id', '=', 'languages.id')
+                    ->where('movie_languages.movie_id', $movie->id)
+                    ->pluck('languages.name')
+                    ->toArray();
+
                 $avgRating = DB::table('reviews')
                     ->where('film_id', $movie->id)
                     ->avg('rating') ?? 0;
@@ -88,6 +123,8 @@ class FilmListController extends Controller
                     'year'           => $movie->release_year,
                     'poster_path'    => $posterUrl,
                     'genres'         => $genres,
+                    'countries'      => $countries,
+                    'languages'      => $languages,
                     'average_rating' => round($avgRating, 1),
                     'watched_count'  => (int)$movie->watched_count,
                 ];

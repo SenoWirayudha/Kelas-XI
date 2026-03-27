@@ -47,6 +47,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/movies', [MovieApiController::class, 'index']);
     Route::get('/movies/{id}', [MovieApiController::class, 'show']);
     Route::get('/movies/{id}/reviews', [MovieApiController::class, 'reviews']);
+    Route::get('/movies/{id}/watched-users', [MovieApiController::class, 'watchedUsers']);
+    Route::get('/movies/{id}/friends-want-to-watch', [MovieApiController::class, 'friendsWantToWatch']);
     Route::get('/movies/{id}/cast-crew', [MovieApiController::class, 'castCrew']);
     Route::get('/movies/{id}/media', [MovieMediaController::class, 'getMovieMedia']);
     
@@ -129,6 +131,7 @@ Route::prefix('v1')->group(function () {
     
     // Film List by Category
     Route::get('/films/category', [FilmListController::class, 'getFilmsByCategory']);
+    Route::get('/filters/options', [FilmListController::class, 'getFilterOptions']);
     
     // Search
     Route::get('/search', [MovieApiController::class, 'search']);

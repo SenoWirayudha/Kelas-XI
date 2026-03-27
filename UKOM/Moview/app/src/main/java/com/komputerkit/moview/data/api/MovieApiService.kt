@@ -67,6 +67,22 @@ interface MovieApiService {
         @Query("page") page: Int = 1,
         @Query("per_page") perPage: Int = 20
     ): PaginatedResponse<MovieReviewDto>
+
+    @GET("movies/{id}/watched-users")
+    suspend fun getMovieWatchedUsers(
+        @Path("id") id: Int,
+        @Query("filter") filter: String = "everyone",
+        @Query("viewer_user_id") viewerUserId: Int? = null,
+        @Query("limit") limit: Int? = null,
+        @Query("prioritize_review") prioritizeReview: Boolean? = null
+    ): ApiResponse<List<MovieWatchedUserDto>>
+
+    @GET("movies/{id}/friends-want-to-watch")
+    suspend fun getMovieFriendsWantToWatch(
+        @Path("id") id: Int,
+        @Query("viewer_user_id") viewerUserId: Int? = null,
+        @Query("limit") limit: Int = 10
+    ): ApiResponse<List<MovieSimpleUserDto>>
     
     @GET("persons/{id}")
     suspend fun getPersonDetail(
@@ -78,6 +94,9 @@ interface MovieApiService {
         @Query("type") type: String,
         @Query("value") value: String
     ): ApiResponse<List<MovieCardDto>>
+
+    @GET("filters/options")
+    suspend fun getFilterOptions(): ApiResponse<FilterOptionsDto>
     
     @GET("movies/{id}/media")
     suspend fun getMovieMedia(

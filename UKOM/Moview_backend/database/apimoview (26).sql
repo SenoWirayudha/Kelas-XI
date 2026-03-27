@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 18 Mar 2026 pada 11.26
+-- Waktu pembuatan: 27 Mar 2026 pada 15.15
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -68,7 +68,8 @@ CREATE TABLE `cinemas` (
 INSERT INTO `cinemas` (`id`, `service_id`, `cinema_name`, `city`, `address`, `created_at`, `updated_at`) VALUES
 (1, 9, 'Ciplaz Sidoarjo XXI', 'Sidoarjo', 'City Plaza Sidoarjo Lt.2 Jln. Diponegoro No. 2 Sidoarjo - Jawa Timur', '2026-03-12 04:40:08', '2026-03-12 04:40:08'),
 (2, 12, 'Lippo Plaza Sidoarjo Cinepolis', 'Sidoarjo', 'Lippo Plaza Sidoarjo Lt. 1 Jl. Jati Raya No. 1 Jati,  kec. Sidoarjo, Jawa Timur , Sidoarjo', '2026-03-14 10:30:09', '2026-03-14 10:30:09'),
-(3, 9, 'Transmart Sidoarjo XXI', 'Sidoarjo', 'Transmart Sidoarjo Lt. 3, Jl. Raya Taman Tiara No. 35', '2026-03-17 10:13:49', '2026-03-17 10:13:49');
+(3, 9, 'Transmart Sidoarjo XXI', 'Sidoarjo', 'Transmart Sidoarjo Lt. 3, Jl. Raya Taman Tiara No. 35', '2026-03-17 10:13:49', '2026-03-17 10:13:49'),
+(5, 9, 'Pakuwon Mall IMAX', 'Surabaya', 'Pakuwon Mall LT. 2m JL. Puncak Indah Lontar No. 2 Surabaya', '2026-03-27 12:19:18', '2026-03-27 12:19:18');
 
 -- --------------------------------------------------------
 
@@ -375,7 +376,7 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (2, 'The Handmaiden', '2016', 168, 'NC-17', '1930s Korea, in the period of Japanese occupation, a new girl, Sookee, is hired as a handmaiden to a Japanese heiress, Hideko, who lives a secluded life on a large countryside estate with her domineering Uncle Kouzuki.', 'movies/2/poster/5KaUYiDyVYHpvYEbJUtByHpmOjigmpveskbTvF15.webp', 'movies/2/backdrop/7tPjR22RtGA8q4n8UaDamlnFPxHJDcLFLBB1lufy.webp', 'https://youtu.be/whldChqCsYk?si=_MK_uXDiQjqukebH', 'published', '2026-01-30 06:37:18', '2026-01-30 21:13:30'),
 (3, 'Perfect Days', '2023', 123, 'PG', 'Hirayama seems utterly content with his simple life as a cleaner of toilets in Tokyo.', 'movies/3/poster/lNUXiqFkQiylVswXRL0CXpQQyO5w8A64VVJ1XwZc.webp', 'movies/3/backdrop/IYVzP15BMaVLXAtW6RJH9hLU4O3xTwz6EirgPiCp.webp', NULL, 'published', '2026-01-30 06:37:18', '2026-01-30 21:03:36'),
 (4, 'Past Lives', '2023', 105, 'PG-13', 'Nora and Hae Sung, two deeply connected childhood friends, are wrest apart after Nora\'s family emigrates from South Korea.', 'movies/4/poster/hBWu8LFNnvKg6Gnd3D8GFHhqLS0rLKMlBp9hIMtx.webp', 'movies/4/backdrop/Ai4eeJWC12mAwSHaBvgwzlRUgyWVaIxeOGdyZ4Ag.webp', NULL, 'published', '2026-01-30 06:37:18', '2026-01-30 21:42:16'),
-(5, 'Resurrection', '2025', 160, 'R', 'In a future where humanity has surrendered its ability to dream in exchange for immortality, an outcast finds illusion, nightmarish visions, and beauty in an intoxicating world of his own making.', 'movies/5/poster/yhKBpNYCQLXQAKJG3xD3Qu7o49EtGYpBzgM3ux4C.webp', 'movies/5/backdrop/P23DLxZaJZ1S6XAnAuhfJ4SloMLfLIuLBIlv4Wav.webp', 'https://youtu.be/ZIJezWgFUEY?si=Jpy_MBO8xS7IhmsA', 'published', '2026-01-30 06:37:18', '2026-02-28 04:43:41'),
+(5, 'Resurrection', '2025', 160, 'R', 'In a future where humanity has surrendered its ability to dream in exchange for immortality, an outcast finds illusion, nightmarish visions, and beauty in an intoxicating world of his own making.', 'movies/5/poster/yhKBpNYCQLXQAKJG3xD3Qu7o49EtGYpBzgM3ux4C.webp', 'movies/5/backdrop/Sx13gGodGbnzrLRCYQz49yhJnC5iMqOTdYSrMbpw.webp', 'https://youtu.be/ZIJezWgFUEY?si=Jpy_MBO8xS7IhmsA', 'published', '2026-01-30 06:37:18', '2026-03-27 13:59:06'),
 (6, 'Sore: Istri Dari Masa Depan', '2025', 119, 'PG', 'A young man living alone in Croatia encounters a woman who claims to be his wife from the future, sent on a mission to help him correct his bad habits and improve his lifestyle.', 'movies/6/poster/FhAgMgFumfx1blIzWkSBy4FyN0CxfW59fzpiPhYn.webp', 'movies/6/backdrop/c2nt7XkzgOZ8T5RC2qIKTuVn1zke4C3Qgu9JZKTZ.webp', 'https://youtu.be/CZJWXm5KKyM?si=78R4C1eRm3FNYdrv', 'published', '2026-01-30 22:53:21', '2026-03-07 05:56:22'),
 (7, 'Jatuh Cinta Seperti di Film-Film', '2023', 118, 'PG-13', 'Bagus, a screenwriter, reunites with his high school friend and crush, Hana, who is still grieving from the loss of her husband. He wants to convince her to fall in love once again, just like in the movies.', 'movies/7/poster/mvjIEh7YHK6ruRW6cFlomGqB1zhiGCHrlmhRnlma.webp', 'movies/7/backdrop/ztVPySl8mh5j6V5AHd3cSgh4HS41NJ06oj07wiyu.webp', 'https://youtu.be/F6jPobzz-ag?si=qEEc1W9VBvl_QaO1', 'published', '2026-01-30 23:06:54', '2026-01-30 23:10:24'),
 (8, '\"Wuthering Heights\"', '2026', 136, 'R', 'Tragedy strikes when Heathcliff falls in love with Catherine Earnshaw, a woman from a wealthy family in 18th-century England.', 'movies/8/poster/uuaS50XVV9EDYQYtvbTe41EQqv5fFVWKShQo3sbs.webp', 'movies/8/backdrop/Na2VQgAGvNfG32r8ZkBcW6gYUlz6bk6g5j7IMi0u.webp', NULL, 'published', '2026-01-30 23:23:17', '2026-01-30 23:28:09'),
@@ -425,7 +426,7 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (52, 'Na Willa', '2026', 118, 'G', 'A little girl who lives in Surabaya\'s suburb. Hillarious experience in a girl\'s mind and tells us how complicated being a child.', 'movies/52/poster/5mPSzobgQGSsDksp1qtN7P1Nt3osuKSoDQTuT5QD.webp', 'movies/52/backdrop/etAwp3NorrWQIvXQqkXYBBWr91CxGx2z0BgucG4B.webp', 'https://youtu.be/-qsIG4vsG5Y?si=5Bs4CntNnuFecgTW', 'published', '2026-03-06 04:36:10', '2026-03-06 04:38:03'),
 (53, 'Project Hail Mary', '2026', 156, 'PG-13', 'BELIEVE IN THE HAIL MARY.\r\n\r\nScience teacher Ryland Grace wakes up on a spaceship light years from home with no recollection of who he is or how he got there. As his memory returns, he begins to uncover his mission: solve the riddle of the mysterious substance causing the sun to die out. He must call on his scientific knowledge and unorthodox ideas to save everything on Earth from extinction… but an unexpected friendship means he may not have to do it alone.', 'movies/53/poster/wxad2E32iLPKOTtqNpfIIswdLhTNILudsUymM9CI.webp', 'movies/53/backdrop/qUkjkMIVXBVwHsFSHPcSB2Vcmo3S6vh1Nt65GOAP.webp', 'https://youtu.be/m08TxIsFTRI?si=Jaq4tyCpB6dzJaZv', 'published', '2026-03-06 04:40:32', '2026-03-06 04:43:47'),
 (54, 'Yohanna', '2026', 85, 'PG-13', 'A young nun\'s encounter with the underworld of child labor in Sumba restores her sense of purpose in life.', 'movies/54/poster/kGYG9VoVdtidWmWCaaBXSEqdO7f90mLQEPj7Bds2.webp', 'movies/54/backdrop/KoA7dnbn8M67m1UtzKDGoKZCLuoW9BlrH6D1TXX7.webp', 'https://youtu.be/po0QBsA3f84?si=VFl4Oz46DV8_z1Xo', 'published', '2026-03-06 04:45:50', '2026-03-06 04:47:50'),
-(55, 'Disclosure Day', '2026', NULL, 'Not Rated', 'ALL WILL BE DISCLOSED.\r\n\r\nIf you found out we weren’t alone, if someone showed you, proved it to you, would that frighten you?', 'movies/55/poster/XnEWFqtfp10ipbhub0kNS6POz585auRWxGvfdKEy.webp', 'movies/55/backdrop/FiI0evnNtODdZlEDKotfMDMuVpqfS714XtvVxcYI.webp', 'https://youtu.be/UFe6NRgoXCM?si=NiaswiTrV4Zc4gtl', 'published', '2026-03-06 05:01:41', '2026-03-06 05:03:47'),
+(55, 'Disclosure Day', '2026', NULL, 'Not Rated', 'ALL WILL BE DISCLOSED.\r\n\r\nIf you found out we weren’t alone, if someone showed you, proved it to you, would that frighten you?', 'movies/55/poster/2rd4Y7nhhanWHfOY3CTOuvVU8klmquECwF1H54h7.webp', 'movies/55/backdrop/FiI0evnNtODdZlEDKotfMDMuVpqfS714XtvVxcYI.webp', 'https://youtu.be/UFe6NRgoXCM?si=NiaswiTrV4Zc4gtl', 'published', '2026-03-06 05:01:41', '2026-03-27 13:01:11'),
 (56, 'The Odyssey', '2026', NULL, 'Not Rated', 'Odysseus, raja legendaris Yunani dari Ithaca, memulai perjalanan panjang dan berbahaya untuk pulang setelah Perang Troya, yang mengisahkan perjumpaannya dengan makhluk-makhluk mitologis seperti Cyclops Polyphemus, para Siren, dan penyihir-dewi Circe.', 'movies/56/poster/wjCxfI0QELS9bfRVpgSmFTDLntAvpk3QRCUxIkpl.webp', 'movies/56/backdrop/E1tFNMQW17MwGFCCrn8klDMYKgT0GSLtRvVYpE5j.webp', 'https://youtu.be/Mzw2ttJD2qQ?si=fUJFEDqn1xP1be-_', 'published', '2026-03-06 05:05:38', '2026-03-06 05:11:40'),
 (57, 'The Drama', '2026', 105, 'R', 'YOU ARE CORDIALLY INVITED TO…\r\n\r\nA happily engaged couple is put to the test when an unexpected turn sends their wedding week off the rails.', 'movies/57/poster/jfOI3jXS6ajQ6xjp5nS7DTcseFNo0KhSDbRW7hU6.webp', 'movies/57/backdrop/blSnUwrUJV6cECqUDc9v4imYZ3RF7HnBiWk5oep9.webp', 'https://youtu.be/6zmKcUa4Xxk?si=4W3t4w-Tvf4FUKtC', 'published', '2026-03-06 05:22:24', '2026-03-06 05:24:36'),
 (58, 'Train Dreams', '2025', 102, 'PG-13', 'Seorang penebang kayu menjalani kehidupan yang bersahaja sambil merasakan cinta dan kehilangan selama era perubahan besar di Amerika pada awal abad ke-20.', 'movies/58/poster/6TZOf0CctRYmBc75XiH10AnwmWQm6rJrwEkEUxVz.webp', 'movies/58/backdrop/1YZCt6EFJwt1jK1qZZzqtNLb9NHETlPf8PjnhBhA.webp', 'https://youtu.be/_Nk8TrBHOrA?si=3B5067hrK8MPmuU7', 'published', '2026-03-06 08:42:39', '2026-03-06 08:44:55'),
@@ -442,7 +443,8 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (69, 'Linda Linda Linda', '2005', 114, 'PG-13', 'HIGH SCHOOL GIRLS PLAY THE BLUE HEARTS!\r\n\r\nOnly three days before their high school festival, guitarist Kei, drummer Kyoko, and bassist Nozomi are forced to recruit a new lead vocalist for their band. They choose Korean exchange student Son, though her comprehension of Japanese is a bit rough! It\'s a race against time as the group struggles to learn three songs for the festival\'s rock concert—including a classic \'80s song by the Japanese punk rock band The Blue Hearts called \"Linda Linda\".', 'movies/69/poster/ydrnX2PAFAD6RIP8F5dotG5KZm2TsGRW9NnzicSR.webp', 'movies/69/backdrop/I7xwq4dcIqulCvCFsy4mbvvjAw30qmA7tw9Knj6z.webp', 'https://youtu.be/YIIkWjdiF0U?si=IcInaEr3cS8rWu4t', 'published', '2026-03-10 02:59:18', '2026-03-10 03:04:27'),
 (70, 'Tunggu Aku Sukses Nanti', '2026', 110, 'PG-13', 'Arga, unemployed for three years, is a constant source of family ridicule every Eid. Pressured by difficult economy, marriage, his younger sibling’s college tuition, and plans to sell his grandmother’s house, he struggles to find work to prove himself.', 'movies/70/poster/Y0zt4Cbtb9yCTjOTpdgU7DwbmmhX1VrT02IH4BCz.webp', 'movies/70/backdrop/5LZTkaWdsxgadAUNHeEv4HX3BEBKip5P5klehPaV.webp', 'https://youtu.be/f2TXOlaxMdU?si=PBibLF9QaCP81iN4', 'published', '2026-03-12 01:12:49', '2026-03-12 01:19:23'),
 (71, 'Pelangi di Mars', '2026', 112, 'G', 'Pelangi is an Indonesian child born on Mars. Together with her robot friends, she embarks on a great journey that will determine the future of Earth. Can they overcome it?', 'movies/71/poster/jIPJnpJhnM0rgQ9IvCQBysNFox6d5yQeYOqg1Pcv.webp', 'movies/71/backdrop/0uY7YAfrFuAbF1eb6ZAY2djsitn2Wg2o7pRn2niX.webp', 'https://youtu.be/nSoRBPSsdWg?si=TYjIMQPSpUnKbgqr', 'published', '2026-03-12 01:16:43', '2026-03-12 01:19:58'),
-(72, 'Crocodile Tears', '2024', 96, 'R', 'An overbearing mother who lives with her son in a secluded crocodile farm spirals out of control when her son sees the outside world and falls for a girl for the first time.', 'movies/72/poster/4ehxd7mSWRvIWMrhnQUxO6tflwSr4pDKLnobNXuk.webp', 'movies/72/backdrop/9T495IzpJHEFoolQAhogftvOSQjvScmGRYnAjMYC.webp', 'https://youtu.be/zNtNhvEeskQ?si=1a6PYASbThBBM5L4', 'published', '2026-03-12 01:28:06', '2026-03-12 01:30:34');
+(72, 'Crocodile Tears', '2024', 96, 'R', 'An overbearing mother who lives with her son in a secluded crocodile farm spirals out of control when her son sees the outside world and falls for a girl for the first time.', 'movies/72/poster/4ehxd7mSWRvIWMrhnQUxO6tflwSr4pDKLnobNXuk.webp', 'movies/72/backdrop/9T495IzpJHEFoolQAhogftvOSQjvScmGRYnAjMYC.webp', 'https://youtu.be/zNtNhvEeskQ?si=1a6PYASbThBBM5L4', 'published', '2026-03-12 01:28:06', '2026-03-12 01:30:34'),
+(73, 'Danur: The Last Chapter', '2026', 98, 'PG-13', 'After years of separation from her ghost friends, Risa goes on with her life, closing the door to any communication with any ghosts. However, things change when her sister, Riri, is proposed. In an old theater and begins acting strangely in the time leading to her wedding. Not only does Riri change, but Risa also begins experiencing a series of strange events, as if she’s experiencing a painful death repeatedly. Risa suspects that this was happening because her ghost friends, Peter and his friends, were trying to convey something.', 'movies/73/poster/9wH6vpJFEhT9YIBgygLXFsC2TMXls7QcQsLT1TIK.webp', 'movies/73/backdrop/1KA7UGpJGYNt6c7vXVvBKXwIvhRxrAZCM6x6tNEJ.webp', 'https://youtu.be/DZ8qYq6fAao?si=L458d4SXa8hlaDnC', 'published', '2026-03-27 09:55:46', '2026-03-27 09:58:53');
 
 -- --------------------------------------------------------
 
@@ -579,7 +581,8 @@ INSERT INTO `movie_countries` (`movie_id`, `country_id`) VALUES
 (72, 5),
 (72, 6),
 (72, 13),
-(72, 25);
+(72, 25),
+(73, 13);
 
 -- --------------------------------------------------------
 
@@ -769,7 +772,10 @@ INSERT INTO `movie_genres` (`movie_id`, `genre_id`) VALUES
 (71, 12),
 (71, 16),
 (72, 7),
-(72, 13);
+(72, 13),
+(73, 9),
+(73, 10),
+(73, 13);
 
 -- --------------------------------------------------------
 
@@ -884,7 +890,8 @@ INSERT INTO `movie_languages` (`movie_id`, `language_id`) VALUES
 (69, 3),
 (70, 13),
 (71, 13),
-(72, 13);
+(72, 13),
+(73, 13);
 
 -- --------------------------------------------------------
 
@@ -962,7 +969,7 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (8, 3, 'backdrop', 'movies/3/backdrop/IYVzP15BMaVLXAtW6RJH9hLU4O3xTwz6EirgPiCp.webp', 1, '2026-01-31 04:03:30'),
 (9, 4, 'poster', 'movies/4/poster/hBWu8LFNnvKg6Gnd3D8GFHhqLS0rLKMlBp9hIMtx.webp', 1, '2026-01-31 04:12:43'),
 (10, 5, 'poster', 'movies/5/poster/iXl1MJ57vGlRi2GvQFLgPYmsifXdgikhRepquaqC.webp', 0, '2026-01-31 04:30:24'),
-(11, 5, 'backdrop', 'movies/5/backdrop/P23DLxZaJZ1S6XAnAuhfJ4SloMLfLIuLBIlv4Wav.webp', 1, '2026-01-31 04:30:42'),
+(11, 5, 'backdrop', 'movies/5/backdrop/P23DLxZaJZ1S6XAnAuhfJ4SloMLfLIuLBIlv4Wav.webp', 0, '2026-01-31 04:30:42'),
 (12, 4, 'backdrop', 'movies/4/backdrop/Ai4eeJWC12mAwSHaBvgwzlRUgyWVaIxeOGdyZ4Ag.webp', 1, '2026-01-31 04:42:09'),
 (13, 6, 'poster', 'movies/6/poster/FhAgMgFumfx1blIzWkSBy4FyN0CxfW59fzpiPhYn.webp', 1, '2026-01-31 06:01:42'),
 (14, 6, 'backdrop', 'movies/6/backdrop/c2nt7XkzgOZ8T5RC2qIKTuVn1zke4C3Qgu9JZKTZ.webp', 1, '2026-01-31 06:01:56'),
@@ -1109,7 +1116,7 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (156, 53, 'backdrop', 'movies/53/backdrop/qUkjkMIVXBVwHsFSHPcSB2Vcmo3S6vh1Nt65GOAP.webp', 1, '2026-03-06 11:43:27'),
 (157, 54, 'poster', 'movies/54/poster/kGYG9VoVdtidWmWCaaBXSEqdO7f90mLQEPj7Bds2.webp', 1, '2026-03-06 11:47:02'),
 (158, 54, 'backdrop', 'movies/54/backdrop/KoA7dnbn8M67m1UtzKDGoKZCLuoW9BlrH6D1TXX7.webp', 1, '2026-03-06 11:47:12'),
-(159, 55, 'poster', 'movies/55/poster/XnEWFqtfp10ipbhub0kNS6POz585auRWxGvfdKEy.webp', 1, '2026-03-06 12:03:10'),
+(159, 55, 'poster', 'movies/55/poster/XnEWFqtfp10ipbhub0kNS6POz585auRWxGvfdKEy.webp', 0, '2026-03-06 12:03:10'),
 (160, 55, 'backdrop', 'movies/55/backdrop/FiI0evnNtODdZlEDKotfMDMuVpqfS714XtvVxcYI.webp', 1, '2026-03-06 12:03:20'),
 (161, 56, 'poster', 'movies/56/poster/wjCxfI0QELS9bfRVpgSmFTDLntAvpk3QRCUxIkpl.webp', 1, '2026-03-06 12:07:09'),
 (162, 56, 'backdrop', 'movies/56/backdrop/E1tFNMQW17MwGFCCrn8klDMYKgT0GSLtRvVYpE5j.webp', 1, '2026-03-06 12:07:21'),
@@ -1292,7 +1299,27 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (340, 3, 'poster', 'movies/3/poster/hCHetijt2xTw05rueEdgOoFHXGcV9mK0e8L69rfh.webp', 0, '2026-03-12 09:30:47'),
 (341, 3, 'poster', 'movies/3/poster/WofGdRPwyZrfdbFqSPQA06SUFIdHvLc9iVjQDK4y.webp', 0, '2026-03-12 09:31:01'),
 (342, 3, 'backdrop', 'movies/3/backdrop/4HNr04JGNQpIZ3y07OH7VaQXp6CSuefL93Er0XLq.webp', 0, '2026-03-12 09:31:23'),
-(343, 61, 'poster', 'movies/61/poster/DQAL7zvclKCfLa2UxOd6pDEGYcINUw6bRJYKMTKh.webp', 1, '2026-03-17 09:36:01');
+(343, 61, 'poster', 'movies/61/poster/DQAL7zvclKCfLa2UxOd6pDEGYcINUw6bRJYKMTKh.webp', 1, '2026-03-17 09:36:01'),
+(344, 73, 'poster', 'movies/73/poster/9wH6vpJFEhT9YIBgygLXFsC2TMXls7QcQsLT1TIK.webp', 1, '2026-03-27 09:58:22'),
+(345, 73, 'backdrop', 'movies/73/backdrop/1KA7UGpJGYNt6c7vXVvBKXwIvhRxrAZCM6x6tNEJ.webp', 1, '2026-03-27 09:58:33'),
+(346, 55, 'poster', 'movies/55/poster/2rd4Y7nhhanWHfOY3CTOuvVU8klmquECwF1H54h7.webp', 1, '2026-03-27 13:01:00'),
+(347, 55, 'poster', 'movies/55/poster/BYgytczAxflGsdfA69WLw05P0eDyFL0L5qRX5DOO.webp', 0, '2026-03-27 13:01:05'),
+(348, 5, 'poster', 'movies/5/poster/7NALwUSAv3fYAtVgkklrixMpRqsyTAbBorUubaRn.webp', 0, '2026-03-27 13:55:59'),
+(349, 5, 'poster', 'movies/5/poster/3eEo0LSMzi5VkVFbBKAFrA21QFKo67fFecFvYKax.webp', 0, '2026-03-27 13:56:03'),
+(350, 5, 'poster', 'movies/5/poster/vYTA38GfvhbpI1zdpwfQbC46EkKV4HhrPkL7BmiA.webp', 0, '2026-03-27 13:56:09'),
+(351, 5, 'poster', 'movies/5/poster/bTEIfVjmDLNaluLQ0TdLRPMkngWJzOGYdrFx1MCd.webp', 0, '2026-03-27 13:56:14'),
+(352, 5, 'poster', 'movies/5/poster/FcI2HnGow00dpZDB9uUHeBQZjpERu7cRkohs2bEz.webp', 0, '2026-03-27 13:56:22'),
+(353, 5, 'poster', 'movies/5/poster/AH3rdklT5MusSTpyaQfUoruZXV264gcareMCXVsl.webp', 0, '2026-03-27 13:56:27'),
+(354, 5, 'backdrop', 'movies/5/backdrop/lSg6reA5tFseTTZlQBBEN6kSA50NiIqMip7lXV6G.webp', 0, '2026-03-27 13:56:37'),
+(355, 5, 'backdrop', 'movies/5/backdrop/AKggCKllAh78U3GFrg0fISkhIhuS87xb2wGxgbl9.webp', 0, '2026-03-27 13:57:09'),
+(356, 5, 'backdrop', 'movies/5/backdrop/CgmmAHlEFG3ZIGw4lssy8oTIWovOVA4FxUyFOyK4.webp', 0, '2026-03-27 13:57:18'),
+(357, 5, 'backdrop', 'movies/5/backdrop/6EsLNEyBhBw7IqweHOXiIW5dAS01xyz25q3kw005.webp', 0, '2026-03-27 13:57:28'),
+(358, 5, 'backdrop', 'movies/5/backdrop/XJo39YVslDhVphIzJV5BGIP6NKe4EsgLqjDvlw86.webp', 0, '2026-03-27 13:57:51'),
+(359, 5, 'backdrop', 'movies/5/backdrop/DDi9maCSPZwEqIs0ZhVx3F0we95O1E9gnfCar9Lg.webp', 0, '2026-03-27 13:57:57'),
+(361, 5, 'backdrop', 'movies/5/backdrop/zJeLku2wcMydhaNctqd5QFguyhHMUHNTQNkpXmQu.webp', 0, '2026-03-27 13:58:44'),
+(362, 5, 'backdrop', 'movies/5/backdrop/Sx13gGodGbnzrLRCYQz49yhJnC5iMqOTdYSrMbpw.webp', 1, '2026-03-27 13:58:52'),
+(363, 5, 'backdrop', 'movies/5/backdrop/XIs7xNXGUGrSSJ3Q8QaJeXbuJgxBtB3KZbrBVLrp.webp', 0, '2026-03-27 13:59:00'),
+(364, 5, 'poster', 'movies/5/poster/vq5l9LOvaCwH4tjk5dNiJ6BsC8FB0FFOrJncDsX9.webp', 0, '2026-03-27 14:07:49');
 
 -- --------------------------------------------------------
 
@@ -1551,7 +1578,9 @@ INSERT INTO `movie_production_houses` (`movie_id`, `production_house_id`) VALUES
 (70, 57),
 (70, 58),
 (72, 39),
-(72, 83);
+(72, 83),
+(73, 84),
+(73, 85);
 
 -- --------------------------------------------------------
 
@@ -1611,12 +1640,6 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (183, 41, 11, 'stream', NULL, 0),
 (186, 42, 4, 'stream', NULL, 0),
 (187, 5, 11, 'stream', NULL, 0),
-(188, 30, 9, 'stream', NULL, 0),
-(189, 30, 10, 'stream', NULL, 0),
-(190, 30, 12, 'stream', NULL, 0),
-(192, 31, 9, 'stream', NULL, 0),
-(193, 31, 10, 'stream', NULL, 0),
-(194, 31, 12, 'stream', NULL, 0),
 (203, 44, 1, 'stream', NULL, 0),
 (210, 45, 11, 'stream', NULL, 0),
 (212, 46, 11, 'stream', NULL, 0),
@@ -1668,7 +1691,10 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (361, 71, 12, 'stream', NULL, 0),
 (362, 52, 9, 'stream', NULL, 0),
 (363, 52, 10, 'stream', NULL, 0),
-(364, 52, 12, 'stream', NULL, 0);
+(364, 52, 12, 'stream', NULL, 0),
+(368, 73, 9, 'stream', NULL, 0),
+(369, 73, 10, 'stream', NULL, 0),
+(370, 73, 12, 'stream', NULL, 0);
 
 -- --------------------------------------------------------
 
@@ -2003,6 +2029,7 @@ INSERT INTO `production_houses` (`id`, `name`) VALUES
 (74, 'Lynx Films'),
 (20, 'Madman Films'),
 (46, 'Marc Platt Productions'),
+(84, 'MD Pictures'),
 (42, 'Memento Films Production'),
 (17, 'Mer Film'),
 (37, 'Miles Films'),
@@ -2013,6 +2040,7 @@ INSERT INTO `production_houses` (`id`, `name`) VALUES
 (77, 'Paradise Films'),
 (7, 'Paramount Pictures'),
 (62, 'Pascal Pictures'),
+(85, 'Pichouse Films'),
 (55, 'Pixar'),
 (70, 'Plus M Entertaiment'),
 (57, 'Rapi Films'),
@@ -2267,7 +2295,8 @@ INSERT INTO `schedules` (`id`, `movie_id`, `studio_id`, `show_date`, `show_time`
 (10, 48, 5, '2026-03-17', '18:15:00', 35000, 'expired'),
 (11, 70, 1, '2026-03-18', '13:25:00', 45000, 'expired'),
 (12, 70, 1, '2026-03-18', '15:35:00', 45000, 'expired'),
-(13, 70, 1, '2026-03-18', '20:50:00', 45000, 'active');
+(13, 70, 1, '2026-03-18', '20:50:00', 45000, 'expired'),
+(14, 73, 13, '2026-03-27', '21:00:00', 55000, 'expired');
 
 -- --------------------------------------------------------
 
@@ -4312,7 +4341,476 @@ INSERT INTO `seats` (`id`, `studio_id`, `seat_row`, `seat_number`, `seat_code`, 
 (4833, 12, 'I', 15, 'I15', 'seat', 15, 8, 1),
 (4834, 12, 'I', 16, 'I16', 'seat', 16, 8, 1),
 (4835, 12, 'I', 17, '', 'entrance', 17, 8, 0),
-(4836, 12, 'I', 18, '', 'entrance', 18, 8, 0);
+(4836, 12, 'I', 18, '', 'entrance', 18, 8, 0),
+(5233, 13, 'A', 1, 'A1', 'seat', 0, 0, 1),
+(5234, 13, 'A', 2, 'A2', 'seat', 1, 0, 1),
+(5235, 13, 'A', 3, 'A3', 'seat', 2, 0, 1),
+(5236, 13, 'A', 203, '', 'aisle', 3, 0, 0),
+(5237, 13, 'A', 4, 'A4', 'seat', 4, 0, 1),
+(5238, 13, 'A', 5, 'A5', 'seat', 5, 0, 1),
+(5239, 13, 'A', 6, 'A6', 'seat', 6, 0, 1),
+(5240, 13, 'A', 7, 'A7', 'seat', 7, 0, 1),
+(5241, 13, 'A', 8, 'A8', 'seat', 8, 0, 1),
+(5242, 13, 'A', 9, 'A9', 'seat', 9, 0, 1),
+(5243, 13, 'A', 10, 'A10', 'seat', 10, 0, 1),
+(5244, 13, 'A', 11, 'A11', 'seat', 11, 0, 1),
+(5245, 13, 'A', 12, 'A12', 'seat', 12, 0, 1),
+(5246, 13, 'A', 13, 'A13', 'seat', 13, 0, 1),
+(5247, 13, 'A', 14, 'A14', 'seat', 14, 0, 1),
+(5248, 13, 'A', 15, 'A15', 'seat', 15, 0, 1),
+(5249, 13, 'A', 16, 'A16', 'seat', 16, 0, 1),
+(5250, 13, 'A', 17, 'A17', 'seat', 17, 0, 1),
+(5251, 13, 'A', 18, 'A18', 'seat', 18, 0, 1),
+(5252, 13, 'A', 19, 'A19', 'seat', 19, 0, 1),
+(5253, 13, 'A', 20, 'A20', 'seat', 20, 0, 1),
+(5254, 13, 'A', 21, 'A21', 'seat', 21, 0, 1),
+(5255, 13, 'A', 22, 'A22', 'seat', 22, 0, 1),
+(5256, 13, 'A', 23, 'A23', 'seat', 23, 0, 1),
+(5257, 13, 'A', 24, 'A24', 'seat', 24, 0, 1),
+(5258, 13, 'A', 25, 'A25', 'seat', 25, 0, 1),
+(5259, 13, 'A', 26, 'A26', 'seat', 26, 0, 1),
+(5260, 13, 'A', 27, 'A27', 'seat', 27, 0, 1),
+(5261, 13, 'A', 28, 'A28', 'seat', 28, 0, 1),
+(5262, 13, 'A', 29, 'A29', 'seat', 29, 0, 1),
+(5263, 13, 'A', 30, 'A30', 'seat', 30, 0, 1),
+(5264, 13, 'A', 31, 'A31', 'seat', 31, 0, 1),
+(5265, 13, 'A', 232, '', 'aisle', 32, 0, 0),
+(5266, 13, 'A', 32, 'A32', 'seat', 33, 0, 1),
+(5267, 13, 'A', 33, 'A33', 'seat', 34, 0, 1),
+(5268, 13, 'A', 34, 'A34', 'seat', 35, 0, 1),
+(5269, 13, 'B', 1, 'B1', 'seat', 0, 1, 1),
+(5270, 13, 'B', 2, 'B2', 'seat', 1, 1, 1),
+(5271, 13, 'B', 3, 'B3', 'seat', 2, 1, 1),
+(5272, 13, 'B', 203, '', 'aisle', 3, 1, 0),
+(5273, 13, 'B', 4, 'B4', 'seat', 4, 1, 1),
+(5274, 13, 'B', 5, 'B5', 'seat', 5, 1, 1),
+(5275, 13, 'B', 6, 'B6', 'seat', 6, 1, 1),
+(5276, 13, 'B', 7, 'B7', 'seat', 7, 1, 1),
+(5277, 13, 'B', 8, 'B8', 'seat', 8, 1, 1),
+(5278, 13, 'B', 9, 'B9', 'seat', 9, 1, 1),
+(5279, 13, 'B', 10, 'B10', 'seat', 10, 1, 1),
+(5280, 13, 'B', 11, 'B11', 'seat', 11, 1, 1),
+(5281, 13, 'B', 12, 'B12', 'seat', 12, 1, 1),
+(5282, 13, 'B', 13, 'B13', 'seat', 13, 1, 1),
+(5283, 13, 'B', 14, 'B14', 'seat', 14, 1, 1),
+(5284, 13, 'B', 15, 'B15', 'seat', 15, 1, 1),
+(5285, 13, 'B', 16, 'B16', 'seat', 16, 1, 1),
+(5286, 13, 'B', 17, 'B17', 'seat', 17, 1, 1),
+(5287, 13, 'B', 18, 'B18', 'seat', 18, 1, 1),
+(5288, 13, 'B', 19, 'B19', 'seat', 19, 1, 1),
+(5289, 13, 'B', 20, 'B20', 'seat', 20, 1, 1),
+(5290, 13, 'B', 21, 'B21', 'seat', 21, 1, 1),
+(5291, 13, 'B', 22, 'B22', 'seat', 22, 1, 1),
+(5292, 13, 'B', 23, 'B23', 'seat', 23, 1, 1),
+(5293, 13, 'B', 24, 'B24', 'seat', 24, 1, 1),
+(5294, 13, 'B', 25, 'B25', 'seat', 25, 1, 1),
+(5295, 13, 'B', 26, 'B26', 'seat', 26, 1, 1),
+(5296, 13, 'B', 27, 'B27', 'seat', 27, 1, 1),
+(5297, 13, 'B', 28, 'B28', 'seat', 28, 1, 1),
+(5298, 13, 'B', 29, 'B29', 'seat', 29, 1, 1),
+(5299, 13, 'B', 30, 'B30', 'seat', 30, 1, 1),
+(5300, 13, 'B', 31, 'B31', 'seat', 31, 1, 1),
+(5301, 13, 'B', 232, '', 'aisle', 32, 1, 0),
+(5302, 13, 'B', 32, 'B32', 'seat', 33, 1, 1),
+(5303, 13, 'B', 33, 'B33', 'seat', 34, 1, 1),
+(5304, 13, 'B', 34, 'B34', 'seat', 35, 1, 1),
+(5305, 13, 'C', 1, 'C1', 'seat', 0, 2, 1),
+(5306, 13, 'C', 2, 'C2', 'seat', 1, 2, 1),
+(5307, 13, 'C', 3, 'C3', 'seat', 2, 2, 1),
+(5308, 13, 'C', 203, '', 'aisle', 3, 2, 0),
+(5309, 13, 'C', 4, 'C4', 'seat', 4, 2, 1),
+(5310, 13, 'C', 5, 'C5', 'seat', 5, 2, 1),
+(5311, 13, 'C', 6, 'C6', 'seat', 6, 2, 1),
+(5312, 13, 'C', 7, 'C7', 'seat', 7, 2, 1),
+(5313, 13, 'C', 8, 'C8', 'seat', 8, 2, 1),
+(5314, 13, 'C', 9, 'C9', 'seat', 9, 2, 1),
+(5315, 13, 'C', 10, 'C10', 'seat', 10, 2, 1),
+(5316, 13, 'C', 11, 'C11', 'seat', 11, 2, 1),
+(5317, 13, 'C', 12, 'C12', 'seat', 12, 2, 1),
+(5318, 13, 'C', 13, 'C13', 'seat', 13, 2, 1),
+(5319, 13, 'C', 14, 'C14', 'seat', 14, 2, 1),
+(5320, 13, 'C', 15, 'C15', 'seat', 15, 2, 1),
+(5321, 13, 'C', 16, 'C16', 'seat', 16, 2, 1),
+(5322, 13, 'C', 17, 'C17', 'seat', 17, 2, 1),
+(5323, 13, 'C', 18, 'C18', 'seat', 18, 2, 1),
+(5324, 13, 'C', 19, 'C19', 'seat', 19, 2, 1),
+(5325, 13, 'C', 20, 'C20', 'seat', 20, 2, 1),
+(5326, 13, 'C', 21, 'C21', 'seat', 21, 2, 1),
+(5327, 13, 'C', 22, 'C22', 'seat', 22, 2, 1),
+(5328, 13, 'C', 23, 'C23', 'seat', 23, 2, 1),
+(5329, 13, 'C', 24, 'C24', 'seat', 24, 2, 1),
+(5330, 13, 'C', 25, 'C25', 'seat', 25, 2, 1),
+(5331, 13, 'C', 26, 'C26', 'seat', 26, 2, 1),
+(5332, 13, 'C', 27, 'C27', 'seat', 27, 2, 1),
+(5333, 13, 'C', 28, 'C28', 'seat', 28, 2, 1),
+(5334, 13, 'C', 29, 'C29', 'seat', 29, 2, 1),
+(5335, 13, 'C', 30, 'C30', 'seat', 30, 2, 1),
+(5336, 13, 'C', 31, 'C31', 'seat', 31, 2, 1),
+(5337, 13, 'C', 232, '', 'aisle', 32, 2, 0),
+(5338, 13, 'C', 32, 'C32', 'seat', 33, 2, 1),
+(5339, 13, 'C', 33, 'C33', 'seat', 34, 2, 1),
+(5340, 13, 'C', 34, 'C34', 'seat', 35, 2, 1),
+(5341, 13, 'D', 1, 'D1', 'seat', 0, 3, 1),
+(5342, 13, 'D', 2, 'D2', 'seat', 1, 3, 1),
+(5343, 13, 'D', 3, 'D3', 'seat', 2, 3, 1),
+(5344, 13, 'D', 203, '', 'aisle', 3, 3, 0),
+(5345, 13, 'D', 4, 'D4', 'seat', 4, 3, 1),
+(5346, 13, 'D', 5, 'D5', 'seat', 5, 3, 1),
+(5347, 13, 'D', 6, 'D6', 'seat', 6, 3, 1),
+(5348, 13, 'D', 7, 'D7', 'seat', 7, 3, 1),
+(5349, 13, 'D', 8, 'D8', 'seat', 8, 3, 1),
+(5350, 13, 'D', 9, 'D9', 'seat', 9, 3, 1),
+(5351, 13, 'D', 10, 'D10', 'seat', 10, 3, 1),
+(5352, 13, 'D', 11, 'D11', 'seat', 11, 3, 1),
+(5353, 13, 'D', 12, 'D12', 'seat', 12, 3, 1),
+(5354, 13, 'D', 13, 'D13', 'seat', 13, 3, 1),
+(5355, 13, 'D', 14, 'D14', 'seat', 14, 3, 1),
+(5356, 13, 'D', 15, 'D15', 'seat', 15, 3, 1),
+(5357, 13, 'D', 16, 'D16', 'seat', 16, 3, 1),
+(5358, 13, 'D', 17, 'D17', 'seat', 17, 3, 1),
+(5359, 13, 'D', 18, 'D18', 'seat', 18, 3, 1),
+(5360, 13, 'D', 19, 'D19', 'seat', 19, 3, 1),
+(5361, 13, 'D', 20, 'D20', 'seat', 20, 3, 1),
+(5362, 13, 'D', 21, 'D21', 'seat', 21, 3, 1),
+(5363, 13, 'D', 22, 'D22', 'seat', 22, 3, 1),
+(5364, 13, 'D', 23, 'D23', 'seat', 23, 3, 1),
+(5365, 13, 'D', 24, 'D24', 'seat', 24, 3, 1),
+(5366, 13, 'D', 25, 'D25', 'seat', 25, 3, 1),
+(5367, 13, 'D', 26, 'D26', 'seat', 26, 3, 1),
+(5368, 13, 'D', 27, 'D27', 'seat', 27, 3, 1),
+(5369, 13, 'D', 28, 'D28', 'seat', 28, 3, 1),
+(5370, 13, 'D', 29, 'D29', 'seat', 29, 3, 1),
+(5371, 13, 'D', 30, 'D30', 'seat', 30, 3, 1),
+(5372, 13, 'D', 31, 'D31', 'seat', 31, 3, 1),
+(5373, 13, 'D', 232, '', 'aisle', 32, 3, 0),
+(5374, 13, 'D', 32, 'D32', 'seat', 33, 3, 1),
+(5375, 13, 'D', 33, 'D33', 'seat', 34, 3, 1),
+(5376, 13, 'D', 34, 'D34', 'seat', 35, 3, 1),
+(5377, 13, 'E', 1, 'E1', 'seat', 0, 4, 1),
+(5378, 13, 'E', 2, 'E2', 'seat', 1, 4, 1),
+(5379, 13, 'E', 3, 'E3', 'seat', 2, 4, 1),
+(5380, 13, 'E', 203, '', 'aisle', 3, 4, 0),
+(5381, 13, 'E', 4, 'E4', 'seat', 4, 4, 1),
+(5382, 13, 'E', 5, 'E5', 'seat', 5, 4, 1),
+(5383, 13, 'E', 6, 'E6', 'seat', 6, 4, 1),
+(5384, 13, 'E', 7, 'E7', 'seat', 7, 4, 1),
+(5385, 13, 'E', 8, 'E8', 'seat', 8, 4, 1),
+(5386, 13, 'E', 9, 'E9', 'seat', 9, 4, 1),
+(5387, 13, 'E', 10, 'E10', 'seat', 10, 4, 1),
+(5388, 13, 'E', 11, 'E11', 'seat', 11, 4, 1),
+(5389, 13, 'E', 12, 'E12', 'seat', 12, 4, 1),
+(5390, 13, 'E', 13, 'E13', 'seat', 13, 4, 1),
+(5391, 13, 'E', 14, 'E14', 'seat', 14, 4, 1),
+(5392, 13, 'E', 15, 'E15', 'seat', 15, 4, 1),
+(5393, 13, 'E', 16, 'E16', 'seat', 16, 4, 1),
+(5394, 13, 'E', 17, 'E17', 'seat', 17, 4, 1),
+(5395, 13, 'E', 18, 'E18', 'seat', 18, 4, 1),
+(5396, 13, 'E', 19, 'E19', 'seat', 19, 4, 1),
+(5397, 13, 'E', 20, 'E20', 'seat', 20, 4, 1),
+(5398, 13, 'E', 21, 'E21', 'seat', 21, 4, 1),
+(5399, 13, 'E', 22, 'E22', 'seat', 22, 4, 1),
+(5400, 13, 'E', 23, 'E23', 'seat', 23, 4, 1),
+(5401, 13, 'E', 24, 'E24', 'seat', 24, 4, 1),
+(5402, 13, 'E', 25, 'E25', 'seat', 25, 4, 1),
+(5403, 13, 'E', 26, 'E26', 'seat', 26, 4, 1),
+(5404, 13, 'E', 27, 'E27', 'seat', 27, 4, 1),
+(5405, 13, 'E', 28, 'E28', 'seat', 28, 4, 1),
+(5406, 13, 'E', 29, 'E29', 'seat', 29, 4, 1),
+(5407, 13, 'E', 30, 'E30', 'seat', 30, 4, 1),
+(5408, 13, 'E', 31, 'E31', 'seat', 31, 4, 1),
+(5409, 13, 'E', 232, '', 'aisle', 32, 4, 0),
+(5410, 13, 'E', 32, 'E32', 'seat', 33, 4, 1),
+(5411, 13, 'E', 33, 'E33', 'seat', 34, 4, 1),
+(5412, 13, 'E', 34, 'E34', 'seat', 35, 4, 1),
+(5413, 13, 'F', 1, 'F1', 'seat', 0, 5, 1),
+(5414, 13, 'F', 2, 'F2', 'seat', 1, 5, 1),
+(5415, 13, 'F', 3, 'F3', 'seat', 2, 5, 1),
+(5416, 13, 'F', 203, '', 'aisle', 3, 5, 0),
+(5417, 13, 'F', 4, 'F4', 'seat', 4, 5, 1),
+(5418, 13, 'F', 5, 'F5', 'seat', 5, 5, 1),
+(5419, 13, 'F', 6, 'F6', 'seat', 6, 5, 1),
+(5420, 13, 'F', 7, 'F7', 'seat', 7, 5, 1),
+(5421, 13, 'F', 8, 'F8', 'seat', 8, 5, 1),
+(5422, 13, 'F', 9, 'F9', 'seat', 9, 5, 1),
+(5423, 13, 'F', 10, 'F10', 'seat', 10, 5, 1),
+(5424, 13, 'F', 11, 'F11', 'seat', 11, 5, 1),
+(5425, 13, 'F', 12, 'F12', 'seat', 12, 5, 1),
+(5426, 13, 'F', 13, 'F13', 'seat', 13, 5, 1),
+(5427, 13, 'F', 14, 'F14', 'seat', 14, 5, 1),
+(5428, 13, 'F', 15, 'F15', 'seat', 15, 5, 1),
+(5429, 13, 'F', 16, 'F16', 'seat', 16, 5, 1),
+(5430, 13, 'F', 17, 'F17', 'seat', 17, 5, 1),
+(5431, 13, 'F', 18, 'F18', 'seat', 18, 5, 1),
+(5432, 13, 'F', 19, 'F19', 'seat', 19, 5, 1),
+(5433, 13, 'F', 20, 'F20', 'seat', 20, 5, 1),
+(5434, 13, 'F', 21, 'F21', 'seat', 21, 5, 1),
+(5435, 13, 'F', 22, 'F22', 'seat', 22, 5, 1),
+(5436, 13, 'F', 23, 'F23', 'seat', 23, 5, 1),
+(5437, 13, 'F', 24, 'F24', 'seat', 24, 5, 1),
+(5438, 13, 'F', 25, 'F25', 'seat', 25, 5, 1),
+(5439, 13, 'F', 26, 'F26', 'seat', 26, 5, 1),
+(5440, 13, 'F', 27, 'F27', 'seat', 27, 5, 1),
+(5441, 13, 'F', 28, 'F28', 'seat', 28, 5, 1),
+(5442, 13, 'F', 29, 'F29', 'seat', 29, 5, 1),
+(5443, 13, 'F', 30, 'F30', 'seat', 30, 5, 1),
+(5444, 13, 'F', 31, 'F31', 'seat', 31, 5, 1),
+(5445, 13, 'F', 232, '', 'aisle', 32, 5, 0),
+(5446, 13, 'F', 32, 'F32', 'seat', 33, 5, 1),
+(5447, 13, 'F', 33, 'F33', 'seat', 34, 5, 1),
+(5448, 13, 'F', 34, 'F34', 'seat', 35, 5, 1),
+(5449, 13, 'G', 1, '', 'entrance', 0, 6, 0),
+(5450, 13, 'G', 2, '', 'entrance', 1, 6, 0),
+(5451, 13, 'G', 3, '', 'entrance', 2, 6, 0),
+(5452, 13, 'G', 203, '', 'aisle', 3, 6, 0),
+(5453, 13, 'G', 4, 'G4', 'seat', 4, 6, 1),
+(5454, 13, 'G', 5, 'G5', 'seat', 5, 6, 1),
+(5455, 13, 'G', 6, 'G6', 'seat', 6, 6, 1),
+(5456, 13, 'G', 7, 'G7', 'seat', 7, 6, 1),
+(5457, 13, 'G', 8, 'G8', 'seat', 8, 6, 1),
+(5458, 13, 'G', 9, 'G9', 'seat', 9, 6, 1),
+(5459, 13, 'G', 10, 'G10', 'seat', 10, 6, 1),
+(5460, 13, 'G', 11, 'G11', 'seat', 11, 6, 1),
+(5461, 13, 'G', 12, 'G12', 'seat', 12, 6, 1),
+(5462, 13, 'G', 13, 'G13', 'seat', 13, 6, 1),
+(5463, 13, 'G', 14, 'G14', 'seat', 14, 6, 1),
+(5464, 13, 'G', 15, 'G15', 'seat', 15, 6, 1),
+(5465, 13, 'G', 16, 'G16', 'seat', 16, 6, 1),
+(5466, 13, 'G', 17, 'G17', 'seat', 17, 6, 1),
+(5467, 13, 'G', 18, 'G18', 'seat', 18, 6, 1),
+(5468, 13, 'G', 19, 'G19', 'seat', 19, 6, 1),
+(5469, 13, 'G', 20, 'G20', 'seat', 20, 6, 1),
+(5470, 13, 'G', 21, 'G21', 'seat', 21, 6, 1),
+(5471, 13, 'G', 22, 'G22', 'seat', 22, 6, 1),
+(5472, 13, 'G', 23, 'G23', 'seat', 23, 6, 1),
+(5473, 13, 'G', 24, 'G24', 'seat', 24, 6, 1),
+(5474, 13, 'G', 25, 'G25', 'seat', 25, 6, 1),
+(5475, 13, 'G', 26, 'G26', 'seat', 26, 6, 1),
+(5476, 13, 'G', 27, 'G27', 'seat', 27, 6, 1),
+(5477, 13, 'G', 28, 'G28', 'seat', 28, 6, 1),
+(5478, 13, 'G', 29, 'G29', 'seat', 29, 6, 1),
+(5479, 13, 'G', 30, 'G30', 'seat', 30, 6, 1),
+(5480, 13, 'G', 31, 'G31', 'seat', 31, 6, 1),
+(5481, 13, 'G', 232, '', 'aisle', 32, 6, 0),
+(5482, 13, 'G', 32, 'G32', 'seat', 33, 6, 1),
+(5483, 13, 'G', 33, 'G33', 'seat', 34, 6, 1),
+(5484, 13, 'G', 34, 'G34', 'seat', 35, 6, 1),
+(5485, 13, 'H', 1, '', 'entrance', 0, 7, 0),
+(5486, 13, 'H', 2, '', 'entrance', 1, 7, 0),
+(5487, 13, 'H', 3, '', 'entrance', 2, 7, 0),
+(5488, 13, 'H', 203, '', 'aisle', 3, 7, 0),
+(5489, 13, 'H', 4, 'H4', 'seat', 4, 7, 1),
+(5490, 13, 'H', 5, 'H5', 'seat', 5, 7, 1),
+(5491, 13, 'H', 6, 'H6', 'seat', 6, 7, 1),
+(5492, 13, 'H', 7, 'H7', 'seat', 7, 7, 1),
+(5493, 13, 'H', 8, 'H8', 'seat', 8, 7, 1),
+(5494, 13, 'H', 9, 'H9', 'seat', 9, 7, 1),
+(5495, 13, 'H', 10, 'H10', 'seat', 10, 7, 1),
+(5496, 13, 'H', 11, 'H11', 'seat', 11, 7, 1),
+(5497, 13, 'H', 12, 'H12', 'seat', 12, 7, 1),
+(5498, 13, 'H', 13, 'H13', 'seat', 13, 7, 1),
+(5499, 13, 'H', 14, 'H14', 'seat', 14, 7, 1),
+(5500, 13, 'H', 15, 'H15', 'seat', 15, 7, 1),
+(5501, 13, 'H', 16, 'H16', 'seat', 16, 7, 1),
+(5502, 13, 'H', 17, 'H17', 'seat', 17, 7, 1),
+(5503, 13, 'H', 18, 'H18', 'seat', 18, 7, 1),
+(5504, 13, 'H', 19, 'H19', 'seat', 19, 7, 1),
+(5505, 13, 'H', 20, 'H20', 'seat', 20, 7, 1),
+(5506, 13, 'H', 21, 'H21', 'seat', 21, 7, 1),
+(5507, 13, 'H', 22, 'H22', 'seat', 22, 7, 1),
+(5508, 13, 'H', 23, 'H23', 'seat', 23, 7, 1),
+(5509, 13, 'H', 24, 'H24', 'seat', 24, 7, 1),
+(5510, 13, 'H', 25, 'H25', 'seat', 25, 7, 1),
+(5511, 13, 'H', 26, 'H26', 'seat', 26, 7, 1),
+(5512, 13, 'H', 27, 'H27', 'seat', 27, 7, 1),
+(5513, 13, 'H', 28, 'H28', 'seat', 28, 7, 1),
+(5514, 13, 'H', 29, 'H29', 'seat', 29, 7, 1),
+(5515, 13, 'H', 30, 'H30', 'seat', 30, 7, 1),
+(5516, 13, 'H', 31, 'H31', 'seat', 31, 7, 1),
+(5517, 13, 'H', 232, '', 'aisle', 32, 7, 0),
+(5518, 13, 'H', 32, 'H32', 'seat', 33, 7, 1),
+(5519, 13, 'H', 33, 'H33', 'seat', 34, 7, 1),
+(5520, 13, 'H', 34, 'H34', 'seat', 35, 7, 1),
+(5521, 13, 'I', 1, '', 'entrance', 0, 8, 0),
+(5522, 13, 'I', 2, '', 'entrance', 1, 8, 0),
+(5523, 13, 'I', 3, '', 'entrance', 2, 8, 0),
+(5524, 13, 'I', 203, '', 'aisle', 3, 8, 0),
+(5525, 13, 'I', 4, 'I4', 'seat', 4, 8, 1),
+(5526, 13, 'I', 5, 'I5', 'seat', 5, 8, 1),
+(5527, 13, 'I', 6, 'I6', 'seat', 6, 8, 1),
+(5528, 13, 'I', 7, 'I7', 'seat', 7, 8, 1),
+(5529, 13, 'I', 8, 'I8', 'seat', 8, 8, 1),
+(5530, 13, 'I', 9, 'I9', 'seat', 9, 8, 1),
+(5531, 13, 'I', 10, 'I10', 'seat', 10, 8, 1),
+(5532, 13, 'I', 11, 'I11', 'seat', 11, 8, 1),
+(5533, 13, 'I', 12, 'I12', 'seat', 12, 8, 1),
+(5534, 13, 'I', 13, 'I13', 'seat', 13, 8, 1),
+(5535, 13, 'I', 14, 'I14', 'seat', 14, 8, 1),
+(5536, 13, 'I', 15, 'I15', 'seat', 15, 8, 1),
+(5537, 13, 'I', 16, 'I16', 'seat', 16, 8, 1),
+(5538, 13, 'I', 17, 'I17', 'seat', 17, 8, 1),
+(5539, 13, 'I', 18, 'I18', 'seat', 18, 8, 1),
+(5540, 13, 'I', 19, 'I19', 'seat', 19, 8, 1),
+(5541, 13, 'I', 20, 'I20', 'seat', 20, 8, 1),
+(5542, 13, 'I', 21, 'I21', 'seat', 21, 8, 1),
+(5543, 13, 'I', 22, 'I22', 'seat', 22, 8, 1),
+(5544, 13, 'I', 23, 'I23', 'seat', 23, 8, 1),
+(5545, 13, 'I', 24, 'I24', 'seat', 24, 8, 1),
+(5546, 13, 'I', 25, 'I25', 'seat', 25, 8, 1),
+(5547, 13, 'I', 26, 'I26', 'seat', 26, 8, 1),
+(5548, 13, 'I', 27, 'I27', 'seat', 27, 8, 1),
+(5549, 13, 'I', 28, 'I28', 'seat', 28, 8, 1),
+(5550, 13, 'I', 29, 'I29', 'seat', 29, 8, 1),
+(5551, 13, 'I', 30, 'I30', 'seat', 30, 8, 1),
+(5552, 13, 'I', 31, 'I31', 'seat', 31, 8, 1),
+(5553, 13, 'I', 232, '', 'aisle', 32, 8, 0),
+(5554, 13, 'I', 32, 'I32', 'seat', 33, 8, 1),
+(5555, 13, 'I', 33, 'I33', 'seat', 34, 8, 1),
+(5556, 13, 'I', 34, 'I34', 'seat', 35, 8, 1),
+(5557, 13, 'J', 1, '', 'entrance', 0, 9, 0),
+(5558, 13, 'J', 2, '', 'entrance', 1, 9, 0),
+(5559, 13, 'J', 3, '', 'entrance', 2, 9, 0),
+(5560, 13, 'J', 203, '', 'aisle', 3, 9, 0),
+(5561, 13, 'J', 4, 'J4', 'seat', 4, 9, 1),
+(5562, 13, 'J', 5, 'J5', 'seat', 5, 9, 1),
+(5563, 13, 'J', 6, 'J6', 'seat', 6, 9, 1),
+(5564, 13, 'J', 7, 'J7', 'seat', 7, 9, 1),
+(5565, 13, 'J', 8, 'J8', 'seat', 8, 9, 1),
+(5566, 13, 'J', 9, 'J9', 'seat', 9, 9, 1),
+(5567, 13, 'J', 10, 'J10', 'seat', 10, 9, 1),
+(5568, 13, 'J', 11, 'J11', 'seat', 11, 9, 1),
+(5569, 13, 'J', 12, 'J12', 'seat', 12, 9, 1),
+(5570, 13, 'J', 13, 'J13', 'seat', 13, 9, 1),
+(5571, 13, 'J', 14, 'J14', 'seat', 14, 9, 1),
+(5572, 13, 'J', 15, 'J15', 'seat', 15, 9, 1),
+(5573, 13, 'J', 16, 'J16', 'seat', 16, 9, 1),
+(5574, 13, 'J', 17, 'J17', 'seat', 17, 9, 1),
+(5575, 13, 'J', 18, 'J18', 'seat', 18, 9, 1),
+(5576, 13, 'J', 19, 'J19', 'seat', 19, 9, 1),
+(5577, 13, 'J', 20, 'J20', 'seat', 20, 9, 1),
+(5578, 13, 'J', 21, 'J21', 'seat', 21, 9, 1),
+(5579, 13, 'J', 22, 'J22', 'seat', 22, 9, 1),
+(5580, 13, 'J', 23, 'J23', 'seat', 23, 9, 1),
+(5581, 13, 'J', 24, 'J24', 'seat', 24, 9, 1),
+(5582, 13, 'J', 25, 'J25', 'seat', 25, 9, 1),
+(5583, 13, 'J', 26, 'J26', 'seat', 26, 9, 1),
+(5584, 13, 'J', 27, 'J27', 'seat', 27, 9, 1),
+(5585, 13, 'J', 28, 'J28', 'seat', 28, 9, 1),
+(5586, 13, 'J', 29, 'J29', 'seat', 29, 9, 1),
+(5587, 13, 'J', 30, 'J30', 'seat', 30, 9, 1),
+(5588, 13, 'J', 31, 'J31', 'seat', 31, 9, 1),
+(5589, 13, 'J', 232, '', 'aisle', 32, 9, 0),
+(5590, 13, 'J', 32, 'J32', 'seat', 33, 9, 1),
+(5591, 13, 'J', 33, 'J33', 'seat', 34, 9, 1),
+(5592, 13, 'J', 34, 'J34', 'seat', 35, 9, 1),
+(5593, 13, 'K', 1, '', 'entrance', 0, 10, 0);
+INSERT INTO `seats` (`id`, `studio_id`, `seat_row`, `seat_number`, `seat_code`, `seat_type`, `position_x`, `position_y`, `is_active`) VALUES
+(5594, 13, 'K', 2, '', 'entrance', 1, 10, 0),
+(5595, 13, 'K', 3, '', 'entrance', 2, 10, 0),
+(5596, 13, 'K', 203, '', 'aisle', 3, 10, 0),
+(5597, 13, 'K', 4, 'K4', 'seat', 4, 10, 1),
+(5598, 13, 'K', 5, 'K5', 'seat', 5, 10, 1),
+(5599, 13, 'K', 6, 'K6', 'seat', 6, 10, 1),
+(5600, 13, 'K', 7, 'K7', 'seat', 7, 10, 1),
+(5601, 13, 'K', 8, 'K8', 'seat', 8, 10, 1),
+(5602, 13, 'K', 9, 'K9', 'seat', 9, 10, 1),
+(5603, 13, 'K', 10, 'K10', 'seat', 10, 10, 1),
+(5604, 13, 'K', 11, 'K11', 'seat', 11, 10, 1),
+(5605, 13, 'K', 12, 'K12', 'seat', 12, 10, 1),
+(5606, 13, 'K', 13, 'K13', 'seat', 13, 10, 1),
+(5607, 13, 'K', 14, 'K14', 'seat', 14, 10, 1),
+(5608, 13, 'K', 15, 'K15', 'seat', 15, 10, 1),
+(5609, 13, 'K', 16, 'K16', 'seat', 16, 10, 1),
+(5610, 13, 'K', 17, 'K17', 'seat', 17, 10, 1),
+(5611, 13, 'K', 18, 'K18', 'seat', 18, 10, 1),
+(5612, 13, 'K', 19, 'K19', 'seat', 19, 10, 1),
+(5613, 13, 'K', 20, 'K20', 'seat', 20, 10, 1),
+(5614, 13, 'K', 21, 'K21', 'seat', 21, 10, 1),
+(5615, 13, 'K', 22, 'K22', 'seat', 22, 10, 1),
+(5616, 13, 'K', 23, 'K23', 'seat', 23, 10, 1),
+(5617, 13, 'K', 24, 'K24', 'seat', 24, 10, 1),
+(5618, 13, 'K', 25, 'K25', 'seat', 25, 10, 1),
+(5619, 13, 'K', 26, 'K26', 'seat', 26, 10, 1),
+(5620, 13, 'K', 27, 'K27', 'seat', 27, 10, 1),
+(5621, 13, 'K', 28, 'K28', 'seat', 28, 10, 1),
+(5622, 13, 'K', 29, 'K29', 'seat', 29, 10, 1),
+(5623, 13, 'K', 30, 'K30', 'seat', 30, 10, 1),
+(5624, 13, 'K', 31, 'K31', 'seat', 31, 10, 1),
+(5625, 13, 'K', 232, '', 'aisle', 32, 10, 0),
+(5626, 13, 'K', 32, 'K32', 'seat', 33, 10, 1),
+(5627, 13, 'K', 33, 'K33', 'seat', 34, 10, 1),
+(5628, 13, 'K', 34, 'K34', 'seat', 35, 10, 1),
+(5629, 13, 'L', 1, '', 'entrance', 0, 11, 0),
+(5630, 13, 'L', 2, '', 'entrance', 1, 11, 0),
+(5631, 13, 'L', 3, '', 'entrance', 2, 11, 0),
+(5632, 13, 'L', 203, '', 'aisle', 3, 11, 0),
+(5633, 13, 'L', 4, 'L4', 'seat', 4, 11, 1),
+(5634, 13, 'L', 5, 'L5', 'seat', 5, 11, 1),
+(5635, 13, 'L', 6, 'L6', 'seat', 6, 11, 1),
+(5636, 13, 'L', 7, 'L7', 'seat', 7, 11, 1),
+(5637, 13, 'L', 8, 'L8', 'seat', 8, 11, 1),
+(5638, 13, 'L', 9, 'L9', 'seat', 9, 11, 1),
+(5639, 13, 'L', 10, 'L10', 'seat', 10, 11, 1),
+(5640, 13, 'L', 11, 'L11', 'seat', 11, 11, 1),
+(5641, 13, 'L', 12, 'L12', 'seat', 12, 11, 1),
+(5642, 13, 'L', 13, 'L13', 'seat', 13, 11, 1),
+(5643, 13, 'L', 14, 'L14', 'seat', 14, 11, 1),
+(5644, 13, 'L', 15, 'L15', 'seat', 15, 11, 1),
+(5645, 13, 'L', 16, 'L16', 'seat', 16, 11, 1),
+(5646, 13, 'L', 17, 'L17', 'seat', 17, 11, 1),
+(5647, 13, 'L', 18, 'L18', 'seat', 18, 11, 1),
+(5648, 13, 'L', 19, 'L19', 'seat', 19, 11, 1),
+(5649, 13, 'L', 20, 'L20', 'seat', 20, 11, 1),
+(5650, 13, 'L', 21, 'L21', 'seat', 21, 11, 1),
+(5651, 13, 'L', 22, 'L22', 'seat', 22, 11, 1),
+(5652, 13, 'L', 23, 'L23', 'seat', 23, 11, 1),
+(5653, 13, 'L', 24, 'L24', 'seat', 24, 11, 1),
+(5654, 13, 'L', 25, 'L25', 'seat', 25, 11, 1),
+(5655, 13, 'L', 26, 'L26', 'seat', 26, 11, 1),
+(5656, 13, 'L', 27, 'L27', 'seat', 27, 11, 1),
+(5657, 13, 'L', 28, 'L28', 'seat', 28, 11, 1),
+(5658, 13, 'L', 29, 'L29', 'seat', 29, 11, 1),
+(5659, 13, 'L', 30, 'L30', 'seat', 30, 11, 1),
+(5660, 13, 'L', 31, 'L31', 'seat', 31, 11, 1),
+(5661, 13, 'L', 232, '', 'aisle', 32, 11, 0),
+(5662, 13, 'L', 32, 'L32', 'seat', 33, 11, 1),
+(5663, 13, 'L', 33, 'L33', 'seat', 34, 11, 1),
+(5664, 13, 'L', 34, 'L34', 'seat', 35, 11, 1),
+(5665, 13, 'M', 1, '', 'entrance', 0, 12, 0),
+(5666, 13, 'M', 2, '', 'entrance', 1, 12, 0),
+(5667, 13, 'M', 3, '', 'entrance', 2, 12, 0),
+(5668, 13, 'M', 203, '', 'aisle', 3, 12, 0),
+(5669, 13, 'M', 4, 'M4', 'seat', 4, 12, 1),
+(5670, 13, 'M', 5, 'M5', 'seat', 5, 12, 1),
+(5671, 13, 'M', 6, 'M6', 'seat', 6, 12, 1),
+(5672, 13, 'M', 7, 'M7', 'seat', 7, 12, 1),
+(5673, 13, 'M', 8, 'M8', 'seat', 8, 12, 1),
+(5674, 13, 'M', 9, 'M9', 'seat', 9, 12, 1),
+(5675, 13, 'M', 10, 'M10', 'seat', 10, 12, 1),
+(5676, 13, 'M', 11, 'M11', 'seat', 11, 12, 1),
+(5677, 13, 'M', 12, 'M12', 'seat', 12, 12, 1),
+(5678, 13, 'M', 13, 'M13', 'seat', 13, 12, 1),
+(5679, 13, 'M', 14, 'M14', 'seat', 14, 12, 1),
+(5680, 13, 'M', 15, 'M15', 'seat', 15, 12, 1),
+(5681, 13, 'M', 16, 'M16', 'seat', 16, 12, 1),
+(5682, 13, 'M', 17, 'M17', 'seat', 17, 12, 1),
+(5683, 13, 'M', 18, 'M18', 'seat', 18, 12, 1),
+(5684, 13, 'M', 19, 'M19', 'seat', 19, 12, 1),
+(5685, 13, 'M', 20, 'M20', 'seat', 20, 12, 1),
+(5686, 13, 'M', 21, 'M21', 'seat', 21, 12, 1),
+(5687, 13, 'M', 22, 'M22', 'seat', 22, 12, 1),
+(5688, 13, 'M', 23, 'M23', 'seat', 23, 12, 1),
+(5689, 13, 'M', 24, 'M24', 'seat', 24, 12, 1),
+(5690, 13, 'M', 25, 'M25', 'seat', 25, 12, 1),
+(5691, 13, 'M', 26, 'M26', 'seat', 26, 12, 1),
+(5692, 13, 'M', 27, 'M27', 'seat', 27, 12, 1),
+(5693, 13, 'M', 28, 'M28', 'seat', 28, 12, 1),
+(5694, 13, 'M', 29, 'M29', 'seat', 29, 12, 1),
+(5695, 13, 'M', 30, 'M30', 'seat', 30, 12, 1),
+(5696, 13, 'M', 31, 'M31', 'seat', 31, 12, 1),
+(5697, 13, 'M', 232, '', 'aisle', 32, 12, 0),
+(5698, 13, 'M', 32, 'M32', 'seat', 33, 12, 1),
+(5699, 13, 'M', 33, 'M33', 'seat', 34, 12, 1),
+(5700, 13, 'M', 34, 'M34', 'seat', 35, 12, 1);
 
 -- --------------------------------------------------------
 
@@ -4377,7 +4875,8 @@ INSERT INTO `studios` (`id`, `cinema_id`, `studio_name`, `studio_type`, `total_s
 (9, 3, 'Studio 3', '2D', 132, '2026-03-17 10:14:22'),
 (10, 3, 'Studio 4', '2D', 132, '2026-03-17 10:25:47'),
 (11, 3, 'Studio 2', '2D', 162, '2026-03-17 10:26:49'),
-(12, 3, 'Studio 1', '2D', 146, '2026-03-17 10:28:10');
+(12, 3, 'Studio 1', '2D', 146, '2026-03-17 10:28:10'),
+(13, 5, 'Studio 1', 'IMAX', 421, '2026-03-27 12:19:39');
 
 -- --------------------------------------------------------
 
@@ -4448,7 +4947,7 @@ INSERT INTO `users` (`id`, `username`, `email`, `password`, `role`, `status`, `j
 (2, 'testuser', 'user@moview.com', '$2y$12$edj58OcYoXoiJsd22IwnnennCMGix0o98Y0ZJchd1VnnVwRMsH2rC', 'user', 'active', '2026-01-30 23:34:38', 'MnwxNzY5ODQxNjc0fDY5N2RhNDBhNTE4NDQ=', '2026-01-30 23:34:38', '2026-01-30 23:41:14'),
 (3, 'Sengefilm', 'tes@gmail.com', '$2y$12$lDfKXQIoqKTaeAdU.FpQX.Oqu.8Plbzprn6YOMhkIa9KCLtHN1KTK', 'user', 'active', '2026-01-30 23:49:39', 'M3wxNzcyOTgyMDIxfDY5YWQ4ZjA1NzZlNTE=', '2026-01-30 23:49:39', '2026-03-08 08:00:21'),
 (4, 'NewUser185', 'newuser_1769846806@test.com', '$2y$12$r0tcTwJt.eLjMs1n5pgdi.k9gPXqhujHx90XqkT0QMgkNLXZHrmly', 'user', 'active', '2026-01-31 01:06:46', 'bmV3dXNlcl8xNzY5ODQ2ODA2QHRlc3QuY29tfDE3Njk4NDY4MDZ8Njk3ZGI4MTY3Njk0Zg==', '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
-(5, 'Banda Neira', 'filmin@gmail.com', '$2y$12$eO1QTww7vMctvv7QWvNk0uB9Bk2C/aedqb./wlW.Q9dURDjbKISZG', 'user', 'active', '2026-02-14 03:59:49', 'NXwxNzczODI5MDMwfDY5YmE3YmE2MjExYzI=', '2026-02-14 03:59:49', '2026-03-18 10:17:10'),
+(5, 'Sen', 'filmin@gmail.com', '$2y$12$eO1QTww7vMctvv7QWvNk0uB9Bk2C/aedqb./wlW.Q9dURDjbKISZG', 'user', 'active', '2026-02-14 03:59:49', 'NXwxNzczODI5MDMwfDY5YmE3YmE2MjExYzI=', '2026-02-14 03:59:49', '2026-03-18 10:17:10'),
 (6, 'Mopud', 'NewAcc@gmail.com', '$2y$12$5IZiuwVxT4H79twcw314mOyI.SUlG9nYY2.vjNVqCcw9uQE4wiLgq', 'user', 'active', '2026-02-28 03:10:19', 'NnwxNzcyOTgxOTgzfDY5YWQ4ZWRmZGU5YzE=', '2026-02-28 03:10:19', '2026-03-08 07:59:43'),
 (7, 'senoyu', 'senoyud77@gmail.com', '$2y$12$4KeaMB4ugxtR7p7.BlS/Me/0fex6b8W4sJU73171spAW18RqyWzwa', 'user', 'active', '2026-03-10 21:42:54', 'c2Vub3l1ZDc3QGdtYWlsLmNvbXwxNzczMjA0MjU5fDY5YjBmMzIzM2IyOGU=', '2026-03-10 21:42:54', '2026-03-10 21:44:19'),
 (8, 'tes', 'ts@gmail.com', '$2y$12$epLi8ARC/v6bLYprWGQvCuEZ7gxDtDCKxle0piZGgWTDiCD2MJj6K', 'user', 'active', '2026-03-10 21:44:06', 'dHNAZ21haWwuY29tfDE3NzMyMDQyNDV8NjliMGYzMTViZWVmYQ==', '2026-03-10 21:44:06', '2026-03-10 21:44:06'),
@@ -4554,9 +5053,6 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (35, 6, 27, 232, 'poster', 'favorites', NULL, 341, '2026-03-08 07:39:09', '2026-03-08 07:39:09'),
 (36, 6, 30, 190, 'poster', 'favorites', NULL, NULL, '2026-03-08 07:41:31', '2026-03-08 07:41:31'),
 (38, 5, 64, 184, 'backdrop', 'films', NULL, NULL, '2026-03-08 07:54:41', '2026-03-18 10:23:29'),
-(39, 5, 64, 235, 'poster', 'favorites', NULL, 442, '2026-03-08 07:55:41', '2026-03-18 10:23:12'),
-(40, 5, 63, 216, 'poster', 'favorites', NULL, 443, '2026-03-08 07:55:57', '2026-03-10 19:08:59'),
-(41, 5, 65, 256, 'poster', 'favorites', NULL, 444, '2026-03-08 07:56:08', '2026-03-10 19:08:59'),
 (43, 5, 2, 239, 'poster', 'reviews', 33, NULL, '2026-03-08 07:56:58', '2026-03-08 07:56:58'),
 (44, 5, 2, 241, 'backdrop', 'reviews', 33, NULL, '2026-03-08 07:57:11', '2026-03-08 07:57:11'),
 (45, 5, 46, 258, 'poster', 'reviews', 34, NULL, '2026-03-08 07:57:48', '2026-03-08 07:57:48'),
@@ -4575,7 +5071,7 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (59, 5, 30, 135, 'backdrop', 'films', NULL, NULL, '2026-03-10 05:38:51', '2026-03-10 06:00:30'),
 (60, 5, 30, 133, 'backdrop', 'reviews', 31, NULL, '2026-03-10 05:39:07', '2026-03-10 05:39:07'),
 (61, 5, 30, 190, 'poster', 'reviews', 31, NULL, '2026-03-10 06:00:20', '2026-03-10 06:00:20'),
-(62, 5, 5, 249, 'poster', 'films', NULL, NULL, '2026-03-10 06:00:52', '2026-03-10 19:00:21'),
+(62, 5, 5, 252, 'poster', 'films', NULL, NULL, '2026-03-10 06:00:52', '2026-03-27 13:49:28'),
 (63, 5, 5, 82, 'backdrop', 'films', NULL, NULL, '2026-03-10 06:01:20', '2026-03-10 06:01:20'),
 (64, 5, 5, 248, 'poster', 'reviews', 45, NULL, '2026-03-10 06:01:55', '2026-03-18 10:24:03'),
 (65, 5, 5, 82, 'backdrop', 'reviews', 45, NULL, '2026-03-10 06:01:55', '2026-03-10 06:01:55'),
@@ -4591,7 +5087,7 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (75, 5, 53, 302, 'poster', 'films', NULL, NULL, '2026-03-10 17:14:14', '2026-03-10 17:14:14'),
 (76, 5, 66, 307, 'poster', 'films', NULL, NULL, '2026-03-10 17:32:52', '2026-03-10 17:32:52'),
 (77, 5, 67, 315, 'poster', 'films', NULL, NULL, '2026-03-10 17:50:13', '2026-03-10 17:50:13'),
-(78, 5, 4, 322, 'poster', 'favorites', NULL, 445, '2026-03-10 18:07:50', '2026-03-10 19:20:15'),
+(78, 5, 4, 322, 'poster', 'favorites', NULL, 477, '2026-03-10 18:07:50', '2026-03-27 14:06:30'),
 (79, 5, 9, 304, 'poster', 'films', NULL, NULL, '2026-03-10 19:16:36', '2026-03-10 19:16:36'),
 (80, 5, 9, 305, 'backdrop', 'films', NULL, NULL, '2026-03-10 19:16:54', '2026-03-10 19:16:54'),
 (81, 5, 69, 274, 'poster', 'films', NULL, NULL, '2026-03-10 19:17:22', '2026-03-10 19:17:22'),
@@ -4609,7 +5105,11 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (93, 9, 30, 133, 'backdrop', 'films', NULL, NULL, '2026-03-13 13:39:56', '2026-03-13 13:39:56'),
 (94, 9, 4, 298, 'poster', 'films', NULL, NULL, '2026-03-17 11:59:25', '2026-03-17 11:59:25'),
 (95, 9, 48, 213, 'poster', 'films', NULL, NULL, '2026-03-17 12:21:27', '2026-03-17 12:21:27'),
-(96, 5, 64, 184, 'backdrop', 'favorites', NULL, 442, '2026-03-18 10:22:54', '2026-03-18 10:22:54');
+(97, 5, 61, 178, 'poster', 'films', NULL, NULL, '2026-03-27 12:59:19', '2026-03-27 12:59:19'),
+(98, 5, 5, 364, 'poster', 'favorites', NULL, 474, '2026-03-27 13:59:34', '2026-03-27 14:07:58'),
+(99, 5, 5, 356, 'backdrop', 'favorites', NULL, 474, '2026-03-27 14:00:05', '2026-03-27 14:06:30'),
+(100, 5, 69, 270, 'poster', 'favorites', NULL, 475, '2026-03-27 14:06:47', '2026-03-27 14:06:47'),
+(101, 5, 3, 332, 'poster', 'favorites', NULL, 476, '2026-03-27 14:07:00', '2026-03-27 14:07:00');
 
 -- --------------------------------------------------------
 
@@ -4639,14 +5139,14 @@ INSERT INTO `user_favorite_films` (`id`, `user_id`, `film_id`, `position`, `crea
 (339, 6, 5, 2, '2026-03-08 07:38:54', '2026-03-08 07:38:54'),
 (340, 6, 2, 3, '2026-03-08 07:38:54', '2026-03-08 07:38:54'),
 (341, 6, 27, 4, '2026-03-08 07:38:54', '2026-03-08 07:38:54'),
-(442, 5, 64, 1, '2026-03-10 19:08:59', '2026-03-10 19:08:59'),
-(443, 5, 63, 2, '2026-03-10 19:08:59', '2026-03-10 19:08:59'),
-(444, 5, 65, 3, '2026-03-10 19:08:59', '2026-03-10 19:08:59'),
-(445, 5, 4, 4, '2026-03-10 19:08:59', '2026-03-10 19:08:59'),
 (454, 9, 4, 1, '2026-03-12 02:33:55', '2026-03-12 02:33:55'),
 (455, 9, 3, 2, '2026-03-12 02:33:55', '2026-03-12 02:33:55'),
 (456, 9, 2, 3, '2026-03-12 02:33:56', '2026-03-12 02:33:56'),
-(457, 9, 33, 4, '2026-03-12 02:33:56', '2026-03-12 02:33:56');
+(457, 9, 33, 4, '2026-03-12 02:33:56', '2026-03-12 02:33:56'),
+(474, 5, 5, 1, '2026-03-27 14:06:30', '2026-03-27 14:06:30'),
+(475, 5, 69, 2, '2026-03-27 14:06:30', '2026-03-27 14:06:30'),
+(476, 5, 3, 3, '2026-03-27 14:06:30', '2026-03-27 14:06:30'),
+(477, 5, 4, 4, '2026-03-27 14:06:30', '2026-03-27 14:06:30');
 
 -- --------------------------------------------------------
 
@@ -4675,7 +5175,7 @@ INSERT INTO `user_profiles` (`id`, `user_id`, `display_name`, `profile_photo`, `
 (1, 3, 'Sengefilm', 'profiles/profile_3_1769941056.jpg', 'movies/33/backdrop/aEQkBKlhO1OJePmQyzPxnu9sMW1nOyLsxw2HSEVb.webp', 1, 'Tes', 'Sidoarjo, Indonesia', '2026-01-31 00:38:49', '2026-02-14 02:58:25'),
 (2, 4, 'NewUser185', NULL, NULL, 0, NULL, NULL, '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
 (3, 1, NULL, NULL, NULL, 1, 'This is my new bio', NULL, '2026-01-31 03:41:40', '2026-01-31 03:41:40'),
-(4, 5, 'Banda Neira', 'profiles/profile_5_1773194933.jpg', 'movies/64/backdrop/saL8wgFJsc2Trdr103IVjAfX50f321NFw1xkcHJk.webp', 1, NULL, NULL, '2026-02-14 03:59:49', '2026-03-10 19:08:59'),
+(4, 5, 'Sen', 'profiles/profile_5_1774620059.jpg', 'movies/5/backdrop/CgmmAHlEFG3ZIGw4lssy8oTIWovOVA4FxUyFOyK4.webp', 1, NULL, NULL, '2026-02-14 03:59:49', '2026-03-27 14:06:31'),
 (5, 6, 'Mopud', NULL, 'movies/40/backdrop/FdB80qdPGk5ySHxLpcP6QLwfvfXAHTbJ0XK5vMlM.webp', 1, NULL, NULL, '2026-02-28 03:10:19', '2026-03-08 07:38:54'),
 (6, 7, 'seno yu', NULL, NULL, 0, NULL, NULL, '2026-03-10 21:42:54', '2026-03-10 21:42:54'),
 (7, 8, 'tes', NULL, NULL, 0, NULL, NULL, '2026-03-10 21:44:06', '2026-03-10 21:44:06'),
@@ -5104,7 +5604,7 @@ ALTER TABLE `watchlists`
 -- AUTO_INCREMENT untuk tabel `cinemas`
 --
 ALTER TABLE `cinemas`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT untuk tabel `countries`
@@ -5158,7 +5658,7 @@ ALTER TABLE `migrations`
 -- AUTO_INCREMENT untuk tabel `movies`
 --
 ALTER TABLE `movies`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=73;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=74;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_likes`
@@ -5170,7 +5670,7 @@ ALTER TABLE `movie_likes`
 -- AUTO_INCREMENT untuk tabel `movie_media`
 --
 ALTER TABLE `movie_media`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=344;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=365;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_persons`
@@ -5182,7 +5682,7 @@ ALTER TABLE `movie_persons`
 -- AUTO_INCREMENT untuk tabel `movie_services`
 --
 ALTER TABLE `movie_services`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=365;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=371;
 
 --
 -- AUTO_INCREMENT untuk tabel `notifications`
@@ -5218,7 +5718,7 @@ ALTER TABLE `persons`
 -- AUTO_INCREMENT untuk tabel `production_houses`
 --
 ALTER TABLE `production_houses`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=84;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=86;
 
 --
 -- AUTO_INCREMENT untuk tabel `ratings`
@@ -5248,13 +5748,13 @@ ALTER TABLE `review_likes`
 -- AUTO_INCREMENT untuk tabel `schedules`
 --
 ALTER TABLE `schedules`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT untuk tabel `seats`
 --
 ALTER TABLE `seats`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4837;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5701;
 
 --
 -- AUTO_INCREMENT untuk tabel `services`
@@ -5266,7 +5766,7 @@ ALTER TABLE `services`
 -- AUTO_INCREMENT untuk tabel `studios`
 --
 ALTER TABLE `studios`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT untuk tabel `tickets`
@@ -5290,13 +5790,13 @@ ALTER TABLE `user_activities`
 -- AUTO_INCREMENT untuk tabel `user_change_medias`
 --
 ALTER TABLE `user_change_medias`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=97;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=102;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`
 --
 ALTER TABLE `user_favorite_films`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=458;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=478;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_profiles`
