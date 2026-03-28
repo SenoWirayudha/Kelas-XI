@@ -12,6 +12,21 @@ use Illuminate\Support\Facades\DB;
 
 class MovieApiController extends Controller
 {
+    private function topFilmIdsThisWeek(int $limit)
+    {
+        return DB::table('ratings')
+            ->join('movies', 'ratings.film_id', '=', 'movies.id')
+            ->select('movies.id', DB::raw('COUNT(*) as view_count'))
+            ->whereBetween('ratings.created_at', [
+                now()->subWeek(),
+                now(),
+            ])
+            ->groupBy('movies.id')
+            ->orderBy('view_count', 'desc')
+            ->limit($limit)
+            ->pluck('movies.id');
+    }
+
     private function mapTheatricalMovie(Movie $movie, bool $isPreorder): array
     {
         $theatricalReleaseDate = $movie->movieServices
@@ -42,21 +57,11 @@ class MovieApiController extends Controller
      */
     public function home()
     {
-        // Popular this week (most watched/rated in last 7 days) - based on total ratings count
-        $popularMovieIds = DB::table('ratings')
-            ->select('film_id', DB::raw('COUNT(*) as view_count'))
-            ->whereBetween('created_at', [
-                now()->subWeek(),
-                now()
-            ])
-            ->groupBy('film_id')
-            ->orderBy('view_count', 'desc')
-            ->limit(10)
-            ->pluck('film_id');
+        // Same base query as Admin Analytics > Top Films This Week.
+        $popularMovieIds = $this->topFilmIdsThisWeek(10);
         
         $popularMovies = Movie::with(['genres'])
             ->whereIn('id', $popularMovieIds)
-            ->where('status', 'published')
             ->get()
             ->sortBy(function($movie) use ($popularMovieIds) {
                 return array_search($movie->id, $popularMovieIds->toArray());
@@ -126,21 +131,11 @@ class MovieApiController extends Controller
     {
         $limit = $request->get('limit', 50);
         
-        // Popular this week (most watched/rated in last 7 days) - based on total ratings count
-        $popularMovieIds = DB::table('ratings')
-            ->select('film_id', DB::raw('COUNT(*) as view_count'))
-            ->whereBetween('created_at', [
-                now()->subWeek(),
-                now()
-            ])
-            ->groupBy('film_id')
-            ->orderBy('view_count', 'desc')
-            ->limit($limit)
-            ->pluck('film_id');
+        // Same base query as Admin Analytics > Top Films This Week.
+        $popularMovieIds = $this->topFilmIdsThisWeek((int) $limit);
         
         $movies = Movie::with(['genres'])
             ->whereIn('id', $popularMovieIds)
-            ->where('status', 'published')
             ->get()
             ->sortBy(function($movie) use ($popularMovieIds) {
                 return array_search($movie->id, $popularMovieIds->toArray());

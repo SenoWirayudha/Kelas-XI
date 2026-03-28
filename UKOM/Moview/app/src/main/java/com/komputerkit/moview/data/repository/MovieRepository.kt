@@ -31,16 +31,17 @@ class MovieRepository {
     // Konversi dari DTO ke Model
     private fun MovieCardDto.toMovie(): Movie {
         val posterUrl = ServerConfig.resolveStorageUrl(this.poster_path)
+        val safeGenres = this.genres ?: emptyList()
         
         return Movie(
             id = this.id,
-            title = this.title,
+            title = this.title ?: "Unknown",
             posterUrl = posterUrl,
-            averageRating = this.average_rating,
-            genre = this.genres.joinToString(", "),
-            genres = this.genres,
-            countries = this.countries,
-            languages = this.languages,
+            averageRating = this.average_rating ?: 0f,
+            genre = safeGenres.joinToString(", "),
+            genres = safeGenres,
+            countries = this.countries ?: emptyList(),
+            languages = this.languages ?: emptyList(),
             releaseYear = this.year,
             description = "",
             hasReview = false,
@@ -54,13 +55,38 @@ class MovieRepository {
         try {
             val response = apiService.getHome()
             if (response.success && response.data != null) {
-                response.data.popular_this_week.map { it.toMovie() }
+                val fromHome = response.data.popular_this_week.map { it.toMovie() }
+                if (fromHome.isNotEmpty()) {
+                    fromHome
+                } else {
+                    val fallback = apiService.getPopularThisWeek(limit = 10)
+                    if (fallback.success && fallback.data != null) {
+                        fallback.data.map { it.toMovie() }
+                    } else {
+                        emptyList()
+                    }
+                }
             } else {
-                emptyList()
+                val fallback = apiService.getPopularThisWeek(limit = 10)
+                if (fallback.success && fallback.data != null) {
+                    fallback.data.map { it.toMovie() }
+                } else {
+                    emptyList()
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            emptyList()
+            try {
+                val fallback = apiService.getPopularThisWeek(limit = 10)
+                if (fallback.success && fallback.data != null) {
+                    fallback.data.map { it.toMovie() }
+                } else {
+                    emptyList()
+                }
+            } catch (fallbackError: Exception) {
+                fallbackError.printStackTrace()
+                emptyList()
+            }
         }
     }
     

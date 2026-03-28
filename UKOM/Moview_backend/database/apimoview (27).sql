@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 27 Mar 2026 pada 15.15
+-- Waktu pembuatan: 28 Mar 2026 pada 16.53
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -432,7 +432,7 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (58, 'Train Dreams', '2025', 102, 'PG-13', 'Seorang penebang kayu menjalani kehidupan yang bersahaja sambil merasakan cinta dan kehilangan selama era perubahan besar di Amerika pada awal abad ke-20.', 'movies/58/poster/6TZOf0CctRYmBc75XiH10AnwmWQm6rJrwEkEUxVz.webp', 'movies/58/backdrop/1YZCt6EFJwt1jK1qZZzqtNLb9NHETlPf8PjnhBhA.webp', 'https://youtu.be/_Nk8TrBHOrA?si=3B5067hrK8MPmuU7', 'published', '2026-03-06 08:42:39', '2026-03-06 08:44:55'),
 (59, 'Project Y', '2025', 109, 'R', 'TWO WOMEN. ONE HEIST. ZERO REGRETS.\r\n\r\nTrapped in Gangnam\'s most dangerous streets, Mi-sun and Do-kyung stake everything on one last desperate gamble—only to uncover a hidden stash of dirty cash and gold that could finally buy their freedom.', 'movies/59/poster/XP5qdlLTbWiMb4c9A3AMo5IUoGSW0T6IinosCJrs.webp', 'movies/59/backdrop/sjeRUBwAiaoEWVbRTThjDKjzxppaTgjsbw51ndVN.webp', 'https://youtu.be/7eHRUPxUeNk?si=ZTrOU8F5SxB3J0gQ', 'published', '2026-03-06 09:08:50', '2026-03-06 09:11:38'),
 (60, 'Minions & Monsters', '2026', NULL, 'Not Rated', 'HOLLYWOOD HAS A MONSTER PROBLEM.\r\n\r\nThis is the rambunctious, ridiculous and totally true story of how the Minions conquered Hollywood, became movie stars, lost everything, unleashed monsters onto the world and then banded together to try and save the planet from the mayhem they had just created.', 'movies/60/poster/OoeeHR1tzAje20KfJRrVJP9cF4kbF8RpGWM5BlJg.webp', 'movies/60/backdrop/PVThcJigOlF6uv0VnDbSU1uDlO28IhCHekHA9r9j.webp', 'https://youtu.be/ZSdOwt-G49w?si=7UBhTQgI-SgdGarC', 'published', '2026-03-07 05:18:58', '2026-03-07 05:20:49'),
-(61, 'Dune: Part Three', '2026', NULL, 'Not Rated', 'The third and final installment in Villeneuve\'s Dune trilogy. Based on Frank Herbert\'s novel Dune Messiah.', 'movies/61/poster/DQAL7zvclKCfLa2UxOd6pDEGYcINUw6bRJYKMTKh.webp', NULL, NULL, 'published', '2026-03-07 07:58:36', '2026-03-17 09:36:07'),
+(61, 'Dune: Part Three', '2026', NULL, 'Not Rated', 'The third and final installment in Villeneuve\'s Dune trilogy. Based on Frank Herbert\'s novel Dune Messiah.', 'movies/61/poster/Lk5Wa08YBZfVWZpIisfstX9cSJZAAQN20k1De2k2.webp', 'movies/61/backdrop/nufKVfJZcmPFFvW2ECn44BSIBTNsArmxHQv4sXyv.webp', NULL, 'published', '2026-03-07 07:58:36', '2026-03-28 11:19:58'),
 (62, 'Laut Bercerita', '2026', NULL, 'Not Rated', 'Plot under wraps.', 'movies/62/poster/MjFAk1WG9YyhrLo9FHfQqzWT6eJXup0k9cDQKv8Y.webp', 'movies/62/backdrop/7BSaYt4ZKsnb8YZaReLxVRDX77aYlTrVRRuAHiNQ.webp', 'https://youtu.be/oLdbnzuuGA4?si=QUZZycCJEpwjmIr6', 'published', '2026-03-07 23:32:04', '2026-03-07 23:34:11'),
 (63, 'In the Mood for Love', '2000', 99, 'PG', 'FEEL THE HEAT, KEEP THE FEELING BURNING, LET THE SENSATION EXPLODE.\r\n\r\nTwo neighbors form a strong bond after both suspect extramarital activities of their spouses. However, they agree to keep their bond platonic so as not to commit similar wrongs.', 'movies/63/poster/My9U2eLJupjK5pUsuYTYthze0y7i89rGnmDOI3mx.webp', 'movies/63/backdrop/0y9HwV5zOGfAWtSSUfTFK8HWo5dSmcKSFGrxl4FD.webp', 'https://youtu.be/m8GuedsQnWQ?si=PkBBnsr19pbEz334', 'published', '2026-03-07 23:57:07', '2026-03-08 00:02:08'),
 (64, 'Fallen Angels', '1995', 98, 'Not Rated', 'THE NIGHT\'S FULL OF WEIRDOS.\r\n\r\nAn assassin goes through obstacles as he attempts to escape his violent lifestyle despite the opposition of his partner, who is secretly attracted to him.', 'movies/64/poster/XqmqD5dNgzXCHf7lNAZRtUIw82hNhcIJryiV0LNW.webp', 'movies/64/backdrop/CeCPOU5MO8PCqPZ37p4Cm39md4PjL3V0YakSh06f.webp', 'https://youtu.be/uxaT19BlH0M?si=SkF3-aysgcDouAwc', 'published', '2026-03-08 00:04:52', '2026-03-08 00:06:16'),
@@ -1299,7 +1299,7 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (340, 3, 'poster', 'movies/3/poster/hCHetijt2xTw05rueEdgOoFHXGcV9mK0e8L69rfh.webp', 0, '2026-03-12 09:30:47'),
 (341, 3, 'poster', 'movies/3/poster/WofGdRPwyZrfdbFqSPQA06SUFIdHvLc9iVjQDK4y.webp', 0, '2026-03-12 09:31:01'),
 (342, 3, 'backdrop', 'movies/3/backdrop/4HNr04JGNQpIZ3y07OH7VaQXp6CSuefL93Er0XLq.webp', 0, '2026-03-12 09:31:23'),
-(343, 61, 'poster', 'movies/61/poster/DQAL7zvclKCfLa2UxOd6pDEGYcINUw6bRJYKMTKh.webp', 1, '2026-03-17 09:36:01'),
+(343, 61, 'poster', 'movies/61/poster/DQAL7zvclKCfLa2UxOd6pDEGYcINUw6bRJYKMTKh.webp', 0, '2026-03-17 09:36:01'),
 (344, 73, 'poster', 'movies/73/poster/9wH6vpJFEhT9YIBgygLXFsC2TMXls7QcQsLT1TIK.webp', 1, '2026-03-27 09:58:22'),
 (345, 73, 'backdrop', 'movies/73/backdrop/1KA7UGpJGYNt6c7vXVvBKXwIvhRxrAZCM6x6tNEJ.webp', 1, '2026-03-27 09:58:33'),
 (346, 55, 'poster', 'movies/55/poster/2rd4Y7nhhanWHfOY3CTOuvVU8klmquECwF1H54h7.webp', 1, '2026-03-27 13:01:00'),
@@ -1319,7 +1319,10 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (361, 5, 'backdrop', 'movies/5/backdrop/zJeLku2wcMydhaNctqd5QFguyhHMUHNTQNkpXmQu.webp', 0, '2026-03-27 13:58:44'),
 (362, 5, 'backdrop', 'movies/5/backdrop/Sx13gGodGbnzrLRCYQz49yhJnC5iMqOTdYSrMbpw.webp', 1, '2026-03-27 13:58:52'),
 (363, 5, 'backdrop', 'movies/5/backdrop/XIs7xNXGUGrSSJ3Q8QaJeXbuJgxBtB3KZbrBVLrp.webp', 0, '2026-03-27 13:59:00'),
-(364, 5, 'poster', 'movies/5/poster/vq5l9LOvaCwH4tjk5dNiJ6BsC8FB0FFOrJncDsX9.webp', 0, '2026-03-27 14:07:49');
+(364, 5, 'poster', 'movies/5/poster/vq5l9LOvaCwH4tjk5dNiJ6BsC8FB0FFOrJncDsX9.webp', 0, '2026-03-27 14:07:49'),
+(365, 61, 'poster', 'movies/61/poster/CEN9x5CGdlHtDdCLrw7KXXPHQRgLwkqsIRRI135Z.webp', 0, '2026-03-28 11:19:35'),
+(366, 61, 'poster', 'movies/61/poster/Lk5Wa08YBZfVWZpIisfstX9cSJZAAQN20k1De2k2.webp', 1, '2026-03-28 11:19:40'),
+(367, 61, 'backdrop', 'movies/61/backdrop/nufKVfJZcmPFFvW2ECn44BSIBTNsArmxHQv4sXyv.webp', 1, '2026-03-28 11:19:51');
 
 -- --------------------------------------------------------
 
@@ -1787,7 +1790,25 @@ INSERT INTO `orders` (`id`, `schedule_id`, `user_id`, `order_code`, `ticket_code
 (16, 13, 9, 'ORD-20260317192211-MYMPYF', 'MOV-UH8NZJ', 49000, 'cancelled', 0, NULL, '2026-03-17 12:34:10', '2026-03-17 12:22:11'),
 (17, 12, 9, 'ORD-20260317193416-VKZIX8', 'MOV-PCZEDW', 49000, 'cancelled', 0, NULL, '2026-03-17 13:15:56', '2026-03-17 12:34:17'),
 (18, 12, 9, 'ORD-20260317201811-RFTWGC', 'MOV-DTQHVP', 49000, 'paid', 1, '2026-03-17 20:30:57', '2026-03-17 13:30:57', '2026-03-17 13:18:11'),
-(19, 13, 5, 'ORD-20260318171906-LSTWYD', 'MOV-XYAT4N', 49000, 'paid', 1, '2026-03-18 17:20:59', '2026-03-18 10:20:59', '2026-03-18 10:19:06');
+(19, 13, 5, 'ORD-20260318171906-LSTWYD', 'MOV-XYAT4N', 49000, 'paid', 1, '2026-03-18 17:20:59', '2026-03-18 10:20:59', '2026-03-18 10:19:06'),
+(21, 15, 5, 'ORD-20260328172853-DRVGZA', 'MOV-HCPIIQ', 59000, 'cancelled', 0, NULL, '2026-03-28 10:43:31', '2026-03-28 10:28:53'),
+(22, 15, 5, 'ORD-20260328172937-TQBK0F', 'MOV-OGHKST', 59000, 'paid', 1, '2026-03-28 18:16:40', '2026-03-28 11:16:40', '2026-03-28 10:29:38'),
+(23, 15, 5, 'ORD-20260328173104-DLUBT6', 'MOV-XAR60L', 59000, 'cancelled', 0, NULL, '2026-03-28 10:43:31', '2026-03-28 10:31:04'),
+(24, 15, 5, 'ORD-20260328181421-ZQ8LGG', 'MOV-YARMAA', 236000, 'paid', 0, NULL, '2026-03-28 11:15:54', '2026-03-28 11:14:21'),
+(25, 15, 5, 'ORD-20260328185630-KFFHXL', 'MOV-HUOYBT', 59000, 'paid', 0, NULL, '2026-03-28 11:56:57', '2026-03-28 11:56:30'),
+(26, 17, 5, 'ORD-20260328205743-GTJVCH', 'MOV-XKF3CS', 49000, 'cancelled', 0, NULL, '2026-03-28 14:09:08', '2026-03-28 13:57:43'),
+(27, 17, 5, 'ORD-20260328210358-0HOGZN', 'MOV-TRCQAH', 49000, 'cancelled', 0, NULL, '2026-03-28 14:17:53', '2026-03-28 14:03:59'),
+(28, 17, 5, 'ORD-20260328210914-9KVLDW', 'MOV-7UCSCE', 49000, 'cancelled', 0, NULL, '2026-03-28 14:17:53', '2026-03-28 14:09:14'),
+(29, 17, 5, 'ORD-20260328211005-YMSVMI', 'MOV-MWQZA4', 49000, 'paid', 0, NULL, '2026-03-28 14:11:36', '2026-03-28 14:10:05'),
+(30, 17, 5, 'ORD-20260328211801-3QZ74P', 'MOV-GSAFKI', 49000, 'cancelled', 0, NULL, '2026-03-28 14:29:17', '2026-03-28 14:18:01'),
+(31, 17, 5, 'ORD-20260328211952-3PYFJR', 'MOV-WQXXOT', 49000, 'paid', 0, NULL, '2026-03-28 14:20:09', '2026-03-28 14:19:52'),
+(32, 17, 5, 'ORD-20260328212924-9PY1NC', 'MOV-WZNNCT', 49000, 'cancelled', 0, NULL, '2026-03-28 15:01:56', '2026-03-28 14:29:24'),
+(33, 17, 5, 'ORD-20260328220202-41ZZUK', 'MOV-19QIPD', 49000, 'paid', 0, NULL, '2026-03-28 15:02:36', '2026-03-28 15:02:02'),
+(34, 17, 5, 'ORD-20260328220255-HCQPGW', 'MOV-W3DMSU', 49000, 'cancelled', 0, NULL, '2026-03-28 15:28:12', '2026-03-28 15:02:55'),
+(35, 17, 5, 'ORD-20260328222817-7GLXXF', 'MOV-EI0UCR', 49000, 'cancelled', 0, NULL, '2026-03-28 15:43:35', '2026-03-28 15:28:17'),
+(36, 17, 5, 'ORD-20260328223025-ANUXY5', 'MOV-TVFZU7', 49000, 'cancelled', 0, NULL, '2026-03-28 15:43:35', '2026-03-28 15:30:25'),
+(37, 17, 5, 'ORD-20260328224335-WFROBO', 'MOV-TZZI5X', 98000, 'paid', 0, NULL, '2026-03-28 15:44:40', '2026-03-28 15:43:35'),
+(38, 17, 5, 'ORD-20260328225032-GP7DDM', 'MOV-USOPU9', 98000, 'paid', 0, NULL, '2026-03-28 15:50:58', '2026-03-28 15:50:32');
 
 -- --------------------------------------------------------
 
@@ -1827,7 +1848,30 @@ INSERT INTO `order_seats` (`id`, `order_id`, `seat_id`, `schedule_id`, `price`) 
 (20, 16, 2521, 13, 45000),
 (21, 17, 2527, 12, 45000),
 (22, 18, 2527, 12, 45000),
-(23, 19, 2528, 13, 45000);
+(23, 19, 2528, 13, 45000),
+(25, 21, 5394, 15, 55000),
+(26, 22, 5393, 15, 55000),
+(27, 23, 5250, 15, 55000),
+(28, 24, 5428, 15, 55000),
+(29, 24, 5429, 15, 55000),
+(30, 24, 5430, 15, 55000),
+(31, 24, 5431, 15, 55000),
+(32, 25, 5241, 15, 55000),
+(33, 26, 2526, 17, 45000),
+(34, 27, 2525, 17, 45000),
+(35, 28, 2524, 17, 45000),
+(36, 29, 2523, 17, 45000),
+(37, 30, 2525, 17, 45000),
+(38, 31, 2524, 17, 45000),
+(39, 32, 2526, 17, 45000),
+(40, 33, 2525, 17, 45000),
+(41, 34, 2526, 17, 45000),
+(42, 35, 2526, 17, 45000),
+(43, 36, 2527, 17, 45000),
+(44, 37, 2527, 17, 45000),
+(45, 37, 2528, 17, 45000),
+(46, 38, 2526, 17, 45000),
+(47, 38, 2542, 17, 45000);
 
 -- --------------------------------------------------------
 
@@ -1869,7 +1913,25 @@ INSERT INTO `payments` (`id`, `order_id`, `midtrans_transaction_id`, `midtrans_o
 (13, 16, '606f34ea-8a09-4082-ba76-fc7f99907070', 'ORD-20260317192211-MYMPYF', 'bank_transfer', 'expire', 'accept', 49000, '2026-03-17 12:34:10', '{\"status_code\":\"201\",\"transaction_id\":\"606f34ea-8a09-4082-ba76-fc7f99907070\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317192211-MYMPYF\",\"payment_type\":\"bank_transfer\",\"signature_key\":\"68228b466c9b68eab83bc853c5c944c2496fafa1fe828c5a5d3cce62136cb8ff264c855356ca1d2fec9f8c126840ecedf33986015cbed4c84ae643433aee8d4e\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":13},\"va_numbers\":[{\"bank\":\"bca\",\"va_number\":\"84068592047067860534649\"}],\"payment_amounts\":[],\"transaction_time\":\"2026-03-17 19:22:28\",\"expiry_time\":\"2026-03-18 19:22:28\"}', '2026-03-17 12:22:13'),
 (14, 17, NULL, 'ORD-20260317193416-VKZIX8', NULL, 'expire', NULL, 49000, '2026-03-17 13:15:56', '{\"token\":\"61236946-fd76-499c-a11b-29d6d62278b8\",\"redirect_url\":\"https:\\/\\/app.sandbox.midtrans.com\\/snap\\/v4\\/redirection\\/61236946-fd76-499c-a11b-29d6d62278b8\"}', '2026-03-17 12:34:19'),
 (15, 18, '2939b20c-1108-4b69-b359-dfed7a2e45a3', 'ORD-20260317201811-RFTWGC', 'bank_transfer', 'settlement', 'accept', 49000, '2026-03-17 13:18:42', '{\"status_code\":\"200\",\"transaction_id\":\"2939b20c-1108-4b69-b359-dfed7a2e45a3\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260317201811-RFTWGC\",\"payment_type\":\"bank_transfer\",\"signature_key\":\"6326385fefc4ec78264709f10fe22a4c84be0f58cfe4f17cb26c960f7d15d4cf62ff1dd8ce78dbc8e84d76a4ccc9c95a79fb55bc13eae665574b2adb2302c2de\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":9,\"schedule_id\":12},\"va_numbers\":[{\"bank\":\"bca\",\"va_number\":\"84068975389638166083388\"}],\"payment_amounts\":[],\"transaction_time\":\"2026-03-17 20:18:22\",\"settlement_time\":\"2026-03-17 20:18:37\",\"expiry_time\":\"2026-03-18 20:18:22\"}', '2026-03-17 13:18:13'),
-(16, 19, 'd0c35e25-c33b-4355-a8ec-b259ea78375a', 'ORD-20260318171906-LSTWYD', 'gopay', 'settlement', 'accept', 49000, '2026-03-18 10:19:44', '{\"status_code\":\"200\",\"transaction_id\":\"d0c35e25-c33b-4355-a8ec-b259ea78375a\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260318171906-LSTWYD\",\"payment_type\":\"gopay\",\"signature_key\":\"48259bc5883e46c70c66fe4b4fc60f7b8192050e8d0c38e5f23405241599e686d85e32a10ff6dd09c91b4708f895bc47480d13d08d1f7581a51ba9b7b0cb501f\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":13},\"transaction_time\":\"2026-03-18 17:19:18\",\"settlement_time\":\"2026-03-18 17:19:29\",\"expiry_time\":\"2026-03-18 17:34:18\"}', '2026-03-18 10:19:12');
+(16, 19, 'd0c35e25-c33b-4355-a8ec-b259ea78375a', 'ORD-20260318171906-LSTWYD', 'gopay', 'settlement', 'accept', 49000, '2026-03-18 10:19:44', '{\"status_code\":\"200\",\"transaction_id\":\"d0c35e25-c33b-4355-a8ec-b259ea78375a\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260318171906-LSTWYD\",\"payment_type\":\"gopay\",\"signature_key\":\"48259bc5883e46c70c66fe4b4fc60f7b8192050e8d0c38e5f23405241599e686d85e32a10ff6dd09c91b4708f895bc47480d13d08d1f7581a51ba9b7b0cb501f\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":13},\"transaction_time\":\"2026-03-18 17:19:18\",\"settlement_time\":\"2026-03-18 17:19:29\",\"expiry_time\":\"2026-03-18 17:34:18\"}', '2026-03-18 10:19:12'),
+(17, 21, NULL, 'ORD-20260328172853-DRVGZA', NULL, 'expire', NULL, 59000, '2026-03-28 10:43:31', '{\"token\":\"1aad10d7-4a0c-4c32-b1c0-59eba896c954\",\"redirect_url\":\"https:\\/\\/app.sandbox.midtrans.com\\/snap\\/v4\\/redirection\\/1aad10d7-4a0c-4c32-b1c0-59eba896c954\"}', '2026-03-28 10:28:56'),
+(18, 22, 'f36ef5d3-53f5-419a-8279-6fd8ad182c5c', 'ORD-20260328172937-TQBK0F', 'gopay', 'settlement', 'accept', 59000, '2026-03-28 10:30:24', '{\"status_code\":\"200\",\"transaction_id\":\"f36ef5d3-53f5-419a-8279-6fd8ad182c5c\",\"gross_amount\":\"59000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328172937-TQBK0F\",\"payment_type\":\"gopay\",\"signature_key\":\"89e115c87e5a3684f1edcebbaf24e8c554b7060615d7dd963414d4fc350dc7ae3d3f417e51074da27034a0501542555817de8a8d5e29c3561756b2cddf02265b\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":15},\"transaction_time\":\"2026-03-28 17:29:42\",\"settlement_time\":\"2026-03-28 17:29:47\",\"expiry_time\":\"2026-03-28 17:44:42\"}', '2026-03-28 10:29:39'),
+(19, 23, NULL, 'ORD-20260328173104-DLUBT6', NULL, 'expire', NULL, 59000, '2026-03-28 10:43:31', '{\"token\":\"10dea213-b0ec-4821-b473-dcfaa9aff955\",\"redirect_url\":\"https:\\/\\/app.sandbox.midtrans.com\\/snap\\/v4\\/redirection\\/10dea213-b0ec-4821-b473-dcfaa9aff955\"}', '2026-03-28 10:31:05'),
+(20, 24, 'e5020962-2168-4361-92e5-be5920b2c4ca', 'ORD-20260328181421-ZQ8LGG', 'bank_transfer', 'settlement', 'accept', 236000, '2026-03-28 11:15:54', '{\"status_code\":\"200\",\"transaction_id\":\"e5020962-2168-4361-92e5-be5920b2c4ca\",\"gross_amount\":\"236000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328181421-ZQ8LGG\",\"payment_type\":\"bank_transfer\",\"signature_key\":\"663bb8a6baba12bfb26bad9f1158380921867acdfd026cab9bab0ceb4851282e8dfdd22460ed654107af27da2fe6256be7cc7c924c14511f49bb5d1b84c2102d\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":15},\"va_numbers\":[{\"bank\":\"bca\",\"va_number\":\"84068434991529877600162\"}],\"payment_amounts\":[],\"transaction_time\":\"2026-03-28 18:14:32\",\"settlement_time\":\"2026-03-28 18:15:34\",\"expiry_time\":\"2026-03-29 18:14:32\"}', '2026-03-28 11:14:23'),
+(21, 25, 'a1d0b88b-3b62-4d19-80a4-614a1fc7f837', 'ORD-20260328185630-KFFHXL', 'gopay', 'settlement', 'accept', 59000, '2026-03-28 11:56:57', '{\"status_code\":\"200\",\"transaction_id\":\"a1d0b88b-3b62-4d19-80a4-614a1fc7f837\",\"gross_amount\":\"59000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328185630-KFFHXL\",\"payment_type\":\"gopay\",\"signature_key\":\"6ed87b9d823da3ba18c8e2c6631556bb730348aaae6c08bce48dd259d21c26c48a36b375e3f994b54930103c439662a35bc72b7adbcc4495c1ffc52df4472dd3\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":15},\"transaction_time\":\"2026-03-28 18:56:37\",\"settlement_time\":\"2026-03-28 18:56:50\",\"expiry_time\":\"2026-03-28 19:11:37\"}', '2026-03-28 11:56:31'),
+(22, 26, NULL, 'ORD-20260328205743-GTJVCH', NULL, 'expire', NULL, 49000, '2026-03-28 14:09:08', '{\"token\":\"f3a3260f-99ca-478e-a11a-871d5ac788a1\",\"redirect_url\":\"https:\\/\\/app.sandbox.midtrans.com\\/snap\\/v4\\/redirection\\/f3a3260f-99ca-478e-a11a-871d5ac788a1\"}', '2026-03-28 13:57:45'),
+(23, 27, NULL, 'ORD-20260328210358-0HOGZN', NULL, 'expire', NULL, 49000, '2026-03-28 14:17:53', '{\"token\":\"67b43450-18f4-4a76-98e3-788a95bf25ce\",\"redirect_url\":\"https:\\/\\/app.sandbox.midtrans.com\\/snap\\/v4\\/redirection\\/67b43450-18f4-4a76-98e3-788a95bf25ce\"}', '2026-03-28 14:04:00'),
+(24, 28, 'b018ed3e-2e0a-4b4f-8b6d-e7c1d2151bda', 'ORD-20260328210914-9KVLDW', 'shopeepay', 'expire', 'accept', 49000, '2026-03-28 14:17:53', '{\"status_code\":\"201\",\"transaction_id\":\"b018ed3e-2e0a-4b4f-8b6d-e7c1d2151bda\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328210914-9KVLDW\",\"payment_type\":\"shopeepay\",\"signature_key\":\"f75c422bdf5a629ea80d6d25ee2c6780acc532e8976a49a21b6e5083d7fdadbf53c61990052f927da5ae44688e69e465108cf3dc14b808e44374e9db60b95c77\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"reference_id\":\"A120260328140921xbd9Eh67CIID-1\",\"transaction_time\":\"2026-03-28 21:09:21\",\"expiry_time\":\"2026-03-28 21:24:21\",\"actions\":[{\"name\":\"deeplink-redirect\",\"method\":\"GET\",\"url\":\"https:\\/\\/simulator.sandbox.midtrans.com\\/shopeepay\\/payment-pin?referenceId=A120260328140921xbd9Eh67CIID-1\"}]}', '2026-03-28 14:09:16'),
+(25, 29, '6f3317f1-c1af-4608-9ae1-9134e243f2cb', 'ORD-20260328211005-YMSVMI', 'gopay', 'settlement', 'accept', 49000, '2026-03-28 14:11:36', '{\"status_code\":\"200\",\"transaction_id\":\"6f3317f1-c1af-4608-9ae1-9134e243f2cb\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328211005-YMSVMI\",\"payment_type\":\"gopay\",\"signature_key\":\"8baf348ed3b992d75e0511b073ed9ed6bfc75a1028e062a201a1217c8edd5a367349e7d58825e9b3c71972de815b72de76bdd2f04b5749962639debeb935761b\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"transaction_time\":\"2026-03-28 21:10:08\",\"settlement_time\":\"2026-03-28 21:10:12\",\"expiry_time\":\"2026-03-28 21:25:08\"}', '2026-03-28 14:10:06'),
+(26, 30, 'ec227352-65f9-4b4b-a2a3-f970044d2fd8', 'ORD-20260328211801-3QZ74P', 'shopeepay', 'expire', 'accept', 49000, '2026-03-28 14:29:17', '{\"status_code\":\"201\",\"transaction_id\":\"ec227352-65f9-4b4b-a2a3-f970044d2fd8\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328211801-3QZ74P\",\"payment_type\":\"shopeepay\",\"signature_key\":\"8cdfc2262d33bee3f8d6f5cab6c9ca72635249b0553c1e6330205e7edccb0e3e0dd96abca15e3c4deebae1d873c8396be4e05fa850def8aa2e0ce71f0ab14472\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"reference_id\":\"A1202603281418097NPTiM8nyBID-1\",\"transaction_time\":\"2026-03-28 21:18:09\",\"expiry_time\":\"2026-03-28 21:33:09\",\"actions\":[{\"name\":\"deeplink-redirect\",\"method\":\"GET\",\"url\":\"https:\\/\\/simulator.sandbox.midtrans.com\\/shopeepay\\/payment-pin?referenceId=A1202603281418097NPTiM8nyBID-1\"}]}', '2026-03-28 14:18:03'),
+(27, 31, 'd6b16990-f034-4c44-ae18-39d6e31df491', 'ORD-20260328211952-3PYFJR', 'gopay', 'settlement', 'accept', 49000, '2026-03-28 14:20:09', '{\"status_code\":\"200\",\"transaction_id\":\"d6b16990-f034-4c44-ae18-39d6e31df491\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328211952-3PYFJR\",\"payment_type\":\"gopay\",\"signature_key\":\"47815e2fb84e59860f8a84ff4447066f3456eaf8c5a35430ba134d8e2c14eedee3c1db3f225e2f52123ed02e5312e4d9d9569be301a4dd29921f71f0efe0a406\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"transaction_time\":\"2026-03-28 21:19:56\",\"settlement_time\":\"2026-03-28 21:20:00\",\"expiry_time\":\"2026-03-28 21:34:56\"}', '2026-03-28 14:19:53'),
+(28, 32, 'bd38f44b-527a-41bd-8288-da5debea1e99', 'ORD-20260328212924-9PY1NC', 'shopeepay', 'expire', 'accept', 49000, '2026-03-28 15:01:56', '{\"status_code\":\"201\",\"transaction_id\":\"bd38f44b-527a-41bd-8288-da5debea1e99\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328212924-9PY1NC\",\"payment_type\":\"shopeepay\",\"signature_key\":\"5389ecf170c0eda2ed530d3ce231da6a675e92c9f815423a7d8a81be1bd842f4c27eef41c46e32b076107e2b1f78f1fe115f6a008a352c79e79dc1d54b46dc3f\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"reference_id\":\"A1202603281429313w7mg27v3KID-1\",\"transaction_time\":\"2026-03-28 21:29:31\",\"expiry_time\":\"2026-03-28 21:44:31\",\"actions\":[{\"name\":\"deeplink-redirect\",\"method\":\"GET\",\"url\":\"https:\\/\\/simulator.sandbox.midtrans.com\\/shopeepay\\/payment-pin?referenceId=A1202603281429313w7mg27v3KID-1\"}]}', '2026-03-28 14:29:26'),
+(29, 33, 'cac20341-b766-404c-b392-4094805b329f', 'ORD-20260328220202-41ZZUK', 'gopay', 'settlement', 'accept', 49000, '2026-03-28 15:02:36', '{\"status_code\":\"200\",\"transaction_id\":\"cac20341-b766-404c-b392-4094805b329f\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328220202-41ZZUK\",\"payment_type\":\"gopay\",\"signature_key\":\"8448868e97c5ef5f00f8411a238988ee1e2372073b5398ea851a00bab10f542fc26a581bacac19e72930172816f3dafc857ebe598739f7e7e927b7d20675b612\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"transaction_time\":\"2026-03-28 22:02:12\",\"settlement_time\":\"2026-03-28 22:02:24\",\"expiry_time\":\"2026-03-28 22:17:12\"}', '2026-03-28 15:02:04'),
+(30, 34, '00439e56-eb8e-4233-a802-3f6be87017f1', 'ORD-20260328220255-HCQPGW', 'shopeepay', 'expire', 'accept', 49000, '2026-03-28 15:28:12', '{\"status_code\":\"201\",\"transaction_id\":\"00439e56-eb8e-4233-a802-3f6be87017f1\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328220255-HCQPGW\",\"payment_type\":\"shopeepay\",\"signature_key\":\"92591dd0fffe13e94c8bc2a5d94f3d1751b8b997b52da0f4f890b136b6507d70450fa2ca44996ccdd1cbfcffe17a2e26dbf3c0f3d19429384f7b7f3335f7b2d6\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"reference_id\":\"A120260328150301WIrhj7DT58ID-1\",\"transaction_time\":\"2026-03-28 22:03:01\",\"expiry_time\":\"2026-03-28 22:18:01\",\"actions\":[{\"name\":\"deeplink-redirect\",\"method\":\"GET\",\"url\":\"https:\\/\\/simulator.sandbox.midtrans.com\\/shopeepay\\/payment-pin?referenceId=A120260328150301WIrhj7DT58ID-1\"}]}', '2026-03-28 15:02:57'),
+(31, 35, '248f3599-0e7e-4482-aa0d-af7d0bf2acde', 'ORD-20260328222817-7GLXXF', 'shopeepay', 'expire', 'accept', 49000, '2026-03-28 15:43:35', '{\"status_code\":\"201\",\"transaction_id\":\"248f3599-0e7e-4482-aa0d-af7d0bf2acde\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328222817-7GLXXF\",\"payment_type\":\"shopeepay\",\"signature_key\":\"85f1b7b7d2226ef33641f4abfd4cc71175eed2bb42505f681369dc0ab951ce662b24718f99c5f97a14700616196e1c6903ec3d496e51b3ca6e3a7a9236f8f51f\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"reference_id\":\"A120260328152825Cj0b9LZj7pID-1\",\"transaction_time\":\"2026-03-28 22:28:25\",\"expiry_time\":\"2026-03-28 22:43:25\",\"actions\":[{\"name\":\"deeplink-redirect\",\"method\":\"GET\",\"url\":\"https:\\/\\/simulator.sandbox.midtrans.com\\/shopeepay\\/payment-pin?referenceId=A120260328152825Cj0b9LZj7pID-1\"}]}', '2026-03-28 15:28:20'),
+(32, 36, '24bf62bb-1a43-4ef0-8e85-a66be42d2dcc', 'ORD-20260328223025-ANUXY5', 'shopeepay', 'expire', 'accept', 49000, '2026-03-28 15:43:35', '{\"status_code\":\"201\",\"transaction_id\":\"24bf62bb-1a43-4ef0-8e85-a66be42d2dcc\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328223025-ANUXY5\",\"payment_type\":\"shopeepay\",\"signature_key\":\"4f66a2d683ae2c5cb6c840781627afa52eaab4a23e98df25ed7a7d66a1f31010b945a60c169a2745f97802121028b5c6adf82dccb07f130b93cd68a0d6eac94d\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"reference_id\":\"A120260328153035EA1BAtoQkYID-1\",\"transaction_time\":\"2026-03-28 22:30:35\",\"expiry_time\":\"2026-03-28 22:45:35\",\"actions\":[{\"name\":\"deeplink-redirect\",\"method\":\"GET\",\"url\":\"https:\\/\\/simulator.sandbox.midtrans.com\\/shopeepay\\/payment-pin?referenceId=A120260328153035EA1BAtoQkYID-1\"}]}', '2026-03-28 15:30:26'),
+(33, 37, '8fa516c7-69be-4e87-9f05-5214473c3b2e', 'ORD-20260328224335-WFROBO', 'gopay', 'settlement', 'accept', 98000, '2026-03-28 15:44:40', '{\"status_code\":\"200\",\"transaction_id\":\"8fa516c7-69be-4e87-9f05-5214473c3b2e\",\"gross_amount\":\"98000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328224335-WFROBO\",\"payment_type\":\"gopay\",\"signature_key\":\"309e84fbc012c2c62be9ac254a254e9ef694af53791b8876c3297b4df01b44c84a1afd783069ac567a2c9e769c13523bc59f56df0773da23ee7ba62449a14191\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"transaction_time\":\"2026-03-28 22:44:27\",\"settlement_time\":\"2026-03-28 22:44:32\",\"expiry_time\":\"2026-03-28 22:59:27\"}', '2026-03-28 15:43:36'),
+(34, 38, 'ae7a8681-052e-429c-91e5-074571d1b76f', 'ORD-20260328225032-GP7DDM', 'gopay', 'settlement', 'accept', 98000, '2026-03-28 15:50:58', '{\"status_code\":\"200\",\"transaction_id\":\"ae7a8681-052e-429c-91e5-074571d1b76f\",\"gross_amount\":\"98000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328225032-GP7DDM\",\"payment_type\":\"gopay\",\"signature_key\":\"53428fc8b84db9b5f2414cdf1c30baa24a2e12c27280f9fb75c6686a34f7997a5502865a64ae3c0d005076145f2979ebeae064a0945a91c707e3a4aaed9d0df3\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"transaction_time\":\"2026-03-28 22:50:40\",\"settlement_time\":\"2026-03-28 22:50:51\",\"expiry_time\":\"2026-03-28 23:05:40\"}', '2026-03-28 15:50:35');
 
 -- --------------------------------------------------------
 
@@ -2131,7 +2193,9 @@ INSERT INTO `ratings` (`id`, `user_id`, `film_id`, `rating`, `created_at`, `upda
 (49, 9, 70, 5, '2026-03-17 12:14:03', '2026-03-17 12:14:03'),
 (50, 9, 67, 5, '2026-03-18 10:08:49', '2026-03-18 10:08:49'),
 (51, 9, 66, 4, '2026-03-18 10:09:00', '2026-03-18 10:09:06'),
-(52, 9, 31, 4, '2026-03-18 10:10:46', '2026-03-18 10:10:46');
+(52, 9, 31, 4, '2026-03-18 10:10:46', '2026-03-18 10:10:46'),
+(53, 5, 38, 4, '2026-03-28 11:20:53', '2026-03-28 11:20:53'),
+(54, 5, 73, 1, '2026-03-28 11:22:09', '2026-03-28 11:22:09');
 
 -- --------------------------------------------------------
 
@@ -2296,7 +2360,10 @@ INSERT INTO `schedules` (`id`, `movie_id`, `studio_id`, `show_date`, `show_time`
 (11, 70, 1, '2026-03-18', '13:25:00', 45000, 'expired'),
 (12, 70, 1, '2026-03-18', '15:35:00', 45000, 'expired'),
 (13, 70, 1, '2026-03-18', '20:50:00', 45000, 'expired'),
-(14, 73, 13, '2026-03-27', '21:00:00', 55000, 'expired');
+(14, 73, 13, '2026-03-27', '21:00:00', 55000, 'expired'),
+(15, 73, 13, '2026-03-28', '18:55:00', 55000, 'active'),
+(16, 73, 13, '2026-03-28', '21:00:00', 55000, 'active'),
+(17, 73, 1, '2026-03-28', '21:00:00', 45000, 'active');
 
 -- --------------------------------------------------------
 
@@ -4917,7 +4984,30 @@ INSERT INTO `tickets` (`id`, `order_id`, `seat_id`, `qr_code`, `is_used`, `creat
 (17, 16, 2521, '7JWRZH4WIOOX-16-2521', 0, '2026-03-17 12:22:11'),
 (18, 17, 2527, '13JBEYX15EF1-17-2527', 0, '2026-03-17 12:34:17'),
 (19, 18, 2527, 'VEN7BU9ODJJP-18-2527', 1, '2026-03-17 13:18:11'),
-(20, 19, 2528, 'QP7PQGXCQB7J-19-2528', 1, '2026-03-18 10:19:06');
+(20, 19, 2528, 'QP7PQGXCQB7J-19-2528', 1, '2026-03-18 10:19:06'),
+(22, 21, 5394, 'AYALP55LEBHA-21-5394', 0, '2026-03-28 10:28:53'),
+(23, 22, 5393, '6KIT2F7W0YKK-22-5393', 1, '2026-03-28 10:29:38'),
+(24, 23, 5250, 'W8I97BQ2RINU-23-5250', 0, '2026-03-28 10:31:04'),
+(25, 24, 5428, 'QYECZRJZWPS0-24-5428', 0, '2026-03-28 11:14:21'),
+(26, 24, 5429, 'YFN5PX0XIAUJ-24-5429', 0, '2026-03-28 11:14:21'),
+(27, 24, 5430, 'ALKTIFYT7AKE-24-5430', 0, '2026-03-28 11:14:21'),
+(28, 24, 5431, 'AYTK1TEBAWFH-24-5431', 0, '2026-03-28 11:14:21'),
+(29, 25, 5241, 'LPEZAVIBXZAV-25-5241', 0, '2026-03-28 11:56:30'),
+(30, 26, 2526, 'DXRPLF8OIBZP-26-2526', 0, '2026-03-28 13:57:43'),
+(31, 27, 2525, 'CBXPAWVEL83X-27-2525', 0, '2026-03-28 14:03:59'),
+(32, 28, 2524, 'TPOUH8TUQISD-28-2524', 0, '2026-03-28 14:09:14'),
+(33, 29, 2523, '7V0XUSE6MVIT-29-2523', 0, '2026-03-28 14:10:05'),
+(34, 30, 2525, 'PBT1SNZZUULK-30-2525', 0, '2026-03-28 14:18:01'),
+(35, 31, 2524, 'MKUM3NF5IIXS-31-2524', 0, '2026-03-28 14:19:52'),
+(36, 32, 2526, 'DN0EGNXFIBYX-32-2526', 0, '2026-03-28 14:29:24'),
+(37, 33, 2525, 'VGMTWM2G6SP2-33-2525', 0, '2026-03-28 15:02:02'),
+(38, 34, 2526, 'ZZEVFVMUUZQ7-34-2526', 0, '2026-03-28 15:02:55'),
+(39, 35, 2526, 'CTXRGCURYVTQ-35-2526', 0, '2026-03-28 15:28:18'),
+(40, 36, 2527, 'YON4GUT2LPR1-36-2527', 0, '2026-03-28 15:30:25'),
+(41, 37, 2527, 'MRX3UYJKZRMH-37-2527', 0, '2026-03-28 15:43:35'),
+(42, 37, 2528, 'IPNFEJD7JXAQ-37-2528', 0, '2026-03-28 15:43:35'),
+(43, 38, 2526, '5OYIO4VPHF4L-38-2526', 0, '2026-03-28 15:50:32'),
+(44, 38, 2542, 'VY3QG6HWKXWP-38-2542', 0, '2026-03-28 15:50:32');
 
 -- --------------------------------------------------------
 
@@ -5105,7 +5195,7 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (93, 9, 30, 133, 'backdrop', 'films', NULL, NULL, '2026-03-13 13:39:56', '2026-03-13 13:39:56'),
 (94, 9, 4, 298, 'poster', 'films', NULL, NULL, '2026-03-17 11:59:25', '2026-03-17 11:59:25'),
 (95, 9, 48, 213, 'poster', 'films', NULL, NULL, '2026-03-17 12:21:27', '2026-03-17 12:21:27'),
-(97, 5, 61, 178, 'poster', 'films', NULL, NULL, '2026-03-27 12:59:19', '2026-03-27 12:59:19'),
+(97, 5, 61, 365, 'poster', 'films', NULL, NULL, '2026-03-27 12:59:19', '2026-03-28 11:20:16'),
 (98, 5, 5, 364, 'poster', 'favorites', NULL, 474, '2026-03-27 13:59:34', '2026-03-27 14:07:58'),
 (99, 5, 5, 356, 'backdrop', 'favorites', NULL, 474, '2026-03-27 14:00:05', '2026-03-27 14:06:30'),
 (100, 5, 69, 270, 'poster', 'favorites', NULL, 475, '2026-03-27 14:06:47', '2026-03-27 14:06:47'),
@@ -5670,7 +5760,7 @@ ALTER TABLE `movie_likes`
 -- AUTO_INCREMENT untuk tabel `movie_media`
 --
 ALTER TABLE `movie_media`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=365;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=368;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_persons`
@@ -5694,19 +5784,19 @@ ALTER TABLE `notifications`
 -- AUTO_INCREMENT untuk tabel `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
 
 --
 -- AUTO_INCREMENT untuk tabel `order_seats`
 --
 ALTER TABLE `order_seats`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
 
 --
 -- AUTO_INCREMENT untuk tabel `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
 
 --
 -- AUTO_INCREMENT untuk tabel `persons`
@@ -5724,7 +5814,7 @@ ALTER TABLE `production_houses`
 -- AUTO_INCREMENT untuk tabel `ratings`
 --
 ALTER TABLE `ratings`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
 
 --
 -- AUTO_INCREMENT untuk tabel `reviews`
@@ -5748,7 +5838,7 @@ ALTER TABLE `review_likes`
 -- AUTO_INCREMENT untuk tabel `schedules`
 --
 ALTER TABLE `schedules`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT untuk tabel `seats`
@@ -5772,7 +5862,7 @@ ALTER TABLE `studios`
 -- AUTO_INCREMENT untuk tabel `tickets`
 --
 ALTER TABLE `tickets`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`

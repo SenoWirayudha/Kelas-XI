@@ -159,7 +159,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     title = dto.title,
                     posterUrl = dto.poster_path,
                     averageRating = dto.average_rating,
-                    genre = dto.genres.firstOrNull(),
+                    genre = dto.genres?.firstOrNull(),
                     releaseYear = dto.year,
                     description = null,
                     backdropUrl = dto.backdrop_path,

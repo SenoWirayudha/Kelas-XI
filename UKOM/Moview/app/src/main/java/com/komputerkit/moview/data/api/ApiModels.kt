@@ -80,7 +80,15 @@ data class SyncPaymentStatusResponseDto(
     val order_code: String,
     val order_status: String,
     val transaction_status: String?,
-    val payment_type: String?
+    val payment_type: String?,
+    val actions: List<MidtransActionDto>? = null,
+    val redirect_url: String? = null
+)
+
+data class MidtransActionDto(
+    val name: String?,
+    val method: String?,
+    val url: String?
 )
 
 data class UserTicketHistoryDto(
@@ -154,17 +162,17 @@ data class TicketScanResponseDto(
 
 data class MovieCardDto(
     val id: Int,
-    val title: String,
-    val year: Int,
-    val duration: String,
-    val rating: String,
+    val title: String?,
+    val year: Int?,
+    val duration: String?,
+    val rating: String?,
     val poster_path: String?,
     val backdrop_path: String?,
-    val genres: List<String>,
-    val countries: List<String> = emptyList(),
-    val languages: List<String> = emptyList(),
-    val average_rating: Float,
-    val watched_count: Int
+    val genres: List<String>?,
+    val countries: List<String>?,
+    val languages: List<String>?,
+    val average_rating: Float?,
+    val watched_count: Int?
 )
 
 data class FriendReviewDto(

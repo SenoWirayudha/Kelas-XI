@@ -2,11 +2,14 @@ package com.komputerkit.moview.ui.cinema
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.databinding.ActivitySeatSelectionBinding
 import com.komputerkit.moview.ui.cinema.adapter.SeatAdapter
 import com.komputerkit.moview.ui.cinema.model.BookingData
@@ -23,6 +26,11 @@ class SeatSelectionActivity : AppCompatActivity() {
     private lateinit var viewModel: SeatSelectionViewModel
     private lateinit var bookingData: BookingData
     private var gridLayoutManager: GridLayoutManager? = null
+    private val sharedPool = RecyclerView.RecycledViewPool()
+    private var currentColumns: Int = 1
+    private var currentRows: Int = 1
+    private val miniMapHandler = Handler(Looper.getMainLooper())
+    private val miniMapHideRunnable = Runnable { fadeOutMiniMap() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,9 +67,31 @@ class SeatSelectionActivity : AppCompatActivity() {
         }
 
         gridLayoutManager = GridLayoutManager(this, 1)
+        gridLayoutManager?.initialPrefetchItemCount = 20
         binding.rvSeats.layoutManager = gridLayoutManager
         binding.rvSeats.adapter = seatAdapter
+        binding.rvSeats.setHasFixedSize(true)
+        binding.rvSeats.setItemViewCacheSize(160)
+        binding.rvSeats.setRecycledViewPool(sharedPool)
+        sharedPool.setMaxRecycledViews(0, 500)
         binding.rvSeats.itemAnimator = null
+
+        binding.rvSeats.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                updateMiniMapViewport()
+                showMiniMap()
+            }
+        })
+
+        binding.hsvSeats.viewTreeObserver.addOnScrollChangedListener {
+            updateMiniMapViewport()
+            showMiniMap()
+        }
+
+        binding.rvSeats.post {
+            updateMiniMapViewport()
+        }
     }
 
     private fun observeViewModel() {
@@ -79,10 +109,20 @@ class SeatSelectionActivity : AppCompatActivity() {
                 val spanCount = state.columns.coerceAtLeast(1)
                 if (gridLayoutManager?.spanCount != spanCount) {
                     gridLayoutManager = GridLayoutManager(this, spanCount)
+                    gridLayoutManager?.initialPrefetchItemCount = 20
                     binding.rvSeats.layoutManager = gridLayoutManager
                     binding.rvSeats.adapter = seatAdapter
                 }
+                currentColumns = spanCount
+                currentRows = state.rows.coerceAtLeast(1)
                 seatAdapter.submitSeats(state.seats)
+                updateMiniMapSeats()
+                binding.seatMiniMap.alpha = 1f
+                binding.seatMiniMap.visibility = View.VISIBLE
+                binding.rvSeats.post {
+                    updateMiniMapViewport()
+                    showMiniMap()
+                }
             }
         }
     }
@@ -101,6 +141,69 @@ class SeatSelectionActivity : AppCompatActivity() {
             binding.btnOrderSummary.alpha = 1f
         }
         updateOrderButtonStyle(selected.isNotEmpty())
+        updateMiniMapSeats()
+        updateMiniMapViewport()
+        showMiniMap()
+    }
+
+    private fun updateMiniMapViewport() {
+        val seatContent = binding.hsvSeats.getChildAt(0) ?: return
+        val horizontalRange = seatContent.width.coerceAtLeast(binding.hsvSeats.width)
+        val horizontalExtent = binding.hsvSeats.width
+        val horizontalOffset = binding.hsvSeats.scrollX
+
+        val verticalRange = binding.rvSeats.computeVerticalScrollRange().coerceAtLeast(binding.rvSeats.height)
+        val verticalExtent = binding.rvSeats.computeVerticalScrollExtent().coerceAtLeast(1)
+        val verticalOffset = binding.rvSeats.computeVerticalScrollOffset().coerceAtLeast(0)
+
+        binding.seatMiniMap.updateViewport(
+            horizontalOffsetPx = horizontalOffset,
+            horizontalRangePx = horizontalRange,
+            horizontalExtentPx = horizontalExtent,
+            verticalOffsetPx = verticalOffset,
+            verticalRangePx = verticalRange,
+            verticalExtentPx = verticalExtent
+        )
+    }
+
+    private fun updateMiniMapSeats() {
+        val seatsSnapshot = seatAdapter.getRealSeatsSnapshot()
+        if (seatsSnapshot.isEmpty()) {
+            Log.d(logTag, "minimap: seat list is empty")
+        }
+        binding.seatMiniMap.updateSeats(
+            rows = currentRows,
+            columns = currentColumns,
+            seats = seatsSnapshot
+        )
+    }
+
+    private fun showMiniMap() {
+        if (binding.seatMiniMap.visibility != View.VISIBLE) {
+            binding.seatMiniMap.visibility = View.VISIBLE
+        }
+        if (binding.seatMiniMap.alpha != 1f) {
+            binding.seatMiniMap.animate().cancel()
+            binding.seatMiniMap.alpha = 1f
+        }
+        miniMapHandler.removeCallbacks(miniMapHideRunnable)
+        miniMapHandler.postDelayed(miniMapHideRunnable, 2000L)
+    }
+
+    private fun fadeOutMiniMap() {
+        if (binding.seatMiniMap.visibility != View.VISIBLE) return
+        binding.seatMiniMap.animate()
+            .alpha(0f)
+            .setDuration(250L)
+            .withEndAction {
+                binding.seatMiniMap.visibility = View.GONE
+            }
+            .start()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        miniMapHandler.removeCallbacks(miniMapHideRunnable)
     }
 
     private fun updateOrderButtonStyle(active: Boolean) {

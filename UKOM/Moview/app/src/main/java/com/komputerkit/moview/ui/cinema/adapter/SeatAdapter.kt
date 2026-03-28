@@ -17,6 +17,14 @@ class SeatAdapter(
     private val onSeatChanged: (selectedSeats: List<Seat>, total: Int) -> Unit
 ) : RecyclerView.Adapter<SeatAdapter.ViewHolder>() {
 
+    private var colorTextPrimary: Int? = null
+    private var colorTextSecondary: Int? = null
+    private var colorWhite: Int? = null
+
+    init {
+        setHasStableIds(true)
+    }
+
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tv: TextView = view.findViewById(R.id.tv_seat)
     }
@@ -24,7 +32,19 @@ class SeatAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_seat, parent, false)
+        if (colorTextPrimary == null) {
+            colorTextPrimary = ContextCompat.getColor(view.context, R.color.text_primary)
+            colorTextSecondary = ContextCompat.getColor(view.context, R.color.text_secondary)
+            colorWhite = ContextCompat.getColor(view.context, android.R.color.white)
+        }
         return ViewHolder(view)
+    }
+
+    override fun getItemId(position: Int): Long {
+        val seat = seats[position]
+        val stableKey = seat.seatId?.toLong()
+            ?: (((seat.positionY.toLong() and 0xFFFF) shl 16) or (seat.positionX.toLong() and 0xFFFF))
+        return (stableKey shl 2) or seat.type.ordinal.toLong()
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
@@ -50,19 +70,19 @@ class SeatAdapter(
         when (seat.status) {
             SeatStatus.AVAILABLE -> {
                 holder.tv.setBackgroundResource(R.drawable.bg_seat_available)
-                holder.tv.setTextColor(ContextCompat.getColor(holder.tv.context, R.color.text_primary))
+                holder.tv.setTextColor(colorTextPrimary ?: ContextCompat.getColor(holder.tv.context, R.color.text_primary))
                 holder.tv.isEnabled = true
                 holder.tv.alpha = 1f
             }
             SeatStatus.BOOKED -> {
                 holder.tv.setBackgroundResource(R.drawable.bg_seat_booked)
-                holder.tv.setTextColor(ContextCompat.getColor(holder.tv.context, R.color.text_secondary))
+                holder.tv.setTextColor(colorTextSecondary ?: ContextCompat.getColor(holder.tv.context, R.color.text_secondary))
                 holder.tv.isEnabled = false
                 holder.tv.alpha = 0.5f
             }
             SeatStatus.SELECTED -> {
                 holder.tv.setBackgroundResource(R.drawable.bg_seat_selected)
-                holder.tv.setTextColor(ContextCompat.getColor(holder.tv.context, android.R.color.white))
+                holder.tv.setTextColor(colorWhite ?: ContextCompat.getColor(holder.tv.context, android.R.color.white))
                 holder.tv.isEnabled = true
                 holder.tv.alpha = 1f
             }
@@ -91,4 +111,8 @@ class SeatAdapter(
     }
 
     fun getSelectedSeats(): List<Seat> = seats.filter { it.type == SeatType.SEAT && it.status == SeatStatus.SELECTED }
+
+    fun getSeatsSnapshot(): List<Seat> = seats.toList()
+
+    fun getRealSeatsSnapshot(): List<Seat> = seats.filter { it.type == SeatType.SEAT }
 }

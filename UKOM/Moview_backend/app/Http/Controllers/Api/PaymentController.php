@@ -78,6 +78,7 @@ class PaymentController extends Controller
             'schedule_id' => 'required|integer|exists:schedules,id',
             'selected_seats' => 'required|array|min:1',
             'selected_seats.*' => 'integer|exists:seats,id',
+            'payment_method' => 'nullable|string|in:gopay,qris,bank_transfer',
         ]);
 
         $schedule = Schedule::with(['movie', 'studio.cinema.service'])->findOrFail($validated['schedule_id']);
@@ -100,7 +101,7 @@ class PaymentController extends Controller
         }
 
         try {
-            $result = DB::transaction(function () use ($schedule, $seatIds, $serviceFeePerSeat, $pendingTimeoutMinutes, $midtransServerKey, $snapUrl, $user) {
+            $result = DB::transaction(function () use ($schedule, $seatIds, $serviceFeePerSeat, $pendingTimeoutMinutes, $midtransServerKey, $snapUrl, $user, $validated) {
                 $validSeatCount = Seat::where('studio_id', $schedule->studio_id)
                     ->whereIn('id', $seatIds)
                     ->where('seat_type', 'seat')
@@ -181,11 +182,22 @@ class PaymentController extends Controller
                 }
 
                 $safeEmail = trim((string) ($user->email ?? 'user@example.com'));
-                if ($safeEmail === '') {
+                if ($safeEmail === '' || !filter_var($safeEmail, FILTER_VALIDATE_EMAIL)) {
                     $safeEmail = 'user@example.com';
                 }
 
-                $fallbackPhone = '081234567890';
+                $rawPhone = preg_replace('/[^0-9]/', '', (string) ($user->phone ?? ''));
+                if (is_string($rawPhone) && str_starts_with($rawPhone, '62')) {
+                    $rawPhone = '0' . substr($rawPhone, 2);
+                }
+                if (empty($rawPhone) || strlen((string) $rawPhone) < 10 || strlen((string) $rawPhone) > 13) {
+                    $rawPhone = '081234567890';
+                }
+                $preferredPaymentMethod = $validated['payment_method'] ?? null;
+                $enabledPayments = ['gopay', 'qris', 'bank_transfer'];
+                if (!empty($preferredPaymentMethod)) {
+                    $enabledPayments = [$preferredPaymentMethod];
+                }
 
                 $payload = [
                     'transaction_details' => [
@@ -195,9 +207,9 @@ class PaymentController extends Controller
                     'customer_details' => [
                         'first_name' => mb_substr($safeUsername, 0, 50),
                         'email' => mb_substr($safeEmail, 0, 100),
-                        'phone' => $fallbackPhone,
+                        'phone' => $rawPhone,
                     ],
-                    'enabled_payments' => ['shopeepay', 'gopay', 'qris', 'bank_transfer'],
+                    'enabled_payments' => $enabledPayments,
                     'item_details' => [
                         [
                             'id' => 'TICKET-' . $schedule->id,
@@ -225,6 +237,9 @@ class PaymentController extends Controller
                 ]);
 
                 $snapResponse = Http::withBasicAuth($midtransServerKey, '')
+                    ->connectTimeout(15)
+                    ->timeout(30)
+                    ->retry(2, 400)
                     ->acceptJson()
                     ->post($snapUrl, $payload);
 
@@ -356,6 +371,9 @@ class PaymentController extends Controller
 
         try {
             $response = Http::withBasicAuth($midtransServerKey, '')
+                ->connectTimeout(15)
+                ->timeout(30)
+                ->retry(2, 400)
                 ->acceptJson()
                 ->get($statusBaseUrl . $order->order_code . '/status');
 
@@ -380,6 +398,8 @@ class PaymentController extends Controller
                     'order_status' => $statusData['order_status'],
                     'transaction_status' => $statusData['transaction_status'],
                     'payment_type' => $statusData['payment_type'],
+                    'actions' => $midtransPayload['actions'] ?? null,
+                    'redirect_url' => $midtransPayload['redirect_url'] ?? null,
                 ],
             ]);
         } catch (ValidationException $e) {

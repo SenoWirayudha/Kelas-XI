@@ -144,19 +144,6 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
                             return@launch
                         }
 
-                        if (orderStatus == "cancelled") {
-                            _uiState.postValue(
-                                (_uiState.value ?: OrderSummaryUiState()).copy(
-                                    isSyncingPayment = false,
-                                    error = null,
-                                    syncMessage = "Pembayaran dibatalkan",
-                                    paymentCompleted = false,
-                                    syncedOrderStatus = orderStatus
-                                )
-                            )
-                            return@launch
-                        }
-
                         lastError = "Status pembayaran masih ${transactionStatus ?: orderStatus}"
                     } else {
                         lastError = response.message ?: "Gagal sinkronisasi status pembayaran"
@@ -214,4 +201,5 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
         val current = _uiState.value ?: return
         _uiState.value = current.copy(error = null)
     }
+
 }

@@ -50,7 +50,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         userId = id
         // Only load if data hasn't been fetched yet; on back-navigation the ViewModel
         // survives so we preserve the cached data (and scroll position).
-        if (_popularMovies.value == null) {
+        if (_popularMovies.value.isNullOrEmpty()) {
             loadData()
         }
     }

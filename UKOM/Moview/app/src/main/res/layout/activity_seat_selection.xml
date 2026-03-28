@@ -176,6 +176,7 @@
         app:layout_constraintEnd_toEndOf="parent">
 
         <HorizontalScrollView
+            android:id="@+id/hsv_seats"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:fillViewport="true"
@@ -192,6 +193,15 @@
                 android:overScrollMode="never"
                 android:scrollbars="none" />
         </HorizontalScrollView>
+
+        <com.komputerkit.moview.ui.cinema.view.SeatMiniMapView
+            android:id="@+id/seat_mini_map"
+            android:layout_width="140dp"
+            android:layout_height="100dp"
+            android:layout_gravity="start|top"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:visibility="gone" />
     </FrameLayout>
 
     <!-- ── SCREEN LABEL ───────────────────────────────────────────── -->

@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentHomeNewBinding
 import com.komputerkit.moview.ui.cinema.MovieScheduleActivity
@@ -93,6 +94,13 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 LinearLayoutManager.HORIZONTAL,
                 false
             )
+            // Inside NestedScrollView, horizontal RecyclerView can measure to zero height.
+            // Give it a stable height so cards always render when data exists.
+            layoutParams = layoutParams.apply {
+                height = (260 * resources.displayMetrics.density).toInt()
+            }
+            isNestedScrollingEnabled = false
+            overScrollMode = RecyclerView.OVER_SCROLL_NEVER
         }
 
         // Setup Friend Activities RecyclerView (Horizontal)
@@ -238,6 +246,10 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         viewModel.popularMovies.observe(viewLifecycleOwner) { movies ->
             android.util.Log.d("HomeFragment", "Popular movies received: ${movies.size} items")
             movieCardAdapter.submitList(movies)
+            binding.rvPopularMovies.visibility = if (movies.isEmpty()) View.GONE else View.VISIBLE
+            binding.rvPopularMovies.post {
+                binding.rvPopularMovies.requestLayout()
+            }
         }
 
         viewModel.friendActivities.observe(viewLifecycleOwner) { activities ->
