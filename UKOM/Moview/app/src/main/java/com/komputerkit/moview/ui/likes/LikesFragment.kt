@@ -77,6 +77,10 @@ class LikesFragment : Fragment() {
                     findNavController().navigate(action)
                 }
             },
+            onLongPressGoToFilm = { movie ->
+                val action = LikesFragmentDirections.actionLikesToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            },
             onReviewClick = { movie ->
                 val action = LikesFragmentDirections.actionLikesToReviewDetail(movie.reviewId)
                 findNavController().navigate(action)

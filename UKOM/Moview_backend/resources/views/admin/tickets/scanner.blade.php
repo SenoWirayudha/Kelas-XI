@@ -257,7 +257,6 @@ function ticketScanner() {
         showResult(success, payload) {
             this.isSuccess = success;
             this.result = payload;
-            this.playBeep(success);
             this.animateScannerBorder(success);
         },
 
@@ -274,21 +273,6 @@ function ticketScanner() {
                 wrapper.classList.remove('border-green-500', 'border-red-500', 'animate-pulse');
                 wrapper.classList.add('border-gray-200');
             }, 1000);
-        },
-
-        playBeep(success) {
-            const context = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = context.createOscillator();
-            const gainNode = context.createGain();
-
-            oscillator.type = 'sine';
-            oscillator.frequency.value = success ? 880 : 320;
-            gainNode.gain.value = 0.08;
-
-            oscillator.connect(gainNode);
-            gainNode.connect(context.destination);
-            oscillator.start();
-            oscillator.stop(context.currentTime + 0.12);
         }
     }
 }

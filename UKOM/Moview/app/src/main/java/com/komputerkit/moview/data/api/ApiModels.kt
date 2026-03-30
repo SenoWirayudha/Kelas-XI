@@ -554,7 +554,7 @@ data class LikedReviewDto(
     val user_id: Int,
     val username: String,
     val display_name: String?,
-    val profile_photo: String,
+    val profile_photo: String?,
     val rating: Float
 )
 

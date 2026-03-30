@@ -5,6 +5,6 @@ data class LikedReview(
     val userId: Int,
     val username: String,
     val displayName: String?,
-    val profilePhoto: String,
+    val profilePhoto: String?,
     val rating: Float
 )

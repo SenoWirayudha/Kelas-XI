@@ -1,5 +1,7 @@
 package com.komputerkit.moview.ui.reviews
 
+import android.os.Build
+import android.text.Html
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -49,14 +51,14 @@ class ReviewsAdapter(
             } else {
                 binding.tvReviewText.visibility = View.VISIBLE
                 binding.cardSpoilerOverlay.visibility = View.GONE
-                binding.tvReviewText.text = review.content
+                binding.tvReviewText.text = decodeReviewText(review.content)
             }
 
             // Tap spoiler overlay to reveal content
             binding.cardSpoilerOverlay.setOnClickListener {
                 binding.cardSpoilerOverlay.visibility = View.GONE
                 binding.tvReviewText.visibility = View.VISIBLE
-                binding.tvReviewText.text = review.content
+                binding.tvReviewText.text = decodeReviewText(review.content)
             }
             
             // Load user avatar
@@ -78,6 +80,24 @@ class ReviewsAdapter(
             binding.tvUsername.setOnClickListener {
                 onUserClick?.invoke(review.userId)
             }
+        }
+
+        private fun decodeReviewText(raw: String): CharSequence {
+            // Decode once/twice to handle both "&#128512;" and "&amp;#128512;" payloads.
+            var decoded = raw
+            repeat(2) {
+                val next = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    Html.fromHtml(decoded, Html.FROM_HTML_MODE_COMPACT).toString()
+                } else {
+                    @Suppress("DEPRECATION")
+                    Html.fromHtml(decoded).toString()
+                }
+                if (next == decoded) {
+                    return decoded
+                }
+                decoded = next
+            }
+            return decoded
         }
     }
 

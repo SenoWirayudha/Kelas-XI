@@ -118,28 +118,15 @@ class FilmGridAdapter(
                 return
             }
             
-            // Show all stars
-            stars.forEach { star ->
-                star.visibility = View.VISIBLE
-            }
-            
-            // Round to nearest 0.5 for display
-            val roundedRating = (rating * 2).toInt() / 2f
-            
+            val fullStars = rating.toInt().coerceIn(0, 5)
+
             stars.forEachIndexed { index, star ->
-                val starPosition = index + 1
-                if (roundedRating >= starPosition) {
-                    // Full star
+                if (index < fullStars) {
                     star.setImageResource(com.komputerkit.moview.R.drawable.ic_star_filled)
-                } else if (roundedRating >= starPosition - 0.5f) {
-                    // Half star - use filled star but could create half-star drawable
-                    // For now, we'll just show outline for half stars
-                    star.setImageResource(com.komputerkit.moview.R.drawable.ic_star_outline)
-                    star.alpha = 0.5f
+                    star.alpha = 1f
+                    star.visibility = View.VISIBLE
                 } else {
-                    // Empty star
-                    star.setImageResource(com.komputerkit.moview.R.drawable.ic_star_outline)
-                    star.alpha = 0.3f
+                    star.visibility = View.GONE
                 }
             }
         }

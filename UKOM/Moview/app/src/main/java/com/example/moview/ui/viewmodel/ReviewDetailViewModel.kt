@@ -183,9 +183,10 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
     private fun loadLikedReviewsSection(currentUserId: Int, reviewUserId: Int, movieId: Int, currentReviewId: Int, isCurrentUserLikedReview: Boolean) {
         viewModelScope.launch {
             try {
-                val isOwnReview = currentUserId == reviewUserId
+                val effectiveCurrentUserId = if (currentUserId > 0) currentUserId else reviewUserId
+                val isOwnReview = effectiveCurrentUserId == reviewUserId
                 
-                android.util.Log.d("ReviewDetailViewModel", "loadLikedReviewsSection: currentUserId=$currentUserId, reviewUserId=$reviewUserId, movieId=$movieId, currentReviewId=$currentReviewId, isLiked=$isCurrentUserLikedReview, isOwnReview=$isOwnReview")
+                android.util.Log.d("ReviewDetailViewModel", "loadLikedReviewsSection: currentUserId=$currentUserId, effectiveCurrentUserId=$effectiveCurrentUserId, reviewUserId=$reviewUserId, movieId=$movieId, currentReviewId=$currentReviewId, isLiked=$isCurrentUserLikedReview, isOwnReview=$isOwnReview")
                 
                 // Logic:
                 // 1. Own review: Show "YOU LIKED" if user has liked other reviews for this movie
@@ -193,7 +194,7 @@ class ReviewDetailViewModel(application: Application) : AndroidViewModel(applica
                 
                 if (isOwnReview) {
                     // This is user's own review - show "YOU LIKED" section
-                    val likedReviews = repository.getLikedReviewsForMovie(currentUserId, movieId)
+                    val likedReviews = repository.getLikedReviewsForMovie(effectiveCurrentUserId, movieId)
                     
                     // Filter out the current review if it somehow appears
                     val filteredReviews = likedReviews.filter { it.reviewId != currentReviewId }

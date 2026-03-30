@@ -59,16 +59,11 @@ class LikedReviewAdapter(
                 binding.star4,
                 binding.star5
             )
-            
-            val fullStars = rating.toInt()
-            val hasHalfStar = (rating - fullStars) >= 0.5f
-            
+
+            val fullStars = rating.toInt().coerceIn(0, 5)
+
             stars.forEachIndexed { index, star ->
-                star.visibility = when {
-                    index < fullStars -> View.VISIBLE
-                    index == fullStars && hasHalfStar -> View.VISIBLE
-                    else -> View.INVISIBLE
-                }
+                star.visibility = if (index < fullStars) View.VISIBLE else View.GONE
             }
         }
     }

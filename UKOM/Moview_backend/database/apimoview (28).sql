@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 28 Mar 2026 pada 16.53
+-- Waktu pembuatan: 30 Mar 2026 pada 12.02
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -69,7 +69,8 @@ INSERT INTO `cinemas` (`id`, `service_id`, `cinema_name`, `city`, `address`, `cr
 (1, 9, 'Ciplaz Sidoarjo XXI', 'Sidoarjo', 'City Plaza Sidoarjo Lt.2 Jln. Diponegoro No. 2 Sidoarjo - Jawa Timur', '2026-03-12 04:40:08', '2026-03-12 04:40:08'),
 (2, 12, 'Lippo Plaza Sidoarjo Cinepolis', 'Sidoarjo', 'Lippo Plaza Sidoarjo Lt. 1 Jl. Jati Raya No. 1 Jati,  kec. Sidoarjo, Jawa Timur , Sidoarjo', '2026-03-14 10:30:09', '2026-03-14 10:30:09'),
 (3, 9, 'Transmart Sidoarjo XXI', 'Sidoarjo', 'Transmart Sidoarjo Lt. 3, Jl. Raya Taman Tiara No. 35', '2026-03-17 10:13:49', '2026-03-17 10:13:49'),
-(5, 9, 'Pakuwon Mall IMAX', 'Surabaya', 'Pakuwon Mall LT. 2m JL. Puncak Indah Lontar No. 2 Surabaya', '2026-03-27 12:19:18', '2026-03-27 12:19:18');
+(5, 9, 'Pakuwon Mall IMAX', 'Surabaya', 'Pakuwon Mall LT. 2m JL. Puncak Indah Lontar No. 2 Surabaya', '2026-03-27 12:19:18', '2026-03-27 12:19:18'),
+(6, 9, 'Tunjungan 3 XXI', 'Surabaya', 'Tunjungan Plaza 3 Lt. 5', '2026-03-30 08:05:02', '2026-03-30 08:05:02');
 
 -- --------------------------------------------------------
 
@@ -171,7 +172,11 @@ INSERT INTO `diaries` (`id`, `user_id`, `film_id`, `review_id`, `watched_at`, `r
 (42, 5, 46, 31, '2026-03-10', 5, 1, 'I love it', 1, '2026-03-10 03:05:46', '2026-03-10 03:05:46'),
 (43, 5, 14, 32, '2026-03-10', 5, 1, 'Ate', 1, '2026-03-10 03:59:14', '2026-03-10 03:59:14'),
 (44, 5, 14, NULL, '2026-03-10', 5, 1, 'Watched this film', 1, '2026-03-10 05:05:22', '2026-03-10 05:05:22'),
-(45, 5, 5, 33, '2026-03-10', 5, 1, 'Like dreamyyy', 0, '2026-03-10 06:01:55', '2026-03-10 06:01:55');
+(45, 5, 5, 33, '2026-03-10', 5, 1, 'Like dreamyyy', 0, '2026-03-10 06:01:55', '2026-03-10 06:01:55'),
+(46, 5, 38, 34, '2026-03-30', 4, 0, 'Bener bener ya &#128557;&#128557;', 0, '2026-03-30 08:47:10', '2026-03-30 08:47:10'),
+(47, 5, 6, 35, '2026-03-30', 5, 1, 'i love so much this ending &#10084;&#10084;', 0, '2026-03-30 08:48:39', '2026-03-30 08:48:39'),
+(48, 5, 48, 36, '2026-03-30', 5, 0, 'Beavernya lucu lucu', 0, '2026-03-30 08:53:15', '2026-03-30 08:53:15'),
+(49, 5, 16, 37, '2026-03-30', 4, 0, 'ngantuk', 0, '2026-03-30 08:54:17', '2026-03-30 08:54:17');
 
 -- --------------------------------------------------------
 
@@ -214,7 +219,8 @@ INSERT INTO `followers` (`id`, `user_id`, `follower_id`, `created_at`, `updated_
 (8, 5, 6, '2026-02-28 03:11:08', '2026-02-28 03:11:08'),
 (10, 6, 5, '2026-02-28 08:32:26', '2026-02-28 08:32:26'),
 (11, 6, 3, '2026-03-07 08:39:11', '2026-03-07 08:39:11'),
-(12, 9, 10, '2026-03-18 10:07:25', '2026-03-18 10:07:25');
+(12, 9, 10, '2026-03-18 10:07:25', '2026-03-18 10:07:25'),
+(13, 9, 5, '2026-03-30 09:00:17', '2026-03-30 09:00:17');
 
 -- --------------------------------------------------------
 
@@ -432,7 +438,7 @@ INSERT INTO `movies` (`id`, `title`, `release_year`, `duration`, `age_rating`, `
 (58, 'Train Dreams', '2025', 102, 'PG-13', 'Seorang penebang kayu menjalani kehidupan yang bersahaja sambil merasakan cinta dan kehilangan selama era perubahan besar di Amerika pada awal abad ke-20.', 'movies/58/poster/6TZOf0CctRYmBc75XiH10AnwmWQm6rJrwEkEUxVz.webp', 'movies/58/backdrop/1YZCt6EFJwt1jK1qZZzqtNLb9NHETlPf8PjnhBhA.webp', 'https://youtu.be/_Nk8TrBHOrA?si=3B5067hrK8MPmuU7', 'published', '2026-03-06 08:42:39', '2026-03-06 08:44:55'),
 (59, 'Project Y', '2025', 109, 'R', 'TWO WOMEN. ONE HEIST. ZERO REGRETS.\r\n\r\nTrapped in Gangnam\'s most dangerous streets, Mi-sun and Do-kyung stake everything on one last desperate gamble—only to uncover a hidden stash of dirty cash and gold that could finally buy their freedom.', 'movies/59/poster/XP5qdlLTbWiMb4c9A3AMo5IUoGSW0T6IinosCJrs.webp', 'movies/59/backdrop/sjeRUBwAiaoEWVbRTThjDKjzxppaTgjsbw51ndVN.webp', 'https://youtu.be/7eHRUPxUeNk?si=ZTrOU8F5SxB3J0gQ', 'published', '2026-03-06 09:08:50', '2026-03-06 09:11:38'),
 (60, 'Minions & Monsters', '2026', NULL, 'Not Rated', 'HOLLYWOOD HAS A MONSTER PROBLEM.\r\n\r\nThis is the rambunctious, ridiculous and totally true story of how the Minions conquered Hollywood, became movie stars, lost everything, unleashed monsters onto the world and then banded together to try and save the planet from the mayhem they had just created.', 'movies/60/poster/OoeeHR1tzAje20KfJRrVJP9cF4kbF8RpGWM5BlJg.webp', 'movies/60/backdrop/PVThcJigOlF6uv0VnDbSU1uDlO28IhCHekHA9r9j.webp', 'https://youtu.be/ZSdOwt-G49w?si=7UBhTQgI-SgdGarC', 'published', '2026-03-07 05:18:58', '2026-03-07 05:20:49'),
-(61, 'Dune: Part Three', '2026', NULL, 'Not Rated', 'The third and final installment in Villeneuve\'s Dune trilogy. Based on Frank Herbert\'s novel Dune Messiah.', 'movies/61/poster/Lk5Wa08YBZfVWZpIisfstX9cSJZAAQN20k1De2k2.webp', 'movies/61/backdrop/nufKVfJZcmPFFvW2ECn44BSIBTNsArmxHQv4sXyv.webp', NULL, 'published', '2026-03-07 07:58:36', '2026-03-28 11:19:58'),
+(61, 'Dune: Part Three', '2026', NULL, 'Not Rated', 'The third and final installment in Villeneuve\'s Dune trilogy. Based on Frank Herbert\'s novel Dune Messiah.', 'movies/61/poster/Lk5Wa08YBZfVWZpIisfstX9cSJZAAQN20k1De2k2.webp', 'movies/61/backdrop/nufKVfJZcmPFFvW2ECn44BSIBTNsArmxHQv4sXyv.webp', 'https://youtu.be/3_9vCamtuPY?si=FZHyedVGBHDJNmfw', 'published', '2026-03-07 07:58:36', '2026-03-30 09:55:08'),
 (62, 'Laut Bercerita', '2026', NULL, 'Not Rated', 'Plot under wraps.', 'movies/62/poster/MjFAk1WG9YyhrLo9FHfQqzWT6eJXup0k9cDQKv8Y.webp', 'movies/62/backdrop/7BSaYt4ZKsnb8YZaReLxVRDX77aYlTrVRRuAHiNQ.webp', 'https://youtu.be/oLdbnzuuGA4?si=QUZZycCJEpwjmIr6', 'published', '2026-03-07 23:32:04', '2026-03-07 23:34:11'),
 (63, 'In the Mood for Love', '2000', 99, 'PG', 'FEEL THE HEAT, KEEP THE FEELING BURNING, LET THE SENSATION EXPLODE.\r\n\r\nTwo neighbors form a strong bond after both suspect extramarital activities of their spouses. However, they agree to keep their bond platonic so as not to commit similar wrongs.', 'movies/63/poster/My9U2eLJupjK5pUsuYTYthze0y7i89rGnmDOI3mx.webp', 'movies/63/backdrop/0y9HwV5zOGfAWtSSUfTFK8HWo5dSmcKSFGrxl4FD.webp', 'https://youtu.be/m8GuedsQnWQ?si=PkBBnsr19pbEz334', 'published', '2026-03-07 23:57:07', '2026-03-08 00:02:08'),
 (64, 'Fallen Angels', '1995', 98, 'Not Rated', 'THE NIGHT\'S FULL OF WEIRDOS.\r\n\r\nAn assassin goes through obstacles as he attempts to escape his violent lifestyle despite the opposition of his partner, who is secretly attracted to him.', 'movies/64/poster/XqmqD5dNgzXCHf7lNAZRtUIw82hNhcIJryiV0LNW.webp', 'movies/64/backdrop/CeCPOU5MO8PCqPZ37p4Cm39md4PjL3V0YakSh06f.webp', 'https://youtu.be/uxaT19BlH0M?si=SkF3-aysgcDouAwc', 'published', '2026-03-08 00:04:52', '2026-03-08 00:06:16'),
@@ -939,7 +945,10 @@ INSERT INTO `movie_likes` (`id`, `user_id`, `film_id`, `created_at`) VALUES
 (33, 9, 4, '2026-03-17 11:58:32'),
 (34, 9, 70, '2026-03-17 12:14:24'),
 (35, 9, 67, '2026-03-18 10:08:50'),
-(36, 9, 66, '2026-03-18 10:09:01');
+(36, 9, 66, '2026-03-18 10:09:01'),
+(37, 5, 6, '2026-03-30 08:48:22'),
+(38, 5, 35, '2026-03-30 09:09:09'),
+(39, 5, 4, '2026-03-30 10:00:44');
 
 -- --------------------------------------------------------
 
@@ -1322,7 +1331,10 @@ INSERT INTO `movie_media` (`id`, `movie_id`, `media_type`, `media_path`, `is_def
 (364, 5, 'poster', 'movies/5/poster/vq5l9LOvaCwH4tjk5dNiJ6BsC8FB0FFOrJncDsX9.webp', 0, '2026-03-27 14:07:49'),
 (365, 61, 'poster', 'movies/61/poster/CEN9x5CGdlHtDdCLrw7KXXPHQRgLwkqsIRRI135Z.webp', 0, '2026-03-28 11:19:35'),
 (366, 61, 'poster', 'movies/61/poster/Lk5Wa08YBZfVWZpIisfstX9cSJZAAQN20k1De2k2.webp', 1, '2026-03-28 11:19:40'),
-(367, 61, 'backdrop', 'movies/61/backdrop/nufKVfJZcmPFFvW2ECn44BSIBTNsArmxHQv4sXyv.webp', 1, '2026-03-28 11:19:51');
+(367, 61, 'backdrop', 'movies/61/backdrop/nufKVfJZcmPFFvW2ECn44BSIBTNsArmxHQv4sXyv.webp', 1, '2026-03-28 11:19:51'),
+(368, 35, 'poster', 'movies/35/poster/e4HfAMBbw6T0w8fJMvlEImkYSiUsqQpkHiTEsb7O.webp', 0, '2026-03-30 09:07:06'),
+(369, 35, 'poster', 'movies/35/poster/gphICS95HPZUJ0hQg2xWRmijoTom3UTS5yXD24Gh.webp', 0, '2026-03-30 09:07:12'),
+(370, 35, 'poster', 'movies/35/poster/dzzIWaVAyBpUUnKmLwysQz1lTm5IM0YLM9pamy5Q.webp', 0, '2026-03-30 09:07:17');
 
 -- --------------------------------------------------------
 
@@ -1674,9 +1686,6 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (299, 60, 9, 'stream', NULL, 1),
 (300, 60, 10, 'stream', NULL, 1),
 (301, 60, 12, 'stream', NULL, 1),
-(305, 61, 9, 'stream', NULL, 1),
-(306, 61, 10, 'stream', NULL, 1),
-(307, 61, 12, 'stream', NULL, 1),
 (314, 62, 9, 'stream', NULL, 1),
 (315, 62, 10, 'stream', NULL, 1),
 (316, 62, 12, 'stream', NULL, 1),
@@ -1697,7 +1706,10 @@ INSERT INTO `movie_services` (`id`, `movie_id`, `service_id`, `availability_type
 (364, 52, 12, 'stream', NULL, 0),
 (368, 73, 9, 'stream', NULL, 0),
 (369, 73, 10, 'stream', NULL, 0),
-(370, 73, 12, 'stream', NULL, 0);
+(370, 73, 12, 'stream', NULL, 0),
+(371, 61, 9, 'stream', NULL, 0),
+(372, 61, 10, 'stream', NULL, 0),
+(373, 61, 12, 'stream', NULL, 0);
 
 -- --------------------------------------------------------
 
@@ -1748,7 +1760,11 @@ INSERT INTO `notifications` (`id`, `user_id`, `actor_id`, `type`, `film_id`, `re
 (23, 6, 5, 'like_review', 6, 30, 'Banda Neira liked your ★★★★★ review of Sore: Istri Dari Masa Depan', 0, '2026-03-10 19:00:42', '2026-03-10 19:00:42'),
 (24, 3, 5, 'like_review', 34, 16, 'Banda Neira liked your ★★★★ review of Sirāt', 0, '2026-03-10 19:56:43', '2026-03-10 19:56:43'),
 (25, 3, 5, 'like_review', 34, 16, 'Banda Neira liked your ★★★★ review of Sirāt', 0, '2026-03-10 19:56:44', '2026-03-10 19:56:44'),
-(26, 9, 10, 'follow', NULL, NULL, 'sen wir followed you', 1, '2026-03-18 10:07:25', '2026-03-18 10:07:25');
+(26, 9, 10, 'follow', NULL, NULL, 'sen wir followed you', 1, '2026-03-18 10:07:25', '2026-03-18 10:07:25'),
+(27, 3, 5, 'like_review', 6, 10, 'Sen liked your ★★★★★ review of Sore: Istri Dari Masa Depan', 0, '2026-03-30 08:48:12', '2026-03-30 08:48:12'),
+(28, 6, 5, 'like_review', 48, 29, 'Sen liked your ★★★★ review of Hoppers', 0, '2026-03-30 08:53:25', '2026-03-30 08:53:25'),
+(29, 3, 5, 'like_review', 16, 12, 'Sen liked your ★★★★★ review of The Secret Agent', 0, '2026-03-30 08:54:41', '2026-03-30 08:54:41'),
+(30, 9, 5, 'follow', NULL, NULL, 'Sen followed you', 0, '2026-03-30 09:00:17', '2026-03-30 09:00:17');
 
 -- --------------------------------------------------------
 
@@ -1808,7 +1824,15 @@ INSERT INTO `orders` (`id`, `schedule_id`, `user_id`, `order_code`, `ticket_code
 (35, 17, 5, 'ORD-20260328222817-7GLXXF', 'MOV-EI0UCR', 49000, 'cancelled', 0, NULL, '2026-03-28 15:43:35', '2026-03-28 15:28:17'),
 (36, 17, 5, 'ORD-20260328223025-ANUXY5', 'MOV-TVFZU7', 49000, 'cancelled', 0, NULL, '2026-03-28 15:43:35', '2026-03-28 15:30:25'),
 (37, 17, 5, 'ORD-20260328224335-WFROBO', 'MOV-TZZI5X', 98000, 'paid', 0, NULL, '2026-03-28 15:44:40', '2026-03-28 15:43:35'),
-(38, 17, 5, 'ORD-20260328225032-GP7DDM', 'MOV-USOPU9', 98000, 'paid', 0, NULL, '2026-03-28 15:50:58', '2026-03-28 15:50:32');
+(38, 17, 5, 'ORD-20260328225032-GP7DDM', 'MOV-USOPU9', 98000, 'paid', 0, NULL, '2026-03-28 15:50:58', '2026-03-28 15:50:32'),
+(39, 19, 5, 'ORD-20260330150850-5UM1NU', 'MOV-VW5NFE', 196000, 'cancelled', 0, NULL, '2026-03-30 08:26:17', '2026-03-30 08:08:51'),
+(40, 19, 5, 'ORD-20260330151008-XIQKNY', 'MOV-IS2GVD', 196000, 'cancelled', 0, NULL, '2026-03-30 08:26:17', '2026-03-30 08:10:08'),
+(41, 19, 5, 'ORD-20260330152627-15QD4T', 'MOV-GYZ7H5', 196000, 'cancelled', 0, NULL, '2026-03-30 08:37:54', '2026-03-30 08:26:27'),
+(42, 19, 5, 'ORD-20260330152748-TTQSR7', 'MOV-G6EWXW', 98000, 'cancelled', 0, NULL, '2026-03-30 08:37:54', '2026-03-30 08:27:48'),
+(43, 18, 5, 'ORD-20260330153809-0RPNIF', 'MOV-MBFOM4', 156000, 'cancelled', 0, NULL, '2026-03-30 08:45:24', '2026-03-30 08:38:09'),
+(44, 19, 5, 'ORD-20260330154132-ELDWJP', 'MOV-HCYTXG', 98000, 'cancelled', 0, NULL, '2026-03-30 09:46:41', '2026-03-30 08:41:32'),
+(45, 19, 5, 'ORD-20260330154530-LBHFMZ', 'MOV-N86DV0', 49000, 'cancelled', 0, NULL, '2026-03-30 09:46:41', '2026-03-30 08:45:30'),
+(46, 19, 5, 'ORD-20260330164650-URMPYS', 'MOV-3F3ILQ', 196000, 'paid', 1, '2026-03-30 16:53:46', '2026-03-30 09:53:46', '2026-03-30 09:46:50');
 
 -- --------------------------------------------------------
 
@@ -1871,7 +1895,32 @@ INSERT INTO `order_seats` (`id`, `order_id`, `seat_id`, `schedule_id`, `price`) 
 (44, 37, 2527, 17, 45000),
 (45, 37, 2528, 17, 45000),
 (46, 38, 2526, 17, 45000),
-(47, 38, 2542, 17, 45000);
+(47, 38, 2542, 17, 45000),
+(48, 39, 5709, 19, 45000),
+(49, 39, 5710, 19, 45000),
+(50, 39, 5711, 19, 45000),
+(51, 39, 5712, 19, 45000),
+(52, 40, 5729, 19, 45000),
+(53, 40, 5730, 19, 45000),
+(54, 40, 5731, 19, 45000),
+(55, 40, 5732, 19, 45000),
+(56, 41, 5709, 19, 45000),
+(57, 41, 5710, 19, 45000),
+(58, 41, 5711, 19, 45000),
+(59, 41, 5712, 19, 45000),
+(60, 42, 5730, 19, 45000),
+(61, 42, 5731, 19, 45000),
+(62, 43, 5241, 18, 35000),
+(63, 43, 5242, 18, 35000),
+(64, 43, 5243, 18, 35000),
+(65, 43, 5244, 18, 35000),
+(66, 44, 5710, 19, 45000),
+(67, 44, 5711, 19, 45000),
+(68, 45, 5705, 19, 45000),
+(69, 46, 5709, 19, 45000),
+(70, 46, 5710, 19, 45000),
+(71, 46, 5711, 19, 45000),
+(72, 46, 5712, 19, 45000);
 
 -- --------------------------------------------------------
 
@@ -1931,7 +1980,15 @@ INSERT INTO `payments` (`id`, `order_id`, `midtrans_transaction_id`, `midtrans_o
 (31, 35, '248f3599-0e7e-4482-aa0d-af7d0bf2acde', 'ORD-20260328222817-7GLXXF', 'shopeepay', 'expire', 'accept', 49000, '2026-03-28 15:43:35', '{\"status_code\":\"201\",\"transaction_id\":\"248f3599-0e7e-4482-aa0d-af7d0bf2acde\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328222817-7GLXXF\",\"payment_type\":\"shopeepay\",\"signature_key\":\"85f1b7b7d2226ef33641f4abfd4cc71175eed2bb42505f681369dc0ab951ce662b24718f99c5f97a14700616196e1c6903ec3d496e51b3ca6e3a7a9236f8f51f\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"reference_id\":\"A120260328152825Cj0b9LZj7pID-1\",\"transaction_time\":\"2026-03-28 22:28:25\",\"expiry_time\":\"2026-03-28 22:43:25\",\"actions\":[{\"name\":\"deeplink-redirect\",\"method\":\"GET\",\"url\":\"https:\\/\\/simulator.sandbox.midtrans.com\\/shopeepay\\/payment-pin?referenceId=A120260328152825Cj0b9LZj7pID-1\"}]}', '2026-03-28 15:28:20'),
 (32, 36, '24bf62bb-1a43-4ef0-8e85-a66be42d2dcc', 'ORD-20260328223025-ANUXY5', 'shopeepay', 'expire', 'accept', 49000, '2026-03-28 15:43:35', '{\"status_code\":\"201\",\"transaction_id\":\"24bf62bb-1a43-4ef0-8e85-a66be42d2dcc\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328223025-ANUXY5\",\"payment_type\":\"shopeepay\",\"signature_key\":\"4f66a2d683ae2c5cb6c840781627afa52eaab4a23e98df25ed7a7d66a1f31010b945a60c169a2745f97802121028b5c6adf82dccb07f130b93cd68a0d6eac94d\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"reference_id\":\"A120260328153035EA1BAtoQkYID-1\",\"transaction_time\":\"2026-03-28 22:30:35\",\"expiry_time\":\"2026-03-28 22:45:35\",\"actions\":[{\"name\":\"deeplink-redirect\",\"method\":\"GET\",\"url\":\"https:\\/\\/simulator.sandbox.midtrans.com\\/shopeepay\\/payment-pin?referenceId=A120260328153035EA1BAtoQkYID-1\"}]}', '2026-03-28 15:30:26'),
 (33, 37, '8fa516c7-69be-4e87-9f05-5214473c3b2e', 'ORD-20260328224335-WFROBO', 'gopay', 'settlement', 'accept', 98000, '2026-03-28 15:44:40', '{\"status_code\":\"200\",\"transaction_id\":\"8fa516c7-69be-4e87-9f05-5214473c3b2e\",\"gross_amount\":\"98000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328224335-WFROBO\",\"payment_type\":\"gopay\",\"signature_key\":\"309e84fbc012c2c62be9ac254a254e9ef694af53791b8876c3297b4df01b44c84a1afd783069ac567a2c9e769c13523bc59f56df0773da23ee7ba62449a14191\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"transaction_time\":\"2026-03-28 22:44:27\",\"settlement_time\":\"2026-03-28 22:44:32\",\"expiry_time\":\"2026-03-28 22:59:27\"}', '2026-03-28 15:43:36'),
-(34, 38, 'ae7a8681-052e-429c-91e5-074571d1b76f', 'ORD-20260328225032-GP7DDM', 'gopay', 'settlement', 'accept', 98000, '2026-03-28 15:50:58', '{\"status_code\":\"200\",\"transaction_id\":\"ae7a8681-052e-429c-91e5-074571d1b76f\",\"gross_amount\":\"98000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328225032-GP7DDM\",\"payment_type\":\"gopay\",\"signature_key\":\"53428fc8b84db9b5f2414cdf1c30baa24a2e12c27280f9fb75c6686a34f7997a5502865a64ae3c0d005076145f2979ebeae064a0945a91c707e3a4aaed9d0df3\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"transaction_time\":\"2026-03-28 22:50:40\",\"settlement_time\":\"2026-03-28 22:50:51\",\"expiry_time\":\"2026-03-28 23:05:40\"}', '2026-03-28 15:50:35');
+(34, 38, 'ae7a8681-052e-429c-91e5-074571d1b76f', 'ORD-20260328225032-GP7DDM', 'gopay', 'settlement', 'accept', 98000, '2026-03-28 15:50:58', '{\"status_code\":\"200\",\"transaction_id\":\"ae7a8681-052e-429c-91e5-074571d1b76f\",\"gross_amount\":\"98000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260328225032-GP7DDM\",\"payment_type\":\"gopay\",\"signature_key\":\"53428fc8b84db9b5f2414cdf1c30baa24a2e12c27280f9fb75c6686a34f7997a5502865a64ae3c0d005076145f2979ebeae064a0945a91c707e3a4aaed9d0df3\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":17},\"transaction_time\":\"2026-03-28 22:50:40\",\"settlement_time\":\"2026-03-28 22:50:51\",\"expiry_time\":\"2026-03-28 23:05:40\"}', '2026-03-28 15:50:35'),
+(35, 39, '4b9ec687-7e75-4a8c-a3b4-430e400ade5a', 'ORD-20260330150850-5UM1NU', 'gopay', 'expire', 'accept', 196000, '2026-03-30 08:26:17', '{\"status_code\":\"201\",\"transaction_id\":\"4b9ec687-7e75-4a8c-a3b4-430e400ade5a\",\"gross_amount\":\"196000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260330150850-5UM1NU\",\"payment_type\":\"gopay\",\"signature_key\":\"c0096b05cd6dabef5f0a9bf16c45d2148caaa05a568d770becf3859164695f9183305f7269bf5fc030a5262ada7e304120dbb02cb892d5505c3ba78585235608\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":19},\"transaction_time\":\"2026-03-30 15:09:11\",\"expiry_time\":\"2026-03-30 15:24:01\"}', '2026-03-30 08:08:56'),
+(36, 40, NULL, 'ORD-20260330151008-XIQKNY', NULL, 'expire', NULL, 196000, '2026-03-30 08:26:17', '{\"token\":\"f4bb63ee-032b-4c3a-a006-f3a5d1faedf9\",\"redirect_url\":\"https:\\/\\/app.sandbox.midtrans.com\\/snap\\/v4\\/redirection\\/f4bb63ee-032b-4c3a-a006-f3a5d1faedf9\"}', '2026-03-30 08:10:10'),
+(37, 41, NULL, 'ORD-20260330152627-15QD4T', NULL, 'expire', NULL, 196000, '2026-03-30 08:37:54', '{\"status_code\":\"404\",\"status_message\":\"Transaction doesn\'t exist.\",\"id\":\"622a07ed-d5ac-4a10-9b05-c5344c1b0f02\"}', '2026-03-30 08:26:32'),
+(38, 42, NULL, 'ORD-20260330152748-TTQSR7', NULL, 'expire', NULL, 98000, '2026-03-30 08:37:54', '{\"status_code\":\"404\",\"status_message\":\"Transaction doesn\'t exist.\",\"id\":\"73cdca48-80e1-4e56-9718-de124fb4974f\"}', '2026-03-30 08:27:50'),
+(39, 43, NULL, 'ORD-20260330153809-0RPNIF', NULL, 'expire', NULL, 156000, '2026-03-30 08:45:24', '{\"status_code\":\"404\",\"status_message\":\"Transaction doesn\'t exist.\",\"id\":\"2c031a9a-7c79-4a20-be67-403b00598749\"}', '2026-03-30 08:38:10'),
+(40, 44, NULL, 'ORD-20260330154132-ELDWJP', NULL, 'expire', NULL, 98000, '2026-03-30 09:46:41', '{\"token\":\"2923b44e-d17a-4675-b816-0c24e5235281\",\"redirect_url\":\"https:\\/\\/app.sandbox.midtrans.com\\/snap\\/v4\\/redirection\\/2923b44e-d17a-4675-b816-0c24e5235281\"}', '2026-03-30 08:41:36'),
+(41, 45, 'e83c9c43-620e-40cc-b7af-ad1aa70670e4', 'ORD-20260330154530-LBHFMZ', 'gopay', 'expire', 'accept', 49000, '2026-03-30 09:46:41', '{\"status_code\":\"201\",\"transaction_id\":\"e83c9c43-620e-40cc-b7af-ad1aa70670e4\",\"gross_amount\":\"49000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260330154530-LBHFMZ\",\"payment_type\":\"gopay\",\"signature_key\":\"48b43a045457d7ee753e7d8115d8daaf248c4e407a10f6942e2c8fb7df5678eb137286c7d4262d6bcba8f3225c826d53d25d16fb5c4e1a3e22cdd5b9435427f3\",\"transaction_status\":\"pending\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":19},\"transaction_time\":\"2026-03-30 15:45:35\",\"expiry_time\":\"2026-03-30 16:00:35\"}', '2026-03-30 08:45:32'),
+(42, 46, '2eec3e19-cf9f-4a3f-8ba3-c4e75a0e18b7', 'ORD-20260330164650-URMPYS', 'gopay', 'settlement', 'accept', 196000, '2026-03-30 09:47:18', '{\"status_code\":\"200\",\"transaction_id\":\"2eec3e19-cf9f-4a3f-8ba3-c4e75a0e18b7\",\"gross_amount\":\"196000.00\",\"currency\":\"IDR\",\"order_id\":\"ORD-20260330164650-URMPYS\",\"payment_type\":\"gopay\",\"signature_key\":\"7580a5ef486a437ee0629eda9225ac7039169eeede3eebb46e9572f093bc88015d65ef1ae79e1f0c46ea5e67eeab9b4becf948a01625af4bdb42ab82c5a18add\",\"transaction_status\":\"settlement\",\"fraud_status\":\"accept\",\"status_message\":\"Success, transaction is found\",\"merchant_id\":\"M609984068\",\"metadata\":{\"user_id\":5,\"schedule_id\":19},\"transaction_time\":\"2026-03-30 16:46:57\",\"settlement_time\":\"2026-03-30 16:47:08\",\"expiry_time\":\"2026-03-30 17:01:57\"}', '2026-03-30 09:46:52');
 
 -- --------------------------------------------------------
 
@@ -2195,7 +2252,12 @@ INSERT INTO `ratings` (`id`, `user_id`, `film_id`, `rating`, `created_at`, `upda
 (51, 9, 66, 4, '2026-03-18 10:09:00', '2026-03-18 10:09:06'),
 (52, 9, 31, 4, '2026-03-18 10:10:46', '2026-03-18 10:10:46'),
 (53, 5, 38, 4, '2026-03-28 11:20:53', '2026-03-28 11:20:53'),
-(54, 5, 73, 1, '2026-03-28 11:22:09', '2026-03-28 11:22:09');
+(54, 5, 73, 1, '2026-03-28 11:22:09', '2026-03-28 11:22:09'),
+(55, 5, 6, 5, '2026-03-30 08:48:15', '2026-03-30 08:48:15'),
+(56, 5, 48, 5, '2026-03-30 08:53:06', '2026-03-30 08:53:06'),
+(57, 5, 16, 4, '2026-03-30 08:54:07', '2026-03-30 08:54:09'),
+(58, 5, 35, 5, '2026-03-30 09:08:28', '2026-03-30 09:08:28'),
+(59, 5, 4, 5, '2026-03-30 10:00:43', '2026-03-30 10:00:43');
 
 -- --------------------------------------------------------
 
@@ -2253,7 +2315,11 @@ INSERT INTO `reviews` (`id`, `user_id`, `film_id`, `rating`, `title`, `content`,
 (30, 6, 6, 5, NULL, 'Aku sore istri kamu dari masa depan', NULL, 0, 1, 0, '2026-03-08', 'published', '2026-03-08 05:13:01', '2026-03-08 05:13:01'),
 (31, 5, 46, 5, NULL, 'I love it', NULL, 0, 1, 1, '2026-03-10', 'published', '2026-03-10 03:05:45', '2026-03-10 03:05:45'),
 (32, 5, 14, 5, NULL, 'Ate', NULL, 0, 1, 1, '2026-03-10', 'published', '2026-03-10 03:59:14', '2026-03-10 03:59:14'),
-(33, 5, 5, 5, NULL, 'Like dreamyyy', NULL, 0, 1, 0, '2026-03-10', 'published', '2026-03-10 06:01:55', '2026-03-10 06:01:55');
+(33, 5, 5, 5, NULL, 'Like dreamyyy', NULL, 0, 1, 0, '2026-03-10', 'published', '2026-03-10 06:01:55', '2026-03-10 06:01:55'),
+(34, 5, 38, 4, NULL, 'Bener bener ya &#128557;&#128557;', NULL, 0, 0, 0, '2026-03-30', 'published', '2026-03-30 08:47:10', '2026-03-30 08:47:10'),
+(35, 5, 6, 5, NULL, 'i love so much this ending &#10084;&#10084;', NULL, 0, 1, 0, '2026-03-30', 'published', '2026-03-30 08:48:39', '2026-03-30 08:48:39'),
+(36, 5, 48, 5, NULL, 'Beavernya lucu lucu', NULL, 0, 0, 0, '2026-03-30', 'published', '2026-03-30 08:53:15', '2026-03-30 08:53:15'),
+(37, 5, 16, 4, NULL, 'ngantuk', NULL, 0, 0, 0, '2026-03-30', 'published', '2026-03-30 08:54:17', '2026-03-30 08:54:17');
 
 -- --------------------------------------------------------
 
@@ -2298,7 +2364,8 @@ INSERT INTO `review_comments` (`id`, `review_id`, `user_id`, `content`, `parent_
 (26, 25, 5, 'Tes', NULL, 'published', '2026-02-28 08:41:20', '2026-02-28 08:41:20'),
 (27, 25, 5, 'tes', NULL, 'published', '2026-02-28 09:09:08', '2026-02-28 09:09:08'),
 (28, 25, 5, 'tes lagi', NULL, 'published', '2026-02-28 09:09:14', '2026-02-28 09:09:14'),
-(29, 25, 5, 'lagi', 24, 'published', '2026-02-28 09:09:23', '2026-02-28 09:09:23');
+(29, 25, 5, 'lagi', 24, 'published', '2026-02-28 09:09:23', '2026-02-28 09:09:23'),
+(30, 37, 5, 'Sepanjang nonton film ini bawaannya pengen tidur dah', NULL, 'published', '2026-03-30 09:55:43', '2026-03-30 09:55:43');
 
 -- --------------------------------------------------------
 
@@ -2327,7 +2394,10 @@ INSERT INTO `review_likes` (`id`, `review_id`, `user_id`, `created_at`, `updated
 (9, 17, 5, '2026-03-01 03:01:27', '2026-03-01 03:01:27'),
 (10, 26, 6, '2026-03-06 06:05:15', '2026-03-06 06:05:15'),
 (11, 30, 5, '2026-03-10 19:00:42', '2026-03-10 19:00:42'),
-(13, 16, 5, '2026-03-10 19:56:44', '2026-03-10 19:56:44');
+(13, 16, 5, '2026-03-10 19:56:44', '2026-03-10 19:56:44'),
+(14, 10, 5, '2026-03-30 08:48:12', '2026-03-30 08:48:12'),
+(15, 29, 5, '2026-03-30 08:53:25', '2026-03-30 08:53:25'),
+(16, 12, 5, '2026-03-30 08:54:41', '2026-03-30 08:54:41');
 
 -- --------------------------------------------------------
 
@@ -2363,7 +2433,9 @@ INSERT INTO `schedules` (`id`, `movie_id`, `studio_id`, `show_date`, `show_time`
 (14, 73, 13, '2026-03-27', '21:00:00', 55000, 'expired'),
 (15, 73, 13, '2026-03-28', '18:55:00', 55000, 'active'),
 (16, 73, 13, '2026-03-28', '21:00:00', 55000, 'active'),
-(17, 73, 1, '2026-03-28', '21:00:00', 45000, 'active');
+(17, 73, 1, '2026-03-28', '21:00:00', 45000, 'active'),
+(18, 73, 13, '2026-03-30', '18:55:00', 35000, 'active'),
+(19, 51, 14, '2026-04-04', '19:00:00', 45000, 'active');
 
 -- --------------------------------------------------------
 
@@ -4877,7 +4949,227 @@ INSERT INTO `seats` (`id`, `studio_id`, `seat_row`, `seat_number`, `seat_code`, 
 (5697, 13, 'M', 232, '', 'aisle', 32, 12, 0),
 (5698, 13, 'M', 32, 'M32', 'seat', 33, 12, 1),
 (5699, 13, 'M', 33, 'M33', 'seat', 34, 12, 1),
-(5700, 13, 'M', 34, 'M34', 'seat', 35, 12, 1);
+(5700, 13, 'M', 34, 'M34', 'seat', 35, 12, 1),
+(5701, 14, 'A', 1, 'A1', 'seat', 0, 0, 1),
+(5702, 14, 'A', 2, 'A2', 'seat', 1, 0, 1),
+(5703, 14, 'A', 3, 'A3', 'seat', 2, 0, 1),
+(5704, 14, 'A', 4, 'A4', 'seat', 3, 0, 1),
+(5705, 14, 'A', 5, 'A5', 'seat', 4, 0, 1),
+(5706, 14, 'A', 205, '', 'aisle', 5, 0, 0),
+(5707, 14, 'A', 6, 'A6', 'seat', 6, 0, 1),
+(5708, 14, 'A', 7, 'A7', 'seat', 7, 0, 1),
+(5709, 14, 'A', 8, 'A8', 'seat', 8, 0, 1),
+(5710, 14, 'A', 9, 'A9', 'seat', 9, 0, 1),
+(5711, 14, 'A', 10, 'A10', 'seat', 10, 0, 1),
+(5712, 14, 'A', 11, 'A11', 'seat', 11, 0, 1),
+(5713, 14, 'A', 12, 'A12', 'seat', 12, 0, 1),
+(5714, 14, 'A', 13, 'A13', 'seat', 13, 0, 1),
+(5715, 14, 'A', 214, '', 'aisle', 14, 0, 0),
+(5716, 14, 'A', 14, 'A14', 'seat', 15, 0, 1),
+(5717, 14, 'A', 15, 'A15', 'seat', 16, 0, 1),
+(5718, 14, 'A', 16, 'A16', 'seat', 17, 0, 1),
+(5719, 14, 'A', 17, 'A17', 'seat', 18, 0, 1),
+(5720, 14, 'A', 18, 'A18', 'seat', 19, 0, 1),
+(5721, 14, 'B', 1, 'B1', 'seat', 0, 1, 1),
+(5722, 14, 'B', 2, 'B2', 'seat', 1, 1, 1),
+(5723, 14, 'B', 3, 'B3', 'seat', 2, 1, 1),
+(5724, 14, 'B', 4, 'B4', 'seat', 3, 1, 1),
+(5725, 14, 'B', 5, 'B5', 'seat', 4, 1, 1),
+(5726, 14, 'B', 205, '', 'aisle', 5, 1, 0),
+(5727, 14, 'B', 6, 'B6', 'seat', 6, 1, 1),
+(5728, 14, 'B', 7, 'B7', 'seat', 7, 1, 1),
+(5729, 14, 'B', 8, 'B8', 'seat', 8, 1, 1),
+(5730, 14, 'B', 9, 'B9', 'seat', 9, 1, 1),
+(5731, 14, 'B', 10, 'B10', 'seat', 10, 1, 1),
+(5732, 14, 'B', 11, 'B11', 'seat', 11, 1, 1),
+(5733, 14, 'B', 12, 'B12', 'seat', 12, 1, 1),
+(5734, 14, 'B', 13, 'B13', 'seat', 13, 1, 1),
+(5735, 14, 'B', 214, '', 'aisle', 14, 1, 0),
+(5736, 14, 'B', 14, 'B14', 'seat', 15, 1, 1),
+(5737, 14, 'B', 15, 'B15', 'seat', 16, 1, 1),
+(5738, 14, 'B', 16, 'B16', 'seat', 17, 1, 1),
+(5739, 14, 'B', 17, 'B17', 'seat', 18, 1, 1),
+(5740, 14, 'B', 18, 'B18', 'seat', 19, 1, 1),
+(5741, 14, 'C', 1, 'C1', 'seat', 0, 2, 1),
+(5742, 14, 'C', 2, 'C2', 'seat', 1, 2, 1),
+(5743, 14, 'C', 3, 'C3', 'seat', 2, 2, 1),
+(5744, 14, 'C', 4, 'C4', 'seat', 3, 2, 1),
+(5745, 14, 'C', 5, 'C5', 'seat', 4, 2, 1),
+(5746, 14, 'C', 205, '', 'aisle', 5, 2, 0),
+(5747, 14, 'C', 6, 'C6', 'seat', 6, 2, 1),
+(5748, 14, 'C', 7, 'C7', 'seat', 7, 2, 1),
+(5749, 14, 'C', 8, 'C8', 'seat', 8, 2, 1),
+(5750, 14, 'C', 9, 'C9', 'seat', 9, 2, 1),
+(5751, 14, 'C', 10, 'C10', 'seat', 10, 2, 1),
+(5752, 14, 'C', 11, 'C11', 'seat', 11, 2, 1),
+(5753, 14, 'C', 12, 'C12', 'seat', 12, 2, 1),
+(5754, 14, 'C', 13, 'C13', 'seat', 13, 2, 1),
+(5755, 14, 'C', 214, '', 'aisle', 14, 2, 0),
+(5756, 14, 'C', 14, 'C14', 'seat', 15, 2, 1),
+(5757, 14, 'C', 15, 'C15', 'seat', 16, 2, 1),
+(5758, 14, 'C', 16, 'C16', 'seat', 17, 2, 1),
+(5759, 14, 'C', 17, 'C17', 'seat', 18, 2, 1),
+(5760, 14, 'C', 18, 'C18', 'seat', 19, 2, 1),
+(5761, 14, 'D', 1, 'D1', 'seat', 0, 3, 1),
+(5762, 14, 'D', 2, 'D2', 'seat', 1, 3, 1),
+(5763, 14, 'D', 3, 'D3', 'seat', 2, 3, 1),
+(5764, 14, 'D', 4, 'D4', 'seat', 3, 3, 1),
+(5765, 14, 'D', 5, 'D5', 'seat', 4, 3, 1),
+(5766, 14, 'D', 205, '', 'aisle', 5, 3, 0),
+(5767, 14, 'D', 6, 'D6', 'seat', 6, 3, 1),
+(5768, 14, 'D', 7, 'D7', 'seat', 7, 3, 1),
+(5769, 14, 'D', 8, 'D8', 'seat', 8, 3, 1),
+(5770, 14, 'D', 9, 'D9', 'seat', 9, 3, 1),
+(5771, 14, 'D', 10, 'D10', 'seat', 10, 3, 1),
+(5772, 14, 'D', 11, 'D11', 'seat', 11, 3, 1),
+(5773, 14, 'D', 12, 'D12', 'seat', 12, 3, 1),
+(5774, 14, 'D', 13, 'D13', 'seat', 13, 3, 1),
+(5775, 14, 'D', 214, '', 'aisle', 14, 3, 0),
+(5776, 14, 'D', 14, 'D14', 'seat', 15, 3, 1),
+(5777, 14, 'D', 15, 'D15', 'seat', 16, 3, 1),
+(5778, 14, 'D', 16, 'D16', 'seat', 17, 3, 1),
+(5779, 14, 'D', 17, 'D17', 'seat', 18, 3, 1),
+(5780, 14, 'D', 18, 'D18', 'seat', 19, 3, 1),
+(5781, 14, 'E', 1, 'E1', 'seat', 0, 4, 1),
+(5782, 14, 'E', 2, 'E2', 'seat', 1, 4, 1),
+(5783, 14, 'E', 3, 'E3', 'seat', 2, 4, 1),
+(5784, 14, 'E', 4, 'E4', 'seat', 3, 4, 1),
+(5785, 14, 'E', 5, 'E5', 'seat', 4, 4, 1),
+(5786, 14, 'E', 205, '', 'aisle', 5, 4, 0),
+(5787, 14, 'E', 6, 'E6', 'seat', 6, 4, 1),
+(5788, 14, 'E', 7, 'E7', 'seat', 7, 4, 1),
+(5789, 14, 'E', 8, 'E8', 'seat', 8, 4, 1),
+(5790, 14, 'E', 9, 'E9', 'seat', 9, 4, 1),
+(5791, 14, 'E', 10, 'E10', 'seat', 10, 4, 1),
+(5792, 14, 'E', 11, 'E11', 'seat', 11, 4, 1),
+(5793, 14, 'E', 12, 'E12', 'seat', 12, 4, 1),
+(5794, 14, 'E', 13, 'E13', 'seat', 13, 4, 1),
+(5795, 14, 'E', 214, '', 'aisle', 14, 4, 0),
+(5796, 14, 'E', 14, 'E14', 'seat', 15, 4, 1),
+(5797, 14, 'E', 15, 'E15', 'seat', 16, 4, 1),
+(5798, 14, 'E', 16, 'E16', 'seat', 17, 4, 1),
+(5799, 14, 'E', 17, 'E17', 'seat', 18, 4, 1),
+(5800, 14, 'E', 18, 'E18', 'seat', 19, 4, 1),
+(5801, 14, 'F', 1, 'F1', 'seat', 0, 5, 1),
+(5802, 14, 'F', 2, 'F2', 'seat', 1, 5, 1),
+(5803, 14, 'F', 3, 'F3', 'seat', 2, 5, 1),
+(5804, 14, 'F', 4, 'F4', 'seat', 3, 5, 1),
+(5805, 14, 'F', 5, 'F5', 'seat', 4, 5, 1),
+(5806, 14, 'F', 205, '', 'aisle', 5, 5, 0),
+(5807, 14, 'F', 6, 'F6', 'seat', 6, 5, 1),
+(5808, 14, 'F', 7, 'F7', 'seat', 7, 5, 1),
+(5809, 14, 'F', 8, 'F8', 'seat', 8, 5, 1),
+(5810, 14, 'F', 9, 'F9', 'seat', 9, 5, 1),
+(5811, 14, 'F', 10, 'F10', 'seat', 10, 5, 1),
+(5812, 14, 'F', 11, 'F11', 'seat', 11, 5, 1),
+(5813, 14, 'F', 12, 'F12', 'seat', 12, 5, 1),
+(5814, 14, 'F', 13, 'F13', 'seat', 13, 5, 1),
+(5815, 14, 'F', 214, '', 'aisle', 14, 5, 0),
+(5816, 14, 'F', 14, 'F14', 'seat', 15, 5, 1),
+(5817, 14, 'F', 15, 'F15', 'seat', 16, 5, 1),
+(5818, 14, 'F', 16, 'F16', 'seat', 17, 5, 1),
+(5819, 14, 'F', 17, 'F17', 'seat', 18, 5, 1),
+(5820, 14, 'F', 18, 'F18', 'seat', 19, 5, 1),
+(5821, 14, 'G', 1, 'G1', 'seat', 0, 6, 1),
+(5822, 14, 'G', 2, 'G2', 'seat', 1, 6, 1),
+(5823, 14, 'G', 3, 'G3', 'seat', 2, 6, 1),
+(5824, 14, 'G', 4, 'G4', 'seat', 3, 6, 1),
+(5825, 14, 'G', 5, 'G5', 'seat', 4, 6, 1),
+(5826, 14, 'G', 205, '', 'aisle', 5, 6, 0),
+(5827, 14, 'G', 6, 'G6', 'seat', 6, 6, 1),
+(5828, 14, 'G', 7, 'G7', 'seat', 7, 6, 1),
+(5829, 14, 'G', 8, 'G8', 'seat', 8, 6, 1),
+(5830, 14, 'G', 9, 'G9', 'seat', 9, 6, 1),
+(5831, 14, 'G', 10, 'G10', 'seat', 10, 6, 1),
+(5832, 14, 'G', 11, 'G11', 'seat', 11, 6, 1),
+(5833, 14, 'G', 12, 'G12', 'seat', 12, 6, 1),
+(5834, 14, 'G', 13, 'G13', 'seat', 13, 6, 1),
+(5835, 14, 'G', 214, '', 'aisle', 14, 6, 0),
+(5836, 14, 'G', 14, 'G14', 'seat', 15, 6, 1),
+(5837, 14, 'G', 15, 'G15', 'seat', 16, 6, 1),
+(5838, 14, 'G', 16, 'G16', 'seat', 17, 6, 1),
+(5839, 14, 'G', 17, 'G17', 'seat', 18, 6, 1),
+(5840, 14, 'G', 18, 'G18', 'seat', 19, 6, 1),
+(5841, 14, 'H', 1, 'H1', 'seat', 0, 7, 1),
+(5842, 14, 'H', 2, 'H2', 'seat', 1, 7, 1),
+(5843, 14, 'H', 3, 'H3', 'seat', 2, 7, 1),
+(5844, 14, 'H', 4, 'H4', 'seat', 3, 7, 1),
+(5845, 14, 'H', 5, 'H5', 'seat', 4, 7, 1),
+(5846, 14, 'H', 205, '', 'aisle', 5, 7, 0),
+(5847, 14, 'H', 6, 'H6', 'seat', 6, 7, 1),
+(5848, 14, 'H', 7, 'H7', 'seat', 7, 7, 1),
+(5849, 14, 'H', 8, 'H8', 'seat', 8, 7, 1),
+(5850, 14, 'H', 9, 'H9', 'seat', 9, 7, 1),
+(5851, 14, 'H', 10, 'H10', 'seat', 10, 7, 1),
+(5852, 14, 'H', 11, 'H11', 'seat', 11, 7, 1),
+(5853, 14, 'H', 12, 'H12', 'seat', 12, 7, 1),
+(5854, 14, 'H', 13, 'H13', 'seat', 13, 7, 1),
+(5855, 14, 'H', 214, '', 'aisle', 14, 7, 0),
+(5856, 14, 'H', 14, 'H14', 'seat', 15, 7, 1),
+(5857, 14, 'H', 15, 'H15', 'seat', 16, 7, 1),
+(5858, 14, 'H', 16, 'H16', 'seat', 17, 7, 1),
+(5859, 14, 'H', 17, 'H17', 'seat', 18, 7, 1),
+(5860, 14, 'H', 18, 'H18', 'seat', 19, 7, 1),
+(5861, 14, 'I', 1, 'I1', 'seat', 0, 8, 1),
+(5862, 14, 'I', 2, 'I2', 'seat', 1, 8, 1),
+(5863, 14, 'I', 3, 'I3', 'seat', 2, 8, 1),
+(5864, 14, 'I', 4, 'I4', 'seat', 3, 8, 1),
+(5865, 14, 'I', 5, 'I5', 'seat', 4, 8, 1),
+(5866, 14, 'I', 205, '', 'aisle', 5, 8, 0),
+(5867, 14, 'I', 6, 'I6', 'seat', 6, 8, 1),
+(5868, 14, 'I', 7, 'I7', 'seat', 7, 8, 1),
+(5869, 14, 'I', 8, 'I8', 'seat', 8, 8, 1),
+(5870, 14, 'I', 9, 'I9', 'seat', 9, 8, 1),
+(5871, 14, 'I', 10, 'I10', 'seat', 10, 8, 1),
+(5872, 14, 'I', 11, 'I11', 'seat', 11, 8, 1),
+(5873, 14, 'I', 12, 'I12', 'seat', 12, 8, 1),
+(5874, 14, 'I', 13, 'I13', 'seat', 13, 8, 1),
+(5875, 14, 'I', 214, '', 'aisle', 14, 8, 0),
+(5876, 14, 'I', 14, 'I14', 'seat', 15, 8, 1),
+(5877, 14, 'I', 15, 'I15', 'seat', 16, 8, 1),
+(5878, 14, 'I', 16, 'I16', 'seat', 17, 8, 1),
+(5879, 14, 'I', 17, 'I17', 'seat', 18, 8, 1),
+(5880, 14, 'I', 18, 'I18', 'seat', 19, 8, 1),
+(5881, 14, 'J', 1, 'J1', 'seat', 0, 9, 1),
+(5882, 14, 'J', 2, 'J2', 'seat', 1, 9, 1),
+(5883, 14, 'J', 3, 'J3', 'seat', 2, 9, 1),
+(5884, 14, 'J', 4, 'J4', 'seat', 3, 9, 1),
+(5885, 14, 'J', 5, 'J5', 'seat', 4, 9, 1),
+(5886, 14, 'J', 205, '', 'aisle', 5, 9, 0),
+(5887, 14, 'J', 6, 'J6', 'seat', 6, 9, 1),
+(5888, 14, 'J', 7, 'J7', 'seat', 7, 9, 1),
+(5889, 14, 'J', 8, 'J8', 'seat', 8, 9, 1),
+(5890, 14, 'J', 9, 'J9', 'seat', 9, 9, 1),
+(5891, 14, 'J', 10, 'J10', 'seat', 10, 9, 1),
+(5892, 14, 'J', 11, 'J11', 'seat', 11, 9, 1),
+(5893, 14, 'J', 12, 'J12', 'seat', 12, 9, 1),
+(5894, 14, 'J', 13, 'J13', 'seat', 13, 9, 1),
+(5895, 14, 'J', 214, '', 'aisle', 14, 9, 0),
+(5896, 14, 'J', 14, 'J14', 'seat', 15, 9, 1),
+(5897, 14, 'J', 15, 'J15', 'seat', 16, 9, 1),
+(5898, 14, 'J', 16, 'J16', 'seat', 17, 9, 1),
+(5899, 14, 'J', 17, 'J17', 'seat', 18, 9, 1),
+(5900, 14, 'J', 18, 'J18', 'seat', 19, 9, 1),
+(5901, 14, 'K', 1, 'K1', 'seat', 0, 10, 1),
+(5902, 14, 'K', 2, 'K2', 'seat', 1, 10, 1),
+(5903, 14, 'K', 3, 'K3', 'seat', 2, 10, 1),
+(5904, 14, 'K', 4, 'K4', 'seat', 3, 10, 1),
+(5905, 14, 'K', 5, 'K5', 'seat', 4, 10, 1),
+(5906, 14, 'K', 205, '', 'aisle', 5, 10, 0),
+(5907, 14, 'K', 6, 'K6', 'seat', 6, 10, 1),
+(5908, 14, 'K', 7, 'K7', 'seat', 7, 10, 1),
+(5909, 14, 'K', 8, 'K8', 'seat', 8, 10, 1),
+(5910, 14, 'K', 9, 'K9', 'seat', 9, 10, 1),
+(5911, 14, 'K', 10, 'K10', 'seat', 10, 10, 1),
+(5912, 14, 'K', 11, 'K11', 'seat', 11, 10, 1),
+(5913, 14, 'K', 12, 'K12', 'seat', 12, 10, 1),
+(5914, 14, 'K', 13, 'K13', 'seat', 13, 10, 1),
+(5915, 14, 'K', 214, '', 'aisle', 14, 10, 0),
+(5916, 14, 'K', 14, 'K14', 'seat', 15, 10, 1),
+(5917, 14, 'K', 15, 'K15', 'seat', 16, 10, 1),
+(5918, 14, 'K', 16, 'K16', 'seat', 17, 10, 1),
+(5919, 14, 'K', 17, 'K17', 'seat', 18, 10, 1),
+(5920, 14, 'K', 18, 'K18', 'seat', 19, 10, 1);
 
 -- --------------------------------------------------------
 
@@ -4943,7 +5235,8 @@ INSERT INTO `studios` (`id`, `cinema_id`, `studio_name`, `studio_type`, `total_s
 (10, 3, 'Studio 4', '2D', 132, '2026-03-17 10:25:47'),
 (11, 3, 'Studio 2', '2D', 162, '2026-03-17 10:26:49'),
 (12, 3, 'Studio 1', '2D', 146, '2026-03-17 10:28:10'),
-(13, 5, 'Studio 1', 'IMAX', 421, '2026-03-27 12:19:39');
+(13, 5, 'Studio 1', 'IMAX', 421, '2026-03-27 12:19:39'),
+(14, 6, 'Studio 2', '2D', 198, '2026-03-30 08:05:37');
 
 -- --------------------------------------------------------
 
@@ -5007,7 +5300,32 @@ INSERT INTO `tickets` (`id`, `order_id`, `seat_id`, `qr_code`, `is_used`, `creat
 (41, 37, 2527, 'MRX3UYJKZRMH-37-2527', 0, '2026-03-28 15:43:35'),
 (42, 37, 2528, 'IPNFEJD7JXAQ-37-2528', 0, '2026-03-28 15:43:35'),
 (43, 38, 2526, '5OYIO4VPHF4L-38-2526', 0, '2026-03-28 15:50:32'),
-(44, 38, 2542, 'VY3QG6HWKXWP-38-2542', 0, '2026-03-28 15:50:32');
+(44, 38, 2542, 'VY3QG6HWKXWP-38-2542', 0, '2026-03-28 15:50:32'),
+(45, 39, 5709, 'GQ9MLMGHLLRM-39-5709', 0, '2026-03-30 08:08:51'),
+(46, 39, 5710, '1Q95JEJ8D87L-39-5710', 0, '2026-03-30 08:08:51'),
+(47, 39, 5711, 'H0UV6JHJX6MP-39-5711', 0, '2026-03-30 08:08:51'),
+(48, 39, 5712, 'ZMEHJNVSJ9HZ-39-5712', 0, '2026-03-30 08:08:51'),
+(49, 40, 5729, 'XUQAPCRHNSPT-40-5729', 0, '2026-03-30 08:10:08'),
+(50, 40, 5730, 'GACXXOGUCTEO-40-5730', 0, '2026-03-30 08:10:08'),
+(51, 40, 5731, 'TEBXTYENTBD0-40-5731', 0, '2026-03-30 08:10:08'),
+(52, 40, 5732, 'EPB2YOBFISHK-40-5732', 0, '2026-03-30 08:10:08'),
+(53, 41, 5709, 'FFAQRPYIFXYT-41-5709', 0, '2026-03-30 08:26:27'),
+(54, 41, 5710, 'JUKIWKQGVEFT-41-5710', 0, '2026-03-30 08:26:27'),
+(55, 41, 5711, 'PCQKHNA2BKJF-41-5711', 0, '2026-03-30 08:26:27'),
+(56, 41, 5712, 'NM1TKV9BRAGL-41-5712', 0, '2026-03-30 08:26:27'),
+(57, 42, 5730, 'YLDN3BQPGUYJ-42-5730', 0, '2026-03-30 08:27:48'),
+(58, 42, 5731, 'HTFITV6FBRUL-42-5731', 0, '2026-03-30 08:27:48'),
+(59, 43, 5241, 'EUMCXTI3VXAX-43-5241', 0, '2026-03-30 08:38:09'),
+(60, 43, 5242, '10B0YAYYHDMW-43-5242', 0, '2026-03-30 08:38:09'),
+(61, 43, 5243, 'QHJSX0WFVPCR-43-5243', 0, '2026-03-30 08:38:09'),
+(62, 43, 5244, 'LJGFNP0WRP1C-43-5244', 0, '2026-03-30 08:38:09'),
+(63, 44, 5710, 'LN3YAPFKA1BS-44-5710', 0, '2026-03-30 08:41:32'),
+(64, 44, 5711, 'DQXZX3RSTPTM-44-5711', 0, '2026-03-30 08:41:32'),
+(65, 45, 5705, '7VHMAQYSONNI-45-5705', 0, '2026-03-30 08:45:30'),
+(66, 46, 5709, 'BYVFT7N2AIDT-46-5709', 1, '2026-03-30 09:46:50'),
+(67, 46, 5710, 'GWMKEQPVXY2C-46-5710', 1, '2026-03-30 09:46:50'),
+(68, 46, 5711, '2B3GCY7KUSBS-46-5711', 1, '2026-03-30 09:46:50'),
+(69, 46, 5712, 'AMKN1JE59JQ5-46-5712', 1, '2026-03-30 09:46:50');
 
 -- --------------------------------------------------------
 
@@ -5095,7 +5413,12 @@ INSERT INTO `user_activities` (`id`, `user_id`, `type`, `film_id`, `meta`, `crea
 (28, 5, 'like_review', 6, '{\"review_id\":\"30\",\"review_owner_id\":6}', '2026-03-10 19:00:42', '2026-03-10 19:00:42'),
 (29, 5, 'like_review', 34, '{\"review_id\":\"16\",\"review_owner_id\":3}', '2026-03-10 19:56:43', '2026-03-10 19:56:43'),
 (30, 5, 'like_review', 34, '{\"review_id\":\"16\",\"review_owner_id\":3}', '2026-03-10 19:56:44', '2026-03-10 19:56:44'),
-(31, 10, 'follow', NULL, '{\"followed_user_id\":\"9\"}', '2026-03-18 10:07:25', '2026-03-18 10:07:25');
+(31, 10, 'follow', NULL, '{\"followed_user_id\":\"9\"}', '2026-03-18 10:07:25', '2026-03-18 10:07:25'),
+(32, 5, 'like_review', 6, '{\"review_id\":\"10\",\"review_owner_id\":3}', '2026-03-30 08:48:12', '2026-03-30 08:48:12'),
+(33, 5, 'like_review', 48, '{\"review_id\":\"29\",\"review_owner_id\":6}', '2026-03-30 08:53:25', '2026-03-30 08:53:25'),
+(34, 5, 'like_review', 16, '{\"review_id\":\"12\",\"review_owner_id\":3}', '2026-03-30 08:54:41', '2026-03-30 08:54:41'),
+(35, 5, 'follow', NULL, '{\"followed_user_id\":\"9\"}', '2026-03-30 09:00:17', '2026-03-30 09:00:17'),
+(36, 5, 'comment_review', 16, '{\"review_id\":\"37\",\"comment_id\":30,\"review_owner_id\":5}', '2026-03-30 09:55:43', '2026-03-30 09:55:43');
 
 -- --------------------------------------------------------
 
@@ -5177,7 +5500,6 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (75, 5, 53, 302, 'poster', 'films', NULL, NULL, '2026-03-10 17:14:14', '2026-03-10 17:14:14'),
 (76, 5, 66, 307, 'poster', 'films', NULL, NULL, '2026-03-10 17:32:52', '2026-03-10 17:32:52'),
 (77, 5, 67, 315, 'poster', 'films', NULL, NULL, '2026-03-10 17:50:13', '2026-03-10 17:50:13'),
-(78, 5, 4, 322, 'poster', 'favorites', NULL, 477, '2026-03-10 18:07:50', '2026-03-27 14:06:30'),
 (79, 5, 9, 304, 'poster', 'films', NULL, NULL, '2026-03-10 19:16:36', '2026-03-10 19:16:36'),
 (80, 5, 9, 305, 'backdrop', 'films', NULL, NULL, '2026-03-10 19:16:54', '2026-03-10 19:16:54'),
 (81, 5, 69, 274, 'poster', 'films', NULL, NULL, '2026-03-10 19:17:22', '2026-03-10 19:17:22'),
@@ -5196,10 +5518,15 @@ INSERT INTO `user_change_medias` (`id`, `user_id`, `film_id`, `media_id`, `media
 (94, 9, 4, 298, 'poster', 'films', NULL, NULL, '2026-03-17 11:59:25', '2026-03-17 11:59:25'),
 (95, 9, 48, 213, 'poster', 'films', NULL, NULL, '2026-03-17 12:21:27', '2026-03-17 12:21:27'),
 (97, 5, 61, 365, 'poster', 'films', NULL, NULL, '2026-03-27 12:59:19', '2026-03-28 11:20:16'),
-(98, 5, 5, 364, 'poster', 'favorites', NULL, 474, '2026-03-27 13:59:34', '2026-03-27 14:07:58'),
-(99, 5, 5, 356, 'backdrop', 'favorites', NULL, 474, '2026-03-27 14:00:05', '2026-03-27 14:06:30'),
-(100, 5, 69, 270, 'poster', 'favorites', NULL, 475, '2026-03-27 14:06:47', '2026-03-27 14:06:47'),
-(101, 5, 3, 332, 'poster', 'favorites', NULL, 476, '2026-03-27 14:07:00', '2026-03-27 14:07:00');
+(98, 5, 5, 349, 'poster', 'favorites', NULL, 490, '2026-03-27 13:59:34', '2026-03-30 09:07:36'),
+(99, 5, 5, 356, 'backdrop', 'favorites', NULL, 490, '2026-03-27 14:00:05', '2026-03-30 09:07:36'),
+(102, 5, 6, 189, 'poster', 'reviews', 47, NULL, '2026-03-30 08:48:39', '2026-03-30 08:48:39'),
+(103, 5, 6, 176, 'backdrop', 'reviews', 47, NULL, '2026-03-30 08:51:42', '2026-03-30 08:51:42'),
+(104, 5, 48, 212, 'poster', 'reviews', 48, NULL, '2026-03-30 08:53:15', '2026-03-30 08:53:15'),
+(105, 5, 63, 217, 'poster', 'favorites', NULL, 491, '2026-03-30 09:03:44', '2026-03-30 09:07:36'),
+(106, 5, 35, 368, 'poster', 'favorites', NULL, 493, '2026-03-30 09:07:50', '2026-03-30 09:07:50'),
+(107, 5, 35, 370, 'poster', 'films', NULL, NULL, '2026-03-30 09:08:14', '2026-03-30 09:08:14'),
+(108, 5, 4, 321, 'poster', 'films', NULL, NULL, '2026-03-30 10:00:35', '2026-03-30 10:00:35');
 
 -- --------------------------------------------------------
 
@@ -5233,10 +5560,10 @@ INSERT INTO `user_favorite_films` (`id`, `user_id`, `film_id`, `position`, `crea
 (455, 9, 3, 2, '2026-03-12 02:33:55', '2026-03-12 02:33:55'),
 (456, 9, 2, 3, '2026-03-12 02:33:56', '2026-03-12 02:33:56'),
 (457, 9, 33, 4, '2026-03-12 02:33:56', '2026-03-12 02:33:56'),
-(474, 5, 5, 1, '2026-03-27 14:06:30', '2026-03-27 14:06:30'),
-(475, 5, 69, 2, '2026-03-27 14:06:30', '2026-03-27 14:06:30'),
-(476, 5, 3, 3, '2026-03-27 14:06:30', '2026-03-27 14:06:30'),
-(477, 5, 4, 4, '2026-03-27 14:06:30', '2026-03-27 14:06:30');
+(490, 5, 5, 1, '2026-03-30 09:07:36', '2026-03-30 09:07:36'),
+(491, 5, 63, 2, '2026-03-30 09:07:36', '2026-03-30 09:07:36'),
+(492, 5, 15, 3, '2026-03-30 09:07:36', '2026-03-30 09:07:36'),
+(493, 5, 35, 4, '2026-03-30 09:07:36', '2026-03-30 09:07:36');
 
 -- --------------------------------------------------------
 
@@ -5265,7 +5592,7 @@ INSERT INTO `user_profiles` (`id`, `user_id`, `display_name`, `profile_photo`, `
 (1, 3, 'Sengefilm', 'profiles/profile_3_1769941056.jpg', 'movies/33/backdrop/aEQkBKlhO1OJePmQyzPxnu9sMW1nOyLsxw2HSEVb.webp', 1, 'Tes', 'Sidoarjo, Indonesia', '2026-01-31 00:38:49', '2026-02-14 02:58:25'),
 (2, 4, 'NewUser185', NULL, NULL, 0, NULL, NULL, '2026-01-31 01:06:46', '2026-01-31 01:06:46'),
 (3, 1, NULL, NULL, NULL, 1, 'This is my new bio', NULL, '2026-01-31 03:41:40', '2026-01-31 03:41:40'),
-(4, 5, 'Sen', 'profiles/profile_5_1774620059.jpg', 'movies/5/backdrop/CgmmAHlEFG3ZIGw4lssy8oTIWovOVA4FxUyFOyK4.webp', 1, NULL, NULL, '2026-02-14 03:59:49', '2026-03-27 14:06:31'),
+(4, 5, 'Sen', 'profiles/profile_5_1774620059.jpg', 'movies/5/backdrop/AKggCKllAh78U3GFrg0fISkhIhuS87xb2wGxgbl9.webp', 1, NULL, NULL, '2026-02-14 03:59:49', '2026-03-30 09:07:36'),
 (5, 6, 'Mopud', NULL, 'movies/40/backdrop/FdB80qdPGk5ySHxLpcP6QLwfvfXAHTbJ0XK5vMlM.webp', 1, NULL, NULL, '2026-02-28 03:10:19', '2026-03-08 07:38:54'),
 (6, 7, 'seno yu', NULL, NULL, 0, NULL, NULL, '2026-03-10 21:42:54', '2026-03-10 21:42:54'),
 (7, 8, 'tes', NULL, NULL, 0, NULL, NULL, '2026-03-10 21:44:06', '2026-03-10 21:44:06'),
@@ -5694,7 +6021,7 @@ ALTER TABLE `watchlists`
 -- AUTO_INCREMENT untuk tabel `cinemas`
 --
 ALTER TABLE `cinemas`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT untuk tabel `countries`
@@ -5706,7 +6033,7 @@ ALTER TABLE `countries`
 -- AUTO_INCREMENT untuk tabel `diaries`
 --
 ALTER TABLE `diaries`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
 
 --
 -- AUTO_INCREMENT untuk tabel `failed_jobs`
@@ -5718,7 +6045,7 @@ ALTER TABLE `failed_jobs`
 -- AUTO_INCREMENT untuk tabel `followers`
 --
 ALTER TABLE `followers`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT untuk tabel `genres`
@@ -5754,13 +6081,13 @@ ALTER TABLE `movies`
 -- AUTO_INCREMENT untuk tabel `movie_likes`
 --
 ALTER TABLE `movie_likes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_media`
 --
 ALTER TABLE `movie_media`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=368;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=371;
 
 --
 -- AUTO_INCREMENT untuk tabel `movie_persons`
@@ -5772,31 +6099,31 @@ ALTER TABLE `movie_persons`
 -- AUTO_INCREMENT untuk tabel `movie_services`
 --
 ALTER TABLE `movie_services`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=371;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=374;
 
 --
 -- AUTO_INCREMENT untuk tabel `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- AUTO_INCREMENT untuk tabel `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
 
 --
 -- AUTO_INCREMENT untuk tabel `order_seats`
 --
 ALTER TABLE `order_seats`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=73;
 
 --
 -- AUTO_INCREMENT untuk tabel `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- AUTO_INCREMENT untuk tabel `persons`
@@ -5814,37 +6141,37 @@ ALTER TABLE `production_houses`
 -- AUTO_INCREMENT untuk tabel `ratings`
 --
 ALTER TABLE `ratings`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=60;
 
 --
 -- AUTO_INCREMENT untuk tabel `reviews`
 --
 ALTER TABLE `reviews`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT untuk tabel `review_comments`
 --
 ALTER TABLE `review_comments`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- AUTO_INCREMENT untuk tabel `review_likes`
 --
 ALTER TABLE `review_likes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT untuk tabel `schedules`
 --
 ALTER TABLE `schedules`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT untuk tabel `seats`
 --
 ALTER TABLE `seats`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5701;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5921;
 
 --
 -- AUTO_INCREMENT untuk tabel `services`
@@ -5856,13 +6183,13 @@ ALTER TABLE `services`
 -- AUTO_INCREMENT untuk tabel `studios`
 --
 ALTER TABLE `studios`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT untuk tabel `tickets`
 --
 ALTER TABLE `tickets`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
@@ -5874,19 +6201,19 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT untuk tabel `user_activities`
 --
 ALTER TABLE `user_activities`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_change_medias`
 --
 ALTER TABLE `user_change_medias`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=102;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=109;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_favorite_films`
 --
 ALTER TABLE `user_favorite_films`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=478;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=494;
 
 --
 -- AUTO_INCREMENT untuk tabel `user_profiles`
