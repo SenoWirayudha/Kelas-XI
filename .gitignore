@@ -1,6 +1,6 @@
 # Root workspace ignores
 Tugas PKL/node_modules/
-Tugas PKL/.env
+
 Tugas PKL/**/node_modules/
 
 # Prevent re-adding oversized legacy asset
