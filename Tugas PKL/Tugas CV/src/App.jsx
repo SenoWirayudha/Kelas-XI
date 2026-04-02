@@ -17,7 +17,7 @@ import LBLogo from './assets/letterboxd.png'
 
 const education = [
   {
-    school: 'SMKN 2 Sidoarjo',
+    school: 'SMKN 2 Buduran, Sidoarjo',
     major: 'Rekayasa Perangkat Lunak',
     year: '2024 - 2026',
     dot: 'bg-cyan-400',
