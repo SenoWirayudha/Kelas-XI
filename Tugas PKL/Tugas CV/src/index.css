@@ -1,0 +1,223 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Forque';
+  src: url('/Forque.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg-soft: #f6f4f9;
+  --bg-section: #f9f8fc;
+  --text-main: #252433;
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.45);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 181, 207, 0.48), transparent 35%),
+    radial-gradient(circle at 80% 12%, rgba(178, 230, 255, 0.4), transparent 40%),
+    var(--bg-soft);
+  color: var(--text-main);
+  font-family: 'Outfit', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.hero-title {
+  font-family: 'Sora', sans-serif;
+  background: linear-gradient(90deg, #ff6a00 0%, #ffffff 50%, #00ffff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 1.2px rgba(255, 255, 255, 0.84);
+  text-shadow:
+    0 0 22px rgba(255, 255, 255, 0.45),
+    0 14px 30px rgba(17, 24, 39, 0.35);
+}
+
+.hero-text-art {
+  width: 100%;
+  display: block;
+  filter:
+    drop-shadow(0 0 18px rgba(255, 255, 255, 0.4))
+    drop-shadow(0 6px 14px rgba(255, 255, 255, 0.2));
+}
+
+.hero-shine-wrap {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.hero-shine-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0) 38%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0) 62%
+  );
+  background-size: 240% 100%;
+  background-position: -150% 0;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  filter: blur(0.35px);
+  mix-blend-mode: lighten;
+  animation: hero-shine-sweep 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes hero-shine-sweep {
+  0% {
+    background-position: -150% 0;
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.95;
+  }
+  48% {
+    background-position: 160% 0;
+    opacity: 0.2;
+  }
+  100% {
+    background-position: 160% 0;
+    opacity: 0;
+  }
+}
+
+.hero-name {
+  color: #00ffff;
+  text-shadow: 0 0 16px rgba(0, 255, 255, 0.6), 0 0 28px rgba(0, 255, 255, 0.35);
+}
+
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.hero-transition {
+  position: relative;
+  z-index: 12;
+  height: 96px;
+  margin-top: -40px;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .hero-transition {
+    height: 74px;
+    margin-top: -28px;
+  }
+}
+
+.hero-fade {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    to bottom,
+    rgba(246, 244, 249, 0) 0%,
+    rgba(246, 244, 249, 0.1) 22%,
+    rgba(246, 244, 249, 0.34) 50%,
+    rgba(246, 244, 249, 0.68) 78%,
+    #f6f4f9 100%
+  );
+  backdrop-filter: blur(8px) saturate(108%);
+  -webkit-backdrop-filter: blur(8px) saturate(108%);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.95) 18%,
+    rgba(0, 0, 0, 0.95) 82%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.95) 18%,
+    rgba(0, 0, 0, 0.95) 82%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.hero-fade::before,
+.hero-fade::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 44%;
+  pointer-events: none;
+}
+
+.hero-fade::before {
+  top: -16%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+  filter: blur(16px);
+}
+
+.hero-fade::after {
+  bottom: -16%;
+  background: linear-gradient(to top, rgba(246, 244, 249, 0.78), rgba(246, 244, 249, 0));
+  filter: blur(18px);
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(34px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(13px) saturate(120%);
+  -webkit-backdrop-filter: blur(13px) saturate(120%);
+  box-shadow:
+    0 14px 30px -20px rgba(31, 41, 55, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  box-shadow:
+    0 14px 36px -24px rgba(17, 24, 39, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.52);
+}
+
+.section-title {
+  font-family: 'Forque', 'Sora', sans-serif;
+  letter-spacing: 0.03em;
+}
