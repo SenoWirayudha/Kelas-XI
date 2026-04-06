@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import emailjs from '@emailjs/browser'
 import FotoImg from './assets/fotoku.png'
-import heroTextArt from './assets/Desain text hero section.png'
 import dvdImg from './assets/DVD.png'; 
 import RoteImg from './assets/Rote.png';
 import FilmReviewImg from './assets/film andro.png'
@@ -301,16 +300,22 @@ function App() {
     return () => window.clearInterval(intervalId)
   }, [])
 
+  useEffect(() => {
+    if (!menuOpen) return undefined
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [menuOpen])
+
   return (
     <div className="overflow-x-hidden text-slate-800">
       <header className="fixed left-0 top-0 z-50 w-full">
-<div className="relative mx-auto mt-3 flex w-[calc(100%-1.25rem)] max-w-6xl items-center justify-center rounded-2xl px-6 py-3 md:mt-4 md:w-[calc(100%-2rem)]" style={{
-  background: 'rgba(255, 255, 255, 0.25)',
-  border: '1px solid rgba(255, 255, 255, 0.5)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)'
-}}>          <nav className="hidden gap-6 md:flex">
+        <div className="glass-nav relative mx-auto mt-3 flex w-[calc(100%-1.25rem)] max-w-6xl items-center justify-center rounded-2xl px-5 py-2.5 md:mt-4 md:w-[calc(100%-2rem)] md:px-6 md:py-3">
+          <nav className="hidden gap-6 md:flex">
             {navItems.map((item) => (
               <a
                 key={item}
@@ -324,7 +329,7 @@ function App() {
           <button
             type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
-            className="glass-pill absolute right-5 flex h-10 w-10 items-center justify-center rounded-full text-slate-700 md:hidden"
+            className="glass-pill z-[60] ml-auto flex h-10 w-10 items-center justify-center rounded-full text-slate-700 md:hidden"
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
           >
             <span className="flex flex-col gap-1.5" aria-hidden="true">
@@ -335,30 +340,41 @@ function App() {
           </button>
         </div>
 
-        {menuOpen && (
-          <div className="mx-auto mt-3 max-w-6xl md:hidden">
-            <nav className="rounded-3xl border border-white/85 bg-white/95 px-5 py-4 shadow-[0_14px_32px_-22px_rgba(15,23,42,0.5)] backdrop-blur-md">
-              <ul className="grid grid-cols-2 gap-2">
-                {navItems.map((item) => (
-                  <li key={item}>
-                    <a
-                      href={`#${item.toLowerCase()}`}
-                      onClick={() => setMenuOpen(false)}
-                      className="block rounded-xl px-3 py-2 text-center text-sm font-medium text-slate-700 transition hover:bg-white/55"
-                    >
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          </div>
-        )}
+        <div
+          className={`fixed inset-0 z-40 transition-opacity duration-300 md:hidden ${
+            menuOpen ? 'pointer-events-auto bg-slate-900/18 opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        />
+
+        <div
+          className={`mobile-menu-panel fixed right-3 top-[82px] z-40 w-[76%] max-w-[260px] transition-all duration-300 md:hidden ${
+            menuOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-5 opacity-0'
+          }`}
+          aria-hidden={!menuOpen}
+        >
+          <nav className="mobile-menu-glass rounded-3xl p-3">
+            <ul className="flex flex-col gap-1">
+              {navItems.map((item) => (
+                <li key={item}>
+                  <a
+                    href={`#${item.toLowerCase()}`}
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-xl px-4 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-white/65"
+                  >
+                    {item}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
       </header>
 
       <section
         id="home"
-        className="relative flex min-h-screen items-center justify-center px-4 pb-16 pt-24 text-center md:px-6 md:pb-20 md:pt-20"
+        className="relative flex min-h-[92vh] items-center justify-center px-4 pb-14 pt-24 text-center md:min-h-screen md:px-6 md:pb-20 md:pt-20"
       >
         <div className="hero-bg absolute inset-0 -z-20 overflow-hidden">
           <div className="hero-grid-pattern" />
@@ -380,17 +396,11 @@ function App() {
           <span className="absolute bottom-[22%] left-[22%] h-16 w-16 rounded-full bg-rose-300/28 blur-2xl animate-float3" />
         </div>
 
-        <div className="hero-floating mx-auto flex w-full max-w-[780px] flex-col items-center justify-center gap-5 md:gap-6">
-          <div
-            className="hero-shine-wrap mx-auto w-[320px] sm:w-[480px] md:w-[640px] lg:w-[760px]"
-            style={{ '--hero-mask': `url("${heroTextArt}")` }}
-          >
-            <img
-              src={heroTextArt}
-              alt="Seno Wirayudha"
-              className="hero-name-image animate-float"
-            />
-          </div>
+        <div className="hero-floating mx-auto flex w-full max-w-[1180px] flex-col items-center justify-center gap-3 md:gap-6">
+          <h1 className="hero-text-title animate-float text-slate-800 text-2xl sm:text-3xl md:text-5xl" aria-label="Hello, I'm Seno Wirayudha">
+            <span className="hero-text-kicker">HELLO, I&apos;M</span>
+            <span className="hero-text-name">SENO WIRAYUDHA</span>
+          </h1>
 
           <div className="hero-role-list mx-auto flex max-w-2xl flex-wrap items-center justify-center">
             {['UI/UX Designer', 'Video Editor', 'Graphic Design'].map((role) => (
@@ -411,30 +421,30 @@ function App() {
         {/* Floating Tool Icons */}
 <div className="pointer-events-none absolute inset-0 overflow-hidden">
   {/* CapCut - kiri atas */}
-  <div className="absolute animate-float1" style={{top: '22%', left: '12%'}}>
-    <div className="glass rounded-2xl p-2.5 shadow-md">
-      <img src={CapcutLogo} alt="CapCut" className="h-8 w-8 rounded-lg object-cover" />
+  <div className="absolute left-[10%] top-[17%] animate-float1 md:left-[12%] md:top-[22%]">
+    <div className="floating-tool-chip rounded-2xl p-2 md:p-2.5">
+      <img src={CapcutLogo} alt="CapCut" className="floating-tool-icon h-7 w-7 rounded-lg object-cover md:h-8 md:w-8" />
     </div>
   </div>
 
   {/* Canva - kanan atas */}
-  <div className="absolute animate-float2" style={{top: '22%', right: '12%'}}>
-    <div className="glass rounded-2xl p-2.5 shadow-md">
-      <img src={CanvaLogo} alt="Canva" className="h-8 w-8 rounded-lg object-cover" />
+  <div className="absolute right-[10%] top-[17%] animate-float2 md:right-[12%] md:top-[22%]">
+    <div className="floating-tool-chip rounded-2xl p-2 md:p-2.5">
+      <img src={CanvaLogo} alt="Canva" className="floating-tool-icon h-7 w-7 rounded-lg object-cover md:h-8 md:w-8" />
     </div>
   </div>
 
   {/* DaVinci - kiri bawah */}
-  <div className="absolute animate-float3" style={{bottom: '32%', left: '12%'}}>
-    <div className="glass rounded-2xl p-2.5 shadow-md">
-      <img src={DavinciLogo} alt="DaVinci" className="h-8 w-8 rounded-lg object-cover" />
+  <div className="absolute bottom-[30%] left-[11%] animate-float3 md:bottom-[32%] md:left-[12%]">
+    <div className="floating-tool-chip rounded-2xl p-2 md:p-2.5">
+      <img src={DavinciLogo} alt="DaVinci" className="floating-tool-icon h-7 w-7 rounded-lg object-cover md:h-8 md:w-8" />
     </div>
   </div>
 
   {/* Alight Motion - kanan bawah */}
-  <div className="absolute animate-float1" style={{bottom: '32%', right: '12%'}}>
-    <div className="glass rounded-2xl p-2.5 shadow-md">
-      <img src={AmLogo} alt="Alight Motion" className="h-8 w-8 rounded-lg object-cover" />
+  <div className="absolute bottom-[30%] right-[11%] animate-float1 md:bottom-[32%] md:right-[12%]">
+    <div className="floating-tool-chip rounded-2xl p-2 md:p-2.5">
+      <img src={AmLogo} alt="Alight Motion" className="floating-tool-icon h-7 w-7 rounded-lg object-cover md:h-8 md:w-8" />
     </div>
   </div>
 </div>
