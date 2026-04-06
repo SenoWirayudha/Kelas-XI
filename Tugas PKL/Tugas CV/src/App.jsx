@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import emailjs from '@emailjs/browser'
 import FotoImg from './assets/fotoku.png'
-import heroBgVideo from './assets/Mogu.mp4'
 import heroTextArt from './assets/Desain text hero section.png'
 import dvdImg from './assets/DVD.png'; 
 import RoteImg from './assets/Rote.png';
@@ -20,13 +19,13 @@ const education = [
     school: 'SMKN 2 Buduran, Sidoarjo',
     major: 'Rekayasa Perangkat Lunak',
     year: '2024 - 2026',
-    dot: 'bg-cyan-400',
+    dot: 'bg-[#ec407a]',
   },
   {
     school: 'SMPN 2 Sidoarjo',
     major: 'Junior High School',
     year: '2021 - 2024',
-    dot: 'bg-rose-300',
+    dot: 'bg-[#7c3aed]',
   },
 ]
 
@@ -58,14 +57,14 @@ const experience = [
     title: 'Documentation & Design Team',
     desc: 'Berperan dalam tim dokumentasi dan desain untuk acara pameran sekolah. Membantu merancang konsep poster/pamflet promosi.',
     icon: 'ᝰ.ᐟ',
-    tone: 'bg-rose-100 text-rose-500',
+    tone: 'bg-rose-300',
   },
   {
     role: 'Kegiatan Kokurikuler (Pembuatan Taman Sekolah)',
     title: 'Content & Documentation',
     desc: 'Bertanggung jawab dalam dokumentasi dan publikasi kegiatan: Mengambil foto dan video progres kegiatan, mengedit konten visual untuk media sosial, mengelola upload konten harian di Instagram kelas.',
     icon: '✿',
-    tone: 'bg-cyan-100 text-cyan-600',
+    tone: 'bg-cyan-400',
   },
 ]
 
@@ -97,7 +96,7 @@ const socialLinks = [
 
 function IconListItem({ item, tone = 'rose' }) {
   return (
-    <li className="flex items-center gap-3 rounded-xl bg-white/75 px-3 py-2 shadow-sm">
+    <li className="flex items-center gap-3 rounded-xl bg-white/92 px-3 py-2 shadow-sm">
       {item.icon ? (
         <img
           src={item.icon}
@@ -107,7 +106,7 @@ function IconListItem({ item, tone = 'rose' }) {
       ) : (
         <span
           className={`flex h-6 w-6 items-center justify-center rounded-md text-xs font-bold ${
-            tone === 'cyan' ? 'bg-cyan-100 text-cyan-700' : 'bg-rose-100 text-rose-600'
+            tone === 'cyan' ? 'bg-[#22c9f1]/20 text-[#0f9ec1]' : 'bg-[#ec407a]/20 text-[#c93467]'
           }`}
           aria-hidden="true"
         >
@@ -239,9 +238,9 @@ function ContactSection() {
               placeholder="Full Name"
               value={formData.fullName}
               onChange={handleChange}
-              className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+              className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-[#ec407a] focus:ring-4 focus:ring-[#ec407a]/20"
             />
-            {errors.fullName && <p className="mt-1 text-xs text-rose-500">{errors.fullName}</p>}
+            {errors.fullName && <p className="mt-1 text-xs text-[#7c3aed]">{errors.fullName}</p>}
           </div>
 
           <div>
@@ -251,9 +250,9 @@ function ContactSection() {
               placeholder="Email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+              className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-[#ec407a] focus:ring-4 focus:ring-[#ec407a]/20"
             />
-            {errors.email && <p className="mt-1 text-xs text-rose-500">{errors.email}</p>}
+            {errors.email && <p className="mt-1 text-xs text-[#7c3aed]">{errors.email}</p>}
           </div>
 
           <div>
@@ -263,15 +262,15 @@ function ContactSection() {
               rows={5}
               value={formData.message}
               onChange={handleChange}
-              className="w-full resize-none rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+              className="w-full resize-none rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-[#ec407a] focus:ring-4 focus:ring-[#ec407a]/20"
             />
-            {errors.message && <p className="mt-1 text-xs text-rose-500">{errors.message}</p>}
+            {errors.message && <p className="mt-1 text-xs text-[#7c3aed]">{errors.message}</p>}
           </div>
 
           <button
             type="submit"
             disabled={isSending}
-            className="w-full rounded-xl bg-gradient-to-r from-rose-400 to-cyan-400 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-gradient-to-r from-[#ec407a] to-[#22c9f1] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSending ? 'Sending...' : 'Send Message'}
           </button>
@@ -304,15 +303,19 @@ function App() {
 
   return (
     <div className="overflow-x-hidden text-slate-800">
-      <header className="fixed left-0 top-0 z-50 w-full px-5 py-4 md:px-10">
-        <div className="glass-nav mx-auto flex max-w-6xl items-center justify-end rounded-full px-5 py-3 md:justify-center">
-          <nav className="hidden gap-6 text-sm md:flex">
+      <header className="fixed left-0 top-0 z-50 w-full">
+<div className="relative mx-auto mt-3 flex w-[calc(100%-1.25rem)] max-w-6xl items-center justify-center rounded-2xl px-6 py-3 md:mt-4 md:w-[calc(100%-2rem)]" style={{
+  background: 'rgba(255, 255, 255, 0.25)',
+  border: '1px solid rgba(255, 255, 255, 0.5)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)'
+}}>          <nav className="hidden gap-6 md:flex">
             {navItems.map((item) => (
               <a
                 key={item}
                 href={`#${item.toLowerCase()}`}
-                className="text-slate-600 transition hover:text-rose-500"
-              >
+                className="text-[15px] font-medium text-slate-700 transition hover:text-[#ec407a]"              >
                 {item}
               </a>
             ))}
@@ -321,15 +324,20 @@ function App() {
           <button
             type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
-            className="glass-pill rounded-full px-4 py-2 text-sm font-semibold text-slate-700 md:hidden"
+            className="glass-pill absolute right-5 flex h-10 w-10 items-center justify-center rounded-full text-slate-700 md:hidden"
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
           >
-            Menu
+            <span className="flex flex-col gap-1.5" aria-hidden="true">
+              <span className="h-0.5 w-4 rounded-full bg-slate-700" />
+              <span className="h-0.5 w-4 rounded-full bg-slate-700" />
+              <span className="h-0.5 w-4 rounded-full bg-slate-700" />
+            </span>
           </button>
         </div>
 
         {menuOpen && (
           <div className="mx-auto mt-3 max-w-6xl md:hidden">
-            <nav className="glass-nav rounded-3xl px-5 py-4">
+            <nav className="rounded-3xl border border-white/85 bg-white/95 px-5 py-4 shadow-[0_14px_32px_-22px_rgba(15,23,42,0.5)] backdrop-blur-md">
               <ul className="grid grid-cols-2 gap-2">
                 {navItems.map((item) => (
                   <li key={item}>
@@ -350,52 +358,86 @@ function App() {
 
       <section
         id="home"
-        className="relative flex min-h-screen items-center justify-center px-6 pb-24 pt-32 text-center md:px-10"
+        className="relative flex min-h-screen items-center justify-center px-4 pb-16 pt-24 text-center md:px-6 md:pb-20 md:pt-20"
       >
-        <div className="absolute inset-0 -z-20 overflow-hidden">
-          <video
-            className="h-full w-full object-cover"
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            aria-label="Hero background video"
-          >
-            <source src={heroBgVideo} type="video/mp4" />
-          </video>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,112,161,.28),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(109,224,255,.3),transparent_36%)]" />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/16 via-white/26 to-white/56 backdrop-blur-[3.5px]" />
+        <div className="hero-bg absolute inset-0 -z-20 overflow-hidden">
+          <div className="hero-grid-pattern" />
+          <span className="hero-orb hero-orb-rose" />
+          <span className="hero-orb hero-orb-cyan" />
+          <span className="hero-orb hero-orb-rose-soft" />
+          <span className="hero-orb hero-orb-cyan-soft" />
+          <span className="hero-orb hero-orb-rose-mid" />
+          <span className="hero-orb hero-orb-cyan-mid" />
+          <span className="hero-orb hero-orb-rose-edge" />
+          <span className="hero-orb hero-orb-cyan-edge" />
+          <span className="hero-blob-pink" />
+          <span className="hero-blob-cyan" />
         </div>
 
-        <div className="max-w-5xl">
-          <div className="hero-shine-wrap mx-auto w-[320px] animate-float sm:w-[480px] md:w-[640px] lg:w-[760px]">
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <span className="absolute left-[10%] top-[18%] h-20 w-20 rounded-full bg-[#ec407a]/28 blur-2xl animate-float1" />
+          <span className="absolute right-[12%] top-[26%] h-24 w-24 rounded-full bg-cyan-300/30 blur-2xl animate-float2" />
+          <span className="absolute bottom-[22%] left-[22%] h-16 w-16 rounded-full bg-rose-300/28 blur-2xl animate-float3" />
+        </div>
+
+        <div className="hero-floating mx-auto flex w-full max-w-[780px] flex-col items-center justify-center gap-5 md:gap-6">
+          <div
+            className="hero-shine-wrap mx-auto w-[320px] sm:w-[480px] md:w-[640px] lg:w-[760px]"
+            style={{ '--hero-mask': `url("${heroTextArt}")` }}
+          >
             <img
               src={heroTextArt}
-              alt="Portofolio Muhammad Seno Wirayudha"
-              className="hero-text-art"
-            />
-            <span
-              className="hero-shine-sweep"
-              style={{
-                WebkitMaskImage: `url(${heroTextArt})`,
-                maskImage: `url(${heroTextArt})`,
-              }}
-              aria-hidden="true"
+              alt="Seno Wirayudha"
+              className="hero-name-image animate-float"
             />
           </div>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-white md:text-base ">
-            UI/UX Designer | Video Editor | Graphic Design
-          </p>
+
+          <div className="hero-role-list mx-auto flex max-w-2xl flex-wrap items-center justify-center">
+            {['UI/UX Designer', 'Video Editor', 'Graphic Design'].map((role) => (
+              <span key={role} className="hero-role-badge">
+                {role}
+              </span>
+            ))}
+          </div>
+
           <a
             href="#about"
-            className="glass-pill mt-10 inline-flex items-center gap-2 rounded-full px-7 py-3 text-sm font-semibold text-slate-700 transition duration-300 hover:-translate-y-1 hover:bg-white/40"
+            className="hero-cta mt-2 inline-flex items-center gap-2 px-7 py-3 text-sm font-semibold"
           >
             Let’s Explore
             <span aria-hidden="true">→</span>
           </a>
         </div>
+        {/* Floating Tool Icons */}
+<div className="pointer-events-none absolute inset-0 overflow-hidden">
+  {/* CapCut - kiri atas */}
+  <div className="absolute animate-float1" style={{top: '22%', left: '12%'}}>
+    <div className="glass rounded-2xl p-2.5 shadow-md">
+      <img src={CapcutLogo} alt="CapCut" className="h-8 w-8 rounded-lg object-cover" />
+    </div>
+  </div>
 
+  {/* Canva - kanan atas */}
+  <div className="absolute animate-float2" style={{top: '22%', right: '12%'}}>
+    <div className="glass rounded-2xl p-2.5 shadow-md">
+      <img src={CanvaLogo} alt="Canva" className="h-8 w-8 rounded-lg object-cover" />
+    </div>
+  </div>
+
+  {/* DaVinci - kiri bawah */}
+  <div className="absolute animate-float3" style={{bottom: '32%', left: '12%'}}>
+    <div className="glass rounded-2xl p-2.5 shadow-md">
+      <img src={DavinciLogo} alt="DaVinci" className="h-8 w-8 rounded-lg object-cover" />
+    </div>
+  </div>
+
+  {/* Alight Motion - kanan bawah */}
+  <div className="absolute animate-float1" style={{bottom: '32%', right: '12%'}}>
+    <div className="glass rounded-2xl p-2.5 shadow-md">
+      <img src={AmLogo} alt="Alight Motion" className="h-8 w-8 rounded-lg object-cover" />
+    </div>
+  </div>
+</div>
       </section>
 
       <div className="hero-transition">
@@ -404,7 +446,7 @@ function App() {
 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-20 md:gap-24 md:px-10">
         <RevealSection id="about" className="scroll-mt-28">
-          <div className="glass flex flex-col items-center gap-6 rounded-[2rem] px-6 py-8 shadow-soft md:flex-row md:gap-10 md:px-10 md:py-10">
+          <div className="glass section-card-mix flex flex-col items-center gap-6 rounded-[2rem] px-6 py-8 shadow-soft md:flex-row md:gap-10 md:px-10 md:py-10">
             <img
               src={FotoImg}
               alt="Profile"
@@ -419,7 +461,7 @@ function App() {
               </p>
               <div className="mt-5 flex flex-wrap justify-center gap-2 md:justify-start">
                 {['UI/UX Design (basic)', 'Video Editing', 'Graphic Design'].map((tag) => (
-                  <span key={tag} className="rounded-full bg-white px-3 py-1 text-xs text-slate-600 shadow">
+                  <span key={tag} className="rounded-full border border-[#ec407a]/20 bg-white px-3 py-1 text-xs text-slate-700 shadow">
                     {tag}
                   </span>
                 ))}
@@ -430,14 +472,14 @@ function App() {
 
         <RevealSection id="education" className="scroll-mt-28">
           <h3 className="section-title mb-7 text-center text-3xl font-semibold text-slate-800">Education Path</h3>
-          <div className="relative ml-3 border-l-2 border-slate-200 pl-7 md:mx-auto md:max-w-4xl">
+          <div className="relative ml-3 border-l-2 border-[#22c9f1]/25 pl-7 md:mx-auto md:max-w-4xl">
             {education.map((item) => (
               <article key={item.school} className="relative mb-6 last:mb-0">
                 <span className={`absolute -left-[38px] top-7 h-3.5 w-3.5 rounded-full ring-4 ring-white ${item.dot}`} />
-                <div className="rounded-3xl bg-white px-6 py-5 shadow-soft">
+                <div className="section-card-cyan rounded-3xl px-6 py-5 shadow-soft">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <h4 className="font-semibold text-slate-800">{item.school}</h4>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{item.year}</span>
+                    <span className="rounded-full border border-[#22c9f1]/20 bg-[#22c9f1]/10 px-3 py-1 text-xs text-[#0f9ec1]">{item.year}</span>
                   </div>
                   <p className="mt-1 text-sm font-medium text-slate-600">{item.major}</p>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.summary}</p>
@@ -453,7 +495,7 @@ function App() {
             {projects.map((item, index) => (
               <article
                 key={item.title}
-                className="overflow-hidden rounded-[1.6rem] bg-white shadow-soft transition duration-300 hover:scale-[1.03] hover:shadow-[0_20px_50px_-18px_rgba(56,189,248,0.45)]"
+                className="section-card-mix overflow-hidden rounded-[1.6rem] shadow-soft transition duration-300 hover:scale-[1.03] hover:shadow-[0_22px_54px_-18px_rgba(34,201,241,0.42)]"
               >
                 {index === 0 && item.images ? (
                   <button
@@ -491,8 +533,7 @@ function App() {
                       href={item.websiteUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-4 inline-flex items-center gap-2 rounded-full bg-cyan-50 px-3 py-1.5 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100"
-                    >
+                      className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#ec407a]/30 bg-gradient-to-r from-[#ec407a]/15 to-[#22c9f1]/15 px-3 py-1.5 text-sm font-semibold text-[#c93467] transition hover:from-[#ec407a]/25 hover:to-[#22c9f1]/25"                    >
                       Kunjungi Website
                       <span aria-hidden="true">→</span>
                     </a>
@@ -506,27 +547,27 @@ function App() {
         <RevealSection id="skill" className="scroll-mt-28">
           <h3 className="section-title mb-7 text-3xl font-semibold text-slate-800">Skillset Universe</h3>
           <div className="grid gap-5 lg:grid-cols-3">
-            <article className="rounded-3xl bg-rose-50 p-6 shadow-soft">
-              <h4 className="text-lg font-semibold text-rose-600">Soft Skills</h4>
+            <article className="section-card-rose rounded-3xl p-6 shadow-soft">
+              <h4 className="text-lg font-semibold text-[#c93467]">Soft Skills</h4>
               <ul className="mt-4 space-y-2">
                 {softSkills.map((item) => (
                   <IconListItem key={item.label} item={item} tone="rose" />
                 ))}
               </ul>
             </article>
-            <article className="rounded-3xl bg-cyan-50 p-6 shadow-soft">
-              <h4 className="text-lg font-semibold text-cyan-700">Hard Skills</h4>
+            <article className="section-card-cyan rounded-3xl p-6 shadow-soft">
+              <h4 className="text-lg font-semibold text-[#0f9ec1]">Hard Skills</h4>
               <ul className="mt-4 space-y-2">
                 {hardSkills.map((item) => (
                   <IconListItem key={item.label} item={item} tone="cyan" />
                 ))}
               </ul>
             </article>
-            <article className="glass rounded-3xl p-6 shadow-soft">
+            <article className="glass section-card-mix rounded-3xl p-6 shadow-soft">
               <h4 className="text-lg font-semibold text-slate-700">Tools</h4>
               <ul className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                 {tools.map((tool) => (
-                  <li key={tool.label} className="flex items-center gap-2 rounded-full bg-white px-3 py-2 text-slate-600 shadow">
+                  <li key={tool.label} className="flex items-center gap-2 rounded-full border border-[#22c9f1]/15 bg-white px-3 py-2 text-slate-700 shadow">
                     {tool.icon ? (
                       <img src={tool.icon} alt={`${tool.label} icon`} className="h-5 w-5 rounded object-cover" />
                     ) : (
@@ -544,7 +585,7 @@ function App() {
           <h3 className="section-title mb-7 text-center text-3xl font-semibold text-slate-800">Experience & Roles</h3>
           <div className="space-y-4 md:mx-auto md:max-w-4xl">
             {experience.map((item) => (
-              <article key={item.title} className="flex gap-4 rounded-3xl bg-white p-5 shadow-soft">
+              <article key={item.title} className="section-card-mix flex gap-4 rounded-3xl p-5 shadow-soft">
                 <div
                   className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-bold ${item.tone}`}
                 >
@@ -561,16 +602,16 @@ function App() {
         </RevealSection>
 
         <RevealSection id="contact" className="scroll-mt-28">
-          <div className="glass mx-auto max-w-3xl rounded-[2rem] px-8 py-12 text-center shadow-soft">
+          <div className="glass section-card-mix mx-auto max-w-3xl rounded-[2rem] px-8 py-12 text-center shadow-soft">
             <h3 className="section-title text-3xl font-semibold text-slate-800">Let's Create Together</h3>
             <p className="mt-3 text-slate-600">Have a project in mind? Let&apos;s talk about design and impact.</p>
             <div className="mt-8 grid gap-4 text-sm md:grid-cols-2">
-              <div className="rounded-2xl bg-white/80 p-4">
+              <div className="rounded-2xl border border-[#ec407a]/15 bg-white p-4">
                 <p className="font-semibold text-slate-700">Email Me</p>
                 <p className="mt-1 text-slate-600">fanoyudha03@email.com</p>
                 <p className="mt-1 text-slate-600">senoy250@email.com</p>
               </div>
-              <div className="rounded-2xl bg-white/80 p-4">
+              <div className="rounded-2xl border border-[#22c9f1]/15 bg-white p-4">
                 <p className="font-semibold text-slate-700">Call Me</p>
                 <p className="mt-1 text-slate-600">0882-2533-4652</p>
               </div>
@@ -584,7 +625,7 @@ function App() {
                   target="_blank"
                   rel="noreferrer"
                   title={social.name}
-                  className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-slate-800 text-[10px] font-semibold text-white transition hover:-translate-y-1 hover:bg-cyan-500"
+                  className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-slate-800 text-[10px] font-semibold text-white transition hover:-translate-y-1 hover:bg-[#ec407a]"
                 >
                   {social.icon ? (
                     <img
