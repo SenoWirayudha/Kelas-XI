@@ -191,16 +191,6 @@ body {
   .hero-text-name {
     font-size: clamp(2.1rem, 12vw, 3.2rem);
   }
-
-  .hero-role-badge {
-    font-size: 8px;
-    padding: 2px 8px;
-    font-weight: 400;
-
-    background: rgba(255,255,255,0.5);
-    border: 1px solid rgba(255,255,255,0.6);
-    box-shadow: none;
-  }
 }
 
 @media (min-width: 1024px) {
@@ -220,17 +210,14 @@ body {
 
 .hero-role-badge {
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow: none;  border: 1px solid rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  padding: 5px 14px;
+  background: #1a1a2ed2;
+  border: none;
+  padding: 6px 16px;
   font-family: 'Inter', sans-serif;
   font-size: 12px;
-  font-weight: 400;
-  opacity: 0.9;
-  color: #344054;
-  box-shadow: 0 4px 12px -8px rgba(15, 23, 42, 0.2);
+  font-weight: 500;
+  color: #ffffff;
+  box-shadow: 0 4px 12px -4px rgba(26, 26, 46, 0.3);
 }
 
 .hero-cta {
@@ -547,18 +534,18 @@ body {
   }
 
 .hero-role-badge {
-    border-radius: 999px;
-background: rgba(255, 255, 255, 0.6);
-  box-shadow: none;
-      border: 1px solid rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-  padding: 3px 10px;
-  font-size: 10px;
-    font-weight: 500;
-    color: #334155;
-    box-shadow: 0 8px 18px -16px rgba(15, 23, 42, 0.45);
-  }
+  border-radius: 999px;
+  background: #1a1a2ed2;
+  border: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 5px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 7px;
+  font-weight: 100;
+  color: #ffffff;
+  box-shadow: 0 4px 12px -4px rgba(26, 26, 46, 0.3);
+}
 
   .hero-cta {
     font-size: 13px;
