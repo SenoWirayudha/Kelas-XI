@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Virtual Tour</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="overlay" class="overlay">
+      <div class="title">Virtual Tour</div>
+
+      <div id="orbitPanel" class="bottom-panel card">
+        <div id="coords" class="coords">X: 0.00, Z: 0.00</div>
+        <button id="isoBtn" class="iso-btn" type="button">Isometric POV</button>
+        <button id="saveBtn" class="save-btn" type="button">Save Point</button>
+        <button id="enterBtn" class="enter-btn" type="button">Enter Location ↗</button>
+      </div>
+
+      <div id="fpPanel" class="bottom-hint hidden">ESC - Back to map</div>
+
+      <div id="crosshair" class="crosshair hidden" aria-hidden="true"></div>
+      <div id="errorMessage" class="error hidden">Model not found: /assets/city.glb</div>
+
+      <div id="minimap" class="minimap">
+        <canvas id="minimapCanvas" width="180" height="180"></canvas>
+        <div id="minimapDot" class="minimap-dot" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div id="loadingScreen" class="loading-screen">
+      <div class="loading-card">
+        <div class="loading-title">Loading city model...</div>
+        <div class="loading-bar-track">
+          <div id="loadingBar" class="loading-bar-fill"></div>
+        </div>
+        <div id="loadingPercent" class="loading-percent">0%</div>
+      </div>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
