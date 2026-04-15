@@ -1,0 +1,14 @@
+{
+  "name": "sidoarjo-news-scraper",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Scraper untuk berita dari website resmi Pemkab Sidoarjo dan kecamatan",
+  "scripts": {
+    "scrape": "node scraper/news-scraper.js",
+    "scrape:all": "node scraper/news-scraper.js --all",
+    "scrape:districts": "node scraper/news-scraper.js --districts-only"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12"
+  }
+}

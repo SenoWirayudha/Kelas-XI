@@ -1,0 +1,296 @@
+.map-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(33, 62, 69, 0.56);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  overscroll-behavior: none;
+}
+
+.map-modal-root {
+  width: min(760px, 100%);
+  max-width: 100%;
+  height: 90vh;
+  min-height: 0;
+  background: var(--color-surface);
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(33, 62, 69, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  animation: modalFadeIn 0.25s ease;
+}
+
+.map-modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.map-modal-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--color-neutral);
+}
+
+.map-modal-close {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(127, 200, 207, 0.2);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.map-modal-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;   /* ✅ Scroll vertikal untuk seluruh konten modal */
+  overflow-x: hidden; /* ✅ Tetap sembunyikan overflow horizontal di level ini */
+
+  display: flex;
+  flex-direction: column;
+
+  padding: 14px 18px 18px;
+  gap: 16px;
+}
+
+.destination-section {
+  min-width: 0;
+}
+
+.carousel-section {
+  display: grid;
+  gap: 8px;
+}
+
+.carousel-stage {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  min-height: 240px;
+  display: grid;
+  place-items: center;
+  background: rgba(127, 200, 207, 0.18);
+}
+
+.carousel-image {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  image-rendering: auto;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.carousel-image.active {
+  opacity: 1;
+}
+
+.carousel-image.no-transition {
+  transition: none;
+}
+
+.carousel-empty {
+  color: color-mix(in srgb, var(--color-neutral) 75%, white);
+  font-weight: 600;
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.carousel-arrow.left {
+  left: 10px;
+}
+
+.carousel-arrow.right {
+  right: 10px;
+}
+
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(33, 62, 69, 0.24);
+  cursor: pointer;
+}
+
+.carousel-dot.active {
+  background: var(--color-secondary);
+}
+
+.region-info-section {
+  background: rgba(147, 214, 196, 0.16);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.region-info-section p {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-neutral) 82%, black);
+  line-height: 1.6;
+}
+
+.destination-section h3 {
+  margin: 0 0 10px;
+  color: var(--color-neutral);
+}
+
+.destination-scroll {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+  scroll-snap-type: x mandatory;
+  box-sizing: border-box;
+}
+
+.destination-card {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 10px;
+  align-items: center;
+  min-width: 200px;
+  max-width: min(320px, 90vw);
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 6px 16px rgba(33, 62, 69, 0.09);
+}
+
+.destination-card img {
+  width: 84px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.destination-card strong {
+  color: var(--color-neutral);
+  overflow-wrap: anywhere;
+}
+
+.destination-card p {
+  margin: 4px 0 0;
+  color: color-mix(in srgb, var(--color-neutral) 65%, white);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.transportation-section {
+  min-width: 0;
+}
+
+.transportation-section h3 {
+  margin: 0 0 10px;
+  color: var(--color-neutral);
+}
+
+.transportation-scroll {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+  scroll-snap-type: x mandatory;
+  box-sizing: border-box;
+}
+
+.transportation-card {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 10px;
+  align-items: start;
+  min-width: 200px;
+  max-width: min(320px, 90vw);
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 6px 16px rgba(33, 62, 69, 0.09);
+}
+
+.transportation-card img {
+  width: 84px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.transportation-card strong {
+  color: var(--color-neutral);
+  overflow-wrap: anywhere;
+}
+
+.transportation-card .transport-type {
+  margin: 4px 0 2px;
+  color: var(--color-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.transportation-card p {
+  margin: 4px 0 0;
+  color: color-mix(in srgb, var(--color-neutral) 65%, white);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
