@@ -1,0 +1,101 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - Profile Projects Tab Layout Validation
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the bug exists
+  - **Scoped PBT Approach**: Scope the property to the concrete failing case - Profile page with "projects" tab active
+  - Test that when activeTab === 'projects' in Profile.jsx, the container element uses inline style `columns: '3'` instead of className `projects-grid`
+  - Test that the inline style does NOT produce a 3-column masonry layout (computed columnCount !== 3)
+  - The test assertions should match the Expected Behavior Properties from design:
+    - Container should have className including 'projects-grid'
+    - Computed style should have columnCount == 3
+    - Computed style should have columnGap == '20px'
+  - Run test on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS (this is correct - it proves the bug exists)
+  - Document counterexamples found:
+    - Container uses inline style instead of CSS class
+    - Layout does not render as 3-column masonry
+    - Inconsistent with Projects.jsx implementation
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4_
+
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Other Tabs and Pages Layout Preservation
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for non-buggy inputs:
+    - Profile page "boards" tab uses `.boards-grid` class
+    - Profile page "saved" tab uses `.gallery` class
+    - Projects.jsx page uses `.projects-grid` class
+    - All card styling (hover effects, shadows, borders) renders correctly
+    - Individual card inline styles are preserved
+  - Write property-based tests capturing observed behavior patterns from Preservation Requirements:
+    - For all tabs where activeTab !== 'projects', layout and styling remain unchanged
+    - For Projects.jsx page, layout continues to use `.projects-grid` class
+    - For all card interactions, hover states and visual effects work correctly
+  - Property-based testing generates many test cases for stronger guarantees:
+    - Generate random tab selections (boards, saved) and verify correct CSS classes
+    - Generate random navigation sequences and verify layouts remain consistent
+    - Generate random card interactions and verify styling is preserved
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (this confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [x] 3. Fix for Profile projects tab 3-column layout
+
+  - [x] 3.1 Replace inline style with CSS class in Profile.jsx
+    - Navigate to src/pages/Profile.jsx
+    - Locate the "projects" tab rendering section (activeTab === 'projects')
+    - Remove the wrapping `<div>` with inline style `style={{ columns: '3', columnGap: '20px', width: '100%' }}`
+    - Replace with `<div className="projects-grid">`
+    - Preserve individual card inline styles: `style={{ breakInside: 'avoid', display: 'inline-block', width: '100%' }}`
+    - Match the pattern used in Projects.jsx which correctly uses `.projects-grid` class
+    - _Bug_Condition: isBugCondition(input) where input.activeTab == 'projects' AND input.component == 'Profile.jsx' AND usesInlineStyle(input, 'columns: "3"') AND NOT usesClassName(input, 'projects-grid')_
+    - _Expected_Behavior: Container element has className including 'projects-grid', computed columnCount == 3, computed columnGap == '20px', visual layout displays as three-column masonry_
+    - _Preservation: Boards tab continues to use .boards-grid, Saved tab continues to use .gallery, Projects.jsx continues to use .projects-grid, all card styling and interactions preserved_
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 3.5_
+
+  - [x] 3.2 Remove empty CSS ruleset in App.css
+    - Navigate to src/App.css
+    - Locate the empty ruleset `.profile-content .gallery { }` (around line 1050)
+    - Delete the empty ruleset completely
+    - This removes the linting warning without affecting functionality
+    - The `.gallery` class already has proper styles defined earlier in the file
+    - _Requirements: 1.1, 2.1_
+
+  - [x] 3.3 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Profile Projects Tab Layout Validation
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior
+    - When this test passes, it confirms the expected behavior is satisfied:
+      - Container element has className including 'projects-grid'
+      - Computed style has columnCount == 3
+      - Computed style has columnGap == '20px'
+      - Visual layout displays as three-column masonry matching Projects.jsx
+    - Run bug condition exploration test from step 1
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
+    - _Requirements: 2.1, 2.2, 2.3, 2.4_
+
+  - [x] 3.4 Verify preservation tests still pass
+    - **Property 2: Preservation** - Other Tabs and Pages Layout Preservation
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests from step 2
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Verify all behaviors are preserved:
+      - Boards tab still uses `.boards-grid` class
+      - Saved tab still uses `.gallery` class
+      - Projects.jsx page still uses `.projects-grid` class
+      - All card styling (hover, shadows, borders) unchanged
+      - All card interactions work correctly
+    - Confirm all tests still pass after fix (no regressions)
+
+- [x] 4. Checkpoint - Ensure all tests pass
+  - Run all tests (bug condition + preservation)
+  - Verify Profile projects tab displays 3-column masonry layout
+  - Verify other tabs (boards, saved) display correctly
+  - Verify Projects.jsx page displays correctly
+  - Verify no CSS linting warnings
+  - If any issues arise, ask the user for guidance

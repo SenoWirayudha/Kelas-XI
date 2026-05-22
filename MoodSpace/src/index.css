@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --font-body: 'Outfit', 'Segoe UI', sans-serif;
+  --font-heading: 'Outfit', 'Segoe UI', sans-serif;
+  --font-accent: 'Space Mono', ui-monospace, monospace;
+  
+  /* New Color Palette */
+  --color-primary: #A855F7;
+  --color-secondary: #22D3EE;
+  --color-tertiary: #F472B6;
+  --color-neutral: #111111;
+  
+  /* Background Colors */
+  --bg-main: rgb(18, 18, 18);
+  --bg-sidebar: rgb(11, 11, 13);
+  --bg-search: rgb(23, 23, 26);
+  --bg-surface: rgb(23, 23, 26);
+  --bg-card: rgba(255, 255, 255, 0.02);
+  
+  /* Text Colors */
+  --text-primary: #f6f7fb;
+  --text-muted: rgba(246, 247, 251, 0.68);
+  
+  /* Border Colors */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-medium: rgba(255, 255, 255, 0.1);
+
+  font: 16px/150% var(--font-body);
+  letter-spacing: 0.2px;
+  color: var(--text-primary);
+  background: var(--bg-main);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  overflow-x: hidden;
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 0
+  );
+  background-size: 28px 28px;
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+#root {
+  min-height: 100svh;
+  height: 100svh;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}

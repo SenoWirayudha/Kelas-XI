@@ -1,0 +1,283 @@
+# Shape Browser Visual Guide
+
+## UI Structure
+
+```
+┌─────────────────────────────────────┐
+│  ← Shapes                           │  ← Sticky Header
+├─────────────────────────────────────┤
+│                                     │
+│  Basic Shapes                       │  ← Category Title
+│  ┌──────────┬──────────┐           │
+│  │   ▭      │    ●     │           │  ← 2-Column Grid
+│  │ Rectangle│  Circle  │           │
+│  ├──────────┼──────────┤           │
+│  │   ▭      │    ◯     │           │
+│  │ Rounded  │ Ellipse  │           │
+│  ├──────────┼──────────┤           │
+│  │   △      │    ■     │           │
+│  │ Triangle │  Square  │           │
+│  └──────────┴──────────┘           │
+│                                     │
+│  Lines                              │
+│  ┌──────────┬──────────┐           │
+│  │   ─      │    │     │           │
+│  │Horizontal│ Vertical │           │
+│  ├──────────┼──────────┤           │
+│  │   ╱      │          │           │
+│  │ Diagonal │          │           │
+│  └──────────┴──────────┘           │
+│                                     │
+│  Arrows                             │
+│  ┌──────────┬──────────┐           │
+│  │   →      │    ←     │           │
+│  │  Right   │   Left   │           │
+│  ├──────────┼──────────┤           │
+│  │   ↑      │    ↓     │           │
+│  │   Up     │   Down   │           │
+│  └──────────┴──────────┘           │
+│                                     │
+│  Polygons                           │
+│  ┌──────────┬──────────┐           │
+│  │   ⬠      │    ⬡     │           │
+│  │ Pentagon │ Hexagon  │           │
+│  ├──────────┼──────────┤           │
+│  │   ⬢      │    ◆     │           │
+│  │ Octagon  │ Diamond  │           │
+│  └──────────┴──────────┘           │
+│                                     │
+│  Stars                              │
+│  ┌──────────┬──────────┐           │
+│  │   ✦      │    ★     │           │
+│  │ 4-Point  │ 5-Point  │           │
+│  ├──────────┼──────────┤           │
+│  │   ✶      │    ✸     │           │
+│  │ 6-Point  │ 8-Point  │           │
+│  └──────────┴──────────┘           │
+│                                     │
+│                                     │  ← Scrollable
+└─────────────────────────────────────┘
+```
+
+## Interaction Flow
+
+### Opening Shape Browser
+```
+User clicks "Elements" → Elements panel opens
+User clicks "Shapes" → Shape browser opens with categories
+```
+
+### Adding Shape to Canvas
+```
+User clicks shape card → Shape added to canvas center
+                      → Panel stays open
+                      → User can add more shapes
+```
+
+### Shape Card States
+
+#### Default State
+```
+┌──────────┐
+│    ●     │  ← Visual preview (purple)
+│  Circle  │  ← Label
+└──────────┘
+Background: rgba(255, 255, 255, 0.03)
+Border: rgba(255, 255, 255, 0.08)
+```
+
+#### Hover State
+```
+┌──────────┐
+│    ●     │  ← Glowing purple
+│  Circle  │
+└──────────┘
+Background: rgba(124, 58, 237, 0.12)
+Border: rgba(124, 58, 237, 0.35)
+Transform: translateY(-2px)
+Shadow: 0 8px 20px rgba(124, 58, 237, 0.2)
+```
+
+## Shape Preview Types
+
+### Rendered Shapes
+- **Rectangle**: Colored div with optional corner radius
+- **Circle**: Circular div (border-radius: 50%)
+- **Ellipse**: Elliptical div (border-radius: 50%)
+- **Line**: Horizontal bar (3px height)
+
+### Icon-Based Shapes
+- **Triangle**: Lucide Triangle icon
+- **Diamond**: Lucide Diamond icon
+- **Hexagon**: Lucide Hexagon icon
+- **Star**: Lucide Star icon
+- **Arrow**: Lucide ArrowUpRight icon
+
+## Color Scheme
+
+### Shape Previews
+- Primary: `#a78bfa` (purple-400)
+- Hover: Brighter purple with glow
+
+### Card Backgrounds
+- Default: `rgba(255, 255, 255, 0.03)`
+- Hover: `rgba(124, 58, 237, 0.12)`
+
+### Borders
+- Default: `rgba(255, 255, 255, 0.08)`
+- Hover: `rgba(124, 58, 237, 0.35)`
+
+### Text
+- Category Title: `rgba(246, 247, 251, 0.85)`
+- Shape Label: `rgba(246, 247, 251, 0.75)`
+
+## Responsive Behavior
+
+### Grid Layout
+- Always 2 columns
+- Equal column width
+- 12px gap between cards
+- 16px horizontal padding
+
+### Scrolling
+- Vertical scroll only
+- Smooth scrolling
+- Max height: `calc(100vh - 120px)`
+- Sticky header stays at top
+
+## Accessibility
+
+### Keyboard Navigation
+- Tab through shape cards
+- Enter/Space to add shape
+- Escape to close panel
+
+### Screen Readers
+- Category titles announced
+- Shape labels announced
+- Button roles properly set
+
+## Performance
+
+### Rendering
+- Only visible categories rendered
+- Lazy loading for future enhancements
+- Smooth 60fps animations
+
+### Memory
+- Shape library loaded once
+- Minimal re-renders
+- Efficient state management
+
+## Future Enhancements
+
+### Search
+```
+┌─────────────────────────────────────┐
+│  ← Shapes                           │
+│  🔍 Search shapes...                │  ← Search input
+├─────────────────────────────────────┤
+│  Results for "circle"               │
+│  ┌──────────┬──────────┐           │
+│  │    ●     │    ◯     │           │
+│  │  Circle  │ Ellipse  │           │
+│  └──────────┴──────────┘           │
+└─────────────────────────────────────┘
+```
+
+### Favorites
+```
+┌─────────────────────────────────────┐
+│  ← Shapes                           │
+├─────────────────────────────────────┤
+│  ⭐ Favorites                        │
+│  ┌──────────┬──────────┐           │
+│  │    ●     │    ★     │           │
+│  │  Circle  │  Star    │           │
+│  └──────────┴──────────┘           │
+└─────────────────────────────────────┘
+```
+
+### Recent
+```
+┌─────────────────────────────────────┐
+│  ← Shapes                           │
+├─────────────────────────────────────┤
+│  🕐 Recently Used                    │
+│  ┌──────────┬──────────┐           │
+│  │    ▭     │    ●     │           │
+│  │Rectangle │  Circle  │           │
+│  └──────────┴──────────┘           │
+└─────────────────────────────────────┘
+```
+
+## Comparison: Before vs After
+
+### Before (Minimal Grid)
+```
+┌─────────────────────────────────────┐
+│  ← Shapes                           │
+├─────────────────────────────────────┤
+│  ┌──────────┬──────────┐           │
+│  │ Rectangle│  Circle  │           │
+│  ├──────────┼──────────┤           │
+│  │ Triangle │   Star   │           │
+│  ├──────────┼──────────┤           │
+│  │  Arrow   │   Line   │           │
+│  ├──────────┼──────────┤           │
+│  │ Diamond  │ Hexagon  │           │
+│  ├──────────┼──────────┤           │
+│  │   Blob   │          │           │
+│  └──────────┴──────────┘           │
+└─────────────────────────────────────┘
+```
+- ❌ No categories
+- ❌ Flat list
+- ❌ Hard to find shapes
+- ❌ Not scalable
+
+### After (Categorized Browser)
+```
+┌─────────────────────────────────────┐
+│  ← Shapes                           │
+├─────────────────────────────────────┤
+│  Basic Shapes                       │
+│  ┌──────────┬──────────┐           │
+│  │ Rectangle│  Circle  │           │
+│  └──────────┴──────────┘           │
+│                                     │
+│  Lines                              │
+│  ┌──────────┬──────────┐           │
+│  │Horizontal│ Vertical │           │
+│  └──────────┴──────────┘           │
+│                                     │
+│  Arrows                             │
+│  ┌──────────┬──────────┐           │
+│  │  Right   │   Left   │           │
+│  └──────────┴──────────┘           │
+│                                     │
+│  Polygons                           │
+│  ┌──────────┬──────────┐           │
+│  │ Pentagon │ Hexagon  │           │
+│  └──────────┴──────────┘           │
+│                                     │
+│  Stars                              │
+│  ┌──────────┬──────────┐           │
+│  │ 4-Point  │ 5-Point  │           │
+│  └──────────┴──────────┘           │
+└─────────────────────────────────────┘
+```
+- ✅ Organized by category
+- ✅ Easy to browse
+- ✅ Scalable structure
+- ✅ Professional UX
+
+## Summary
+
+The new shape browser provides:
+- ✅ **Better Organization**: Categorized sections
+- ✅ **Easier Discovery**: Visual previews
+- ✅ **Faster Workflow**: Panel stays open
+- ✅ **Scalable Design**: Easy to add more shapes
+- ✅ **Modern UX**: Canva-style browsing
+- ✅ **Professional Feel**: Premium dark UI
