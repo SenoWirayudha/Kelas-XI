@@ -410,6 +410,50 @@ const calculateCoverFit = ({ imageWidth, imageHeight, slot, fit = 'cover', crop 
   }
 }
 
+const getFrameImageCropBounds = ({ imageWidth, imageHeight, slot, fit = 'cover', zoom = 1 }) => {
+  if (!imageWidth || !imageHeight || !slot) return { minX: 0, maxX: 0, minY: 0, maxY: 0 }
+ 
+  const baseScale = fit === 'contain'
+    ? Math.min(slot.width / imageWidth, slot.height / imageHeight)
+    : Math.max(slot.width / imageWidth, slot.height / imageHeight)
+  const scale = baseScale * (zoom || 1)
+  const renderedWidth = imageWidth * scale
+  const renderedHeight = imageHeight * scale
+ 
+  const maxOffsetX = Math.max(0, (renderedWidth - slot.width) / 2)
+  const maxOffsetY = Math.max(0, (renderedHeight - slot.height) / 2)
+ 
+  return {
+    minX: -maxOffsetX,
+    maxX: maxOffsetX,
+    minY: -maxOffsetY,
+    maxY: maxOffsetY,
+  }
+}
+ 
+/**
+ * Clamp frameImagePosition agar gambar tetap cover slot.
+ * Panggil ini setiap kali position atau scale berubah.
+ */
+const clampFrameImagePosition = ({ imageWidth, imageHeight, slot, fit = 'cover', zoom = 1, position }) => {
+  const bounds = getFrameImageCropBounds({ imageWidth, imageHeight, slot, fit, zoom })
+  return {
+    x: Math.min(bounds.maxX, Math.max(bounds.minX, position?.x || 0)),
+    y: Math.min(bounds.maxY, Math.max(bounds.minY, position?.y || 0)),
+  }
+}
+ 
+/**
+ * Hitung zoom minimum agar gambar selalu cover slot penuh.
+ * Gambar tidak bisa di-zoom keluar dari ukuran cover minimum.
+ */
+const getMinFrameImageZoom = ({ imageWidth, imageHeight, slot }) => {
+  if (!imageWidth || !imageHeight || !slot) return 1
+  // Zoom minimum = zoom yang membuat gambar pas cover slot (scale = 1.0)
+  // Di bawah ini gambar akan lebih kecil dari slot
+  return 1.0
+}
+
 const renderFramePlaceholder = (frameSlot, isDropTarget) => (
   <Group listening={false}>
     <Rect
@@ -479,6 +523,20 @@ const renderFrameImage = (frameImage, frameSlot, item, isEditing, onImageDragEnd
  
   if (!fit) return null
  
+  // Hitung batas offset dalam koordinat lokal frame (bukan stage)
+  // Ini akurat terlepas dari zoom/rotation camera
+  const bounds = getFrameImageCropBounds({
+    imageWidth: frameImage.width,
+    imageHeight: frameImage.height,
+    slot: frameSlot,
+    fit: item.frameImageFit || 'cover',
+    zoom: item.frameImageScale || 1,
+  })
+ 
+  // Center position (tanpa crop)
+  const centerX = frameSlot.x + (frameSlot.width - fit.width) / 2
+  const centerY = frameSlot.y + (frameSlot.height - fit.height) / 2
+ 
   return (
     <KonvaImage
       image={frameImage}
@@ -488,39 +546,60 @@ const renderFrameImage = (frameImage, frameSlot, item, isEditing, onImageDragEnd
       height={fit.height}
       draggable={isEditing}
       listening={isEditing}
-      // FIX: Batasi drag gambar agar frame tidak ikut glitch
-      // dragBoundFunc bekerja di koordinat stage, bukan lokal
-      dragBoundFunc={(pos) => {
-        // Kembalikan posisi apa adanya — kita handle di onDragEnd
-        // Ini mencegah Konva menggeser parent Group
-        return pos
-      }}
       onDragStart={(e) => {
-        // Simpan posisi absolut saat drag mulai
-        e.target._fitX = fit.x
-        e.target._fitY = fit.y
-        // Cegah event naik ke parent Group (yang akan menggeser frame)
+        // Simpan posisi lokal saat drag mulai
+        e.target._startX = e.target.x()
+        e.target._startY = e.target.y()
+        e.target._cropX = item.frameImagePosition?.x || 0
+        e.target._cropY = item.frameImagePosition?.y || 0
         e.cancelBubble = true
+      }}
+      onDragMove={(e) => {
+        // FIX: Clamp posisi dalam koordinat lokal saat drag berlangsung
+        // Ini mencegah area kosong terlihat secara real-time
+        const currentX = e.target.x()
+        const currentY = e.target.y()
+ 
+        // Hitung crop offset dari posisi lokal saat ini
+        const cropX = currentX - centerX
+        const cropY = currentY - centerY
+ 
+        // Clamp crop offset
+        const clampedCropX = Math.min(bounds.maxX, Math.max(bounds.minX, cropX))
+        const clampedCropY = Math.min(bounds.maxY, Math.max(bounds.minY, cropY))
+ 
+        // Convert kembali ke posisi lokal
+        const clampedX = centerX + clampedCropX
+        const clampedY = centerY + clampedCropY
+ 
+        // Update posisi node secara langsung (tanpa re-render React)
+        if (clampedX !== currentX || clampedY !== currentY) {
+          e.target.x(clampedX)
+          e.target.y(clampedY)
+        }
       }}
       onDragEnd={(e) => {
         if (!isEditing || !onImageDragEnd) return
         e.cancelBubble = true
  
-        // Hitung delta dari posisi fit yang tersimpan saat drag start
-        const startFitX = e.target._fitX ?? fit.x
-        const startFitY = e.target._fitY ?? fit.y
-        const dx = e.target.x() - startFitX
-        const dy = e.target.y() - startFitY
+        // Hitung crop offset final dari posisi lokal
+        const finalX = e.target.x()
+        const finalY = e.target.y()
+        const cropX = finalX - centerX
+        const cropY = finalY - centerY
  
-        // WAJIB: Reset posisi node dulu sebelum state update
-        // Ini mencegah glitch karena Konva render 2x
-        e.target.x(startFitX)
-        e.target.y(startFitY)
+        // Clamp sekali lagi untuk pastikan valid
+        const clampedCropX = Math.min(bounds.maxX, Math.max(bounds.minX, cropX))
+        const clampedCropY = Math.min(bounds.maxY, Math.max(bounds.minY, cropY))
+ 
+        // Reset visual ke posisi fit (state update akan re-render)
+        e.target.x(fit.x)
+        e.target.y(fit.y)
         e.target.getLayer()?.batchDraw()
  
         onImageDragEnd({
-          x: (item.frameImagePosition?.x || 0) + dx,
-          y: (item.frameImagePosition?.y || 0) + dy,
+          x: clampedCropX,
+          y: clampedCropY,
         })
       }}
       onMouseEnter={(e) => {
@@ -532,7 +611,6 @@ const renderFrameImage = (frameImage, frameSlot, item, isEditing, onImageDragEnd
       onMouseDown={(e) => {
         if (isEditing) {
           e.target.getStage().container().style.cursor = 'grabbing'
-          // Cegah event mousedown naik ke stage (akan trigger pan/deselect)
           e.cancelBubble = true
         }
       }}
@@ -677,22 +755,209 @@ const renderFrameDecorations = (item, shadowProps, isDropTarget, isEditing, fram
 )
 
 // Canva-style Frame Slot System: outer frame, dedicated image slot, clipped content, overlay decorations.
-function FrameWithImage({ item, isSelected, commonProps, isDropTarget = false, isEditing = false, onImageDragEnd }) {
+function FrameWithImage({ item, isSelected, commonProps, isDropTarget = false, isEditing = false, onImageDragEnd, onImageScaleChange }) {
   const frameImage = useCanvasImage(item.frameImageSrc)
   const groupRef = useRef(null)
+  const imageNodeRef = useRef(null)
+  const innerTransformerRef = useRef(null)
   const frameSlot = getResolvedFrameSlot(item)
+ 
   const shadowProps = {
     shadowColor: isSelected || isDropTarget ? '#b88cff' : '#050505',
     shadowBlur: isDropTarget ? 30 : isSelected ? 24 : 18,
     shadowOpacity: isDropTarget ? 0.36 : 0.25,
     shadowOffsetY: 8,
   }
-
+ 
+  const fit = frameImage ? calculateCoverFit({
+    imageWidth: frameImage.width,
+    imageHeight: frameImage.height,
+    slot: frameSlot,
+    fit: item.frameImageFit || 'cover',
+    crop: item.frameImagePosition,
+    zoom: item.frameImageScale || 1,
+  }) : null
+ 
+  const bounds = frameImage ? getFrameImageCropBounds({
+    imageWidth: frameImage.width,
+    imageHeight: frameImage.height,
+    slot: frameSlot,
+    fit: item.frameImageFit || 'cover',
+    zoom: item.frameImageScale || 1,
+  }) : null
+ 
+  const centerX = fit ? frameSlot.x + (frameSlot.width - fit.width) / 2 : 0
+  const centerY = fit ? frameSlot.y + (frameSlot.height - fit.height) / 2 : 0
+ 
+  // FIX: Callback ref yang override getClientRect DAN getSelfRect
+  const handleGroupRef = useCallback((node) => {
+    groupRef.current = node
+    if (!node) return
+ 
+    const makeRect = (w, h) => ({ x: 0, y: 0, width: w, height: h })
+ 
+    node.getSelfRect = () => makeRect(item.w, item.h)
+ 
+    node.getClientRect = (config) => {
+      if (config?.skipTransform) {
+        return makeRect(item.w, item.h)
+      }
+      const transform = node.getAbsoluteTransform().copy()
+      const corners = [
+        { x: 0,      y: 0 },
+        { x: item.w, y: 0 },
+        { x: item.w, y: item.h },
+        { x: 0,      y: item.h },
+      ].map(p => transform.point(p))
+      const xs = corners.map(p => p.x)
+      const ys = corners.map(p => p.y)
+      return {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys),
+      }
+    }
+  }, [item.w, item.h])
+ 
+  // Refresh override saat dimensi berubah
+  useEffect(() => {
+    const node = groupRef.current
+    if (!node) return
+ 
+    node.getSelfRect = () => ({ x: 0, y: 0, width: item.w, height: item.h })
+ 
+    node.getClientRect = (config) => {
+      if (config?.skipTransform) {
+        return { x: 0, y: 0, width: item.w, height: item.h }
+      }
+      const transform = node.getAbsoluteTransform().copy()
+      const corners = [
+        { x: 0,      y: 0 },
+        { x: item.w, y: 0 },
+        { x: item.w, y: item.h },
+        { x: 0,      y: item.h },
+      ].map(p => transform.point(p))
+      const xs = corners.map(p => p.x)
+      const ys = corners.map(p => p.y)
+      return {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys),
+      }
+    }
+  }, [item.w, item.h])
+ 
+  // Attach inner transformer ke image node saat edit mode aktif
+  useEffect(() => {
+    if (!innerTransformerRef.current || !imageNodeRef.current) return
+    if (isEditing && frameImage) {
+      innerTransformerRef.current.nodes([imageNodeRef.current])
+    } else {
+      innerTransformerRef.current.nodes([])
+    }
+    innerTransformerRef.current.getLayer()?.batchDraw()
+  }, [isEditing, frameImage])
+ 
   return (
-    <Group ref={groupRef} {...commonProps}>
+    <Group ref={handleGroupRef} {...commonProps}>
       {renderFrameBackground(item, shadowProps)}
-      {renderFrameSlot({ item, frameImage, frameSlot, isDropTarget, isEditing, onImageDragEnd })}
+ 
+      <Group clipFunc={applyFrameSlotClip(frameSlot)} listening={isEditing}>
+        {frameImage && fit ? (
+          <KonvaImage
+            ref={imageNodeRef}
+            image={frameImage}
+            x={fit.x}
+            y={fit.y}
+            width={fit.width}
+            height={fit.height}
+            draggable={isEditing}
+            listening={isEditing}
+            onDragStart={(e) => {
+              e.cancelBubble = true
+            }}
+            onDragMove={(e) => {
+              if (!bounds || !fit) return
+              const cropX = e.target.x() - centerX
+              const cropY = e.target.y() - centerY
+              e.target.x(centerX + Math.min(bounds.maxX, Math.max(bounds.minX, cropX)))
+              e.target.y(centerY + Math.min(bounds.maxY, Math.max(bounds.minY, cropY)))
+            }}
+            onDragEnd={(e) => {
+              if (!onImageDragEnd || !bounds || !fit) return
+              e.cancelBubble = true
+              const cropX = e.target.x() - centerX
+              const cropY = e.target.y() - centerY
+              const clampedCropX = Math.min(bounds.maxX, Math.max(bounds.minX, cropX))
+              const clampedCropY = Math.min(bounds.maxY, Math.max(bounds.minY, cropY))
+              e.target.x(fit.x)
+              e.target.y(fit.y)
+              e.target.getLayer()?.batchDraw()
+              onImageDragEnd({ x: clampedCropX, y: clampedCropY })
+            }}
+            onTransform={(e) => {
+              if (!frameImage || !onImageScaleChange) return
+              const node = e.target
+              const avgScale = (Math.abs(node.scaleX()) + Math.abs(node.scaleY())) / 2
+              const currentZoom = item.frameImageScale || 1
+              const newZoom = Math.max(1.0, currentZoom * avgScale)
+              node.scaleX(1)
+              node.scaleY(1)
+              const newBounds = getFrameImageCropBounds({
+                imageWidth: frameImage.width,
+                imageHeight: frameImage.height,
+                slot: frameSlot,
+                fit: item.frameImageFit || 'cover',
+                zoom: newZoom,
+              })
+              onImageScaleChange({
+                zoom: newZoom,
+                position: {
+                  x: Math.min(newBounds.maxX, Math.max(newBounds.minX, item.frameImagePosition?.x || 0)),
+                  y: Math.min(newBounds.maxY, Math.max(newBounds.minY, item.frameImagePosition?.y || 0)),
+                },
+              })
+            }}
+            onTransformEnd={(e) => {
+              e.target.scaleX(1)
+              e.target.scaleY(1)
+              e.target.getLayer()?.batchDraw()
+            }}
+            onMouseEnter={(e) => { if (isEditing) e.target.getStage().container().style.cursor = 'grab' }}
+            onMouseLeave={(e) => { if (isEditing) e.target.getStage().container().style.cursor = 'default' }}
+            onMouseDown={(e) => { if (isEditing) { e.target.getStage().container().style.cursor = 'grabbing'; e.cancelBubble = true } }}
+            onMouseUp={(e) => { if (isEditing) e.target.getStage().container().style.cursor = 'grab' }}
+          />
+        ) : !frameImage && renderFramePlaceholder(frameSlot, isDropTarget)}
+      </Group>
+ 
       {renderFrameDecorations(item, shadowProps, isDropTarget, isEditing, frameSlot)}
+ 
+      <Transformer
+        ref={innerTransformerRef}
+        rotateEnabled={false}
+        keepRatio={true}
+        enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+        borderStroke="#3b82f6"
+        borderDash={[5, 3]}
+        anchorFill="#ffffff"
+        anchorStroke="#3b82f6"
+        anchorSize={10}
+        anchorCornerRadius={3}
+        boundBoxFunc={(oldBox, newBox) => {
+          if (!frameImage) return oldBox
+          const baseScale = Math.max(
+            frameSlot.width / frameImage.width,
+            frameSlot.height / frameImage.height
+          )
+          const minW = frameImage.width * baseScale
+          const minH = frameImage.height * baseScale
+          if (newBox.width < minW || newBox.height < minH) return oldBox
+          return newBox
+        }}
+      />
     </Group>
   )
 }
@@ -1009,31 +1274,44 @@ function CanvasItem({ item, selectedId, onSelect, onChange, onDragStart, onDragE
     onDragStart: (event) => onDragStart(event, item.id),
     onDragEnd: (event) => onDragEnd(event, item.id),
     onTransformEnd: (event) => {
-  const node = event.target
-  const scaleX = node.scaleX()
-  const scaleY = node.scaleY()
+      const node = event.target
+      const scaleX = node.scaleX()
+      const scaleY = node.scaleY()
  
-  node.scaleX(1)
-  node.scaleY(1)
-  const nextSize = getCanvasContainedSize(Math.max(40, item.w * scaleX), Math.max(40, item.h * scaleY))
-  const nextPosition = getClampedCanvasPosition(nextSize.w, nextSize.h, { x: node.x(), y: node.y() })
+      node.scaleX(1)
+      node.scaleY(1)
+      const nextSize = getCanvasContainedSize(
+        Math.max(40, item.w * scaleX),
+        Math.max(40, item.h * scaleY)
+      )
+      const nextPosition = getClampedCanvasPosition(
+        nextSize.w,
+        nextSize.h,
+        { x: node.x(), y: node.y() }
+      )
  
-  const patch = {
-    x: nextPosition.x,
-    y: nextPosition.y,
-    w: nextSize.w,
-    h: nextSize.h,
-    rotation: node.rotation(),
-  }
+      const patch = {
+        x: nextPosition.x,
+        y: nextPosition.y,
+        w: nextSize.w,
+        h: nextSize.h,
+        rotation: node.rotation(),
+      }
  
-  // FIX: Saat frame di-resize, reset crop position ke center
-  // agar gambar tidak terlempar keluar slot
-  if (item.kind === 'frame' && item.frameImageSrc) {
-    patch.frameImagePosition = { x: 0, y: 0 }
-  }
+      // Saat frame di-resize, scale crop position proporsional
+      if (item.kind === 'frame' && item.frameImageSrc) {
+        const scaleFactorX = nextSize.w / item.w
+        const scaleFactorY = nextSize.h / item.h
+        patch.frameImagePosition = {
+          x: (item.frameImagePosition?.x || 0) * scaleFactorX,
+          y: (item.frameImagePosition?.y || 0) * scaleFactorY,
+        }
+        patch.frameImageScale = item.frameImageScale || 1
+      }
  
-  onChange(patch)
-},
+      onChange(patch)
+    },
+ 
   }
 
   if (item.kind === 'image') {
@@ -1165,42 +1443,44 @@ function CanvasItem({ item, selectedId, onSelect, onChange, onDragStart, onDragE
   }
 
   if (item.kind === 'frame') {
-  const isSelected = selectedId === item.id
-  const isEditing = editingFrameId === item.id
+    const isSelected = selectedId === item.id
+    const isEditing = editingFrameId === item.id
  
-  return (
-    <FrameWithImage
-      item={item}
-      isSelected={isSelected}
-      commonProps={{
-        ...commonProps,
-        // FIX: Saat isEditing, matikan draggable pada frame itu sendiri
-        // agar frame tidak ikut bergerak saat user drag gambar di dalamnya
-        draggable: !item.locked && !disableDrag && !isEditing,
-        onDblClick: (event) => {
-          event.cancelBubble = true
-          if (isEditing) {
-            // Double click kedua = keluar dari edit mode
-            onFrameImageEdit(null)
-          } else if (item.frameImageSrc) {
-            onFrameImageEdit(item.id)
-          }
-        },
-        onDblTap: (event) => {
-          event.cancelBubble = true
-          if (isEditing) {
-            onFrameImageEdit(null)
-          } else if (item.frameImageSrc) {
-            onFrameImageEdit(item.id)
-          }
-        },
-      }}
-      isDropTarget={dropTargetFrameId === item.id}
-      isEditing={isEditing}
-      onImageDragEnd={(position) => onChange({ frameImagePosition: position })}
-    />
-  )
-}
+    return (
+      <FrameWithImage
+        item={item}
+        isSelected={isSelected}
+        commonProps={{
+          ...commonProps,
+          // Frame tidak bisa di-drag saat edit gambar
+          draggable: !item.locked && !disableDrag && !isEditing,
+          onDblClick: (event) => {
+            event.cancelBubble = true
+            if (isEditing) {
+              onFrameImageEdit(null)
+            } else if (item.frameImageSrc) {
+              onFrameImageEdit(item.id)
+            }
+          },
+          onDblTap: (event) => {
+            event.cancelBubble = true
+            if (isEditing) {
+              onFrameImageEdit(null)
+            } else if (item.frameImageSrc) {
+              onFrameImageEdit(item.id)
+            }
+          },
+        }}
+        isDropTarget={dropTargetFrameId === item.id}
+        isEditing={isEditing}
+        onImageDragEnd={(position) => onChange({ frameImagePosition: position })}
+        onImageScaleChange={({ zoom, position }) => onChange({
+          frameImageScale: zoom,
+          frameImagePosition: position,
+        })}
+      />
+    )
+  }
 
   return (
     <Group {...commonProps}>
@@ -1493,20 +1773,20 @@ function Workspace() {
     zoomAnimationRef.current = requestAnimationFrame(tick)
   }
 
-  const attachTransformer = useCallback((id) => {
-    if (!transformerRef.current || !stageRef.current) return
+const attachTransformer = useCallback((id) => {
+  if (!transformerRef.current || !stageRef.current) return
 
-    if (!id) {
-      transformerRef.current.nodes([])
-      transformerRef.current.getLayer()?.batchDraw()
-      return
-    }
-
-    const node = stageRef.current.findOne(`[id="${id}"]`) || stageRef.current.findOne(`#${id}`)
-    const isLocked = itemsRef.current.find((item) => item.id === id)?.locked
-    transformerRef.current.nodes(node && !isLocked ? [node] : [])
+  if (!id) {
+    transformerRef.current.nodes([])
     transformerRef.current.getLayer()?.batchDraw()
-  }, [])
+    return
+  }
+
+  const node = stageRef.current.findOne(`[id="${id}"]`) || stageRef.current.findOne(`#${id}`)
+  const isLocked = itemsRef.current.find((item) => item.id === id)?.locked
+  transformerRef.current.nodes(node && !isLocked ? [node] : [])
+  transformerRef.current.getLayer()?.batchDraw()
+}, [])
 
   useEffect(() => {
     if (!transformerRef.current || !stageRef.current) return
@@ -1526,17 +1806,17 @@ function Workspace() {
     attachTransformer(selectedId)
   }, [selectedId, items, attachTransformer])
 
-const finishFrameImageEdit = useCallback(() => {
-  if (!editingFrameId) return
+  const finishFrameImageEdit = useCallback(() => {
+    if (!editingFrameId) return
  
-  const frameId = editingFrameId
-  setEditingFrameId(null)
+    const frameId = editingFrameId
+    setEditingFrameId(null)
  
-  // FIX: Re-attach transformer ke frame setelah keluar edit mode
-  requestAnimationFrame(() => {
-    attachTransformer(frameId)
-  })
-}, [attachTransformer, editingFrameId])
+    // Kembalikan outer transformer ke frame
+    requestAnimationFrame(() => {
+      attachTransformer(frameId)
+    })
+  }, [attachTransformer, editingFrameId])
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -2151,22 +2431,27 @@ const finishFrameImageEdit = useCallback(() => {
     attachTransformer(null)
   }
 
-const handleFrameImageEdit = (id) => {
-  // id === null berarti keluar dari edit mode (dblclick kedua)
-  if (!id) {
-    finishFrameImageEdit()
-    return
+  const handleFrameImageEdit = (id) => {
+    if (!id) {
+      finishFrameImageEdit()
+      return
+    }
+ 
+    const frame = itemsRef.current.find((item) => item.id === id)
+    if (!frame || frame.kind !== 'frame' || !frame.frameImageSrc) return
+ 
+    setEditingFrameId(id)
+    selectItem(id)
+ 
+    // FIX: Sembunyikan outer transformer saat edit mode
+    // agar tidak ada 2 transformer sekaligus yang membingungkan
+    requestAnimationFrame(() => {
+      if (transformerRef.current) {
+        transformerRef.current.nodes([])
+        transformerRef.current.getLayer()?.batchDraw()
+      }
+    })
   }
- 
-  const frame = itemsRef.current.find((item) => item.id === id)
-  if (!frame || frame.kind !== 'frame' || !frame.frameImageSrc) return
- 
-  setEditingFrameId(id)
-  selectItem(id)
-  // FIX: Jangan hapus transformer saat masuk edit mode
-  // Biarkan transformer tetap aktif tapi frame tidak bisa di-drag
-  // attachTransformer(null)  <-- HAPUS baris ini
-}
 
 const beginPan = (event) => {
   const stage = stageRef.current
@@ -2185,39 +2470,38 @@ const beginPan = (event) => {
   event.evt.preventDefault()
 }
 
-const handleStageMouseDown = (event) => {
-  if (activeObjectDragRef.current) return
+  const handleStageMouseDown = (event) => {
+    if (activeObjectDragRef.current) return
  
-  if (editingFrameId) {
-    // FIX: Cek apakah yang diklik adalah frame yang sedang di-edit
-    // Jika klik di luar frame, keluar dari edit mode
-    const clickedId = event.target?.id?.() || event.target?.getParent?.()?.id?.()
-    if (isEmptyCanvasTarget(event.target) || clickedId !== editingFrameId) {
-      finishFrameImageEdit()
+    if (editingFrameId) {
+      // Klik di background = keluar edit mode
+      if (isEmptyCanvasTarget(event.target)) {
+        finishFrameImageEdit()
+      }
+      // Selalu return — tidak ada pan/deselect saat dalam edit mode
+      return
     }
-    return
+ 
+    if (editingText && isEmptyCanvasTarget(event.target)) {
+      finishTextEditing()
+      return
+    }
+ 
+    if (justDroppedIdRef.current) return
+ 
+    const isMiddleMouse = event.evt.button === 1
+    const isEmpty = isEmptyCanvasTarget(event.target)
+ 
+    if (isSpaceDown || isMiddleMouse) {
+      beginPan(event)
+      return
+    }
+ 
+    if (isEmpty) {
+      deselectCanvas()
+      beginPan(event)
+    }
   }
- 
-  if (editingText && isEmptyCanvasTarget(event.target)) {
-    finishTextEditing()
-    return
-  }
- 
-  if (justDroppedIdRef.current) return
- 
-  const isMiddleMouse = event.evt.button === 1
-  const isEmpty = isEmptyCanvasTarget(event.target)
- 
-  if (isSpaceDown || isMiddleMouse) {
-    beginPan(event)
-    return
-  }
- 
-  if (isEmpty) {
-    deselectCanvas()
-    beginPan(event)
-  }
-}
 
 const handleStageMouseMove = () => {
   if (activeObjectDragRef.current) {
@@ -2796,8 +3080,6 @@ const renderPanel = () => {
                 type="button"
                 className="workspace-frame-add-image"
                 onClick={() => {
-                  // For now, use a placeholder image
-                  // In production, this would open file picker or asset browser
                   const placeholderImages = [
                     imageSources['art-1'],
                     imageSources['art-2'],
@@ -2820,10 +3102,138 @@ const renderPanel = () => {
                 <div className="workspace-frame-image-preview">
                   <img src={selectedItem.frameImageSrc} alt="Frame content" style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
                 </div>
-                <div className="workspace-frame-image-actions">
+ 
+                {/* FIX: Edit Position button — masuk ke edit mode */}
+                <button
+                  type="button"
+                  className="workspace-frame-edit-position"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    marginTop: '8px',
+                    background: editingFrameId === selectedItem.id
+                      ? 'rgba(59,130,246,0.18)'
+                      : 'rgba(255,255,255,0.06)',
+                    border: editingFrameId === selectedItem.id
+                      ? '1px solid rgba(59,130,246,0.5)'
+                      : '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    color: editingFrameId === selectedItem.id ? '#60a5fa' : '#c4bfd4',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s',
+                  }}
+                  onClick={() => {
+                    if (editingFrameId === selectedItem.id) {
+                      finishFrameImageEdit()
+                    } else {
+                      handleFrameImageEdit(selectedItem.id)
+                    }
+                  }}
+                >
+                  {editingFrameId === selectedItem.id ? (
+                    <>✓ Selesai Atur Posisi</>
+                  ) : (
+                    <>✋ Atur Posisi Gambar</>
+                  )}
+                </button>
+ 
+                {/* FIX: Image Scale / Zoom slider */}
+                <div className="workspace-slider-list" style={{ marginTop: '12px' }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: '#a09ca6' }}>
+                    <span>Zoom Gambar</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="range"
+                        min="100"
+                        max="300"
+                        step="1"
+                        value={Math.round((selectedItem.frameImageScale || 1) * 100)}
+                        onChange={(event) => {
+  const newScale = Number(event.target.value) / 100
+ 
+  // Clamp position agar gambar tetap cover slot saat zoom berubah
+  if (selectedItem.frameImageSrc) {
+    // Kita butuh ukuran gambar asli — ambil dari imageMetadata
+    const imgEl = new window.Image()
+    imgEl.src = selectedItem.frameImageSrc
+    // Gunakan naturalWidth/Height jika sudah loaded
+    const imgW = imgEl.naturalWidth || 800
+    const imgH = imgEl.naturalHeight || 600
+ 
+    // Hitung slot berdasarkan ukuran frame saat ini
+    const frameSlotForCalc = getResolvedFrameSlot(selectedItem)
+ 
+    const clampedPos = clampFrameImagePosition({
+      imageWidth: imgW,
+      imageHeight: imgH,
+      slot: frameSlotForCalc,
+      fit: selectedItem.frameImageFit || 'cover',
+      zoom: newScale,
+      position: selectedItem.frameImagePosition,
+    })
+ 
+    updateItem(selectedItem.id, {
+      frameImageScale: newScale,
+      frameImagePosition: clampedPos,
+    })
+  } else {
+    updateItem(selectedItem.id, { frameImageScale: newScale })
+  }
+}}
+                        style={{ flex: 1 }}
+                      />
+                      <span style={{ minWidth: '36px', textAlign: 'right', color: '#fff', fontSize: '12px' }}>
+                        {Math.round((selectedItem.frameImageScale || 1) * 100)}%
+                      </span>
+                    </div>
+                  </label>
+ 
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: '#a09ca6', marginTop: '8px' }}>
+                    <span>Image Fit</span>
+                    <select
+                      value={selectedItem.frameImageFit || 'cover'}
+                      onChange={(event) => updateItem(selectedItem.id, { frameImageFit: event.target.value })}
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                    >
+                      <option value="cover">Cover (Fill Frame)</option>
+                      <option value="contain">Contain (Fit Inside)</option>
+                    </select>
+                  </label>
+ 
+                  {/* Reset Position button */}
+                  <button
+                    type="button"
+                    onClick={() => updateItem(selectedItem.id, {
+                      frameImagePosition: { x: 0, y: 0 },
+                      frameImageScale: 1,
+                    })}
+                    style={{
+                      marginTop: '8px',
+                      width: '100%',
+                      padding: '7px',
+                      background: 'transparent',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '6px',
+                      color: '#a09ca6',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ↺ Reset Posisi & Zoom
+                  </button>
+                </div>
+ 
+                <div className="workspace-frame-image-actions" style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
                   <button
                     type="button"
                     className="workspace-frame-replace-image"
+                    style={{ flex: 1 }}
                     onClick={() => {
                       const placeholderImages = [
                         imageSources['art-1'],
@@ -2839,11 +3249,12 @@ const renderPanel = () => {
                       addImageToFrame(selectedItem.id, randomImage)
                     }}
                   >
-                    Replace Image
+                    Replace
                   </button>
                   <button
                     type="button"
                     className="workspace-frame-remove-image"
+                    style={{ flex: 1 }}
                     onClick={() => {
                       updateItem(selectedItem.id, {
                         frameImageSrc: null,
@@ -2853,21 +3264,8 @@ const renderPanel = () => {
                       })
                     }}
                   >
-                    Remove Image
+                    Remove
                   </button>
-                </div>
-                <div className="workspace-slider-list">
-                  <label>
-                    Image Fit
-                    <select
-                      value={selectedItem.frameImageFit || 'cover'}
-                      onChange={(event) => updateItem(selectedItem.id, { frameImageFit: event.target.value })}
-                      style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
-                    >
-                      <option value="cover">Cover (Fill Frame)</option>
-                      <option value="contain">Contain (Fit Inside)</option>
-                    </select>
-                  </label>
                 </div>
               </>
             )}
@@ -3748,11 +4146,15 @@ const renderPanel = () => {
                     ? ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right']
                     : ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']
                 }
+                // FIX: Override bounding box agar menggunakan ukuran frame,
+                // bukan ukuran KonvaImage yang melebihi frame (cover-fit)
                 boundBoxFunc={(oldBox, newBox) => {
-                  if (newBox.width < 40) return oldBox;
-                  if (selectedItem?.kind !== 'text' && newBox.height < 40) return oldBox;
-                  return newBox;
+                  if (newBox.width < 40) return oldBox
+                  if (selectedItem?.kind !== 'text' && newBox.height < 40) return oldBox
+                  return newBox
                 }}
+                // FIX: anchorStyleFunc untuk memastikan anchor muncul di
+                // sudut frame yang benar, bukan sudut image
                 borderStroke="#a970ff"
                 anchorFill="#f4e8ff"
                 anchorStroke="#a970ff"
@@ -3762,31 +4164,48 @@ const renderPanel = () => {
           </Layer>
         </Stage>
         {editingFrameId && (
-  <div
-    style={{
-      position: 'absolute',
-      top: 12,
-      left: '50%',
-      transform: 'translateX(-50%)',
-      background: 'rgba(59, 130, 246, 0.92)',
-      color: '#fff',
-      fontSize: 13,
-      fontWeight: 600,
-      padding: '6px 16px',
-      borderRadius: 20,
-      pointerEvents: 'none',
-      zIndex: 100,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      backdropFilter: 'blur(8px)',
-      boxShadow: '0 2px 12px rgba(59,130,246,0.3)',
-    }}
-  >
-    <span style={{ fontSize: 16 }}>✋</span>
-    Drag gambar untuk mengatur posisi · Double-click untuk selesai
-  </div>
-)}
+          <div
+            style={{
+              position: 'absolute',
+              top: 14,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(10, 10, 16, 0.92)',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 500,
+              padding: '9px 20px',
+              borderRadius: 28,
+              pointerEvents: 'none',
+              zIndex: 100,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              backdropFilter: 'blur(14px)',
+              border: '1px solid rgba(59,130,246,0.3)',
+              boxShadow: '0 0 0 1px rgba(59,130,246,0.15), 0 8px 24px rgba(0,0,0,0.4)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {/* Dot indicator biru */}
+            <span style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: '#3b82f6',
+              display: 'inline-block',
+              boxShadow: '0 0 8px #3b82f6',
+              flexShrink: 0,
+            }} />
+            <span style={{ color: '#e2e8f0' }}>Drag posisi · Pinch/drag sudut untuk zoom</span>
+            <span style={{
+              width: 1, height: 14,
+              background: 'rgba(255,255,255,0.15)',
+              display: 'inline-block', flexShrink: 0,
+            }} />
+            <span style={{ opacity: 0.45, fontSize: 11.5 }}>Klik di luar untuk selesai</span>
+          </div>
+        )}
 
         {editingText && inlineTextEditorStyle && (
           <textarea
