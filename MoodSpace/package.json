@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:backend": "node --watch backend/src/server.js",
+    "backend:start": "node backend/src/server.js",
+    "db:migrate": "node backend/src/db/migrate.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -13,13 +16,26 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@gradio/client": "^2.2.1",
+    "@imgly/background-removal": "^1.7.0",
+    "@supabase/supabase-js": "^2.106.2",
+    "argon2": "^0.44.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "konva": "^10.3.0",
     "lucide-react": "^0.539.0",
+    "multer": "^2.1.1",
+    "pg": "^8.16.3",
     "prop-types": "^15.8.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-konva": "^19.2.4",
-    "react-router-dom": "^6.30.3"
+    "react-router-dom": "^6.30.3",
+    "recharts": "^2.15.3",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -26,6 +26,10 @@
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border-medium: rgba(255, 255, 255, 0.1);
 
+  /* Scrollbar */
+--scrollbar-thumb: rgba(255, 255, 255, 0.18);
+--scrollbar-thumb-hover: rgba(255, 255, 255, 0.32);
+
   font: 16px/150% var(--font-body);
   letter-spacing: 0.2px;
   color: var(--text-primary);
@@ -38,12 +42,20 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
-body {
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+html, body {
   margin: 0;
   min-height: 100svh;
   overflow-x: hidden;
+  overscroll-behavior: none;
   background: var(--bg-main);
   color: var(--text-primary);
 }
@@ -70,4 +82,39 @@ h1,
 h2,
 p {
   margin: 0;
+}
+
+/* ─── Custom Scrollbar ─────────────────────────────────────────────────────── */
+/* Firefox uses scrollbar-width/color from * rule above                       */
+
+/* WebKit */
+*::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track,
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb,
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover,
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }

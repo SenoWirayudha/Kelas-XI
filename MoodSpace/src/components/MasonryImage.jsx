@@ -7,6 +7,7 @@ function MasonryImage({
   alt,
   className = '',
   fallbackRatio,
+  fill,
   children,
   onMeasure,
 }) {
@@ -49,8 +50,8 @@ function MasonryImage({
   return (
     <div
       ref={frameRef}
-      className={`masonry-image-frame ${isLoaded ? 'is-loaded' : 'is-loading'} ${className}`}
-      style={{
+      className={`masonry-image-frame ${isLoaded ? 'is-loaded' : 'is-loading'} ${fill ? 'masonry-image-fill' : ''} ${className}`}
+      style={fill ? undefined : {
         '--masonry-fallback-ratio': `${initialRatio}`,
         height: calculatedHeight ? `${calculatedHeight}px` : undefined,
       }}
@@ -60,6 +61,7 @@ function MasonryImage({
         className="masonry-image"
         src={source}
         alt={alt}
+        crossOrigin="anonymous"
         loading="lazy"
         decoding="async"
         onLoad={handleLoad}

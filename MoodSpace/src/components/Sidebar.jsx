@@ -1,11 +1,29 @@
+import { useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { Folder, Home, LayoutGrid, Plus, Shield, User } from 'lucide-react'
+import { useAuth } from '../context/authState'
+import CreateMenu from './CreateMenu'
 
 const getNavClass = ({ isActive }) =>
   isActive ? 'nav-item active' : 'nav-item'
 
-function Sidebar() {
+function Sidebar({ onLinkClick }) {
+  const { user } = useAuth()
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
+  const closeTimer = useRef(null)
+
+  const openMenu = () => {
+    clearTimeout(closeTimer.current)
+    setIsCreateMenuOpen(true)
+  }
+
+  const scheduleClose = () => {
+    clearTimeout(closeTimer.current)
+    closeTimer.current = setTimeout(() => setIsCreateMenuOpen(false), 120)
+  }
+
   return (
-    <aside className="sidebar layout-sidebar">
+    <aside className="sidebar">
       <div className="brand">
         <div className="brand-mark" aria-hidden="true">
           M
@@ -17,61 +35,41 @@ function Sidebar() {
       </div>
 
       <nav className="nav" aria-label="Primary">
-        <NavLink className={getNavClass} to="/">
-          <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinejoin="round"
-            />
-          </svg>
+        <NavLink className={getNavClass} to="/feed" onClick={onLinkClick}>
+          <Home size={20} className="nav-icon" aria-hidden="true" />
           <span>Home</span>
         </NavLink>
-        <NavLink className={getNavClass} to="/boards">
-          <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M4 7h6v6H4zM14 7h6v6h-6zM4 17h6v3H4zM14 17h6v3h-6z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinejoin="round"
-            />
-          </svg>
+        <NavLink className={getNavClass} to="/boards" onClick={onLinkClick}>
+          <LayoutGrid size={20} className="nav-icon" aria-hidden="true" />
           <span>Boards</span>
         </NavLink>
-        <NavLink className={getNavClass} to="/projects">
-          <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M4 6h6l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinejoin="round"
-            />
-          </svg>
+        <NavLink className={getNavClass} to="/projects" onClick={onLinkClick}>
+          <Folder size={20} className="nav-icon" aria-hidden="true" />
           <span>Projects</span>
         </NavLink>
-        <NavLink className={getNavClass} to="/profile">
-          <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="9" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-            <path
-              d="M5 20c1.5-3.6 4.3-5.4 7-5.4S17.5 16.4 19 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-          </svg>
+        <NavLink className={getNavClass} to="/profile" onClick={onLinkClick}>
+          <User size={20} className="nav-icon" aria-hidden="true" />
           <span>Profile</span>
         </NavLink>
+        {user?.role === 'admin' && (
+          <NavLink className={({ isActive }) => isActive ? 'nav-item active admin-nav' : 'nav-item admin-nav'} to="/admin" onClick={onLinkClick}>
+            <Shield size={20} className="nav-icon" aria-hidden="true" />
+            <span>Admin</span>
+          </NavLink>
+        )}
       </nav>
 
-      <button type="button" className="upload-btn">
-        <span className="upload-icon" aria-hidden="true">+</span>
-        Upload
-      </button>
+      <div className="sidebar-create">
+        <button type="button" className="upload-btn" onClick={() => setIsCreateMenuOpen((value) => !value)} onMouseEnter={openMenu} onMouseLeave={scheduleClose}>
+          <Plus size={14} aria-hidden="true" />
+          Upload
+        </button>
+        {isCreateMenuOpen && (
+          <div className="sidebar-create-menu" onMouseEnter={openMenu} onMouseLeave={scheduleClose}>
+            <CreateMenu onAction={() => setIsCreateMenuOpen(false)} />
+          </div>
+        )}
+      </div>
     </aside>
   )
 }

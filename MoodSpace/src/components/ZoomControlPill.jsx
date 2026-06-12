@@ -6,7 +6,8 @@ function ZoomControlPill({
   onZoomOut, 
   onResetZoom, 
   minZoom, 
-  maxZoom 
+  maxZoom,
+  children 
 }) {
   const zoomPercentage = Math.round(currentZoom * 100)
   const canZoomOut = currentZoom > minZoom
@@ -14,6 +15,8 @@ function ZoomControlPill({
 
   return (
     <div className="zoom-control-pill">
+      {children}
+      {children && <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />}
       <button
         className="zoom-btn"
         disabled={!canZoomOut}
@@ -58,6 +61,7 @@ ZoomControlPill.propTypes = {
   onResetZoom: PropTypes.func.isRequired,
   minZoom: PropTypes.number.isRequired,
   maxZoom: PropTypes.number.isRequired,
+  children: PropTypes.node,
 }
 
 export default ZoomControlPill

@@ -1,0 +1,230 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import BoardPickerModal from '../components/BoardPickerModal'
+import CommunityPostCard from '../components/CommunityPostCard'
+import NewBoardModal from '../components/NewBoardModal'
+import ResponsiveMasonry from '../components/ResponsiveMasonry'
+import { useAuth } from '../context/authState'
+import { addBoardItem, listBoards } from '../lib/api/boards'
+import { saveExternalImage, searchExternalImages, unsaveExternalImage } from '../lib/api/externalImages'
+import { likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
+import { searchPosts } from '../lib/api/search'
+import { externalImageToPost, postToExternalImagePayload } from '../utils/externalImagePost'
+
+const estimatePostHeight = (post, columnWidth) => {
+  const ratio = post.cover?.width && post.cover?.height ? post.cover.width / post.cover.height : 1
+  return columnWidth / Math.max(0.35, ratio) + 98
+}
+
+function SearchResults() {
+  const { requireAuth } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const q = searchParams.get('q') || ''
+  const tags = searchParams.get('tags') || ''
+  const sort = searchParams.get('sort') || 'relevance'
+  const [items, setItems] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [error, setError] = useState('')
+  const [boardPicker, setBoardPicker] = useState({ isOpen: false, post: null, boards: [] })
+  const [isNewBoardModalOpen, setIsNewBoardModalOpen] = useState(false)
+  const sentinelRef = useRef(null)
+  const loadingRef = useRef(false)
+  const requestSerialRef = useRef(0)
+  const nextOffsetRef = useRef(0)
+  const externalCursorRef = useRef(null)
+
+  const title = useMemo(() => {
+    if (q.trim()) return q.trim()
+    if (tags.trim()) return tags.trim()
+    return 'Explore'
+  }, [q, tags])
+
+  const loadResults = useCallback(async ({ reset = false } = {}) => {
+    if (loadingRef.current && !reset) return
+    const requestId = requestSerialRef.current + 1
+    requestSerialRef.current = requestId
+    loadingRef.current = true
+    setIsLoading(true)
+    setError('')
+    if (reset) {
+      nextOffsetRef.current = 0
+      externalCursorRef.current = null
+      setHasMore(false)
+    }
+    Promise.allSettled([
+      searchPosts({ q, tags, sort, limit: 21, offset: nextOffsetRef.current }),
+      searchExternalImages({ q: q || tags || 'design inspiration', limit: 9, cursor: externalCursorRef.current }),
+    ])
+      .then(([internalResult, externalResult]) => {
+        if (requestSerialRef.current !== requestId) return
+        if (internalResult.status === 'rejected' && externalResult.status === 'rejected') throw internalResult.reason || externalResult.reason
+        const internalPayload = internalResult.status === 'fulfilled' ? internalResult.value : { items: [], nextOffset: null }
+        const externalPayload = externalResult.status === 'fulfilled' ? externalResult.value : { items: [], nextCursor: null }
+        const internalItems = internalPayload.items || []
+        const externalItems = (externalPayload.items || []).map(externalImageToPost)
+        nextOffsetRef.current = internalPayload.nextOffset
+        externalCursorRef.current = externalPayload.nextCursor || null
+        setItems((current) => {
+          const nextItems = reset ? [] : current
+          const seen = new Set(nextItems.map((item) => item.id))
+          return [...nextItems, ...[...internalItems, ...externalItems].filter((item) => {
+            if (seen.has(item.id)) return false
+            seen.add(item.id)
+            return true
+          })]
+        })
+        setHasMore(!!internalPayload.nextOffset || !!externalPayload.nextCursor)
+      })
+      .catch((nextError) => {
+        if (requestSerialRef.current !== requestId) return
+        setError(nextError.message || 'Search gagal dimuat')
+      })
+      .finally(() => {
+        if (requestSerialRef.current !== requestId) return
+        loadingRef.current = false
+        setIsLoading(false)
+      })
+  }, [q, tags, sort])
+
+  useEffect(() => {
+    setItems([])
+    loadResults({ reset: true })
+  }, [q, tags, sort, loadResults])
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel || !hasMore) return undefined
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) loadResults()
+    }, { rootMargin: '500px 0px' })
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, loadResults])
+
+  const updateSort = (nextSort) => {
+    const next = new URLSearchParams(searchParams)
+    next.set('sort', nextSort)
+    setSearchParams(next)
+  }
+
+  const patchPost = useCallback((postId, patcher) => {
+    setItems((current) => current.map((item) => item.id === postId ? patcher(item) : item))
+  }, [])
+
+  const handleToggleLike = async (post) => {
+    if (!requireAuth('login')) return
+    const nextLiked = !post.isLiked
+    patchPost(post.id, (item) => ({
+      ...item,
+      isLiked: nextLiked,
+      likeCount: Math.max(0, (item.likeCount || 0) + (nextLiked ? 1 : -1)),
+    }))
+    try {
+      await (nextLiked ? likePost(post.id) : unlikePost(post.id))
+    } catch {
+      patchPost(post.id, () => post)
+    }
+  }
+
+  const handleToggleSave = async (post) => {
+    if (!requireAuth('login')) return
+    const nextSaved = !post.isSaved
+    patchPost(post.id, (item) => ({
+      ...item,
+      isSaved: nextSaved,
+      saveCount: Math.max(0, item.saveCount + (nextSaved ? 1 : -1)),
+    }))
+    try {
+      if (post.isExternalImage) {
+        await (nextSaved ? saveExternalImage(postToExternalImagePayload(post)) : unsaveExternalImage(post.id))
+      } else {
+        await (nextSaved ? savePost(post.id) : unsavePost(post.id))
+      }
+    } catch {
+      patchPost(post.id, () => post)
+    }
+  }
+
+  const handleAddToBoard = async (post) => {
+    if (!requireAuth('login')) return
+    const payload = await listBoards()
+    const body = post.isExternalImage ? { externalImage: postToExternalImagePayload(post) } : { postId: post.id }
+    if (payload.boards.length === 1) {
+      await addBoardItem(payload.boards[0].id, body)
+      return
+    }
+    setBoardPicker({ isOpen: true, post, boards: payload.boards })
+  }
+
+  const handleSelectBoard = async (board) => {
+    if (!boardPicker.post) return
+    const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
+    await addBoardItem(board.id, body)
+    setBoardPicker({ isOpen: false, post: null, boards: [] })
+  }
+
+  const handleCreateBoardForPost = async (board) => {
+    if (!boardPicker.post) return
+    const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
+    await addBoardItem(board.id, body)
+    setIsNewBoardModalOpen(false)
+    setBoardPicker({ isOpen: false, post: null, boards: [] })
+  }
+
+  return (
+    <section className="search-results-page">
+      <div className="search-results-header">
+        <div>
+          <h1>{title}</h1>
+          <p>{isLoading ? 'Searching Moodspace...' : `${items.length} result${items.length === 1 ? '' : 's'}`}</p>
+        </div>
+        <div className="search-sort-tabs" aria-label="Sort search results">
+          {[
+            ['relevance', 'Relevant'],
+            ['recent', 'Recent'],
+            ['popular', 'Popular'],
+          ].map(([id, label]) => (
+            <button type="button" className={sort === id ? 'active' : ''} onClick={() => updateSort(id)} key={id}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && <p className="community-state error">{error}</p>}
+      {!isLoading && !error && items.length === 0 && <p className="community-state">Tidak ada hasil yang cocok.</p>}
+      <ResponsiveMasonry
+        items={items}
+        estimateHeight={estimatePostHeight}
+        renderItem={(post) => (
+          <CommunityPostCard
+            key={post.id}
+            post={post}
+            onToggleLike={handleToggleLike}
+            onToggleSave={handleToggleSave}
+            onAddToBoard={handleAddToBoard}
+          />
+        )}
+      />
+      <div ref={sentinelRef} className="feed-sentinel" aria-hidden="true" />
+      {isLoading && <p className="community-state">Memuat hasil search...</p>}
+
+      <BoardPickerModal
+        isOpen={boardPicker.isOpen}
+        boards={boardPicker.boards}
+        postTitle={boardPicker.post?.title}
+        onCancel={() => setBoardPicker({ isOpen: false, post: null, boards: [] })}
+        onSelect={handleSelectBoard}
+        onCreate={() => setIsNewBoardModalOpen(true)}
+      />
+      <NewBoardModal
+        isOpen={isNewBoardModalOpen}
+        onCancel={() => setIsNewBoardModalOpen(false)}
+        onCreated={handleCreateBoardForPost}
+      />
+    </section>
+  )
+}
+
+export default SearchResults

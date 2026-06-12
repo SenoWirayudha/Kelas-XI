@@ -1,396 +1,406 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Heart, Eye, MoreHorizontal, Crown } from 'lucide-react'
-import { getAllBoards } from '../data/mockBoards'
-import { aspectRatioMap } from '../utils/aspectRatioMap'
-import MasonryImage from '../components/MasonryImage'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { FolderPlus, Globe, MapPin, User } from 'lucide-react'
+import { detectPlatform, SocialLinkIcon, toAbsoluteUrl } from '../components/SocialLinkIcon'
+import BoardPickerModal from '../components/BoardPickerModal'
+import CommunityPostCard from '../components/CommunityPostCard'
+import ConfirmationModal from '../components/ConfirmationModal'
+import CropImageModal from '../components/CropImageModal'
+import CroppedProfileImage from '../components/CroppedProfileImage'
+import EditProfileModal from '../components/EditProfileModal'
+import FollowListModal from '../components/FollowListModal'
+import NewBoardModal from '../components/NewBoardModal'
+import ResponsiveMasonry from '../components/ResponsiveMasonry'
+import { useAuth } from '../context/authState'
+import { addBoardItem, listBoards } from '../lib/api/boards'
+import { updateCurrentProfile } from '../lib/api/auth'
+import { getSavedExternalImages, saveExternalImage, unsaveExternalImage } from '../lib/api/externalImages'
+import { deletePost as deletePostApi, getSavedPosts, getUserPosts, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
+import { getPublicProfile } from '../lib/api/profiles'
+import { externalImageToPost, postToExternalImagePayload } from '../utils/externalImagePost'
 
-const projects = [
-  {
-    title: 'Lumina Identity',
-    tags: ['Branding', '3D Design'],
-    badge: 'Premium',
-    art: 'project-art-lumina',
-    size: 'medium',
-    likes: 248,
-    comments: 32,
-    aspectRatio: aspectRatioMap['project-art-lumina'],
-  },
-  {
-    title: 'Concrete Echo',
-    tags: ['Architecture', 'CGI'],
-    art: 'project-art-concrete',
-    size: 'large',
-    likes: 189,
-    comments: 21,
-    aspectRatio: aspectRatioMap['project-art-concrete'],
-  },
-  {
-    title: 'Chromatic Flow',
-    tags: ['Abstract Art', 'Motion'],
-    art: 'project-art-chromatic',
-    size: 'small',
-    likes: 312,
-    comments: 44,
-    aspectRatio: aspectRatioMap['project-art-chromatic'],
-  },
-  {
-    title: 'Noir Editorial',
-    tags: ['Photography', 'Fashion'],
-    art: 'project-art-noir',
-    size: 'large',
-    likes: 126,
-    comments: 18,
-    aspectRatio: aspectRatioMap['project-art-noir'],
-  },
-  {
-    title: 'Nexus UI Kit',
-    tags: ['UI/UX', 'Web App'],
-    badge: 'Active',
-    art: 'project-art-nexus',
-    size: 'large',
-    likes: 401,
-    comments: 57,
-    aspectRatio: aspectRatioMap['project-art-nexus'],
-  },
-  {
-    title: 'Orbital Void',
-    tags: ['Metaverse', 'NFT'],
-    art: 'project-art-orbital',
-    size: 'small',
-    likes: 276,
-    comments: 39,
-    aspectRatio: aspectRatioMap['project-art-orbital'],
-  },
-]
-
-const savedItems = [
-  { 
-    title: 'Luminous Field', 
-    art: 'art-1', 
-    aspectRatio: aspectRatioMap['art-1'],
-    author: 'Marcus Chen',
-    likes: 1800,
-    views: 9200
-  },
-  { 
-    title: 'Gravity Bloom', 
-    art: 'art-2', 
-    aspectRatio: aspectRatioMap['art-2'],
-    author: 'Sofia Rodriguez',
-    likes: 2100,
-    views: 11500
-  },
-  { 
-    title: 'Soft Circuit', 
-    art: 'art-3', 
-    aspectRatio: aspectRatioMap['art-3'],
-    author: 'Kai Nakamura',
-    likes: 1500,
-    views: 7800
-  },
-  { 
-    title: 'Steel Drift', 
-    art: 'art-4', 
-    aspectRatio: aspectRatioMap['art-4'],
-    author: 'Isabella Martinez',
-    likes: 2800,
-    views: 13200
-  },
-  { 
-    title: 'Glass Orbit', 
-    art: 'art-5', 
-    aspectRatio: aspectRatioMap['art-5'],
-    author: 'Liam O\'Connor',
-    likes: 1200,
-    views: 6500
-  },
-  { 
-    title: 'Vector Wave', 
-    art: 'art-6', 
-    aspectRatio: aspectRatioMap['art-6'],
-    author: 'Yuki Tanaka',
-    likes: 3100,
-    views: 15800
-  },
-]
+const formatCount = (value = 0) => value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value
+const estimatePostHeight = (post, columnWidth) => {
+  const ratio = post.cover?.width && post.cover?.height ? post.cover.width / post.cover.height : 1
+  return columnWidth / Math.max(0.35, ratio) + 98
+}
 
 function Profile() {
-  const [activeTab, setActiveTab] = useState('boards')
   const navigate = useNavigate()
-  const boards = getAllBoards()
+  const location = useLocation()
+  const headerRef = useRef(null)
+  const { user, isLoading: isAuthLoading, requireAuth, reloadUser } = useAuth()
+  const [activeTab, setActiveTab] = useState('posts')
+  const [profile, setProfile] = useState(null)
+  const [boards, setBoards] = useState([])
+  const [posts, setPosts] = useState([])
+  const [savedPosts, setSavedPosts] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [boardPicker, setBoardPicker] = useState({ isOpen: false, post: null })
+  const [isNewBoardModalOpen, setIsNewBoardModalOpen] = useState(false)
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [profileCropRequest, setProfileCropRequest] = useState(null)
+  const [profileCropResult, setProfileCropResult] = useState(null)
+  const [bannerAspectRatio, setBannerAspectRatio] = useState(16 / 5)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [error, setError] = useState('')
+  const [toastMessage, setToastMessage] = useState('')
+  const [followList, setFollowList] = useState({ isOpen: false, type: '' })
 
-  const handleBoardClick = (boardId) => {
-    navigate(`/boards/${boardId}`)
+  useEffect(() => {
+    if (!toastMessage) return undefined
+    const timer = window.setTimeout(() => setToastMessage(''), 1800)
+    return () => window.clearTimeout(timer)
+  }, [toastMessage])
+
+  useEffect(() => {
+    if (!headerRef.current) return undefined
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      if (width > 0 && height > 0) setBannerAspectRatio(width / height)
+    })
+    observer.observe(headerRef.current)
+    return () => observer.disconnect()
+  }, [isLoading, profile])
+
+  const loadProfile = useCallback(() => {
+    if (isAuthLoading) return
+    if (!user) {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
+    setError('')
+    Promise.all([
+      getPublicProfile(user.username),
+      listBoards(),
+      getUserPosts(user.username),
+      getSavedPosts(),
+      getSavedExternalImages(),
+    ])
+      .then(([profilePayload, boardsPayload, postsPayload, savedPayload, savedExternalPayload]) => {
+        setProfile(profilePayload.profile)
+        setBoards(boardsPayload.boards)
+        setPosts(postsPayload.items)
+        setSavedPosts([...(savedPayload.items || []), ...(savedExternalPayload.items || []).map(externalImageToPost)])
+      })
+      .catch((nextError) => setError(nextError.message || 'Profile gagal dimuat'))
+      .finally(() => setIsLoading(false))
+  }, [isAuthLoading, user])
+
+  useEffect(() => { loadProfile() }, [loadProfile])
+
+  useEffect(() => {
+    const onFocus = () => { if (!isAuthLoading && user) loadProfile() }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [isAuthLoading, user, loadProfile])
+
+  useEffect(() => {
+    if (location.state?.openEditProfile) {
+      setIsEditProfileOpen(true)
+      window.history.replaceState({}, '')
+    }
+  }, [location.state])
+
+  const handleToggleSave = async (post) => {
+    if (!requireAuth('login')) return
+    const nextSaved = !post.isSaved
+    const patchList = (list) => list.map((item) => (
+      item.id === post.id
+        ? { ...item, isSaved: nextSaved, saveCount: Math.max(0, item.saveCount + (nextSaved ? 1 : -1)) }
+        : item
+    ))
+    setPosts(patchList)
+    setSavedPosts((current) => nextSaved
+      ? [post, ...current.filter((item) => item.id !== post.id)]
+      : current.filter((item) => item.id !== post.id))
+    try {
+      if (post.isExternalImage) {
+        await (nextSaved ? saveExternalImage(postToExternalImagePayload(post)) : unsaveExternalImage(post.id))
+      } else {
+        await (nextSaved ? savePost(post.id) : unsavePost(post.id))
+      }
+    } catch {
+      setPosts((current) => current.map((item) => item.id === post.id ? post : item))
+    }
   }
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffTime = Math.abs(now - date)
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === 0) return 'Updated today'
-    if (diffDays === 1) return 'Updated yesterday'
-    if (diffDays < 7) return `Updated ${diffDays}d ago`
-    return date.toLocaleDateString()
+  const handleToggleLike = async (post) => {
+    if (!requireAuth('login')) return
+    const nextLiked = !post.isLiked
+    const patchList = (list) => list.map((item) => (
+      item.id === post.id
+        ? { ...item, isLiked: nextLiked, likeCount: Math.max(0, (item.likeCount || 0) + (nextLiked ? 1 : -1)) }
+        : item
+    ))
+    setPosts(patchList)
+    setSavedPosts(patchList)
+    try {
+      await (nextLiked ? likePost(post.id) : unlikePost(post.id))
+    } catch {
+      setPosts((current) => current.map((item) => item.id === post.id ? post : item))
+      setSavedPosts((current) => current.map((item) => item.id === post.id ? post : item))
+    }
   }
+
+  const handleAddToBoard = async (post) => {
+    if (!requireAuth('login')) return
+    if (boards.length === 1) {
+      const body = post.isExternalImage ? { externalImage: postToExternalImagePayload(post) } : { postId: post.id }
+      await addBoardItem(boards[0].id, body)
+      setToastMessage(`Disimpan ke ${boards[0].name}`)
+      return
+    }
+    setBoardPicker({ isOpen: true, post })
+  }
+
+  const handleSelectBoard = async (board) => {
+    if (!boardPicker.post) return
+    const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
+    await addBoardItem(board.id, body)
+    setToastMessage(`Disimpan ke ${board.name}`)
+    setBoardPicker({ isOpen: false, post: null })
+  }
+
+  const handleCreateBoardForPost = async (board) => {
+    if (!boardPicker.post) return
+    setBoards((current) => [board, ...current])
+    const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
+    await addBoardItem(board.id, body)
+    setToastMessage(`Disimpan ke ${board.name}`)
+    setIsNewBoardModalOpen(false)
+    setBoardPicker({ isOpen: false, post: null })
+  }
+
+  const handleDeleteClick = (post) => {
+    setDeleteTarget(post)
+  }
+
+  const confirmDeletePost = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    try {
+      await deletePostApi(deleteTarget.id)
+      setPosts((current) => current.filter((p) => p.id !== deleteTarget.id))
+      setSavedPosts((current) => current.filter((p) => p.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch {
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleEditProfile = async (values) => {
+    setIsSavingProfile(true)
+    try {
+      const payload = await updateCurrentProfile(values)
+      await reloadUser()
+      const refreshed = await getPublicProfile(payload.user.username)
+      setProfile(refreshed.profile)
+      setIsEditProfileOpen(false)
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
+  if (!isAuthLoading && !user) {
+    return (
+      <section className="profile-page">
+        <p className="community-state">Login untuk membuka profile.</p>
+        <button type="button" className="new-board-btn" onClick={() => requireAuth('login')}>Login</button>
+      </section>
+    )
+  }
+  if (isLoading) return <p className="community-state">Memuat profile...</p>
+  if (error || !profile) return <p className="community-state error">{error || 'Profile tidak ditemukan'}</p>
 
   return (
     <section className="profile-page">
-      <div className="profile-header">
-        <div className="profile-backdrop"></div>
+      <div className="profile-header" ref={headerRef}>
+        <div className="profile-backdrop">
+          <CroppedProfileImage src={profile.bannerUrl} crop={profile.metadata?.bannerCrop} />
+        </div>
       </div>
 
       <div className="profile-container" style={{ paddingLeft: 0, paddingRight: 0 }}>
         <div className="profile-hero">
           <div className="profile-left">
-            <div className="profile-avatar" aria-hidden="true"></div>
+            <div className="profile-avatar">
+              <CroppedProfileImage
+                src={profile.avatarUrl}
+                crop={profile.metadata?.avatarCrop}
+                circle
+                fallback={<div className="profile-avatar-empty"><User size={40} /></div>}
+              />
+            </div>
             <div className="profile-info">
               <div>
-                <h1>Elena Vance</h1>
-                <p className="profile-handle">@elenav_design</p>
+                <h1>{profile.displayName}</h1>
+                <p className="profile-handle">@{profile.username}</p>
               </div>
-              <p className="profile-bio">
-                Digital Artist & Creative Director specializing in minimalist brand identities and
-                futuristic UI systems. Exploring the intersection of light and structure.
-              </p>
+              <p className="profile-bio">{profile.bio || 'Belum ada bio.'}</p>
+              <div className="profile-links">
+                {profile.location && (
+                  <a href={`https://www.google.com/maps?q=${encodeURIComponent(profile.location)}`} target="_blank" rel="noopener noreferrer" className="profile-link-item" title={profile.location}>
+                    <MapPin size={14} />
+                    {profile.location}
+                  </a>
+                )}
+                {profile.websiteUrl && (
+                  <a href={toAbsoluteUrl(profile.websiteUrl)} target="_blank" rel="noopener noreferrer" className="profile-link-item" title={profile.websiteUrl}>
+                    <Globe size={14} />
+                    {profile.websiteUrl.replace(/^https?:\/\//, '')}
+                  </a>
+                )}
+                {(() => {
+                  const socialUrl = profile.socialLinks?.main
+                  if (!socialUrl) return null
+                  const { platform, domain } = detectPlatform(socialUrl)
+                  return (
+                    <a key="social" href={toAbsoluteUrl(socialUrl)} target="_blank" rel="noopener noreferrer" className="profile-link-item" title={socialUrl}>
+                      <SocialLinkIcon platform={platform} />
+                      {domain || socialUrl.replace(/^https?:\/\//, '')}
+                    </a>
+                  )
+                })()}
+              </div>
               <div className="profile-stats">
-                <div>
-                  <strong>1.2k</strong>
-                  <span>Followers</span>
-                </div>
-                <div>
-                  <strong>482</strong>
-                  <span>Following</span>
-                </div>
-                <div>
-                  <strong>14</strong>
-                  <span>Boards</span>
-                </div>
-                <div>
-                  <strong>32</strong>
-                  <span>Projects</span>
-                </div>
+                <button type="button" className="profile-stat-btn" onClick={() => setFollowList({ isOpen: true, type: 'followers' })}>
+                  <strong>{formatCount(profile.followerCount)}</strong><span>Followers</span>
+                </button>
+                <button type="button" className="profile-stat-btn" onClick={() => setFollowList({ isOpen: true, type: 'following' })}>
+                  <strong>{formatCount(profile.followingCount)}</strong><span>Following</span>
+                </button>
+                <div><strong>{formatCount(profile.boardCount)}</strong><span>Boards</span></div>
+                <div><strong>{formatCount(profile.postCount)}</strong><span>Posts</span></div>
               </div>
             </div>
           </div>
           <div className="profile-actions">
-            <button type="button" className="profile-follow">Follow</button>
-            <button type="button" className="profile-share" aria-label="Share profile">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M15 8a3 3 0 1 0-2.8-4H12a3 3 0 0 0 0 6h.2A3 3 0 0 0 15 8z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                />
-                <path
-                  d="M9 12 15 9m-6 3 6 3"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M9 21a3 3 0 1 1 2.8-4H12a3 3 0 0 1-6 0"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                />
-                <path
-                  d="M18 21a3 3 0 1 1 2.8-4H21a3 3 0 0 1-6 0"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                />
-              </svg>
+            <button type="button" className="profile-follow" onClick={() => setIsEditProfileOpen(true)}>
+              Edit Profile
             </button>
           </div>
         </div>
 
         <nav className="profile-tabs" aria-label="Profile sections">
-          <button
-            type="button"
-            className={`profile-tab ${activeTab === 'boards' ? 'active' : ''}`}
-            onClick={() => setActiveTab('boards')}
-          >
-            Boards
-          </button>
-          <button
-            type="button"
-            className={`profile-tab ${activeTab === 'projects' ? 'active' : ''}`}
-            onClick={() => setActiveTab('projects')}
-          >
-            Projects
-          </button>
-          <button
-            type="button"
-            className={`profile-tab ${activeTab === 'saved' ? 'active' : ''}`}
-            onClick={() => setActiveTab('saved')}
-          >
-            Saved
-          </button>
+          {[
+            ['posts', 'Posts'],
+            ['boards', 'Boards'],
+            ['saved', 'Saved'],
+          ].map(([id, label]) => (
+            <button
+              type="button"
+              className={`profile-tab ${activeTab === id ? 'active' : ''}`}
+              onClick={() => setActiveTab(id)}
+              key={id}
+            >
+              {label}
+            </button>
+          ))}
         </nav>
 
         <div className="profile-content">
+          {activeTab === 'posts' && (
+            <>
+              <ResponsiveMasonry items={posts} estimateHeight={estimatePostHeight} renderItem={(post) => <CommunityPostCard key={post.id} post={post} isOwner onToggleLike={handleToggleLike} onToggleSave={handleToggleSave} onAddToBoard={handleAddToBoard} onDeleteClick={handleDeleteClick} />} />
+              {posts.length === 0 && <p className="community-state">Belum ada workspace yang dipublish.</p>}
+            </>
+          )}
+
           {activeTab === 'boards' && (
             <section className="boards-grid">
               {boards.map((board) => (
-                <article 
-                  className="board-card" 
-                  key={board.id}
-                  onClick={() => handleBoardClick(board.id)}
-                  style={{ cursor: 'pointer' }}
-                >
+                <article className="board-card" key={board.id} onClick={() => navigate(`/boards/${board.id}`)}>
                   <div className="board-cover">
-                    {board.coverImages.slice(0, 4).map((img, index) => (
-                      <div 
-                        key={index} 
-                        className={`board-thumb thumb-${String.fromCharCode(97 + index)}`}
-                      ></div>
+                    {Array.from({ length: 4 }, (_, index) => (
+                      <div
+                        className="board-thumb"
+                        key={index}
+                        style={board.coverImages[index] ? { backgroundImage: `url("${board.coverImages[index]}")` } : undefined}
+                      />
                     ))}
                   </div>
                   <h3 className="board-title">{board.name}</h3>
-                  <div className="board-meta">
-                    <span>{board.assetCount} items</span>
-                    <span>{formatDate(board.lastUpdated)}</span>
-                  </div>
-                  <div className="board-tags">
-                    {board.category.slice(0, 2).map((tag, index) => (
-                      <span key={index} className="board-tag">{tag}</span>
-                    ))}
-                  </div>
+                  <div className="board-meta"><span>{board.itemCount} items</span></div>
                 </article>
               ))}
-            </section>
-          )}
-
-          {activeTab === 'projects' && (
-            <section className="projects-grid">
-              {projects.map((project) => (
-                <article className={`project-card ${project.size}`} key={project.title}>
-                  <div className="project-card-image">
-                    <MasonryImage
-                      imageKey={project.art}
-                      alt={project.title}
-                      className="project-art"
-                      fallbackRatio={project.aspectRatio}
-                    >
-                      {project.badge && (
-                        <span className="project-badge">
-                          {project.badge === 'Premium' && (
-                            <Crown size={14} strokeWidth={1.8} />
-                          )}
-                          {project.badge}
-                        </span>
-                      )}
-                      <div className="project-card-overlay">
-                        <div className="project-card-actions">
-                          <button className="project-action-btn" title="Save">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                            </svg>
-                          </button>
-                          <button className="project-action-btn" title="Download">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                              <polyline points="7 10 12 15 17 10" />
-                              <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </MasonryImage>
-                  </div>
-
-                  {/* Metadata - No Avatar for Projects */}
-                  <div className="project-card-metadata">
-                    <div className="metadata-left">
-                      <h3 className="metadata-title">{project.title}</h3>
-                    </div>
-                    <div className="metadata-right">
-                      <button className="metadata-menu-btn">
-                        <MoreHorizontal size={16} strokeWidth={2} />
-                      </button>
-                      <div className="metadata-stats">
-                        <span className="stat-item">
-                          <Heart size={13} strokeWidth={2} />
-                          {project.likes >= 1000 ? `${(project.likes / 1000).toFixed(1)}k` : project.likes}
-                        </span>
-                        <span className="stat-item">
-                          <Eye size={13} strokeWidth={2} />
-                          {project.comments >= 1000 ? `${(project.comments / 1000).toFixed(1)}k` : project.comments}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
+              {boards.length === 0 && <p className="community-state">Belum ada board.</p>}
             </section>
           )}
 
           {activeTab === 'saved' && (
-            <section className="gallery">
-              {savedItems.map((item) => (
-                <article className="gallery-card" key={item.title}>
-                  <div className="gallery-link">
-                    <MasonryImage
-                      imageKey={item.art}
-                      alt={item.title}
-                      className="gallery-art"
-                      fallbackRatio={item.aspectRatio}
-                    >
-                      <div className="gallery-card-overlay">
-                        <div className="gallery-card-actions">
-                          <button className="gallery-action-btn" title="Save">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                            </svg>
-                          </button>
-                          <button className="gallery-action-btn" title="Download">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                              <polyline points="7 10 12 15 17 10" />
-                              <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </MasonryImage>
-                  </div>
-
-                  {/* Metadata */}
-                  <div className="gallery-card-metadata">
-                    <div className="metadata-left">
-                      <div className="metadata-author">
-                        <div className="author-avatar" />
-                        <span className="author-username">@{item.author.toLowerCase().replace(/\s+/g, '')}</span>
-                      </div>
-                      <h3 className="metadata-title">{item.title}</h3>
-                    </div>
-                    <div className="metadata-right">
-                      <button className="metadata-menu-btn">
-                        <MoreHorizontal size={16} strokeWidth={2} />
-                      </button>
-                      <div className="metadata-stats">
-                        <span className="stat-item">
-                          <Heart size={13} strokeWidth={2} />
-                          {item.likes >= 1000 ? `${(item.likes / 1000).toFixed(1)}k` : item.likes}
-                        </span>
-                        <span className="stat-item">
-                          <Eye size={13} strokeWidth={2} />
-                          {item.views >= 1000 ? `${(item.views / 1000).toFixed(1)}k` : item.views}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </section>
+            <>
+              <ResponsiveMasonry items={savedPosts} estimateHeight={estimatePostHeight} renderItem={(post) => <CommunityPostCard key={post.id} post={post} onToggleLike={handleToggleLike} onToggleSave={handleToggleSave} onAddToBoard={handleAddToBoard} />} />
+              {savedPosts.length === 0 && <p className="community-state">Belum ada post tersimpan.</p>}
+            </>
           )}
         </div>
       </div>
+      <BoardPickerModal
+        isOpen={boardPicker.isOpen}
+        boards={boards}
+        postTitle={boardPicker.post?.title}
+        onCancel={() => setBoardPicker({ isOpen: false, post: null })}
+        onSelect={handleSelectBoard}
+        onCreate={() => setIsNewBoardModalOpen(true)}
+      />
+      <NewBoardModal
+        isOpen={isNewBoardModalOpen}
+        onCancel={() => setIsNewBoardModalOpen(false)}
+        onCreated={handleCreateBoardForPost}
+      />
+      <ConfirmationModal
+        isOpen={!!deleteTarget}
+        title="Delete post?"
+        description={deleteTarget ? `"${deleteTarget.title || 'this post'}" will be permanently deleted.` : ''}
+        confirmLabel="Delete Post"
+        isConfirming={isDeleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={confirmDeletePost}
+      />
+      <EditProfileModal
+        isOpen={isEditProfileOpen}
+        profile={profile}
+        bannerAspectRatio={bannerAspectRatio}
+        isSaving={isSavingProfile}
+        onCancel={() => setIsEditProfileOpen(false)}
+        onSave={handleEditProfile}
+        onRequestCrop={setProfileCropRequest}
+        cropResult={profileCropResult}
+      />
+      <CropImageModal
+        isOpen={!!profileCropRequest}
+        file={profileCropRequest?.file}
+        mode={profileCropRequest?.mode || 'banner'}
+        aspectRatio={bannerAspectRatio}
+        onCancel={() => setProfileCropRequest(null)}
+        onSave={(payload) => {
+          setProfileCropResult({
+            id: `${profileCropRequest?.mode || 'crop'}-${Date.now()}`,
+            mode: profileCropRequest?.mode || 'banner',
+            file: payload.file,
+            crop: payload.crop,
+          })
+          setProfileCropRequest(null)
+        }}
+      />
+      <FollowListModal
+        isOpen={followList.isOpen}
+        type={followList.type}
+        userId={user?.id}
+        onClose={() => setFollowList({ isOpen: false, type: '' })}
+      />
+      {toastMessage && (
+        <div className="post-detail-toast" role="status" aria-live="polite">
+          <FolderPlus size={15} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </section>
   )
 }
