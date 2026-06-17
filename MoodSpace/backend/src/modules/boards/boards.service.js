@@ -1,7 +1,9 @@
 import { notFound } from '../../utils/errors.js'
+import { query } from '../../db/pool.js'
 import { ensureExternalImage } from '../externalImages/externalImages.service.js'
-import { findExternalImageById } from '../externalImages/externalImages.repository.js'
+import { findExternalImageById, findExternalImageEmbedding } from '../externalImages/externalImages.repository.js'
 import { recordInterestEvent } from '../interest/interest.service.js'
+import { updateProfile } from '../profile/profile.service.js'
 import { getOwnedReadyMedia } from '../media/media.service.js'
 import { findPostById } from '../posts/posts.repository.js'
 import {
@@ -71,6 +73,9 @@ export const addBoardItem = async ({ userId, boardId, body }) => {
       eventType: 'add_to_board',
       tags: post?.metadata?.tags || [],
     })
+    if (post?.embedding) {
+      updateProfile({ userId, embedding: post.embedding, weight: 0.8 }).catch(() => {})
+    }
   } else if (externalImageId) {
     const image = await findExternalImageById({ id: externalImageId, userId })
     await recordInterestEvent({
@@ -79,6 +84,10 @@ export const addBoardItem = async ({ userId, boardId, body }) => {
       tags: image?.tags || [],
       query: image?.title || null,
     })
+    const emb = await findExternalImageEmbedding({ id: externalImageId })
+    if (emb) {
+      updateProfile({ userId, embedding: emb, weight: 0.8 }).catch(() => {})
+    }
   }
   return { added: true, itemId: item.id }
 }

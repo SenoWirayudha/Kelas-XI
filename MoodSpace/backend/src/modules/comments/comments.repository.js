@@ -17,6 +17,7 @@ export const listCommentsByPost = async ({ postId, cursor, limit }) => {
        c.content,
        c.created_at as "createdAt",
        c.author_id as "authorId",
+       c.status,
        u.username,
        u.display_name as "displayName",
        up.avatar_media_id as "avatarMediaId",
@@ -26,6 +27,7 @@ export const listCommentsByPost = async ({ postId, cursor, limit }) => {
      left join user_profiles up on up.user_id = u.id
      left join media_assets ma on ma.id = up.avatar_media_id and ma.deleted_at is null
      where c.post_id = $1
+       and c.status = 'active'
        and ($2::uuid is null or c.created_at < (select created_at from comments where id = $2))
      order by c.created_at desc
      limit $3`,
@@ -42,9 +44,16 @@ export const listCommentsByPost = async ({ postId, cursor, limit }) => {
 }
 
 export const findCommentById = async ({ commentId, authorId }) => {
+  if (authorId) {
+    const { rows } = await query(
+      `select id, author_id as "authorId" from comments where id = $1 and author_id = $2`,
+      [commentId, authorId],
+    )
+    return rows[0] || null
+  }
   const { rows } = await query(
-    `select id from comments where id = $1 and author_id = $2`,
-    [commentId, authorId],
+    `select id, author_id as "authorId" from comments where id = $1`,
+    [commentId],
   )
   return rows[0] || null
 }

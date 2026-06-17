@@ -10,6 +10,7 @@ import {
   publishWorkspaceSchema,
   recommendedPostsSchema,
   savedPostsSchema,
+  similarPostsSchema,
   updatePostSchema,
   usernamePostsSchema,
 } from './posts.validation.js'
@@ -23,6 +24,7 @@ postsRouter.post('/publish-workspace', authRequired, validate(publishWorkspaceSc
 postsRouter.post('/drafts', authRequired, validate(mediaPostDraftSchema), controller.createMediaDraft)
 postsRouter.post('/', authRequired, validate(createMediaPostSchema), controller.createMediaPost)
 postsRouter.get('/saved', authRequired, validate(savedPostsSchema), controller.savedPosts)
+postsRouter.get('/similar/:imageId', optionalAuth, validate(similarPostsSchema), controller.similarPostsByImage)
 postsRouter.get('/:id/recommended', optionalAuth, validate(recommendedPostsSchema), controller.recommendedPosts)
 postsRouter.get('/:id', optionalAuth, validate(postIdParamSchema), controller.getPost)
 postsRouter.put('/:id/draft', authRequired, validate(mediaPostDraftParamSchema), controller.updateMediaDraft)

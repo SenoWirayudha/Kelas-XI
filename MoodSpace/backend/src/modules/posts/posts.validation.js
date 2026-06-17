@@ -112,3 +112,15 @@ export const recommendedPostsSchema = z.object({
   }),
   body: z.object({}).optional(),
 })
+
+const imageIdParam = z.string().min(1)
+export const similarPostsSchema = z.object({
+  params: z.object({
+    imageId: imageIdParam,
+  }),
+  query: z.object({
+    q: z.string().max(500).optional(),
+    limit: z.coerce.number().int().min(1).max(50).default(12),
+  }),
+  body: z.object({}).optional(),
+})

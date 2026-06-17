@@ -100,7 +100,9 @@ export const register = async ({ email, username, password, displayName }, req) 
 
 export const login = async ({ identifier, password }, req) => {
   const user = await findUserByEmailOrUsername(identifier)
-  if (!user || user.status !== 'active') throw unauthorized('Invalid credentials')
+  if (!user) throw unauthorized('Invalid credentials')
+  if (user.status === 'banned') throw new AppError('Akun anda terkena banned', { status: 403, code: 'ACCOUNT_BANNED' })
+  if (user.status !== 'active') throw unauthorized('Invalid credentials')
 
   const auth = await findPasswordAuthByUserId(user.id)
   if (!auth) throw unauthorized('Invalid credentials')

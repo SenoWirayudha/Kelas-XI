@@ -1,13 +1,23 @@
 import { env } from '../../config/env.js'
 import { notFound } from '../../utils/errors.js'
 import { getTopRecentInterestQuerySignals, getTopRecentInterestTagsWithScores, normalizeInterestTag, recordInterestEvent } from '../interest/interest.service.js'
+import { updateProfile } from '../profile/profile.service.js'
+import { findMediaById } from '../media/media.repository.js'
 import {
+  findAnyEmbedding,
+  findEmbeddingsByItemIds,
   findExternalImageById,
+  findExternalImageEmbedding,
+  findImagesByVisualSimilarity,
   listSavedExternalImages,
   saveExternalImage,
   unsaveExternalImage,
+  updateEmbedding,
   upsertExternalImage,
 } from './externalImages.repository.js'
+import { getTextEmbedding, getImageEmbedding, rerankByQueryEmbedding, averageEmbeddings } from './clip.service.js'
+
+const uploadEmbeddingCache = new Map()
 
 const commonsApiUrl = 'https://commons.wikimedia.org/w/api.php'
 const tmdbApiUrl = 'https://api.themoviedb.org/3'
@@ -44,10 +54,75 @@ const movieIntentWords = ['movie', 'film', 'cinema', 'cinematic', 'poster', 'sce
 const movieBackdropWords = ['scene', 'still', 'wallpaper', 'cinematic shot', 'cinematic', 'backdrop']
 const moviePosterWords = ['poster', 'movie poster', 'film poster', 'cinema poster', 'key art']
 const nonMovieWords = ['album', 'music', 'song', 'vinyl', 'interior', 'room', 'fashion', 'typography', 'logo', 'ui', 'ux']
+
+const designIntentWords = new Set([
+  'texture', 'pattern', 'background', 'overlay', 'grunge', 'noise', 'grain', 'paper',
+  'fabric', 'canvas', 'brush', 'stroke', 'splatter', 'watercolor', 'acrylic', 'oil',
+  'pastel', 'ink', 'marker', 'pencil', 'sketch', 'doodle', 'scribble', 'calligraphy',
+  'typography', 'typeface', 'font', 'lettering', 'abstract', 'geometric', 'organic',
+  'floral', 'botanical', 'marble', 'concrete', 'wood', 'metal', 'rust', 'brick',
+  'stone', 'sand', 'gradient', 'mesh', 'grid', 'line', 'shape', 'form', 'vintage',
+  'retro', 'antique', 'worn', 'distressed', 'creased', 'folded', 'torn', 'ripped',
+  'collage', 'mixed media', 'multimedia', 'layered', 'composition', 'moodboard',
+  'design', 'graphic', 'visual', 'artistic', 'decorative', 'ornamental', 'motif',
+  'seamless', 'tile', 'repeat', 'backdrop', 'wallpaper', 'surface', 'material',
+  'textile', 'weave', 'knit', 'crosshatch', 'hatch', 'stipple', 'dot', 'pointillism',
+  'pixel', 'digital', 'render', '3d', 'cgi', 'vector', 'svg', 'png',
+  'transparent', 'cutout', 'silhouette', 'stencil', 'stamp', 'imprint', 'emboss',
+  'foil', 'gold', 'silver', 'copper', 'bronze', 'glitter', 'sparkle', 'shimmer',
+  'neon', 'glow', 'light', 'shadow', 'drop shadow', 'highlight', 'reflection',
+  'bokeh', 'lens flare', 'sunburst', 'ray', 'beam', 'prism', 'rainbow',
+  'color', 'colour', 'palette', 'swatch', 'hue', 'tint', 'shade', 'tone',
+  'monochrome', 'grayscale', 'black and white', 'sepia', 'duotone',
+  'minimal', 'minimalist', 'clean', 'simple', 'elegant', 'sophisticated',
+  'rustic', 'bohemian', 'boho', 'scandinavian', 'industrial', 'modern',
+  'contemporary', 'art deco', 'art nouveau', 'bauhaus', 'mid century',
+  'photocopy', 'scan', 'fax', 'print', 'screen', 'offset', 'risograph',
+  'zine', 'fanzine', 'ephemera', 'sticker', 'label', 'badge', 'emblem',
+  'frame', 'border', 'edge', 'corner', 'ornament', 'vignette',
+  'smudge', 'smear', 'blot', 'blotch', 'stain', 'splash', 'drip',
+  'spray', 'aerosol', 'airbrush', 'sponge', 'rag', 'cloth',
+  'palette knife', 'spatula', 'tool', 'brushstroke',
+])
+
+const nonDesignWords = new Set([
+  'person', 'people', 'man', 'woman', 'boy', 'girl', 'child', 'baby', 'adult',
+  'portrait', 'selfie', 'face', 'headshot', 'profile', 'fashion', 'model',
+  'animal', 'dog', 'cat', 'bird', 'fish', 'horse', 'pet', 'wildlife', 'insect', 'moth', 'beetle', 'bug', 'spider', 'butterfly', 'caterpillar', 'worm', 'snail', 'slug', 'reptile', 'snake', 'lizard', 'turtle', 'frog', 'toad', 'mammal', 'bear', 'wolf', 'fox', 'rabbit', 'deer', 'mouse', 'rat', 'squirrel', 'bat', 'whale', 'dolphin', 'shark', 'octopus', 'jellyfish', 'crab', 'lobster', 'prawn', 'shrimp', 'seal', 'otter',
+  'food', 'meal', 'dish', 'recipe', 'restaurant', 'kitchen', 'cooking', 'baking',
+  'car', 'vehicle', 'truck', 'bus', 'train', 'plane', 'boat', 'ship', 'bicycle',
+  'building', 'house', 'home', 'architecture', 'cityscape', 'skyline',
+  'landscape', 'mountain', 'ocean', 'beach', 'sunset', 'sunrise', 'forest', 'tree', 'nature',
+  'travel', 'tourism', 'vacation', 'holiday', 'destination', 'landmark',
+  'sport', 'game', 'match', 'player', 'team', 'stadium', 'athlete',
+  'concert', 'festival', 'performance', 'stage', 'audience', 'crowd',
+  'wedding', 'event', 'party', 'celebration', 'ceremony',
+  'document', 'certificate', 'form', 'receipt', 'invoice', 'letter', 'memo',
+  'screenshot', 'screen capture', 'ui', 'ux', 'interface', 'mockup',
+  'product', 'advertisement', 'commercial', 'promotion', 'marketing',
+])
+
+const isDesignItem = (item) => {
+  const text = [
+    item.title,
+    item.description,
+    item.alt_description,
+    ...(Array.isArray(item.tags) ? item.tags : typeof item.tags === 'string' ? [item.tags] : []),
+  ].filter(Boolean).join(' ').toLowerCase()
+
+  const hasDesignWord = [...designIntentWords].some((w) => text.includes(w))
+  if (hasDesignWord) return true
+
+  const hasNonDesignWord = [...nonDesignWords].some((w) => text.includes(w))
+  if (hasNonDesignWord) return false
+
+  return true
+}
 const titleNoiseWords = [
   'movie', 'film', 'cinema', 'cinematic', 'shot', 'scene', 'still', 'wallpaper', 'backdrop', 'poster', 'key', 'art',
   'minimal', 'editorial', 'design', 'inspiration', 'moodboard', 'graphic', 'aesthetic', 'official',
   'cast', 'crew', 'actor', 'actress', 'director', 'starring', 'pemeran', 'pemain', 'karakter', 'character',
+  'the', 'a', 'an',
 ]
 
 export const classifyMovieQuery = (value = '') => {
@@ -65,8 +140,15 @@ export const classifyMovieQuery = (value = '') => {
   })
   const titleCandidate = titleTokens.join(' ').trim()
 
-  const gate2 = !titleCandidate || (!hasMovieIntent && titleCandidate.split(' ').length >= 8)
-  if (gate2) { console.log('[TMDB-DEBUG] classifyMovieQuery REJECTED gate2 (>=5 tokens no movie intent):', { raw: value, normalized, hasMovieIntent, titleCandidate, tokenCount: titleCandidate.split(' ').length }); return null }
+  const allTokensAreMovieNoise = tokens.length > 0 && tokens.every((token) => (
+    titleNoiseWords.includes(token) || movieIntentWords.includes(token)
+  ))
+  const isGeneric = allTokensAreMovieNoise
+
+  if (!isGeneric) {
+    const gate2 = !titleCandidate || (!hasMovieIntent && titleCandidate.split(' ').length >= 8)
+    if (gate2) { console.log('[TMDB-DEBUG] classifyMovieQuery REJECTED gate2 (>=5 tokens no movie intent):', { raw: value, normalized, hasMovieIntent, titleCandidate, tokenCount: titleCandidate.split(' ').length }); return null }
+  }
 
   const visualType = movieBackdropWords.some(matchWord)
     ? 'backdrop'
@@ -74,9 +156,21 @@ export const classifyMovieQuery = (value = '') => {
       ? 'poster'
       : 'poster'
 
-  const result = { visualType, titleCandidate: titleCandidate || normalized, normalizedQuery: normalized }
-  console.log('[TMDB-DEBUG] classifyMovieQuery PASS:', { raw: value, normalized, hasMovieIntent, titleCandidate, result })
+  const result = { visualType, titleCandidate: titleCandidate || normalized, normalizedQuery: normalized, isGeneric }
+  console.log('[TMDB-DEBUG] classifyMovieQuery PASS:', { raw: value, normalized, hasMovieIntent, titleCandidate, isGeneric, result })
   return result
+}
+
+const classifyMusicQuery = (query) => {
+  if (!query || typeof query !== 'string') return false
+  const lower = query.trim().toLowerCase()
+  if (!lower || lower.length < 2) return false
+  const movieResult = classifyMovieQuery(query)
+  if (movieResult?.isGeneric) return false
+  if (movieResult && movieResult.titleCandidate.split(' ').length === 1) return false
+  const movieIntentWords = ['movie', 'film', 'cinema', 'cinematic', 'poster', 'scene', 'still', 'backdrop', 'key art']
+  if (movieIntentWords.some((w) => lower.includes(w))) return false
+  return true
 }
 
 const buildMovieSearchVariants = (classifier) => {
@@ -84,8 +178,7 @@ const buildMovieSearchVariants = (classifier) => {
   const query = classifier.titleCandidate || classifier.normalizedQuery
   const queryYear = query.match(/\b(19|20)\d{2}\b/)?.[0]
   const queryTitle = queryYear ? query.replace(queryYear, '').trim() : query
-  const variants = [queryTitle]
-  if (queryTitle !== query) variants.push(query)
+  const variants = queryTitle !== query ? [query, queryTitle] : [queryTitle]
   const tokens = queryTitle
     .split(' ')
     .map((token) => token.trim())
@@ -223,14 +316,25 @@ const buildHomeExternalQueries = ({ recentQuerySignals = [], recentTags = [], re
 
   const fallbackQuery = homeFallbackQueries[mode]?.[0] || homeFallbackQueries['for-you'][0]
 
+  const buildExplorationQueries = (tags, suffix) => {
+    if (!tags.length) return []
+    return tags.slice(0, 2).map((tag, i) => {
+      const variants = [`${tag} ${suffix}`, tag, `${tag} inspiration`, `trending ${tag}`]
+      const idx = Math.abs(hashString(seed + ':explore:' + i)) % variants.length
+      return variants[idx]
+    })
+  }
+
   if (movieSignals.length >= 1) {
     const querySlots = allocateQuerySlots(movieSignals, max)
+    const explorationQueries = buildExplorationQueries(effectiveTags, 'cinematic')
     const queries = uniqueQueries(
       [
         ...querySlots.map((item) => item.query),
+        ...explorationQueries,
         fallbackQuery,
         ...effectiveTags.flatMap(expandHomeTagToQueries).slice(0, 1),
-      ],
+      ].filter(Boolean),
       max,
     )
     return {
@@ -250,12 +354,15 @@ const buildHomeExternalQueries = ({ recentQuerySignals = [], recentTags = [], re
     .filter((tag) => !classifyMovieQuery(tag))
     .flatMap((tag) => expandHomeTagToQueries(tag))
 
+  const explorationQueries = buildExplorationQueries(effectiveTags, 'explore')
+
   const queries = uniqueQueries(
     [
       ...expandedQuerySignals,
       ...expandedTagSignals,
+      ...explorationQueries,
       fallbackQuery,
-    ],
+    ].filter(Boolean),
     max,
   )
   return {
@@ -384,8 +491,8 @@ const scoreTmdbEntity = (entity, classifier) => {
     tokenOverlapScore(originalTitle, effectiveTitle),
     ...aliases.map((alias) => tokenOverlapScore(alias, effectiveTitle)),
   ) * 18
-  if (queryYear && relYear === queryYear) score += 18
-  if (queryYear && relYear && relYear !== queryYear) score -= 20
+  if (queryYear && relYear === queryYear) score += 80
+  if (queryYear && relYear && relYear !== queryYear) score -= 60
   score += Math.min(20, Number(entity.popularity || 0) / 4)
   score += Math.min(10, Number(entity.vote_count || 0) / 500)
   return score
@@ -469,6 +576,71 @@ const mapTmdbMediaImage = ({ entity, image, imageType, index }) => {
   }
 }
 
+const tmdbTrendingCache = {
+  trending: null,
+  popular: null,
+  trendingExpiry: 0,
+  popularExpiry: 0,
+  ttl: 60 * 60 * 1000,
+}
+
+const fetchTmdbTrendingMovies = async () => {
+  const now = Date.now()
+  if (!tmdbTrendingCache.trending || now > tmdbTrendingCache.trendingExpiry) {
+    const payload = await safeFetchTmdb('/trending/movie/week', { page: '1' })
+    tmdbTrendingCache.trending = (payload.results || []).map((m) => ({ ...m, media_type: 'movie', _source: 'trending' }))
+    tmdbTrendingCache.trendingExpiry = now + tmdbTrendingCache.ttl
+  }
+  if (!tmdbTrendingCache.popular || now > tmdbTrendingCache.popularExpiry) {
+    const payload = await safeFetchTmdb('/movie/popular', { page: '1' })
+    tmdbTrendingCache.popular = (payload.results || []).map((m) => ({ ...m, media_type: 'movie', _source: 'popular' }))
+    tmdbTrendingCache.popularExpiry = now + tmdbTrendingCache.ttl
+  }
+  return { trending: tmdbTrendingCache.trending, popular: tmdbTrendingCache.popular }
+}
+
+const searchTmdbTrending = async ({ visualType = 'poster', limit = 12, cursor = null }) => {
+  if (!env.TMDB_API_KEY) return { provider: 'tmdb', items: [], cursor: null, disabled: true }
+  const { trending, popular } = await fetchTmdbTrendingMovies()
+
+  const seenIds = new Set()
+  const merged = []
+  for (const movie of [...trending, ...popular]) {
+    if (!seenIds.has(movie.id)) { seenIds.add(movie.id); merged.push(movie) }
+  }
+
+  const offset = Number(cursor?.offset || 0)
+  const pageMovies = merged.slice(offset, offset + limit)
+  if (!pageMovies.length) return { provider: 'tmdb', items: [], cursor: null }
+
+  const imageType = visualType === 'backdrop' ? 'backdrop' : 'poster'
+  const imageResults = await Promise.allSettled(
+    pageMovies.map((movie) =>
+      safeFetchTmdb(`/movie/${movie.id}/images`, { include_image_language: 'en,null' }),
+    ),
+  )
+
+  const items = []
+  imageResults.forEach((result, index) => {
+    if (result.status !== 'fulfilled') return
+    const movie = pageMovies[index]
+    const images = (result.value[`${imageType}s`] || [])
+      .filter((img) => img.file_path)
+      .sort((a, b) => (
+        (Number(b.vote_average || 0) * 2 + Math.log1p(Number(b.vote_count || 0)))
+        - (Number(a.vote_average || 0) * 2 + Math.log1p(Number(a.vote_count || 0)))
+      ))
+    if (images.length) {
+      items.push(mapTmdbMediaImage({ entity: movie, image: images[0], imageType, index }))
+    }
+  })
+
+  const nextOffset = offset + pageMovies.length
+  const hasMore = nextOffset < merged.length
+
+  return { provider: 'tmdb', items, cursor: hasMore ? { offset: nextOffset } : null }
+}
+
 const searchTmdb = async ({ query, limit, cursor }) => {
   if (!env.TMDB_API_KEY) { console.log('[TMDB-DEBUG] searchTmdb DISABLED (no API key)'); return { provider: 'tmdb', items: [], cursor: null, disabled: true } }
 
@@ -489,8 +661,13 @@ const searchTmdb = async ({ query, limit, cursor }) => {
     normalizedQuery: '',
   } : null)
   const gateSkipped = !classifier && !entityId
-  console.log('[TMDB-DEBUG] searchTmdb gate:', { query, classifier: !!classifier, entityId, skipped: gateSkipped })
+  console.log('[TMDB-DEBUG] searchTmdb gate:', { query, classifier: !!classifier, entityId, skipped: gateSkipped, isGeneric: classifier?.isGeneric })
   if (gateSkipped) return { provider: 'tmdb', items: [], cursor: null, skipped: true }
+
+  if (classifier?.isGeneric && !entityId) {
+    console.log('[TMDB-DEBUG] searchTmdb routing to trending:', { visualType: classifier.visualType, limit, hasCursor: !!cursor })
+    return searchTmdbTrending({ visualType: classifier.visualType, limit, cursor })
+  }
 
   if (!entity) {
     let bestMatch = null
@@ -583,6 +760,34 @@ const searchTmdbByEntity = async ({ tmdbId, mediaType = 'movie', visualType = 'p
     },
   })
 )
+
+const searchTmdbRecommendations = async ({ tmdbId, mediaType = 'movie', visualType = 'poster', limit = 12 }) => {
+  if (!env.TMDB_API_KEY) return []
+  const type = mediaType === 'tv' ? 'tv' : 'movie'
+  const path = `/${type}/${tmdbId}/recommendations`
+  const payload = await safeFetchTmdb(path, { page: '1' }).catch(() => null)
+  if (!payload?.results?.length) return []
+  const recIds = payload.results.slice(0, 6).map((r) => r.id)
+  const perMovieLimit = Math.max(1, Math.ceil(limit / Math.max(1, recIds.length)))
+  const allItems = []
+  const seenIds = new Set()
+  for (const recId of recIds) {
+    const result = await searchTmdbByEntity({
+      tmdbId: recId,
+      mediaType: type,
+      visualType,
+      limit: perMovieLimit,
+    })
+    for (const item of result.items || []) {
+      if (!seenIds.has(item.id)) {
+        seenIds.add(item.id)
+        allItems.push(item)
+      }
+    }
+    if (allItems.length >= limit) break
+  }
+  return allItems.slice(0, limit)
+}
 
 const searchTmdbCompany = async ({ query, limit }) => {
   if (!env.TMDB_API_KEY) return { provider: 'tmdbCompany', items: [], cursor: null, disabled: true }
@@ -912,15 +1117,85 @@ const searchPixabay = async ({ query, limit, cursor }) => {
   }
 }
 
+const searchiTunes = async ({ query, limit = 12, cursor = null }) => {
+  try {
+    const page = Number(cursor?.page || 1)
+    const itLimit = Math.min(limit, 25)
+    const offset = (page - 1) * itLimit
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=${itLimit}&offset=${offset}`
+    const payload = await safeFetchJson(url)
+    const items = (payload.results || []).map((item) => {
+      const artworkUrl = (item.artworkUrl100 || '').replace('100x100bb', '600x600bb')
+      return {
+        id: `itunes:${item.collectionId}`,
+        provider: 'itunes',
+        externalId: String(item.collectionId),
+        title: item.collectionName || 'Untitled',
+        description: item.artistName || '',
+        tags: buildTags(item.collectionName, item.artistName, 'album', 'music', 'cover'),
+        url: artworkUrl,
+        thumbnailUrl: artworkUrl,
+        width: 600,
+        height: 600,
+        mimeType: 'image/jpeg',
+        author: item.artistName || 'Unknown',
+        license: 'Various (see source)',
+        sourceUrl: item.collectionViewUrl || artworkUrl,
+      }
+    })
+    return {
+      provider: 'itunes',
+      items,
+      cursor: payload.results?.length >= itLimit ? { page: page + 1 } : null,
+    }
+  } catch {
+    return { provider: 'itunes', items: [], cursor: null }
+  }
+}
+
+const searchOpenverse = async ({ query, limit = 12, cursor = null }) => {
+  try {
+    const page = Number(cursor?.page || 1)
+    const ovUrl = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page=${page}&page_size=${Math.min(limit, 20)}`
+    const payload = await safeFetchJson(ovUrl)
+    const items = (payload.results || []).map((img) => ({
+      id: `openverse:${img.id}`,
+      provider: 'openverse',
+      externalId: img.id,
+      title: img.title || 'Untitled',
+      description: img.description || '',
+      tags: buildTags(img.title, img.source, img.license, ...(img.tags?.map((t) => t.name) || [])),
+      url: img.url,
+      thumbnailUrl: img.url,
+      width: img.width || null,
+      height: img.height || null,
+      mimeType: 'image/jpeg',
+      author: img.creator || 'Unknown',
+      license: img.license || 'CC0',
+      sourceUrl: img.url,
+    }))
+    return {
+      provider: 'openverse',
+      items,
+      cursor: payload.results?.length >= limit ? { page: page + 1 } : null,
+    }
+  } catch {
+    return { provider: 'openverse', items: [], cursor: null }
+  }
+}
+
+
+
 const providerSearchers = [
   ['tmdb', searchTmdb],
   ['tmdbCredits', searchTmdbCredits],
   ['tmdbPerson', searchTmdbPerson],
-  ['tmdbCompany', searchTmdbCompany],
   ['wikimedia', searchWikimedia],
   ['unsplash', searchUnsplash],
   ['pexels', searchPexels],
   ['pixabay', searchPixabay],
+  ['itunes', searchiTunes],
+  ['openverse', searchOpenverse],
 ]
 
 const getProviderSearchers = ({ context = '', hasMovieQuery = false }) => {
@@ -934,18 +1209,29 @@ const getProviderSearchers = ({ context = '', hasMovieQuery = false }) => {
 }
 
 const getProviderSearchersForQuery = ({ context = '', query = '' }) => {
-  if (context === 'home' && classifyMovieQuery(query)) {
-    return [
-      ['tmdb', searchTmdb],
-      ['wikimedia', searchWikimedia],
-    ]
+  if (classifyMovieQuery(query)) {
+    if (context === 'home') {
+      return [
+        ['tmdb', searchTmdb],
+        ['wikimedia', searchWikimedia],
+      ]
+    }
+    if (context === 'browse_asset') {
+      return [
+        ['tmdb', searchTmdb],
+        ['tmdbCredits', searchTmdbCredits],
+        ['itunes', searchiTunes],
+        ['wikimedia', searchWikimedia],
+      ]
+    }
+    return providerSearchers
   }
   return providerSearchers
 }
 
-const interleaveProviderItems = (providerResults, limit, { preferTmdb = false } = {}) => {
+const interleaveProviderItems = (providerResults, limit, { preferTmdb = false, preferCoverArt = false, hasMusicQuery = false } = {}) => {
   const counts = providerResults.map((r) => ({ provider: r.provider, items: r.items?.length || 0, firstTitle: r.items?.[0]?.title || r.items?.[0]?.alt_description || null }))
-  console.log('[TMDB-DEBUG] interleaveProviderItems input:', { preferTmdb, limit, providerCounts: counts })
+  console.log('[TMDB-DEBUG] interleaveProviderItems input:', { preferTmdb, preferCoverArt, hasMusicQuery, limit, providerCounts: counts })
   if (preferTmdb) {
     const tmdbQueue = providerResults
       .filter((result) => result.provider === 'tmdb' && result.items?.length)
@@ -954,7 +1240,7 @@ const interleaveProviderItems = (providerResults, limit, { preferTmdb = false } 
       .filter((result) => (result.provider === 'tmdbCredits' || result.provider === 'tmdbPerson') && result.items?.length)
       .flatMap((result) => result.items)
     const otherItems = providerResults
-      .filter((result) => result.provider !== 'tmdb' && result.provider !== 'tmdbCredits' && result.provider !== 'tmdbPerson' && result.items?.length)
+      .filter((result) => result.provider !== 'tmdb' && result.provider !== 'tmdbCredits' && result.provider !== 'tmdbPerson' && result.provider !== 'itunes' && result.items?.length)
       .flatMap((result) => result.items)
     const result = []
     let tmdbi = 0, creditsi = 0
@@ -963,8 +1249,53 @@ const interleaveProviderItems = (providerResults, limit, { preferTmdb = false } 
       if (result.length >= limit) break
       if (creditsi < creditsQueue.length) result.push(creditsQueue[creditsi++])
     }
-    while (result.length < limit && otherItems.length) result.push(otherItems.shift())
+    if (result.length === 0) {
+      const coverartQueue = providerResults
+        .filter((r) => r.provider === 'itunes' && r.items?.length)
+        .flatMap((r) => r.items)
+      const remainingOther = providerResults
+        .filter((r) => r.provider !== 'itunes' && r.provider !== 'tmdb' && r.provider !== 'tmdbCredits' && r.provider !== 'tmdbPerson' && r.items?.length)
+        .flatMap((r) => r.items)
+      let ci = 0
+      while (result.length < limit && ci < coverartQueue.length) {
+        result.push(coverartQueue[ci++])
+      }
+      while (result.length < limit && remainingOther.length) {
+        result.push(remainingOther.shift())
+      }
+    } else {
+      while (result.length < limit && otherItems.length) result.push(otherItems.shift())
+    }
     console.log('[TMDB-DEBUG] interleaveProviderItems result:', { tmdbCount: tmdbQueue.length, creditsCount: creditsQueue.length, otherCount: otherItems.length, finalCount: result.length })
+    return result
+  }
+
+  if (preferCoverArt) {
+    const coverartQueue = providerResults
+      .filter((result) => result.provider === 'itunes' && result.items?.length)
+      .flatMap((result) => result.items)
+    const tmdbQueue = providerResults
+      .filter((result) => result.provider === 'tmdb' && result.items?.length)
+      .flatMap((result) => result.items)
+    const creditsQueue = providerResults
+      .filter((result) => (result.provider === 'tmdbCredits' || result.provider === 'tmdbPerson') && result.items?.length)
+      .flatMap((result) => result.items)
+    const otherItems = providerResults
+      .filter((result) => result.provider !== 'itunes' && result.provider !== 'tmdb' && result.provider !== 'tmdbCredits' && result.provider !== 'tmdbPerson' && result.items?.length)
+      .flatMap((result) => result.items)
+    const result = []
+    let ci = 0, tmdbi = 0, creditsi = 0
+    while (result.length < limit && (tmdbi < tmdbQueue.length || ci < coverartQueue.length || creditsi < creditsQueue.length)) {
+      if (tmdbi < tmdbQueue.length) result.push(tmdbQueue[tmdbi++])
+      if (result.length >= limit) break
+      if (ci < coverartQueue.length) result.push(coverartQueue[ci++])
+      if (result.length >= limit) break
+      if (creditsi < creditsQueue.length) result.push(creditsQueue[creditsi++])
+    }
+    while (result.length < limit && otherItems.length) {
+      result.push(otherItems.shift())
+    }
+    console.log('[TMDB-DEBUG] interleaveProviderItems coverart result:', { coverartCount: coverartQueue.length, tmdbCount: tmdbQueue.length, creditsCount: creditsQueue.length, otherCount: otherItems.length, finalCount: result.length })
     return result
   }
 
@@ -990,7 +1321,10 @@ const uniqueItemsById = (items = []) => {
   })
 }
 
-export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, context = '', mode = 'for-you', seed = '', viewerId = null, tmdbId = null, mediaType = 'movie', visualType = 'poster' } = {}) => {
+const recCache = new Map()
+const REC_CACHE_TTL = 10 * 60 * 1000
+
+export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, context = '', mode = 'for-you', seed = '', viewerId = null, tmdbId = null, mediaType = 'movie', visualType = 'poster', includeRecommendations = false, visualSimilarTo = '' } = {}) => {
   if (tmdbId) {
     const decodedCursor = decodeCursor(cursor)
     const tmdbCursor = decodedCursor?.queries?.[0]?.tmdb || decodedCursor?.tmdb || null
@@ -1001,15 +1335,60 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
       limit,
       cursor: tmdbCursor,
     })
-    const nextCursor = tmdbResult.cursor
-      ? encodeCursor({ queries: { 0: { __query: `tmdb:${mediaType}:${tmdbId}:${visualType}`, tmdb: tmdbResult.cursor } } })
+
+    let items = tmdbResult.items || []
+    let adjustedCursor = tmdbResult.cursor
+
+    if (includeRecommendations) {
+      const cacheKey = `${tmdbId}:${mediaType}:${visualType}`
+      let recItems = []
+      const cached = recCache.get(cacheKey)
+      if (cached && Date.now() - cached.ts < REC_CACHE_TTL) {
+        recItems = cached.data
+      } else if (!tmdbCursor) {
+        recItems = await searchTmdbRecommendations({
+          tmdbId,
+          mediaType,
+          visualType,
+          limit: Math.min(limit, 12),
+        })
+        recCache.set(cacheKey, { data: recItems, ts: Date.now() })
+      }
+      if (recItems.length) {
+        const mainIds = new Set(items.map(i => i.id))
+        const uniqueRecItems = recItems.filter(i => !mainIds.has(i.id))
+        const recOffset = Number(tmdbCursor?.recOffset || 0)
+        const currentMainOffset = Number(tmdbCursor?.offset || 0)
+        const mixed = []
+        let mi = 0, ri = recOffset
+        while (mi < items.length && mixed.length < limit) {
+          for (let c = 0; c < 2 && mi < items.length && mixed.length < limit; c++) {
+            mixed.push(items[mi++])
+          }
+          if (ri < uniqueRecItems.length && mixed.length < limit) {
+            mixed.push(uniqueRecItems[ri++])
+          }
+        }
+        items = mixed
+        if (tmdbResult.cursor) {
+          adjustedCursor = {
+            ...tmdbResult.cursor,
+            offset: currentMainOffset + mi,
+            recOffset: ri,
+          }
+        }
+      }
+    }
+
+    const nextCursor = adjustedCursor
+      ? encodeCursor({ queries: { 0: { __query: `tmdb:${mediaType}:${tmdbId}:${visualType}`, tmdb: adjustedCursor } } })
       : null
     return {
       providers: [{
         provider: 'tmdb',
         query: `tmdb:${mediaType}:${tmdbId}:${visualType}`,
         requested: limit,
-        count: tmdbResult.items?.length || 0,
+        count: items.length || 0,
         disabled: !!tmdbResult.disabled,
         error: tmdbResult.error || null,
       }],
@@ -1019,7 +1398,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
       recentQueries: [],
       fallbackUsed: false,
       movieQuery: true,
-      items: tmdbResult.items || [],
+      items,
       nextCursor,
     }
   }
@@ -1036,6 +1415,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
   })
   const totalQuerySlots = querySlots.reduce((sum, item) => sum + item.slots, 0)
   const hasMovieQuery = queries.some((query) => !!classifyMovieQuery(query))
+  const hasMusicQuery = queries.some((query) => !!classifyMusicQuery(query))
   const perQueryLimit = Math.max(1, Math.ceil(limit / Math.max(1, queries.length)))
 
   console.log('[TMDB-DEBUG] searchExternalImages routing:', {
@@ -1058,12 +1438,14 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
         if (providerCursor?.exhausted) return null
         const requestLimit = provider === 'tmdb'
           ? Math.max(weightedQueryLimit, Math.ceil(limit * 0.8))
-          : provider === 'tmdbCompany'
-            ? Math.max(weightedQueryLimit, Math.ceil(limit * 0.6))
-            : provider === 'tmdbCredits'
+          : provider === 'tmdbCredits'
               ? Math.max(weightedQueryLimit, Math.ceil(limit * 0.7))
               : provider === 'tmdbPerson'
                 ? Math.max(weightedQueryLimit, Math.ceil(limit * 0.4))
+              : provider === 'itunes'
+                ? Math.max(weightedQueryLimit, Math.ceil(limit * 0.6))
+              : provider === 'openverse'
+                ? Math.max(weightedQueryLimit, Math.ceil(limit * 0.5))
               : fallbackProviderLimit
         return {
           query,
@@ -1090,6 +1472,13 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
       : { provider: request.provider, query: request.query, queryIndex: request.queryIndex, items: [], cursor: null, error: result.reason?.message || 'Provider failed' }
   })
 
+  providerResults.forEach((result) => {
+    if (result.provider === 'tmdb' || result.provider === 'tmdbCredits' || result.provider === 'tmdbPerson' || result.provider === 'itunes') return
+    if (result.items?.length && context !== 'browse_asset') {
+      result.items = result.items.filter(isDesignItem)
+    }
+  })
+
   const nextCursor = providerResults.reduce((acc, result) => {
     if (!acc.queries) acc.queries = {}
     if (!acc.queries[result.queryIndex]) acc.queries[result.queryIndex] = {}
@@ -1099,15 +1488,81 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
   }, {})
   const hasActiveCursor = providerResults.some((result) => !!result.cursor)
   const items = uniqueItemsById(
-    interleaveProviderItems(providerResults, limit * 2, { preferTmdb: hasMovieQuery }),
+    interleaveProviderItems(providerResults, limit * 2, { preferTmdb: hasMovieQuery && !hasMusicQuery, preferCoverArt: hasMusicQuery, hasMusicQuery }),
   ).slice(0, limit)
 
+  let visualSimilarItems = []
+  if (visualSimilarTo) {
+    const ids = visualSimilarTo.split(',').filter(Boolean)
+    const embeddings = []
+    for (const id of ids) {
+      let emb = await findAnyEmbedding({ id })
+      if (!emb && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        if (uploadEmbeddingCache.has(id)) {
+          emb = uploadEmbeddingCache.get(id)
+        } else {
+          try {
+            const media = await findMediaById(id)
+            if (media?.publicUrl) {
+              const computed = await getImageEmbedding(media.publicUrl)
+              if (computed) {
+                uploadEmbeddingCache.set(id, computed)
+                emb = computed
+              }
+            }
+          } catch {
+            void 0
+          }
+        }
+      }
+      if (emb) embeddings.push(emb)
+    }
+    const embedding = averageEmbeddings(embeddings)
+    if (embedding) {
+      const dbResults = await findImagesByVisualSimilarity({ embedding, limit: Math.min(limit, 6) })
+      if (dbResults.length) {
+        visualSimilarItems = dbResults.map((item) => {
+          const { _embedding, createdAt, updatedAt, ...rest } = item
+          return { ...rest, clipScore: item._clipScore }
+        })
+        const textIds = new Set(items.map((i) => i.id))
+        const uniqueVisual = visualSimilarItems.filter((i) => !textIds.has(i.id))
+        const mixed = []
+        let ti = 0, vi = 0
+        while (ti < items.length || vi < uniqueVisual.length) {
+          for (let c = 0; c < 3 && ti < items.length; c++) mixed.push(items[ti++])
+          if (vi < uniqueVisual.length) mixed.push(uniqueVisual[vi++])
+        }
+        items.splice(0, items.length, ...mixed.slice(0, limit))
+      }
+    }
+  }
+
+  const queryEmbedding = await getTextEmbedding(queries.join(' '))
+  if (queryEmbedding && items.length) {
+    const itemIds = items.map((item) => item.id).filter(Boolean)
+    const storedEmbeddings = itemIds.length ? await findEmbeddingsByItemIds(itemIds) : {}
+    for (const item of items) {
+      if (storedEmbeddings[item.id]) {
+        item._embedding = storedEmbeddings[item.id]
+      }
+    }
+    console.log('[CLIP] Starting background embedding computation for', items.filter((i) => !i._embedding).length, 'items')
+    computeAndStoreEmbeddings(items).then((stored) => {
+      console.log('[CLIP] Background embedding stored:', stored?.length, 'items')
+    }).catch((error) => {
+      console.error('[CLIP] Background embedding failed:', error.message)
+    })
+  }
+  const rerankedItems = queryEmbedding ? rerankByQueryEmbedding(items, queryEmbedding) : items
+
   console.log('[TMDB-DEBUG] searchExternalImages FINAL response:', {
-    totalItems: items.length,
-    firstItemProvider: items[0]?.provider || items[0]?.source || null,
+    totalItems: rerankedItems.length,
+    firstItemProvider: rerankedItems[0]?.provider || rerankedItems[0]?.source || null,
     movieQuery: hasMovieQuery,
-    itemProviders: [...new Set(items.map((i) => i.provider || i.source || 'unknown'))],
-    itemTitles: items.slice(0, 3).map((i) => i.title || i.alt_description || '(no title)'),
+    clipReranked: !!queryEmbedding,
+    itemProviders: [...new Set(rerankedItems.map((i) => i.provider || i.source || 'unknown'))],
+    itemTitles: rerankedItems.slice(0, 3).map((i) => i.title || i.alt_description || '(no title)'),
   })
 
   return {
@@ -1125,8 +1580,90 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     recentQueries: queryPlan.recentQueries,
     fallbackUsed: queryPlan.fallbackUsed,
     movieQuery: hasMovieQuery,
-    items,
+    items: rerankedItems,
     nextCursor: hasActiveCursor ? encodeCursor(nextCursor) : null,
+  }
+}
+
+const computeAndStoreEmbeddings = async (items) => {
+  const batch = items.filter((item) => !item._embedding)
+  console.log('[CLIP] computeAndStoreEmbeddings called, batch:', batch.length, 'of', items.length)
+  if (!batch.length) return []
+  const results = await Promise.allSettled(
+    batch.map(async (item) => {
+      const thumbnailUrl = item.thumbnailUrl || item.url
+      if (!thumbnailUrl) {
+        console.log('[CLIP] No URL for item', item.id)
+        return null
+      }
+      console.log('[CLIP] Computing embedding for', item.id, thumbnailUrl.slice(0, 80))
+      const embedding = await getImageEmbedding(thumbnailUrl)
+      if (!embedding) {
+        console.log('[CLIP] Failed to compute embedding for', item.id)
+        return null
+      }
+      console.log('[CLIP] Computed embedding for', item.id, 'length:', embedding.length)
+      return { item, id: item.id, embedding }
+    }),
+  )
+  const stored = []
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value) {
+      const { item, id, embedding } = result.value
+      item._embedding = embedding
+      try {
+        await upsertExternalImage({
+          id: item.id,
+          provider: item.provider,
+          externalId: item.externalId || item.id,
+          title: item.title,
+          description: item.description || item.alt_description,
+          tags: item.tags || [],
+          url: item.url,
+          thumbnailUrl: item.thumbnailUrl || item.url,
+          width: item.width || null,
+          height: item.height || null,
+          mimeType: item.mimeType || item.mime_type || null,
+          author: item.author || null,
+          license: item.license || null,
+          sourceUrl: item.sourceUrl || item.source_url || null,
+          metadata: item.metadata || {},
+          _embedding: embedding,
+        })
+        stored.push(id)
+        console.log('[CLIP] Stored embedding for', id)
+      } catch (error) {
+        console.error('[CLIP] Failed to store embedding for', id, error.message)
+      }
+    } else if (result.status === 'rejected') {
+      console.error('[CLIP] Embedding computation rejected:', result.reason?.message)
+    }
+  }
+  console.log('[CLIP] Stored embeddings for', stored.length, 'items')
+  return stored
+}
+
+export const visualSearch = async ({ imageUrl, limit = 30, viewerId = null }) => {
+  const embedding = await getImageEmbedding(imageUrl)
+  if (!embedding) {
+    throw new Error('Failed to compute image embedding')
+  }
+
+  const similarFromDb = await findImagesByVisualSimilarity({ embedding, limit })
+
+  const items = similarFromDb.map((item) => {
+    const { _embedding, embedding: _, ...rest } = item
+    return {
+      ...rest,
+      clipScore: item._clipScore,
+      isSaved: false,
+    }
+  })
+
+  return {
+    query: imageUrl,
+    items,
+    visualSearch: true,
   }
 }
 
@@ -1145,6 +1682,10 @@ export const getExternalImage = async ({ id, userId = null }) => {
       tags: image.tags || [],
       query: image.title || null,
     })
+    const extEmb = await findExternalImageEmbedding({ id })
+    if (extEmb) {
+      updateProfile({ userId, embedding: extEmb, weight: 0.2 }).catch(() => {})
+    }
   }
   return image
 }
@@ -1159,6 +1700,10 @@ export const save = async ({ userId, image }) => {
       tags: image.tags || [],
       query: image.title || null,
     })
+    const extEmb = await findExternalImageEmbedding({ id: image.id })
+    if (extEmb) {
+      updateProfile({ userId, embedding: extEmb, weight: 0.6 }).catch(() => {})
+    }
   }
   return { saved: true, changed: result.inserted }
 }

@@ -356,9 +356,10 @@ function NewPost() {
             })}
           </div>
 
-          <label className="new-post-toggle">
-            <span><MessageCircle size={16} /> Izinkan komentar</span>
+          <label className="workspace-toggle-row">
             <input type="checkbox" checked={allowComments} onChange={(event) => setAllowComments(event.target.checked)} />
+            <span className="toggle-track" />
+            Izinkan komentar
           </label>
 
           {isSubmitting && <p className="community-state"><Upload size={15} /> Uploading {progress}%</p>}

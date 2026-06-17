@@ -86,7 +86,9 @@ export const resolveReport = async (reportId, adminId, resolution) => {
   const reportDetail = await repo.findReportById(reportId)
   if (!reportDetail) throw notFound('Report not found')
 
-  if (resolution === 'post_deleted') {
+  const targetType = reportDetail.targetType || 'post'
+
+  if (targetType === 'post' && resolution === 'post_deleted') {
     if (reportDetail.postId) await repo.banPostById(reportDetail.postId)
     if (reportDetail.authorId) {
       await notificationRepo.insertNotification({
@@ -98,20 +100,44 @@ export const resolveReport = async (reportId, adminId, resolution) => {
         metadata: { postTitle: reportDetail.postTitle || 'Untitled', reason: reportDetail.reason },
       })
     }
-    return { message: 'Post banned, report stays visible' }
+    const report = await repo.resolveReport(reportId, adminId, resolution)
+    return { message: 'Post banned', ...report }
+  }
+
+  if (targetType === 'comment' && resolution === 'comment_deleted') {
+    if (reportDetail.commentId) await repo.banCommentById(reportDetail.commentId, adminId)
+    if (reportDetail.commentAuthorId) {
+      await notificationRepo.insertNotification({
+        userId: reportDetail.commentAuthorId,
+        actorId: adminId,
+        type: 'comment_deleted',
+        targetType: 'comment',
+        targetId: reportDetail.commentId,
+        metadata: { reason: reportDetail.reason },
+      })
+    }
+    const report = await repo.resolveReport(reportId, adminId, resolution)
+    return { message: 'Comment banned', ...report }
+  }
+
+  if (targetType === 'user' && resolution === 'user_banned') {
+    if (reportDetail.reportedUserId) await repo.banUserById(reportDetail.reportedUserId)
+    const report = await repo.resolveReport(reportId, adminId, resolution)
+    return { message: 'User banned', ...report }
   }
 
   const report = await repo.resolveReport(reportId, adminId, resolution)
   if (!report) throw notFound('Report not found')
 
-  if (resolution === 'warned' && reportDetail.authorId) {
+  const notifyUserId = reportDetail.authorId || reportDetail.commentAuthorId || reportDetail.reportedUserId
+  if (['warned'].includes(resolution) && notifyUserId) {
     await notificationRepo.insertNotification({
-      userId: reportDetail.authorId,
+      userId: notifyUserId,
       actorId: adminId,
       type: 'report_warning',
-      targetType: 'post',
-      targetId: reportDetail.postId,
-      metadata: { postTitle: reportDetail.postTitle || 'Untitled', reason: reportDetail.reason },
+      targetType,
+      targetId: reportDetail.postId || reportDetail.commentId || reportDetail.reportedUserId,
+      metadata: { reason: reportDetail.reason },
     })
   }
 

@@ -254,13 +254,20 @@ export const listAllReports = async ({ resolved, limit, offset }) => {
     `select
        r.id, r.reason, r.detail, r.created_at as "createdAt",
        r.resolved_at as "resolvedAt", r.resolution,
+        r.target_type as "targetType",
        p.id as "postId", p.title as "postTitle", p.status as "postStatus",
+       c.id as "commentId", c.content as "commentContent",
+       reported_user.id as "reportedUserId", reported_user.username as "reportedUsername",
        reporter.id as "reporterId", reporter.username as "reporterUsername",
-       author.id as "authorId", author.username as "authorUsername"
+       author.id as "authorId", author.username as "authorUsername",
+       comment_author.id as "commentAuthorId", comment_author.username as "commentAuthorUsername"
      from reports r
      left join posts p on p.id = r.post_id
+     left join comments c on c.id = r.comment_id
+     left join users reported_user on reported_user.id = r.reported_user_id
      join users reporter on reporter.id = r.reporter_id
      left join users author on author.id = p.author_id
+     left join users comment_author on comment_author.id = c.author_id
      ${where}
      order by r.created_at desc
      limit $1 offset $2`,
@@ -279,11 +286,21 @@ export const findReportById = async (reportId) => {
   const { rows } = await query(
     `select
        r.id, r.reason, r.detail, r.resolution,
+       r.target_type as "targetType",
        p.id as "postId", p.title as "postTitle",
+        c.id as "commentId", c.content as "commentContent",
+       c.author_id as "commentAuthorId",
+       comment_author.username as "commentAuthorUsername",
+       reported_user.id as "reportedUserId", reported_user.username as "reportedUsername",
+       reporter.id as "reporterId",
        author.id as "authorId", author.username as "authorUsername"
      from reports r
      left join posts p on p.id = r.post_id
+     left join comments c on c.id = r.comment_id
+     left join users reported_user on reported_user.id = r.reported_user_id
+     join users reporter on reporter.id = r.reporter_id
      left join users author on author.id = p.author_id
+     left join users comment_author on comment_author.id = c.author_id
      where r.id = $1`,
     [reportId],
   )
@@ -357,6 +374,32 @@ export const deleteCommentById = async (commentId) => {
     'delete from comments where id = $1 returning id',
     [commentId],
   )
+  return rows[0] || null
+}
+
+export const banCommentById = async (commentId, adminId) => {
+  const { rows } = await query(
+    `update comments set status = 'banned', banned_at = now(), banned_by = $2 where id = $1 returning id`,
+    [commentId, adminId],
+  )
+  return rows[0] || null
+}
+
+export const banUserById = async (userId) => {
+  const { rows } = await query(
+    `update users set status = 'banned', updated_at = now() where id = $1 returning id, username`,
+    [userId],
+  )
+  if (rows[0]) {
+    await query(
+      `update posts set status = 'banned' where author_id = $1 and status = 'published'`,
+      [userId],
+    )
+    await query(
+      `update comments set status = 'banned', banned_at = now() where author_id = $1 and status = 'active'`,
+      [userId],
+    )
+  }
   return rows[0] || null
 }
 

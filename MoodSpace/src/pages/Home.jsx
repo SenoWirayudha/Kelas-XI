@@ -5,6 +5,7 @@ import CommunityPostCard from '../components/CommunityPostCard'
 import NewBoardModal from '../components/NewBoardModal'
 import CreateMenu from '../components/CreateMenu'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
+import { Skeleton, createSkeletonItems } from '../components/Skeleton'
 import { useAuth } from '../context/authState'
 import { addBoardItem, listBoards } from '../lib/api/boards'
 import { searchExternalImages } from '../lib/api/externalImages'
@@ -13,6 +14,7 @@ import { getHomeFeed, likePost, savePost, unlikePost, unsavePost } from '../lib/
 import { externalImageToPost, postToExternalImagePayload } from '../utils/externalImagePost'
 
 const tags = []
+const SKELETON_COUNT = 6
 const feedModes = [
   ['for-you', 'For You'],
   ['recent', 'Recent'],
@@ -21,6 +23,10 @@ const feedModes = [
 const estimatePostHeight = (post, columnWidth) => {
   const ratio = post.cover?.width && post.cover?.height ? post.cover.width / post.cover.height : 1
   return columnWidth / Math.max(0.35, ratio) + 98
+}
+const feedEstimateHeight = (item, columnWidth) => {
+  if (item._isSkeleton) return item._height
+  return estimatePostHeight(item, columnWidth)
 }
 
 const hashString = (value = '') => (
@@ -130,6 +136,9 @@ function Home() {
     }
     setIsLoading(true)
     setError('')
+    if (!reset) {
+      setPosts((current) => [...current, ...createSkeletonItems(SKELETON_COUNT)])
+    }
     try {
       const [internalResult, externalResult] = await Promise.allSettled([
         !reset && internalExhaustedRef.current
@@ -152,7 +161,7 @@ function Home() {
       const mixSeed = `${feedSeedRef.current}:${viewerSeed}:${feedMode}:${reset ? 'reset' : cursor || externalCursorRef.current || 'initial'}`
       const mixedItems = mixInternalExternalFeed(internalPayload.items || [], externalPosts, mixSeed)
       setPosts((current) => {
-        const nextItems = reset ? [] : current
+        const nextItems = (reset ? [] : current).filter((p) => !p._isSkeleton)
         const seen = new Set(nextItems.map((item) => item.id))
         return [...nextItems, ...mixedItems.filter((item) => {
           if (seen.has(item.id)) return false
@@ -165,6 +174,9 @@ function Home() {
       internalExhaustedRef.current = !internalPayload.nextCursor
       externalCursorRef.current = externalPayload.nextCursor || null
     } catch (nextError) {
+      if (!reset) {
+        setPosts((current) => current.filter((p) => !p._isSkeleton))
+      }
       setError(nextError.message || 'Feed gagal dimuat')
     } finally {
       loadingRef.current = false
@@ -290,14 +302,18 @@ function Home() {
 
       <ResponsiveMasonry
         items={posts}
-        estimateHeight={estimatePostHeight}
-        renderItem={(post) => (
-          <CommunityPostCard key={post.id} post={post} onToggleLike={handleToggleLike} onToggleSave={handleToggleSave} onAddToBoard={handleAddToBoard} />
-        )}
+        estimateHeight={feedEstimateHeight}
+        renderItem={(item) =>
+          item._isSkeleton ? (
+            <Skeleton.Card key={item.id} />
+          ) : (
+            <CommunityPostCard key={item.id} post={item} onToggleLike={handleToggleLike} onToggleSave={handleToggleSave} onAddToBoard={handleAddToBoard} />
+          )
+        }
       />
 
       <div ref={sentinelRef} className="feed-sentinel" aria-hidden="true" />
-      {isLoading && <p className="community-state">Memuat inspirasi...</p>}
+      {isLoading && posts.length === 0 && <Skeleton.Masonry count={SKELETON_COUNT} />}
       {isFabOpen && <div className="home-fab-backdrop" onClick={() => setIsFabOpen(false)} />}
       <div className="home-fab-wrap">
         {isFabOpen && <CreateMenu className="home-fab-menu" onAction={() => setIsFabOpen(false)} />}

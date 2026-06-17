@@ -29,6 +29,16 @@ export const findFollow = async ({ followerId, followingId }) => {
   return rows.length > 0
 }
 
+export const findMutualFollow = async ({ userIdA, userIdB }) => {
+  const { rows } = await query(
+    `select 1 from follows f1
+     join follows f2 on f2.follower_id = f1.following_id and f2.following_id = f1.follower_id
+     where f1.follower_id = $1 and f1.following_id = $2`,
+    [userIdA, userIdB],
+  )
+  return rows.length > 0
+}
+
 export const findFollowers = async ({ userId, viewerId }) => {
   const { rows } = await query(
     `select

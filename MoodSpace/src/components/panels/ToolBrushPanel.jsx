@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 
 const BRUSH_SIZES = [3, 6, 10, 16, 24, 40]
 const BRUSH_COLORS = ['#000000', '#ffffff', '#ff4444', '#4488ff', '#44cc44', '#ffaa00', '#cc44ff']
@@ -11,8 +12,8 @@ export default function ToolBrushPanel({ settings, onChange, onBack }) {
     <div className="panel-wrapper">
       <div className="panel-header">
         {onBack && (
-          <button type="button" className="panel-back-btn" onClick={onBack}>
-            ←
+          <button type="button" className="workspace-back-button" onClick={onBack}>
+            <ArrowLeft size={16} />
           </button>
         )}
         <span className="panel-title">Brush</span>

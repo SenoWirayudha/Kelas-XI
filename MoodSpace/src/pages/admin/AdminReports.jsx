@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listReports, resolveReport } from '../../lib/api/admin'
-import { ChevronLeft, ChevronRight, CheckCircle, ExternalLink, Trash2, XCircle } from 'lucide-react'
+import { Ban, ChevronLeft, ChevronRight, CheckCircle, ExternalLink, Trash2, UserX, XCircle } from 'lucide-react'
 
 const PAGE_SIZE = 20
 
@@ -11,6 +11,12 @@ const reasonLabels = {
   hate_speech: 'Hate Speech',
   plagiarism: 'Plagiarism',
   other: 'Other',
+}
+
+const targetLabels = {
+  post: 'Post',
+  comment: 'Comment',
+  user: 'User',
 }
 
 function AdminReports() {
@@ -52,8 +58,9 @@ function AdminReports() {
       <h1>Reports</h1>
 
       <div className="admin-filters">
-        <label className="admin-toggle">
+        <label className="workspace-toggle-row">
           <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} />
+          <span className="toggle-track" />
           Show resolved
         </label>
       </div>
@@ -62,10 +69,10 @@ function AdminReports() {
         <table className="admin-table">
           <thead>
             <tr>
+              <th>Type</th>
               <th>Reason</th>
               <th>Detail</th>
-              <th>Reported Post</th>
-              <th>Post Author</th>
+              <th>Target</th>
               <th>Reported By</th>
               <th>Date</th>
               <th>Status</th>
@@ -79,19 +86,30 @@ function AdminReports() {
               <tr><td colSpan={8} className="admin-table-empty">No reports found</td></tr>
             ) : reports.map((report) => (
               <tr key={report.id}>
+                <td><span className={`admin-badge target-${report.targetType || 'post'}`}>{targetLabels[report.targetType] || 'Post'}</span></td>
                 <td><span className={`admin-badge reason-${report.reason}`}>{reasonLabels[report.reason] || report.reason}</span></td>
                 <td>{report.detail || '-'}</td>
                 <td>
-                  {report.postId ? (
-                    <Link to={`/post/${report.postId}`} className="admin-link" target="_blank">
-                      {report.postTitle || 'Untitled'} <ExternalLink size={12} />
-                      {report.postStatus === 'banned' && <span className="admin-badge status-banned" style={{ marginLeft: 6 }}>Banned</span>}
-                    </Link>
-                  ) : (
-                    <span className="admin-text-muted">Post deleted</span>
+                  {(report.targetType === 'post' || !report.targetType) && (
+                    report.postId ? (
+                      <Link to={`/post/${report.postId}`} className="admin-link" target="_blank">
+                        {report.postTitle || 'Untitled'} <ExternalLink size={12} />
+                        {report.postStatus === 'banned' && <span className="admin-badge status-banned" style={{ marginLeft: 6 }}>Banned</span>}
+                      </Link>
+                    ) : (
+                      <span className="admin-text-muted">Post deleted</span>
+                    )
+                  )}
+                  {report.targetType === 'comment' && (
+                    <div>
+                      <span className="admin-text-muted">{report.commentContent ? report.commentContent.substring(0, 80) : 'Comment deleted'}</span>
+                      <div className="admin-text-muted" style={{ fontSize: 11 }}>by {report.commentAuthorUsername || report.authorUsername || 'unknown'}</div>
+                    </div>
+                  )}
+                  {report.targetType === 'user' && (
+                    <span>User: {report.reportedUsername || <span className="admin-text-muted">Deleted user</span>}</span>
                   )}
                 </td>
-                <td>{report.authorUsername || <span className="admin-text-muted">Deleted user</span>}</td>
                 <td>{report.reporterUsername}</td>
                 <td>{new Date(report.createdAt).toLocaleDateString()}</td>
                 <td>
@@ -102,7 +120,7 @@ function AdminReports() {
                   )}
                 </td>
                 <td>
-                  {!report.resolvedAt && report.postStatus !== 'banned' ? (
+                  {!report.resolvedAt ? (
                     <div className="admin-action-btns">
                       <button className="admin-btn-icon success" onClick={() => handleResolve(report.id, 'dismissed')} title="Dismiss">
                         <XCircle size={16} />
@@ -110,9 +128,21 @@ function AdminReports() {
                       <button className="admin-btn-icon warning" onClick={() => handleResolve(report.id, 'warned')} title="Warning">
                         <CheckCircle size={16} />
                       </button>
-                      <button className="admin-btn-icon danger" onClick={() => handleResolve(report.id, 'post_deleted')} title="Ban post">
-                        <Trash2 size={16} />
-                      </button>
+                      {(report.targetType === 'post' || !report.targetType) && (
+                        <button className="admin-btn-icon danger" onClick={() => handleResolve(report.id, 'post_deleted')} title="Ban post">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                      {report.targetType === 'comment' && (
+                        <button className="admin-btn-icon danger" onClick={() => handleResolve(report.id, 'comment_deleted')} title="Ban comment">
+                          <Ban size={16} />
+                        </button>
+                      )}
+                      {report.targetType === 'user' && (
+                        <button className="admin-btn-icon danger" onClick={() => handleResolve(report.id, 'user_banned')} title="Ban user">
+                          <UserX size={16} />
+                        </button>
+                      )}
                     </div>
                   ) : <span className="admin-text-muted">—</span>}
                 </td>

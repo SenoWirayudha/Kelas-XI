@@ -8,12 +8,14 @@ import {
   externalImageSavedListSchema,
   externalImageSaveSchema,
   externalImageSearchSchema,
+  externalImageVisualSearchSchema,
 } from './externalImages.validation.js'
 
 export const externalImagesRouter = Router()
 
 externalImagesRouter.get('/search', optionalAuth, validate(externalImageSearchSchema), controller.search)
 externalImagesRouter.get('/saved', authRequired, validate(externalImageSavedListSchema), controller.saved)
+externalImagesRouter.get('/visual-search', optionalAuth, validate(externalImageVisualSearchSchema), controller.visualSearch)
 externalImagesRouter.post('/ensure', validate(externalImageEnsureSchema), controller.ensure)
 externalImagesRouter.post('/save', authRequired, validate(externalImageSaveSchema), controller.save)
 externalImagesRouter.get('/:id', optionalAuth, validate(externalImageIdSchema), controller.get)

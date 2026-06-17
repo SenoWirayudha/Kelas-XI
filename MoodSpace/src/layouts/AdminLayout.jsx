@@ -23,7 +23,13 @@ function AdminLayout() {
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
-          <h2>Admin</h2>
+          <div className="brand">
+            <div className="brand-mark" aria-hidden="true">A</div>
+            <div>
+              <p className="brand-name">Moodspace</p>
+              <p className="brand-tag">Admin Control Panel</p>
+            </div>
+          </div>
         </div>
         <nav className="admin-nav">
           {navItems.map((item) => {

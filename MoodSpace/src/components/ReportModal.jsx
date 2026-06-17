@@ -10,7 +10,13 @@ const REASONS = [
   { value: 'other',        label: 'Lainnya' },
 ]
 
-export default function ReportModal({ isOpen, postId, onClose }) {
+const TARGET_LABELS = {
+  post: 'Postingan',
+  comment: 'Komentar',
+  user: 'Pengguna',
+}
+
+export default function ReportModal({ isOpen, targetType = 'post', targetId, postId, onClose }) {
   const [reason, setReason] = useState('')
   const [detail, setDetail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -24,7 +30,8 @@ export default function ReportModal({ isOpen, postId, onClose }) {
     setIsSubmitting(true)
     setError('')
     try {
-      await createReport({ postId, reason, detail })
+      const resolvedTargetId = targetId || postId
+      await createReport({ targetType, targetId: resolvedTargetId, postId: targetType === 'post' ? resolvedTargetId : undefined, reason, detail })
       setSuccess(true)
     } catch (nextError) {
       setError(nextError.message || 'Gagal mengirim laporan')
@@ -53,7 +60,7 @@ export default function ReportModal({ isOpen, postId, onClose }) {
           </>
         ) : (
           <>
-            <h3>Laporkan Postingan</h3>
+            <h3>Laporkan {TARGET_LABELS[targetType]}</h3>
             <p className="report-modal-desc">Pilih alasan kamu melaporkan postingan ini.</p>
 
             <div className="report-reasons">

@@ -6,7 +6,7 @@ import { getAdminStats } from '../../lib/api/admin'
 
 const StatCard = ({ icon: Icon, label, value, color, to }) => (
   <Link to={to} className="admin-stat-card" style={{ borderLeftColor: color }}>
-    <div className="admin-stat-icon" style={{ background: `${color}1a`, color }}>
+    <div className="admin-stat-icon" style={{ background: `${color}18`, color }}>
       <Icon size={24} />
     </div>
     <div className="admin-stat-info">
@@ -41,14 +41,14 @@ function AdminDashboard() {
       <h1>Dashboard</h1>
 
       <div className="admin-stats-grid">
-        <StatCard icon={Users} label="Total Users" value={stats?.totalUsers} color="#6366f1" to="/admin/users" />
+        <StatCard icon={Users} label="Total Users" value={stats?.totalUsers} color="#A855F7" to="/admin/users" />
         <StatCard icon={TrendingUp} label="New Today" value={stats?.newUsersToday} color="#22c55e" to="/admin/users" />
         <StatCard icon={FileText} label="Published Posts" value={stats?.totalPosts} color="#f59e0b" to="/admin/posts" />
-        <StatCard icon={TrendingUp} label="Posts Today" value={stats?.postsPublishedToday} color="#8b5cf6" to="/admin/posts" />
+        <StatCard icon={TrendingUp} label="Posts Today" value={stats?.postsPublishedToday} color="#A855F7" to="/admin/posts" />
         <StatCard icon={Flag} label="Pending Reports" value={stats?.unresolvedReports} color="#ef4444" to="/admin/reports" />
         <StatCard icon={AlertTriangle} label="Total Reports" value={stats?.totalReports} color="#f97316" to="/admin/reports" />
-        <StatCard icon={MessageSquare} label="Comments" value={stats?.totalComments} color="#14b8a6" to="/admin/comments" />
-        <StatCard icon={Image} label="Media Files" value={stats?.totalMedia} color="#ec4899" to="/admin/media" />
+        <StatCard icon={MessageSquare} label="Comments" value={stats?.totalComments} color="#22D3EE" to="/admin/comments" />
+        <StatCard icon={Image} label="Media Files" value={stats?.totalMedia} color="#F472B6" to="/admin/media" />
       </div>
 
       <div className="admin-charts">
@@ -59,7 +59,7 @@ function AdminDashboard() {
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis allowDecimals={false} />
               <Tooltip />
-              <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="value" fill="#A855F7" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -72,7 +72,7 @@ function AdminDashboard() {
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis allowDecimals={false} />
               <Tooltip />
-              <Line type="monotone" dataKey="value" stroke="#f59e0b" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="value" stroke="#22D3EE" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>

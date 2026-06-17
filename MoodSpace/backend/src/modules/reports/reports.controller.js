@@ -2,14 +2,17 @@ import * as service from './reports.service.js'
 
 export const createReport = async (req, res, next) => {
   try {
+    const { targetType, targetId, postId, reason, detail } = req.validated.body
     const report = await service.createReport({
-      postId: req.validated.body.postId,
+      targetType: targetType || (postId ? 'post' : undefined),
+      targetId: targetId || postId,
       reporterId: req.auth.sub,
-      reason: req.validated.body.reason,
-      detail: req.validated.body.detail,
+      reason,
+      detail,
     })
     res.status(201).json({ report })
   } catch (error) {
+    console.error('[REPORT ERROR]', error.constructor?.name, error.message, error.stack?.split('\n')[0])
     next(error)
   }
 }

@@ -11,6 +11,8 @@ export const externalImageSearchSchema = z.object({
     tmdbId: z.coerce.number().int().positive().optional(),
     mediaType: z.enum(['movie', 'tv']).optional(),
     visualType: z.enum(['poster', 'backdrop']).optional(),
+    includeRecommendations: z.coerce.boolean().optional(),
+    visualSimilarTo: z.string().trim().max(240).optional(),
   }),
   params: z.object({}).optional(),
   body: z.object({}).optional(),
@@ -54,6 +56,15 @@ export const externalImageIdSchema = z.object({
 
 export const externalImageSavedListSchema = z.object({
   query: z.object({
+    limit: z.coerce.number().int().min(1).max(60).default(30),
+  }),
+  params: z.object({}).optional(),
+  body: z.object({}).optional(),
+})
+
+export const externalImageVisualSearchSchema = z.object({
+  query: z.object({
+    imageUrl: z.string().url().max(2000),
     limit: z.coerce.number().int().min(1).max(60).default(30),
   }),
   params: z.object({}).optional(),

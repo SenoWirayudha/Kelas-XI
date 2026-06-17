@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X } from 'lucide-react'
+import { Eye, EyeOff, X } from 'lucide-react'
 import { useAuth } from '../context/authState'
 
 function AuthModal() {
@@ -22,6 +22,7 @@ function AuthModal() {
   })
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const mode = authModal === 'register' ? 'register' : authModal === 'login' ? 'login' : null
 
   const copy = useMemo(() => (
@@ -106,7 +107,12 @@ function AuthModal() {
 
           <label>
             <span>Password</span>
-            <input type="password" value={values.password} onChange={updateValue('password')} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} required minLength={8} />
+            <div className="auth-password-wrapper">
+              <input type={showPassword ? 'text' : 'password'} value={values.password} onChange={updateValue('password')} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} required minLength={8} />
+              <button type="button" className="auth-password-toggle" onClick={() => setShowPassword((prev) => !prev)} tabIndex={-1}>
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </label>
 
           {error && <p className="auth-error">{error}</p>}

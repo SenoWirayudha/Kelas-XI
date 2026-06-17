@@ -184,6 +184,19 @@ export const updatePost = async (req, res, next) => {
   }
 }
 
+export const similarPostsByImage = async (req, res, next) => {
+  try {
+    const result = await service.similarPostsByImage({
+      viewerId: req.auth?.sub || null,
+      imageId: req.validated.params.imageId,
+      limit: req.validated.query.limit,
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const deletePost = async (req, res, next) => {
   try {
     await service.deletePost({

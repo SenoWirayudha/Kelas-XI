@@ -35,6 +35,7 @@ import {
   Underline,
   Undo2,
   Redo2,
+  RotateCw,
   Copy,
   CopyPlus,
   ClipboardPaste,
@@ -136,10 +137,10 @@ import { useAuth } from '../context/authState'
 import { useMediaUpload } from '../hooks/useMediaUpload'
 import { useCanvasImage, useCanvasImages } from '../hooks/useCanvasImages'
 import { autosaveWorkspace, getWorkspace, saveWorkspace, setWorkspaceThumbnail, updateWorkspace } from '../lib/api/workspaces'
-import { getHomeFeed, publishWorkspace } from '../lib/api/posts'
+import { getHomeFeed, getSimilarPostsByImage, publishWorkspace } from '../lib/api/posts'
 import { getBoard, listBoards } from '../lib/api/boards'
 import { searchPosts as searchPublicPosts } from '../lib/api/search'
-import { searchExternalImages } from '../lib/api/externalImages'
+import { ensureExternalImage, searchExternalImages } from '../lib/api/externalImages'
 import { recordInterestEvent } from '../lib/api/interest'
 import { uploadMediaFile } from '../lib/api/media'
 
@@ -444,34 +445,35 @@ const externalImageToBrowseAsset = (image) => toDatabaseImageAsset({
   author: image.author,
 })
 
-const getExternalBrowseQuery = (query, signals = []) => {
+const FALLBACK_QUERIES = ['design inspiration', 'mood board', 'creative art', 'visual ideas', 'aesthetic', 'texture pattern', 'color palette', 'art reference']
+const QUERY_NOISE_WORDS = new Set(['untitled', 'image', 'photo', 'picture', 'file', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'background', 'wallpaper', 'hd', 'ultra', 'and', 'the', 'this', 'that', 'with', 'from', 'led', 'artstation', 'deviantart', 'pinterest', 'gettyimages', 'shutterstock', 'vecteezy', 'freepik', '2000', '3000', '1920', '1080', '4k', '8k'])
+
+const getExternalBrowseQuery = (query, signals = [], seed = 0) => {
   const directQuery = normalizeSearchText(query)
   if (directQuery) return directQuery
-  const signal = signals[0]
-  const fields = [
-    ...(signal?.tokens || []),
-    ...(signal?.normalizedFields || []),
-  ].filter((field) => field && field.length >= 3)
-  return fields.slice(0, 4).join(' ') || 'design inspiration'
+  const tokenCounts = new Map()
+  const fieldScores = new Map()
+  signals.forEach((s, i) => {
+    const weight = Math.max(0.3, 1 - i * 0.1)
+    ;(s?.tokens || []).filter((t) => t && t.length >= 3 && !QUERY_NOISE_WORDS.has(t)).forEach((t) => {
+      tokenCounts.set(t, (tokenCounts.get(t) || 0) + weight)
+    })
+    ;(s?.normalizedFields || []).filter(Boolean).forEach((f) => {
+      const cleaned = f.split(' ').filter((w) => !QUERY_NOISE_WORDS.has(w)).join(' ').trim()
+      if (cleaned) fieldScores.set(cleaned, (fieldScores.get(cleaned) || 0) + weight)
+    })
+  })
+  const topTokens = [...tokenCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([t]) => t)
+  const topFields = [...fieldScores.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([f]) => f)
+  const combined = [...topTokens, ...topFields].filter(Boolean)
+  if (combined.length) return combined.slice(0, 6).join(' ')
+  return FALLBACK_QUERIES[seed % FALLBACK_QUERIES.length]
 }
 
-const mixInternalExternalAssets = (internalAssets = [], externalAssets = []) => {
-  if (!externalAssets.length) return internalAssets
-  if (!internalAssets.length) return externalAssets
-  const mixed = []
-  let internalIndex = 0
-  let externalIndex = 0
-  while (internalIndex < internalAssets.length || externalIndex < externalAssets.length) {
-    for (let count = 0; count < 7 && internalIndex < internalAssets.length; count += 1) {
-      mixed.push(internalAssets[internalIndex])
-      internalIndex += 1
-    }
-    for (let count = 0; count < 3 && externalIndex < externalAssets.length; count += 1) {
-      mixed.push(externalAssets[externalIndex])
-      externalIndex += 1
-    }
-  }
-  return mixed
+const hashStr = (s) => {
+  let h = 0
+  for (let i = 0; i < (s || '').length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0
+  return Math.abs(h)
 }
 
 const normalizeAssetContextSignals = (signals = []) => (
@@ -499,10 +501,29 @@ const panelTools = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
+const RemoveBgIcon = ({ size = 24, strokeWidth = 1.5 }) => (
+  <svg width={size} height={size} viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+    <defs>
+      <pattern id="rmbg-chk" x="0" y="0" width="6" height="6" patternUnits="userSpaceOnUse">
+        <rect width="3" height="3" fill="#aaaaaa" opacity="0.4"/>
+        <rect x="3" y="3" width="3" height="3" fill="#aaaaaa" opacity="0.4"/>
+        <rect x="3" y="0" width="3" height="3" fill="#dddddd" opacity="0.3"/>
+        <rect x="0" y="3" width="3" height="3" fill="#dddddd" opacity="0.3"/>
+      </pattern>
+    </defs>
+    <rect x="22" y="0" width="22" height="44" fill="url(#rmbg-chk)" clipPath="url(#rmbg-clip)"/>
+    <clipPath id="rmbg-clip"><rect x="0" y="0" width="44" height="44" rx="6"/></clipPath>
+    <circle cx="22" cy="16" r="9" fill="none" stroke="currentColor" strokeWidth={strokeWidth}/>
+    <path d="M8 38 Q8 26 22 26 Q36 26 36 38" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round"/>
+    <line x1="22" y1="0" x2="22" y2="44" stroke="currentColor" strokeWidth={strokeWidth * 0.8} strokeDasharray="3 3"/>
+    <rect x="0.75" y="0.75" width="42.5" height="42.5" rx="6" fill="none" stroke="currentColor" strokeWidth={strokeWidth} opacity="0.4"/>
+  </svg>
+)
+
 const toolItems = [
   { id: 'brush', label: 'Brush', icon: Paintbrush },
   { id: 'bezier', label: 'Bezier', icon: PenTool },
-  { id: 'removeBg', label: 'Remove BG', icon: Sparkles },
+  { id: 'removeBg', label: 'Remove BG', icon: RemoveBgIcon },
 ]
 
 // FIX: Improved typography preset hierarchy — Heading is bold/large, Subheading is
@@ -1434,12 +1455,15 @@ function Workspace() {
   const [assetContextSignals, setAssetContextSignals] = useState([])
   const [databaseBoards, setDatabaseBoards] = useState([])
   const [boardDetails, setBoardDetails] = useState({})
-  const [publicBrowseAssets, setPublicBrowseAssets] = useState([])
-  const [externalBrowseAssets, setExternalBrowseAssets] = useState([])
   const [isPublicBrowseLoading, setIsPublicBrowseLoading] = useState(false)
   const [isBrowseLoadMoreLoading, setIsBrowseLoadMoreLoading] = useState(false)
   const [browsePageInfo, setBrowsePageInfo] = useState({ internalNextOffset: null, internalNextCursor: null, externalNextCursor: null })
+  const [browseRefreshKey, setBrowseRefreshKey] = useState(0)
+  const [browseShuffleSeed, setBrowseShuffleSeed] = useState(0)
+  const [isBrowseRefreshing, setIsBrowseRefreshing] = useState(false)
   const [publicBrowseError, setPublicBrowseError] = useState('')
+  const [mixedBrowseAssets, setMixedBrowseAssets] = useState([])
+  const lastMixedKeysRef = useRef(new Set())
   const [selectedBoardId, setSelectedBoardId] = useState(null)
   const [selectedBoardItem, setSelectedBoardItem] = useState(null)
   const [isBoardsLoading, setIsBoardsLoading] = useState(false)
@@ -1757,7 +1781,32 @@ function Workspace() {
       ...item,
       effects: item.effects || getDefaultEffects(),
     })) : []
-    const restoredAssetContextSignals = normalizeAssetContextSignals(snapshot.browseAssetContext)
+    const restoredAssetContextSignals = Array.isArray(snapshot.browseAssetContext) && snapshot.browseAssetContext.length > 0
+      ? normalizeAssetContextSignals(snapshot.browseAssetContext)
+      : restoredItems.filter((item) => item.kind === 'image').slice(0, 8).map((item) => {
+        const rawFilename = item.src?.split('/').pop()?.split('?')[0]?.replace(/\.[^/.]+$/, '') || ''
+        const isUuidFilename = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawFilename)
+        const meaningfulFilename = isUuidFilename ? '' : rawFilename.replace(/_/g, ' ')
+        const mediaId = item.mediaId || (isUuidFilename ? rawFilename : null)
+        const fields = [
+          item.title,
+          ...(Array.isArray(item.tags) ? item.tags : []),
+          meaningfulFilename,
+        ].filter(Boolean)
+        const normalizedFields = fields.map(normalizeSearchText).filter(Boolean)
+        const compactFields = fields.map(compactSearchText).filter(Boolean)
+        const tokens = normalizedFields.flatMap((f) => f.split(' ').filter((t) => t.length >= 3))
+        return {
+          key: `${mediaId || item.src || 'restored'}-${Date.now()}`,
+          mediaId: mediaId || null,
+          postId: null,
+          boardId: null,
+          sourceType: item.sourceType || null,
+          normalizedFields,
+          compactFields,
+          tokens,
+        }
+      })
     const restoredSettings = snapshot.canvasSettings || {}
     const workspaceSettings = workspace.settings || {}
     const restoredCanvas = snapshot.canvas || {}
@@ -1877,39 +1926,78 @@ function Workspace() {
   useEffect(() => {
     setAssetContextSignals([])
     setAssetSearchQuery('')
-    setPublicBrowseAssets([])
-    setExternalBrowseAssets([])
+    setMixedBrowseAssets([])
     setBrowsePageInfo({ internalNextOffset: null, internalNextCursor: null, externalNextCursor: null })
     setPublicBrowseError('')
   }, [workspaceId])
 
   useEffect(() => {
+    let cancelled = false
+    import('@imgly/background-removal').then(async (mod) => {
+      if (cancelled) return
+      const canvas = document.createElement('canvas')
+      canvas.width = 32
+      canvas.height = 32
+      const ctx = canvas.getContext('2d')
+      ctx.fillRect(0, 0, 32, 32)
+      canvas.toBlob((blob) => {
+        if (!blob || cancelled) return
+        mod.removeBackground(blob, { model: 'medium', progress: () => {} }).catch(() => {})
+      })
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
     if (assetTab !== 'assets' || assetSubView !== 'browse') return undefined
+    if (!hasRestoredWorkspaceRef.current) {
+      setPublicBrowseError('')
+      return undefined
+    }
     let cancelled = false
     const query = assetSearchQuery.trim()
     setIsPublicBrowseLoading(true)
     setIsBrowseLoadMoreLoading(false)
+    setMixedBrowseAssets([])
+    lastMixedKeysRef.current = new Set()
     setBrowsePageInfo({ internalNextOffset: null, internalNextCursor: null, externalNextCursor: null })
     setPublicBrowseError('')
     const timer = window.setTimeout(() => {
-      const internalRequest = query
+      const fallbackInternal = () => query
         ? searchPublicPosts({ q: query, sort: 'relevance', limit: 36 })
-        : getHomeFeed({ mode: 'for-you', limit: 36 })
-      const externalQuery = getExternalBrowseQuery(query, assetContextSignals)
-      const externalRequest = searchExternalImages({ q: externalQuery, limit: 18 })
+        : getHomeFeed({ mode: 'for-you', limit: 36, seed: browseShuffleSeed })
+      const externalQuery = getExternalBrowseQuery(query, assetContextSignals, browseShuffleSeed)
+      const visualIds = !query ? assetContextSignals.map((s) => s.mediaId).filter((id) => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)).join(',') : ''
+      const internalRequest = visualIds
+        ? getSimilarPostsByImage(visualIds, { limit: 36 }).then((r) => {
+          if (r.items?.length) return { items: r.items, nextCursor: null }
+          return fallbackInternal()
+        }).catch(() => fallbackInternal())
+        : fallbackInternal()
+      const runExternalSearch = async (q, visualIds) => {
+        try {
+          const result = await searchExternalImages({ q, limit: 18, visualSimilarTo: visualIds, seed: browseShuffleSeed, context: 'browse_asset' })
+          if (result.items?.length) return result
+        } catch { void 0 }
+        if (visualIds) {
+          try { const r = await searchExternalImages({ q, limit: 18, seed: browseShuffleSeed, context: 'browse_asset' }); if (r.items?.length) return r } catch { void 0 }
+        }
+        if (q !== 'design inspiration') {
+          try { const r = await searchExternalImages({ q: 'design inspiration', limit: 18, seed: browseShuffleSeed, context: 'browse_asset' }); if (r.items?.length) return r } catch { void 0 }
+        }
+        return { items: [] }
+      }
+      const externalRequest = runExternalSearch(externalQuery, visualIds)
       Promise.allSettled([internalRequest, externalRequest])
         .then(([internalResult, externalResult]) => {
           if (cancelled) return
-          if (internalResult.status === 'fulfilled') {
-            setPublicBrowseAssets((internalResult.value.items || []).flatMap(postToBrowseAssets))
-          } else {
-            setPublicBrowseAssets([])
-          }
-          if (externalResult.status === 'fulfilled') {
-            setExternalBrowseAssets((externalResult.value.items || []).map(externalImageToBrowseAsset))
-          } else {
-            setExternalBrowseAssets([])
-          }
+          const newInternal = internalResult.status === 'fulfilled'
+            ? (internalResult.value.items || []).flatMap(postToBrowseAssets) : []
+          const newExternal = externalResult.status === 'fulfilled'
+            ? (externalResult.value.items || []).map(externalImageToBrowseAsset) : []
+          const mixed = computeMixedBrowseAssets([], newInternal, newExternal)
+          setMixedBrowseAssets(mixed)
+          lastMixedKeysRef.current = new Set(mixed.map((a) => a.mediaId || a.imageKey))
           setBrowsePageInfo({
             internalNextOffset: query ? internalResult.value?.nextOffset ?? null : null,
             internalNextCursor: query ? null : internalResult.value?.nextCursor ?? null,
@@ -1922,14 +2010,14 @@ function Workspace() {
           setPublicBrowseError(errors[0] || '')
         })
         .finally(() => {
-          if (!cancelled) setIsPublicBrowseLoading(false)
+          if (!cancelled) { setIsPublicBrowseLoading(false); setIsBrowseRefreshing(false) }
         })
     }, query ? 220 : 0)
     return () => {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [assetContextSignals, assetSearchQuery, assetSubView, assetTab])
+  }, [assetContextSignals, assetSearchQuery, assetSubView, assetTab, browseRefreshKey, browseShuffleSeed])
 
   const hasMoreBrowseAssets = !!(browsePageInfo.internalNextOffset || browsePageInfo.internalNextCursor || browsePageInfo.externalNextCursor)
 
@@ -1939,7 +2027,7 @@ function Workspace() {
     setIsBrowseLoadMoreLoading(true)
     setPublicBrowseError('')
     try {
-      const externalQuery = getExternalBrowseQuery(query, assetContextSignals)
+      const externalQuery = getExternalBrowseQuery(query, assetContextSignals, browseShuffleSeed)
       const internalRequest = query
         ? browsePageInfo.internalNextOffset === null
           ? Promise.resolve({ items: [], nextOffset: null })
@@ -1948,27 +2036,26 @@ function Workspace() {
           ? getHomeFeed({ mode: 'for-you', limit: 24, cursor: browsePageInfo.internalNextCursor })
           : Promise.resolve({ items: [], nextCursor: null })
       const externalRequest = browsePageInfo.externalNextCursor
-        ? searchExternalImages({ q: externalQuery, limit: 12, cursor: browsePageInfo.externalNextCursor })
+        ? searchExternalImages({ q: externalQuery, limit: 12, cursor: browsePageInfo.externalNextCursor, context: 'browse_asset' })
         : Promise.resolve({ items: [], nextCursor: null })
 
       const [internalResult, externalResult] = await Promise.allSettled([internalRequest, externalRequest])
-      if (internalResult.status === 'fulfilled') {
-        setPublicBrowseAssets((current) => [
-          ...current,
-          ...(internalResult.value.items || []).flatMap(postToBrowseAssets),
-        ])
-      }
-      if (externalResult.status === 'fulfilled') {
-        setExternalBrowseAssets((current) => [
-          ...current,
-          ...(externalResult.value.items || []).map(externalImageToBrowseAsset),
-        ])
-      }
-      setBrowsePageInfo({
-        internalNextOffset: query ? internalResult.value?.nextOffset ?? null : null,
-        internalNextCursor: query ? null : internalResult.value?.nextCursor ?? null,
-        externalNextCursor: externalResult.value?.nextCursor ?? null,
+      const newInternal = internalResult.status === 'fulfilled'
+        ? (internalResult.value.items || []).flatMap(postToBrowseAssets) : []
+      const newExternal = externalResult.status === 'fulfilled'
+        ? (externalResult.value.items || []).map(externalImageToBrowseAsset) : []
+      setMixedBrowseAssets((current) => {
+        const newMixed = computeMixedBrowseAssets(current, newInternal, newExternal)
+        if (!newMixed.length) return current
+        const updated = [...current, ...newMixed]
+        lastMixedKeysRef.current = new Set(updated.map((a) => a.mediaId || a.imageKey))
+        return updated
       })
+      setBrowsePageInfo((current) => ({
+        internalNextOffset: internalResult.status === 'fulfilled' ? (query ? internalResult.value?.nextOffset ?? null : null) : current.internalNextOffset,
+        internalNextCursor: internalResult.status === 'fulfilled' ? (query ? null : internalResult.value?.nextCursor ?? null) : current.internalNextCursor,
+        externalNextCursor: externalResult.status === 'fulfilled' ? (externalResult.value?.nextCursor ?? null) : current.externalNextCursor,
+      }))
       const errors = [internalResult, externalResult]
         .filter((result) => result.status === 'rejected')
         .map((result) => result.reason?.message)
@@ -1977,7 +2064,7 @@ function Workspace() {
     } finally {
       setIsBrowseLoadMoreLoading(false)
     }
-  }, [assetContextSignals, assetSearchQuery, assetSubView, assetTab, browsePageInfo, hasMoreBrowseAssets, isBrowseLoadMoreLoading])
+  }, [assetContextSignals, assetSearchQuery, assetSubView, assetTab, browsePageInfo, hasMoreBrowseAssets, isBrowseLoadMoreLoading, browseShuffleSeed])
 
   const selectedBoard = selectedBoardId ? boardDetails[selectedBoardId] : null
   const getBoardItemAssets = useCallback((item, board) => {
@@ -2024,6 +2111,7 @@ function Workspace() {
       mediaId: asset.mediaId || null,
       postId: asset.postId || null,
       boardId: asset.boardId || null,
+      sourceType: asset.sourceType || null,
       normalizedFields,
       compactFields,
       tokens,
@@ -2058,41 +2146,39 @@ function Workspace() {
     }).catch(() => {})
   }, [isAuthenticated, workspaceId])
 
-  const browseAssets = useMemo(() => {
+  const rankBrowseAssets = useCallback((assets) => {
     const query = assetSearchQuery.trim().toLowerCase()
-    const dedupeAssets = (assets) => assets.filter((asset, index, list) => (
-      list.findIndex((candidate) => (
-        (candidate.mediaId || candidate.imageKey) === (asset.mediaId || asset.imageKey)
-      )) === index
-    ))
-    const rankAssets = (assets) => {
-      if (!query) {
-        if (!assetContextSignals.length) return assets
-        return assets
-          .map((asset, index) => ({
-            asset,
-            score: getAssetRelatedScore(asset, assetContextSignals) + Math.max(0, 1 - index * 0.01),
-          }))
-          .sort((a, b) => b.score - a.score || (a.asset.title || '').localeCompare(b.asset.title || ''))
-          .map(({ asset }) => asset)
-      }
+    const seed = browseShuffleSeed
+    const seedPerturb = (asset, baseScore) => {
+      if (!seed) return baseScore
+      const key = asset.mediaId || asset.imageKey || asset.title || ''
+      const perturb = (hashStr(`${seed}-${key}`) % 97) * 0.0003
+      return baseScore + perturb
+    }
+    if (!query) {
+      if (!assetContextSignals.length) return assets
       return assets
-        .map((asset) => ({ asset, score: getAssetSearchScore(asset, query) }))
-        .filter(({ score }) => score > 0)
+        .map((asset, index) => ({
+          asset,
+          score: seedPerturb(asset, getAssetRelatedScore(asset, assetContextSignals) + Math.max(0, 1 - index * 0.01)),
+        }))
         .sort((a, b) => b.score - a.score || (a.asset.title || '').localeCompare(b.asset.title || ''))
         .map(({ asset }) => asset)
     }
-    const internalAssets = dedupeAssets(publicBrowseAssets)
-    const externalAssets = dedupeAssets(externalBrowseAssets)
-    const rankedInternalAssets = rankAssets(internalAssets)
-    const rankedExternalAssets = rankAssets(externalAssets)
-    const mixedAssets = mixInternalExternalAssets(rankedInternalAssets, rankedExternalAssets)
-    return mixedAssets.filter((asset, index, assets) => (
-      assets.findIndex((candidate) => (
-        (candidate.mediaId || candidate.imageKey) === (asset.mediaId || asset.imageKey)
-      )) === index
-    ))
-  }, [assetContextSignals, assetSearchQuery, externalBrowseAssets, publicBrowseAssets])
+    return assets
+      .map((asset) => ({ asset, score: seedPerturb(asset, getAssetSearchScore(asset, query)) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score || (a.asset.title || '').localeCompare(b.asset.title || ''))
+      .map(({ asset }) => asset)
+  }, [assetContextSignals, assetSearchQuery, browseShuffleSeed])
+
+  const computeMixedBrowseAssets = useCallback((existingMixed = [], newInternal = [], newExternal = []) => {
+    const seenKeys = new Set(existingMixed.map((a) => a.mediaId || a.imageKey))
+    const dedupe = (list) => list.filter((asset, idx, arr) => arr.findIndex((c) => (c.mediaId || c.imageKey) === (asset.mediaId || asset.imageKey)) === idx)
+    const allUnique = dedupe([...newInternal, ...newExternal]).filter((a) => !seenKeys.has(a.mediaId || a.imageKey))
+    if (!allUnique.length) return []
+    return rankBrowseAssets(allUnique)
+  }, [rankBrowseAssets])
   const editingTextItem = useMemo(
     () => items.find((item) => item.id === editingText?.id && (item.kind === 'text' || item.kind === 'shape')),
     [editingText?.id, items],
@@ -3977,19 +4063,6 @@ const attachTransformer = useCallback((idOrIds) => {
     }
 
     // Image item: canvas + destination-out
-    const halfStroke = 0
-    const padL = 0
-    const padT = 0
-    const paddedW = Math.ceil(targetItem.w)
-    const paddedH = Math.ceil(targetItem.h)
-    const originX = targetItem.x
-    const originY = targetItem.y
-
-    const canvas = document.createElement('canvas')
-    canvas.width = paddedW
-    canvas.height = paddedH
-    const ctx = canvas.getContext('2d')
-
     const img = await new Promise((resolve, reject) => {
       const image = new window.Image()
       image.crossOrigin = 'anonymous'
@@ -3997,17 +4070,31 @@ const attachTransformer = useCallback((idOrIds) => {
       image.onerror = () => reject(new Error('Failed to load image'))
       image.src = targetItem.src
     })
-    ctx.drawImage(img, 0, 0, paddedW, paddedH)
+
+    const originX = targetItem.x
+    const originY = targetItem.y
+    const displayW = Math.max(1, Math.ceil(targetItem.w))
+    const displayH = Math.max(1, Math.ceil(targetItem.h))
+    const nativeW = img.naturalWidth
+    const nativeH = img.naturalHeight
+    const scaleX = nativeW / displayW
+    const scaleY = nativeH / displayH
+
+    const canvas = document.createElement('canvas')
+    canvas.width = nativeW
+    canvas.height = nativeH
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0, nativeW, nativeH)
 
     ctx.globalCompositeOperation = 'destination-out'
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
-    ctx.lineWidth = size
+    ctx.lineWidth = size * ((scaleX + scaleY) / 2)
     ctx.strokeStyle = 'rgba(0,0,0,1)'
     ctx.beginPath()
     for (let i = 0; i < worldPoints.length; i += 2) {
-      const lx = worldPoints[i] - originX
-      const ly = worldPoints[i + 1] - originY
+      const lx = (worldPoints[i] - originX) * scaleX
+      const ly = (worldPoints[i + 1] - originY) * scaleY
       if (i === 0) ctx.moveTo(lx, ly)
       else ctx.lineTo(lx, ly)
     }
@@ -4018,17 +4105,17 @@ const attachTransformer = useCallback((idOrIds) => {
       const localUrl = URL.createObjectURL(blob)
       setItems((current) => current.map((item) => {
         if (item.id !== targetItem.id) return item
-        return { ...item, x: originX, y: originY, w: paddedW, h: paddedH, src: localUrl }
+        return { ...item, x: originX, y: originY, w: displayW, h: displayH, src: localUrl }
       }))
 
       const file = new File([blob], `erased-${Date.now()}.png`, { type: 'image/png' })
-      uploadMediaFile({ file }).then((uploaded) => {
+      uploadMediaFile({ file, addToUploads: false }).then((uploaded) => {
         const url = uploaded?.media?.url
         if (url) {
           URL.revokeObjectURL(localUrl)
           setItems((current) => current.map((item) => {
             if (item.id !== targetItem.id) return item
-            return { ...item, x: originX, y: originY, w: paddedW, h: paddedH, src: url }
+            return { ...item, x: originX, y: originY, w: displayW, h: displayH, src: url }
           }))
         }
       }).catch(() => {})
@@ -4377,6 +4464,7 @@ const attachTransformer = useCallback((idOrIds) => {
         file,
         width: dims.width,
         height: dims.height,
+        addToUploads: false,
         onProgress: (pct) => setRemoveBgProgress({ phase: 'uploading', current: pct, total: 100 }),
       })
 
@@ -5229,7 +5317,7 @@ const attachTransformer = useCallback((idOrIds) => {
     }
 
     const nextItem = asset.type === 'image'
-      ? { ...base, kind: 'image', src: asset.source, radius: 0, aspectRatio: imageSize.aspectRatio, lockAspectRatio: true }
+      ? { ...base, kind: 'image', src: asset.source, radius: 0, aspectRatio: imageSize.aspectRatio, lockAspectRatio: true, mediaId: asset.mediaId || null, sourceType: asset.sourceType || null, title: asset.title || '', tags: asset.tags || [] }
       : asset.type === 'text'
         ? { ...base, kind: 'text', text: asset.text, fontSize: 72, fill: '#2b2830', isBold: true, isItalic: false, isUnderline: false, fontFamily: 'Inter, Arial' }
         : { ...base, kind: 'note', text: asset.text, fill: '#f5d56b' }
@@ -5239,6 +5327,23 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const addAssetToCanvas = async (asset, position) => {
     const nextItem = await createCanvasItemFromAsset(asset, position)
+    if (asset.sourceType === 'external-image') {
+      ensureExternalImage({
+        id: asset.mediaId,
+        provider: asset.externalProvider || 'openverse',
+        externalId: asset.externalId || asset.mediaId,
+        title: asset.title || '',
+        description: asset.description || '',
+        tags: asset.tags || [],
+        url: asset.source,
+        thumbnailUrl: asset.previewSource || asset.source,
+        width: asset.w || null,
+        height: asset.h || null,
+        author: asset.author || null,
+        license: asset.license || null,
+        sourceUrl: asset.sourceUrl || null,
+      }).catch(() => {})
+    }
     registerAssetContext(asset)
     logCanvasDropInterest(asset)
 
@@ -9058,7 +9163,7 @@ const toggleMobileSheetSize = () => {
           <div className="workspace-asset-subview">
             <div className="workspace-elements-header">
               <div className="workspace-elements-title">Boards</div>
-              {isAuthenticated && <button type="button" className="workspace-refresh-button" onClick={refreshDatabaseBoards} disabled={isBoardsLoading}>Refresh</button>}
+              {isAuthenticated && <button type="button" className="workspace-refresh-button" onClick={refreshDatabaseBoards} disabled={isBoardsLoading} aria-label="Refresh boards"><RotateCw size={15} /></button>}
             </div>
             {!isAuthenticated && <div className="workspace-upload-hint">Login untuk membuka board tersimpan.</div>}
             {boardsError && <div className="workspace-upload-error"><span>{boardsError}</span></div>}
@@ -9108,8 +9213,8 @@ const toggleMobileSheetSize = () => {
               <button type="button" className="workspace-back-button" onClick={() => setAssetSubView(null)}><ArrowLeft size={16} /></button>
               <div className="workspace-elements-title">Unggahan</div>
               {isAuthenticated && (
-                <button type="button" className="workspace-refresh-button" onClick={refreshUploads} disabled={isUploadsLoading || isUploading || deletingMediaIds.size > 0}>
-                  Refresh
+                <button type="button" className="workspace-refresh-button" onClick={refreshUploads} disabled={isUploadsLoading || isUploading || deletingMediaIds.size > 0} aria-label="Refresh uploads">
+                  <RotateCw size={15} />
                 </button>
               )}
             </div>
@@ -9163,18 +9268,6 @@ const toggleMobileSheetSize = () => {
             ) : (
               <div className="workspace-upload-empty">Belum ada unggahan.</div>
             )}
-            <button
-              type="button"
-              className="workspace-upload-fab"
-              title="Upload image"
-              onClick={() => {
-                if (!requireAuth('login')) return
-                uploadInputRef.current?.click()
-              }}
-              disabled={isUploading || deletingMediaIds.size > 0}
-            >
-              <Plus size={22} />
-            </button>
           </div>
         )}
 
@@ -9183,6 +9276,9 @@ const toggleMobileSheetSize = () => {
             <div className="workspace-elements-header">
               <button type="button" className="workspace-back-button" onClick={() => setAssetSubView(null)}><ArrowLeft size={16} /></button>
               <div className="workspace-elements-title">Browse Asset</div>
+              <button type="button" className="workspace-refresh-button" onClick={() => { setIsBrowseRefreshing(true); setMixedBrowseAssets([]); lastMixedKeysRef.current = new Set(); setBrowsePageInfo({ internalNextOffset: null, internalNextCursor: null, externalNextCursor: null }); setBrowseRefreshKey((k) => k + 1); setBrowseShuffleSeed((s) => s + 1) }} disabled={isPublicBrowseLoading} aria-label="Refresh browse">
+                <RotateCw size={15} className={isBrowseRefreshing ? 'spin' : ''} />
+              </button>
             </div>
             <label className="workspace-asset-search">
               <Search size={15} />
@@ -9207,7 +9303,7 @@ const toggleMobileSheetSize = () => {
             {publicBrowseError && (
               <div className="workspace-upload-error"><span>{publicBrowseError}</span></div>
             )}
-            {renderAssetGrid(browseAssets)}
+            {renderAssetGrid(mixedBrowseAssets)}
             {isBrowseLoadMoreLoading && (
               <div className="workspace-upload-empty">Memuat asset berikutnya...</div>
             )}
@@ -9389,8 +9485,8 @@ const toggleMobileSheetSize = () => {
                                   width: '40px',
                                   height: '50px',
                                   border: '2px solid #a78bfa',
-                                  borderRadius: frame.defaultProps.cornerRadius ? '6px' : '0',
-                                  background: 'transparent',
+                                  borderRadius: frame.defaultProps.cornerRadius ? '6px' : '2px',
+                                  background: 'rgba(167, 139, 250, 0.08)',
                                 }}
                               />
                             )}
@@ -9401,7 +9497,7 @@ const toggleMobileSheetSize = () => {
                                   height: '45px',
                                   border: '2px solid #a78bfa',
                                   borderRadius: '50%',
-                                  background: 'transparent',
+                                  background: 'rgba(167, 139, 250, 0.08)',
                                 }}
                               />
                             )}
@@ -9412,7 +9508,7 @@ const toggleMobileSheetSize = () => {
                                   height: '50px',
                                   border: '2px solid #a78bfa',
                                   borderRadius: '20px 20px 0 0',
-                                  background: 'transparent',
+                                  background: 'rgba(167, 139, 250, 0.08)',
                                 }}
                               />
                             )}
@@ -9424,10 +9520,22 @@ const toggleMobileSheetSize = () => {
                                   height: '50px',
                                   border: '2px solid #a78bfa',
                                   borderRadius: '2px',
-                                  background: 'transparent',
-                                  borderBottom: '8px solid #a78bfa',
+                                  background: 'rgba(167, 139, 250, 0.08)',
+                                  borderBottom: '10px solid rgba(167, 139, 250, 0.35)',
+                                  position: 'relative',
                                 }}
-                              />
+                              >
+                                <div style={{
+                                  position: 'absolute',
+                                  bottom: '-10px',
+                                  left: '50%',
+                                  transform: 'translateX(-50%)',
+                                  width: '14px',
+                                  height: '6px',
+                                  borderRadius: '2px',
+                                  background: 'rgba(167, 139, 250, 0.5)',
+                                }} />
+                              </div>
                             )}
                             {/* Film frames */}
                             {frame.frameType.startsWith('film') && (
@@ -9436,15 +9544,30 @@ const toggleMobileSheetSize = () => {
                                   width: frame.frameType === 'film-horizontal' ? '50px' : '35px',
                                   height: frame.frameType === 'film-horizontal' ? '30px' : '50px',
                                   border: '2px solid #a78bfa',
-                                  background: 'transparent',
+                                  background: 'rgba(167, 139, 250, 0.1)',
                                   position: 'relative',
+                                  borderRadius: '2px',
                                 }}
                               >
                                 <div style={{
                                   position: 'absolute',
-                                  inset: '4px',
-                                  border: '1px solid #a78bfa',
+                                  inset: '5px',
+                                  border: '1px solid rgba(167, 139, 250, 0.4)',
+                                  borderRadius: '1px',
                                 }} />
+                                {/* Sprocket holes */}
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                  <div key={i} style={{
+                                    position: 'absolute',
+                                    [frame.frameType === 'film-horizontal' ? 'top' : 'left']: '-1px',
+                                    [frame.frameType === 'film-horizontal' ? 'left' : 'top']: `${6 + i * (frame.frameType === 'film-horizontal' ? 11 : 11)}px`,
+                                    width: '4px',
+                                    height: '4px',
+                                    borderRadius: '50%',
+                                    border: '1px solid rgba(167, 139, 250, 0.5)',
+                                    background: 'rgba(167, 139, 250, 0.15)',
+                                  }} />
+                                ))}
                               </div>
                             )}
                             {frame.frameType === 'cinema' && (
@@ -9452,14 +9575,16 @@ const toggleMobileSheetSize = () => {
                                 style={{
                                   width: '50px',
                                   height: '30px',
-                                  background: '#a78bfa',
+                                  background: 'rgba(167, 139, 250, 0.3)',
                                   position: 'relative',
+                                  borderRadius: '2px',
                                 }}
                               >
                                 <div style={{
                                   position: 'absolute',
-                                  inset: '6px 4px',
+                                  inset: '5px 4px',
                                   background: 'rgba(18, 18, 20, 0.9)',
+                                  borderRadius: '1px',
                                 }} />
                               </div>
                             )}
@@ -9470,15 +9595,20 @@ const toggleMobileSheetSize = () => {
                                   width: '50px',
                                   height: '40px',
                                   border: '2px solid #a78bfa',
-                                  background: 'transparent',
+                                  background: 'rgba(167, 139, 250, 0.08)',
                                   display: 'grid',
                                   gridTemplateColumns: frame.frameType === 'grid-3' ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
                                   gap: '2px',
                                   padding: '2px',
+                                  borderRadius: '2px',
                                 }}
                               >
                                 {Array.from({ length: frame.frameType === 'grid-3' ? 3 : frame.frameType === 'grid-collage' ? 4 : 2 }).map((_, i) => (
-                                  <div key={i} style={{ border: '1px solid #a78bfa' }} />
+                                  <div key={i} style={{
+                                    border: '1px solid rgba(167, 139, 250, 0.4)',
+                                    borderRadius: '1px',
+                                    background: 'rgba(167, 139, 250, 0.05)',
+                                  }} />
                                 ))}
                               </div>
                             )}
@@ -9489,8 +9619,10 @@ const toggleMobileSheetSize = () => {
                                   width: '45px',
                                   height: '45px',
                                   border: '2px solid #a78bfa',
-                                  borderRadius: '40% 60% 70% 30% / 40% 50% 60% 50%',
-                                  background: 'transparent',
+                                  borderRadius: frame.frameType === 'blob' ? '40% 60% 70% 30% / 40% 50% 60% 50%' :
+                                    frame.frameType === 'wave' ? '50% 50% 30% 70% / 40% 30% 70% 60%' :
+                                    '60% 40% 30% 70% / 50% 60% 40% 50%',
+                                  background: 'rgba(167, 139, 250, 0.08)',
                                 }}
                               />
                             )}
@@ -9498,12 +9630,13 @@ const toggleMobileSheetSize = () => {
                             {frame.frameType === 'phone' && (
                               <div
                                 style={{
-                                  width: '25px',
-                                  height: '50px',
+                                  width: '24px',
+                                  height: '48px',
                                   border: '3px solid #a78bfa',
                                   borderRadius: '6px',
-                                  background: 'transparent',
+                                  background: 'rgba(167, 139, 250, 0.05)',
                                   position: 'relative',
+                                  boxShadow: '0 2px 8px rgba(167, 139, 250, 0.15)',
                                 }}
                               >
                                 <div style={{
@@ -9513,7 +9646,7 @@ const toggleMobileSheetSize = () => {
                                   transform: 'translateX(-50%)',
                                   width: '10px',
                                   height: '3px',
-                                  background: '#a78bfa',
+                                  background: 'rgba(167, 139, 250, 0.5)',
                                   borderRadius: '2px',
                                 }} />
                               </div>
@@ -9524,8 +9657,9 @@ const toggleMobileSheetSize = () => {
                                   width: '40px',
                                   height: '50px',
                                   border: '4px solid #a78bfa',
-                                  borderRadius: '4px',
-                                  background: 'transparent',
+                                  borderRadius: '5px',
+                                  background: 'rgba(167, 139, 250, 0.05)',
+                                  boxShadow: '0 2px 8px rgba(167, 139, 250, 0.15)',
                                 }}
                               />
                             )}
@@ -9533,11 +9667,12 @@ const toggleMobileSheetSize = () => {
                               <div
                                 style={{
                                   width: '50px',
-                                  height: '40px',
+                                  height: '38px',
                                   border: '2px solid #a78bfa',
                                   borderRadius: '4px',
-                                  background: 'transparent',
+                                  background: 'rgba(167, 139, 250, 0.05)',
                                   position: 'relative',
+                                  overflow: 'hidden',
                                 }}
                               >
                                 <div style={{
@@ -9546,9 +9681,26 @@ const toggleMobileSheetSize = () => {
                                   left: '0',
                                   right: '0',
                                   height: '8px',
-                                  background: '#a78bfa',
-                                  borderRadius: '2px 2px 0 0',
+                                  background: 'rgba(167, 139, 250, 0.25)',
                                 }} />
+                                {/* Dots */}
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '2px',
+                                  left: '4px',
+                                  display: 'flex',
+                                  gap: '2px',
+                                }}>
+                                  {['#ff6b6b', '#ffd93d', '#6bcb77'].map((c, i) => (
+                                    <div key={i} style={{
+                                      width: '3px',
+                                      height: '3px',
+                                      borderRadius: '50%',
+                                      background: c,
+                                      opacity: 0.6,
+                                    }} />
+                                  ))}
+                                </div>
                               </div>
                             )}
                             {frame.frameType === 'desktop' && (
@@ -9557,8 +9709,8 @@ const toggleMobileSheetSize = () => {
                                   width: '50px',
                                   height: '35px',
                                   border: '3px solid #a78bfa',
-                                  borderRadius: '2px',
-                                  background: 'transparent',
+                                  borderRadius: '3px',
+                                  background: 'rgba(167, 139, 250, 0.05)',
                                   position: 'relative',
                                 }}
                               >
@@ -9567,9 +9719,10 @@ const toggleMobileSheetSize = () => {
                                   bottom: '-8px',
                                   left: '50%',
                                   transform: 'translateX(-50%)',
-                                  width: '20px',
-                                  height: '6px',
+                                  width: '22px',
+                                  height: '5px',
                                   background: '#a78bfa',
+                                  borderRadius: '0 0 3px 3px',
                                 }} />
                               </div>
                             )}
@@ -10874,6 +11027,20 @@ const toggleMobileSheetSize = () => {
       </div>
       <div className="workspace-panel-scroll">
         {renderPanel()}
+        {assetSubView === 'uploads' && (
+          <button
+            type="button"
+            className="workspace-upload-fab"
+            title="Upload image"
+            onClick={() => {
+              if (!requireAuth('login')) return
+              uploadInputRef.current?.click()
+            }}
+            disabled={isUploading || deletingMediaIds.size > 0}
+          >
+            <Plus size={22} />
+          </button>
+        )}
       </div>
     </aside>
 

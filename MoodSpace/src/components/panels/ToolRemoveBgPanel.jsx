@@ -1,3 +1,5 @@
+import { ArrowLeft } from 'lucide-react'
+
 export default function ToolRemoveBgPanel({
   selectedItem,
   onProcess,
@@ -11,8 +13,8 @@ export default function ToolRemoveBgPanel({
     <div className="panel-wrapper">
       <div className="panel-header">
         {onBack && (
-          <button type="button" className="panel-back-btn" onClick={onBack}>
-            ←
+          <button type="button" className="workspace-back-button" onClick={onBack}>
+            <ArrowLeft size={16} />
           </button>
         )}
         <span className="panel-title">Remove Background</span>

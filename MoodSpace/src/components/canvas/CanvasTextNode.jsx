@@ -101,6 +101,14 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       }
     }
 
+    // Auto-expand height for multi-line text
+    if (fontLoaded && item.text && item.text.includes('\n')) {
+      const h = Math.ceil(node.height() || (item.fontSize || 48))
+      if (h > (item.h || 0)) {
+        onChange({ h })
+      }
+    }
+
     node.clearCache()
     if (typeof node._clearTextCache === 'function') node._clearTextCache()
     try { effectManager.applyAll(node, item.effects) } catch {}
@@ -112,9 +120,19 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     item.fontSize, item.fontFamily, letterSpacing, curveAmount,
     item.isBold, item.isItalic, item.isUnderline,
     item.align, item.text, item.opacity,
+    item.effects,
     item.shadowEnabled, item.shadow, item.shadowColor, item.shadowOpacity, item.shadowOffsetX, item.shadowOffsetY,
     fontLoaded, item.w, hasCurve, onChange,
   ])
+
+  // Synchronous effect application for curved text (separate from the non-curve layout effect above)
+  useLayoutEffect(() => {
+    if (!hasCurve) return
+    const node = curveImageRef.current
+    if (!node) return
+    try { effectManager.applyAll(node, item.effects) } catch {}
+    node.getLayer()?.draw()
+  }, [item.effects, hasCurve, item.text, item.fontFamily, item.fontSize, item.isBold, item.isItalic, item.fill])
 
   const filterItemRef = useRef(item)
   const rAFRef = useRef(null)
@@ -135,8 +153,6 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
 
   const textHeight = Math.max(item.h || 1, item.fontSize || 1)
   const hasEffects = item.effects && Object.keys(item.effects).some(k => !['letterSpacing', 'curve'].includes(k))
-  const descenderPad = hasEffects ? Math.ceil((item.fontSize || 48) * 0.35) : 0
-  const textBoxHeight = textHeight + descenderPad
 
   const hasTextFill = item.fill !== null && item.fill !== 'transparent'
   const hasFillGradient = hasTextFill && item.gradientType !== 'solid' && item.gradientStops?.length >= 2
@@ -186,14 +202,10 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     letterSpacing,
     lineJoin: 'round',
     miterLimit: 2,
-    lineHeight: 0.9,
+    lineHeight: hasEffects ? 1.25 : 0.9,
     wrap: 'word',
     align: item.align || 'center',
     perfectDrawEnabled: true,
-  }
-  if (descenderPad > 0) {
-    textProps.height = textBoxHeight
-    textProps.verticalAlign = 'top'
   }
   const hasStroke = (item.strokeWidth || 0) > 0 && (item.stroke || item.strokeGradientType)
   const shadowProps = getShadowProps(item)
@@ -220,7 +232,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       key={item.id}
       {...commonProps}
       width={item.w}
-      height={textBoxHeight}
+      height={textHeight}
       opacity={isTextEditing ? 0 : (item.opacity ?? 1)}
       onDblClick={(e) => { e.cancelBubble = true; onTextEdit(item.id) }}
       onDblTap={(e) => { e.cancelBubble = true; onTextEdit(item.id) }}
@@ -300,7 +312,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     >
       <Rect
         width={hasCurve ? curveW : item.w}
-        height={hasCurve ? curveH : textBoxHeight}
+        height={hasCurve ? curveH : textHeight}
         fill="rgba(0,0,0,0)"
         strokeWidth={0}
       />

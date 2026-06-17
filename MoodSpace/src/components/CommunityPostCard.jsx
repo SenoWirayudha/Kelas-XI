@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bookmark, Download, Edit3, Eye, Flag, FolderPlus, Heart, Images, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Bookmark, Download, Edit3, Eye, Flag, FolderPlus, Heart, Images, Lock, MoreHorizontal, Trash2, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/authState'
 import { ensureExternalImage } from '../lib/api/externalImages'
@@ -153,6 +153,16 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
             fallbackRatio={ratio}
           >
             {isDraft && <span className="gallery-draft-badge">Draft</span>}
+            {!isDraft && post.visibility === 'private' && (
+              <span className="gallery-visibility-badge gallery-visibility-private" title="Private">
+                <Lock size={12} />
+              </span>
+            )}
+            {!isDraft && post.visibility === 'unlisted' && (
+              <span className="gallery-visibility-badge gallery-visibility-unlisted" title="Hanya teman">
+                <Users size={12} />
+              </span>
+            )}
             {!isDraft && post.media?.length > 1 && (
               <span className="gallery-carousel-badge" title={`${post.media.length} images`}>
                 <Images size={14} />
@@ -269,7 +279,7 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
         </div>
       </div>
     </article>
-      <ReportModal isOpen={!!reportPostId} postId={reportPostId} onClose={() => setReportPostId(null)} />
+      <ReportModal isOpen={!!reportPostId} targetType="post" targetId={reportPostId} onClose={() => setReportPostId(null)} />
     </>
   )
 }

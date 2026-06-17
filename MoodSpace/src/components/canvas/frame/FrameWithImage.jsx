@@ -169,14 +169,15 @@ const renderFrameBackground = (item, shadowProps) => {
   }
 
   if (item.frameType === 'phone' || item.frameType === 'tablet') {
-    return <Rect width={item.w} height={item.h} cornerRadius={item.cornerRadius || 20} fill={item.fill || '#1a1a1a'} {...shadowProps} />
+    return <Rect width={item.w} height={item.h} cornerRadius={item.cornerRadius || 24} fill={item.fill || '#1a1a1a'} {...shadowProps} />
   }
 
   if (item.frameType === 'desktop') {
     return (
       <>
-        <Rect width={item.w} height={item.h - (item.standHeight || 40)} cornerRadius={item.cornerRadius || 4} fill={item.fill || '#1a1a1a'} {...shadowProps} />
-        <Rect x={item.w / 2 - 40} y={item.h - (item.standHeight || 40)} width={80} height={item.standHeight || 40} fill={item.fill || '#1a1a1a'} listening={false} />
+        <Rect width={item.w} height={item.h - (item.standHeight || 40)} cornerRadius={item.cornerRadius || 6} fill={item.fill || '#1a1a1a'} {...shadowProps} />
+        <Rect x={item.w / 2 - 30} y={item.h - (item.standHeight || 40)} width={60} height={item.standHeight || 40} cornerRadius={[0, 0, 4, 4]} fill={item.fill || '#1a1a1a'} listening={false} />
+        <Rect x={item.w / 2 - 10} y={item.h - (item.standHeight || 40) + 2} width={20} height={4} cornerRadius={2} fill={item.fill ? 'rgba(255,255,255,0.1)' : '#2a2a2a'} listening={false} />
       </>
     )
   }
@@ -185,7 +186,7 @@ const renderFrameBackground = (item, shadowProps) => {
     <Rect
       width={item.w}
       height={item.h}
-      cornerRadius={item.frameType === 'browser' ? item.cornerRadius || 8 : item.frameType === 'rect' ? item.cornerRadius || 0 : item.frameType === 'blob' || item.frameType === 'wave' || item.frameType === 'liquid' ? item.w / 4 : 0}
+      cornerRadius={item.frameType === 'arch' ? 0 : item.frameType === 'browser' ? item.cornerRadius || 8 : item.frameType === 'rect' ? item.cornerRadius || 0 : item.frameType === 'blob' || item.frameType === 'wave' || item.frameType === 'liquid' ? item.w / 4 : 0}
       fill={item.fill || (item.frameType.startsWith('film') || item.frameType === 'cinema' ? '#111111' : '#ffffff')}
       {...shadowProps}
     />
@@ -201,7 +202,7 @@ const renderFrameDecorations = (item, shadowProps, isDropTarget, isEditing, fram
       <Rect
         width={item.frameType === 'desktop' ? item.w : item.w}
         height={item.frameType === 'desktop' ? item.h - (item.standHeight || 40) : item.h}
-        cornerRadius={item.frameType === 'browser' ? item.cornerRadius || 8 : item.frameType === 'phone' || item.frameType === 'tablet' ? item.cornerRadius || 20 : item.frameType === 'rect' ? item.cornerRadius || 0 : item.frameType === 'blob' || item.frameType === 'wave' || item.frameType === 'liquid' ? item.w / 4 : 0}
+        cornerRadius={item.frameType === 'browser' ? item.cornerRadius || 8 : item.frameType === 'phone' || item.frameType === 'tablet' ? item.cornerRadius || 24 : item.frameType === 'rect' ? item.cornerRadius || 0 : item.frameType === 'blob' || item.frameType === 'wave' || item.frameType === 'liquid' ? item.w / 4 : 0}
         fill="transparent"
         stroke={item.stroke || (item.frameType === 'phone' || item.frameType === 'tablet' || item.frameType === 'desktop' ? '#0a0a0a' : '#e5e5e5')}
         strokeWidth={item.strokeWidth || (item.frameType === 'phone' ? 8 : item.frameType === 'tablet' ? 12 : item.frameType === 'desktop' ? 16 : 2)}
@@ -212,15 +213,15 @@ const renderFrameDecorations = (item, shadowProps, isDropTarget, isEditing, fram
       <Rect y={0} width={item.w} height={item.archRadius || item.w / 2} cornerRadius={[item.archRadius || item.w / 2, item.archRadius || item.w / 2, 0, 0]} fill="transparent" stroke={item.stroke || '#e5e5e5'} strokeWidth={item.strokeWidth || 2} listening={false} />
     )}
     {item.frameType === 'polaroid-tape' && (
-      <Rect x={item.w / 2 - 30} y={-5} width={60} height={15} fill={item.tapeColor || '#f5f1e8'} opacity={0.72} listening={false} />
+      <Rect x={item.w / 2 - 24} y={-5} width={48} height={14} cornerRadius={2} fill={item.tapeColor || '#f5f1e8'} opacity={0.72} rotation={-4} listening={false} />
     )}
     {item.frameType.startsWith('film') && (
       <>
-        <Rect width={item.w} height={item.h} fill="transparent" stroke={item.stroke || '#1a1a1a'} strokeWidth={item.strokeWidth || 2} {...shadowProps} listening={false} />
+        <Rect width={item.w} height={item.h} cornerRadius={2} fill="transparent" stroke={item.stroke || '#1a1a1a'} strokeWidth={item.strokeWidth || 2} {...shadowProps} listening={false} />
         {Array.from({ length: item.sprocketHoles || 8 }).map((_, index) => {
           const isVertical = item.frameType === 'film-vertical'
           const spacing = isVertical ? item.h / ((item.sprocketHoles || 8) + 1) : item.w / ((item.sprocketHoles || 8) + 1)
-          return <Rect key={index} x={isVertical ? 2 : spacing * (index + 1) - 3} y={isVertical ? spacing * (index + 1) - 3 : 2} width={6} height={6} cornerRadius={1} fill="#0f0f0f" listening={false} />
+          return <Circle key={index} x={isVertical ? 4 : spacing * (index + 1)} y={isVertical ? spacing * (index + 1) : 4} radius={3} fill="#0f0f0f" listening={false} />
         })}
       </>
     )}
@@ -228,10 +229,17 @@ const renderFrameDecorations = (item, shadowProps, isDropTarget, isEditing, fram
       <>
         <Rect y={0} width={item.w} height={item.topBarHeight || 30} fill="#000000" listening={false} />
         <Rect y={item.h - (item.bottomBarHeight || 30)} width={item.w} height={item.bottomBarHeight || 30} fill="#000000" listening={false} />
+        <Rect y={0} width={item.w} height={(item.topBarHeight || 30) - 2} fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth={1} listening={false} />
       </>
     )}
     {item.frameType === 'phone' && (
-      <Rect x={item.w / 2 - (item.notchWidth || 80) / 2} y={item.strokeWidth || 8} width={item.notchWidth || 80} height={item.notchHeight || 20} cornerRadius={10} fill={item.fill || '#1a1a1a'} listening={false} />
+      <>
+        <Rect x={item.w / 2 - ((item.notchWidth || 80) / 2)} y={item.strokeWidth || 8} width={item.notchWidth || 80} height={item.notchHeight || 20} cornerRadius={12} fill={item.fill || '#1a1a1a'} listening={false} />
+        <Circle x={item.w / 2} y={(item.strokeWidth || 8) + (item.notchHeight || 20) / 2} radius={4} fill="rgba(0,0,0,0.3)" listening={false} />
+      </>
+    )}
+    {item.frameType === 'tablet' && (
+      <Circle x={item.w / 2} y={item.strokeWidth || 12} radius={3} fill={item.fill || '#0a0a0a'} listening={false} />
     )}
     {item.frameType === 'browser' && (
       <>
@@ -239,10 +247,15 @@ const renderFrameDecorations = (item, shadowProps, isDropTarget, isEditing, fram
         <Circle x={16} y={(item.headerHeight || 32) / 2} radius={4} fill="#ff5f56" listening={false} />
         <Circle x={32} y={(item.headerHeight || 32) / 2} radius={4} fill="#ffbd2e" listening={false} />
         <Circle x={48} y={(item.headerHeight || 32) / 2} radius={4} fill="#27c93f" listening={false} />
+        <Rect x={62} y={((item.headerHeight || 32) - 16) / 2} width={item.w - 74} height={16} cornerRadius={4} fill="rgba(0,0,0,0.06)" listening={false} />
       </>
     )}
     {item.frameType === 'desktop' && (
-      <Rect x={item.w / 2 - 40} y={item.h - (item.standHeight || 40)} width={80} height={item.standHeight || 40} fill={item.fill || '#1a1a1a'} listening={false} />
+      <>
+        <Rect x={item.w / 2 - 38} y={item.h - (item.standHeight || 40)} width={76} height={item.standHeight || 40} cornerRadius={[0, 0, 3, 3]} fill={item.fill || '#1a1a1a'} listening={false} />
+        <Rect x={item.w / 2 - 12} y={item.h - (item.standHeight || 40) + 2} width={24} height={4} cornerRadius={2} fill={item.fill ? 'rgba(255,255,255,0.08)' : '#2a2a2a'} listening={false} />
+        <Rect x={3} y={3} width={item.w - 6} height={item.h - (item.standHeight || 40) - 6} cornerRadius={2} fill="transparent" stroke="rgba(255,255,255,0.15)" strokeWidth={1} listening={false} />
+      </>
     )}
     {/* Editing mode indicator - blue dashed border around slot */}
     {isEditing && frameSlot && (

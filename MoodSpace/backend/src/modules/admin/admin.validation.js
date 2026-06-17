@@ -12,7 +12,7 @@ export const updateUserSchema = z.object({
 
 export const resolveReportSchema = z.object({
   body: z.object({
-    resolution: z.enum(['dismissed', 'warned', 'post_deleted', 'user_banned']),
+    resolution: z.enum(['dismissed', 'warned', 'post_deleted', 'comment_deleted', 'user_banned']),
   }),
   params: z.object({
     id: z.string().uuid(),

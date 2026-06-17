@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Globe, MapPin, User, UserPlus, UserCheck } from 'lucide-react'
+import { Flag, Globe, MapPin, MoreVertical, User, UserPlus, UserCheck } from 'lucide-react'
 import { detectPlatform, SocialLinkIcon, toAbsoluteUrl } from '../components/SocialLinkIcon'
 import CommunityPostCard from '../components/CommunityPostCard'
 import CroppedProfileImage from '../components/CroppedProfileImage'
 import FollowListModal from '../components/FollowListModal'
+import ReportModal from '../components/ReportModal'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
 import { useAuth } from '../context/authState'
 import { followUser, unfollowUser } from '../lib/api/follows'
@@ -27,6 +28,9 @@ function UserProfile() {
   const [isFollowing, setIsFollowing] = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
   const [followList, setFollowList] = useState({ isOpen: false, type: '' })
+  const [reportUserId, setReportUserId] = useState(null)
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const profileMenuRef = useRef(null)
 
   const isOwner = user?.username?.toLowerCase() === username?.toLowerCase()
 
@@ -50,6 +54,15 @@ function UserProfile() {
   }, [username])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (!showProfileMenu) return undefined
+    const handler = (e) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) setShowProfileMenu(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showProfileMenu])
 
   const handleToggleFollow = async () => {
     if (!requireAuth('login')) return
@@ -179,6 +192,20 @@ function UserProfile() {
                 {isFollowing ? 'Following' : 'Follow'}
               </button>
             )}
+            {!isOwner && (
+              <div className="profile-menu-wrapper" ref={profileMenuRef}>
+                <button type="button" className="profile-menu-btn" onClick={() => setShowProfileMenu((prev) => !prev)} title="More">
+                  <MoreVertical size={18} />
+                </button>
+                {showProfileMenu && (
+                  <div className="profile-dropdown">
+                    <button type="button" className="profile-dropdown-item" onClick={() => { setShowProfileMenu(false); setReportUserId(profile.id) }}>
+                      <Flag size={14} /> Laporkan Pengguna
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -195,6 +222,7 @@ function UserProfile() {
         userId={profile.id}
         onClose={() => setFollowList({ isOpen: false, type: '' })}
       />
+      <ReportModal isOpen={!!reportUserId} targetType="user" targetId={reportUserId} onClose={() => setReportUserId(null)} />
     </section>
   )
 }

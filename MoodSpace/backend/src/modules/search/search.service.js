@@ -4,6 +4,35 @@ import { recordInterestEvent } from '../interest/interest.service.js'
 import { clearSearchHistory, listSearchHistory, recordSearchHistory } from './search.repository.js'
 import { classifyMovieQuery, searchExternalImages } from '../externalImages/externalImages.service.js'
 
+const SEARCH_SYNONYMS = {
+  film: ['movie', 'cinema', 'movies', 'films'],
+  movie: ['film', 'cinema', 'movies', 'films'],
+  foto: ['photo', 'photography', 'picture', 'fotografi'],
+  photo: ['foto', 'photography', 'picture', 'fotografi'],
+}
+
+const getSynonyms = (word) => SEARCH_SYNONYMS[word] || []
+
+const buildFtsQuery = (q) => {
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  if (!words.length) return ''
+  return words.map((word) => {
+    const syns = getSynonyms(word)
+    if (!syns.length) return word
+    return `(${[word, ...syns].join(' | ')})`
+  }).join(' & ')
+}
+
+const collectSynonymTags = (q) => {
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const tags = new Set()
+  words.forEach((word) => {
+    tags.add(word)
+    getSynonyms(word).forEach((syn) => tags.add(syn))
+  })
+  return [...tags]
+}
+
 const parseTags = (value = '') => (
   value
     .split(',')
@@ -14,9 +43,14 @@ const parseTags = (value = '') => (
 
 export const search = async ({ viewerId = null, query }) => {
   const tags = parseTags(query.tags)
+  const q = query.q?.trim() || ''
+  const ftsQuery = buildFtsQuery(q)
+  const synonymTags = collectSynonymTags(q)
   const rows = await searchPosts({
     viewerId,
-    q: query.q,
+    q,
+    ftsQuery,
+    synonymTags,
     tags,
     sort: query.sort,
     limit: query.limit + 1,
@@ -27,23 +61,25 @@ export const search = async ({ viewerId = null, query }) => {
   return {
     items: items.map(serializePost),
     nextOffset: hasMore ? query.offset + query.limit : null,
-    query: query.q,
+    query: q,
     tags,
     sort: query.sort,
   }
 }
 
 export const suggestions = async ({ query }) => {
+  const q = query.q?.trim() || ''
+  const expandedQuery = collectSynonymTags(q).join(' ')
   const items = await getSearchSuggestions({
-    q: query.q,
+    q,
+    expandedQuery,
     limit: query.limit,
   })
   const merged = [...items]
   const seen = new Set(items.map((item) => `${item.type}:${item.value}`.toLowerCase()))
-  const trimmed = query.q?.trim() || ''
-  if (trimmed && (classifyMovieQuery(trimmed) || trimmed.split(/\s+/).filter(Boolean).length >= 2)) {
+  if (q && (classifyMovieQuery(q) || q.split(/\s+/).filter(Boolean).length >= 2)) {
     const external = await searchExternalImages({
-      q: trimmed,
+      q,
       limit: Math.max(3, Math.min(query.limit, 5)),
       context: 'search',
       mode: 'for-you',

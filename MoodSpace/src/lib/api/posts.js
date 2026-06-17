@@ -29,6 +29,10 @@ export const getRecommendedPosts = async (postId, { limit = 8, offset = 0 } = {}
   apiRequest(withQuery(`/posts/${postId}/recommended`, { limit, offset }))
 )
 
+export const getSimilarPostsByImage = async (imageId, { limit = 12 } = {}) => (
+  apiRequest(withQuery(`/posts/similar/${imageId}`, { limit }))
+)
+
 export const savePost = async (postId) => (
   apiRequest(`/posts/${postId}/save`, { method: 'POST', body: {} })
 )

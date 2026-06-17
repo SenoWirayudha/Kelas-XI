@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Bookmark, ChevronLeft, ChevronRight, Download, Eye, Flag, FolderPlus, Heart, LoaderCircle, MoreVertical, Share2, Trash2, User } from 'lucide-react'
+import { Bookmark, ChevronLeft, ChevronRight, Download, Eye, Flag, FolderPlus, Heart, LoaderCircle, Lock, MoreVertical, Share2, Trash2, User, Users } from 'lucide-react'
 import BoardPickerModal from '../components/BoardPickerModal'
 import CommunityPostCard from '../components/CommunityPostCard'
 import ConfirmationModal from '../components/ConfirmationModal'
@@ -8,6 +8,7 @@ import NewBoardModal from '../components/NewBoardModal'
 import MasonryImage from '../components/MasonryImage'
 import ReportModal from '../components/ReportModal'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
+import { Skeleton, createSkeletonItems } from '../components/Skeleton'
 import { useAuth } from '../context/authState'
 import { addBoardItem, listBoards } from '../lib/api/boards'
 import { createComment, deleteComment, listComments } from '../lib/api/comments'
@@ -37,9 +38,66 @@ const safeFileName = (value = 'moodspace-post') => (
   value.toLowerCase().trim().replace(/[^a-z0-9-_]+/g, '-').replace(/^-+|-+$/g, '') || 'moodspace-post'
 )
 
+function CommentItem({ comment, currentUser, onDelete, onReport }) {
+  const [showMenu, setShowMenu] = useState(false)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    if (!showMenu) return undefined
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showMenu])
+
+  return (
+    <div className="comment-item" key={comment.id}>
+      {comment.avatarUrl ? (
+        <div className="comment-avatar" style={{ backgroundImage: `url("${comment.avatarUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+      ) : (
+        <div className="comment-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <User size={20} color="white" />
+        </div>
+      )}
+      <div className="comment-content">
+        <div className="comment-header">
+          <span className="comment-author">{comment.displayName || comment.username}</span>
+          <span className="comment-timestamp">{timeAgo(comment.createdAt)}</span>
+          <div className="comment-actions" ref={menuRef}>
+            <button type="button" className="comment-action-btn" onClick={() => setShowMenu((prev) => !prev)} title="More">
+              <MoreVertical size={12} />
+            </button>
+            {showMenu && (
+              <div className="comment-dropdown">
+                {currentUser?.id !== comment.authorId && (
+                  <button type="button" className="comment-dropdown-item" onClick={() => { setShowMenu(false); onReport(comment.id) }}>
+                    <Flag size={12} /> Laporkan
+                  </button>
+                )}
+                {currentUser?.id === comment.authorId && (
+                  <button type="button" className="comment-dropdown-item danger" onClick={() => { setShowMenu(false); onDelete(comment.id) }}>
+                    <Trash2 size={12} /> Hapus
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        <p className="comment-text">{comment.content}</p>
+      </div>
+    </div>
+  )
+}
+
+const RECOMMENDED_SKELETON_COUNT = 4
 const estimatePostHeight = (post, columnWidth) => {
   const ratio = post.cover?.width && post.cover?.height ? post.cover.width / post.cover.height : 1
   return columnWidth / Math.max(0.35, ratio) + 98
+}
+const feedEstimateHeight = (item, columnWidth) => {
+  if (item._isSkeleton) return item._height
+  return estimatePostHeight(item, columnWidth)
 }
 
 function PostDetail() {
@@ -63,6 +121,7 @@ function PostDetail() {
   const [isLoadingComments, setIsLoadingComments] = useState(false)
   const [isMoreOpen, setIsMoreOpen] = useState(false)
   const [reportPostId, setReportPostId] = useState(null)
+  const [reportCommentId, setReportCommentId] = useState(null)
   const [toastMessage, setToastMessage] = useState('')
   const moreMenuRef = useRef(null)
   const recommendedSentinelRef = useRef(null)
@@ -169,6 +228,7 @@ function PostDetail() {
     if (!id || recommendedLoadingRef.current || !hasMoreRecommended) return
     recommendedLoadingRef.current = true
     setIsLoadingRecommended(true)
+    setRecommendedPosts((current) => [...current, ...createSkeletonItems(RECOMMENDED_SKELETON_COUNT)])
     try {
       const [internalResult, externalResult] = await Promise.allSettled([
         recommendedOffsetRef.current === null
@@ -187,14 +247,17 @@ function PostDetail() {
         ...(externalPayload.items || []).map(externalImageToPost),
       ]
       setRecommendedPosts((current) => {
-        const seen = new Set(current.map((item) => item.id))
-        return [...current, ...nextItems.filter((item) => {
+        const clean = current.filter((p) => !p._isSkeleton)
+        const seen = new Set(clean.map((item) => item.id))
+        return [...clean, ...nextItems.filter((item) => {
           if (seen.has(item.id) || item.id === id) return false
           seen.add(item.id)
           return true
         })]
       })
       setHasMoreRecommended(!!internalPayload.nextOffset || !!externalPayload.nextCursor)
+    } catch {
+      setRecommendedPosts((current) => current.filter((p) => !p._isSkeleton))
     } finally {
       recommendedLoadingRef.current = false
       setIsLoadingRecommended(false)
@@ -320,6 +383,10 @@ function PostDetail() {
     setReportPostId(post?.id)
   }
 
+  const handleReportComment = (commentId) => {
+    setReportCommentId(commentId)
+  }
+
   const handleSelectBoard = async (board) => {
     const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
     await addBoardItem(board.id, body)
@@ -363,7 +430,7 @@ function PostDetail() {
     }
   }
 
-  if (isLoading) return <div className="post-detail-loading">Loading...</div>
+  if (isLoading) return <Skeleton.Detail />
   if (error || !post) return <p className="community-state error">{error || 'Post tidak ditemukan'}</p>
 
   const media = post.media?.length ? post.media : post.cover ? [post.cover] : []
@@ -442,7 +509,19 @@ function PostDetail() {
           </div>
 
           <div className="post-detail-content">
-            <h1>{post.title || 'Untitled workspace'}</h1>
+            <h1 className="post-detail-title-row">
+              {post.title || 'Untitled workspace'}
+              {post.visibility === 'private' && (
+                <span className="visibility-badge visibility-badge-private" title="Private">
+                  <Lock size={14} />
+                </span>
+              )}
+              {post.visibility === 'unlisted' && (
+                <span className="visibility-badge visibility-badge-unlisted" title="Hanya teman">
+                  <Users size={14} />
+                </span>
+              )}
+            </h1>
             {post.caption && <p className="post-description">{post.caption}</p>}
             {visibleTags.length > 0 && (
               <div className="post-detail-tags" aria-label="Post tags">
@@ -519,32 +598,24 @@ function PostDetail() {
           {comments.length > 0 && (
             <div className="comments-list">
               {comments.map((comment) => (
-                <div className="comment-item" key={comment.id}>
-                  {comment.avatarUrl ? (
-                    <div className="comment-avatar" style={{ backgroundImage: `url("${comment.avatarUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-                  ) : (
-                    <div className="comment-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <User size={20} color="white" />
-                    </div>
-                  )}
-                  <div className="comment-content">
-                    <div className="comment-header">
-                      <span className="comment-author">{comment.displayName || comment.username}</span>
-                      <span className="comment-timestamp">{timeAgo(comment.createdAt)}</span>
-                      {currentUser?.id === comment.authorId && (
-                        <button type="button" className="comment-action-btn" onClick={() => handleDeleteComment(comment.id)} title="Delete">
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                    </div>
-                    <p className="comment-text">{comment.content}</p>
-                  </div>
-                </div>
+                  <CommentItem
+                    key={comment.id}
+                    comment={comment}
+                    currentUser={currentUser}
+                    onDelete={handleDeleteComment}
+                    onReport={handleReportComment}
+                  />
               ))}
             </div>
           )}
 
-          {isLoadingComments && <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Loading comments...</p>}
+          {isLoadingComments && (
+            <div style={{ padding: '0 4px' }}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton.Comment key={i} />
+              ))}
+            </div>
+          )}
 
           {hasMoreComments && !isLoadingComments && (
             <button type="button" className="show-all-comments-btn" onClick={loadMoreComments}>
@@ -563,19 +634,23 @@ function PostDetail() {
           {recommendedPosts.length > 0 && (
             <ResponsiveMasonry
               items={recommendedPosts}
-              estimateHeight={estimatePostHeight}
-              renderItem={(recommendedPost) => (
-                <CommunityPostCard
-                  key={recommendedPost.id}
-                  post={recommendedPost}
-                  onToggleLike={handleToggleRecommendedLike}
-                  onToggleSave={handleToggleRecommendedSave}
-                  onAddToBoard={handleAddToBoard}
-                />
-              )}
+              estimateHeight={feedEstimateHeight}
+              renderItem={(item) =>
+                item._isSkeleton ? (
+                  <Skeleton.Card key={item.id} />
+                ) : (
+                  <CommunityPostCard
+                    key={item.id}
+                    post={item}
+                    onToggleLike={handleToggleRecommendedLike}
+                    onToggleSave={handleToggleRecommendedSave}
+                    onAddToBoard={handleAddToBoard}
+                  />
+                )
+              }
             />
           )}
-          {isLoadingRecommended && <p className="community-state">Memuat rekomendasi...</p>}
+          {isLoadingRecommended && recommendedPosts.length === 0 && <Skeleton.Masonry count={RECOMMENDED_SKELETON_COUNT} />}
           <div ref={recommendedSentinelRef} className="feed-sentinel" aria-hidden="true" />
         </section>
       )}
@@ -593,7 +668,8 @@ function PostDetail() {
         onCancel={() => setIsNewBoardModalOpen(false)}
         onCreated={handleCreateBoardForPost}
       />
-      <ReportModal isOpen={!!reportPostId} postId={reportPostId} onClose={() => setReportPostId(null)} />
+      <ReportModal isOpen={!!reportPostId} targetType="post" targetId={reportPostId} onClose={() => setReportPostId(null)} />
+      <ReportModal isOpen={!!reportCommentId} targetType="comment" targetId={reportCommentId} onClose={() => setReportCommentId(null)} />
       {toastMessage && (
         <div className="post-detail-toast" role="status" aria-live="polite">
           <FolderPlus size={15} />

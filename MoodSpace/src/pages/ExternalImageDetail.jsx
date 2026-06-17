@@ -5,16 +5,21 @@ import BoardPickerModal from '../components/BoardPickerModal'
 import CommunityPostCard from '../components/CommunityPostCard'
 import NewBoardModal from '../components/NewBoardModal'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
+import { Skeleton, createSkeletonItems } from '../components/Skeleton'
 import { useAuth } from '../context/authState'
 import { addBoardItem, listBoards } from '../lib/api/boards'
 import { getExternalImage, saveExternalImage, searchExternalImages, unsaveExternalImage } from '../lib/api/externalImages'
-import { getHomeFeed, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
-import { searchPosts } from '../lib/api/search'
+import { getSimilarPostsByImage, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
 import { externalImageToPost, postToExternalImagePayload } from '../utils/externalImagePost'
 
+const RECOMMENDED_SKELETON_COUNT = 4
 const estimatePostHeight = (post, columnWidth) => {
   const ratio = post.cover?.width && post.cover?.height ? post.cover.width / post.cover.height : 1
   return columnWidth / Math.max(0.35, ratio) + 98
+}
+const feedEstimateHeight = (item, columnWidth) => {
+  if (item._isSkeleton) return item._height
+  return estimatePostHeight(item, columnWidth)
 }
 
 const safeFileName = (value = 'external-image') => (
@@ -68,6 +73,7 @@ function ExternalImageDetail() {
   const recommendedExternalCursorRef = useRef(null)
   const recommendedQueryRef = useRef('')
   const recommendedExternalParamsRef = useRef({})
+  const internalExhaustedRef = useRef(false)
 
   const decodedId = useMemo(() => decodeURIComponent(id || ''), [id])
 
@@ -81,6 +87,7 @@ function ExternalImageDetail() {
     recommendedOffsetRef.current = 0
     recommendedExternalCursorRef.current = null
     recommendedExternalParamsRef.current = {}
+    internalExhaustedRef.current = false
     getExternalImage(decodedId)
       .then(({ image }) => {
         if (cancelled) return
@@ -88,29 +95,27 @@ function ExternalImageDetail() {
         setPost(nextPost)
         const relatedQuery = [...(image.tags || []), image.title].filter(Boolean).slice(0, 5).join(' ')
         recommendedQueryRef.current = relatedQuery || image.provider || 'design inspiration'
-        recommendedExternalParamsRef.current = getExternalRelatedSearchParams(image, recommendedQueryRef.current)
+        const relatedParams = getExternalRelatedSearchParams(image, recommendedQueryRef.current)
+        if (image?.provider === 'tmdb') {
+          relatedParams.includeRecommendations = true
+        }
+        recommendedExternalParamsRef.current = relatedParams
         return Promise.allSettled([
-          searchPosts({ q: recommendedQueryRef.current, limit: 12, offset: 0 }),
-          searchExternalImages({ ...recommendedExternalParamsRef.current, limit: 6 }),
+          getSimilarPostsByImage(decodedId, { q: recommendedQueryRef.current, limit: 12 }),
+          searchExternalImages({ ...recommendedExternalParamsRef.current, context: 'related', limit: 6 }),
         ])
       })
-      .then(async (results) => {
+      .then((results) => {
         if (cancelled || !results) return
         const [internalResult, externalResult] = results
-        const internalPayload = internalResult.status === 'fulfilled' ? internalResult.value : { items: [], nextOffset: null }
+        const internalItems = internalResult.status === 'fulfilled' ? internalResult.value.items || [] : []
         const externalPayload = externalResult.status === 'fulfilled' ? externalResult.value : { items: [], nextCursor: null }
-        let internalItems = internalPayload.items || []
-        if (internalItems.length === 0) {
-          const fallback = await getHomeFeed({ limit: 12, mode: 'for-you' }).catch(() => ({ items: [] }))
-          if (cancelled) return
-          internalItems = fallback.items || []
-        }
+        internalExhaustedRef.current = true
         const externalItems = (externalPayload.items || [])
           .filter((image) => image.id !== decodedId)
           .map(externalImageToPost)
-        recommendedOffsetRef.current = internalPayload.nextOffset
         recommendedExternalCursorRef.current = externalPayload.nextCursor || null
-        setHasMoreRecommended(!!internalPayload.nextOffset || !!externalPayload.nextCursor)
+        setHasMoreRecommended(!!externalPayload.nextCursor)
         setRecommended(mixRecommendedItems(internalItems, externalItems))
       })
       .catch((nextError) => {
@@ -127,35 +132,28 @@ function ExternalImageDetail() {
     if (recommendedLoadingRef.current || !hasMoreRecommended) return
     recommendedLoadingRef.current = true
     setIsLoadingRecommended(true)
+    setRecommended((current) => [...current, ...createSkeletonItems(RECOMMENDED_SKELETON_COUNT)])
     try {
-      const [internalResult, externalResult] = await Promise.allSettled([
-        recommendedOffsetRef.current === null
-          ? Promise.resolve({ items: [], nextOffset: null })
-          : searchPosts({ q: recommendedQueryRef.current, limit: 12, offset: recommendedOffsetRef.current || 0 }),
-        recommendedExternalCursorRef.current
-          ? searchExternalImages({ ...recommendedExternalParamsRef.current, limit: 6, cursor: recommendedExternalCursorRef.current })
-          : Promise.resolve({ items: [], nextCursor: null }),
-      ])
-      const internalPayload = internalResult.status === 'fulfilled' ? internalResult.value : { items: [], nextOffset: null }
-      const externalPayload = externalResult.status === 'fulfilled' ? externalResult.value : { items: [], nextCursor: null }
-      recommendedOffsetRef.current = internalPayload.nextOffset
-      recommendedExternalCursorRef.current = externalPayload.nextCursor || null
-      const externalItems = (externalPayload.items || []).filter((image) => image.id !== decodedId).map(externalImageToPost)
-      let internalItems = internalPayload.items || []
-      if (internalItems.length === 0 && recommendedOffsetRef.current === null && externalItems.length > 0) {
-        const fallback = await getHomeFeed({ limit: 12, mode: 'for-you' }).catch(() => ({ items: [] }))
-        internalItems = fallback.items || []
-      }
-      const nextItems = mixRecommendedItems(internalItems, externalItems)
+      const externalResult = await searchExternalImages({
+        ...recommendedExternalParamsRef.current, context: 'related', limit: 6,
+        cursor: recommendedExternalCursorRef.current,
+      }).catch(() => ({ items: [], nextCursor: null }))
+      recommendedExternalCursorRef.current = externalResult.nextCursor || null
+      const externalItems = (externalResult.items || [])
+        .filter((image) => image.id !== decodedId)
+        .map(externalImageToPost)
       setRecommended((current) => {
-        const seen = new Set(current.map((item) => item.id))
-        return [...current, ...nextItems.filter((item) => {
+        const clean = current.filter((p) => !p._isSkeleton)
+        const seen = new Set(clean.map((item) => item.id))
+        return [...clean, ...externalItems.filter((item) => {
           if (seen.has(item.id)) return false
           seen.add(item.id)
           return true
         })]
       })
-      setHasMoreRecommended(!!internalPayload.nextOffset || !!externalPayload.nextCursor)
+      setHasMoreRecommended(!!recommendedExternalCursorRef.current)
+    } catch {
+      setRecommended((current) => current.filter((p) => !p._isSkeleton))
     } finally {
       recommendedLoadingRef.current = false
       setIsLoadingRecommended(false)
@@ -255,7 +253,7 @@ function ExternalImageDetail() {
     }
   }
 
-  if (isLoading) return <p className="community-state">Memuat image...</p>
+  if (isLoading) return <Skeleton.Detail />
   if (error || !post) return <p className="community-state error">{error || 'Image tidak ditemukan.'}</p>
 
   return (
@@ -312,13 +310,17 @@ function ExternalImageDetail() {
         </div>
         <ResponsiveMasonry
           items={recommended}
-          estimateHeight={estimatePostHeight}
-          renderItem={(item) => (
-            <CommunityPostCard key={item.id} post={item} onToggleLike={handleToggleRecommendedLike} onToggleSave={handleSave} onAddToBoard={handleAddToBoard} />
-          )}
+          estimateHeight={feedEstimateHeight}
+          renderItem={(item) =>
+            item._isSkeleton ? (
+              <Skeleton.Card key={item.id} />
+            ) : (
+              <CommunityPostCard key={item.id} post={item} onToggleLike={handleToggleRecommendedLike} onToggleSave={handleSave} onAddToBoard={handleAddToBoard} />
+            )
+          }
         />
         <div ref={recommendedSentinelRef} className="feed-sentinel" aria-hidden="true" />
-        {isLoadingRecommended && <p className="community-state">Memuat rekomendasi...</p>}
+        {isLoadingRecommended && recommended.length === 0 && <Skeleton.Masonry count={RECOMMENDED_SKELETON_COUNT} />}
       </section>
 
       <BoardPickerModal

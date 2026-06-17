@@ -4,6 +4,7 @@ import BoardPickerModal from '../components/BoardPickerModal'
 import CommunityPostCard from '../components/CommunityPostCard'
 import NewBoardModal from '../components/NewBoardModal'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
+import { Skeleton, createSkeletonItems } from '../components/Skeleton'
 import { useAuth } from '../context/authState'
 import { addBoardItem, listBoards } from '../lib/api/boards'
 import { saveExternalImage, searchExternalImages, unsaveExternalImage } from '../lib/api/externalImages'
@@ -11,9 +12,14 @@ import { likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
 import { searchPosts } from '../lib/api/search'
 import { externalImageToPost, postToExternalImagePayload } from '../utils/externalImagePost'
 
+const SKELETON_COUNT = 6
 const estimatePostHeight = (post, columnWidth) => {
   const ratio = post.cover?.width && post.cover?.height ? post.cover.width / post.cover.height : 1
   return columnWidth / Math.max(0.35, ratio) + 98
+}
+const feedEstimateHeight = (item, columnWidth) => {
+  if (item._isSkeleton) return item._height
+  return estimatePostHeight(item, columnWidth)
 }
 
 function SearchResults() {
@@ -42,8 +48,7 @@ function SearchResults() {
 
   const loadResults = useCallback(async ({ reset = false } = {}) => {
     if (loadingRef.current && !reset) return
-    const requestId = requestSerialRef.current + 1
-    requestSerialRef.current = requestId
+    const requestId = ++requestSerialRef.current
     loadingRef.current = true
     setIsLoading(true)
     setError('')
@@ -52,39 +57,43 @@ function SearchResults() {
       externalCursorRef.current = null
       setHasMore(false)
     }
-    Promise.allSettled([
-      searchPosts({ q, tags, sort, limit: 21, offset: nextOffsetRef.current }),
-      searchExternalImages({ q: q || tags || 'design inspiration', limit: 9, cursor: externalCursorRef.current }),
-    ])
-      .then(([internalResult, externalResult]) => {
-        if (requestSerialRef.current !== requestId) return
-        if (internalResult.status === 'rejected' && externalResult.status === 'rejected') throw internalResult.reason || externalResult.reason
-        const internalPayload = internalResult.status === 'fulfilled' ? internalResult.value : { items: [], nextOffset: null }
-        const externalPayload = externalResult.status === 'fulfilled' ? externalResult.value : { items: [], nextCursor: null }
-        const internalItems = internalPayload.items || []
-        const externalItems = (externalPayload.items || []).map(externalImageToPost)
-        nextOffsetRef.current = internalPayload.nextOffset
-        externalCursorRef.current = externalPayload.nextCursor || null
-        setItems((current) => {
-          const nextItems = reset ? [] : current
-          const seen = new Set(nextItems.map((item) => item.id))
-          return [...nextItems, ...[...internalItems, ...externalItems].filter((item) => {
-            if (seen.has(item.id)) return false
-            seen.add(item.id)
-            return true
-          })]
-        })
-        setHasMore(!!internalPayload.nextOffset || !!externalPayload.nextCursor)
+    if (!reset) {
+      setItems((current) => [...current, ...createSkeletonItems(SKELETON_COUNT)])
+    }
+    try {
+      const [internalResult, externalResult] = await Promise.allSettled([
+        searchPosts({ q, tags, sort, limit: 21, offset: nextOffsetRef.current }),
+        searchExternalImages({ q: q || tags || 'design inspiration', limit: 9, cursor: externalCursorRef.current }),
+      ])
+      if (requestSerialRef.current !== requestId) return
+      if (internalResult.status === 'rejected' && externalResult.status === 'rejected') throw internalResult.reason || externalResult.reason
+      const internalPayload = internalResult.status === 'fulfilled' ? internalResult.value : { items: [], nextOffset: null }
+      const externalPayload = externalResult.status === 'fulfilled' ? externalResult.value : { items: [], nextCursor: null }
+      const internalItems = internalPayload.items || []
+      const externalItems = (externalPayload.items || []).map(externalImageToPost)
+      nextOffsetRef.current = internalPayload.nextOffset
+      externalCursorRef.current = externalPayload.nextCursor || null
+      setItems((current) => {
+        const nextItems = (reset ? [] : current).filter((p) => !p._isSkeleton)
+        const seen = new Set(nextItems.map((item) => item.id))
+        return [...nextItems, ...[...internalItems, ...externalItems].filter((item) => {
+          if (seen.has(item.id)) return false
+          seen.add(item.id)
+          return true
+        })]
       })
-      .catch((nextError) => {
-        if (requestSerialRef.current !== requestId) return
-        setError(nextError.message || 'Search gagal dimuat')
-      })
-      .finally(() => {
-        if (requestSerialRef.current !== requestId) return
-        loadingRef.current = false
-        setIsLoading(false)
-      })
+      setHasMore(!!internalPayload.nextOffset || !!externalPayload.nextCursor)
+    } catch (nextError) {
+      if (requestSerialRef.current !== requestId) return
+      if (!reset) {
+        setItems((current) => current.filter((p) => !p._isSkeleton))
+      }
+      setError(nextError.message || 'Search gagal dimuat')
+    } finally {
+      if (requestSerialRef.current !== requestId) return
+      loadingRef.current = false
+      setIsLoading(false)
+    }
   }, [q, tags, sort])
 
   useEffect(() => {
@@ -177,7 +186,7 @@ function SearchResults() {
       <div className="search-results-header">
         <div>
           <h1>{title}</h1>
-          <p>{isLoading ? 'Searching Moodspace...' : `${items.length} result${items.length === 1 ? '' : 's'}`}</p>
+          <p>{isLoading ? <Skeleton width={120} height={14} borderRadius={6} /> : `${items.length} result${items.length === 1 ? '' : 's'}`}</p>
         </div>
         <div className="search-sort-tabs" aria-label="Sort search results">
           {[
@@ -196,19 +205,23 @@ function SearchResults() {
       {!isLoading && !error && items.length === 0 && <p className="community-state">Tidak ada hasil yang cocok.</p>}
       <ResponsiveMasonry
         items={items}
-        estimateHeight={estimatePostHeight}
-        renderItem={(post) => (
-          <CommunityPostCard
-            key={post.id}
-            post={post}
-            onToggleLike={handleToggleLike}
-            onToggleSave={handleToggleSave}
-            onAddToBoard={handleAddToBoard}
-          />
-        )}
+        estimateHeight={feedEstimateHeight}
+        renderItem={(item) =>
+          item._isSkeleton ? (
+            <Skeleton.Card key={item.id} />
+          ) : (
+            <CommunityPostCard
+              key={item.id}
+              post={item}
+              onToggleLike={handleToggleLike}
+              onToggleSave={handleToggleSave}
+              onAddToBoard={handleAddToBoard}
+            />
+          )
+        }
       />
       <div ref={sentinelRef} className="feed-sentinel" aria-hidden="true" />
-      {isLoading && <p className="community-state">Memuat hasil search...</p>}
+      {isLoading && items.length === 0 && <Skeleton.Masonry count={SKELETON_COUNT} />}
 
       <BoardPickerModal
         isOpen={boardPicker.isOpen}

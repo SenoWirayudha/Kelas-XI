@@ -1,7 +1,8 @@
-export const encodeCursor = (post) => Buffer.from(JSON.stringify({
+export const encodeCursor = (post, sortPos) => Buffer.from(JSON.stringify({
   publishedAt: post.publishedAt,
   id: post.id,
   score: post.score,
+  ...(sortPos !== undefined ? { sortPos } : {}),
 })).toString('base64url')
 
 export const decodeCursor = (cursor) => {

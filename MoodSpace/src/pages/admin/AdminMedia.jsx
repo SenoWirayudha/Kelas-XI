@@ -47,8 +47,8 @@ function AdminMedia() {
       <h1>Media</h1>
 
       <div className="admin-media-summary">
-        <div className="admin-stat-card" style={{ borderLeftColor: '#ec4899' }}>
-          <div className="admin-stat-icon" style={{ background: '#ec48991a', color: '#ec4899' }}>
+        <div className="admin-stat-card" style={{ borderLeftColor: '#F472B6' }}>
+          <div className="admin-stat-icon" style={{ background: '#F472B618', color: '#F472B6' }}>
             <HardDrive size={24} />
           </div>
           <div className="admin-stat-info">
@@ -56,8 +56,8 @@ function AdminMedia() {
             <span className="admin-stat-label">Total Files</span>
           </div>
         </div>
-        <div className="admin-stat-card" style={{ borderLeftColor: '#14b8a6' }}>
-          <div className="admin-stat-icon" style={{ background: '#14b8a61a', color: '#14b8a6' }}>
+        <div className="admin-stat-card" style={{ borderLeftColor: '#22D3EE' }}>
+          <div className="admin-stat-icon" style={{ background: '#22D3EE18', color: '#22D3EE' }}>
             <HardDrive size={24} />
           </div>
           <div className="admin-stat-info">

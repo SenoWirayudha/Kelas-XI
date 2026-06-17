@@ -1,3 +1,5 @@
+import { ArrowLeft } from 'lucide-react'
+
 export default function ToolBezierPanel({
   anchors,
   strokeColor,
@@ -12,8 +14,8 @@ export default function ToolBezierPanel({
     <div className="panel-wrapper">
       <div className="panel-header">
         {onBack && (
-          <button type="button" className="panel-back-btn" onClick={onBack}>
-            ←
+          <button type="button" className="workspace-back-button" onClick={onBack}>
+            <ArrowLeft size={16} />
           </button>
         )}
         <span className="panel-title">Bezier Path</span>

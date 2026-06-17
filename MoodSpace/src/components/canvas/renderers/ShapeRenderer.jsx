@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Group, Rect, Text, Ellipse, RegularPolygon, Star, Arrow, Line, Path } from 'react-konva'
 import { getShadowProps, preloadFont } from '../../../utils/konvaUtils'
 import { getArrowShapePath, getShapeFillProps, getShapeTextBounds } from '../../../utils/shapeUtils'
@@ -135,6 +135,19 @@ export default function ShapeRenderer({
   const groupRef = useRef(null)
   const filterItemRef = useRef(item)
   const rAFRef = useRef(null)
+
+  // Synchronous effect application so transform effects (repeater etc.) render immediately.
+  // Includes position deps so repeater clones follow the original on move/resize.
+  useLayoutEffect(() => {
+    const node = groupRef.current
+    if (!node) return
+    effectManager.applyAll(node, item.effects)
+    node.getLayer()?.draw()
+    return () => {
+      // Clean up repeater clones on unmount (delete) so they don't linger on the layer
+      effectManager._clearRepeater(node)
+    }
+  }, [item.effects, item.x, item.y, item.rotation, item.w, item.h])
 
   useEffect(() => {
     filterItemRef.current = item

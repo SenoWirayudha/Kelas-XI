@@ -65,3 +65,16 @@ export const saved = async (req, res, next) => {
     next(error)
   }
 }
+
+export const visualSearch = async (req, res, next) => {
+  try {
+    const result = await service.visualSearch({
+      imageUrl: req.validated.query.imageUrl,
+      limit: req.validated.query.limit,
+      viewerId: req.auth?.sub || null,
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
