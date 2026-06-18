@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react'
-import { Group, Rect, Circle, Line, Image as KonvaImage, Transformer } from 'react-konva'
+import React, { useCallback, useEffect, useRef } from 'react'
+import { Group, Rect, Circle, Line, Text, Image as KonvaImage, Transformer } from 'react-konva'
 import { useCanvasImages } from '../../../hooks/useCanvasImages'
 import { useFrameEditing } from '../../../hooks/frame/useFrameEditing'
 import { useFrameKeyboard } from '../../../hooks/frame/useFrameKeyboard'
@@ -168,9 +168,33 @@ const renderFrameBackground = (item, shadowProps) => {
     )
   }
 
-  if (item.frameType === 'phone' || item.frameType === 'tablet') {
-    return <Rect width={item.w} height={item.h} cornerRadius={item.cornerRadius || 24} fill={item.fill || '#1a1a1a'} {...shadowProps} />
-  }
+if (item.frameType === 'phone') {
+  return (
+    <>
+      {/* Body utama */}
+      <Rect
+        width={item.w}
+        height={item.h}
+        cornerRadius={item.cornerRadius || 40}
+        fill={item.fill || '#1a1a1a'}
+        {...shadowProps}
+      />
+      {/* Inner screen bezel — sedikit lebih terang untuk efek depth */}
+      <Rect
+        x={item.strokeWidth || 8}
+        y={item.strokeWidth || 8}
+        width={item.w - (item.strokeWidth || 8) * 2}
+        height={item.h - (item.strokeWidth || 8) * 2}
+        cornerRadius={Math.max(0, (item.cornerRadius || 40) - (item.strokeWidth || 8))}
+        fill="#0d0d0d"
+        listening={false}
+      />
+    </>
+  )
+}
+if (item.frameType === 'tablet') {
+  return <Rect width={item.w} height={item.h} cornerRadius={item.cornerRadius || 24} fill={item.fill || '#1a1a1a'} {...shadowProps} />
+}
 
   if (item.frameType === 'desktop') {
     return (
@@ -182,11 +206,47 @@ const renderFrameBackground = (item, shadowProps) => {
     )
   }
 
+  if (item.frameType === 'polaroid-stacked') {
+    const off = Math.max(item.stackOffset || 8, 10)
+    return (
+      <>
+        <Rect x={off * 2} y={off * 2} width={item.w} height={item.h} cornerRadius={1} fill={item.fill ? '#d0ccc4' : '#d8d4cc'} stroke="#bbb7af" strokeWidth={0.5} listening={false} />
+        <Rect x={off} y={off} width={item.w} height={item.h} cornerRadius={1} fill={item.fill ? '#e8e4dc' : '#ece8e0'} stroke="#ccc8c0" strokeWidth={0.5} listening={false} />
+        <Rect width={item.w} height={item.h} cornerRadius={1} fill={item.fill || '#ffffff'} {...shadowProps} />
+      </>
+    )
+  }
+
+  if (item.frameType === 'blob' || item.frameType === 'wave' || item.frameType === 'liquid') {
+    const slot = getResolvedFrameSlot(item)
+    if (typeof document !== 'undefined' && slot) {
+      const canvas = document.createElement('canvas')
+      canvas.width = item.w
+      canvas.height = item.h
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        const clipFunc = applyFrameSlotClip(slot)
+        ctx.save()
+        ctx.beginPath()
+        clipFunc(ctx)
+        ctx.fillStyle = item.fill || '#ffffff'
+        ctx.fill()
+        ctx.strokeStyle = item.stroke || '#e5e5e5'
+        ctx.lineWidth = item.strokeWidth || 2
+        ctx.stroke()
+        ctx.restore()
+        return <KonvaImage image={canvas} {...shadowProps} listening={false} perfectDrawEnabled={false} />
+      }
+    }
+    // fallback: rounded rect
+    return <Rect width={item.w} height={item.h} cornerRadius={item.w / 4} fill={item.fill || '#ffffff'} {...shadowProps} />
+  }
+
   return (
     <Rect
       width={item.w}
       height={item.h}
-      cornerRadius={item.frameType === 'arch' ? 0 : item.frameType === 'browser' ? item.cornerRadius || 8 : item.frameType === 'rect' ? item.cornerRadius || 0 : item.frameType === 'blob' || item.frameType === 'wave' || item.frameType === 'liquid' ? item.w / 4 : 0}
+      cornerRadius={item.frameType === 'arch' ? 0 : item.frameType === 'browser' ? item.cornerRadius || 8 : item.frameType === 'rect' ? item.cornerRadius || 0 : 0}
       fill={item.fill || (item.frameType.startsWith('film') || item.frameType === 'cinema' ? '#111111' : '#ffffff')}
       {...shadowProps}
     />
@@ -198,7 +258,7 @@ const renderFrameDecorations = (item, shadowProps, isDropTarget, isEditing, fram
     {item.frameType === 'circle' && (
       <Circle x={item.w / 2} y={item.h / 2} radius={Math.min(item.w, item.h) / 2} fill="transparent" stroke={item.stroke || '#e5e5e5'} strokeWidth={item.strokeWidth || 2} listening={false} />
     )}
-    {item.frameType !== 'circle' && !item.frameType.startsWith('film') && item.frameType !== 'cinema' && (
+    {item.frameType !== 'circle' && !item.frameType.startsWith('film') && item.frameType !== 'cinema' && !item.frameType.startsWith('polaroid') && !['blob', 'wave', 'liquid'].includes(item.frameType) && (
       <Rect
         width={item.frameType === 'desktop' ? item.w : item.w}
         height={item.frameType === 'desktop' ? item.h - (item.standHeight || 40) : item.h}
@@ -215,16 +275,165 @@ const renderFrameDecorations = (item, shadowProps, isDropTarget, isEditing, fram
     {item.frameType === 'polaroid-tape' && (
       <Rect x={item.w / 2 - 24} y={-5} width={48} height={14} cornerRadius={2} fill={item.tapeColor || '#f5f1e8'} opacity={0.72} rotation={-4} listening={false} />
     )}
-    {item.frameType.startsWith('film') && (
+    {item.frameType.startsWith('polaroid') && frameSlot && (
       <>
-        <Rect width={item.w} height={item.h} cornerRadius={2} fill="transparent" stroke={item.stroke || '#1a1a1a'} strokeWidth={item.strokeWidth || 2} {...shadowProps} listening={false} />
-        {Array.from({ length: item.sprocketHoles || 8 }).map((_, index) => {
-          const isVertical = item.frameType === 'film-vertical'
-          const spacing = isVertical ? item.h / ((item.sprocketHoles || 8) + 1) : item.w / ((item.sprocketHoles || 8) + 1)
-          return <Circle key={index} x={isVertical ? 4 : spacing * (index + 1)} y={isVertical ? spacing * (index + 1) : 4} radius={3} fill="#0f0f0f" listening={false} />
-        })}
+        <Rect x={frameSlot.x} y={frameSlot.y + frameSlot.height} width={frameSlot.width} height={1} fill="rgba(0,0,0,0.08)" listening={false} />
+        <Rect x={frameSlot.x} y={frameSlot.y + frameSlot.height + 1} width={frameSlot.width} height={1} fill="rgba(255,255,255,0.6)" listening={false} />
       </>
     )}
+{item.frameType.startsWith('film') && (() => {
+  const isV     = item.frameType === 'film-vertical'
+  const count   = item.sprocketHoles || (isV ? 8 : 11)
+  const stripe  = item.edgeStripeWidth || 18
+
+  // Warna
+  const frameFill   = item.fill   || '#1c1c1c'
+  const stripeColor = '#181818'
+
+  // Sprocket hole size (rectangular)
+  const hW = isV ? stripe * 0.44 : stripe * 0.40
+  const hH = isV ? hW * 1.4      : hW * 1.4
+  const gap = 2 // gap minimal antara segment & hole
+
+  // Helper: render sprocket holes as ACTUAL cutouts (strip segments between holes)
+  const renderPerforatedStrip = (x, y, length, isHorizontal) => {
+    const spacing = length / (count + 1)
+    const segments = []
+    for (let i = 0; i <= count; i++) {
+      const holeCenter = spacing * (i + 1)
+      const holeStart = holeCenter - hH / 2
+      const holeEnd   = holeCenter + hH / 2
+      const segStart  = i === 0 ? 0 : (spacing * i + hH / 2 + gap)
+      const segEnd    = i === count ? length : (holeStart - gap)
+      if (segEnd > segStart) {
+        const segLen = segEnd - segStart
+        if (isHorizontal) {
+          segments.push(<Rect key={`s-${i}`} x={x + segStart} y={y} width={segLen} height={stripe} fill={stripeColor} listening={false} />)
+        } else {
+          segments.push(<Rect key={`s-${i}`} x={x} y={y + segStart} width={stripe} height={segLen} fill={stripeColor} listening={false} />)
+        }
+      }
+    }
+    return segments
+  }
+
+  // Helper: render sprocket holes (overlay detail di atas strip segments)
+  const renderHoles = (x, y, length, isHorizontal, side) => {
+    const spacing = length / (count + 1)
+    return Array.from({ length: count }).map((_, i) => {
+      const c = spacing * (i + 1)
+      const holeX = isHorizontal ? x + c - hW / 2 : x + (stripe - hW) / 2
+      const holeY = isHorizontal ? y + (stripe - hH) / 2 : y + c - hH / 2
+      const holeW = isHorizontal ? hW : hW
+      const holeH = isHorizontal ? hH : hH
+      return (
+        <React.Fragment key={`h-${side}-${i}`}>
+          {/* Inner shadow: dark edge atas/kiri (memberi ilusi kedalaman lubang) */}
+          <Rect x={holeX} y={holeY} width={holeW} height={holeH} cornerRadius={1.5} fill="rgba(0,0,0,0.45)" listening={false} />
+          {/* Light bleed: highlight bawah/kanan */}
+          <Rect x={holeX + 1} y={holeY + holeH - 1} width={holeW - 2} height={1} fill="rgba(255,255,255,0.06)" listening={false} />
+          <Rect x={holeX + holeW - 1} y={holeY + 1} width={1} height={holeH - 2} fill="rgba(255,255,255,0.06)" listening={false} />
+        </React.Fragment>
+      )
+    })
+  }
+
+  // Helper: render frame numbers
+  const renderFrameNumbers = (x, y, length, isHorizontal) => {
+    const spacing = length / (count + 1)
+    const frameNum = item.frameStart || 1
+    return Array.from({ length: count }).map((_, i) => {
+      const num = String(frameNum + i).padStart(4, '0')
+      const c = spacing * (i + 1)
+      if (isHorizontal) {
+        // Horizontal film: numbers di stripe atas, antara sprocket holes
+        return (
+          <Text
+            key={`fn-${i}`}
+            x={x + c - 12}
+            y={y + (stripe - 6) / 2}
+            width={24}
+            height={6}
+            text={num}
+            fontSize={4.5}
+            fontFamily="monospace"
+            fill="rgba(255,255,255,0.18)"
+            align="center"
+            listening={false}
+          />
+        )
+      }
+      // Vertical film: numbers di stripe kiri, diputar 90°
+      return (
+        <Text
+          key={`fn-${i}`}
+          x={x + 1}
+          y={y + c - 2}
+          width={8}
+          height={stripe - 4}
+          text={num}
+          fontSize={4}
+          fontFamily="monospace"
+          fill="rgba(255,255,255,0.18)"
+          align="center"
+          rotation={90}
+          listening={false}
+        />
+      )
+    })
+  }
+
+  return (
+    <>
+      {/* Outer border */}
+      <Rect
+        width={item.w}
+        height={item.h}
+        cornerRadius={2}
+        fill="transparent"
+        stroke="#0d0d0d"
+        strokeWidth={1}
+        listening={false}
+      />
+
+      {isV ? (
+        <>
+          {/* Edge stripes kiri & kanan — sebagai segments biar lubangnya bolong */}
+          {renderPerforatedStrip(0, 0, item.h, false)}
+          {renderPerforatedStrip(item.w - stripe, 0, item.h, false)}
+
+          {/* Divider lines antara stripe & film area */}
+          <Rect x={stripe - 1}       y={0} width={1} height={item.h} fill="#0a0a0a" listening={false} />
+          <Rect x={item.w - stripe}  y={0} width={1} height={item.h} fill="#0a0a0a" listening={false} />
+
+          {/* Sprocket holes — overlay detail (inner shadow, light bleed) */}
+          {renderHoles(0, 0, item.h, false, 'L')}
+          {renderHoles(item.w - stripe, 0, item.h, false, 'R')}
+
+          {/* Frame numbers di kiri */}
+          {item.showFrameNumbers !== false && renderFrameNumbers(0, 0, item.h, false)}
+        </>
+      ) : (
+        <>
+          {/* Edge stripes atas & bawah */}
+          {renderPerforatedStrip(0, 0, item.w, true)}
+          {renderPerforatedStrip(0, item.h - stripe, item.w, true)}
+
+          {/* Divider lines */}
+          <Rect x={0} y={stripe - 1}       width={item.w} height={1} fill="#0a0a0a" listening={false} />
+          <Rect x={0} y={item.h - stripe}  width={item.w} height={1} fill="#0a0a0a" listening={false} />
+
+          {/* Sprocket holes */}
+          {renderHoles(0, 0, item.w, true, 'T')}
+          {renderHoles(0, item.h - stripe, item.w, true, 'B')}
+
+          {/* Frame numbers di atas */}
+          {item.showFrameNumbers !== false && renderFrameNumbers(0, 0, item.w, true)}
+        </>
+      )}
+    </>
+  )
+})()}
     {item.frameType === 'cinema' && (
       <>
         <Rect y={0} width={item.w} height={item.topBarHeight || 30} fill="#000000" listening={false} />
@@ -232,12 +441,130 @@ const renderFrameDecorations = (item, shadowProps, isDropTarget, isEditing, fram
         <Rect y={0} width={item.w} height={(item.topBarHeight || 30) - 2} fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth={1} listening={false} />
       </>
     )}
-    {item.frameType === 'phone' && (
-      <>
-        <Rect x={item.w / 2 - ((item.notchWidth || 80) / 2)} y={item.strokeWidth || 8} width={item.notchWidth || 80} height={item.notchHeight || 20} cornerRadius={12} fill={item.fill || '#1a1a1a'} listening={false} />
-        <Circle x={item.w / 2} y={(item.strokeWidth || 8) + (item.notchHeight || 20) / 2} radius={4} fill="rgba(0,0,0,0.3)" listening={false} />
-      </>
-    )}
+{item.frameType === 'phone' && (() => {
+  const bezel = item.strokeWidth || 8
+  const cr    = item.cornerRadius || 40
+
+  // Dynamic Island dimensions (scaled dari base 180×360)
+  const scaleX = item.w / 180
+  const scaleY = item.h / 360
+  const iw = (item.islandWidth  || 72) * scaleX
+  const ih = (item.islandHeight || 22) * scaleY
+  const ix = (item.w - iw) / 2
+  const iy = bezel + 5 * scaleY
+
+  // Volume buttons (kiri)
+  const btnW  = Math.max(6, 6 * scaleX)
+  const btnH1 = 30 * scaleY   // silent toggle
+  const btnH2 = 44 * scaleY   // volume up/down
+  const silentY = item.h * 0.18
+  const volUpY  = item.h * 0.28
+  const volDnY  = item.h * 0.38
+
+  // Power button (kanan)
+  const powerH = 58 * scaleY
+  const powerY = item.h * 0.28
+
+  return (
+    <>
+      {/* Dynamic Island — pill shape */}
+      <Rect
+        x={ix}
+        y={iy}
+        width={iw}
+        height={ih}
+        cornerRadius={ih / 2}
+        fill="#000000"
+        listening={false}
+      />
+      {/* Kamera depan dot (di dalam Dynamic Island) */}
+      <Circle
+        x={ix + iw * 0.72}
+        y={iy + ih * 0.35}
+        radius={ih * 0.22}
+        fill="#1a1a2e"
+        listening={false}
+      />
+
+      {/* Silent switch (kiri atas) */}
+      {item.volumeButtons !== false && (
+        <>
+          <Rect
+            x={-btnW}
+            y={silentY}
+            width={btnW}
+            height={btnH1}
+            cornerRadius={[2, 0, 0, 2]}
+            fill="#2a2a2a"
+            stroke="#4a4a4a"
+            strokeWidth={0.5}
+            listening={false}
+          />
+          {/* Volume Up */}
+          <Rect
+            x={-btnW}
+            y={volUpY}
+            width={btnW}
+            height={btnH2}
+            cornerRadius={[2, 0, 0, 2]}
+            fill="#2a2a2a"
+            stroke="#4a4a4a"
+            strokeWidth={0.5}
+            listening={false}
+          />
+          {/* Volume Down */}
+          <Rect
+            x={-btnW}
+            y={volDnY + btnH2 * 0.1}
+            width={btnW}
+            height={btnH2}
+            cornerRadius={[2, 0, 0, 2]}
+            fill="#2a2a2a"
+            stroke="#4a4a4a"
+            strokeWidth={0.5}
+            listening={false}
+          />
+        </>
+      )}
+
+      {/* Power button (kanan) */}
+      {item.sideButton !== false && (
+        <Rect
+          x={item.w}
+          y={powerY}
+          width={btnW}
+          height={powerH}
+          cornerRadius={[0, 2, 2, 0]}
+          fill="#2a2a2a"
+          stroke="#4a4a4a"
+          strokeWidth={0.5}
+          listening={false}
+        />
+      )}
+
+      {/* Outer border dengan highlight tipis (efek metallic) */}
+      <Rect
+        width={item.w}
+        height={item.h}
+        cornerRadius={cr}
+        fill="transparent"
+        stroke="#3a3a3a"
+        strokeWidth={1}
+        listening={false}
+      />
+      <Rect
+        x={1} y={1}
+        width={item.w - 2}
+        height={item.h - 2}
+        cornerRadius={cr - 1}
+        fill="transparent"
+        stroke="rgba(255,255,255,0.06)"
+        strokeWidth={1}
+        listening={false}
+      />
+    </>
+  )
+})()}
     {item.frameType === 'tablet' && (
       <Circle x={item.w / 2} y={item.strokeWidth || 12} radius={3} fill={item.fill || '#0a0a0a'} listening={false} />
     )}

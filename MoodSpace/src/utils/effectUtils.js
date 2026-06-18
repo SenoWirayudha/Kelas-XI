@@ -9,7 +9,7 @@ export const EFFECT_CATEGORIES = [
 
 // Effect IDs yang dilarang untuk adjustment layer
 export const ADJUSTMENT_RESTRICTED_EFFECTS = new Set([
-  'rotation2d', 'repeater', 'chromaKey', 'lumaKey', 'spotColor',
+  'repeater', 'chromaKey', 'lumaKey', 'spotColor',
 ])
 
 export const EFFECTS = [
@@ -26,14 +26,6 @@ export const EFFECTS = [
   { id: 'gaussianBlur', label: 'Gaussian Blur', category: 'blur', type: 'slider', default: 0, icon: 'Droplets', min: 0, max: 20, unit: 'px' },
   { id: 'mirror', label: 'Mirror', category: 'transform', type: 'select', default: 'none', icon: 'FlipHorizontal', options: [
     { value: 'none', label: 'None' }, { value: 'h', label: 'Horizontal' }, { value: 'v', label: 'Vertical' }, { value: 'both', label: 'Both' },
-  ]},
-  { id: 'rotation2d', label: '3D Rotation', category: 'transform', type: 'object', default: null, icon: 'RotateCcw', params: [
-    { key: 'angle', label: 'Angle', type: 'slider', default: 0, min: -180, max: 180, unit: '°' },
-    { key: 'axis', label: 'Axis', type: 'select', default: 'y', options: [
-      { value: 'y', label: 'Y-Axis (Horizontal)' },
-      { value: 'x', label: 'X-Axis (Vertical)' },
-    ]},
-    { key: 'fov', label: 'Perspective', type: 'slider', default: 1.0, min: 0, max: 2, step: 0.1 },
   ]},
 
   // ── Phase 2: Medium (Canvas 2D / WebGL) ──
@@ -180,6 +172,12 @@ export const EFFECTS = [
     { key: 'scaleY', label: 'Scale Y', type: 'slider', default: 1, min: 0.3, max: 3, step: 0.1 },
     { key: 'skewX', label: 'Skew X', type: 'slider', default: 0, min: -1, max: 1, step: 0.05 },
     { key: 'skewY', label: 'Skew Y', type: 'slider', default: 0, min: -1, max: 1, step: 0.05 },
+  ]},
+  { id: 'waveWarp', label: 'Wave Warp', category: 'transform', type: 'object', default: null, icon: 'Wave', params: [
+    { key: 'amplitude', label: 'Amplitude', type: 'slider', default: 20, min: 0, max: 100, unit: 'px' },
+    { key: 'frequency', label: 'Frequency', type: 'slider', default: 5, min: 1, max: 50 },
+    { key: 'speed', label: 'Speed', type: 'slider', default: 1, min: 0, max: 5, step: 0.1 },
+    { key: 'rotation', label: 'Rotation', type: 'slider', default: 0, min: 0, max: 360, unit: '°' },
   ]},
 ]
 

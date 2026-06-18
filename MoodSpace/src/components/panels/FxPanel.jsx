@@ -19,6 +19,9 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle }) {
   const isActive = value != null && value !== false && value !== 0 && value !== 'none' && value !== ''
   const params = effect.params
   const pickerStateRef = useRef(null)
+  const [editingKey, setEditingKey] = useState(null)
+  const [editValue, setEditValue] = useState('')
+  const editInputRef = useRef(null)
 
   const updateParam = (key, paramVal) => {
     if (pickerStateRef.current) {
@@ -28,6 +31,27 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle }) {
       const next = { ...(value || {}), [key]: paramVal }
       onChange(effect.id, next)
     }
+  }
+
+  const startEditing = (key, currentVal, param) => {
+    setEditingKey(key)
+    setEditValue(String(currentVal))
+    requestAnimationFrame(() => {
+      if (editInputRef.current) {
+        editInputRef.current.focus()
+        editInputRef.current.select()
+      }
+    })
+  }
+
+  const commitEdit = (param) => {
+    if (editingKey == null) return
+    const min = param.min ?? 0
+    const max = param.max ?? 100
+    const raw = Number(editValue)
+    const clamped = isNaN(raw) ? param.default : Math.min(Math.max(raw, min), max)
+    updateParam(editingKey, clamped)
+    setEditingKey(null)
   }
 
   return (
@@ -61,9 +85,43 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle }) {
         {effect.type === 'slider' && (
           <div className="workspace-fx-detail-slider">
             <div className="workspace-fx-slider-header">
-              <span className="workspace-fx-slider-value">
-                {typeof value === 'number' ? value : effect.default}{effect.unit || ''}
-              </span>
+              {editingKey === '_simple' ? (
+                <input
+                  ref={editInputRef}
+                  type="text"
+                  className="workspace-fx-param-edit-input"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const raw = Number(editValue)
+                      const clamped = isNaN(raw) ? (typeof value === 'number' ? value : effect.default) : Math.min(Math.max(raw, effect.min ?? 0), effect.max ?? 100)
+                      onChange(effect.id, clamped)
+                      setEditingKey(null)
+                    }
+                    if (e.key === 'Escape') setEditingKey(null)
+                  }}
+                  onBlur={() => {
+                    const raw = Number(editValue)
+                    const clamped = isNaN(raw) ? (typeof value === 'number' ? value : effect.default) : Math.min(Math.max(raw, effect.min ?? 0), effect.max ?? 100)
+                    onChange(effect.id, clamped)
+                    setEditingKey(null)
+                  }}
+                />
+              ) : (
+                <span
+                  className="workspace-fx-slider-value"
+                  onDoubleClick={() => {
+                    setEditingKey('_simple')
+                    setEditValue(String(typeof value === 'number' ? value : effect.default))
+                    requestAnimationFrame(() => {
+                      if (editInputRef.current) { editInputRef.current.focus(); editInputRef.current.select() }
+                    })
+                  }}
+                >
+                  {typeof value === 'number' ? value : effect.default}{effect.unit || ''}
+                </span>
+              )}
             </div>
             <input
               type="range"
@@ -280,11 +338,32 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle }) {
               }
 
               // default: slider
+              const isEditing = editingKey === param.key
               return (
                 <div key={param.key} className="workspace-fx-param-slider">
                   <div className="workspace-fx-param-slider-header">
                     <span className="workspace-fx-detail-label">{param.label}</span>
-                    <span className="workspace-fx-param-value">{paramVal}{param.unit || ''}</span>
+                    {isEditing ? (
+                      <input
+                        ref={editInputRef}
+                        type="text"
+                        className="workspace-fx-param-edit-input"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitEdit(param)
+                          if (e.key === 'Escape') setEditingKey(null)
+                        }}
+                        onBlur={() => commitEdit(param)}
+                      />
+                    ) : (
+                      <span
+                        className="workspace-fx-param-value"
+                        onDoubleClick={() => startEditing(param.key, paramVal, param)}
+                      >
+                        {paramVal}{param.unit || ''}
+                      </span>
+                    )}
                   </div>
                   <input
                     type="range"

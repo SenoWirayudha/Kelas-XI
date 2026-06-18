@@ -11189,8 +11189,25 @@
 
 .workspace-fx-card-label {
   flex: 1;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
+  line-height: 1.3;
+}
+
+.workspace-fx-card-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.workspace-fx-card-desc {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 .workspace-fx-card-check {
@@ -11434,6 +11451,19 @@
   font-size: 13px;
   font-weight: 600;
   color: #b77cff;
+}
+
+.workspace-fx-param-edit-input {
+  width: 64px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b77cff;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid #b77cff;
+  border-radius: 4px;
+  padding: 1px 6px;
+  outline: none;
+  text-align: center;
 }
 
 .workspace-fx-param-slider input[type="range"] {
@@ -11970,4 +12000,46 @@
 
 .brush-color-picker-btn:hover {
   border-color: rgba(255,255,255,0.4);
+}
+
+.workspace-color-palette-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.workspace-color-palette-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #1a1a2e;
+}
+
+.workspace-color-palette-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.workspace-color-palette-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.workspace-color-palette-swatch:hover {
+  border-color: rgba(185, 140, 255, 0.4);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
 }

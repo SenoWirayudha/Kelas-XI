@@ -70,6 +70,7 @@ import {
   X,
   Paintbrush,
   PenTool,
+  WandSparkles,
 } from 'lucide-react'
 import { Stage, Layer, Rect, Text, Group, Image as KonvaImage, Line, Transformer, Circle, Ellipse, RegularPolygon, Star, Arrow, Path } from 'react-konva'
 import {
@@ -117,6 +118,8 @@ import { getShadowProps, getCanvasBackgroundProps, loadImageMetadata, preloadFon
 import { applyImageFilters } from '../utils/imageFilters'
 import { getDefaultEffects } from '../utils/effectUtils'
 import { effectManager } from '../utils/konva-effects-engine'
+import { createGrid, cloneGrid, renderWarpedImage, buildSubdividedGrid, gridCorners, updateGridCorners, subdivideMeshGrid, PERSPECTIVE_SUBDIVISIONS, APPLY_SUBDIVISIONS, WARP_PADDING } from '../utils/mesh-warp'
+import { extractDominantColors, clearDominantColorCache } from '../utils/dominantColors'
 
 // Components
 import { ObjectAnchors, ConnectorEndpointAnchors } from './canvas/ConnectorAnchors'
@@ -131,8 +134,13 @@ import FxPanel from '../components/panels/FxPanel'
 import ToolBrushPanel from '../components/panels/ToolBrushPanel'
 import ToolBezierPanel from '../components/panels/ToolBezierPanel'
 import ToolRemoveBgPanel from '../components/panels/ToolRemoveBgPanel'
+import ToolsPanel from '../components/panels/ToolsPanel'
+import ToolWarpPanel from '../components/panels/ToolWarpPanel'
+import ToolRelightPanel from '../components/panels/ToolRelightPanel'
+import WarpHandles from '../components/canvas/WarpHandles'
 
 import { getCanvasItemTransformPatch } from '../engines/transformEngine'
+import RelightBalls, { LightOverlay } from '../components/canvas/RelightBalls'
 import { useAuth } from '../context/authState'
 import { useMediaUpload } from '../hooks/useMediaUpload'
 import { useCanvasImage, useCanvasImages } from '../hooks/useCanvasImages'
@@ -220,6 +228,32 @@ const addAdjustmentOverlayClones = ({ stage, exportLayer }) => {
     const overlayClone = overlay.clone({ listening: false })
     overlayClone.draggable?.(false)
     exportLayer.add(overlayClone)
+  })
+}
+
+const addRelightOverlayClones = ({ items, exportLayer }) => {
+  items.filter((i) => i.relight).forEach((item) => {
+    const cx = item.x + item.w / 2
+    const cy = item.y + item.h / 2
+    ;['lightA', 'lightB'].forEach((key) => {
+      const light = item.relight[key]
+      const localX = cx + light.offsetX - item.x
+      const localY = cy + light.offsetY - item.y
+      const rect = new Konva.Rect({
+        x: item.x,
+        y: item.y,
+        width: item.w,
+        height: item.h,
+        globalCompositeOperation: 'overlay',
+        fillRadialGradientStartPoint: { x: localX, y: localY },
+        fillRadialGradientEndPoint: { x: localX, y: localY },
+        fillRadialGradientStartRadius: 0,
+        fillRadialGradientEndRadius: Math.max(item.w, item.h) * 0.7,
+        fillRadialGradientColorStops: [0, light.color, 0.5, light.color + '99', 1, 'transparent'],
+        listening: false,
+      })
+      exportLayer.add(rect)
+    })
   })
 }
 
@@ -501,29 +535,10 @@ const panelTools = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
-const RemoveBgIcon = ({ size = 24, strokeWidth = 1.5 }) => (
-  <svg width={size} height={size} viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-    <defs>
-      <pattern id="rmbg-chk" x="0" y="0" width="6" height="6" patternUnits="userSpaceOnUse">
-        <rect width="3" height="3" fill="#aaaaaa" opacity="0.4"/>
-        <rect x="3" y="3" width="3" height="3" fill="#aaaaaa" opacity="0.4"/>
-        <rect x="3" y="0" width="3" height="3" fill="#dddddd" opacity="0.3"/>
-        <rect x="0" y="3" width="3" height="3" fill="#dddddd" opacity="0.3"/>
-      </pattern>
-    </defs>
-    <rect x="22" y="0" width="22" height="44" fill="url(#rmbg-chk)" clipPath="url(#rmbg-clip)"/>
-    <clipPath id="rmbg-clip"><rect x="0" y="0" width="44" height="44" rx="6"/></clipPath>
-    <circle cx="22" cy="16" r="9" fill="none" stroke="currentColor" strokeWidth={strokeWidth}/>
-    <path d="M8 38 Q8 26 22 26 Q36 26 36 38" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round"/>
-    <line x1="22" y1="0" x2="22" y2="44" stroke="currentColor" strokeWidth={strokeWidth * 0.8} strokeDasharray="3 3"/>
-    <rect x="0.75" y="0.75" width="42.5" height="42.5" rx="6" fill="none" stroke="currentColor" strokeWidth={strokeWidth} opacity="0.4"/>
-  </svg>
-)
-
 const toolItems = [
   { id: 'brush', label: 'Brush', icon: Paintbrush },
   { id: 'bezier', label: 'Bezier', icon: PenTool },
-  { id: 'removeBg', label: 'Remove BG', icon: RemoveBgIcon },
+  { id: 'tools', label: 'Tools', icon: WandSparkles },
 ]
 
 // FIX: Improved typography preset hierarchy — Heading is bold/large, Subheading is
@@ -666,22 +681,15 @@ const canvasItemRenderers = {
 
 function DefaultItemRenderer({ item, commonProps }) {
   const groupRef = useRef(null)
-  const filterItemRef = useRef(item)
-  const rAFRef = useRef(null)
 
   useEffect(() => {
-    filterItemRef.current = item
-    if (rAFRef.current) return
-    rAFRef.current = requestAnimationFrame(() => {
-      rAFRef.current = null
+    const raf = requestAnimationFrame(() => {
       const node = groupRef.current
       if (!node) return
-      effectManager.applyAll(node, filterItemRef.current.effects)
+      effectManager.applyAll(node, item.effects, item)
     })
-    return () => {
-      if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null }
-    }
-  }, [item.effects])
+    return () => cancelAnimationFrame(raf)
+  }, [item.effects, item])
 
   if (item.isAdjustmentLayer) {
     return (
@@ -1414,6 +1422,8 @@ function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect,
   )
 }
 
+const RED_ERASER_CURSOR = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%23ff4444' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='1.5' fill='%23ff4444'/%3E%3C/svg%3E") 16 16, crosshair`
+
 function Workspace() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -1566,6 +1576,7 @@ function Workspace() {
   const brushDrawingRef = useRef(false)
   const brushStartPosRef = useRef(null)
   const currentBrushItemIdRef = useRef(null)
+  const eraserTargetSelectedRef = useRef(false)
   const [bezierAnchors, setBezierAnchors] = useState([])
   const [bezierSettings, setBezierSettings] = useState({ strokeColor: '#000000', strokeWidth: 3 })
   const [editingBezierId, setEditingBezierId] = useState(null)
@@ -1596,6 +1607,14 @@ function Workspace() {
   }
   const [isRemoveBgProcessing, setIsRemoveBgProcessing] = useState(false)
   const [removeBgProgress, setRemoveBgProgress] = useState(null)
+  const [activeToolCard, setActiveToolCard] = useState(null)
+  const warpStateRef = useRef(null)
+  const [relightActive, setRelightActive] = useState(false)
+  const warpImageRef = useRef(null)
+  const layerRef = useRef(null)
+  const warpImageNodeRef = useRef(null)
+  const warpedItemIdRef = useRef(null)
+  const [warpRenderTick, setWarpRenderTick] = useState(0)
   const [isRenamingTitle, setIsRenamingTitle] = useState(false)
   const [renamingTitleValue, setRenamingTitleValue] = useState('')
   const [toolbarPos, setToolbarPos] = useState(null)
@@ -1653,6 +1672,19 @@ function Workspace() {
   const selectedItem = useMemo(() => items.find((item) => item.id === selectedId), [items, selectedId])
   const selectedItems = useMemo(() => selectedIds.map((id) => items.find((item) => item.id === id)).filter(Boolean), [items, selectedIds])
   const areAllLocked = useMemo(() => selectedIds.length > 0 && selectedItems.every((item) => item.locked), [selectedIds, selectedItems])
+  const dominantPaletteImages = useMemo(() => {
+    const allImageItems = items.filter(
+      (item) => item.kind === 'image' && Array.isArray(item.dominantColors) && item.dominantColors.length > 0
+    )
+    const prioritySrc = selectedItem?.kind === 'image' ? selectedItem.id : null
+    const sorted = prioritySrc
+      ? [
+          ...allImageItems.filter((item) => item.id === prioritySrc),
+          ...allImageItems.filter((item) => item.id !== prioritySrc),
+        ]
+      : allImageItems
+    return sorted.map((item) => ({ src: item.src, colors: item.dominantColors }))
+  }, [items, selectedItem])
   const activeSelectionCount = selectedIds.length || (selectedId ? 1 : 0)
   const activeGroupId = useMemo(() => {
     if (selectedItems.length < 2) return selectedItem?.groupId || null
@@ -2466,6 +2498,7 @@ function Workspace() {
           filterItem: () => true,
         })
       }
+      addRelightOverlayClones({ items, exportLayer })
 
       exportLayer.draw()
 
@@ -2600,6 +2633,7 @@ function Workspace() {
           filterItem: () => true,
         })
       }
+      addRelightOverlayClones({ items, exportLayer })
 
       exportLayer.draw()
 
@@ -3174,6 +3208,12 @@ function Workspace() {
 const attachTransformer = useCallback((idOrIds) => {
   if (!transformerRef.current || !stageRef.current) return
 
+  if (warpStateRef.current) {
+    transformerRef.current.nodes([])
+    transformerRef.current.getLayer()?.batchDraw()
+    return
+  }
+
   const ids = Array.isArray(idOrIds) ? idOrIds : (idOrIds ? [idOrIds] : [])
 
   if (!ids.length) {
@@ -3420,16 +3460,32 @@ const attachTransformer = useCallback((idOrIds) => {
     setMobileSheetState('half')
     requestRecenterAfterWorkspaceLayoutChange()
     setIsRightPanelOpen(true)
+    if (panel !== 'tools') {
+      setActiveToolCard(null)
+      warpStateRef.current = null
+      warpImageRef.current = null
+    }
   }
 
   const requestRecenterAfterWorkspaceLayoutChange = () => {
     shouldCenterAfterPanelCloseRef.current = true
   }
 
+  const restoreHiddenWarpItem = () => {
+    if (warpedItemIdRef.current) {
+      updateItem(warpedItemIdRef.current, { visible: true })
+      warpedItemIdRef.current = null
+    }
+  }
+
   const closeRightPanelAndCenter = () => {
+    restoreHiddenWarpItem()
     requestRecenterAfterWorkspaceLayoutChange()
     setMobileSheetState('collapsed')
     setIsRightPanelOpen(false)
+    setActiveToolCard(null)
+    warpStateRef.current = null
+    warpImageRef.current = null
   }
 
   const deselectCanvas = () => {
@@ -3446,9 +3502,17 @@ const attachTransformer = useCallback((idOrIds) => {
     setIsRenamingTitle(false)
     setEditingSliderKey(null)
     attachTransformer(null)
+    warpStateRef.current = null
+    warpImageRef.current = null
+    setActiveToolCard(null)
   }
 
   const selectItem = (id, options = {}) => {
+    if (warpStateRef.current && warpStateRef.current.itemId !== id) {
+      restoreHiddenWarpItem()
+      warpImageRef.current = null
+      warpStateRef.current = null
+    }
     setIsBlendModeOpen(false)
     const item = itemsRef.current.find((candidate) => candidate.id === id)
     const resolvedIds = item?.groupId && !options.ignoreGroup
@@ -3477,8 +3541,10 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const deleteObject = useCallback((id) => {
-    console.log('[DEBUG] deleteObject called with id:', id)
     if (!id) return
+
+    const target = itemsRef.current.find((i) => i.id === id)
+    if (target?.src?.startsWith('blob:')) URL.revokeObjectURL(target.src)
 
     setItems((current) => current.filter((item) => item.id !== id))
     if (selectedId === id) {
@@ -3905,7 +3971,21 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [deleteSelectedObject, editingFrameId, selectedId, selectedIds])
 
   const updateItem = (id, patch) => {
-    setItems((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)))
+    if (patch.src) {
+      const oldItem = itemsRef.current.find((i) => i.id === id)
+      if (oldItem?.src?.startsWith('blob:') && oldItem.src !== patch.src) {
+        URL.revokeObjectURL(oldItem.src)
+      }
+    }
+    setItems((current) => current.map((item) => {
+      if (item.id !== id) return item
+      const next = { ...item, ...patch }
+      if (patch.src && patch.src !== item.src) {
+        clearDominantColorCache(item.src)
+        delete next.dominantColors
+      }
+      return next
+    }))
 
     // FIX STROKE RENDER BUG: Force immediate Konva layer redraw for ALL visual property
     // changes. Previously only certain properties triggered this, causing delayed updates.
@@ -4135,6 +4215,8 @@ const attachTransformer = useCallback((idOrIds) => {
           transformerRef.current.getLayer()?.batchDraw()
         }
       })
+      eraserTargetSelectedRef.current = false
+      setStageCursor(`url('/brush-cursor.svg') 16 16, crosshair`)
       return
     }
     let node = hitNode
@@ -4148,6 +4230,8 @@ const attachTransformer = useCallback((idOrIds) => {
           if (item.kind === 'shape' && item.shapeType === 'freehand') {
             currentBrushItemIdRef.current = id
           }
+          eraserTargetSelectedRef.current = true
+          setStageCursor(RED_ERASER_CURSOR)
           return
         }
       }
@@ -4161,6 +4245,8 @@ const attachTransformer = useCallback((idOrIds) => {
         transformerRef.current.getLayer()?.batchDraw()
       }
     })
+    eraserTargetSelectedRef.current = false
+    setStageCursor(`url('/brush-cursor.svg') 16 16, crosshair`)
   }
 
   const finishBrushStroke = () => {
@@ -4400,7 +4486,8 @@ const attachTransformer = useCallback((idOrIds) => {
 
   // Tool cursor management
   const handleItemCursor = useCallback((cursor) => {
-    if ((activePanel === 'brush' && brushSettings.mode === 'paint') || activePanel === 'bezier' || editingBezierId) {
+    if (activePanel === 'bezier' || editingBezierId ||
+        (activePanel === 'brush' && (brushSettings.mode === 'paint' || eraserTargetSelectedRef.current))) {
       return
     }
     setStageCursor(cursor)
@@ -4408,6 +4495,9 @@ const attachTransformer = useCallback((idOrIds) => {
 
   useEffect(() => {
     if (activePanel === 'brush') {
+      if (brushSettings.mode === 'erase') {
+        eraserTargetSelectedRef.current = false
+      }
       setStageCursor(`url('/brush-cursor.svg') 16 16, crosshair`)
     } else if (activePanel === 'bezier') {
       setStageCursor('crosshair')
@@ -4420,6 +4510,7 @@ const attachTransformer = useCallback((idOrIds) => {
     }
     if (activePanel !== 'brush') {
       currentBrushItemIdRef.current = null
+      eraserTargetSelectedRef.current = false
     } else if (brushSettings.mode === 'paint' && currentBrushItemIdRef.current) {
       const item = itemsRef.current.find((i) => i.id === currentBrushItemIdRef.current)
       if (!item || item.kind !== 'shape' || item.shapeType !== 'freehand') {
@@ -4435,6 +4526,277 @@ const attachTransformer = useCallback((idOrIds) => {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Gagal membaca dimensi gambar')) }
     img.src = url
   })
+
+
+  const initWarp = useCallback((mode, divX, divY) => {
+    if (!selectedItem || selectedItem.kind !== 'image') return
+    const item = selectedItem
+    const img = new window.Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      warpImageRef.current = img
+      const gridDiv = mode === 'perspective' ? PERSPECTIVE_SUBDIVISIONS : divX
+      const srcGrid = createGrid(0, 0, item.w, item.h, gridDiv, gridDiv)
+      const dstGrid = cloneGrid(srcGrid)
+      const renderGrid = cloneGrid(srcGrid)
+      const canvas = document.createElement('canvas')
+      const paddedW = item.w + WARP_PADDING * 2
+      const paddedH = item.h + WARP_PADDING * 2
+      canvas.width = paddedW
+      canvas.height = paddedH
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, WARP_PADDING, WARP_PADDING, item.w, item.h)
+      warpStateRef.current = { itemId: item.id, mode, divX, divY, srcGrid, dstGrid, renderGrid, originalSrc: item.src, itemW: item.w, itemH: item.h, itemX: item.x, itemY: item.y, previewCanvas: canvas }
+      warpedItemIdRef.current = item.id
+      updateItem(item.id, { visible: false })
+      setWarpRenderTick((t) => t + 1)
+    }
+    img.src = item.src
+  }, [selectedItem])
+
+  const handleApplyWarp = useCallback(async (mode, divX, divY) => {
+    const item = selectedItem
+    if (!item || item.kind !== 'image') return
+    if (warpStateRef.current) {
+      const ws = warpStateRef.current
+      const img = warpImageRef.current
+      if (!img) return
+      const { previewCanvas, dstGrid, srcGrid, renderGrid, itemX, itemY, itemW, itemH } = ws
+      if (!previewCanvas) return
+
+      const natW = img.naturalWidth
+      const natH = img.naturalHeight
+      const scaleX = natW / itemW
+      const scaleY = natH / itemH
+
+      let finalDstGrid, finalSrcGrid
+      if (ws.mode === 'perspective') {
+        finalDstGrid = buildSubdividedGrid(gridCorners(dstGrid), APPLY_SUBDIVISIONS, APPLY_SUBDIVISIONS)
+        finalSrcGrid = buildSubdividedGrid(gridCorners(srcGrid), APPLY_SUBDIVISIONS, APPLY_SUBDIVISIONS)
+      } else {
+        finalDstGrid = subdivideMeshGrid(renderGrid, 2)
+        finalSrcGrid = subdivideMeshGrid(srcGrid, 2)
+      }
+
+      const scaledDstGrid = finalDstGrid.map((row) =>
+        row.map((p) => ({ ...p, x: p.x * scaleX, y: p.y * scaleY }))
+      )
+
+      const nativePW = Math.ceil(natW + WARP_PADDING * 2 * scaleX)
+      const nativePH = Math.ceil(natH + WARP_PADDING * 2 * scaleY)
+      const tempCanvas = document.createElement('canvas')
+      tempCanvas.width = nativePW
+      tempCanvas.height = nativePH
+      const tempCtx = tempCanvas.getContext('2d')
+      tempCtx.imageSmoothingEnabled = true
+      tempCtx.imageSmoothingQuality = 'high'
+      renderWarpedImage(tempCtx, img, finalSrcGrid, scaledDstGrid, {
+        imgWidth: natW,
+        imgHeight: natH,
+        offsetX: WARP_PADDING * scaleX,
+        offsetY: WARP_PADDING * scaleY,
+      })
+
+      const allPoints = scaledDstGrid.flat()
+      const xs = allPoints.map((p) => p.x)
+      const ys = allPoints.map((p) => p.y)
+      const minNativeX = Math.min(...xs)
+      const minNativeY = Math.min(...ys)
+      const maxNativeX = Math.max(...xs)
+      const maxNativeY = Math.max(...ys)
+      const cropNativeW = maxNativeX - minNativeX
+      const cropNativeH = maxNativeY - minNativeY
+
+      const displayMinX = minNativeX / scaleX
+      const displayMinY = minNativeY / scaleY
+      const displayCropW = cropNativeW / scaleX
+      const displayCropH = cropNativeH / scaleY
+
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.ceil(cropNativeW))
+      canvas.height = Math.max(1, Math.ceil(cropNativeH))
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(tempCanvas, minNativeX + WARP_PADDING * scaleX, minNativeY + WARP_PADDING * scaleY, cropNativeW, cropNativeH, 0, 0, canvas.width, canvas.height)
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+      if (!blob) return
+      const localUrl = URL.createObjectURL(blob)
+
+      const oldItem = itemsRef.current.find((i) => i.id === item.id)
+      if (oldItem?.src?.startsWith('blob:')) URL.revokeObjectURL(oldItem.src)
+      setItems((prev) => prev.map((i) =>
+        i.id === item.id ? { ...i, src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH) } : i
+      ))
+
+      const file = new File([blob], `warp-${Date.now()}.png`, { type: 'image/png' })
+      uploadMediaFile({ file, addToUploads: false }).then((uploaded) => {
+        const url = uploaded?.media?.url
+        if (url) {
+          URL.revokeObjectURL(localUrl)
+          setItems((prev) => prev.map((i) =>
+            i.id === item.id ? { ...i, src: url } : i
+          ))
+        }
+      }).catch(() => {})
+
+      warpedItemIdRef.current = null
+      warpStateRef.current = null
+      warpImageRef.current = null
+      setActiveToolCard(null)
+      setWarpRenderTick((t) => t + 1)
+    } else {
+      initWarp(mode, divX, divY)
+    }
+  }, [selectedItem, initWarp])
+
+  const handleWarpCancel = useCallback(() => {
+    restoreHiddenWarpItem()
+    warpStateRef.current = null
+    warpImageRef.current = null
+    setWarpRenderTick((t) => t + 1)
+  }, [])
+
+  const handleWarpReset = useCallback((divX, divY, mode) => {
+    if (!warpStateRef.current) {
+      if (selectedItem?.kind !== 'image') return
+      const img = warpImageRef.current
+      if (!img) return
+      const gridDiv = mode === 'perspective' ? PERSPECTIVE_SUBDIVISIONS : divX
+      const srcGrid = createGrid(0, 0, selectedItem.w, selectedItem.h, gridDiv, gridDiv)
+      const dstGrid = cloneGrid(srcGrid)
+      const renderGrid = cloneGrid(srcGrid)
+      const canvas = document.createElement('canvas')
+      const pW = selectedItem.w + WARP_PADDING * 2
+      const pH = selectedItem.h + WARP_PADDING * 2
+      canvas.width = pW
+      canvas.height = pH
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, WARP_PADDING, WARP_PADDING, selectedItem.w, selectedItem.h)
+      warpStateRef.current = { itemId: selectedItem.id, mode, divX, divY, srcGrid, dstGrid, renderGrid, originalSrc: selectedItem.src, itemW: selectedItem.w, itemH: selectedItem.h, itemX: selectedItem.x, itemY: selectedItem.y, previewCanvas: canvas }
+      setWarpRenderTick((t) => t + 1)
+      return
+    }
+    const img = warpImageRef.current
+    if (!img) return
+    if (mode === 'perspective') {
+      const item = selectedItem
+      if (!item) return
+      const srcGrid = createGrid(0, 0, item.w, item.h, PERSPECTIVE_SUBDIVISIONS, PERSPECTIVE_SUBDIVISIONS)
+      const dstGrid = cloneGrid(srcGrid)
+      const renderGrid = cloneGrid(srcGrid)
+      const canvas = document.createElement('canvas')
+      const pW = item.w + WARP_PADDING * 2
+      const pH = item.h + WARP_PADDING * 2
+      canvas.width = pW
+      canvas.height = pH
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, WARP_PADDING, WARP_PADDING, item.w, item.h)
+      warpStateRef.current = { ...warpStateRef.current, mode, divX: 1, divY: 1, srcGrid, dstGrid, renderGrid, itemX: item.x, itemY: item.y, previewCanvas: canvas }
+    } else {
+      const item = selectedItem
+      if (!item) return
+      const srcGrid = createGrid(0, 0, item.w, item.h, divX, divY)
+      const dstGrid = cloneGrid(srcGrid)
+      const canvas = document.createElement('canvas')
+      const pW = item.w + WARP_PADDING * 2
+      const pH = item.h + WARP_PADDING * 2
+      canvas.width = pW
+      canvas.height = pH
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, WARP_PADDING, WARP_PADDING, item.w, item.h)
+      warpStateRef.current = { ...warpStateRef.current, mode, divX, divY, srcGrid, dstGrid, renderGrid: dstGrid, itemX: item.x, itemY: item.y, previewCanvas: canvas }
+    }
+    setWarpRenderTick((t) => t + 1)
+  }, [selectedItem])
+
+  const handleWarpDragEnd = useCallback(() => {
+    setWarpRenderTick((t) => t + 1)
+  }, [])
+
+  const handleWarpDrag = useCallback((row, col, x, y) => {
+    const ws = warpStateRef.current
+    if (!ws || !ws.previewCanvas) return
+    const img = warpImageRef.current
+    if (!img) return
+    ws.dstGrid[row][col].x = x
+    ws.dstGrid[row][col].y = y
+    const renderGrid = ws.mode === 'perspective'
+      ? buildSubdividedGrid(gridCorners(ws.dstGrid), PERSPECTIVE_SUBDIVISIONS, PERSPECTIVE_SUBDIVISIONS)
+      : ws.dstGrid
+    ws.renderGrid = renderGrid
+    const ctx = ws.previewCanvas.getContext('2d')
+    ctx.clearRect(0, 0, ws.previewCanvas.width, ws.previewCanvas.height)
+    renderWarpedImage(ctx, img, ws.srcGrid, renderGrid, {
+      imgWidth: img.naturalWidth,
+      imgHeight: img.naturalHeight,
+      srcWidth: ws.itemW,
+      srcHeight: ws.itemH,
+      offsetX: WARP_PADDING,
+      offsetY: WARP_PADDING,
+    })
+    const node = warpImageNodeRef.current
+    if (node) {
+      node.getLayer()?.batchDraw()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeToolCard === 'meshWarp' && selectedItem?.kind === 'image') {
+      if (!warpStateRef.current || warpStateRef.current.itemId !== selectedItem.id) {
+        initWarp('perspective', 3, 3)
+      }
+    } else if (activeToolCard !== 'meshWarp' && warpStateRef.current) {
+      restoreHiddenWarpItem()
+      warpStateRef.current = null
+      warpImageRef.current = null
+      setWarpRenderTick((t) => t + 1)
+    }
+  }, [activeToolCard, selectedItem, initWarp])
+
+  useEffect(() => {
+    if (activeToolCard === 'relight') {
+      if (selectedItem?.kind === 'image' && !selectedItem.relight) {
+        const patch = {
+          relight: {
+            lightA: { offsetX: -selectedItem.w * 0.3, offsetY: -selectedItem.h * 0.3, color: '#ff6b35' },
+            lightB: { offsetX: selectedItem.w * 0.3, offsetY: selectedItem.h * 0.3, color: '#4488ff' },
+          },
+        }
+        updateItem(selectedItem.id, patch)
+        requestAnimationFrame(() => {
+          const layer = stageRef.current?.findOne('Layer')
+          layer?.batchDraw()
+        })
+      }
+      setRelightActive(true)
+    } else {
+      setRelightActive(false)
+    }
+  }, [activeToolCard, selectedItem])
+
+  const activateRelight = () => {
+    if (!selectedItem || selectedItem.kind !== 'image') return
+    const patch = {
+      relight: {
+        lightA: { offsetX: -selectedItem.w * 0.3, offsetY: -selectedItem.h * 0.3, color: '#ff6b35' },
+        lightB: { offsetX: selectedItem.w * 0.3, offsetY: selectedItem.h * 0.3, color: '#4488ff' },
+      },
+    }
+    updateItem(selectedItem.id, patch)
+    setRelightActive(true)
+  }
+
+  const updateRelightLight = (lightKey, patch) => {
+    if (!selectedItem?.relight) return
+    const next = { ...selectedItem.relight, [lightKey]: { ...selectedItem.relight[lightKey], ...patch } }
+    updateItem(selectedItem.id, { relight: next })
+  }
+
+  const deactivateRelight = () => {
+    if (selectedItem?.relight) {
+      updateItem(selectedItem.id, { relight: null })
+    }
+    setRelightActive(false)
+  }
 
   const processRemoveBg = async () => {
     if (!selectedItem || selectedItem.kind !== 'image') return
@@ -5351,6 +5713,14 @@ const attachTransformer = useCallback((idOrIds) => {
     justDroppedIdRef.current = nextItem.id
     // FIX: Prepend to array so new item appears at top layer (frontmost)
     setItems((current) => [nextItem, ...current])
+
+    if (nextItem.kind === 'image') {
+      extractDominantColors(nextItem.src, 5).then((colors) => {
+        if (colors.length > 0) {
+          updateItem(nextItem.id, { dominantColors: colors })
+        }
+      })
+    }
   }
 
   const addNote = () => {
@@ -6270,6 +6640,18 @@ if (item?.kind === 'image') {
       window.removeEventListener('touchcancel', handleTouchCancel)
     }
   }, [])
+
+  useEffect(() => {
+    items.forEach((item) => {
+      if (item.kind === 'image' && item.src && !item.dominantColors) {
+        extractDominantColors(item.src, 5).then((colors) => {
+          if (colors.length > 0) {
+            updateItem(item.id, { dominantColors: colors })
+          }
+        })
+      }
+    })
+  }, [items.length])
 
   const editTextObject = (id) => {
     const item = itemsRef.current.find((current) => current.id === id)
@@ -7268,6 +7650,48 @@ const toggleMobileSheetSize = () => {
                 </div>
               </label>
 
+              {dominantPaletteImages.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <label className="workspace-color-picker-field">Warna dari Gambar</label>
+                  {dominantPaletteImages.map((image) => (
+                    <div key={image.src} className="workspace-color-palette-row">
+                      <div className="workspace-color-palette-thumb">
+                        <img src={image.src} alt="" draggable={false} />
+                      </div>
+                      {image.colors.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          className="workspace-color-palette-swatch"
+                          style={{ background: color }}
+                          onClick={() => {
+                            if (isShapeTextTarget) {
+                              updateItem(selectedItem.id, { shapeTextFill: color })
+                            } else if (isImageStrokeTarget) {
+                              updateItem(selectedItem.id, {
+                                imageStrokeEnabled: true,
+                                imageStrokeGradientType: 'solid',
+                                imageStrokeColor: color,
+                                imageStrokeWidth: selectedItem.imageStrokeWidth || 3,
+                              })
+                            } else if (isFillTarget) {
+                              updateItem(selectedItem.id, { fill: color })
+                            } else {
+                              updateItem(selectedItem.id, {
+                                stroke: color,
+                                strokeWidth: selectedItem.kind === 'shape' && !selectedItem.strokeWidth ? 2 : selectedItem.strokeWidth,
+                              })
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <label className="workspace-color-picker-field" style={{ marginTop: 8 }}>Solid</label>
+
               <div className="workspace-color-presets">
                 {/* None/Transparent preset */}
                 <button
@@ -7745,14 +8169,47 @@ const toggleMobileSheetSize = () => {
     )
   }
 
-  if (activePanel === 'removeBg') {
+  if (activePanel === 'tools') {
+    if (activeToolCard === 'removeBg') {
+      return (
+        <ToolRemoveBgPanel
+          selectedItem={selectedItem}
+          isProcessing={isRemoveBgProcessing}
+          progress={removeBgProgress}
+          onProcess={processRemoveBg}
+          onBack={() => setActiveToolCard(null)}
+        />
+      )
+    }
+    if (activeToolCard === 'meshWarp') {
+      return (
+        <ToolWarpPanel
+          selectedItem={selectedItem}
+          warpState={warpStateRef.current}
+          onApplyWarp={handleApplyWarp}
+          onCancelWarp={handleWarpCancel}
+          onResetWarp={handleWarpReset}
+          onBack={() => { setActiveToolCard(null); handleWarpCancel() }}
+        />
+      )
+    }
+    if (activeToolCard === 'relight') {
+      return (
+        <ToolRelightPanel
+          selectedItem={selectedItem}
+          relightState={selectedItem?.relight || null}
+          onActivate={activateRelight}
+          onUpdateLight={updateRelightLight}
+          onDeactivate={deactivateRelight}
+          onApply={() => setActiveToolCard(null)}
+          onBack={() => { setActiveToolCard(null); deactivateRelight() }}
+        />
+      )
+    }
     return (
-      <ToolRemoveBgPanel
+      <ToolsPanel
+        onSelect={setActiveToolCard}
         selectedItem={selectedItem}
-        isProcessing={isRemoveBgProcessing}
-        progress={removeBgProgress}
-        onProcess={processRemoveBg}
-        onBack={() => { setActivePanel(null); setIsRightPanelOpen(false) }}
       />
     )
   }
@@ -7994,7 +8451,7 @@ const toggleMobileSheetSize = () => {
     }
 
     const supportsRadius = ['image', 'note', 'card', 'palette'].includes(selectedItem.kind)
-    const supportsShadow = ['image', 'text', 'shape'].includes(selectedItem.kind) && !selectedItem.isAdjustmentLayer
+    const supportsShadow = ['image', 'text', 'shape', 'frame'].includes(selectedItem.kind) && !selectedItem.isAdjustmentLayer
 
     return (
       <>
@@ -8721,214 +9178,6 @@ const toggleMobileSheetSize = () => {
   )
 })()}
 
-        {selectedItem.kind === 'frame' && (
-          <div className="workspace-frame-controls">
-            <div className="workspace-section-title">Frame Image</div>
-            {!selectedItem.frameImageSrc ? (
-              <button
-                type="button"
-                className="workspace-frame-add-image"
-                onClick={() => {
-                  const placeholderImages = [
-                    imageSources['art-1'],
-                    imageSources['art-2'],
-                    imageSources['art-3'],
-                    imageSources['art-4'],
-                    imageSources['art-5'],
-                    imageSources['project-art-chromatic'],
-                    imageSources['project-art-noir'],
-                    imageSources['project-art-nexus'],
-                  ]
-                  const randomImage = placeholderImages[Math.floor(Math.random() * placeholderImages.length)]
-                  addImageToFrame(selectedItem.id, randomImage)
-                }}
-              >
-                <Plus size={16} />
-                Add Image to Frame
-              </button>
-            ) : (
-              <>
-                <div className="workspace-frame-image-preview">
-                  <img src={selectedItem.frameImageSrc} alt="Frame content" crossOrigin="anonymous" style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
-                </div>
- 
-                {/* FIX: Edit Position button — masuk ke edit mode */}
-                <button
-                  type="button"
-                  className="workspace-frame-edit-position"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    marginTop: '8px',
-                    background: editingFrameId === selectedItem.id
-                      ? 'rgba(59,130,246,0.18)'
-                      : 'rgba(255,255,255,0.06)',
-                    border: editingFrameId === selectedItem.id
-                      ? '1px solid rgba(59,130,246,0.5)'
-                      : '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '8px',
-                    color: editingFrameId === selectedItem.id ? '#60a5fa' : '#c4bfd4',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    transition: 'all 0.15s',
-                  }}
-                  onClick={() => {
-                    if (editingFrameId === selectedItem.id) {
-                      finishFrameImageEdit()
-                    } else {
-                      handleFrameImageEdit(selectedItem.id)
-                    }
-                  }}
-                >
-                  {editingFrameId === selectedItem.id ? (
-                    <>✓ Selesai Atur Posisi</>
-                  ) : (
-                    <>✋ Atur Posisi Gambar</>
-                  )}
-                </button>
- 
-                {/* FIX: Image Scale / Zoom slider */}
-                <div className="workspace-slider-list" style={{ marginTop: '12px' }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: '#a09ca6' }}>
-                    <span>Zoom Gambar</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <input
-                        type="range"
-                        min="100"
-                        max="300"
-                        step="1"
-                        value={Math.round((selectedItem.frameImageScale || 1) * 100)}
-                        onChange={(event) => {
-  const newScale = Number(event.target.value) / 100
- 
-  if (selectedItem.frameImageSrc) {
-    const imgEl = new window.Image()
-    imgEl.crossOrigin = 'anonymous'
-    imgEl.src = selectedItem.frameImageSrc
- 
-    const imgW = imgEl.naturalWidth || 800
-    const imgH = imgEl.naturalHeight || 600
- 
-    const frameSlotForCalc = getResolvedFrameSlot(selectedItem)
- 
-    // Hitung minimum zoom (cover) — tidak boleh di bawah ini
-    const minZoom = getMinFrameImageZoom({
-      imageWidth: imgW,
-      imageHeight: imgH,
-      slot: frameSlotForCalc,
-      fit: selectedItem.frameImageFit || 'cover',
-    })
- 
-    // Clamp: min = cover, max = 300% dari cover
-    const clampedScale = Math.max(minZoom, newScale)
- 
-    const clampedPos = clampFrameImagePosition({
-      imageWidth: imgW,
-      imageHeight: imgH,
-      slot: frameSlotForCalc,
-      fit: selectedItem.frameImageFit || 'cover',
-      zoom: clampedScale,
-      position: selectedItem.frameImagePosition,
-    })
- 
-    updateItem(selectedItem.id, {
-      frameImageScale: clampedScale,
-      frameImagePosition: clampedPos,
-    })
-  } else {
-    updateItem(selectedItem.id, { frameImageScale: newScale })
-  }
-}}
-                        style={{ flex: 1 }}
-                      />
-                      <span style={{ minWidth: '36px', textAlign: 'right', color: '#fff', fontSize: '12px' }}>
-                        {Math.round((selectedItem.frameImageScale || 1) * 100)}%
-                      </span>
-                    </div>
-                  </label>
- 
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: '#a09ca6', marginTop: '8px' }}>
-                    <span>Image Fit</span>
-                    <select
-                      value={selectedItem.frameImageFit || 'cover'}
-                      onChange={(event) => updateItem(selectedItem.id, { frameImageFit: event.target.value })}
-                      style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
-                    >
-                      <option value="cover">Cover (Fill Frame)</option>
-                      <option value="contain">Contain (Fit Inside)</option>
-                    </select>
-                  </label>
- 
-                  {/* Reset Position button */}
-                  <button
-                    type="button"
-                    onClick={() => updateItem(selectedItem.id, {
-                      frameImagePosition: { x: 0, y: 0 },
-                      frameImageScale: 1,
-                    })}
-                    style={{
-                      marginTop: '8px',
-                      width: '100%',
-                      padding: '7px',
-                      background: 'transparent',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: '6px',
-                      color: '#a09ca6',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ↺ Reset Posisi & Zoom
-                  </button>
-                </div>
- 
-                <div className="workspace-frame-image-actions" style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
-                  <button
-                    type="button"
-                    className="workspace-frame-replace-image"
-                    style={{ flex: 1 }}
-                    onClick={() => {
-                      const placeholderImages = [
-                        imageSources['art-1'],
-                        imageSources['art-2'],
-                        imageSources['art-3'],
-                        imageSources['art-4'],
-                        imageSources['art-5'],
-                        imageSources['project-art-chromatic'],
-                        imageSources['project-art-noir'],
-                        imageSources['project-art-nexus'],
-                      ]
-                      const randomImage = placeholderImages[Math.floor(Math.random() * placeholderImages.length)]
-                      addImageToFrame(selectedItem.id, randomImage)
-                    }}
-                  >
-                    Replace
-                  </button>
-                  <button
-                    type="button"
-                    className="workspace-frame-remove-image"
-                    style={{ flex: 1 }}
-                    onClick={() => {
-                      updateItem(selectedItem.id, {
-                        frameImageSrc: null,
-                        frameImage: null,
-                        frameImageScale: 1,
-                        frameImagePosition: { x: 0, y: 0 },
-                      })
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
         {selectedItem.kind === 'text' && (
           <>
             <label className="workspace-text-editor">
@@ -10114,10 +10363,14 @@ const toggleMobileSheetSize = () => {
           key={id}
           title={label}
           onClick={() => {
-            if (id !== 'removeBg') {
+            if (id !== 'tools') {
               setSelectedId(null)
               setSelectedIds([])
               attachTransformer(null)
+            }
+            if (id === 'tools') {
+              setActiveToolCard(null)
+              handleWarpCancel()
             }
             openRightPanel(id)
           }}
@@ -10144,10 +10397,14 @@ const toggleMobileSheetSize = () => {
           aria-label={label}
           title={label}
           onClick={() => {
-            if (!isCanvasTool || id !== 'removeBg') {
+            if (!isCanvasTool || id !== 'tools') {
               setSelectedId(null)
               setSelectedIds([])
               attachTransformer(null)
+            }
+            if (id === 'tools') {
+              setActiveToolCard(null)
+              handleWarpCancel()
             }
             openRightPanel(id)
           }}
@@ -10287,7 +10544,7 @@ const toggleMobileSheetSize = () => {
           }}
           style={{ cursor: isPanning ? 'grabbing' : stageCursor }}
         >
-          <Layer>
+          <Layer ref={layerRef}>
             <Group
               name="world-layer"
               x={camera.x}
@@ -10804,7 +11061,7 @@ const toggleMobileSheetSize = () => {
                   )
                 })()}
                 {renderCropOverlay()}
-                {!cropSession && (
+                {!cropSession && !warpStateRef.current && activeToolCard !== 'meshWarp' && (
                              <Transformer
                 ref={transformerRef}
                 rotateEnabled={!areAllLocked}
@@ -10911,6 +11168,46 @@ const toggleMobileSheetSize = () => {
                 anchorSize={9}
               />
                 )}
+              {warpStateRef.current && selectedItem && selectedItem.kind === 'image' && warpStateRef.current.itemId === selectedItem.id && (
+                <Group x={warpStateRef.current.itemX - WARP_PADDING} y={warpStateRef.current.itemY - WARP_PADDING}>
+                  {warpStateRef.current.previewCanvas && (
+                    <KonvaImage
+                      ref={warpImageNodeRef}
+                      image={warpStateRef.current.previewCanvas}
+                      width={warpStateRef.current.itemW + WARP_PADDING * 2}
+                      height={warpStateRef.current.itemH + WARP_PADDING * 2}
+                      listening={false}
+                    />
+                  )}
+                  <Group x={WARP_PADDING} y={WARP_PADDING}>
+                    <WarpHandles
+                      grid={warpStateRef.current.dstGrid}
+                      mode={warpStateRef.current.mode === 'perspective' ? 'perspective' : 'mesh'}
+                      onDrag={handleWarpDrag}
+                      onDragEnd={handleWarpDragEnd}
+                    />
+                  </Group>
+                </Group>
+              )}
+{items.filter((i) => i.relight).map((item) => (
+  item.id === selectedItem?.id && relightActive ? (
+    <RelightBalls
+      key={`relight-${item.id}`}
+      target={item}
+      state={item.relight}
+      onDragLight={(lightKey, offsetX, offsetY) => {
+        const next = { ...item.relight, [lightKey]: { ...item.relight[lightKey], offsetX, offsetY } }
+        updateItem(item.id, { relight: next })
+      }}
+    />
+  ) : (
+    <LightOverlay
+      key={`relight-${item.id}`}
+      target={item}
+      state={item.relight}
+    />
+  )
+))}
             </Group>
           </Layer>
         </Stage>

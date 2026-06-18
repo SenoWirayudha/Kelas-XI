@@ -3,9 +3,8 @@ import { applyRepeater } from './transform-effects.js'
 
 // ─────────────────────────────────────────────
 // WebGL Engine
-// KEY FIX: Gunakan offscreen canvas 2D sebagai bridge
-// WebGL render → toDataURL → drawImage ke offscreen → getImageData
-// Ini MENGHINDARI readPixels Y-flip issue sepenuhnya
+// Render filter via WebGL, baca hasil via readPixels + Y-flip
+// readPixels membaca raw straight alpha — RGB tetap utuh meski alpha=0
 // ─────────────────────────────────────────────
 
 class WebGLEngine {
@@ -23,8 +22,6 @@ class WebGLEngine {
     this._gl = gl
     this.supported = !!this._gl
     this._programs = {}
-    this._bridge = null
-    this._bridgeCtx = null
     if (this.supported) {
       this._initQuad()
       this._glCanvas.addEventListener('webglcontextlost', (e) => {
@@ -67,7 +64,6 @@ class WebGLEngine {
   }
 
   // Proses imageData via WebGL, tulis hasil balik ke imageData yang sama
-  // FIX: pakai bridge canvas 2D untuk baca hasil — tidak ada readPixels Y-flip
   processSync(imageData, name, uniforms = {}) {
     if (!this.supported) {
       console.warn('[WebGL] Engine not supported — skipping', name)
@@ -111,16 +107,23 @@ class WebGLEngine {
     }
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    gl.finish()
 
-    // Baca hasil via bridge canvas (reusable) — drawImage handle koordinat dengan benar
-    if (!this._bridge || this._bridge.width !== width || this._bridge.height !== height) {
-      this._bridge = document.createElement('canvas')
-      this._bridge.width = width; this._bridge.height = height
-      this._bridgeCtx = this._bridge.getContext('2d', { colorSpace: 'srgb', willReadFrequently: true })
+    // Baca hasil via readPixels — membaca raw straight alpha dari drawing buffer
+    // Tidak ada konversi premultiplied alpha, RGB tetap utuh meski alpha=0
+    const pixels = new Uint8Array(width * height * 4)
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+
+    // readPixels menghasilkan bottom-left origin, ImageData butuh top-left → flip Y
+    const dst = imageData.data
+    const stride = width * 4
+    for (let y = 0; y < height; y++) {
+      const srcRow = y * stride
+      const dstRow = (height - 1 - y) * stride
+      for (let x = 0; x < stride; x++) {
+        dst[dstRow + x] = pixels[srcRow + x]
+      }
     }
-    this._bridgeCtx.drawImage(this._glCanvas, 0, 0)
-    const result = this._bridgeCtx.getImageData(0, 0, width, height)
-    imageData.data.set(result.data)
 
     gl.deleteTexture(tex)
   }
@@ -217,12 +220,14 @@ const SHADERS = {
       return mix(mix(h(i),h(i+vec2(1,0)),u.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),u.x),u.y);}
     float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*ns(p);p*=2.;a*=.5;}return v;}
     void main(){
-      float n=fbm(vUV*uScale+vec2(uTime*uSpeed*.1,uTime*uSpeed*.07));
-      vec2 d=vUV+(n-.5)*uStrength*.05;
+      vec4 orig=texture2D(uTexture,vUV);
       float e=min(min(vUV.x,1.-vUV.x),min(vUV.y,1.-vUV.y));
+      float edgeWeight=uBorder>0.?1.-step(uBorder,e):1.;
+      float n=fbm(vUV*uScale+vec2(uTime*uSpeed*.1,uTime*uSpeed*.07));
+      vec2 d=vUV+(n-.5)*uStrength*.05*edgeWeight;
       vec4 c=texture2D(uTexture,clamp(d,0.,1.));
-      c.a*=smoothstep(0.,uBorder+n*uStrength*.1,e);
-      gl_FragColor=c;
+      gl_FragColor=mix(c,orig,1.-edgeWeight);
+      gl_FragColor.a=mix(step(n*uStrength*.08,e),orig.a,1.-edgeWeight);
     }`,
 
   jpegDamage: `${HIGH_P}
@@ -573,95 +578,36 @@ const SHADERS = {
 
       gl_FragColor = vec4(clamp(c, 0., 1.), texture2D(uTexture, vUV).a);
     }`,
+
+  waveWarp: `${HIGH_P}
+    uniform sampler2D uTexture;
+    uniform vec2 uResolution;
+    uniform float uTime;
+    uniform float uAmplitude;
+    uniform float uFrequency;
+    uniform float uSpeed;
+    uniform float uAngle;
+
+    varying vec2 vUV;
+
+    void main(){
+      vec2 uv = vUV;
+      float amp = uAmplitude / uResolution.y;
+      float freq = uFrequency * 6.2832;
+      float aspect = uResolution.x / uResolution.y;
+
+      vec2 dir = vec2(cos(uAngle), sin(uAngle));
+      float wave = sin(dot(uv, dir) * freq + uTime * uSpeed);
+
+      vec2 disp = dir * wave * amp;
+      disp.x *= aspect;
+      uv += disp;
+
+      gl_FragColor = texture2D(uTexture, clamp(uv, 0., 1.));
+    }`,
 }
 
-export const rotation2DShader = `${HIGH_P}
-  uniform sampler2D uTexture;
-  uniform float uAngle;
-  uniform float uAxis;
-  uniform float uFov;
-  varying vec2 vUV;
-
-  void main() {
-    float cosA = cos(uAngle);
-    float sinA = sin(uAngle);
-
-    // UV relative to center, range -0.5 to 0.5
-    vec2 uv = vUV - 0.5;
-
-    if (uAxis < 0.5) {
-      // ── Y-Axis: Horizontal flip (card flip) ──
-      if (abs(cosA) < 0.005) { gl_FragColor = vec4(0.0); return; }
-
-      float denom = cosA - uv.x * sinA * uFov;
-      if (abs(denom) < 0.001) { gl_FragColor = vec4(0.0); return; }
-
-      float srcX = uv.x / denom;
-      bool isBack = abs(srcX) > 0.5;
-
-      // If rotating past 90°, mirror source X to show card back
-      if (isBack) {
-        srcX = sign(srcX) * 0.5 - (srcX - sign(srcX) * 0.5);
-        srcX = clamp(srcX, -0.5, 0.5);
-      }
-
-      vec2 srcUV = vec2(srcX + 0.5, vUV.y);
-      vec4 color = texture2D(uTexture, clamp(srcUV, 0.001, 0.999));
-
-      // 3D depth shading
-      float rotZ = srcX * sinA;
-      float shade = max(0.15, 1.0 - abs(rotZ) * uFov * 0.85);
-
-      // Edge highlight (crease glow at rotation axis)
-      float edgeDist = abs(uv.x) * 2.0;
-      float edgeGlow = exp(-edgeDist * edgeDist * 12.0) * 0.25 * (1.0 - abs(cosA)) * 2.0;
-      shade += edgeGlow;
-
-      // Back face: mirrored + different tint
-      if (isBack) {
-        color.rgb = color.rgb * 0.45 + 0.12;
-        shade = min(shade, 0.65);
-      }
-
-      gl_FragColor = vec4(color.rgb * shade, color.a);
-
-    } else {
-      // ── X-Axis: Vertical flip ──
-      if (abs(cosA) < 0.005) { gl_FragColor = vec4(0.0); return; }
-
-      float denom = cosA - uv.y * sinA * uFov;
-      if (abs(denom) < 0.001) { gl_FragColor = vec4(0.0); return; }
-
-      float srcY = uv.y / denom;
-      bool isBack = abs(srcY) > 0.5;
-
-      if (isBack) {
-        srcY = sign(srcY) * 0.5 - (srcY - sign(srcY) * 0.5);
-        srcY = clamp(srcY, -0.5, 0.5);
-      }
-
-      vec2 srcUV = vec2(vUV.x, srcY + 0.5);
-      vec4 color = texture2D(uTexture, clamp(srcUV, 0.001, 0.999));
-
-      float rotZ = srcY * sinA;
-      float shade = max(0.15, 1.0 - abs(rotZ) * uFov * 0.85);
-
-      float edgeDist = abs(uv.y) * 2.0;
-      float edgeGlow = exp(-edgeDist * edgeDist * 12.0) * 0.25 * (1.0 - abs(cosA)) * 2.0;
-      shade += edgeGlow;
-
-      if (isBack) {
-        color.rgb = color.rgb * 0.45 + 0.12;
-        shade = min(shade, 0.65);
-      }
-
-      gl_FragColor = vec4(color.rgb * shade, color.a);
-    }
-  }
-`
-
 for (const [name, src] of Object.entries(SHADERS)) webglEngine.register(name, src)
-webglEngine.register('rotation2D', rotation2DShader)
 
 // ─────────────────────────────────────────────
 // Canvas 2D pixel helpers
@@ -871,23 +817,6 @@ export class EffectManager {
         continue
       }
 
-      // ── 3D Rotation (card flip) — filter pipeline via WebGL ──
-      if (id === 'rotation2d' && val) {
-        const angle = typeof val === 'number' ? val : (val?.angle ?? 0)
-        if (angle !== 0) {
-          const axis = typeof val === 'object' ? (val?.axis === 'x' ? 1.0 : 0.0) : 0.0
-          const fov  = typeof val === 'object' ? (val?.fov ?? 1.0) : 1.0
-          filterList.push(function rotation2DFilter(imgData) {
-            webglEngine.processSync(imgData, 'rotation2D', {
-              uAngle: angle * Math.PI / 180,
-              uAxis:  axis,
-              uFov:   fov,
-            })
-          })
-        }
-        continue
-      }
-
       // ── WebGL filters ──────────────────────────────────
       if (id === 'directionalBlur' && val) {
         const p = val
@@ -957,6 +886,18 @@ export class EffectManager {
             uStrength: p.strength ?? 0.5,
             uBorder: p.border ?? 0.1,
             uSpeed: p.speed ?? 1,
+          })
+        })
+        continue
+      }
+      if (id === 'waveWarp' && val) {
+        const p = val
+        filterList.push(function waveWarpFilter(imgData) {
+          webglEngine.processSync(imgData, 'waveWarp', {
+            uAmplitude: p.amplitude ?? 20,
+            uFrequency: p.frequency ?? 5,
+            uSpeed: p.speed ?? 1,
+            uAngle: (p.rotation ?? 0) * Math.PI / 180,
           })
         })
         continue
@@ -1038,7 +979,7 @@ export class EffectManager {
             uFade: p.fade ?? 0.2,
           })
         })
-        addPad(10); continue
+        continue
       }
 
       // ── Canvas 2D custom filters ───────────────────────
@@ -1310,15 +1251,8 @@ export class EffectManager {
         continue
       }
 
-      // ── Mirror / rotation2d (pixel helpers) ──
+      // ── Mirror (pixel helpers) ──
       if (id === 'mirror' && val !== 'none') { mirrorPixels(d, w, h, val); continue }
-      if (id === 'rotation2d' && val !== 0 && val !== false) {
-        const angle = typeof val === 'number' ? val : (val.angle ?? 0)
-        const axis = typeof val === 'number' ? 0.0 : (val.axis === 'x' ? 1.0 : 0.0)
-        const fov = typeof val === 'number' ? 1.0 : (val.fov ?? 1.0)
-        if (angle !== 0) { webglEngine.processSync(imageData, 'rotation2D', { uAngle: angle * Math.PI / 180, uAxis: axis, uFov: fov }) }
-        continue
-      }
 
       // ── WebGL filters ──
       if (id === 'directionalBlur' && val) {
@@ -1343,6 +1277,10 @@ export class EffectManager {
       }
       if (id === 'roughenEdge' && val) {
         const p = val; webglEngine.processSync(imageData, 'roughenEdge', { uScale: p.scale ?? 10, uStrength: p.strength ?? 0.5, uBorder: p.border ?? 0.1, uSpeed: p.speed ?? 1 })
+        continue
+      }
+      if (id === 'waveWarp' && val) {
+        const p = val; webglEngine.processSync(imageData, 'waveWarp', { uAmplitude: p.amplitude ?? 20, uFrequency: p.frequency ?? 5, uSpeed: p.speed ?? 1, uAngle: (p.rotation ?? 0) * Math.PI / 180 })
         continue
       }
       if (id === 'edgeGlow' && val) {

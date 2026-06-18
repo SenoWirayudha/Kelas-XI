@@ -147,7 +147,7 @@ export const FRAME_LIBRARY = {
         strokeWidth: 1,
         padding: 16,
         bottomPadding: 50,
-        stackOffset: 8,
+        stackOffset: 12,
       },
       frameSlot: {
         x: 16,
@@ -161,48 +161,56 @@ export const FRAME_LIBRARY = {
   ],
 
   film: [
-    {
-      id: 'film-strip-vertical',
-      label: 'Film Strip Vertical',
-      frameType: 'film-vertical',
-      defaultProps: {
-        width: 180,
-        height: 280,
-        fill: '#2a2a2a',
-        stroke: '#1a1a1a',
-        strokeWidth: 2,
-        sprocketHoles: 8,
-      },
-      frameSlot: {
-        x: 12,
-        y: 8,
-        width: 156, // 180 - 12*2
-        height: 264, // 280 - 8*2
-        shape: 'rect',
-        cornerRadius: 0,
-      },
-    },
-    {
-      id: 'film-strip-horizontal',
-      label: 'Film Strip Horizontal',
-      frameType: 'film-horizontal',
-      defaultProps: {
-        width: 320,
-        height: 180,
-        fill: '#2a2a2a',
-        stroke: '#1a1a1a',
-        strokeWidth: 2,
-        sprocketHoles: 12,
-      },
-      frameSlot: {
-        x: 8,
-        y: 12,
-        width: 304, // 320 - 8*2
-        height: 156, // 180 - 12*2
-        shape: 'rect',
-        cornerRadius: 0,
-      },
-    },
+// REPLACE: id: 'film-strip-vertical' object
+{
+  id: 'film-strip-vertical',
+  label: 'Film Strip Vertical',
+  frameType: 'film-vertical',
+  defaultProps: {
+    width: 180,
+    height: 280,
+    fill: '#1c1c1c',
+    stroke: '#111111',
+    strokeWidth: 1,
+    sprocketHoles: 7,
+    sprocketStyle: 'rect',     // ← rectangular, lebih realistis
+    showFrameNumbers: true,    // ← nomor frame
+    edgeStripeWidth: 18,       // ← lebar area sprocket kiri/kanan
+  },
+  frameSlot: {
+    x: 18,
+    y: 8,
+    width: 144,                // 180 - 18*2
+    height: 264,
+    shape: 'rect',
+    cornerRadius: 0,
+  },
+},
+// REPLACE: id: 'film-strip-horizontal' object
+{
+  id: 'film-strip-horizontal',
+  label: 'Film Strip Horizontal',
+  frameType: 'film-horizontal',
+  defaultProps: {
+    width: 320,
+    height: 160,               // ← lebih cinematic (2:1 ratio)
+    fill: '#1c1c1c',
+    stroke: '#111111',
+    strokeWidth: 1,
+    sprocketHoles: 10,
+    sprocketStyle: 'rect',
+    showFrameNumbers: true,
+    edgeStripeWidth: 16,
+  },
+  frameSlot: {
+    x: 8,
+    y: 16,
+    width: 304,
+    height: 128,               // 160 - 16*2
+    shape: 'rect',
+    cornerRadius: 0,
+  },
+},
     {
       id: 'cinema-frame',
       label: 'Cinema Frame',
@@ -384,30 +392,33 @@ export const FRAME_LIBRARY = {
   ],
 
   device: [
-    {
-      id: 'phone-frame',
-      label: 'Phone Frame',
-      frameType: 'phone',
-      defaultProps: {
-        width: 180,
-        height: 360,
-        fill: '#1a1a1a',
-        stroke: '#0a0a0a',
-        strokeWidth: 8,
-        cornerRadius: 24,
-        notchWidth: 80,
-        notchHeight: 20,
-      },
-      // Phone slot is INSET by bezel
-      frameSlot: {
-        x: 8,
-        y: 28, // 8 + notchHeight
-        width: 164, // 180 - 8*2
-        height: 324, // 360 - 8 - 28
-        shape: 'rect',
-        cornerRadius: 16,
-      },
-    },
+// REPLACE: id: 'phone-frame' object
+{
+  id: 'phone-frame',
+  label: 'iPhone Frame',
+  frameType: 'phone',
+  defaultProps: {
+    width: 180,
+    height: 360,
+    fill: '#1a1a1a',
+    stroke: '#2a2a2a',
+    strokeWidth: 8,
+    cornerRadius: 40,          // ← lebih rounded, iPhone-style
+    dynamicIsland: true,       // ← pill shape, bukan notch
+    islandWidth: 72,
+    islandHeight: 22,
+    volumeButtons: true,       // ← tombol volume kiri
+    sideButton: true,          // ← power button kanan
+  },
+  frameSlot: {
+    x: 0,
+    y: 0,
+    width: 180,
+    height: 360,
+    shape: 'rect',
+    cornerRadius: 32,
+  },
+},
     {
       id: 'tablet-frame',
       label: 'Tablet Frame',

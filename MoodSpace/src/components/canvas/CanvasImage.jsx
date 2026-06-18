@@ -182,25 +182,18 @@ function CanvasImage({
   onCropStart,
   isCropTarget,
 }) {
-  const image         = useCanvasImage(item.src)
-  const imageNodeRef  = useRef(null)
-  const sizeRef       = useRef({ w: item.w, h: item.h })
-  const filterItemRef = useRef(item)
-  const rAFRef        = useRef(null)
+  const image          = useCanvasImage(item.src)
+  const imageNodeRef   = useRef(null)
+  const shadowNodeRef  = useRef(null)
+  const sizeRef        = useRef({ w: item.w, h: item.h })
 
   useEffect(() => { sizeRef.current = { w: item.w, h: item.h } }, [item.w, item.h])
   const cropFit = image ? getCropFit(item, image) : null
   const cropProps = image ? getImageCropProps(item, image) : {}
 
-  // Debounce filter cache via requestAnimationFrame.
-  // Multiple dep changes within the same frame (e.g. slider drag) batch into one cache().
+  // Terapkan efek — via RAF agar Konva sempat render node dulu sebelum cache
   useEffect(() => {
-    filterItemRef.current = item
-
-    if (rAFRef.current) return
-
-    rAFRef.current = requestAnimationFrame(() => {
-      rAFRef.current = null
+    const raf = requestAnimationFrame(() => {
       const node = imageNodeRef.current
       if (!node || !image) return
 
@@ -208,8 +201,8 @@ function CanvasImage({
       if (!imageIsReady) return
 
       try {
-        if (!filterItemRef.current.isAdjustmentLayer) {
-          effectManager.applyAll(node, filterItemRef.current.effects, filterItemRef.current)
+        if (!item.isAdjustmentLayer) {
+          effectManager.applyAll(node, item.effects, item)
         }
       } catch (error) {
         console.warn('[canvas image] failed to apply effects', {
@@ -219,15 +212,23 @@ function CanvasImage({
         effectManager.removeAll(node)
       }
 
+      // Guard: hanya edge glow yang punya combo spesial dengan drop shadow
+      const shadowNode = shadowNodeRef.current
+      const hasEdgeGlow = item.effects?.edgeGlow
+      const hasShadow = item.shadowEnabled && (item.shadow ?? 0) > 0
+      if (hasEdgeGlow && hasShadow && shadowNode) {
+        try {
+          effectManager.applyAll(shadowNode, { edgeGlow: item.effects.edgeGlow })
+        } catch (e) {
+          effectManager.removeAll(shadowNode)
+        }
+      } else if (shadowNode) {
+        effectManager.removeAll(shadowNode)
+      }
+
       node.getLayer()?.batchDraw()
     })
-
-    return () => {
-      if (rAFRef.current) {
-        cancelAnimationFrame(rAFRef.current)
-        rAFRef.current = null
-      }
-    }
+    return () => cancelAnimationFrame(raf)
   }, [image, item])
 
   if (isCropTarget) return null
@@ -342,6 +343,8 @@ function CanvasImage({
           >
             {hasShadow && (
               <KonvaImage
+                name="canvas-image-shadow"
+                ref={shadowNodeRef}
                 image={image}
                 x={cropFit.x}
                 y={cropFit.y}
@@ -397,6 +400,8 @@ function CanvasImage({
           <>
             {hasShadow && (
               <KonvaImage
+                name="canvas-image-shadow"
+                ref={shadowNodeRef}
                 image={image}
                 width={item.w} height={item.h}
                 {...cropProps}
