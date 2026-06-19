@@ -1,11 +1,11 @@
-import { ArrowLeft, Lightbulb } from 'lucide-react'
-import { BLEND_MODES } from '../../constants/uiConstants'
+import { ArrowLeft } from 'lucide-react'
 
 export default function ToolRelightPanel({
   selectedItem,
   relightState,
   onActivate,
   onUpdateLight,
+  onUpdateDarken,
   onDeactivate,
   onApply,
   onBack,
@@ -21,7 +21,6 @@ export default function ToolRelightPanel({
             <ArrowLeft size={16} />
           </button>
         )}
-        <Lightbulb size={16} />
         <span className="panel-title">Relight</span>
       </div>
 
@@ -72,6 +71,22 @@ export default function ToolRelightPanel({
             />
           </div>
           <div className="panel-section">
+            <div className="workspace-fx-param-slider">
+              <div className="workspace-fx-param-slider-header">
+                <span className="workspace-fx-detail-label">Light A — Brightness</span>
+                <span className="workspace-fx-param-value">
+                  {Math.round((relightState.lightA.intensity ?? 1) * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0} max={100}
+                value={Math.round((relightState.lightA.intensity ?? 1) * 100)}
+                onChange={(e) => onUpdateLight('lightA', { intensity: Number(e.target.value) / 100 })}
+              />
+            </div>
+          </div>
+          <div className="panel-section">
             <label className="panel-label">Light B — Color</label>
             <input
               type="color"
@@ -80,6 +95,38 @@ export default function ToolRelightPanel({
               className="panel-color-input"
               style={{ width: '100%', height: 36 }}
             />
+          </div>
+          <div className="panel-section">
+            <div className="workspace-fx-param-slider">
+              <div className="workspace-fx-param-slider-header">
+                <span className="workspace-fx-detail-label">Light B — Brightness</span>
+                <span className="workspace-fx-param-value">
+                  {Math.round((relightState.lightB.intensity ?? 1) * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0} max={100}
+                value={Math.round((relightState.lightB.intensity ?? 1) * 100)}
+                onChange={(e) => onUpdateLight('lightB', { intensity: Number(e.target.value) / 100 })}
+              />
+            </div>
+          </div>
+          <div className="panel-section">
+            <div className="workspace-fx-param-slider">
+              <div className="workspace-fx-param-slider-header">
+                <span className="workspace-fx-detail-label">Darken unlit areas</span>
+                <span className="workspace-fx-param-value">
+                  {Math.round((relightState.darken ?? 0) * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0} max={100}
+                value={Math.round((relightState.darken ?? 0) * 100)}
+                onChange={(e) => onUpdateDarken?.(Number(e.target.value) / 100)}
+              />
+            </div>
           </div>
           <div className="panel-section panel-actions" style={{ display: 'flex', gap: 6 }}>
             <button

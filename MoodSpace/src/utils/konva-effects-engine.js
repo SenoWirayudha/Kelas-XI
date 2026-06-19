@@ -605,6 +605,48 @@ const SHADERS = {
 
       gl_FragColor = texture2D(uTexture, clamp(uv, 0., 1.));
     }`,
+
+  dotMatrix: `${HIGH_P}
+    uniform sampler2D uTexture;
+    uniform vec2 uResolution;
+    uniform float uTileSize;
+    uniform float uUseOriginalColor;
+    uniform vec3 uDotColor;
+    uniform float uShape;
+    varying vec2 vUV;
+    void main(){
+      vec2 px = vUV * uResolution;
+      vec2 tileCenter = floor(px / uTileSize) * uTileSize + uTileSize * 0.5;
+      vec2 tileUV = tileCenter / uResolution;
+      vec4 src = texture2D(uTexture, tileUV);
+      float halfTile = uTileSize * 0.5;
+      float inDot;
+      if (uShape > 0.5) {
+        vec2 d = abs(px - tileCenter);
+        float squareHalf = halfTile * 0.75;
+        float edge = 1.5;
+        inDot = 1.0 - smoothstep(squareHalf - edge, squareHalf + edge, max(d.x, d.y));
+      } else {
+        float d = length(px - tileCenter);
+        float edge = 1.5;
+        inDot = 1.0 - smoothstep(halfTile - edge, halfTile + edge, d);
+      }
+      vec3 dotCol = mix(uDotColor, src.rgb, uUseOriginalColor);
+      gl_FragColor = vec4(dotCol, src.a * inDot);
+    }`,
+
+  threshold: `${HIGH_P}
+    uniform sampler2D uTexture;
+    uniform float uThreshold;
+    uniform float uInvert;
+    varying vec2 vUV;
+    void main(){
+      vec4 src = texture2D(uTexture, vUV);
+      float l = dot(src.rgb, vec3(0.299, 0.587, 0.114));
+      float val = step(uThreshold / 255.0, l);
+      if (uInvert > 0.5) val = 1.0 - val;
+      gl_FragColor = vec4(vec3(val), src.a);
+    }`,
 }
 
 for (const [name, src] of Object.entries(SHADERS)) webglEngine.register(name, src)
@@ -787,6 +829,16 @@ export class EffectManager {
       if (id === 'grayscale' && val) { filterList.push(Konva.Filters.Grayscale); continue }
       if (id === 'sepia'     && val) { filterList.push(Konva.Filters.Sepia); continue }
       if (id === 'solarize'  && val) { filterList.push(Konva.Filters.Solarize); continue }
+      if (id === 'threshold' && val) {
+        const p = val
+        filterList.push(function thresholdFilter(imgData) {
+          webglEngine.processSync(imgData, 'threshold', {
+            uThreshold: p.threshold ?? 128,
+            uInvert: p.invert ? 1 : 0,
+          })
+        })
+        continue
+      }
       if (id === 'gaussianBlur' && val > 0) {
         node.blurRadius(val); filterList.push(Konva.Filters.Blur); continue
       }
@@ -899,6 +951,66 @@ export class EffectManager {
             uSpeed: p.speed ?? 1,
             uAngle: (p.rotation ?? 0) * Math.PI / 180,
           })
+        })
+        continue
+      }
+      if (id === 'risograph' && val) {
+        const p = val
+        const hex1 = p.color1 ?? '#2d5a27', hexP = p.paper ?? '#f4cfc6'
+        const c1r = parseInt(hex1.slice(1,3),16), c1g = parseInt(hex1.slice(3,5),16), c1b = parseInt(hex1.slice(5,7),16)
+        const pr = parseInt(hexP.slice(1,3),16), pg = parseInt(hexP.slice(3,5),16), pb = parseInt(hexP.slice(5,7),16)
+        const thr = p.threshold ?? 0.5, grain = p.grain ?? 0.15
+        filterList.push(function risographFilter(imgData) {
+          const w = imgData.width, h = imgData.height, d = imgData.data
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const i = (y * w + x) * 4
+              const noise = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1
+              const n = noise < 0 ? noise + 1 : noise
+              let L = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114) / 255
+              L = Math.max(0, Math.min(1, L + (n - 0.5) * grain * 2))
+              if (L < thr) {
+                d[i] = c1r; d[i+1] = c1g; d[i+2] = c1b
+              } else {
+                d[i] = pr; d[i+1] = pg; d[i+2] = pb
+              }
+            }
+          }
+        })
+        continue
+      }
+      if (id === 'dotMatrix' && val) {
+        const p = val
+        const dotHex = p.dotColor ?? '#00ff00'
+        const dcr = parseInt(dotHex.slice(1,3),16)/255
+        const dcg = parseInt(dotHex.slice(3,5),16)/255
+        const dcb = parseInt(dotHex.slice(5,7),16)/255
+        filterList.push(function dotMatrixFilter(imgData) {
+          webglEngine.processSync(imgData, 'dotMatrix', {
+            uTileSize: p.tileSize ?? 10,
+            uUseOriginalColor: p.useOriginalColor === false ? 0 : 1,
+            uDotColor: [dcr, dcg, dcb],
+            uShape: (p.shape ?? 'circle') === 'square' ? 1 : 0,
+          })
+        })
+        continue
+      }
+      if (id === 'feather' && val > 0) {
+        const amount = val
+        filterList.push(function featherFilter(imgData) {
+          const w = imgData.width, h = imgData.height, d = imgData.data
+          const fadeSize = amount * Math.min(w, h) * 0.5
+          if (fadeSize <= 1) return
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const minDist = Math.min(x, w - 1 - x, y, h - 1 - y)
+              if (minDist < fadeSize) {
+                const idx = (y * w + x) * 4
+                const alpha = minDist / fadeSize
+                d[idx + 3] = Math.round(d[idx + 3] * alpha)
+              }
+            }
+          }
         })
         continue
       }
@@ -1091,6 +1203,44 @@ export class EffectManager {
         continue
       }
 
+      // ── Mask Fade — rect-based alpha mask filter ────────
+      if (id === 'maskFade' && val) {
+        const p = val
+        filterList.push(function maskFadeFilter(imgData) {
+          const w = imgData.width, h = imgData.height, d = imgData.data
+          const size = p.size ?? 1
+          const feather = p.feather ?? 0.3
+          const offsetX = p.offsetX ?? 0
+          const offsetY = p.offsetY ?? -0.85
+          const rotation = p.rotation ?? 0
+          const cx = w / 2 + offsetX * w * 0.5
+          const cy = h / 2 + offsetY * h * 0.5
+          const halfW = w * size / 2
+          const halfH = h * size / 2
+          const fadeSize = feather * Math.min(w, h) * 0.3
+          const rad = rotation * Math.PI / 180
+          const cosR = Math.cos(rad), sinR = Math.sin(rad)
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const dx = x - cx, dy = y - cy
+              const lx = dx * cosR + dy * sinR
+              const ly = -dx * sinR + dy * cosR
+              if (Math.abs(lx) <= halfW && Math.abs(ly) <= halfH) continue
+              const idx = (y * w + x) * 4
+              if (fadeSize <= 1) {
+                d[idx + 3] = 0
+              } else {
+                const dxEdge = Math.max(0, Math.abs(lx) - halfW)
+                const dyEdge = Math.max(0, Math.abs(ly) - halfH)
+                const dist = Math.sqrt(dxEdge * dxEdge + dyEdge * dyEdge)
+                d[idx + 3] = Math.round(d[idx + 3] * Math.max(0, 1 - dist / fadeSize))
+              }
+            }
+          }
+        })
+        continue
+      }
+
       // ── Geometry — diproses terpisah setelah filter ───
       if (id === 'repeater' && val) { this._applyRepeater(node, val); continue }
     }
@@ -1187,7 +1337,8 @@ export class EffectManager {
       node.add(rect)
     }
     node.getLayer()?.batchDraw()
-    this._overlays.set(node, [rect])
+    const existing = this._overlays.get(node) || []
+    this._overlays.set(node, [...existing, rect])
   }
 
   _applyRepeater(node, p) {
@@ -1227,6 +1378,10 @@ export class EffectManager {
           d[i+1] = d[i+1] > 128 ? 255 - d[i+1] : d[i+1]
           d[i+2] = d[i+2] > 128 ? 255 - d[i+2] : d[i+2]
         }
+        continue
+      }
+      if (id === 'threshold' && val) {
+        const p = val; webglEngine.processSync(imageData, 'threshold', { uThreshold: p.threshold ?? 128, uInvert: p.invert ? 1 : 0 })
         continue
       }
 
@@ -1281,6 +1436,58 @@ export class EffectManager {
       }
       if (id === 'waveWarp' && val) {
         const p = val; webglEngine.processSync(imageData, 'waveWarp', { uAmplitude: p.amplitude ?? 20, uFrequency: p.frequency ?? 5, uSpeed: p.speed ?? 1, uAngle: (p.rotation ?? 0) * Math.PI / 180 })
+        continue
+      }
+      if (id === 'risograph' && val) {
+        const p = val
+        const hex1 = p.color1 ?? '#2d5a27', hexP = p.paper ?? '#f4cfc6'
+        const c1r = parseInt(hex1.slice(1,3),16), c1g = parseInt(hex1.slice(3,5),16), c1b = parseInt(hex1.slice(5,7),16)
+        const pr = parseInt(hexP.slice(1,3),16), pg = parseInt(hexP.slice(3,5),16), pb = parseInt(hexP.slice(5,7),16)
+        const thr = p.threshold ?? 0.5, grain = p.grain ?? 0.15
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4
+            const noise = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1
+            const n = noise < 0 ? noise + 1 : noise
+            let L = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114) / 255
+            L = Math.max(0, Math.min(1, L + (n - 0.5) * grain * 2))
+            if (L < thr) {
+              d[i] = c1r; d[i+1] = c1g; d[i+2] = c1b
+            } else {
+              d[i] = pr; d[i+1] = pg; d[i+2] = pb
+            }
+          }
+        }
+        continue
+      }
+      if (id === 'dotMatrix' && val) {
+        const p = val
+        const dotHex = p.dotColor ?? '#00ff00'
+        const dcr = parseInt(dotHex.slice(1,3),16)/255
+        const dcg = parseInt(dotHex.slice(3,5),16)/255
+        const dcb = parseInt(dotHex.slice(5,7),16)/255
+        webglEngine.processSync(imageData, 'dotMatrix', {
+          uTileSize: p.tileSize ?? 10,
+          uUseOriginalColor: p.useOriginalColor === false ? 0 : 1,
+          uDotColor: [dcr, dcg, dcb],
+          uShape: (p.shape ?? 'circle') === 'square' ? 1 : 0,
+        })
+        continue
+      }
+      if (id === 'feather' && val > 0) {
+        const w = imageData.width, h = imageData.height, d = imageData.data
+        const fadeSize = val * Math.min(w, h) * 0.5
+        if (fadeSize > 1) {
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const minDist = Math.min(x, w - 1 - x, y, h - 1 - y)
+              if (minDist < fadeSize) {
+                const idx = (y * w + x) * 4
+                d[idx + 3] = Math.round(d[idx + 3] * (minDist / fadeSize))
+              }
+            }
+          }
+        }
         continue
       }
       if (id === 'edgeGlow' && val) {

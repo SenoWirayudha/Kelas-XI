@@ -8,6 +8,7 @@ import { preloadFont, getShadowProps } from '../../utils/konvaUtils'
 import { getClampedCanvasPosition } from '../../utils/canvasPositionUtils'
 import { clamp } from '../../utils/mathUtils'
 import { effectManager } from '../../utils/konva-effects-engine'
+import { getRuns, runsToText } from '../../utils/textRuns'
 
 function renderCurvedText(text, fontFamily, fontSize, fontStyle, curveAmount, letterSpacing, fillColor) {
   const chars = Array.from(text || ' ')
@@ -61,26 +62,31 @@ const getTextMinWidth = (node, text, fontSize) => {
 export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, canvasBounds, getActiveTransformAnchor }) {
   const textNodeRef = useRef(null)
   const curveImageRef = useRef(null)
+  const multiRunGroupRef = useRef(null)
   const [fontLoaded, setFontLoaded] = useState(false)
   const hasAutoExpandedRef = useRef(false)
   const transformStartRef = useRef(null)
   const transformAnchorRef = useRef(null)
 
+  const runs = useMemo(() => getRuns(item), [item.runs, item.text, item.isBold, item.isItalic, item.isUnderline])
+  const text = runsToText(runs)
+  const isMultiRun = runs.length > 1
+
   const letterSpacing = item.effects?.letterSpacing?.value ?? 0
   const curveAmount = item.effects?.curve?.amount ?? 0
-  const hasCurve = Math.abs(curveAmount) > 0.001 && !(item.text || '').includes('\n')
+  const hasCurve = Math.abs(curveAmount) > 0.001 && !text.includes('\n') && !isMultiRun
 
-  const fontStyle = [item.isBold && 'bold', item.isItalic && 'italic'].filter(Boolean).join(' ') || 'normal'
-  const textDecoration = item.isUnderline ? 'underline' : 'none'
+  const fontStyle = isMultiRun ? 'normal' : ([runs[0]?.bold && 'bold', runs[0]?.italic && 'italic'].filter(Boolean).join(' ') || 'normal')
+  const textDecoration = isMultiRun ? 'none' : (runs[0]?.underline ? 'underline' : 'none')
 
   const curveCanvas = useMemo(() => {
     if (!hasCurve) return null
     return renderCurvedText(
-      item.text, item.fontFamily, item.fontSize, fontStyle,
+      text, item.fontFamily, item.fontSize, fontStyle,
       curveAmount, letterSpacing,
       (typeof item.fill === 'string' && item.fill.startsWith('#')) ? item.fill : '#000'
     )
-  }, [hasCurve, item.text, item.fontFamily, item.fontSize, item.isBold, item.isItalic, curveAmount, letterSpacing, item.fill])
+  }, [hasCurve, text, item.fontFamily, item.fontSize, runs, curveAmount, letterSpacing, item.fill])
 
   useEffect(() => {
     preloadFont(item.fontFamily || 'Inter, Arial').then(() => setFontLoaded(true))
@@ -90,7 +96,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     const node = textNodeRef.current
     if (!node || hasCurve) return
 
-    if (fontLoaded && !hasAutoExpandedRef.current && item.text && !item.text.includes('\n') && node.textWidth > 0) {
+    if (fontLoaded && !hasAutoExpandedRef.current && text && !text.includes('\n') && node.textWidth > 0) {
       const neededWidth = Math.ceil(node.textWidth) + 30
       if (neededWidth > (item.w || 0)) {
         hasAutoExpandedRef.current = true
@@ -102,7 +108,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     }
 
     // Auto-expand height for multi-line text
-    if (fontLoaded && item.text && item.text.includes('\n')) {
+    if (fontLoaded && text && text.includes('\n')) {
       const h = Math.ceil(node.height() || (item.fontSize || 48))
       if (h > (item.h || 0)) {
         onChange({ h })
@@ -118,8 +124,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     item.gradientType, item.gradientStops, item.gradientAngle,
     item.strokeGradientType, item.strokeGradientStops, item.strokeGradientAngle,
     item.fontSize, item.fontFamily, letterSpacing, curveAmount,
-    item.isBold, item.isItalic, item.isUnderline,
-    item.align, item.text, item.opacity,
+    runs,
+    item.align, text, item.opacity,
     item.effects,
     item.shadowEnabled, item.shadow, item.shadowColor, item.shadowOpacity, item.shadowOffsetX, item.shadowOffsetY,
     fontLoaded, item.w, hasCurve, onChange,
@@ -132,7 +138,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     if (!node) return
     try { effectManager.applyAll(node, item.effects) } catch {}
     node.getLayer()?.draw()
-  }, [item.effects, hasCurve, item.text, item.fontFamily, item.fontSize, item.isBold, item.isItalic, item.fill])
+  }, [item.effects, hasCurve, text, item.fontFamily, item.fontSize, runs, item.fill])
 
   const filterItemRef = useRef(item)
   const rAFRef = useRef(null)
@@ -193,7 +199,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   }
 
   const textProps = {
-    text: item.text,
+    text,
     width: item.w,
     fontSize: item.fontSize,
     fontFamily: item.fontFamily || 'Inter, Arial',
@@ -207,6 +213,39 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     align: item.align || 'center',
     perfectDrawEnabled: true,
   }
+
+  // Multi-run text rendering
+  const multiRunTexts = useMemo(() => {
+    if (!isMultiRun || hasCurve) return null
+    const ctx = document.createElement('canvas').getContext('2d')
+    let x = 0
+    return runs.map((run, idx) => {
+      const runFontStyle = [run.bold && 'bold', run.italic && 'italic'].filter(Boolean).join(' ') || 'normal'
+      const runDecoration = run.underline ? 'underline' : 'none'
+      ctx.font = `${runFontStyle} ${item.fontSize}px ${item.fontFamily || 'Inter, Arial'}`
+      const w = Math.max(1, ctx.measureText(run.text).width)
+      const node = (
+        <Text
+          key={idx}
+          x={x}
+          text={run.text}
+          width={w + 2}
+          fontSize={item.fontSize}
+          fontFamily={item.fontFamily || 'Inter, Arial'}
+          fontStyle={runFontStyle}
+          textDecoration={runDecoration}
+          fill={gradientProps.fill || item.fill}
+          letterSpacing={letterSpacing}
+          lineJoin='round'
+          miterLimit={2}
+          perfectDrawEnabled={false}
+          listening={false}
+        />
+      )
+      x += w
+      return node
+    })
+  }, [runs, isMultiRun, hasCurve, item.fontSize, item.fontFamily, item.fill, letterSpacing, gradientProps.fill])
   const hasStroke = (item.strokeWidth || 0) > 0 && (item.stroke || item.strokeGradientType)
   const shadowProps = getShadowProps(item)
   const hasShadow = Object.keys(shadowProps).length > 0
@@ -238,23 +277,23 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       onDblTap={(e) => { e.cancelBubble = true; onTextEdit(item.id) }}
       onTransformStart={(event) => {
         const node = textNodeRef.current
-        if (!node || hasCurve) return
+        if (!node || hasCurve || isMultiRun) return
         transformAnchorRef.current = getActiveTransformAnchor?.()
         transformStartRef.current = {
-          width: Math.max(getTextMinWidth(node, item.text, node.fontSize() || item.fontSize || 48), node.width() || item.w || 8),
+          width: Math.max(getTextMinWidth(node, text, node.fontSize() || item.fontSize || 48), node.width() || item.w || 8),
           fontSize: clamp(node.fontSize() || item.fontSize || 48, 8, 1000),
         }
       }}
       onTransform={(event) => {
         const groupNode = event.target
         const node = textNodeRef.current
-        if (!node || hasCurve) return
+        if (!node || hasCurve || isMultiRun) return
         const activeAnchor = transformAnchorRef.current || getActiveTransformAnchor?.()
         const isSideResize = activeAnchor === 'middle-left' || activeAnchor === 'middle-right'
 
         if (isSideResize) {
           const nextWidth = Math.max(
-            getTextMinWidth(node, item.text, node.fontSize() || item.fontSize || 48),
+            getTextMinWidth(node, text, node.fontSize() || item.fontSize || 48),
             (node.width() || item.w || 8) * Math.abs(groupNode.scaleX() || 1),
           )
           node.width(nextWidth)
@@ -269,9 +308,9 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       onTransformEnd={(event) => {
         const groupNode = event.target
         const node = textNodeRef.current
-        if (!node || hasCurve) return
+        if (!node || hasCurve || isMultiRun) return
         const start = transformStartRef.current || {
-          width: Math.max(getTextMinWidth(node, item.text, item.fontSize || node.fontSize() || 48), item.w || node.width() || 8),
+          width: Math.max(getTextMinWidth(node, text, item.fontSize || node.fontSize() || 48), item.w || node.width() || 8),
           fontSize: clamp(item.fontSize || node.fontSize() || 48, 8, 1000),
         }
         const activeAnchor = transformAnchorRef.current
@@ -282,8 +321,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           ? start.fontSize
           : clamp(start.fontSize * Math.max(scaleX, scaleY), 8, 1000)
         const nextWidth = isSideResize
-          ? Math.max(getTextMinWidth(node, item.text, nextFontSize), node.width() || item.w || 8)
-          : Math.max(getTextMinWidth(node, item.text, nextFontSize), start.width * scaleX)
+          ? Math.max(getTextMinWidth(node, text, nextFontSize), node.width() || item.w || 8)
+          : Math.max(getTextMinWidth(node, text, nextFontSize), start.width * scaleX)
 
         groupNode.scaleX(1)
         groupNode.scaleY(1)
@@ -324,6 +363,10 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           height={curveH}
           listening={false}
         />
+      ) : isMultiRun ? (
+        <Group ref={multiRunGroupRef} listening={false} clipX={0} clipY={0} clipWidth={item.w} clipHeight={textHeight}>
+          {multiRunTexts}
+        </Group>
       ) : (
         <>
           {hasStroke && (

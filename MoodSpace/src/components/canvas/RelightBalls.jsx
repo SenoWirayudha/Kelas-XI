@@ -1,41 +1,113 @@
-import { useRef, useEffect } from 'react'
-import { Group, Circle, Rect } from 'react-konva'
+import { useRef, useEffect, useState } from 'react'
+import { Group, Circle, Image as KonvaImage } from 'react-konva'
 
 const BALL_RADIUS = 26
 
-// Pure lighting overlay — no interaction, always visible
+// Pre-rendered lighting overlay masked to the image's alpha channel
 export function LightOverlay({ target, state }) {
-  if (!target) return null
-  const cx = target.x + target.w / 2
-  const cy = target.y + target.h / 2
+  const [shadowCanvas, setShadowCanvas] = useState(null)
+  const [lightCanvas, setLightCanvas] = useState(null)
+  const darken = state?.darken ?? 0
+
+  useEffect(() => {
+    if (!target || !state) { setShadowCanvas(null); setLightCanvas(null); return }
+    let cancelled = false
+
+    const w = target.w
+    const h = target.h
+    if (w <= 0 || h <= 0) { setShadowCanvas(null); setLightCanvas(null); return }
+
+    const img = new window.Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      if (cancelled) return
+
+      const cx = w / 2
+      const cy = h / 2
+      const maxR = Math.max(w, h) * 0.7
+
+      // Light overlay canvas (colored gradients)
+      const lCanvas = document.createElement('canvas')
+      lCanvas.width = Math.round(w)
+      lCanvas.height = Math.round(h)
+      const lctx = lCanvas.getContext('2d')
+
+      for (const key of ['lightA', 'lightB']) {
+        const light = state[key]
+        const localX = cx + light.offsetX
+        const localY = cy + light.offsetY
+        const gradient = lctx.createRadialGradient(localX, localY, 0, localX, localY, maxR)
+        gradient.addColorStop(0, light.color)
+        gradient.addColorStop(0.5, light.color + '99')
+        gradient.addColorStop(1, 'transparent')
+        lctx.globalAlpha = light.intensity ?? 1
+        lctx.fillStyle = gradient
+        lctx.fillRect(0, 0, w, h)
+      }
+      lctx.globalCompositeOperation = 'destination-in'
+      lctx.globalAlpha = 1
+      lctx.drawImage(img, 0, 0, w, h)
+
+      // Shadow mask canvas (darken non-lit areas)
+      let sCanvas = null
+      if (darken > 0) {
+        sCanvas = document.createElement('canvas')
+        sCanvas.width = Math.round(w)
+        sCanvas.height = Math.round(h)
+        const sctx = sCanvas.getContext('2d')
+        sctx.fillStyle = 'black'
+        sctx.fillRect(0, 0, w, h)
+        sctx.globalCompositeOperation = 'destination-out'
+        for (const key of ['lightA', 'lightB']) {
+          const light = state[key]
+          const localX = cx + light.offsetX
+          const localY = cy + light.offsetY
+          const gradient = sctx.createRadialGradient(localX, localY, 0, localX, localY, maxR)
+          gradient.addColorStop(0, 'white')
+          gradient.addColorStop(0.5, 'white')
+          gradient.addColorStop(1, 'transparent')
+          sctx.globalAlpha = light.intensity ?? 1
+          sctx.fillStyle = gradient
+          sctx.fillRect(0, 0, w, h)
+        }
+        sctx.globalCompositeOperation = 'destination-in'
+        sctx.globalAlpha = 1
+        sctx.drawImage(img, 0, 0, w, h)
+      }
+
+      if (!cancelled) {
+        setLightCanvas(lCanvas)
+        setShadowCanvas(sCanvas)
+      }
+    }
+    img.src = target.src
+
+    return () => { cancelled = true }
+  }, [
+    target?.src, target?.x, target?.y, target?.w, target?.h,
+    state?.lightA?.offsetX, state?.lightA?.offsetY, state?.lightA?.color, state?.lightA?.intensity,
+    state?.lightB?.offsetX, state?.lightB?.offsetY, state?.lightB?.color, state?.lightB?.intensity,
+    state?.darken,
+  ])
+
+  if (!target || !lightCanvas) return null
 
   return (
     <>
-      {['lightA', 'lightB'].map((key) => {
-        const light = state[key]
-        const localX = cx + light.offsetX - target.x
-        const localY = cy + light.offsetY - target.y
-        return (
-          <Rect
-            key={`fx-${key}`}
-            x={target.x}
-            y={target.y}
-            width={target.w}
-            height={target.h}
-            globalCompositeOperation="overlay"
-            fillRadialGradientStartPoint={{ x: localX, y: localY }}
-            fillRadialGradientEndPoint={{ x: localX, y: localY }}
-            fillRadialGradientStartRadius={0}
-            fillRadialGradientEndRadius={Math.max(target.w, target.h) * 0.7}
-            fillRadialGradientColorStops={[
-              0, light.color,
-              0.5, light.color + '99',
-              1, 'transparent',
-            ]}
-            listening={false}
-          />
-        )
-      })}
+      {shadowCanvas && (
+        <KonvaImage
+          image={shadowCanvas}
+          x={target.x} y={target.y} width={target.w} height={target.h}
+          opacity={darken}
+          listening={false}
+        />
+      )}
+      <KonvaImage
+        image={lightCanvas}
+        x={target.x} y={target.y} width={target.w} height={target.h}
+        globalCompositeOperation="overlay"
+        listening={false}
+      />
     </>
   )
 }

@@ -15,13 +15,20 @@ const CATEGORY_ICONS = {
 
 const COLOR_PRESETS = ['#2b2830', '#ffffff', '#000000', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
 
-function FxEffectDetail({ effect, value, onBack, onChange, onToggle }) {
+const EFFECT_COLOR_SUGGESTIONS = {
+  chromaKey: ['#00ff00', '#008000', '#0000ff', '#00bfff', '#a8ffa8', '#00cc00'],
+  spotColor: ['#ff0000', '#ff6b35', '#ffd700', '#00ff00', '#0000ff', '#ff69b4'],
+  replaceColor: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'],
+}
+
+function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDominantColors, imageSrc }) {
   const isActive = value != null && value !== false && value !== 0 && value !== 'none' && value !== ''
   const params = effect.params
   const pickerStateRef = useRef(null)
   const [editingKey, setEditingKey] = useState(null)
   const [editValue, setEditValue] = useState('')
   const editInputRef = useRef(null)
+  const isColorEffect = ['chromaKey', 'spotColor', 'replaceColor'].includes(effect.id)
 
   const updateParam = (key, paramVal) => {
     if (pickerStateRef.current) {
@@ -70,6 +77,27 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle }) {
         </button>
       </div>
       <div className="workspace-fx-detail-content">
+        {isColorEffect && imageSrc && Array.isArray(imageDominantColors) && imageDominantColors.length > 0 && (
+          <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'flex-start' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+              <img src={imageSrc} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+            <div className="workspace-fx-color-presets" style={{ marginTop: 0, flex: 1 }}>
+              {imageDominantColors.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className="workspace-fx-color-preset"
+                  style={{ background: c }}
+                  onClick={() => {
+                    const targetKey = effect.id === 'chromaKey' ? 'keyColor' : effect.id === 'spotColor' ? 'color' : 'fromColor'
+                    updateParam(targetKey, c)
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         {effect.type === 'toggle' && (
           <label className="workspace-fx-detail-switch">
             <input
@@ -228,7 +256,11 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle }) {
                       />
                     </div>
                     <div className="workspace-fx-color-presets">
-                      {COLOR_PRESETS.map((c) => (
+                      {[...new Set([
+                        ...(imageDominantColors || []),
+                        ...(EFFECT_COLOR_SUGGESTIONS[effect.id] || []),
+                        ...COLOR_PRESETS,
+                      ])].map((c) => (
                         <button
                           key={c}
                           type="button"
@@ -421,6 +453,8 @@ export default function FxPanel({ item, onBack, onUpdate }) {
         onBack={() => setSelectedEffect(null)}
         onChange={handleEffectChange}
         onToggle={handleToggle}
+        imageDominantColors={item?.dominantColors}
+        imageSrc={item?.src}
       />
     )
   }

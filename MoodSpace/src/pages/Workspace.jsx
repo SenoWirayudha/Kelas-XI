@@ -138,9 +138,12 @@ import ToolsPanel from '../components/panels/ToolsPanel'
 import ToolWarpPanel from '../components/panels/ToolWarpPanel'
 import ToolRelightPanel from '../components/panels/ToolRelightPanel'
 import WarpHandles from '../components/canvas/WarpHandles'
+import RichTextEditor from '../components/RichTextEditor'
+import { getRuns, runsToText, applyFormatToRange } from '../utils/textRuns'
 
 import { getCanvasItemTransformPatch } from '../engines/transformEngine'
 import RelightBalls, { LightOverlay } from '../components/canvas/RelightBalls'
+import RemoveBgOverlay from '../components/canvas/RemoveBgOverlay'
 import { useAuth } from '../context/authState'
 import { useMediaUpload } from '../hooks/useMediaUpload'
 import { useCanvasImage, useCanvasImages } from '../hooks/useCanvasImages'
@@ -231,29 +234,88 @@ const addAdjustmentOverlayClones = ({ stage, exportLayer }) => {
   })
 }
 
-const addRelightOverlayClones = ({ items, exportLayer }) => {
+const addRelightOverlayClones = ({ stage, items, exportLayer }) => {
   items.filter((i) => i.relight).forEach((item) => {
-    const cx = item.x + item.w / 2
-    const cy = item.y + item.h / 2
-    ;['lightA', 'lightB'].forEach((key) => {
-      const light = item.relight[key]
-      const localX = cx + light.offsetX - item.x
-      const localY = cy + light.offsetY - item.y
-      const rect = new Konva.Rect({
+    const node = stage?.findOne(`#${item.id}`)
+    const konvaImage = node?.findOne('.canvas-image-main') || node?.findOne('Image')
+    const htmlImg = konvaImage?.image()
+    if (!htmlImg) return
+
+    const w = item.w
+    const h = item.h
+    if (w <= 0 || h <= 0) return
+
+    const relight = item.relight
+    const cx = w / 2
+    const cy = h / 2
+    const maxR = Math.max(w, h) * 0.7
+
+    // Light overlay canvas
+    const lCanvas = document.createElement('canvas')
+    lCanvas.width = Math.round(w)
+    lCanvas.height = Math.round(h)
+    const lctx = lCanvas.getContext('2d')
+    for (const key of ['lightA', 'lightB']) {
+      const light = relight[key]
+      const localX = cx + light.offsetX
+      const localY = cy + light.offsetY
+      const gradient = lctx.createRadialGradient(localX, localY, 0, localX, localY, maxR)
+      gradient.addColorStop(0, light.color)
+      gradient.addColorStop(0.5, light.color + '99')
+      gradient.addColorStop(1, 'transparent')
+      lctx.globalAlpha = light.intensity ?? 1
+      lctx.fillStyle = gradient
+      lctx.fillRect(0, 0, w, h)
+    }
+    lctx.globalCompositeOperation = 'destination-in'
+    lctx.globalAlpha = 1
+    lctx.drawImage(htmlImg, 0, 0, w, h)
+
+    // Shadow mask canvas
+    if (relight.darken > 0) {
+      const sCanvas = document.createElement('canvas')
+      sCanvas.width = Math.round(w)
+      sCanvas.height = Math.round(h)
+      const sctx = sCanvas.getContext('2d')
+      sctx.fillStyle = 'black'
+      sctx.fillRect(0, 0, w, h)
+      sctx.globalCompositeOperation = 'destination-out'
+      for (const key of ['lightA', 'lightB']) {
+        const light = relight[key]
+        const localX = cx + light.offsetX
+        const localY = cy + light.offsetY
+        const gradient = sctx.createRadialGradient(localX, localY, 0, localX, localY, maxR)
+        gradient.addColorStop(0, 'white')
+        gradient.addColorStop(0.5, 'white')
+        gradient.addColorStop(1, 'transparent')
+        sctx.globalAlpha = light.intensity ?? 1
+        sctx.fillStyle = gradient
+        sctx.fillRect(0, 0, w, h)
+      }
+      sctx.globalCompositeOperation = 'destination-in'
+      sctx.globalAlpha = 1
+      sctx.drawImage(htmlImg, 0, 0, w, h)
+
+      exportLayer.add(new Konva.Image({
+        image: sCanvas,
         x: item.x,
         y: item.y,
-        width: item.w,
-        height: item.h,
-        globalCompositeOperation: 'overlay',
-        fillRadialGradientStartPoint: { x: localX, y: localY },
-        fillRadialGradientEndPoint: { x: localX, y: localY },
-        fillRadialGradientStartRadius: 0,
-        fillRadialGradientEndRadius: Math.max(item.w, item.h) * 0.7,
-        fillRadialGradientColorStops: [0, light.color, 0.5, light.color + '99', 1, 'transparent'],
+        width: w,
+        height: h,
+        opacity: relight.darken,
         listening: false,
-      })
-      exportLayer.add(rect)
-    })
+      }))
+    }
+
+    exportLayer.add(new Konva.Image({
+      image: lCanvas,
+      x: item.x,
+      y: item.y,
+      width: w,
+      height: h,
+      globalCompositeOperation: 'overlay',
+      listening: false,
+    }))
   })
 }
 
@@ -483,6 +545,7 @@ const FALLBACK_QUERIES = ['design inspiration', 'mood board', 'creative art', 'v
 const QUERY_NOISE_WORDS = new Set(['untitled', 'image', 'photo', 'picture', 'file', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'background', 'wallpaper', 'hd', 'ultra', 'and', 'the', 'this', 'that', 'with', 'from', 'led', 'artstation', 'deviantart', 'pinterest', 'gettyimages', 'shutterstock', 'vecteezy', 'freepik', '2000', '3000', '1920', '1080', '4k', '8k'])
 
 const getExternalBrowseQuery = (query, signals = [], seed = 0) => {
+const CANCELED = {}
   const directQuery = normalizeSearchText(query)
   if (directQuery) return directQuery
   const tokenCounts = new Map()
@@ -512,7 +575,7 @@ const hashStr = (s) => {
 
 const normalizeAssetContextSignals = (signals = []) => (
   Array.isArray(signals)
-    ? signals.slice(0, 8).map((signal) => ({
+    ? signals.slice(0, 5).map((signal) => ({
       key: signal.key || `${signal.mediaId || signal.imageKey || signal.postId || 'asset'}-${Date.now()}`,
       mediaId: signal.mediaId || null,
       postId: signal.postId || null,
@@ -1506,6 +1569,7 @@ function Workspace() {
   const [workspaceTitle, setWorkspaceTitle] = useState(initialProject.name)
   const shouldLoadWorkspace = !!workspaceId
   const [isWorkspaceLoading, setIsWorkspaceLoading] = useState(shouldLoadWorkspace)
+  const [loadingPhase, setLoadingPhase] = useState('loading')
   const [workspaceError, setWorkspaceError] = useState('')
   const [saveStatus, setSaveStatus] = useState('')
   const [assetDeleteTarget, setAssetDeleteTarget] = useState(null)
@@ -1606,6 +1670,7 @@ function Workspace() {
     return result + ' Z'
   }
   const [isRemoveBgProcessing, setIsRemoveBgProcessing] = useState(false)
+  const removeBgCancelRef = useRef(false)
   const [removeBgProgress, setRemoveBgProgress] = useState(null)
   const [activeToolCard, setActiveToolCard] = useState(null)
   const warpStateRef = useRef(null)
@@ -1629,6 +1694,7 @@ function Workspace() {
   const viewportRef = useRef(null)
   const textEditorRef = useRef(null)
   const inlineTextEditorRef = useRef(null)
+  const richTextEditorRef = useRef(null)
   const skipInlineTextBlurRef = useRef(false)
   const transformerRef = useRef(null)
   const itemCounterRef = useRef(initialProject.imageSrc ? 1 : (initialProject.id ? 0 : initialItems.length))
@@ -1815,7 +1881,7 @@ function Workspace() {
     })) : []
     const restoredAssetContextSignals = Array.isArray(snapshot.browseAssetContext) && snapshot.browseAssetContext.length > 0
       ? normalizeAssetContextSignals(snapshot.browseAssetContext)
-      : restoredItems.filter((item) => item.kind === 'image').slice(0, 8).map((item) => {
+      : restoredItems.filter((item) => item.kind === 'image').slice(0, 5).map((item) => {
         const rawFilename = item.src?.split('/').pop()?.split('?')[0]?.replace(/\.[^/.]+$/, '') || ''
         const isUuidFilename = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawFilename)
         const meaningfulFilename = isUuidFilename ? '' : rawFilename.replace(/_/g, ' ')
@@ -2155,7 +2221,7 @@ function Workspace() {
         item.postId !== signal.postId ||
         item.boardId !== signal.boardId
       )),
-    ].slice(0, 8))
+    ].slice(0, 5))
   }, [])
 
   const logCanvasDropInterest = useCallback((asset) => {
@@ -2362,6 +2428,7 @@ function Workspace() {
     }
 
     setIsWorkspaceLoading(true)
+    setLoadingPhase('loading')
     setWorkspaceError('')
 
     getWorkspace(workspaceId)
@@ -2385,6 +2452,74 @@ function Workspace() {
   }, [isAuthenticated, isAuthLoading, requireAuth, restoreWorkspaceSnapshot, shouldLoadWorkspace, workspaceId])
 
   useEffect(() => {
+    if (!isWorkspaceLoading && shouldLoadWorkspace && loadingPhase === 'loading') {
+      setLoadingPhase('analyzing')
+      let alive = true
+
+      const run = async () => {
+        const start = Date.now()
+
+        const q = assetSearchQuery.trim()
+        const query = getExternalBrowseQuery(q, assetContextSignals, browseShuffleSeed)
+        const visualIds = !q
+          ? assetContextSignals
+            .map((s) => s.mediaId)
+            .filter((id) => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+            .join(',')
+          : ''
+
+        const clipWarm = Promise.race([
+          searchExternalImages({
+            q: query, limit: 1, visualSimilarTo: visualIds, context: 'browse_asset', seed: browseShuffleSeed,
+          }).catch(() => {}),
+          new Promise((r) => setTimeout(r, 3000)),
+        ])
+
+        const onnxWarm = Promise.race([
+          import('@imgly/background-removal').then((mod) => {
+            if (!alive) return
+            const c = document.createElement('canvas')
+            c.width = 32
+            c.height = 32
+            c.getContext('2d')?.fillRect(0, 0, 32, 32)
+            return new Promise((resolve) => {
+              c.toBlob((blob) => {
+                if (!blob || !alive) { resolve(); return }
+                mod.removeBackground(blob, { model: 'medium', progress: () => {} })
+                  .catch(() => {}).finally(() => resolve())
+              })
+            })
+          }).catch(() => {}),
+          new Promise((r) => setTimeout(r, 5000)),
+        ])
+
+        await Promise.all([clipWarm, onnxWarm])
+
+        if (!alive) return
+
+        const elapsed = Date.now() - start
+        const minDisplay = 300
+        if (elapsed < minDisplay) {
+          await new Promise((r) => setTimeout(r, minDisplay - elapsed))
+        }
+
+        if (!alive) return
+        setLoadingPhase('preparing')
+        await new Promise((r) => setTimeout(r, 200))
+        if (!alive) return
+        setLoadingPhase('done')
+      }
+
+      run()
+
+      return () => { alive = false }
+    }
+    // loadingPhase sengaja gak di-depend biar cleanup cuma jalan pas unmount,
+    // bukan pas setLoadingPhase('analyzing') trigger re-render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWorkspaceLoading, shouldLoadWorkspace, assetSearchQuery, assetContextSignals, browseShuffleSeed])
+
+  useEffect(() => {
     if (selectedItem?.kind !== 'text') return
 
     textEditorRef.current?.focus()
@@ -2394,9 +2529,14 @@ function Workspace() {
   useEffect(() => {
     if (!editingText) return
 
+    const item = itemsRef.current.find((current) => current.id === editingText.id)
     requestAnimationFrame(() => {
-      inlineTextEditorRef.current?.focus()
-      inlineTextEditorRef.current?.select()
+      if (item?.kind === 'shape') {
+        inlineTextEditorRef.current?.focus()
+        inlineTextEditorRef.current?.select()
+      } else {
+        richTextEditorRef.current?.focus()
+      }
     })
   }, [editingText?.id])
 
@@ -2498,7 +2638,7 @@ function Workspace() {
           filterItem: () => true,
         })
       }
-      addRelightOverlayClones({ items, exportLayer })
+      addRelightOverlayClones({ stage, items, exportLayer })
 
       exportLayer.draw()
 
@@ -2633,7 +2773,7 @@ function Workspace() {
           filterItem: () => true,
         })
       }
-      addRelightOverlayClones({ items, exportLayer })
+      addRelightOverlayClones({ stage, items, exportLayer })
 
       exportLayer.draw()
 
@@ -3045,7 +3185,7 @@ function Workspace() {
   }, [camera.scale, canvasSettings.height, canvasSettings.width, viewportSize.height, viewportSize.width])
 
   useLayoutEffect(() => {
-    if (hasCenteredCameraRef.current || isWorkspaceLoading || (shouldLoadWorkspace && !hasRestoredWorkspaceRef.current)) return undefined
+    if (hasCenteredCameraRef.current || isWorkspaceLoading || loadingPhase !== 'done' || (shouldLoadWorkspace && !hasRestoredWorkspaceRef.current)) return undefined
 
     let firstFrame = 0
     let secondFrame = 0
@@ -3060,16 +3200,6 @@ function Workspace() {
         if (!actualViewport.width || !actualViewport.height) return
 
         const centeredCamera = getCenteredCamera(actualViewport)
-
-        console.log({
-          viewportWidth: actualViewport.width,
-          viewportHeight: actualViewport.height,
-          canvasWidth: canvasSettings.width,
-          canvasHeight: canvasSettings.height,
-          cameraX: centeredCamera.x,
-          cameraY: centeredCamera.y,
-        })
-
         hasCenteredCameraRef.current = true
         prevViewportWidthRef.current = actualViewport.width
         targetCameraRef.current = centeredCamera
@@ -3089,6 +3219,7 @@ function Workspace() {
     canvasSettings.width,
     getCenteredCamera,
     isWorkspaceLoading,
+    loadingPhase,
     shouldLoadWorkspace,
     viewportSize.height,
     viewportSize.width,
@@ -4777,8 +4908,9 @@ const attachTransformer = useCallback((idOrIds) => {
     if (!selectedItem || selectedItem.kind !== 'image') return
     const patch = {
       relight: {
-        lightA: { offsetX: -selectedItem.w * 0.3, offsetY: -selectedItem.h * 0.3, color: '#ff6b35' },
-        lightB: { offsetX: selectedItem.w * 0.3, offsetY: selectedItem.h * 0.3, color: '#4488ff' },
+        lightA: { offsetX: -selectedItem.w * 0.3, offsetY: -selectedItem.h * 0.3, color: '#ff6b35', intensity: 1 },
+        lightB: { offsetX: selectedItem.w * 0.3, offsetY: selectedItem.h * 0.3, color: '#4488ff', intensity: 1 },
+        darken: 0,
       },
     }
     updateItem(selectedItem.id, patch)
@@ -4791,6 +4923,11 @@ const attachTransformer = useCallback((idOrIds) => {
     updateItem(selectedItem.id, { relight: next })
   }
 
+  const handleUpdateDarken = (value) => {
+    if (!selectedItem?.relight) return
+    updateItem(selectedItem.id, { relight: { ...selectedItem.relight, darken: value } })
+  }
+
   const deactivateRelight = () => {
     if (selectedItem?.relight) {
       updateItem(selectedItem.id, { relight: null })
@@ -4798,17 +4935,135 @@ const attachTransformer = useCallback((idOrIds) => {
     setRelightActive(false)
   }
 
+  const handleApplyRelight = async () => {
+    const item = selectedItem
+    if (!item || !item.relight) return
+    const relight = item.relight
+
+    let img
+    try {
+      img = await new Promise((resolve, reject) => {
+        const el = new Image()
+        el.crossOrigin = 'anonymous'
+        el.onload = () => resolve(el)
+        el.onerror = reject
+        el.src = item.src
+      })
+    } catch {
+      return
+    }
+
+    const natW = img.naturalWidth
+    const natH = img.naturalHeight
+    const scaleX = natW / item.w
+    const scaleY = natH / item.h
+    const cx = natW / 2
+    const cy = natH / 2
+    const maxR = Math.max(natW, natH) * 0.7
+
+    // Light overlay canvas (colored gradients at native resolution)
+    const lCanvas = document.createElement('canvas')
+    lCanvas.width = natW
+    lCanvas.height = natH
+    const lctx = lCanvas.getContext('2d')
+    for (const key of ['lightA', 'lightB']) {
+      const light = relight[key]
+      const localX = cx + light.offsetX * scaleX
+      const localY = cy + light.offsetY * scaleY
+      const gradient = lctx.createRadialGradient(localX, localY, 0, localX, localY, maxR)
+      gradient.addColorStop(0, light.color)
+      gradient.addColorStop(0.5, light.color + '99')
+      gradient.addColorStop(1, 'transparent')
+      lctx.globalAlpha = light.intensity ?? 1
+      lctx.fillStyle = gradient
+      lctx.fillRect(0, 0, natW, natH)
+    }
+    lctx.globalCompositeOperation = 'destination-in'
+    lctx.globalAlpha = 1
+    lctx.drawImage(img, 0, 0, natW, natH)
+
+    // Shadow mask canvas
+    let sCanvas = null
+    if (relight.darken > 0) {
+      sCanvas = document.createElement('canvas')
+      sCanvas.width = natW
+      sCanvas.height = natH
+      const sctx = sCanvas.getContext('2d')
+      sctx.fillStyle = 'black'
+      sctx.fillRect(0, 0, natW, natH)
+      sctx.globalCompositeOperation = 'destination-out'
+      for (const key of ['lightA', 'lightB']) {
+        const light = relight[key]
+        const localX = cx + light.offsetX * scaleX
+        const localY = cy + light.offsetY * scaleY
+        const gradient = sctx.createRadialGradient(localX, localY, 0, localX, localY, maxR)
+        gradient.addColorStop(0, 'white')
+        gradient.addColorStop(0.5, 'white')
+        gradient.addColorStop(1, 'transparent')
+        sctx.globalAlpha = light.intensity ?? 1
+        sctx.fillStyle = gradient
+        sctx.fillRect(0, 0, natW, natH)
+      }
+      sctx.globalCompositeOperation = 'destination-in'
+      sctx.globalAlpha = 1
+      sctx.drawImage(img, 0, 0, natW, natH)
+    }
+
+    // Final composite
+    const canvas = document.createElement('canvas')
+    canvas.width = natW
+    canvas.height = natH
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0, natW, natH)
+    if (sCanvas) {
+      ctx.globalAlpha = relight.darken
+      ctx.drawImage(sCanvas, 0, 0)
+      ctx.globalAlpha = 1
+    }
+    ctx.globalCompositeOperation = 'overlay'
+    ctx.drawImage(lCanvas, 0, 0)
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+    if (!blob) return
+    const localUrl = URL.createObjectURL(blob)
+
+    updateItem(item.id, { src: localUrl, relight: null })
+
+    const file = new File([blob], `relight-${Date.now()}.png`, { type: 'image/png' })
+    uploadMediaFile({ file, addToUploads: false }).then((uploaded) => {
+      const url = uploaded?.media?.url
+      if (url) {
+        URL.revokeObjectURL(localUrl)
+        updateItem(item.id, { src: url })
+      }
+    }).catch(() => {})
+
+    setRelightActive(false)
+    setActiveToolCard(null)
+  }
+
+  const handleCancelRemoveBg = useCallback(() => {
+    removeBgCancelRef.current = true
+    setIsRemoveBgProcessing(false)
+    setRemoveBgProgress(null)
+  }, [])
+
   const processRemoveBg = async () => {
     if (!selectedItem || selectedItem.kind !== 'image') return
     setIsRemoveBgProcessing(true)
+    removeBgCancelRef.current = false
     setRemoveBgProgress({ phase: 'loading model', current: 0, total: 0 })
     try {
       const { removeBackground } = await import('@imgly/background-removal')
+      if (removeBgCancelRef.current) throw CANCELED
       const imgRes = await fetch(selectedItem.src)
+      if (removeBgCancelRef.current) throw CANCELED
       const imgBlob = await imgRes.blob()
+      if (removeBgCancelRef.current) throw CANCELED
       setRemoveBgProgress({ phase: 'processing', current: 0, total: 1 })
       const resultBlob = await removeBackground(imgBlob, {
         progress: (key, current, total) => {
+          if (removeBgCancelRef.current) return
           if (key === 'model') {
             setRemoveBgProgress({ phase: 'loading model', current, total })
           } else if (key === 'inference') {
@@ -4818,10 +5073,14 @@ const attachTransformer = useCallback((idOrIds) => {
         model: 'medium',
       })
 
+      if (removeBgCancelRef.current) throw CANCELED
+
       // Upload result to server so the URL persists across reloads
       setRemoveBgProgress({ phase: 'uploading', current: 0, total: 100 })
       const file = new File([resultBlob], `remove-bg-${Date.now()}.png`, { type: 'image/png' })
+      if (removeBgCancelRef.current) throw CANCELED
       const dims = await getImageDimensions(file)
+      if (removeBgCancelRef.current) throw CANCELED
       const uploaded = await uploadMediaFile({
         file,
         width: dims.width,
@@ -4831,10 +5090,11 @@ const attachTransformer = useCallback((idOrIds) => {
       })
 
       const url = uploaded.media.url
+      if (removeBgCancelRef.current) throw CANCELED
       const newItem = { ...selectedItem, id: `image-${Date.now()}`, x: selectedItem.x + 30, y: selectedItem.y + 30, src: url }
       setItems((items) => [newItem, ...items])
     } catch (error) {
-      console.error('Remove background failed:', error)
+      if (error !== CANCELED) console.error('Remove background failed:', error)
     } finally {
       setIsRemoveBgProcessing(false)
       setRemoveBgProgress(null)
@@ -5681,7 +5941,7 @@ const attachTransformer = useCallback((idOrIds) => {
     const nextItem = asset.type === 'image'
       ? { ...base, kind: 'image', src: asset.source, radius: 0, aspectRatio: imageSize.aspectRatio, lockAspectRatio: true, mediaId: asset.mediaId || null, sourceType: asset.sourceType || null, title: asset.title || '', tags: asset.tags || [] }
       : asset.type === 'text'
-        ? { ...base, kind: 'text', text: asset.text, fontSize: 72, fill: '#2b2830', isBold: true, isItalic: false, isUnderline: false, fontFamily: 'Inter, Arial' }
+        ? { ...base, kind: 'text', text: asset.text, fontSize: 72, fill: '#2b2830', isBold: true, isItalic: false, isUnderline: false, fontFamily: 'Inter, Arial', runs: [{ text: asset.text, bold: true, italic: false, underline: false }] }
         : { ...base, kind: 'note', text: asset.text, fill: '#f5d56b' }
 
     return nextItem
@@ -6039,6 +6299,7 @@ const attachTransformer = useCallback((idOrIds) => {
       isItalic,
       isUnderline: false,
       fill: '#2b2830',
+      runs: [{ text, bold: isBold, italic: isItalic, underline: false }],
       effects: getDefaultEffects(),
     }
 
@@ -6536,7 +6797,17 @@ if (item?.kind === 'image') {
       if (item.h < minH) patch.h = minH
       updateItem(editingText.id, patch)
     } else {
-      updateItem(editingText.id, { text: editingText.value })
+      const editor = richTextEditorRef.current
+      if (editor) {
+        const runs = editor.getRuns()
+        const text = runsToText(runs)
+        const globalBold = runs.length > 0 && runs.every((r) => r.bold)
+        const globalItalic = runs.length > 0 && runs.every((r) => r.italic)
+        const globalUnderline = runs.length > 0 && runs.every((r) => r.underline)
+        updateItem(editingText.id, { runs, text, isBold: globalBold, isItalic: globalItalic, isUnderline: globalUnderline })
+      } else {
+        updateItem(editingText.id, { text: editingText.value || '' })
+      }
     }
 
     setEditingText(null)
@@ -6659,7 +6930,11 @@ if (item?.kind === 'image') {
     if (!item || !['text', 'shape'].includes(item.kind)) return
 
     selectItem(id)
-    setEditingText({ id, value: item.kind === 'shape' ? (item.shapeText || '') : item.text })
+    if (item.kind === 'shape') {
+      setEditingText({ id, value: item.shapeText || '' })
+    } else {
+      setEditingText({ id })
+    }
     attachTransformer(null)
   }
 
@@ -8177,6 +8452,7 @@ const toggleMobileSheetSize = () => {
           isProcessing={isRemoveBgProcessing}
           progress={removeBgProgress}
           onProcess={processRemoveBg}
+          onCancel={handleCancelRemoveBg}
           onBack={() => setActiveToolCard(null)}
         />
       )
@@ -8200,8 +8476,9 @@ const toggleMobileSheetSize = () => {
           relightState={selectedItem?.relight || null}
           onActivate={activateRelight}
           onUpdateLight={updateRelightLight}
+          onUpdateDarken={handleUpdateDarken}
           onDeactivate={deactivateRelight}
-          onApply={() => setActiveToolCard(null)}
+          onApply={handleApplyRelight}
           onBack={() => { setActiveToolCard(null); deactivateRelight() }}
         />
       )
@@ -9185,7 +9462,16 @@ const toggleMobileSheetSize = () => {
               <textarea
                 ref={textEditorRef}
                 value={selectedItem.text}
-                onChange={(event) => updateItem(selectedItem.id, { text: event.target.value })}
+                onChange={(event) => {
+                  const val = event.target.value
+                  const runs = getRuns(selectedItem)
+                  if (runs.length === 1) {
+                    runs[0].text = val
+                    updateItem(selectedItem.id, { text: val, runs })
+                  } else {
+                    updateItem(selectedItem.id, { text: val, runs: [{ text: val, bold: selectedItem.isBold || false, italic: selectedItem.isItalic || false, underline: selectedItem.isUnderline || false }] })
+                  }
+                }}
               />
             </label>
 
@@ -9331,7 +9617,13 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-style-btn ${selectedItem.isBold ? 'active' : ''}`}
-                  onClick={() => updateItem(selectedItem.id, { isBold: !selectedItem.isBold })}
+                  onClick={() => {
+                    if (editingText && richTextEditorRef.current) {
+                      richTextEditorRef.current.formatBold()
+                    } else {
+                      updateItem(selectedItem.id, { isBold: !selectedItem.isBold })
+                    }
+                  }}
                   title="Bold"
                 >
                   <Bold size={16} />
@@ -9339,7 +9631,13 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-style-btn ${selectedItem.isItalic ? 'active' : ''}`}
-                  onClick={() => updateItem(selectedItem.id, { isItalic: !selectedItem.isItalic })}
+                  onClick={() => {
+                    if (editingText && richTextEditorRef.current) {
+                      richTextEditorRef.current.formatItalic()
+                    } else {
+                      updateItem(selectedItem.id, { isItalic: !selectedItem.isItalic })
+                    }
+                  }}
                   title="Italic"
                 >
                   <Italic size={16} />
@@ -9347,7 +9645,13 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-style-btn ${selectedItem.isUnderline ? 'active' : ''}`}
-                  onClick={() => updateItem(selectedItem.id, { isUnderline: !selectedItem.isUnderline })}
+                  onClick={() => {
+                    if (editingText && richTextEditorRef.current) {
+                      richTextEditorRef.current.formatUnderline()
+                    } else {
+                      updateItem(selectedItem.id, { isUnderline: !selectedItem.isUnderline })
+                    }
+                  }}
                   title="Underline"
                 >
                   <Underline size={16} />
@@ -10317,10 +10621,15 @@ const toggleMobileSheetSize = () => {
     })
   }
 
-  if (isWorkspaceLoading || (shouldLoadWorkspace && isAuthLoading)) {
+  if (isWorkspaceLoading || (shouldLoadWorkspace && isAuthLoading) || (shouldLoadWorkspace && loadingPhase !== 'done')) {
+    const phaseInfo = isWorkspaceLoading
+      ? { num: '1/3', text: 'Memuat workspace' }
+      : loadingPhase === 'analyzing'
+        ? { num: '2/3', text: 'Menganalisa visual dan text' }
+        : { num: '3/3', text: 'Menyiapkan canvas' }
     return (
       <section className="workspace-page workspace-loading-state">
-        <div className="workspace-loading-card">Memuat workspace...</div>
+        <div className="workspace-loading-card"><span className="loading-phase-num">({phaseInfo.num})</span> {phaseInfo.text}<span className="loading-dots" /></div>
       </section>
     )
   }
@@ -11189,6 +11498,9 @@ const toggleMobileSheetSize = () => {
                   </Group>
                 </Group>
               )}
+{isRemoveBgProcessing && selectedItem?.kind === 'image' && (
+  <RemoveBgOverlay item={selectedItem} />
+)}
 {items.filter((i) => i.relight).map((item) => (
   item.id === selectedItem?.id && relightActive ? (
     <RelightBalls
@@ -11255,7 +11567,7 @@ const toggleMobileSheetSize = () => {
           </div>
         )}
 
-        {editingText && inlineTextEditorStyle && (
+        {editingText && inlineTextEditorStyle && editingTextItem?.kind === 'shape' && (
           <textarea
             key={editingText.id}
             ref={inlineTextEditorRef}
@@ -11283,6 +11595,26 @@ const toggleMobileSheetSize = () => {
                 event.preventDefault()
                 finishTextEditing()
               }
+            }}
+          />
+        )}
+        {editingText && inlineTextEditorStyle && editingTextItem?.kind === 'text' && (
+          <RichTextEditor
+            ref={richTextEditorRef}
+            item={editingTextItem}
+            style={inlineTextEditorStyle}
+            onCommit={(runs) => {
+              if (!editingText) return
+              const text = runsToText(runs)
+              const globalBold = runs.length > 0 && runs.every((r) => r.bold)
+              const globalItalic = runs.length > 0 && runs.every((r) => r.italic)
+              const globalUnderline = runs.length > 0 && runs.every((r) => r.underline)
+              updateItem(editingText.id, { runs, text, isBold: globalBold, isItalic: globalItalic, isUnderline: globalUnderline })
+              setEditingText(null)
+              requestAnimationFrame(() => attachTransformer(editingText.id))
+            }}
+            onCancel={() => {
+              cancelTextEditing()
             }}
           />
         )}

@@ -15,6 +15,10 @@ export const ADJUSTMENT_RESTRICTED_EFFECTS = new Set([
 export const EFFECTS = [
   // ── Phase 1: Simple (Konva built-in / Canvas 2D) ──
   { id: 'invert', label: 'Invert', category: 'color', type: 'toggle', default: false, icon: 'CircleOff' },
+  { id: 'threshold', label: 'Threshold', category: 'color', type: 'object', default: null, icon: 'Contrast', params: [
+    { key: 'threshold', label: 'Threshold', type: 'slider', default: 128, min: 0, max: 255 },
+    { key: 'invert', label: 'Invert', type: 'toggle', default: false },
+  ]},
   { id: 'grayscale', label: 'Grayscale', category: 'color', type: 'toggle', default: false, icon: 'Contrast' },
   { id: 'sepia', label: 'Sepia', category: 'color', type: 'toggle', default: false, icon: 'Palette' },
   { id: 'solarize', label: 'Solarize', category: 'color', type: 'toggle', default: false, icon: 'Sun' },
@@ -24,6 +28,14 @@ export const EFFECTS = [
   ]},
   { id: 'pixelate', label: 'Pixelate', category: 'stylize', type: 'slider', default: 0, icon: 'Grid', min: 0, max: 20 },
   { id: 'gaussianBlur', label: 'Gaussian Blur', category: 'blur', type: 'slider', default: 0, icon: 'Droplets', min: 0, max: 20, unit: 'px' },
+  { id: 'feather', label: 'Feather', category: 'blur', type: 'slider', default: 0, icon: 'Feather', min: 0, max: 1, step: 0.01 },
+  { id: 'maskFade', label: 'Mask Fade', category: 'stylize', type: 'object', default: null, icon: 'Circle', params: [
+    { key: 'size', label: 'Size', type: 'slider', default: 1, min: 0.1, max: 1, step: 0.01 },
+    { key: 'feather', label: 'Feather', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
+    { key: 'offsetX', label: 'Offset X', type: 'slider', default: 0, min: -1, max: 1, step: 0.01 },
+    { key: 'offsetY', label: 'Offset Y', type: 'slider', default: -0.85, min: -1, max: 1, step: 0.01 },
+    { key: 'rotation', label: 'Rotation', type: 'slider', default: 0, min: 0, max: 360, unit: '°' },
+  ]},
   { id: 'mirror', label: 'Mirror', category: 'transform', type: 'select', default: 'none', icon: 'FlipHorizontal', options: [
     { value: 'none', label: 'None' }, { value: 'h', label: 'Horizontal' }, { value: 'v', label: 'Vertical' }, { value: 'both', label: 'Both' },
   ]},
@@ -84,6 +96,12 @@ export const EFFECTS = [
     { key: 'colorB', label: 'Midtone Color', type: 'color', default: '#888888' },
     { key: 'colorC', label: 'Highlight Color', type: 'color', default: '#ffffff' },
   ]},
+  { id: 'risograph', label: 'Risograph', category: 'stylize', type: 'object', default: null, icon: 'Palette', params: [
+    { key: 'color1', label: 'Color', type: 'color', default: '#2d5a27' },
+    { key: 'paper', label: 'Paper', type: 'color', default: '#f4cfc6' },
+    { key: 'threshold', label: 'Threshold', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
+    { key: 'grain', label: 'Grain', type: 'slider', default: 0.15, min: 0, max: 1, step: 0.01 },
+  ]},
   { id: 'spectralMap', label: 'Spectral Map', category: 'color', type: 'object', default: null, icon: 'Palette', params: [
     { key: 'shadowColor', label: 'Shadow', type: 'color', default: '#000000' },
     { key: 'midColor', label: 'Midtone', type: 'color', default: '#888888' },
@@ -99,6 +117,14 @@ export const EFFECTS = [
     { key: 'invert', label: 'Invert', type: 'toggle', default: false },
     { key: 'color1', label: 'Color 1', type: 'color', default: '#000000' },
     { key: 'color2', label: 'Color 2', type: 'color', default: '#ffffff' },
+  ]},
+  { id: 'dotMatrix', label: 'Dot Matrix', category: 'stylize', type: 'object', default: null, icon: 'Grid', params: [
+    { key: 'tileSize', label: 'Tile Size', type: 'slider', default: 10, min: 2, max: 100 },
+    { key: 'useOriginalColor', label: 'Warna Asli', type: 'toggle', default: true },
+    { key: 'dotColor', label: 'Warna Dot', type: 'color', default: '#00ff00' },
+    { key: 'shape', label: 'Shape', type: 'select', default: 'circle', options: [
+      { value: 'circle', label: 'Bulat' }, { value: 'square', label: 'Persegi' },
+    ]},
   ]},
   { id: 'chromaKey', label: 'Chroma Key', category: 'keying', type: 'object', default: null, icon: 'Layers', params: [
     { key: 'keyColor', label: 'Key Color', type: 'color', default: '#00ff00' },

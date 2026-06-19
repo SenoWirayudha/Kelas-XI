@@ -6,6 +6,7 @@ export default function ToolRemoveBgPanel({
   isProcessing,
   progress,
   onBack,
+  onCancel,
 }) {
   const canProcess = selectedItem?.kind === 'image' && !isProcessing
 
@@ -80,6 +81,14 @@ export default function ToolRemoveBgPanel({
               <p className="panel-hint">Starting...</p>
             </>
           )}
+          <button
+            type="button"
+            className="panel-btn panel-btn-ghost"
+            style={{ marginTop: 8 }}
+            onClick={onCancel}
+          >
+            Batalkan
+          </button>
         </div>
       )}
     </div>
