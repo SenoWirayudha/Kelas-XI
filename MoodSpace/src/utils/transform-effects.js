@@ -370,7 +370,7 @@ export function applyRepeater(node, p, repeatersWeakMap) {
     })
     container.add(clone)
     clone.moveToTop()
-    if ((node.filters() ?? []).length > 0) clone.cache({ pixelRatio: 1 })
+    if ((node.filters() ?? []).length > 0) clone.cache({ pixelRatio: Math.min(window.devicePixelRatio || 1, 2) })
     copies.push(clone)
   }
 

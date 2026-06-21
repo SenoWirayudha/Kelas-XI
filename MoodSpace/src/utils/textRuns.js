@@ -12,13 +12,23 @@ export function escapeHtml(str) {
     .replace(/'/g, '&#039;')
 }
 
-function hexStr(v) {
-  return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')
+function normalizeFontFamily(f) {
+  if (!f) return undefined
+  return f.replace(/^['"]|['"]$/g, '').trim()
 }
 
-/**
- * Get runs from item (backward compat for old flat format).
- */
+function normalizeColor(c) {
+  if (!c) return undefined
+  if (c.startsWith('rgb(') || c.startsWith('rgba(')) {
+    const m = c.match(/([\d.]+)/g)
+    if (m) {
+      const r = parseInt(m[0]), g = parseInt(m[1]), b = parseInt(m[2])
+      return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')
+    }
+  }
+  return c
+}
+
 export function getRuns(item) {
   if (item.runs && item.runs.length > 0) return item.runs
   if (!item.text && item.text !== '') return [{ text: '', bold: false, italic: false, underline: false }]
@@ -33,63 +43,58 @@ export function getRuns(item) {
   }]
 }
 
-/**
- * Convert runs to plain text.
- */
 export function runsToText(runs) {
   return runs.map((r) => r.text).join('')
 }
 
-/**
- * Convert runs to HTML for contenteditable.
- * Uses <b>, <i>, <u> tags — simple and consistent with execCommand.
- */
-export function runsToHtml(runs) {
+export function runsToHtml(runs, baseFontFamily, baseFill) {
   return runs.map((run) => {
     let t = escapeHtml(run.text)
+    const styles = []
+    if (run.fontFamily && run.fontFamily !== baseFontFamily) styles.push(`font-family:${run.fontFamily}`)
+    if (run.fill && run.fill !== baseFill) styles.push(`color:${run.fill}`)
     if (run.bold) t = `<b>${t}</b>`
     if (run.italic) t = `<i>${t}</i>`
     if (run.underline) t = `<u>${t}</u>`
+    if (styles.length) t = `<span style="${styles.join(';')}">${t}</span>`
     return t
   }).join('')
 }
 
-/**
- * Parse HTML from contenteditable back to runs.
- * Handles <b>, <i>, <u>, <strong>, <em> tags.
- */
 export function htmlToRuns(html) {
   const div = document.createElement('div')
   div.innerHTML = html
   const runs = []
-  walkTextNodes(div, (text, tags) => {
+  walkTextNodes(div, (text, tags, styles) => {
     if (!text) return
     runs.push({
       text,
       bold: tags.has('b') || tags.has('strong'),
       italic: tags.has('i') || tags.has('em'),
       underline: tags.has('u'),
+      fontFamily: normalizeFontFamily(styles.fontFamily),
+      fill: normalizeColor(styles.color),
     })
   })
   return normalizeRuns(runs)
 }
 
-function walkTextNodes(node, fn, inheritedTags = new Set()) {
+function walkTextNodes(node, fn, inheritedTags = new Set(), inheritedStyles = {}) {
   if (node.nodeType === 3) {
-    fn(node.textContent || '', new Set(inheritedTags))
+    fn(node.textContent || '', new Set(inheritedTags), { ...inheritedStyles })
     return
   }
   const tag = node.nodeName?.toLowerCase?.()
   const newTags = new Set(inheritedTags)
+  const newStyles = { ...inheritedStyles }
   if (['b', 'strong', 'i', 'em', 'u'].includes(tag)) newTags.add(tag)
+  if (node.style?.fontFamily) newStyles.fontFamily = node.style.fontFamily
+  if (node.style?.color) newStyles.color = node.style.color
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    walkTextNodes(child, fn, newTags)
+    walkTextNodes(child, fn, newTags, newStyles)
   }
 }
 
-/**
- * Normalize runs — merge adjacent runs with identical formatting.
- */
 export function normalizeRuns(runs) {
   if (!runs.length) return runs
   const out = [{
@@ -97,11 +102,15 @@ export function normalizeRuns(runs) {
     bold: !!runs[0].bold,
     italic: !!runs[0].italic,
     underline: !!runs[0].underline,
+    fontFamily: runs[0].fontFamily || undefined,
+    fill: runs[0].fill || undefined,
   }]
   for (let i = 1; i < runs.length; i++) {
     const prev = out[out.length - 1]
     const cur = runs[i]
-    if (prev.bold === !!cur.bold && prev.italic === !!cur.italic && prev.underline === !!cur.underline) {
+    if (prev.bold === !!cur.bold && prev.italic === !!cur.italic && prev.underline === !!cur.underline &&
+        (prev.fontFamily || undefined) === (cur.fontFamily || undefined) &&
+        (prev.fill || undefined) === (cur.fill || undefined)) {
       prev.text += (cur.text || '')
     } else {
       out.push({
@@ -109,16 +118,14 @@ export function normalizeRuns(runs) {
         bold: !!cur.bold,
         italic: !!cur.italic,
         underline: !!cur.underline,
+        fontFamily: cur.fontFamily || undefined,
+        fill: cur.fill || undefined,
       })
     }
   }
   return out
 }
 
-/**
- * Apply format toggle to a range within runs.
- * Splits runs at start/end offset, toggles format on middle segment, returns new runs.
- */
 export function applyFormatToRange(runs, startOffset, endOffset, changes) {
   if (startOffset === endOffset || startOffset < 0 || endOffset <= startOffset) return runs
   let pos = 0
@@ -133,30 +140,41 @@ export function applyFormatToRange(runs, startOffset, endOffset, changes) {
       const before = run.text.slice(0, Math.max(0, startOffset - pos))
       const mid = run.text.slice(Math.max(0, startOffset - pos), Math.min(runLen, endOffset - pos))
       const after = run.text.slice(Math.min(runLen, endOffset - pos))
-      if (before) result.push({ text: before, bold: run.bold, italic: run.italic, underline: run.underline })
-      if (mid) result.push({ text: mid, ...Object.keys(changes).reduce((o, k) => { o[k] = changes[k]; return o }, {}), bold: changes.bold !== undefined ? changes.bold : run.bold, italic: changes.italic !== undefined ? changes.italic : run.italic, underline: changes.underline !== undefined ? changes.underline : run.underline })
-      if (after) result.push({ text: after, bold: run.bold, italic: run.italic, underline: run.underline })
+      const pushRun = (text, base, applyChanges) => {
+        if (!text) return
+        const r = { ...base, text }
+        if (applyChanges) {
+          for (const k of Object.keys(changes)) r[k] = changes[k] !== undefined ? changes[k] : base[k]
+        }
+        result.push(r)
+      }
+      pushRun(before, run, false)
+      pushRun(mid, run, true)
+      pushRun(after, run, false)
     }
     pos += runLen
   }
   return normalizeRuns(result)
 }
 
-/**
- * Get the global format of all runs.
- * Returns { bold, italic, underline } if all runs share the same value, or null if mixed.
- */
 export function getGlobalFormat(runs) {
   if (!runs.length) return { bold: false, italic: false, underline: false }
   const first = runs[0]
-  const allSame = runs.every((r) => r.bold === first.bold && r.italic === first.italic && r.underline === first.underline)
-  if (allSame) return { bold: !!first.bold, italic: !!first.italic, underline: !!first.underline }
+  const allSame = runs.every((r) =>
+    r.bold === first.bold && r.italic === first.italic && r.underline === first.underline &&
+    (r.fontFamily || undefined) === (first.fontFamily || undefined) &&
+    (r.fill || undefined) === (first.fill || undefined)
+  )
+  if (allSame) return {
+    bold: !!first.bold,
+    italic: !!first.italic,
+    underline: !!first.underline,
+    fontFamily: first.fontFamily || undefined,
+    fill: first.fill || undefined,
+  }
   return null
 }
 
-/**
- * Toggle format on all runs.
- */
 export function toggleFormatAll(runs, key) {
   if (!runs.length) return runs
   const newVal = !runs[0][key]

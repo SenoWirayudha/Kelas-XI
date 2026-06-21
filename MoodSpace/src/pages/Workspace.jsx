@@ -1310,7 +1310,7 @@ function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect,
         y: 0,
         width: canvasSize.width,
         height: canvasSize.height,
-        pixelRatio: 1,
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
       })
       node.getLayer()?.batchDraw()
     }
@@ -7906,7 +7906,14 @@ const toggleMobileSheetSize = () => {
                           imageStrokeWidth: selectedItem.imageStrokeWidth || 3,
                         })
                       } else if (isFillTarget) {
-                        updateItem(selectedItem.id, { fill: event.target.value })
+                        if (editingText && selectedItem.kind === 'text' && richTextEditorRef.current) {
+                          richTextEditorRef.current.formatColor(event.target.value)
+                        } else {
+                          const color = event.target.value
+                          const runs = getRuns(selectedItem)
+                          const newRuns = runs.map(r => ({ ...r, fill: color }))
+                          updateItem(selectedItem.id, { fill: color, runs: newRuns })
+                        }
                       } else {
                         updateItem(selectedItem.id, {
                           stroke: event.target.value,
@@ -8004,7 +8011,13 @@ const toggleMobileSheetSize = () => {
                           imageStrokeWidth: selectedItem.imageStrokeWidth || 3,
                         })
                       } else if (isFillTarget) {
-                        updateItem(selectedItem.id, { fill: color })
+                        if (editingText && selectedItem.kind === 'text' && richTextEditorRef.current) {
+                          richTextEditorRef.current.formatColor(color)
+                        } else {
+                          const runs = getRuns(selectedItem)
+                          const newRuns = runs.map(r => ({ ...r, fill: color }))
+                          updateItem(selectedItem.id, { fill: color, runs: newRuns })
+                        }
                       } else {
                         updateItem(selectedItem.id, {
                           stroke: color,
@@ -8296,7 +8309,13 @@ const toggleMobileSheetSize = () => {
                 setLoadingFont(font.family)
                 try {
                   await preloadFont(font.family)
-                  updateItem(selectedItem.id, { fontFamily: font.family })
+                  if (editingText && editingTextItem?.kind === 'text' && richTextEditorRef.current) {
+                    richTextEditorRef.current.formatFont(font.family)
+                  } else {
+                    const runs = getRuns(selectedItem)
+                    const newRuns = runs.map(r => ({ ...r, fontFamily: font.family }))
+                    updateItem(selectedItem.id, { fontFamily: font.family, runs: newRuns })
+                  }
                 } finally {
                   setLoadingFont(null)
                 }

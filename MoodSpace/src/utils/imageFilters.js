@@ -453,7 +453,7 @@ export const applyImageFilters = (node, item) => {
   }
 
   node.filters([Konva.Filters.MoodSpaceCombined])
-  node.cache({ pixelRatio: 1 })
+  node.cache({ pixelRatio: Math.min(window.devicePixelRatio || 1, 2) })
 }
 
 const ADJUSTMENT_KEYS = [

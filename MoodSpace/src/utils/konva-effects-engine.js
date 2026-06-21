@@ -840,7 +840,21 @@ export class EffectManager {
         continue
       }
       if (id === 'gaussianBlur' && val > 0) {
-        node.blurRadius(val); filterList.push(Konva.Filters.Blur); continue
+        const radius = val
+        addPad(Math.ceil(radius * 5) + 8)
+        filterList.push(function gaussianBlurCanvasFilter(imgData) {
+          const src = document.createElement('canvas')
+          src.width = imgData.width; src.height = imgData.height
+          src.getContext('2d').putImageData(imgData, 0, 0)
+          const dst = document.createElement('canvas')
+          dst.width = src.width; dst.height = src.height
+          const ctx = dst.getContext('2d')
+          ctx.filter = `blur(${radius}px)`
+          ctx.drawImage(src, 0, 0)
+          const out = ctx.getImageData(0, 0, dst.width, dst.height)
+          imgData.data.set(out.data)
+        })
+        continue
       }
       if (id === 'noise' && val) {
         const amount = typeof val === 'number' ? val : (val.amount ?? 0.3)
@@ -1258,11 +1272,12 @@ export class EffectManager {
     // Terapkan semua filter sekaligus
     node.filters(filterList)
     if (filterList.length > 0) {
+      const pr = Math.min(window.devicePixelRatio || 1, 2)
       if (cachePad > 0) {
         const w = node.width(), h = node.height()
-        node.cache({ x: -cachePad, y: -cachePad, width: w + cachePad * 2, height: h + cachePad * 2, pixelRatio: 1 })
+        node.cache({ x: -cachePad, y: -cachePad, width: w + cachePad * 2, height: h + cachePad * 2, pixelRatio: pr })
       } else {
-        node.cache({ pixelRatio: 1 })
+        node.cache({ pixelRatio: pr })
       }
     } else {
       node.clearCache()

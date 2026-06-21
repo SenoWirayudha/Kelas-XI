@@ -1,7 +1,7 @@
 /**
  * RichTextEditor.jsx
  * contenteditable-based rich text editor for canvas text items.
- * Supports bold, italic, underline via document.execCommand.
+ * Supports bold, italic, underline, font family, and color via selection.
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
 import { runsToHtml, htmlToRuns, getRuns } from '../utils/textRuns'
@@ -15,6 +15,26 @@ const RichTextEditor = forwardRef(({ item, onCommit, onCancel, style }, ref) => 
     formatBold() { exec('bold') },
     formatItalic() { exec('italic') },
     formatUnderline() { exec('underline') },
+    formatFont(fontFamily) {
+      const el = editorRef.current
+      if (!el) return
+      el.focus()
+      const sel = window.getSelection()
+      if (!sel || !sel.toString().length) sel?.selectAllChildren(el)
+      document.execCommand('styleWithCSS', true)
+      document.execCommand('fontName', false, fontFamily)
+      el.focus()
+    },
+    formatColor(color) {
+      const el = editorRef.current
+      if (!el) return
+      el.focus()
+      const sel = window.getSelection()
+      if (!sel || !sel.toString().length) sel?.selectAllChildren(el)
+      document.execCommand('styleWithCSS', true)
+      document.execCommand('foreColor', false, color)
+      el.focus()
+    },
     hasSelection() { return window.getSelection()?.toString()?.length > 0 },
     getRuns() { return htmlToRuns(editorRef.current?.innerHTML || '') },
     focus() { editorRef.current?.focus() },
@@ -36,7 +56,7 @@ const RichTextEditor = forwardRef(({ item, onCommit, onCancel, style }, ref) => 
     const el = editorRef.current
     if (el && item) {
       const runs = getRuns(item)
-      el.innerHTML = runsToHtml(runs)
+      el.innerHTML = runsToHtml(runs, item.fontFamily, item.fill)
     }
     committedRef.current = false
   }, [item?.id])
@@ -66,7 +86,7 @@ const RichTextEditor = forwardRef(({ item, onCommit, onCancel, style }, ref) => 
     if (commitTimerRef.current) clearTimeout(commitTimerRef.current)
     commitTimerRef.current = setTimeout(() => {
       const active = document.activeElement
-      if (active && (active.closest('.workspace-style-toolbar') || active.closest('.workspace-text-editor') || active.closest('.workspace-typography-field') || active.closest('.workspace-section-card') || editorRef.current?.contains(active))) {
+      if (active && (active.closest('.workspace-style-toolbar') || active.closest('.workspace-text-editor') || active.closest('.workspace-typography-field') || active.closest('.workspace-section-card') || active.closest('.workspace-right-panel') || editorRef.current?.contains(active))) {
         committedRef.current = false
         return
       }
