@@ -155,19 +155,35 @@ const SHADERS = {
     }`,
 
   rgbSplit: `${HIGH_P}
-    uniform sampler2D uTexture; uniform float uOffset,uAngle,uFalloff,uMode;
+    uniform sampler2D uTexture; uniform float uOffset,uAngle,uMode;
+    uniform vec2 uPadUV, uImgUV;
     varying vec2 vUV;
     void main(){
-      vec2 d=vec2(cos(uAngle),sin(uAngle));
-      float f=mix(1.,length(vUV-.5)*2.,uFalloff);
-      vec2 s=d*uOffset*f;
-      float r=texture2D(uTexture,clamp(vUV+s,0.,1.)).r;
-      float g=texture2D(uTexture,vUV).g;
-      float b=texture2D(uTexture,clamp(vUV-s,0.,1.)).b;
-      float ra=texture2D(uTexture,vUV).a;
-      if(uMode>1.5){r=texture2D(uTexture,clamp(vUV-s,0.,1.)).r;g=texture2D(uTexture,clamp(vUV+s,0.,1.)).g;b=texture2D(uTexture,vUV).b;}
-      else if(uMode>0.5){r=texture2D(uTexture,vUV).r;g=texture2D(uTexture,clamp(vUV-s,0.,1.)).g;b=texture2D(uTexture,clamp(vUV+s,0.,1.)).b;}
-      gl_FragColor=vec4(r,g,b,ra);
+      vec2 dir = vec2(cos(uAngle), sin(uAngle));
+      vec2 shift = dir * uOffset;
+      vec2 center = vUV * uImgUV + uPadUV;
+      vec2 rUV, gUV, bUV;
+      if (uMode < 0.5) {
+        // Mode G: G center, B kiri, R kanan
+        rUV = clamp(vUV - shift, 0., 1.) * uImgUV + uPadUV;
+        gUV = center;
+        bUV = clamp(vUV + shift, 0., 1.) * uImgUV + uPadUV;
+      } else if (uMode < 1.5) {
+        // Mode R: R center, B kiri, G kanan
+        rUV = center;
+        gUV = clamp(vUV - shift, 0., 1.) * uImgUV + uPadUV;
+        bUV = clamp(vUV + shift, 0., 1.) * uImgUV + uPadUV;
+      } else {
+        // Mode B: B center, G kiri, R kanan
+        rUV = clamp(vUV - shift, 0., 1.) * uImgUV + uPadUV;
+        gUV = clamp(vUV + shift, 0., 1.) * uImgUV + uPadUV;
+        bUV = center;
+      }
+      vec4 rS = texture2D(uTexture, rUV);
+      vec4 gS = texture2D(uTexture, gUV);
+      vec4 bS = texture2D(uTexture, bUV);
+      float alpha = uMode < 0.5 ? gS.a : (uMode < 1.5 ? rS.a : bS.a);
+      gl_FragColor = vec4(rS.r, gS.g, bS.b, alpha);
     }`,
 
   zoomBlur: `${HIGH_P}
@@ -896,17 +912,23 @@ export class EffectManager {
         addPad(Math.ceil((p.strength ?? 0.5) * 20)); continue
       }
       if (id === 'rgbSplit' && val) {
+        if (node.getClassName() === 'Image') continue // handled by CanvasImage.jsx with offscreen canvas
         const p = val
+        addPad(Math.min(
+          Math.ceil((p.offset ?? 0.01) * Math.max(node.getAttr('width'), node.getAttr('height'), 200)),
+          150
+        ))
         const modeVal = { g: 0, r: 1, b: 2 }[p.mode ?? 'g'] ?? 0
         filterList.push(function rgbSplitFilter(imgData) {
           webglEngine.processSync(imgData, 'rgbSplit', {
             uOffset: p.offset ?? 0.01,
             uAngle: (p.angle ?? 0) * Math.PI / 180,
-            uFalloff: p.falloff ?? 0.5,
             uMode: modeVal,
+            uPadUV: [0, 0],
+            uImgUV: [1, 1],
           })
         })
-        addPad(Math.ceil((p.offset ?? 0.01) * 200)); continue
+        continue
       }
       if (id === 'zoomBlur' && val) {
         const p = typeof val === 'number' ? { strength: val, centerX: 0.5, centerY: 0.5 } : val
@@ -1272,13 +1294,17 @@ export class EffectManager {
     // Terapkan semua filter sekaligus
     node.filters(filterList)
     if (filterList.length > 0) {
-      const pr = Math.min(window.devicePixelRatio || 1, 2)
-      if (cachePad > 0) {
-        const w = node.width(), h = node.height()
-        node.cache({ x: -cachePad, y: -cachePad, width: w + cachePad * 2, height: h + cachePad * 2, pixelRatio: pr })
-      } else {
-        node.cache({ pixelRatio: pr })
-      }
+      const fontSize = typeof node.fontSize === 'function' ? (node.fontSize() || 0) : 0
+      const pr = Math.min(window.devicePixelRatio || 1, fontSize > 80 ? 1 : 2)
+      const pad = Math.max(cachePad, 2)
+      const clientRect = node.getClientRect({
+        skipTransform: true,
+        skipShadow: true,
+        skipStroke: true,
+      })
+      const w = clientRect.width > 0 ? clientRect.width : (node.getAttr('width') || 100)
+      const h = clientRect.height > 0 ? clientRect.height : (node.getAttr('height') || 100)
+      node.cache({ x: -pad, y: -pad, width: w + pad * 2, height: h + pad * 2, pixelRatio: pr })
     } else {
       node.clearCache()
     }
@@ -1430,7 +1456,7 @@ export class EffectManager {
         continue
       }
       if (id === 'rgbSplit' && val) {
-        const p = val; const modeVal = { g: 0, r: 1, b: 2 }[p.mode ?? 'g'] ?? 0; webglEngine.processSync(imageData, 'rgbSplit', { uOffset: p.offset ?? 0.01, uAngle: (p.angle ?? 0) * Math.PI / 180, uFalloff: p.falloff ?? 0.5, uMode: modeVal })
+        const p = val; const modeVal = { g: 0, r: 1, b: 2 }[p.mode ?? 'g'] ?? 0; webglEngine.processSync(imageData, 'rgbSplit', { uOffset: p.offset ?? 0.01, uAngle: (p.angle ?? 0) * Math.PI / 180, uMode: modeVal, uPadUV: [0, 0], uImgUV: [1, 1] })
         continue
       }
       if (id === 'zoomBlur' && val) {

@@ -76,7 +76,7 @@ const getTextMinWidth = (node, text, fontSize) => {
   return Math.max(24, Math.ceil(widestGlyph + Math.max(4, fontSize * 0.08)))
 }
 
-export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, canvasBounds, getActiveTransformAnchor }) {
+export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, canvasBounds, getActiveTransformAnchor, fontInjectVersion }) {
   const textNodeRef = useRef(null)
   const curveImageRef = useRef(null)
   const multiRunGroupRef = useRef(null)
@@ -90,7 +90,6 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   const displayWidth = dragWidth !== null ? dragWidth : item.w
 
   const runs = useMemo(() => getRuns(item), [item.runs, item.text, item.isBold, item.isItalic, item.isUnderline])
-  console.log('RUNS:', JSON.stringify(runs.map(r => ({ text: r.text, fontFamily: r.fontFamily }))))
   const text = runsToText(runs)
   const isMultiRun = runs.length > 1
 
@@ -120,7 +119,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       if (!cancelled) setFontLoaded(true)
     })
     return () => { cancelled = true }
-  }, [item.fontFamily, runs])
+  }, [item.fontFamily, runs, fontInjectVersion])
 
   useLayoutEffect(() => {
     const node = textNodeRef.current
@@ -137,11 +136,19 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       }
     }
 
-    // Auto-expand height for multi-line text
-    if (fontLoaded && text && text.includes('\n')) {
+    // Auto-expand height for multi-line single-run text
+    if (!isMultiRun && fontLoaded && text && text.includes('\n')) {
       const h = Math.ceil(node.height() || (item.fontSize || 48))
       if (h > (item.h || 0)) {
         onChange({ h })
+      }
+    }
+
+    // Sync height for multi-run text when runs change
+    if (isMultiRun && fontLoaded) {
+      const rh = runsLayoutRef.current.height
+      if (rh && Math.abs(rh - (item.h || 0)) > 2) {
+        onChange({ h: rh })
       }
     }
 
@@ -243,6 +250,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     strokeGradientProps.stroke = item.stroke
   }
 
+  const hasStroke = (item.strokeWidth || 0) > 0 && (item.stroke || item.strokeGradientType)
+
   const textProps = {
     text,
     width: item.w,
@@ -251,8 +260,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     fontStyle,
     textDecoration,
     letterSpacing,
-    lineJoin: 'round',
-    miterLimit: 2,
+    lineJoin: hasStroke ? 'round' : 'miter',
+    miterLimit: hasStroke ? 2 : 10,
     lineHeight: hasEffects ? 1.25 : 0.9,
     wrap: 'word',
     align: item.align || 'center',
@@ -270,55 +279,38 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     const lineHeight = fs * (hasEffects ? 1.25 : 1.2)
     const maxW = Math.max(1, displayWidth || 300)
     const lsp = letterSpacing || 0
-    const measureRun = (t) => {
-      let total = 0
-      for (const c of t) total += ctx.measureText(c).width
-      return Math.max(1, total + lsp * Math.max(0, t.length - 1))
-    }
-    const segments = []  // { x, y, text, w, fontFamily, fontStyle, decoration, fill }
+    const measureRun = (t) => Math.max(1, ctx.measureText(t).width)
+
+    // Expand runs into single-character segments
+    const expanded = []
+    runs.forEach((run, runIdx) => {
+      for (let i = 0; i < run.text.length; i++) {
+        const runFontStyle = [run.bold && 'bold', run.italic && 'italic'].filter(Boolean).join(' ') || 'normal'
+        expanded.push({
+          text: run.text[i],
+          fontFamily: run.fontFamily || item.fontFamily || 'Inter, Arial',
+          fontStyle: runFontStyle,
+          decoration: run.underline ? 'underline' : 'none',
+          fill: run.fill || gradientProps.fill || item.fill || '#2b2830',
+          key: `${runIdx}_${i}`,
+        })
+      }
+    })
+
+    const segments = []
     let x = 0
     let y = 0
-    runs.forEach((run, idx) => {
-      const runFontStyle = [run.bold && 'bold', run.italic && 'italic'].filter(Boolean).join(' ') || 'normal'
-      const runDecoration = run.underline ? 'underline' : 'none'
-      const runFontFamily = run.fontFamily || item.fontFamily || 'Inter, Arial'
-      const runFill = run.fill || gradientProps.fill || item.fill || '#2b2830'
-      ctx.font = `${runFontStyle} ${fs}px ${runFontFamily}`
-
-      let remainingText = run.text
-      let partIdx = 0
-      while (remainingText.length > 0) {
-        const fullW = measureRun(remainingText)
-        if (x + fullW > maxW && x > 0) {
-          y += lineHeight
-          x = 0
-        }
-        if (fullW <= maxW) {
-          segments.push({ x, y, text: remainingText, w: fullW, fontFamily: runFontFamily, fontStyle: runFontStyle, decoration: runDecoration, fill: runFill, key: `${idx}_${partIdx}`, line: y })
-          x += fullW + lsp
-          break
-        }
-        let lo = 1
-        let hi = remainingText.length
-        while (lo < hi) {
-          const mid = Math.ceil((lo + hi) / 2)
-          if (measureRun(remainingText.slice(0, mid)) <= maxW) {
-            lo = mid
-          } else {
-            hi = mid - 1
-          }
-        }
-        const partText = remainingText.slice(0, lo)
-        const partW = measureRun(partText)
-        segments.push({ x, y, text: partText, w: partW, fontFamily: runFontFamily, fontStyle: runFontStyle, decoration: runDecoration, fill: runFill, key: `${idx}_${partIdx}`, line: y })
-        x += partW
-        remainingText = remainingText.slice(lo)
-        partIdx++
+    expanded.forEach((run) => {
+      ctx.font = `${run.fontStyle} ${fs}px ${run.fontFamily}`
+      const charW = measureRun(run.text)
+      if (x + charW > maxW && x > 0) {
         y += lineHeight
         x = 0
       }
+      segments.push({ x, y, text: run.text, w: charW, ...run, line: y })
+      x += charW + lsp
     })
-    const totalH = y + lineHeight + (hasEffects ? fs * 0.4 : 0)
+    const totalH = y + lineHeight
     runsLayoutRef.current = { height: totalH }
 
     // Second pass: center each line
@@ -335,11 +327,11 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       const offset = Math.max(0, (maxW - totalW) / 2)
       line.items.forEach(s => {
         nodes.push(
-          <Text key={s.key} x={s.x + offset} y={s.y} text={s.text} width={s.w + 4}
+          <Text key={s.key} x={s.x + offset} y={s.y} text={s.text} width={s.w + 2}
             fontSize={fs} fontFamily={s.fontFamily} fontStyle={s.fontStyle}
-            textDecoration={s.decoration} fill={s.fill} letterSpacing={letterSpacing}
+            textDecoration={s.decoration} fill={s.fill}
             wrap="none"
-            lineJoin='round' miterLimit={2} perfectDrawEnabled={false} listening={false} />
+            lineJoin={hasStroke ? 'round' : 'miter'} miterLimit={hasStroke ? 2 : 10} perfectDrawEnabled={false} listening={false} />
         )
       })
     })
@@ -349,7 +341,6 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   const textHeight = isMultiRun
     ? (runsLayoutRef.current.height || Math.max(item.h || 1, item.fontSize || 1))
     : Math.max(item.h || 1, item.fontSize || 1)
-  const hasStroke = (item.strokeWidth || 0) > 0 && (item.stroke || item.strokeGradientType)
   const shadowProps = getShadowProps(item)
   const hasShadow = Object.keys(shadowProps).length > 0
 
@@ -416,6 +407,11 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
             }
             groupNode.scaleX(1)
             groupNode.scaleY(1)
+          } else {
+            const start = transformStartRef.current
+            const nextWidth = Math.max(24, (start?.width || item.w) * Math.max(Math.abs(groupNode.scaleX() || 1), Math.abs(groupNode.scaleY() || 1)))
+            multiRunLastWidthRef.current = nextWidth
+            setDragWidth(nextWidth)
           }
           return
         }
@@ -454,12 +450,18 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           groupNode.scaleY(1)
           onChange({
             w: nextWidth,
-            h: runsLayoutRef.current.height || Math.max(32, nextFontSize * 1.5),
+            h: runsLayoutRef.current.height || item.h || Math.max(32, nextFontSize * 1.5),
             fontSize: nextFontSize,
           })
           setDragWidth(null)
           transformStartRef.current = null
           transformAnchorRef.current = null
+          requestAnimationFrame(() => {
+            const newH = runsLayoutRef.current.height
+            if (newH && Math.abs(newH - (item.h || 0)) > 4) {
+              onChange({ h: newH })
+            }
+          })
           return
         }
 
@@ -516,7 +518,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           listening={false}
         />
       ) : isMultiRun ? (
-        <Group ref={multiRunGroupRef} listening={false} clipX={0} clipY={0} clipWidth={displayWidth} clipHeight={textHeight} width={displayWidth} height={textHeight}>
+        <Group ref={multiRunGroupRef} listening={false} clipX={0} clipY={-Math.ceil((item.fontSize || 48) * 0.35)} clipWidth={displayWidth} clipHeight={textHeight + Math.ceil((item.fontSize || 48) * 0.35)} width={displayWidth} height={textHeight}>
           {multiRunTexts}
         </Group>
       ) : (

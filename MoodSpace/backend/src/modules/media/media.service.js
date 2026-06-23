@@ -15,6 +15,7 @@ import {
   createUploadedAsset,
   deleteUploadedAssetsForMedia,
   findMediaById,
+  findMediaByUrl,
   listUploadedAssets,
   softDeleteMedia,
   updateMediaObjectKey,
@@ -229,6 +230,16 @@ export const listUserUploads = async (userId) => {
     },
     createdAt: row.createdAt,
   }))
+}
+
+export const deleteMediaByUrl = async ({ userId, url }) => {
+  if (!url) throw new AppError('URL is required', { status: 400, code: 'URL_REQUIRED' })
+  const media = await findMediaByUrl(url)
+  if (!media) throw notFound('Media not found')
+  if (media.ownerId !== userId) throw forbidden('You do not own this media')
+  await softDeleteMedia({ mediaId: media.id, ownerId: userId })
+  await deleteObject({ bucket: media.bucket, objectKey: media.objectKey })
+  await deleteUploadedAssetsForMedia({ mediaId: media.id, userId })
 }
 
 export const deleteMedia = async ({ userId, mediaId }) => {

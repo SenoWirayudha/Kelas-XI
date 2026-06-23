@@ -126,6 +126,16 @@ export const deleteUploadedAssetsForMedia = async ({ mediaId, userId }) => {
   return rowCount
 }
 
+export const findMediaByUrl = async (url) => {
+  const { rows } = await query(
+    `${mediaSelect}
+     where m.public_url = $1 and m.deleted_at is null
+     limit 1`,
+    [url],
+  )
+  return rows[0] || null
+}
+
 export const softDeleteMedia = async ({ mediaId, ownerId }) => {
   const { rows } = await query(
     `update media_assets

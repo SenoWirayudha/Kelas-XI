@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useLayoutEffect } from 'react'
 import { ArrowLeft, Palette, Sparkles, Droplets, Move, Layers, Type, RotateCcw, Plus, Minus } from 'lucide-react'
 import { EFFECT_CATEGORIES, EFFECTS, EFFECT_PARAM_DEFAULTS, hasAnyEffect, ADJUSTMENT_RESTRICTED_EFFECTS } from '../../utils/effectUtils'
 import FxEffectCard from './FxEffectCard'
@@ -417,8 +417,30 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
 
 export default function FxPanel({ item, onBack, onUpdate }) {
   const [selectedEffect, setSelectedEffect] = useState(null)
+  const scrollPosRef = useRef(null)
+  const panelRef = useRef(null)
   const effects = item.effects || {}
   const hasActiveEffect = hasAnyEffect(item)
+
+  const getScrollParent = () =>
+    panelRef.current?.closest('.workspace-panel-scroll')
+
+  const saveScrollPos = () => {
+    const el = getScrollParent()
+    if (el) scrollPosRef.current = el.scrollTop
+  }
+
+  const restoreScrollPos = () => {
+    const el = getScrollParent()
+    if (el && scrollPosRef.current != null) {
+      el.scrollTop = scrollPosRef.current
+      scrollPosRef.current = null
+    }
+  }
+
+  useLayoutEffect(() => {
+    if (!selectedEffect) restoreScrollPos()
+  }, [selectedEffect])
 
   const handleEffectChange = (effectId, value) => {
     onUpdate(item.id, {
@@ -440,17 +462,26 @@ export default function FxPanel({ item, onBack, onUpdate }) {
     onUpdate(item.id, { effects: defaults })
   }
 
+  const openDetail = (id) => {
+    saveScrollPos()
+    setSelectedEffect(id)
+  }
+
+  const closeDetail = () => {
+    setSelectedEffect(null)
+  }
+
   if (selectedEffect) {
     const effect = EFFECTS.find((e) => e.id === selectedEffect)
     if (!effect) {
-      setSelectedEffect(null)
+      closeDetail()
       return null
     }
     return (
       <FxEffectDetail
         effect={effect}
         value={effects[effect.id]}
-        onBack={() => setSelectedEffect(null)}
+        onBack={closeDetail}
         onChange={handleEffectChange}
         onToggle={handleToggle}
         imageDominantColors={item?.dominantColors}
@@ -460,7 +491,7 @@ export default function FxPanel({ item, onBack, onUpdate }) {
   }
 
   return (
-    <>
+    <div ref={panelRef}>
       <div className="workspace-font-picker-header">
         <button type="button" className="workspace-back-button" onClick={onBack}>
           <ArrowLeft size={16} />
@@ -493,7 +524,7 @@ export default function FxPanel({ item, onBack, onUpdate }) {
                     key={effect.id}
                     effect={effect}
                     value={effects[effect.id]}
-                    onClick={(id) => setSelectedEffect(id)}
+                    onClick={(id) => openDetail(id)}
                   />
                 ))}
               </div>
@@ -501,6 +532,6 @@ export default function FxPanel({ item, onBack, onUpdate }) {
           )
         })}
       </div>
-    </>
+    </div>
   )
 }

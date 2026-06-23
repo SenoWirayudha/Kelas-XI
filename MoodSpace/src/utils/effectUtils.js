@@ -81,9 +81,8 @@ export const EFFECTS = [
     { key: 'mode', label: 'Mode', type: 'select', default: 'g', options: [
       { value: 'r', label: 'R' }, { value: 'g', label: 'G' }, { value: 'b', label: 'B' },
     ]},
-    { key: 'offset', label: 'Offset', type: 'slider', default: 0.01, min: 0, max: 0.05, step: 0.001 },
+    { key: 'offset', label: 'Offset', type: 'slider', default: 0.01, min: 0, max: 0.1, step: 0.005 },
     { key: 'angle', label: 'Angle', type: 'slider', default: 0, min: 0, max: 360, unit: '°' },
-    { key: 'falloff', label: 'Falloff', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
   ]},
 
   // ── Phase 3: Complex ──

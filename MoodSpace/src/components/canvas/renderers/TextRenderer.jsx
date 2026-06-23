@@ -8,6 +8,7 @@ export default function TextRenderer({
   onChange,
   canvasBounds,
   getActiveTransformAnchor,
+  fontInjectVersion,
 }) {
   return (
     <CanvasTextNode
@@ -18,6 +19,7 @@ export default function TextRenderer({
       onChange={onChange}
       canvasBounds={canvasBounds}
       getActiveTransformAnchor={getActiveTransformAnchor}
+      fontInjectVersion={fontInjectVersion}
     />
   )
 }

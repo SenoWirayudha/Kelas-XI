@@ -3,8 +3,9 @@
  * Renders a raster image on the canvas with Konva filters (brightness, contrast,
  * saturation, blur) applied imperatively to avoid stale cache issues.
  */
-import React, { useEffect, useRef } from 'react'
-import { Group, Rect, Image as KonvaImage } from 'react-konva'
+/* eslint-disable react-hooks/refs */
+import React, { useEffect, useRef, useState } from 'react'
+import { Group, Rect, Image as KonvaImage, Shape } from 'react-konva'
 import { useCanvasImage } from '../../hooks/useCanvasImages'
 import { getShadowProps } from '../../utils/konvaUtils'
 import { effectManager } from '../../utils/konva-effects-engine'
@@ -186,8 +187,123 @@ function CanvasImage({
   const imageNodeRef   = useRef(null)
   const shadowNodeRef  = useRef(null)
   const sizeRef        = useRef({ w: item.w, h: item.h })
+  const processedImageRef = useRef(null)
+  const originalImageRef  = useRef(null)
+  const rgbPadXRef        = useRef(0)
+  const rgbPadYRef        = useRef(0)
+  const rgbLayersRef      = useRef(null)
+  const processTimerRef   = useRef(null)
+  // eslint-disable-next-line no-unused-vars
+  const [rgbSplitVer, setRgbSplitVer] = useState(0)
 
   useEffect(() => { sizeRef.current = { w: item.w, h: item.h } }, [item.w, item.h])
+
+  // Simpan reference ke original image (dari useCanvasImage, bukan hasil proses)
+  useEffect(() => { originalImageRef.current = image }, [image])
+
+  // rgbSplit: pre-composite shifted layers (Screen) into one canvas,
+  // clear center area (destination-out), render behind full-RGB center.
+  useEffect(() => {
+    const p = item.effects?.rgbSplit
+    if (!p || !image) {
+      if (!p) {
+        rgbLayersRef.current = null
+        processedImageRef.current = null
+        rgbPadXRef.current = 0
+        rgbPadYRef.current = 0
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setRgbSplitVer(v => v + 1)
+      }
+      return
+    }
+
+    if (processTimerRef.current) clearTimeout(processTimerRef.current)
+    processTimerRef.current = setTimeout(() => {
+      const img = originalImageRef.current
+      if (!img || !img.complete || !img.naturalWidth) return
+
+      const nw = img.naturalWidth, nh = img.naturalHeight
+
+      // Source-space offset
+      const pixelOffset = (p.offset ?? 0.01) * Math.max(nw, nh)
+      const angleRad = (p.angle ?? 0) * Math.PI / 180
+      const dxSrc = Math.cos(angleRad) * pixelOffset
+      const dySrc = Math.sin(angleRad) * pixelOffset
+
+      // Symmetrical source padding
+      const pad = Math.ceil(Math.max(Math.abs(dxSrc), Math.abs(dySrc))) + 20
+
+      // Display-space offset & padding
+      const scX = item.w / nw, scY = item.h / nh
+      const dxDisp = dxSrc * scX
+      const dyDisp = dySrc * scY
+      const padDisp = Math.ceil(Math.max(Math.abs(dxDisp), Math.abs(dyDisp))) + 20
+
+      // Draw original to temp canvas → get pixel data for isolation
+      const srcCanvas = document.createElement('canvas')
+      srcCanvas.width = nw; srcCanvas.height = nh
+      const srcCtx = srcCanvas.getContext('2d')
+      if (!srcCtx) return
+      srcCtx.drawImage(img, 0, 0, nw, nh)
+      const srcData = srcCtx.getImageData(0, 0, nw, nh)
+      const d = srcData.data
+
+      function isolate(ch) {
+        const buf = new Uint8ClampedArray(d.length)
+        for (let i = 0; i < d.length; i += 4) {
+          buf[i]   = ch === 0 ? d[i]   : 0
+          buf[i+1] = ch === 1 ? d[i+1] : 0
+          buf[i+2] = ch === 2 ? d[i+2] : 0
+          buf[i+3] = d[i+3]
+        }
+        return new ImageData(buf, nw, nh)
+      }
+
+      function dataToCanvas(imgData) {
+        const c = document.createElement('canvas')
+        c.width = nw; c.height = nh
+        c.getContext('2d').putImageData(imgData, 0, 0)
+        return c
+      }
+
+      const rCanvas = dataToCanvas(isolate(0))
+      const gCanvas = dataToCanvas(isolate(1))
+      const bCanvas = dataToCanvas(isolate(2))
+
+      // Assign center / left / right per mode
+      // Center = channel-isolated (primary color), left+right = shifted channels
+      const m = p.mode ?? 'g'
+      let centerCanvas, leftCanvas, rightCanvas
+      if (m === 'g') { centerCanvas = gCanvas; leftCanvas = bCanvas; rightCanvas = rCanvas }
+      else if (m === 'r') { centerCanvas = rCanvas; leftCanvas = bCanvas; rightCanvas = gCanvas }
+      else                { centerCanvas = bCanvas; leftCanvas = gCanvas; rightCanvas = rCanvas }
+
+      // Pre-composite shifted layers into one canvas
+      const shiftCanvas = document.createElement('canvas')
+      shiftCanvas.width = nw + pad * 2
+      shiftCanvas.height = nh + pad * 2
+      const shiftCtx = shiftCanvas.getContext('2d')
+      if (!shiftCtx) return
+
+      // Screen blend each shifted layer at its offset
+      shiftCtx.globalCompositeOperation = 'screen'
+      shiftCtx.drawImage(leftCanvas, pad - Math.round(dxSrc), pad - Math.round(dySrc))
+      shiftCtx.drawImage(rightCanvas, pad + Math.round(dxSrc), pad + Math.round(dySrc))
+      shiftCtx.globalCompositeOperation = 'source-over'
+      // Shift canvas now has left+right screened together (overlaps center area too).
+      // At render time it's drawn ON TOP with Screen blend via Shape sceneFunc.
+
+      rgbLayersRef.current = { shift: shiftCanvas, center: centerCanvas, dxDisp, dyDisp, padDisp }
+      processedImageRef.current = null
+      rgbPadXRef.current = 0
+      rgbPadYRef.current = 0
+      setRgbSplitVer(v => v + 1)
+    }, 150)
+
+    return () => {
+      if (processTimerRef.current) clearTimeout(processTimerRef.current)
+    }
+  }, [image, item.effects?.rgbSplit, item.w, item.h])
   const cropFit = image ? getCropFit(item, image) : null
   const cropProps = image ? getImageCropProps(item, image) : {}
 
@@ -219,7 +335,7 @@ function CanvasImage({
       if (hasEdgeGlow && hasShadow && shadowNode) {
         try {
           effectManager.applyAll(shadowNode, { edgeGlow: item.effects.edgeGlow })
-        } catch (e) {
+        } catch {
           effectManager.removeAll(shadowNode)
         }
       } else if (shadowNode) {
@@ -365,11 +481,11 @@ function CanvasImage({
             <KonvaImage
               name="canvas-image-main"
               ref={imageNodeRef}
-              image={image}
-              x={cropFit.x}
-              y={cropFit.y}
-              width={cropFit.width}
-              height={cropFit.height}
+              image={processedImageRef.current || image}
+              x={(processedImageRef.current ? -rgbPadXRef.current : 0) + cropFit.x}
+              y={(processedImageRef.current ? -rgbPadYRef.current : 0) + cropFit.y}
+              width={processedImageRef.current ? cropFit.width + rgbPadXRef.current * 2 : cropFit.width}
+              height={processedImageRef.current ? cropFit.height + rgbPadYRef.current * 2 : cropFit.height}
               draggable={!item.locked}
               listening
               dragBoundFunc={(position) => ({
@@ -416,15 +532,47 @@ function CanvasImage({
               height: item.h,
               ...cropProps,
             })}
-            <KonvaImage
-              name="canvas-image-main"
-              ref={imageNodeRef}
-              image={image}
-              width={item.w} height={item.h}
-              {...cropProps}
-              cornerRadius={item.radius ?? 0}
-              listening={false}
-            />
+            {(rgbLayersRef.current) ? (
+              <>
+                <KonvaImage
+                  name="canvas-image-main"
+                  ref={imageNodeRef}
+                  image={rgbLayersRef.current.center}
+                  width={item.w}
+                  height={item.h}
+                  {...cropProps}
+                  cornerRadius={item.radius ?? 0}
+                  listening={false}
+                />
+                <Shape
+                  name="canvas-image-rgb-shift"
+                  x={-rgbLayersRef.current.padDisp}
+                  y={-rgbLayersRef.current.padDisp}
+                  sceneFunc={(ctx) => {
+                    ctx.save()
+                    ctx.globalCompositeOperation = 'screen'
+                    const ref = rgbLayersRef.current
+                    ctx.drawImage(ref.shift, 0, 0, item.w + ref.padDisp * 2, item.h + ref.padDisp * 2)
+                    ctx.restore()
+                  }}
+                  listening={false}
+                  perfectDrawEnabled={false}
+                />
+              </>
+            ) : (
+              <KonvaImage
+                name="canvas-image-main"
+                ref={imageNodeRef}
+                image={processedImageRef.current || image}
+                x={processedImageRef.current ? -rgbPadXRef.current : 0}
+                y={processedImageRef.current ? -rgbPadYRef.current : 0}
+                width={processedImageRef.current ? item.w + rgbPadXRef.current * 2 : item.w}
+                height={processedImageRef.current ? item.h + rgbPadYRef.current * 2 : item.h}
+                {...cropProps}
+                cornerRadius={item.radius ?? 0}
+                listening={false}
+              />
+            )}
             {renderBoxImageStroke()}
           </>
         )

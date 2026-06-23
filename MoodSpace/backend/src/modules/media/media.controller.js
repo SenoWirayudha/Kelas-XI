@@ -74,6 +74,18 @@ export const listUploads = async (req, res, next) => {
   }
 }
 
+export const deleteMediaByUrl = async (req, res, next) => {
+  try {
+    await mediaService.deleteMediaByUrl({
+      userId: req.auth.sub,
+      url: req.validated.query.url,
+    })
+    res.status(204).send()
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const deleteMedia = async (req, res, next) => {
   try {
     await mediaService.deleteMedia({

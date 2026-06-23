@@ -4,6 +4,7 @@ import { authRequired } from '../../middleware/authRequired.js'
 import { validate } from '../../middleware/validate.js'
 import {
   completeUploadSchema,
+  deleteMediaByUrlSchema,
   mediaIdParamSchema,
   signUploadSchema,
 } from './media.validation.js'
@@ -22,4 +23,5 @@ mediaRouter.post('/uploads/file', upload.single('file'), controller.uploadFile)
 mediaRouter.post('/uploads/sign', validate(signUploadSchema), controller.signUpload)
 mediaRouter.post('/uploads/complete', validate(completeUploadSchema), controller.completeUpload)
 mediaRouter.get('/uploads', controller.listUploads)
+mediaRouter.delete('/by-url', validate(deleteMediaByUrlSchema), controller.deleteMediaByUrl)
 mediaRouter.delete('/:id', validate(mediaIdParamSchema), controller.deleteMedia)

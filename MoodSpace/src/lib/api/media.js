@@ -81,6 +81,10 @@ const uploadMediaFileRequest = ({ file, width, height, sourceType = 'upload', ad
   xhr.send(formData)
 })
 
+export const deleteMediaByUrl = (url) => (
+  apiRequest(`/media/by-url?url=${encodeURIComponent(url)}`, { method: 'DELETE' })
+)
+
 export const uploadMediaFile = ({ file, width, height, sourceType, addToUploads, onProgress }) => (
   uploadMediaFileRequest({ file, width, height, sourceType, addToUploads, onProgress })
 )

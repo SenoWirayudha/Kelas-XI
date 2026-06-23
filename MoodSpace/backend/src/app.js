@@ -18,6 +18,7 @@ import { adminRouter } from './modules/admin/admin.routes.js'
 import { externalImagesRouter } from './modules/externalImages/externalImages.routes.js'
 import { interestRouter } from './modules/interest/interest.routes.js'
 import { removeBgRouter } from './modules/removeBg/removeBg.routes.js'
+import { fontsRouter } from './modules/fonts/fonts.routes.js'
 
 export const createApp = () => {
   const app = express()
@@ -51,6 +52,7 @@ export const createApp = () => {
   app.use('/api/interest', interestRouter)
   app.use('/api/admin', adminRouter)
   app.use('/api', removeBgRouter)
+  app.use('/api/fonts', fontsRouter)
 
   app.use(notFoundHandler)
   app.use(errorHandler)

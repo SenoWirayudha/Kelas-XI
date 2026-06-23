@@ -90,6 +90,9 @@ function walkTextNodes(node, fn, inheritedTags = new Set(), inheritedStyles = {}
   if (['b', 'strong', 'i', 'em', 'u'].includes(tag)) newTags.add(tag)
   if (node.style?.fontFamily) newStyles.fontFamily = node.style.fontFamily
   if (node.style?.color) newStyles.color = node.style.color
+  if (node.style?.fontStyle === 'italic') newTags.add('i')
+  if (node.style?.fontWeight === 'bold' || node.style?.fontWeight === '700') newTags.add('b')
+  if (node.style?.textDecoration?.includes('underline')) newTags.add('u')
   for (let child = node.firstChild; child; child = child.nextSibling) {
     walkTextNodes(child, fn, newTags, newStyles)
   }

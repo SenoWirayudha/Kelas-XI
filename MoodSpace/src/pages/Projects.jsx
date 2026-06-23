@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FolderOpen, MoreHorizontal, Plus, Sparkles, Upload, X } from 'lucide-react'
+import { Copy, Download, ExternalLink, FolderOpen, MoreHorizontal, Pen, Plus, Share2, Sparkles, Trash2, Upload, X } from 'lucide-react'
 import ConfirmationModal from '../components/ConfirmationModal'
 import { useAuth } from '../context/authState'
 import { uploadMediaFile } from '../lib/api/media'
-import { createWorkspace, deleteWorkspace, listWorkspaces } from '../lib/api/workspaces'
+import { createWorkspace, deleteWorkspace, getWorkspace, listWorkspaces, updateWorkspace } from '../lib/api/workspaces'
+import { publishWorkspace } from '../lib/api/posts'
 
 const storageKey = 'moodspace.projects'
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -58,8 +59,21 @@ function Projects() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [openProjectMenuId, setOpenProjectMenuId] = useState(null)
+  const [renamingProjectId, setRenamingProjectId] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
   const [deletingProjectId, setDeletingProjectId] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [shareTarget, setShareTarget] = useState(null)
+  const [isSharing, setIsSharing] = useState(false)
+  const [shareError, setShareError] = useState('')
+  const [exportTarget, setExportTarget] = useState(null)
+  const [exportFormat, setExportFormat] = useState('png')
+  const [exportScale, setExportScale] = useState(1)
+  const [exportTransparent, setExportTransparent] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
+  const [exportProgress, setExportProgress] = useState(0)
+  const [exportBgType, setExportBgType] = useState('solid')
   const [createError, setCreateError] = useState('')
   const [form, setForm] = useState({
     name: 'Untitled Project',
@@ -307,6 +321,224 @@ function Projects() {
     }
   }
 
+  const handleRenameProject = async (project, newName) => {
+    if (!newName.trim() || newName.trim() === project.name) {
+      setRenamingProjectId(null)
+      return
+    }
+    try {
+      await updateWorkspace(project.id, { title: newName.trim() })
+      setProjects((current) =>
+        current.map((item) =>
+          item.id === project.id ? { ...item, name: newName.trim() } : item
+        )
+      )
+      const stored = readProjects().map((item) =>
+        item.id === project.id ? { ...item, name: newName.trim() } : item
+      )
+      localStorage.setItem(storageKey, JSON.stringify(stored))
+    } catch (error) {
+      console.error('Failed to rename project:', error)
+    }
+    setRenamingProjectId(null)
+  }
+
+  const handleDuplicateProject = async (project) => {
+    setOpenProjectMenuId(null)
+    if (!uuidPattern.test(project.id)) return
+    try {
+      const payload = await getWorkspace(project.id)
+      const w = payload.workspace
+      const snapshot = w.latestVersion?.snapshot || { items: [], layers: [] }
+      const newPayload = await createWorkspace({
+        title: `${w.title} (Copy)`,
+        canvasWidth: w.canvasWidth,
+        canvasHeight: w.canvasHeight,
+        canvasRatio: w.canvasRatio || 'custom',
+        background: w.background || { type: 'solid', color: '#f4f1e8', from: '#f4f1e8', to: '#d8d2ff', angle: 90 },
+        settings: w.settings || {},
+        snapshot,
+      })
+      const newWorkspace = newPayload.workspace
+      const newProject = workspaceToProject(newWorkspace)
+      newProject.isNew = true
+      const updatedProjects = [newProject, ...projects]
+      setProjects(updatedProjects)
+      localStorage.setItem(storageKey, JSON.stringify(
+        updatedProjects.map((p) => {
+          const copy = { ...p }
+          delete copy.isNew
+          return copy
+        })
+      ))
+    } catch (error) {
+      console.error('Failed to duplicate project:', error)
+    }
+  }
+
+  const handleConfirmShare = async () => {
+    const project = shareTarget
+    if (!project || !uuidPattern.test(project.id)) return
+    if (!requireAuth('login')) return
+    setIsSharing(true)
+    setShareError('')
+    try {
+      await publishWorkspace({ workspaceId: project.id, title: project.name, visibility: 'public' })
+      setShareTarget(null)
+    } catch (error) {
+      setShareError(error.message || 'Gagal mempublikasikan project')
+    } finally {
+      setIsSharing(false)
+    }
+  }
+
+  const handleConfirmExport = async () => {
+    const project = exportTarget
+    if (!project || !uuidPattern.test(project.id)) return
+    setIsExporting(true)
+    setExportProgress(5)
+    setExportError('')
+    try {
+      const payload = await getWorkspace(project.id)
+      setExportProgress(20)
+      const w = payload.workspace
+      const snapshot = w.latestVersion?.snapshot || {}
+      const items = Array.isArray(snapshot.items) ? snapshot.items : []
+      const canvasW = w.canvasWidth || 1280
+      const canvasH = w.canvasHeight || 720
+      const bg = w.background || snapshot.background || { type: 'solid', color: '#ffffff' }
+      const scale = exportScale
+      const mimeType = exportFormat === 'jpg' ? 'image/jpeg' : 'image/png'
+      const outW = Math.round(canvasW * scale)
+      const outH = Math.round(canvasH * scale)
+      const hasNoneBg = bg.type === 'transparent' || bg.type === 'none'
+      const isCanvasBgTransparent = exportFormat === 'png' && exportTransparent && hasNoneBg
+
+      const offscreen = document.createElement('canvas')
+      offscreen.width = outW
+      offscreen.height = outH
+      const ctx = offscreen.getContext('2d')
+      if (!ctx) throw new Error('Canvas 2D not available')
+
+      setExportProgress(35)
+
+      // Draw background
+      if (!isCanvasBgTransparent) {
+        if (bg.type === 'solid' || !bg.type) {
+          ctx.fillStyle = bg.color || '#ffffff'
+          ctx.fillRect(0, 0, outW, outH)
+        } else if (bg.type === 'gradient') {
+          const grad = ctx.createLinearGradient(0, 0, outW * Math.cos((bg.angle || 90) * Math.PI / 180), outH * Math.sin((bg.angle || 90) * Math.PI / 180))
+          grad.addColorStop(0, bg.from || '#ffffff')
+          grad.addColorStop(1, bg.to || '#d8d2ff')
+          ctx.fillStyle = grad
+          ctx.fillRect(0, 0, outW, outH)
+        }
+      }
+
+      setExportProgress(45)
+
+      // Draw image items
+      const imageItems = items.filter((item) => item.visible !== false && item.kind === 'image' && item.src)
+      const total = imageItems.length
+      let loaded = 0
+
+      // Preload images in parallel, then draw
+      const loadImage = (src) => new Promise((resolve, reject) => {
+        const img = new window.Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => resolve(img)
+        img.onerror = () => resolve(null)
+        img.src = src
+      })
+
+      const images = await Promise.all(imageItems.map((item) => loadImage(item.src)))
+      setExportProgress(65)
+
+      for (let i = 0; i < imageItems.length; i++) {
+        const item = imageItems[i]
+        const img = images[i]
+        if (!img) continue
+        ctx.save()
+        const cx = (item.x + item.w / 2) * scale
+        const cy = (item.y + item.h / 2) * scale
+        ctx.translate(cx, cy)
+        if (item.rotation) ctx.rotate((item.rotation * Math.PI) / 180)
+        ctx.globalAlpha = item.opacity ?? 1
+        ctx.drawImage(img, -item.w / 2 * scale, -item.h / 2 * scale, item.w * scale, item.h * scale)
+        ctx.restore()
+        loaded++
+        setExportProgress(65 + Math.round((loaded / total) * 25))
+      }
+
+      setExportProgress(92)
+
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+      const blob = await new Promise((resolve) => offscreen.toBlob(resolve, mimeType, exportFormat === 'jpg' ? 0.92 : 1))
+      if (!blob) throw new Error('Gagal generate gambar')
+
+      const url = URL.createObjectURL(blob)
+      const safeTitle = (project.name || 'workspace').trim().replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '') || 'workspace'
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${safeTitle}-${exportScale}x.${exportFormat}`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      setExportProgress(100)
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      setExportTarget(null)
+    } catch (error) {
+      setExportError(error.message || 'Export gagal')
+    } finally {
+      setIsExporting(false)
+      setExportProgress(0)
+    }
+  }
+
+  const handleOpenInNewTab = (project) => {
+    setOpenProjectMenuId(null)
+    const params = new URLSearchParams({
+      name: project.name,
+      ratio: project.ratio,
+      width: String(project.width),
+      height: String(project.height),
+    })
+    if (uuidPattern.test(project.id)) params.set('projectId', project.id)
+    const a = document.createElement('a')
+    a.href = `/workspace?${params.toString()}`
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    a.click()
+  }
+
+  const handleExportProject = async (project) => {
+    setOpenProjectMenuId(null)
+    setExportFormat('png')
+    setExportScale(1)
+    setExportTransparent(false)
+    setExportError('')
+    setExportProgress(0)
+    setExportTarget(project)
+    if (uuidPattern.test(project.id)) {
+      try {
+        const payload = await getWorkspace(project.id)
+        const bg = payload.workspace.background || { type: 'solid' }
+        setExportBgType(bg.type || 'solid')
+      } catch {
+        setExportBgType('solid')
+      }
+    }
+  }
+
+  const handleShareProject = (project) => {
+    setOpenProjectMenuId(null)
+    setShareTarget(project)
+    setShareError('')
+    setIsSharing(false)
+  }
+
   return (
     <section className="projects-page">
       <header className="projects-hero">
@@ -335,7 +567,7 @@ function Projects() {
         </div>
       ) : <div className="projects-list">
         {projects.map((project) => (
-          <article className="project-row-card" key={project.id}>
+          <article className={`project-row-card${openProjectMenuId === project.id ? ' project-row-card-menu-open' : ''}`} key={project.id}>
             <button type="button" className="project-row-main" onClick={() => openProject(project)}>
               <span className="project-row-thumb" style={{ aspectRatio: `${project.width} / ${project.height}` }}>
                 {project.thumbnailUrl ? (
@@ -363,8 +595,54 @@ function Projects() {
             </button>
             {openProjectMenuId === project.id && (
               <div className="project-row-options">
-                <button type="button" onClick={() => handleDeleteProject(project)}>
-                  Delete Project
+                <div className="project-row-options-header">
+                  {renamingProjectId === project.id ? (
+                    <div className="project-row-rename-inline">
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleRenameProject(project, renameValue)
+                          if (e.key === 'Escape') setRenamingProjectId(null)
+                        }}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <button type="button" onClick={(e) => { e.stopPropagation(); handleRenameProject(project, renameValue) }}>&#10003;</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setRenamingProjectId(null) }}>&#10005;</button>
+                    </div>
+                  ) : (
+                    <>
+                      <span>{project.name}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setRenamingProjectId(project.id)
+                          setRenameValue(project.name)
+                        }}
+                      >
+                        <Pen size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
+                <button type="button" onClick={() => handleDuplicateProject(project)}>
+                  <Copy size={14} /> Duplicate
+                </button>
+                <button type="button" onClick={() => handleOpenInNewTab(project)}>
+                  <ExternalLink size={14} /> Buka di Tab Baru
+                </button>
+                <button type="button" onClick={() => handleExportProject(project)}>
+                  <Download size={14} /> Export
+                </button>
+                <button type="button" onClick={() => handleShareProject(project)}>
+                  <Share2 size={14} /> Bagikan
+                </button>
+                <div className="project-row-options-divider" />
+                <button type="button" className="project-row-options-delete" onClick={() => handleDeleteProject(project)}>
+                  <Trash2 size={14} /> Delete Project
                 </button>
               </div>
             )}
@@ -470,6 +748,153 @@ function Projects() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {shareTarget && (
+        <div
+          className="workspace-export-modal-backdrop"
+          role="presentation"
+          onMouseDown={() => { if (!isSharing) setShareTarget(null) }}
+        >
+          <section
+            className="workspace-export-modal"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="workspace-export-modal-header">
+              <div>
+                <p>PUBLISH</p>
+                <h2>Bagikan Project</h2>
+              </div>
+            </div>
+
+            <div style={{ padding: '16px 24px', color: 'rgba(255,255,255,0.6)', fontSize: 13, lineHeight: 1.6 }}>
+              &ldquo;{shareTarget.name}&rdquo; akan dipublikasikan ke feed publik sebagai postingan.
+            </div>
+
+            {shareError && <p className="workspace-export-error">{shareError}</p>}
+
+            <div className="workspace-export-modal-footer">
+              <button type="button" className="workspace-export-cancel" onClick={() => setShareTarget(null)} disabled={isSharing}>
+                Batal
+              </button>
+              <button type="button" className="workspace-export-confirm" onClick={handleConfirmShare} disabled={isSharing}>
+                {isSharing ? 'Mempublikasikan...' : 'Bagikan'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {exportTarget && (
+        <div
+          className="workspace-export-modal-backdrop"
+          role="presentation"
+          onMouseDown={() => { if (!isExporting) setExportTarget(null) }}
+        >
+          <section
+            className="workspace-export-modal"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="workspace-export-modal-header">
+              <div>
+                <p>EXPORT AS</p>
+                <h2>Export Workspace</h2>
+              </div>
+            </div>
+
+            <div className="workspace-export-options">
+              {['png', 'jpg'].map((fmt) => (
+                <label key={fmt} className={`workspace-export-option ${exportFormat === fmt ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="project-export-format"
+                    value={fmt}
+                    checked={exportFormat === fmt}
+                    onChange={() => { setExportFormat(fmt); if (fmt === 'jpg') setExportTransparent(false) }}
+                  />
+                  <span>{fmt.toUpperCase()}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="workspace-export-section">
+              <span className="workspace-export-section-title">Resolution</span>
+              <div className="workspace-export-options">
+                {[1, 2, 4].map((scale) => (
+                  <label key={scale} className={`workspace-export-option ${exportScale === scale ? 'active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="project-export-scale"
+                      value={scale}
+                      checked={exportScale === scale}
+                      onChange={() => setExportScale(scale)}
+                    />
+                    <span>{scale}x</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="workspace-export-toggle-row">
+              <div>
+                <span>Transparent Background</span>
+                {exportBgType !== 'transparent' && exportBgType !== 'none' && (
+                  <small>Background harus None untuk export transparan</small>
+                )}
+                {exportFormat === 'jpg' && (exportBgType === 'transparent' || exportBgType === 'none') && (
+                  <small>JPG tidak mendukung transparansi</small>
+                )}
+              </div>
+              <button
+                type="button"
+                className={`workspace-export-toggle ${exportTransparent ? 'active' : ''}`}
+                disabled={(exportBgType !== 'transparent' && exportBgType !== 'none') || exportFormat === 'jpg'}
+                aria-pressed={exportTransparent}
+                onClick={() => setExportTransparent((value) => !value)}
+              >
+                <span />
+              </button>
+            </div>
+
+            <div className="workspace-export-preview">
+              <span className="workspace-export-section-title">Preview Info</span>
+              <div>
+                <span>Canvas Size</span>
+                <strong>{exportTarget.width} x {exportTarget.height}px</strong>
+              </div>
+              <div>
+                <span>Estimated Output Size</span>
+                <strong>{Math.round(exportTarget.width * exportScale)} x {Math.round(exportTarget.height * exportScale)}px</strong>
+              </div>
+            </div>
+
+            {exportError && <p className="workspace-export-error">{exportError}</p>}
+            {isExporting && (
+              <div className="workspace-export-progress" role="status" aria-live="polite">
+                <div className="workspace-export-progress-label">
+                  <span>Exporting...</span>
+                  <strong>{exportProgress}%</strong>
+                </div>
+                <div className="workspace-export-progress-track">
+                  <span style={{ width: `${exportProgress}%` }} />
+                </div>
+              </div>
+            )}
+
+            <div className="workspace-export-modal-footer">
+              <button type="button" className="workspace-export-cancel" onClick={() => setExportTarget(null)} disabled={isExporting}>
+                Cancel
+              </button>
+              <button type="button" className="workspace-export-confirm" onClick={handleConfirmExport} disabled={isExporting}>
+                {isExporting ? 'Exporting...' : 'Export'}
+              </button>
+            </div>
+          </section>
         </div>
       )}
 

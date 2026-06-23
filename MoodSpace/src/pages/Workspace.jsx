@@ -139,7 +139,7 @@ import ToolWarpPanel from '../components/panels/ToolWarpPanel'
 import ToolRelightPanel from '../components/panels/ToolRelightPanel'
 import WarpHandles from '../components/canvas/WarpHandles'
 import RichTextEditor from '../components/RichTextEditor'
-import { getRuns, runsToText, applyFormatToRange } from '../utils/textRuns'
+import { getRuns, runsToHtml, runsToText, applyFormatToRange } from '../utils/textRuns'
 
 import { getCanvasItemTransformPatch } from '../engines/transformEngine'
 import RelightBalls, { LightOverlay } from '../components/canvas/RelightBalls'
@@ -153,10 +153,14 @@ import { getBoard, listBoards } from '../lib/api/boards'
 import { searchPosts as searchPublicPosts } from '../lib/api/search'
 import { ensureExternalImage, searchExternalImages } from '../lib/api/externalImages'
 import { recordInterestEvent } from '../lib/api/interest'
-import { uploadMediaFile } from '../lib/api/media'
+import { deleteMediaByUrl, uploadMediaFile } from '../lib/api/media'
+import { listFonts as apiListFonts, uploadFont as apiUploadFont, deleteFont as apiDeleteFont, getFavorites as apiGetFavorites, addFavorite as apiAddFavorite, removeFavorite as apiRemoveFavorite } from '../lib/api/fonts'
 
 let canvasSize = defaultCanvasSize
 let canvasBounds = { x: 0, y: 0, width: canvasSize.width, height: canvasSize.height }
+let _brushOffscreenCanvas = null
+let _brushImageNode = null
+let _brushFallbackImg = null
 
 const isBasicFrame = (item) => item?.kind === 'frame' && basicFrameTypes.has(item.frameType)
 
@@ -734,12 +738,70 @@ function SortableLayerItem({ item, isSelected, onSelect, onOpenProperties, onOpe
   )
 }
 
+function BrushLayerRenderer({ item, commonProps, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onCursor, onItemHover, disableDrag, canvasBounds }) {
+  const nodeRef = useRef(null)
+  const fallbackImgRef = useRef(null)
+  const sizeRef = useRef({ w: item.w, h: item.h })
+  useEffect(() => { sizeRef.current = { w: item.w, h: item.h } }, [item.w, item.h])
+
+  useLayoutEffect(() => {
+    _brushImageNode = nodeRef.current
+  })
+
+  useEffect(() => {
+    if (!_brushOffscreenCanvas && item.src) {
+      const img = new window.Image()
+      img.onload = () => {
+        fallbackImgRef.current = img
+        _brushFallbackImg = img
+        nodeRef.current?.getLayer()?.batchDraw()
+      }
+      img.src = item.src
+    }
+  }, [item.src])
+
+  const imageObj = _brushOffscreenCanvas || fallbackImgRef.current
+
+  return (
+    <Group
+      id={item.id}
+      x={item.x}
+      y={item.y}
+      rotation={item.rotation || 0}
+      draggable={!item.locked && !disableDrag}
+      opacity={item.opacity ?? 1}
+      visible={item.visible !== false}
+      onClick={(e) => onSelect(e, item.id)}
+      onTap={(e) => onSelect(e, item.id)}
+      onMouseEnter={() => { onItemHover(item.id); onCursor(item.locked ? 'default' : 'move') }}
+      onMouseLeave={() => { onItemHover(null); onCursor('default') }}
+      onDragStart={(e) => onDragStart(e, item.id)}
+      onDragMove={(e) => onDragMove?.(e, item.id)}
+      onDragEnd={(e) => onDragEnd(e, item.id)}
+    >
+      <KonvaImage
+        ref={nodeRef}
+        image={imageObj}
+        width={item.w}
+        height={item.h}
+        listening={false}
+      />
+      <Rect
+        width={item.w}
+        height={item.h}
+        fill="transparent"
+      />
+    </Group>
+  )
+}
+
 const canvasItemRenderers = {
   connector: ConnectorRenderer,
   image: ImageRenderer,
   text: TextRenderer,
   shape: ShapeRenderer,
   frame: FrameRenderer,
+  brushLayer: BrushLayerRenderer,
 }
 
 function DefaultItemRenderer({ item, commonProps }) {
@@ -803,7 +865,7 @@ function DefaultItemRenderer({ item, commonProps }) {
   )
 }
 
-function CanvasItem({ item, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false }) {
+function CanvasItem({ item, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false, fontInjectVersion }) {
   const sizeRef = useRef({ w: item.w, h: item.h })
   const compositeOperation = allowComposite
     ? getItemCompositeOperation(item)
@@ -877,6 +939,7 @@ function CanvasItem({ item, items, selectedId, selectedIds, onSelect, onChange, 
       onFrameImageEdit={onFrameImageEdit}
       getActiveTransformAnchor={getActiveTransformAnchor}
       onCropStart={onCropStart}
+      fontInjectVersion={fontInjectVersion}
     />
   )
 }
@@ -1279,7 +1342,7 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode }) {
   )
 }
 
-function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer }) {
+function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion }) {
   const groupRef = useRef(null)
   const dragStartRef = useRef(null)
   const sourceItem = entry.members.find((item) => item.id === entry.operatorId)
@@ -1447,6 +1510,7 @@ function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect,
               onFrameImageEdit={onFrameImageEdit}
               onCropStart={onCropStart}
               isCropTarget={cropSession?.itemId === item.id}
+              fontInjectVersion={fontInjectVersion}
             />
           ))}
         </Group>
@@ -1477,6 +1541,7 @@ function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect,
           onFrameImageEdit={onFrameImageEdit}
           onCropStart={onCropStart}
           isCropTarget={cropSession?.itemId === item.id}
+          fontInjectVersion={fontInjectVersion}
           allowComposite={item.id === entry.operatorId}
         />
         ))
@@ -1484,8 +1549,6 @@ function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect,
     </Group>
   )
 }
-
-const RED_ERASER_CURSOR = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%23ff4444' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='1.5' fill='%23ff4444'/%3E%3C/svg%3E") 16 16, crosshair`
 
 function Workspace() {
   const navigate = useNavigate()
@@ -1618,6 +1681,53 @@ function Workspace() {
   const fontSentinelRef = useRef(null)
   const fontPickerRef = useRef(null)
   const [loadingFont, setLoadingFont] = useState(null)
+  const [customFonts, setCustomFonts] = useState([])
+  const [isUploadingFont, setIsUploadingFont] = useState(false)
+  const [fontUploadProgress, setFontUploadProgress] = useState(0)
+  const [favoriteFonts, setFavoriteFonts] = useState([])
+  const [fontInjectVersion, setFontInjectVersion] = useState(0)
+  const importFontInputRef = useRef(null)
+  const loadFavorites = useCallback(async () => {
+    try {
+      const payload = await apiGetFavorites()
+      setFavoriteFonts(payload.favorites || [])
+    } catch {}
+  }, [])
+  const toggleFavorite = useCallback(async (fontFamily) => {
+    const isFav = favoriteFonts.includes(fontFamily)
+    try {
+      if (isFav) {
+        await apiRemoveFavorite(fontFamily)
+        setFavoriteFonts((prev) => prev.filter((f) => f !== fontFamily))
+      } else {
+        await apiAddFavorite(fontFamily)
+        setFavoriteFonts((prev) => [...prev, fontFamily])
+      }
+    } catch {}
+  }, [favoriteFonts])
+  const handleImportFont = useCallback(async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setIsUploadingFont(true)
+    setFontUploadProgress(0)
+    try {
+      const payload = await apiUploadFont({ file, onProgress: setFontUploadProgress })
+      const fontData = { ...payload.font, category: 'Import' }
+      const familyName = fontData.family || fontData.name
+      const fontUrl = fontData.url
+      if (fontUrl) {
+        const fontFace = new FontFace(familyName, `url(${fontUrl})`)
+        try { await fontFace.load(); document.fonts.add(fontFace) } catch {}
+      }
+      setCustomFonts((prev) => [fontData, ...prev])
+    } catch (error) {
+      console.error('Failed to import font:', error)
+    } finally {
+      setIsUploadingFont(false)
+      setFontUploadProgress(0)
+      if (importFontInputRef.current) importFontInputRef.current.value = ''
+    }
+  }, [])
   const [editingSliderKey, setEditingSliderKey] = useState(null)
   const [isImageAdjustmentsOpen, setIsImageAdjustmentsOpen] = useState(false)
   const [cropSession, setCropSession] = useState(null)
@@ -1630,17 +1740,481 @@ function Workspace() {
   const [exportError, setExportError] = useState('')
 
   // Tool states
-  const [brushSettings, setBrushSettings] = useState({ size: 10, color: '#000000', opacity: 1, mode: 'paint' })
+  const [brushSettings, setBrushSettings] = useState({ size: 10, color: '#000000', opacity: 1, mode: 'paint', type: 'solid' })
   const brushSettingsRef = useRef(brushSettings)
   brushSettingsRef.current = brushSettings
-  const [currentStroke, setCurrentStroke] = useState(null)
-  const currentStrokeRef = useRef(null)
-  const latestPointerRef = useRef(null)
-  const cursorDebugRef = useRef(null)
-  const brushDrawingRef = useRef(false)
-  const brushStartPosRef = useRef(null)
-  const currentBrushItemIdRef = useRef(null)
-  const eraserTargetSelectedRef = useRef(false)
+  // Offscreen brush layer infrastructure
+  const brushCanvasRef = useRef(null)
+  const brushCtxRef = useRef(null)
+  const isDrawingRef = useRef(false)
+  const lastBrushPosRef = useRef(null)
+  const lastStampPosRef = useRef(null)
+  const activeBrushLayerIdRef = useRef(null)
+  const brushUndoStackRef = useRef([])
+  const eraserImageTargetRef = useRef(null)
+  const eraserImagePointsRef = useRef([])
+
+  const hitTestImageAtPointer = (stage, viewportPoint) => {
+    const hitNode = stage.getIntersection({ x: viewportPoint.x, y: viewportPoint.y })
+    if (!hitNode || hitNode === stage) return null
+    let node = hitNode
+    while (node && node !== stage) {
+      const id = node.id()
+      if (id) {
+        const item = itemsRef.current.find((c) => c.id === id)
+        if (item?.kind === 'image') return item
+        if (item?.kind === 'brushLayer') return null
+      }
+      node = node.parent
+    }
+    return null
+  }
+
+  const ensureBrushLayer = () => {
+    const existingBrushLayer = items.find(i => i.kind === 'brushLayer')
+
+    if (existingBrushLayer) {
+      activeBrushLayerIdRef.current = existingBrushLayer.id
+      if (brushCanvasRef.current) return existingBrushLayer.id
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = canvasSize.width
+    canvas.height = canvasSize.height
+    const ctx = canvas.getContext('2d')
+    brushCanvasRef.current = canvas
+    brushCtxRef.current = ctx
+    _brushOffscreenCanvas = canvas
+
+    if (existingBrushLayer?.src && _brushFallbackImg) {
+      ctx.drawImage(_brushFallbackImg, 0, 0)
+    }
+
+    if (existingBrushLayer) {
+      brushUndoStackRef.current = []
+      _brushImageNode = null
+      return existingBrushLayer.id
+    }
+
+    const id = `brush-${Date.now()}`
+    const newItem = {
+      id,
+      kind: 'brushLayer',
+      x: 0, y: 0,
+      w: canvasSize.width,
+      h: canvasSize.height,
+      rotation: 0,
+      opacity: 1,
+      visible: true,
+      locked: false,
+      effects: getDefaultEffects(),
+    }
+    setItems(items => [newItem, ...items])
+    activeBrushLayerIdRef.current = id
+    brushUndoStackRef.current = []
+    _brushImageNode = null
+    return id
+  }
+
+  const prepareCtxForBrushType = (ctx, type, mode, lineWidth) => {
+    ctx.setLineDash([])
+    ctx.globalAlpha = 1
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.globalCompositeOperation = mode === 'erase' ? 'destination-out' : 'source-over'
+    ctx.lineWidth = lineWidth
+    if (type === 'dashed') {
+      ctx.lineCap = 'butt'
+      ctx.lineJoin = 'miter'
+      ctx.setLineDash([lineWidth * 3, lineWidth])
+    } else if (type === 'dotted') {
+      ctx.lineCap = 'round'
+      ctx.setLineDash([0, lineWidth * 2.25])
+    } else if (type === 'pixel') {
+      ctx.lineCap = 'square'
+      ctx.lineJoin = 'miter'
+    } else if (type === 'airbrush') {
+      ctx.globalAlpha = 0.2
+    }
+    if (mode === 'paint') {
+      ctx.fillStyle = brushSettings.color
+      ctx.strokeStyle = brushSettings.color
+    } else {
+      ctx.strokeStyle = 'rgba(0,0,0,1)'
+    }
+  }
+
+  const airbrushSpray = (ctx, cx, cy, radius, count) => {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const dist = Math.random() * radius
+      const x = cx + Math.cos(angle) * dist
+      const y = cy + Math.sin(angle) * dist
+      const dotSize = Math.max(1, radius * 0.15)
+      ctx.beginPath()
+      ctx.arc(x, y, dotSize, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  const drawWatercolor = (ctx, x, y, size, color, opacity) => {
+    console.log('[watercolor] drawing at', x, y, 'size:', size, 'color:', color)
+    const stamps = 8
+    for (let i = 0; i < stamps; i++) {
+      const angle = (i / stamps) * Math.PI * 2
+      const r = size * 0.3 * Math.random()
+      const ox = Math.cos(angle) * r
+      const oy = Math.sin(angle) * r
+      const s = size * (0.6 + Math.random() * 0.4)
+
+      ctx.save()
+      ctx.globalAlpha = opacity * 0.4
+      ctx.beginPath()
+      ctx.arc(x + ox, y + oy, s, 0, Math.PI * 2)
+      ctx.fillStyle = color
+      ctx.fill()
+
+      ctx.globalAlpha = opacity * 0.2
+      ctx.beginPath()
+      ctx.arc(x + ox, y + oy, s * 1.3, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
+  }
+
+  const handleBrushStart = (e) => {
+    if (brushSettings.mode === 'erase') {
+      const pointer = stageRef.current?.getPointerPosition()
+      if (pointer) {
+        const targetImg = hitTestImageAtPointer(stageRef.current, pointer)
+        if (targetImg) {
+          eraserImageTargetRef.current = targetImg
+          eraserImagePointsRef.current = []
+          const worldPos = getWorldPointFromViewport(pointer, cameraRef.current)
+          eraserImagePointsRef.current.push(worldPos.x, worldPos.y)
+          isDrawingRef.current = true
+          lastBrushPosRef.current = worldPos
+          return
+        }
+      }
+      eraserImageTargetRef.current = null
+    }
+
+    ensureBrushLayer()
+    const ctx = brushCtxRef.current
+    if (!ctx) return
+    const pointer = stageRef.current?.getPointerPosition()
+    if (!pointer) return
+    const worldPos = getWorldPointFromViewport(pointer, cameraRef.current)
+    isDrawingRef.current = true
+    lastBrushPosRef.current = worldPos
+    lastStampPosRef.current = { x: worldPos.x, y: worldPos.y }
+    const radius = brushSettings.size / (cameraRef.current.scale || 1) / 2
+    const type = brushSettings.type
+    const mode = brushSettings.mode
+    const lineWidth = radius * 2
+
+    prepareCtxForBrushType(ctx, type, mode, lineWidth)
+
+    if (type === 'airbrush') {
+      airbrushSpray(ctx, worldPos.x, worldPos.y, radius, Math.round(radius * 3))
+      _brushImageNode?.getLayer()?.batchDraw()
+      return
+    }
+
+    if (type === 'pixel') {
+      const d = Math.max(1, lineWidth)
+      ctx.fillRect(worldPos.x - d / 2, worldPos.y - d / 2, d, d)
+      _brushImageNode?.getLayer()?.batchDraw()
+      return
+    }
+
+    if (type === 'dotted') {
+      ctx.beginPath()
+      ctx.arc(worldPos.x, worldPos.y, lineWidth / 2, 0, Math.PI * 2)
+      ctx.fill()
+      _brushImageNode?.getLayer()?.batchDraw()
+      return
+    }
+
+    if (type === 'dashed') {
+      ctx.beginPath()
+      ctx.moveTo(worldPos.x, worldPos.y)
+      ctx.lineTo(worldPos.x + lineWidth * 2, worldPos.y)
+      ctx.stroke()
+      _brushImageNode?.getLayer()?.batchDraw()
+      return
+    }
+
+    if (type === 'watercolor') {
+      const wcSize = lineWidth * 2.5
+      drawWatercolor(ctx, worldPos.x, worldPos.y, wcSize, brushSettings.color, 0.2)
+      _brushImageNode?.getLayer()?.batchDraw()
+      return
+    }
+
+    ctx.beginPath()
+    ctx.arc(worldPos.x, worldPos.y, radius, 0, Math.PI * 2)
+    ctx.fill()
+    _brushImageNode?.getLayer()?.batchDraw()
+  }
+
+  const handleBrushMove = (e) => {
+    if (!isDrawingRef.current) return
+
+    if (eraserImageTargetRef.current) {
+      const pointer = stageRef.current?.getPointerPosition()
+      if (!pointer) return
+      const worldPos = getWorldPointFromViewport(pointer, cameraRef.current)
+      eraserImagePointsRef.current.push(worldPos.x, worldPos.y)
+      lastBrushPosRef.current = worldPos
+      return
+    }
+
+    const ctx = brushCtxRef.current
+    const last = lastBrushPosRef.current
+    if (!ctx || !last) return
+    const pointer = stageRef.current?.getPointerPosition()
+    if (!pointer) return
+    const worldPos = getWorldPointFromViewport(pointer, cameraRef.current)
+    const radius = brushSettings.size / (cameraRef.current.scale || 1) / 2
+    const type = brushSettings.type
+    const mode = brushSettings.mode
+
+    const dx = worldPos.x - last.x
+    const dy = worldPos.y - last.y
+    const segDist = Math.sqrt(dx * dx + dy * dy)
+    if (segDist === 0) return
+
+    const lineWidth = radius * 2
+
+    if (type === 'dotted' || type === 'dashed' || type === 'pixel') {
+      const stampDist = type === 'dotted' ? lineWidth * 2.25
+        : type === 'dashed' ? lineWidth * 4
+        : lineWidth
+      const dashLen = type === 'dashed' ? lineWidth * 3 : 0
+      const lastStamp = lastStampPosRef.current
+      if (!lastStamp) return
+
+      const sdx = worldPos.x - lastStamp.x
+      const sdy = worldPos.y - lastStamp.y
+      const sDist = Math.sqrt(sdx * sdx + sdy * sdy)
+
+      if (sDist >= stampDist) {
+        prepareCtxForBrushType(ctx, type, mode, lineWidth)
+        const nx = sdx / sDist
+        const ny = sdy / sDist
+        let placed = 0
+
+        while (placed + stampDist <= sDist) {
+          placed += stampDist
+
+          if (type === 'dotted') {
+            const px = lastStamp.x + nx * placed
+            const py = lastStamp.y + ny * placed
+            ctx.beginPath()
+            ctx.arc(px, py, lineWidth / 2, 0, Math.PI * 2)
+            ctx.fill()
+          } else if (type === 'pixel') {
+            const px = lastStamp.x + nx * placed
+            const py = lastStamp.y + ny * placed
+            const d = Math.max(1, lineWidth)
+            ctx.fillRect(px - d / 2, py - d / 2, d, d)
+          } else if (type === 'dashed') {
+            const halfDash = dashLen / 2
+            const cx = lastStamp.x + nx * placed
+            const cy = lastStamp.y + ny * placed
+            const sx = cx - nx * halfDash
+            const sy = cy - ny * halfDash
+            const ex = cx + nx * halfDash
+            const ey = cy + ny * halfDash
+            ctx.beginPath()
+            ctx.moveTo(sx, sy)
+            ctx.lineTo(ex, ey)
+            ctx.stroke()
+          }
+        }
+
+        lastStampPosRef.current = {
+          x: lastStamp.x + nx * placed,
+          y: lastStamp.y + ny * placed,
+        }
+      }
+
+      lastBrushPosRef.current = worldPos
+      _brushImageNode?.getLayer()?.batchDraw()
+      return
+    }
+
+    if (type === 'airbrush') {
+      prepareCtxForBrushType(ctx, type, mode, lineWidth)
+      const steps = Math.max(1, Math.round(segDist / (radius * 0.5)))
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps
+        const px = last.x + dx * t
+        const py = last.y + dy * t
+        airbrushSpray(ctx, px, py, radius, Math.round(radius * 2))
+      }
+      lastBrushPosRef.current = worldPos
+      _brushImageNode?.getLayer()?.batchDraw()
+      return
+    }
+
+    if (type === 'watercolor') {
+      const wcSize = lineWidth * 2.5
+      const steps = Math.max(1, Math.round(segDist / (wcSize * 0.4)))
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps
+        const px = last.x + dx * t
+        const py = last.y + dy * t
+        drawWatercolor(ctx, px, py, wcSize, brushSettings.color, 0.2)
+      }
+      lastBrushPosRef.current = worldPos
+      _brushImageNode?.getLayer()?.batchDraw()
+      return
+    }
+
+    prepareCtxForBrushType(ctx, type, mode, lineWidth)
+    ctx.beginPath()
+    ctx.moveTo(last.x, last.y)
+    ctx.lineTo(worldPos.x, worldPos.y)
+    ctx.stroke()
+    lastBrushPosRef.current = worldPos
+    _brushImageNode?.getLayer()?.batchDraw()
+  }
+
+  const eraseImageStroke = async () => {
+    const targetItem = eraserImageTargetRef.current
+    const points = eraserImagePointsRef.current
+    eraserImageTargetRef.current = null
+    eraserImagePointsRef.current = []
+    if (!targetItem || points.length < 2) return
+
+    const img = await new Promise((resolve, reject) => {
+      const image = new window.Image()
+      image.crossOrigin = 'anonymous'
+      image.onload = () => resolve(image)
+      image.onerror = () => reject()
+      image.src = targetItem.src
+    })
+    if (!img) return
+
+    const originX = targetItem.x
+    const originY = targetItem.y
+    const displayW = Math.max(1, Math.ceil(targetItem.w))
+    const displayH = Math.max(1, Math.ceil(targetItem.h))
+    const nativeW = img.naturalWidth
+    const nativeH = img.naturalHeight
+    const scaleX = nativeW / displayW
+    const scaleY = nativeH / displayH
+    const cam = cameraRef.current
+    const worldSize = brushSettings.size / (cam.scale || 1)
+
+    const canvas = document.createElement('canvas')
+    canvas.width = nativeW
+    canvas.height = nativeH
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0, nativeW, nativeH)
+
+    ctx.globalCompositeOperation = 'destination-out'
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = worldSize * ((scaleX + scaleY) / 2)
+    ctx.strokeStyle = 'rgba(0,0,0,1)'
+    ctx.beginPath()
+    for (let i = 0; i < points.length; i += 2) {
+      const lx = (points[i] - originX) * scaleX
+      const ly = (points[i + 1] - originY) * scaleY
+      if (i === 0) ctx.moveTo(lx, ly)
+      else ctx.lineTo(lx, ly)
+    }
+    ctx.stroke()
+
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      const localUrl = URL.createObjectURL(blob)
+      setItems((current) => current.map((item) => {
+        if (item.id !== targetItem.id) return item
+        return { ...item, src: localUrl, _pendingUpload: blob }
+      }))
+    })
+  }
+
+  const handleBrushEnd = () => {
+    if (!isDrawingRef.current) return
+    isDrawingRef.current = false
+
+    if (eraserImageTargetRef.current) {
+      lastBrushPosRef.current = null
+      lastStampPosRef.current = null
+      if (eraserImagePointsRef.current.length >= 4) {
+        eraseImageStroke()
+      } else {
+        eraserImageTargetRef.current = null
+        eraserImagePointsRef.current = []
+      }
+      return
+    }
+
+    lastBrushPosRef.current = null
+    lastStampPosRef.current = null
+    const canvas = brushCanvasRef.current
+    if (!canvas) return
+    const snapshot = brushCtxRef.current?.getImageData(0, 0, canvas.width, canvas.height)
+    if (snapshot) brushUndoStackRef.current.push(snapshot)
+
+    setTimeout(() => {
+      canvas.toBlob((blob) => {
+        if (!blob) return
+        const reader = new FileReader()
+        reader.onload = () => {
+          const dataUrl = reader.result
+          setItems(current => current.map(item =>
+            item.id === activeBrushLayerIdRef.current
+              ? { ...item, src: dataUrl }
+              : item
+          ))
+        }
+        reader.readAsDataURL(blob)
+      }, 'image/png')
+    }, 0)
+  }
+
+  const undoActiveBrushLayer = useCallback(() => {
+    const stack = brushUndoStackRef.current
+    const ctx = brushCtxRef.current
+    const canvas = brushCanvasRef.current
+    if (!ctx || !canvas) return
+    if (stack.length === 0) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      _brushImageNode?.getLayer()?.batchDraw()
+      return
+    }
+    stack.pop()
+    if (stack.length === 0) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+    } else {
+      ctx.putImageData(stack[stack.length - 1], 0, 0)
+    }
+    _brushImageNode?.getLayer()?.batchDraw()
+
+    const exportCanvas = brushCanvasRef.current
+    if (exportCanvas) {
+      exportCanvas.toBlob((blob) => {
+        if (!blob) return
+        const reader = new FileReader()
+        reader.onload = () => {
+          setItems(current => current.map(item =>
+            item.id === activeBrushLayerIdRef.current
+              ? { ...item, src: reader.result }
+              : item
+          ))
+        }
+        reader.readAsDataURL(blob)
+      }, 'image/png')
+    }
+  }, [])
+
   const [bezierAnchors, setBezierAnchors] = useState([])
   const [bezierSettings, setBezierSettings] = useState({ strokeColor: '#000000', strokeWidth: 3 })
   const [editingBezierId, setEditingBezierId] = useState(null)
@@ -2383,10 +2957,58 @@ function Workspace() {
     return () => { cancelled = true }
   }, [])
 
-  // Reset font display count when picker opens or api fonts arrive
+  const injectFonts = async (fonts) => {
+    for (const font of fonts) {
+      const family = font.family || font.name
+      if (!family || !font.url) continue
+      try {
+        const face = new FontFace(family, `url(${font.url})`)
+        const loaded = await face.load()
+        document.fonts.add(loaded)
+      } catch (err) {
+        console.warn('[inject] skip:', family, err.message)
+      }
+    }
+    setItems((prev) => prev.map((item) =>
+      item.kind === 'text'
+        ? { ...item, _fontVersion: Date.now() }
+        : item
+    ))
+  }
+
+  const refreshCustomFonts = useCallback(() => {
+    if (!isAuthenticated) return
+    apiListFonts()
+      .then(async (payload) => {
+        const fonts = (payload.fonts || []).map((f) => ({ ...f, category: 'Import' }))
+        setCustomFonts(fonts)
+        await injectFonts(fonts)
+        requestAnimationFrame(() => {
+          const layer = stageRef.current?.findOne('Layer')
+          if (layer) {
+            layer.find('Text').forEach((node) => {
+              node.clearCache()
+              if (typeof node._clearTextCache === 'function') node._clearTextCache()
+            })
+            layer.batchDraw()
+          }
+          setFontInjectVersion((v) => v + 1)
+        })
+      })
+      .catch(() => {})
+  }, [isAuthenticated])
+
   useEffect(() => {
-    if (isFontPickerOpen) setFontDisplayCount(20)
-  }, [isFontPickerOpen])
+    refreshCustomFonts()
+  }, [refreshCustomFonts])
+
+  // Reset font display count and load favorites when picker opens
+  useEffect(() => {
+    if (isFontPickerOpen) {
+      setFontDisplayCount(20)
+      loadFavorites()
+    }
+  }, [isFontPickerOpen, loadFavorites])
 
   useEffect(() => {
     if (apiFonts) setFontDisplayCount(20)
@@ -2437,6 +3059,15 @@ function Workspace() {
         restoreWorkspaceSnapshot(workspace)
         hasRestoredWorkspaceRef.current = true
         skipNextAutosaveRef.current = true
+
+        if (cancelled) return
+        if (searchParams.get('export') === '1') {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search.replace(/[?&]export=1&?/g, (m) => m.endsWith('&') ? '?' : '').replace(/[?&]$/, ''))
+          setTimeout(() => setIsExportModalOpen(true), 300)
+        }
+        if (searchParams.get('share') === '1') {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search.replace(/[?&]share=1&?/g, (m) => m.endsWith('&') ? '?' : '').replace(/[?&]$/, ''))
+        }
       })
       .catch((error) => {
         if (cancelled) return
@@ -2449,7 +3080,7 @@ function Workspace() {
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, isAuthLoading, requireAuth, restoreWorkspaceSnapshot, shouldLoadWorkspace, workspaceId])
+  }, [isAuthenticated, isAuthLoading, requireAuth, restoreWorkspaceSnapshot, searchParams, setIsExportModalOpen, shouldLoadWorkspace, workspaceId])
 
   useEffect(() => {
     if (!isWorkspaceLoading && shouldLoadWorkspace && loadingPhase === 'loading') {
@@ -2836,9 +3467,81 @@ function Workspace() {
     }
   }, [exportFormat, exportScale, exportTransparent, generateWorkspaceExportDataUrl, isCanvasBackgroundNone, workspaceTitle])
 
+  const deleteOldSrc = useCallback(async (oldSrc) => {
+    if (!oldSrc || !oldSrc.includes('/storage/') && !oldSrc.includes('supabase.co')) return
+    try {
+      await deleteMediaByUrl(oldSrc)
+    } catch {}
+  }, [])
+
+  const uploadPendingItems = useCallback(async () => {
+    const pendingItems = itemsRef.current.filter((item) => item._pendingUpload)
+    if (pendingItems.length === 0) return []
+
+    const updates = []
+    for (const item of pendingItems) {
+      const blob = item._pendingUpload
+      const file = new File([blob], `pending-${Date.now()}-${item.id}.png`, { type: 'image/png' })
+      try {
+        const uploaded = await uploadMediaFile({ file, addToUploads: false })
+        const newUrl = uploaded?.media?.url
+        if (newUrl) {
+          await deleteOldSrc(item.src)
+          URL.revokeObjectURL(item.src)
+          updates.push({ id: item.id, src: newUrl })
+        }
+      } catch (err) {
+        console.error('Failed to upload pending item:', item.id, err)
+      }
+    }
+    return updates
+  }, [deleteOldSrc])
+
+  const buildSnapshotWithSrc = useCallback((srcUpdates) => {
+    const snapshot = buildWorkspaceSnapshot()
+    const updateMap = new Map((srcUpdates || []).map((u) => [u.id, u.src]))
+    const patchedItems = snapshot.items.map((item) => {
+      const newSrc = updateMap.get(item.id)
+      const next = newSrc ? { ...item, src: newSrc } : { ...item }
+      delete next._pendingUpload
+      return next
+    })
+    return {
+      ...snapshot,
+      items: patchedItems,
+      layers: patchedItems.map((item, index) => ({
+        id: item.id,
+        index,
+        kind: item.kind,
+        locked: !!item.locked,
+        visible: item.visible !== false,
+      })),
+      assetsUsed: patchedItems
+        .filter((item) => item.src || item.frameImageSrc || item.frameImages?.some((image) => image?.src))
+        .map((item) => ({
+          id: item.id,
+          kind: item.kind,
+          src: item.src || item.frameImageSrc || null,
+          frameImages: item.frameImages || null,
+        })),
+    }
+  }, [buildWorkspaceSnapshot])
+
   const persistWorkspaceSnapshot = useCallback(async (saveType = 'autosave', options = {}) => {
     if (!workspaceId || !hasRestoredWorkspaceRef.current) return null
-    const snapshot = buildWorkspaceSnapshot()
+    const updates = await uploadPendingItems()
+    if (updates.length > 0) {
+      setItems((prev) => prev.map((item) => {
+        const match = updates.find((u) => u.id === item.id)
+        if (match) {
+          const next = { ...item, src: match.src }
+          delete next._pendingUpload
+          return next
+        }
+        return item
+      }))
+    }
+    const snapshot = buildSnapshotWithSrc(updates)
     const snapshotHash = getSnapshotHash(snapshot)
     if (snapshotHash === lastSavedSnapshotHashRef.current) return null
 
@@ -2860,7 +3563,7 @@ function Workspace() {
       await uploadWorkspaceThumbnail()
     }
     return result
-  }, [buildWorkspaceSnapshot, canvasSettings, uploadWorkspaceThumbnail, workspaceId, workspaceTitle])
+  }, [buildSnapshotWithSrc, canvasSettings, uploadPendingItems, uploadWorkspaceThumbnail, workspaceId, workspaceTitle])
 
   const syncCanvasMetadata = useCallback(async (settings) => {
     if (!workspaceId || !hasRestoredWorkspaceRef.current || isWorkspaceLoading) return
@@ -3056,37 +3759,7 @@ function Workspace() {
     return () => observer.disconnect()
   }, [])
 
-  // Native mousemove listener for real-time cursor tracking (faster than React batching)
-  useEffect(() => {
-    const stage = stageRef.current
-    console.log('[EFFECT] stageRef:', !!stage, 'content:', !!stage?.content, 'canvas:', !!stage?.content?.querySelector('canvas'))
-    const stageNode = stageRef.current?.content
-    if (!stageNode) return
-    let count = 0
-    const onMove = (e) => {
-      const target = e.currentTarget
-      const rect = stageNode.getBoundingClientRect()
-      const sw = stageRef.current?.width() || 1
-      const sh = stageRef.current?.height() || 1
-      const getPP = stageRef.current?.getPointerPosition?.()
-      latestPointerRef.current = {
-        x: e.offsetX,
-        y: e.offsetY,
-      }
-      if (count++ < 5 || count % 10 === 0) {
-        console.log('[NATIVE] offset:', Math.round(e.offsetX), Math.round(e.offsetY),
-          'getPP:', Math.round(getPP?.x), Math.round(getPP?.y),
-          'tag:', target?.tagName,
-          'attr:', target?.width, 'x', target?.height,
-          'CSS:', target?.offsetWidth, 'x', target?.offsetHeight)
-      }
-    }
-    // Try canvas first, fallback to stage container
-    const canvas = stageNode.querySelector('canvas')
-    const el = canvas || stageNode
-    el.addEventListener('mousemove', onMove, { passive: true })
-    return () => el.removeEventListener('mousemove', onMove)
-  }, [])
+  // (native canvas mousemove — removed, handled by Canvas onMouseMove)
 
   const clampCameraToCanvas = useCallback((nextCamera) => {
     const scaledCanvas = {
@@ -3526,7 +4199,7 @@ const attachTransformer = useCallback((idOrIds) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a' && !isTypingTarget) {
         event.preventDefault()
         const allIds = itemsRef.current
-          .filter((item) => item.visible !== false && item.kind !== 'connector')
+          .filter((item) => item.visible !== false)
           .map((item) => item.id)
         setSelectedId(allIds[allIds.length - 1] || null)
         setSelectedIds(allIds)
@@ -3544,7 +4217,11 @@ const attachTransformer = useCallback((idOrIds) => {
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !isTypingTarget) {
         event.preventDefault()
-        handleUndo()
+        if (brushUndoStackRef.current.length > 0) {
+          undoActiveBrushLayer()
+        } else {
+          handleUndo()
+        }
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y' && !isTypingTarget) {
@@ -3581,7 +4258,7 @@ const attachTransformer = useCallback((idOrIds) => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [isFontPickerOpen, isColorPickerOpen, editingFrameId, finishFrameImageEdit, connectorDraft, connectorTool, handleCopy, handlePaste, handleManualSave])
+  }, [isFontPickerOpen, isColorPickerOpen, editingFrameId, finishFrameImageEdit, connectorDraft, connectorTool, handleCopy, handlePaste, handleManualSave, undoActiveBrushLayer])
 
   const openRightPanel = (panel = activePanel) => {
     console.log('[DEBUG] openRightPanel called with panel:', panel)
@@ -3747,21 +4424,36 @@ const attachTransformer = useCallback((idOrIds) => {
     requestAnimationFrame(() => attachTransformer(groupIds))
   }, [activeGroupId, attachTransformer])
 
+  const syncInlineEditor = useCallback((items) => {
+    if (!editingText || !richTextEditorRef.current || !selectedId) return
+    const source = items || itemsRef.current
+    const updatedItem = source.find(item => item.id === selectedId)
+    if (!updatedItem || updatedItem.kind !== 'text') return
+    const runs = getRuns(updatedItem)
+    richTextEditorRef.current.setHtml(runsToHtml(runs, updatedItem.fontFamily, updatedItem.fill))
+  }, [editingText, selectedId])
+
   const handleUndo = useCallback(() => {
     if (!undoStackRef.current.length) return
     isUndoingRef.current = true
     redoStackRef.current.push(JSON.parse(JSON.stringify(itemsRef.current)))
     const prev = undoStackRef.current.pop()
-    if (prev) setItems(prev)
-  }, [])
+    if (prev) {
+      setItems(prev)
+      requestAnimationFrame(() => syncInlineEditor(prev))
+    }
+  }, [syncInlineEditor])
 
   const handleRedo = useCallback(() => {
     if (!redoStackRef.current.length) return
     isUndoingRef.current = true
     undoStackRef.current.push(JSON.parse(JSON.stringify(itemsRef.current)))
     const next = redoStackRef.current.pop()
-    if (next) setItems(next)
-  }, [])
+    if (next) {
+      setItems(next)
+      requestAnimationFrame(() => syncInlineEditor(next))
+    }
+  }, [syncInlineEditor])
 
   const alignCanvasItems = useCallback((alignment) => {
     const ids = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
@@ -4042,7 +4734,7 @@ const attachTransformer = useCallback((idOrIds) => {
       const target = event.target
       const isEditingText = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
 
-      if (isEditingText || editingFrameId || !selectedId || event.ctrlKey || event.metaKey || event.altKey) return
+      if (isEditingText || editingFrameId || (!selectedId && !selectedIds.length) || event.ctrlKey || event.metaKey || event.altKey) return
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault()
@@ -4130,28 +4822,6 @@ const attachTransformer = useCallback((idOrIds) => {
 
   // ── Tool handlers ─────────────────────────────────
 
-  const beginBrushStroke = (event) => {
-    const pointer = stageRef.current?.getPointerPosition()
-    if (!pointer) return
-    brushStartPosRef.current = { x: pointer.x, y: pointer.y }
-  }
-
-  const tryStartBrushStroke = () => {
-    if (brushStartPosRef.current) {
-      const pointer = stageRef.current?.getPointerPosition()
-      if (!pointer) return
-      const dx = pointer.x - brushStartPosRef.current.x
-      const dy = pointer.y - brushStartPosRef.current.y
-      if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return
-      brushDrawingRef.current = true
-      brushStartPosRef.current = null
-      const worldPoint = getWorldPointFromViewport(pointer, cameraRef.current)
-      const initStroke = { id: `brush-${Date.now()}`, points: [worldPoint.x, worldPoint.y] }
-      currentStrokeRef.current = initStroke
-      setCurrentStroke(initStroke)
-    }
-  }
-
   const findImageAtStagePoint = (stage, worldPoints) => {
     const cam = cameraRef.current
     const step = Math.max(1, Math.floor(worldPoints.length / 8))
@@ -4171,314 +4841,6 @@ const attachTransformer = useCallback((idOrIds) => {
       }
     }
     return null
-  }
-
-  const applyEraserStroke = async (worldPoints, activeItemId) => {
-    const stage = stageRef.current
-    if (!stage || worldPoints.length < 2) return
-    const cam = cameraRef.current
-
-    let targetItem = null
-    if (activeItemId) {
-      targetItem = itemsRef.current.find((item) => item.id === activeItemId)
-      if (targetItem && !(targetItem.kind === 'image' || (targetItem.kind === 'shape' && targetItem.shapeType === 'freehand'))) {
-        targetItem = null
-      }
-    }
-    if (!targetItem) {
-      targetItem = findImageAtStagePoint(stage, worldPoints)
-    }
-    if (!targetItem) return
-
-    const wasFreehand = targetItem.kind === 'shape' && targetItem.shapeType === 'freehand'
-    const size = brushSettingsRef.current.size
-    const halfSize = size / 2
-
-    if (wasFreehand) {
-      let erWMinX = Infinity, erWMinY = Infinity, erWMaxX = -Infinity, erWMaxY = -Infinity
-      for (let i = 0; i < worldPoints.length; i += 2) {
-        erWMinX = Math.min(erWMinX, worldPoints[i])
-        erWMinY = Math.min(erWMinY, worldPoints[i + 1])
-        erWMaxX = Math.max(erWMaxX, worldPoints[i])
-        erWMaxY = Math.max(erWMaxY, worldPoints[i + 1])
-      }
-      // Convert eraser bounding box to stage coordinates for stroke comparison
-      const erSMinX = erWMinX * cam.scale + cam.x - halfSize
-      const erSMinY = erWMinY * cam.scale + cam.y - halfSize
-      const erSMaxX = erWMaxX * cam.scale + cam.x + halfSize
-      const erSMaxY = erWMaxY * cam.scale + cam.y + halfSize
-
-      const itemX = targetItem.x
-      const itemY = targetItem.y
-      const strokes = targetItem.strokes || [targetItem.points]
-
-      const splitStrokes = []
-      for (const stroke of strokes) {
-        let segment = []
-        for (let i = 0; i < stroke.length; i += 2) {
-          const sx = (stroke[i] + itemX) * cam.scale + cam.x
-          const sy = (stroke[i + 1] + itemY) * cam.scale + cam.y
-          const inside = sx >= erSMinX && sx <= erSMaxX && sy >= erSMinY && sy <= erSMaxY
-          if (!inside) {
-            segment.push(stroke[i], stroke[i + 1])
-          } else if (segment.length > 0) {
-            if (segment.length >= 4) splitStrokes.push(segment)
-            segment = []
-          }
-        }
-        if (segment.length >= 4) splitStrokes.push(segment)
-      }
-
-      if (splitStrokes.length === 0) {
-        setItems((current) => current.filter((item) => item.id !== targetItem.id))
-        setSelectedId(null)
-        setSelectedIds([])
-        requestAnimationFrame(() => attachTransformer(null))
-        return
-      }
-
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-      for (const stroke of splitStrokes) {
-        for (let i = 0; i < stroke.length; i += 2) {
-          const wx = stroke[i] + itemX
-          const wy = stroke[i + 1] + itemY
-          minX = Math.min(minX, wx)
-          minY = Math.min(minY, wy)
-          maxX = Math.max(maxX, wx)
-          maxY = Math.max(maxY, wy)
-        }
-      }
-      const dx = minX - itemX
-      const dy = minY - itemY
-      const relStrokes = splitStrokes.map((s) => {
-        const rel = []
-        for (let i = 0; i < s.length; i += 2) {
-          rel.push(s[i] - dx)
-          rel.push(s[i + 1] - dy)
-        }
-        return rel
-      })
-
-      setItems((current) => current.map((item) => {
-        if (item.id !== targetItem.id) return item
-        return {
-          ...item,
-          x: minX, y: minY,
-          w: Math.max(1, maxX - minX),
-          h: Math.max(1, maxY - minY),
-          strokes: relStrokes,
-          points: undefined,
-        }
-      }))
-      return
-    }
-
-    // Image item: canvas + destination-out
-    const img = await new Promise((resolve, reject) => {
-      const image = new window.Image()
-      image.crossOrigin = 'anonymous'
-      image.onload = () => resolve(image)
-      image.onerror = () => reject(new Error('Failed to load image'))
-      image.src = targetItem.src
-    })
-
-    const originX = targetItem.x
-    const originY = targetItem.y
-    const displayW = Math.max(1, Math.ceil(targetItem.w))
-    const displayH = Math.max(1, Math.ceil(targetItem.h))
-    const nativeW = img.naturalWidth
-    const nativeH = img.naturalHeight
-    const scaleX = nativeW / displayW
-    const scaleY = nativeH / displayH
-
-    const canvas = document.createElement('canvas')
-    canvas.width = nativeW
-    canvas.height = nativeH
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(img, 0, 0, nativeW, nativeH)
-
-    ctx.globalCompositeOperation = 'destination-out'
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.lineWidth = size * ((scaleX + scaleY) / 2)
-    ctx.strokeStyle = 'rgba(0,0,0,1)'
-    ctx.beginPath()
-    for (let i = 0; i < worldPoints.length; i += 2) {
-      const lx = (worldPoints[i] - originX) * scaleX
-      const ly = (worldPoints[i + 1] - originY) * scaleY
-      if (i === 0) ctx.moveTo(lx, ly)
-      else ctx.lineTo(lx, ly)
-    }
-    ctx.stroke()
-
-    canvas.toBlob((blob) => {
-      if (!blob) return
-      const localUrl = URL.createObjectURL(blob)
-      setItems((current) => current.map((item) => {
-        if (item.id !== targetItem.id) return item
-        return { ...item, x: originX, y: originY, w: displayW, h: displayH, src: localUrl }
-      }))
-
-      const file = new File([blob], `erased-${Date.now()}.png`, { type: 'image/png' })
-      uploadMediaFile({ file, addToUploads: false }).then((uploaded) => {
-        const url = uploaded?.media?.url
-        if (url) {
-          URL.revokeObjectURL(localUrl)
-          setItems((current) => current.map((item) => {
-            if (item.id !== targetItem.id) return item
-            return { ...item, x: originX, y: originY, w: displayW, h: displayH, src: url }
-          }))
-        }
-      }).catch(() => {})
-    })
-  }
-
-  const handleEraserTapSelect = (stagePos) => {
-    const stage = stageRef.current
-    if (!stage) return
-    const hitNode = stage.getIntersection({ x: stagePos.x, y: stagePos.y })
-    if (!hitNode || hitNode === stage) {
-      setSelectedId(null)
-      setSelectedIds([])
-      requestAnimationFrame(() => {
-        if (transformerRef.current) {
-          transformerRef.current.nodes([])
-          transformerRef.current.getLayer()?.batchDraw()
-        }
-      })
-      eraserTargetSelectedRef.current = false
-      setStageCursor(`url('/brush-cursor.svg') 16 16, crosshair`)
-      return
-    }
-    let node = hitNode
-    while (node && node !== stage) {
-      const id = node.id()
-      if (id) {
-        const item = itemsRef.current.find((c) => c.id === id)
-        if (item && !item.locked && (item.kind === 'image' || (item.kind === 'shape' && item.shapeType === 'freehand'))) {
-          selectItem(id)
-          requestAnimationFrame(() => attachTransformer(id))
-          if (item.kind === 'shape' && item.shapeType === 'freehand') {
-            currentBrushItemIdRef.current = id
-          }
-          eraserTargetSelectedRef.current = true
-          setStageCursor(RED_ERASER_CURSOR)
-          return
-        }
-      }
-      node = node.parent
-    }
-    setSelectedId(null)
-    setSelectedIds([])
-    requestAnimationFrame(() => {
-      if (transformerRef.current) {
-        transformerRef.current.nodes([])
-        transformerRef.current.getLayer()?.batchDraw()
-      }
-    })
-    eraserTargetSelectedRef.current = false
-    setStageCursor(`url('/brush-cursor.svg') 16 16, crosshair`)
-  }
-
-  const finishBrushStroke = () => {
-    brushStartPosRef.current = null
-    if (!brushDrawingRef.current) {
-      // Tap on empty canvas → reset brush layer
-      currentBrushItemIdRef.current = null
-      return
-    }
-    brushDrawingRef.current = false
-    // Save ref points before setCurrentStroke clears them (ref is always most up-to-date)
-    const refPoints = currentStrokeRef.current?.points?.slice()
-    latestPointerRef.current = null
-    if (brushSettingsRef.current.mode === 'erase' && refPoints && refPoints.length >= 4) {
-      queueMicrotask(() => applyEraserStroke(refPoints, currentBrushItemIdRef.current))
-      currentStrokeRef.current = null
-      setCurrentStroke(null)
-      return
-    }
-    setCurrentStroke((prev) => {
-      currentStrokeRef.current = null
-      if (!prev || prev.points.length < 4) return null
-
-      // Eraser mode: clear pixels on image item
-      if (brushSettingsRef.current.mode === 'erase') {
-        queueMicrotask(() => applyEraserStroke(prev.points.slice(), currentBrushItemIdRef.current))
-        return null
-      }
-
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-      for (let i = 0; i < prev.points.length; i += 2) {
-        minX = Math.min(minX, prev.points[i])
-        minY = Math.min(minY, prev.points[i + 1])
-        maxX = Math.max(maxX, prev.points[i])
-        maxY = Math.max(maxY, prev.points[i + 1])
-      }
-      const relPoints = []
-      for (let i = 0; i < prev.points.length; i += 2) {
-        relPoints.push(prev.points[i] - minX)
-        relPoints.push(prev.points[i + 1] - minY)
-      }
-      if (currentBrushItemIdRef.current) {
-        // Append stroke to existing brush item
-        const itemId = currentBrushItemIdRef.current
-        setItems((items) => items.map((item) => {
-          if (item.id !== itemId) return item
-          const existingStrokes = item.strokes || [item.points]
-          const newX = Math.min(item.x, minX)
-          const newY = Math.min(item.y, minY)
-          const offsetX = newX - item.x
-          const offsetY = newY - item.y
-          const adjustedStrokes = existingStrokes.map((s) => {
-            const adjusted = []
-            for (let i = 0; i < s.length; i += 2) {
-              adjusted.push(s[i] - offsetX)
-              adjusted.push(s[i + 1] - offsetY)
-            }
-            return adjusted
-          })
-          const adjustedNew = []
-          for (let i = 0; i < relPoints.length; i += 2) {
-            adjustedNew.push(relPoints[i] + (minX - newX))
-            adjustedNew.push(relPoints[i + 1] + (minY - newY))
-          }
-          const newStrokes = [...adjustedStrokes, adjustedNew]
-          return {
-            ...item,
-            x: newX, y: newY,
-            w: Math.max(item.w - offsetX, maxX - newX),
-            h: Math.max(item.h - offsetY, maxY - newY),
-            strokes: newStrokes,
-          }
-        }))
-      } else {
-        // Create new brush item
-        const newItem = {
-          id: prev.id,
-          kind: 'shape',
-          shapeType: 'freehand',
-          x: minX, y: minY,
-          w: Math.max(1, maxX - minX),
-          h: Math.max(1, maxY - minY),
-          strokes: [relPoints],
-          stroke: brushSettings.color,
-          strokeWidth: brushSettings.size,
-          opacity: brushSettings.opacity,
-          fill: 'transparent',
-          rotation: 0,
-          effects: getDefaultEffects(),
-        }
-        setItems((items) => [newItem, ...items])
-        currentBrushItemIdRef.current = newItem.id
-      }
-      return null
-    })
-  }
-
-  const cancelBrushStroke = () => {
-    brushDrawingRef.current = false
-    brushStartPosRef.current = null
-    setCurrentStroke(null)
   }
 
   const snapBezierPoint = (point) => {
@@ -4617,20 +4979,14 @@ const attachTransformer = useCallback((idOrIds) => {
 
   // Tool cursor management
   const handleItemCursor = useCallback((cursor) => {
-    if (activePanel === 'bezier' || editingBezierId ||
-        (activePanel === 'brush' && (brushSettings.mode === 'paint' || eraserTargetSelectedRef.current))) {
+    if (activePanel === 'bezier' || editingBezierId || activePanel === 'brush') {
       return
     }
     setStageCursor(cursor)
-  }, [activePanel, editingBezierId, brushSettings.mode])
+  }, [activePanel, editingBezierId])
 
   useEffect(() => {
-    if (activePanel === 'brush') {
-      if (brushSettings.mode === 'erase') {
-        eraserTargetSelectedRef.current = false
-      }
-      setStageCursor(`url('/brush-cursor.svg') 16 16, crosshair`)
-    } else if (activePanel === 'bezier') {
+    if (activePanel === 'bezier') {
       setStageCursor('crosshair')
     } else {
       setStageCursor('default')
@@ -4639,16 +4995,29 @@ const attachTransformer = useCallback((idOrIds) => {
       setBezierMousePos(null)
       setBezierGuides([])
     }
-    if (activePanel !== 'brush') {
-      currentBrushItemIdRef.current = null
-      eraserTargetSelectedRef.current = false
-    } else if (brushSettings.mode === 'paint' && currentBrushItemIdRef.current) {
-      const item = itemsRef.current.find((i) => i.id === currentBrushItemIdRef.current)
-      if (!item || item.kind !== 'shape' || item.shapeType !== 'freehand') {
-        currentBrushItemIdRef.current = null
-      }
+  }, [activePanel, editingBezierId])
+
+  useEffect(() => {
+    if (activePanel === 'brush') {
+      const cursorCss = brushSettings.mode === 'erase'
+        ? "url('/eraser-cursor.svg') 16 16, crosshair"
+        : "url('/brush-cursor.svg') 16 16, crosshair"
+      setStageCursor(cursorCss)
+    } else {
+      setStageCursor('default')
     }
-  }, [activePanel, editingBezierId, brushSettings.mode])
+  }, [activePanel, brushSettings.mode])
+
+  // Window safety net — catch pointerup/touchend outside Stage
+  useEffect(() => {
+    const handleUp = () => { if (isDrawingRef.current) handleBrushEnd() }
+    window.addEventListener('pointerup', handleUp)
+    window.addEventListener('touchend', handleUp)
+    return () => {
+      window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('touchend', handleUp)
+    }
+  }, [])
 
   const getImageDimensions = (file) => new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
@@ -4755,19 +5124,8 @@ const attachTransformer = useCallback((idOrIds) => {
       const oldItem = itemsRef.current.find((i) => i.id === item.id)
       if (oldItem?.src?.startsWith('blob:')) URL.revokeObjectURL(oldItem.src)
       setItems((prev) => prev.map((i) =>
-        i.id === item.id ? { ...i, src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH) } : i
+        i.id === item.id ? { ...i, src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH), _pendingUpload: blob } : i
       ))
-
-      const file = new File([blob], `warp-${Date.now()}.png`, { type: 'image/png' })
-      uploadMediaFile({ file, addToUploads: false }).then((uploaded) => {
-        const url = uploaded?.media?.url
-        if (url) {
-          URL.revokeObjectURL(localUrl)
-          setItems((prev) => prev.map((i) =>
-            i.id === item.id ? { ...i, src: url } : i
-          ))
-        }
-      }).catch(() => {})
 
       warpedItemIdRef.current = null
       warpStateRef.current = null
@@ -5027,16 +5385,7 @@ const attachTransformer = useCallback((idOrIds) => {
     if (!blob) return
     const localUrl = URL.createObjectURL(blob)
 
-    updateItem(item.id, { src: localUrl, relight: null })
-
-    const file = new File([blob], `relight-${Date.now()}.png`, { type: 'image/png' })
-    uploadMediaFile({ file, addToUploads: false }).then((uploaded) => {
-      const url = uploaded?.media?.url
-      if (url) {
-        URL.revokeObjectURL(localUrl)
-        updateItem(item.id, { src: url })
-      }
-    }).catch(() => {})
+    updateItem(item.id, { src: localUrl, relight: null, _pendingUpload: blob })
 
     setRelightActive(false)
     setActiveToolCard(null)
@@ -5074,24 +5423,9 @@ const attachTransformer = useCallback((idOrIds) => {
       })
 
       if (removeBgCancelRef.current) throw CANCELED
-
-      // Upload result to server so the URL persists across reloads
-      setRemoveBgProgress({ phase: 'uploading', current: 0, total: 100 })
-      const file = new File([resultBlob], `remove-bg-${Date.now()}.png`, { type: 'image/png' })
+      const localUrl = URL.createObjectURL(resultBlob)
       if (removeBgCancelRef.current) throw CANCELED
-      const dims = await getImageDimensions(file)
-      if (removeBgCancelRef.current) throw CANCELED
-      const uploaded = await uploadMediaFile({
-        file,
-        width: dims.width,
-        height: dims.height,
-        addToUploads: false,
-        onProgress: (pct) => setRemoveBgProgress({ phase: 'uploading', current: pct, total: 100 }),
-      })
-
-      const url = uploaded.media.url
-      if (removeBgCancelRef.current) throw CANCELED
-      const newItem = { ...selectedItem, id: `image-${Date.now()}`, x: selectedItem.x + 30, y: selectedItem.y + 30, src: url }
+      const newItem = { ...selectedItem, id: `image-${Date.now()}`, x: selectedItem.x + 30, y: selectedItem.y + 30, src: localUrl, _pendingUpload: resultBlob }
       setItems((items) => [newItem, ...items])
     } catch (error) {
       if (error !== CANCELED) console.error('Remove background failed:', error)
@@ -5224,7 +5558,18 @@ const attachTransformer = useCallback((idOrIds) => {
     const x = item.x || 0
     const y = item.y || 0
     const w = item.w || 1
-    const h = item.h || 1
+
+    // For text items, read actual rendered height from Konva node
+    // to avoid stale item.h race condition with multi-run text.
+    let h = item.h || 1
+    if (item.kind === 'text') {
+      const node = stageRef.current?.findOne(`#${item.id}`)
+      if (node) {
+        const rect = node.getClientRect({ skipTransform: true, skipShadow: true, skipStroke: true })
+        if (rect.height > 0) h = rect.height
+      }
+    }
+
     const rotation = ((item.rotation || 0) * Math.PI) / 180
     const cos = Math.cos(rotation)
     const sin = Math.sin(rotation)
@@ -6875,6 +7220,8 @@ if (item?.kind === 'image') {
   const addAssetToCanvasRef = useRef(addAssetToCanvas)
   addAssetToCanvasRef.current = addAssetToCanvas
 
+
+
   useEffect(() => {
     const handleTouchEnd = (e) => {
       const asset = touchDragAssetRef.current
@@ -7153,7 +7500,7 @@ const beginPan = (event) => {
 
     // Tool handlers: brush
     if (activePanel === 'brush') {
-      beginBrushStroke(event)
+      handleBrushStart(event)
       return
     }
 
@@ -7234,36 +7581,9 @@ const beginPan = (event) => {
   }
 
 const handleStageMouseMove = (e) => {
-  if (brushStartPosRef.current || brushDrawingRef.current) {
-    tryStartBrushStroke()
-    if (!brushDrawingRef.current) return
-    const pointer = stageRef.current?.getPointerPosition()
-    if (!pointer) return
-    // Update latestPointerRef from the raw event for real-time cursor tracking
-    if (e?.evt) {
-      const rect = stageRef.current?.content?.getBoundingClientRect()
-      if (rect) {
-        const sw = stageRef.current?.width() || 1
-        const sh = stageRef.current?.height() || 1
-        latestPointerRef.current = {
-          x: (e.evt.clientX - rect.left) * (sw / rect.width),
-          y: (e.evt.clientY - rect.top) * (sh / rect.height),
-        }
-      }
-    } else {
-      latestPointerRef.current = pointer
-    }
-    const worldPoint = getWorldPointFromViewport(pointer, cameraRef.current)
-    if (currentStrokeRef.current) {
-      const next = { ...currentStrokeRef.current, points: [...currentStrokeRef.current.points, worldPoint.x, worldPoint.y] }
-      currentStrokeRef.current = next
-    }
-    setCurrentStroke((prev) => {
-      if (!prev) return prev
-      const next = { ...prev, points: [...prev.points, worldPoint.x, worldPoint.y] }
-      currentStrokeRef.current = next
-      return next
-    })
+  // Tool handlers: brush
+  if (activePanel === 'brush' && isDrawingRef.current) {
+    handleBrushMove(e)
     return
   }
 
@@ -7342,17 +7662,8 @@ const handleStageMouseMove = (e) => {
 }
 
 const handleStageMouseUp = (event) => {
-  if (brushDrawingRef.current) {
-    finishBrushStroke()
-    return
-  }
-
-  if (activePanel === 'brush' && brushSettings.mode === 'erase') {
-    brushStartPosRef.current = null
-    const pointer = stageRef.current?.getPointerPosition()
-    if (pointer) {
-      handleEraserTapSelect(pointer)
-    }
+  if (activePanel === 'brush' && isDrawingRef.current) {
+    handleBrushEnd()
     return
   }
 
@@ -7374,8 +7685,25 @@ const handleStageMouseUp = (event) => {
 
     if (box && (box.width > 4 || box.height > 4)) {
       const hitIds = itemsRef.current
-        .filter((item) => item.visible !== false && item.kind !== 'connector')
-        .filter((item) => rectsIntersect(box, { x: item.x || 0, y: item.y || 0, width: item.w || 1, height: item.h || 1 }))
+        .filter((item) => item.visible !== false)
+        .filter((item) => {
+          if (item.kind === 'connector') {
+            const start = resolveConnectorEndpointPoint(item, 'from', itemsRef.current)
+            const end = resolveConnectorEndpointPoint(item, 'to', itemsRef.current)
+            if (!start || !end) return false
+            const minX = Math.min(start.x, end.x)
+            const minY = Math.min(start.y, end.y)
+            const maxX = Math.max(start.x, end.x)
+            const maxY = Math.max(start.y, end.y)
+            const pad = (item.strokeWidth || 3) + 8
+            return rectsIntersect(box, {
+              x: minX - pad, y: minY - pad,
+              width: maxX - minX + pad * 2,
+              height: maxY - minY + pad * 2,
+            })
+          }
+          return rectsIntersect(box, { x: item.x || 0, y: item.y || 0, width: item.w || 1, height: item.h || 1 })
+        })
         .map((item) => item.id)
       const nextIds = append ? Array.from(new Set([...selectedIds, ...hitIds])) : hitIds
       setSelectedIds(nextIds)
@@ -7641,7 +7969,10 @@ const getTouchCenter = (touches) => {
 }
 
 const handleStageTouchStart = (event) => {
-  event.evt.preventDefault()
+  if (activePanel === 'brush') {
+    handleBrushStart(event)
+    return
+  }
   const touches = event.evt.touches
   if (touches?.length === 2) {
     panSessionRef.current = null
@@ -7673,7 +8004,10 @@ const doTouchPan = () => {
 }
 
 const handleStageTouchMove = (event) => {
-  event.evt.preventDefault()
+  if (activePanel === 'brush' && isDrawingRef.current) {
+    handleBrushMove(event)
+    return
+  }
   const touches = event.evt.touches
   const pinchSession = pinchSessionRef.current
   if (touches?.length === 2 && pinchSession) {
@@ -7690,6 +8024,11 @@ const handleStageTouchMove = (event) => {
 }
 
 const handleStageTouchEnd = (event) => {
+  if (activePanel === 'brush' && isDrawingRef.current) {
+    handleBrushEnd()
+    return
+  }
+
   if ((event.evt.touches?.length || 0) < 2) {
     pinchSessionRef.current = null
 
@@ -8227,20 +8566,32 @@ const toggleMobileSheetSize = () => {
     )
   }
 
-  const allCategories = ['All', 'Sans Serif', 'Serif', 'Display', 'Handwriting', 'Monospace']
+  const allCategories = ['All', 'Import', 'Favorites', 'Sans Serif', 'Serif', 'Display', 'Handwriting', 'Monospace']
 
   if (isFontPickerOpen && ['text', 'shape'].includes(selectedItem?.kind)) {
-    const fonts = apiFonts
+    const allFonts = apiFonts
       ? [...availableFonts, ...apiFonts.filter((f) => !availableFonts.some((a) => a.name.toLowerCase() === f.name.toLowerCase()))]
       : availableFonts
+    const fonts = [...allFonts, ...customFonts.filter((f) => {
+      const fam = f.family?.toLowerCase() || f.name?.toLowerCase()
+      if (!fam) return true
+      return !allFonts.some((a) => (a.family?.toLowerCase() || a.name?.toLowerCase()) === fam)
+    })]
     const filteredFonts = fonts.filter((font) => {
       const matchesSearch = !fontSearchQuery || font.name.toLowerCase().includes(fontSearchQuery.toLowerCase())
-      const matchesCategory = !selectedFontCategory || selectedFontCategory === 'All' || font.category === selectedFontCategory
+      const isImport = font.category === 'Import' || font.category === 'import'
+      const matchesCategory = !selectedFontCategory || selectedFontCategory === 'All'
+        ? true
+        : selectedFontCategory === 'Import'
+          ? isImport
+          : selectedFontCategory === 'Favorites'
+            ? favoriteFonts.includes(font.family)
+            : font.category === selectedFontCategory
       return matchesSearch && matchesCategory
     })
 
     return (
-      <div ref={fontPickerRef} className="workspace-font-picker">
+      <div ref={fontPickerRef} className="workspace-font-picker" style={{ width: '100%', boxSizing: 'border-box' }}>
         <div className="workspace-font-sticky-top">
           <div className="workspace-font-picker-header">
             <button
@@ -8286,6 +8637,16 @@ const toggleMobileSheetSize = () => {
                 {cat}
               </button>
             ))}
+            {selectedFontCategory === 'Import' && (
+              <button
+                type="button"
+                className="workspace-font-refresh-btn"
+                onClick={refreshCustomFonts}
+                title="Refresh font list"
+              >
+                <RotateCw size={13} />
+              </button>
+            )}
           </div>
         </div>
         <div className="workspace-font-list">
@@ -8299,38 +8660,103 @@ const toggleMobileSheetSize = () => {
               Could not load Google Fonts.
             </div>
           )}
-          {filteredFonts.slice(0, fontDisplayCount).map((font) => (
-            <button
-              type="button"
-              key={font.family}
-              disabled={loadingFont === font.family}
-              className={`workspace-font-item ${selectedItem.fontFamily === font.family ? 'active' : ''}`}
-              onClick={async () => {
-                setLoadingFont(font.family)
-                try {
-                  await preloadFont(font.family)
-                  if (editingText && editingTextItem?.kind === 'text' && richTextEditorRef.current) {
-                    richTextEditorRef.current.formatFont(font.family)
-                  } else {
-                    const runs = getRuns(selectedItem)
-                    const newRuns = runs.map(r => ({ ...r, fontFamily: font.family }))
-                    updateItem(selectedItem.id, { fontFamily: font.family, runs: newRuns })
-                  }
-                } finally {
-                  setLoadingFont(null)
-                }
-              }}
-            >
-              <span className="workspace-font-preview" style={{ fontFamily: font.family }}>
-                {loadingFont === font.family ? 'Loading…' : font.name}
-              </span>
-              <small>{font.category}</small>
-            </button>
-          ))}
+          {selectedFontCategory === 'Favorites' && favoriteFonts.length === 0 && (
+            <div className="workspace-font-empty-state">
+              <StarIcon size={28} strokeWidth={1.5} fill="rgba(255,255,255,0.08)" color="rgba(255,255,255,0.2)" />
+              <span>No favorite fonts yet</span>
+            </div>
+          )}
+          {filteredFonts.slice(0, fontDisplayCount).map((font) => {
+            const isImport = font.category === 'Import'
+            const isFav = favoriteFonts.includes(font.family)
+            return (
+              <div
+                key={`${font.family}${isImport && font.id ? `-${font.id}` : ''}`}
+                className={`workspace-font-item-wrapper ${isImport && isUploadingFont ? 'opacity-50' : ''}`}
+              >
+                <button
+                  type="button"
+                  disabled={loadingFont === font.family}
+                  className={`workspace-font-item ${selectedItem.fontFamily === font.family ? 'active' : ''}`}
+                  onClick={async () => {
+                    setLoadingFont(font.family)
+                    try {
+                      await preloadFont(font.family)
+                      if (editingText && editingTextItem?.kind === 'text' && richTextEditorRef.current) {
+                        richTextEditorRef.current.formatFont(font.family)
+                      } else {
+                        const runs = getRuns(selectedItem)
+                        const newRuns = runs.map(r => ({ ...r, fontFamily: font.family }))
+                        updateItem(selectedItem.id, { fontFamily: font.family, runs: newRuns })
+                      }
+                    } finally {
+                      setLoadingFont(null)
+                    }
+                  }}
+                >
+                  <span className="workspace-font-preview" style={{ fontFamily: font.family }}>
+                    {loadingFont === font.family ? 'Loading…' : font.name}
+                  </span>
+                  <small>{font.category}</small>
+                  <span
+                    className={`workspace-font-fav-btn ${isFav ? 'is-fav' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleFavorite(font.family)
+                    }}
+                    title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    <StarIcon size={13} fill={isFav ? 'currentColor' : 'none'} strokeWidth={isFav ? 2 : 1.5} />
+                  </span>
+                  {isImport && (
+                    <span
+                      className="workspace-font-delete-btn"
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        try {
+                          await apiDeleteFont(font.id)
+                          setCustomFonts((prev) => prev.filter((f) => f.id !== font.id))
+                        } catch (err) {
+                          console.error('Failed to delete font:', err)
+                        }
+                      }}
+                      title="Delete font"
+                    >
+                      <Trash2 size={12} />
+                    </span>
+                  )}
+                </button>
+              </div>
+            )
+          })}
           {fontDisplayCount < filteredFonts.length && (
             <div ref={fontSentinelRef} style={{ height: 1 }} />
           )}
         </div>
+        <input ref={importFontInputRef} type="file" accept=".ttf,.otf,.woff2,.woff" style={{ display: 'none' }} onChange={handleImportFont} />
+        {selectedFontCategory === 'Import' && isUploadingFont && (
+          <div className="workspace-font-import-progress">
+            <div className="workspace-font-import-progress-track">
+              <span style={{ width: `${fontUploadProgress}%` }} />
+            </div>
+            <span className="workspace-font-import-progress-label">Uploading font… {fontUploadProgress}%</span>
+          </div>
+        )}
+        {selectedFontCategory === 'Import' && (
+          <button
+            type="button"
+            className="workspace-font-import-fab"
+            onClick={() => importFontInputRef.current?.click()}
+            disabled={isUploadingFont}
+            title="Import Font"
+          >
+            {isUploadingFont ? (
+              <span style={{ fontSize: 11, fontWeight: 700 }}>{fontUploadProgress}%</span>
+            ) : (
+              <Plus size={20} />
+            )}
+          </button>
+        )}
       </div>
     )
   }
@@ -9379,7 +9805,13 @@ const toggleMobileSheetSize = () => {
               className="workspace-font-picker-trigger"
               onClick={() => setIsFontPickerOpen(true)}
             >
-              {(apiFonts || []).find((f) => f.family === selectedItem.fontFamily)?.name || availableFonts.find((f) => f.family === selectedItem.fontFamily)?.name || 'Inter'}
+              {(function() {
+                const runs = getRuns(selectedItem)
+                const families = [...new Set(runs.map(r => r.fontFamily).filter(Boolean))]
+                const fam = families.length === 1 ? families[0] : (families.length > 1 ? 'Mixed' : selectedItem.fontFamily)
+                if (fam === 'Mixed') return 'Mixed'
+                return (apiFonts || []).find((f) => f.family === fam)?.name || availableFonts.find((f) => f.family === fam)?.name || customFonts.find((f) => (f.family || f.name) === fam)?.name || fam || 'Inter'
+              })()}
             </button>
           </label>
 
@@ -9488,7 +9920,8 @@ const toggleMobileSheetSize = () => {
                     runs[0].text = val
                     updateItem(selectedItem.id, { text: val, runs })
                   } else {
-                    updateItem(selectedItem.id, { text: val, runs: [{ text: val, bold: selectedItem.isBold || false, italic: selectedItem.isItalic || false, underline: selectedItem.isUnderline || false }] })
+                    const merged = runs.length > 0 ? { ...runs[0], text: val } : { text: val, bold: selectedItem.isBold || false, italic: selectedItem.isItalic || false, underline: selectedItem.isUnderline || false }
+                    updateItem(selectedItem.id, { text: val, runs: [merged] })
                   }
                 }}
               />
@@ -9504,7 +9937,13 @@ const toggleMobileSheetSize = () => {
                   className="workspace-font-picker-trigger"
                   onClick={() => setIsFontPickerOpen(true)}
                 >
-                  {(apiFonts || []).find((f) => f.family === selectedItem.fontFamily)?.name || availableFonts.find((f) => f.family === selectedItem.fontFamily)?.name || 'Inter'}
+                  {(function() {
+                    const runs = getRuns(selectedItem)
+                    const families = [...new Set(runs.map(r => r.fontFamily).filter(Boolean))]
+                    const fam = families.length === 1 ? families[0] : (families.length > 1 ? 'Mixed' : selectedItem.fontFamily)
+                    if (fam === 'Mixed') return 'Mixed'
+                    return (apiFonts || []).find((f) => f.family === fam)?.name || availableFonts.find((f) => f.family === fam)?.name || customFonts.find((f) => (f.family || f.name) === fam)?.name || fam || 'Inter'
+                  })()}
                 </button>
               </label>
 
@@ -9638,9 +10077,13 @@ const toggleMobileSheetSize = () => {
                   className={`workspace-style-btn ${selectedItem.isBold ? 'active' : ''}`}
                   onClick={() => {
                     if (editingText && richTextEditorRef.current) {
+                      undoStackRef.current = [...undoStackRef.current.slice(-50), JSON.parse(JSON.stringify(itemsRef.current))]
+                      redoStackRef.current = []
                       richTextEditorRef.current.formatBold()
                     } else {
-                      updateItem(selectedItem.id, { isBold: !selectedItem.isBold })
+                      const runs = getRuns(selectedItem)
+                      const newRuns = runs.map(r => ({ ...r, bold: !selectedItem.isBold }))
+                      updateItem(selectedItem.id, { isBold: !selectedItem.isBold, runs: newRuns })
                     }
                   }}
                   title="Bold"
@@ -9652,9 +10095,13 @@ const toggleMobileSheetSize = () => {
                   className={`workspace-style-btn ${selectedItem.isItalic ? 'active' : ''}`}
                   onClick={() => {
                     if (editingText && richTextEditorRef.current) {
+                      undoStackRef.current = [...undoStackRef.current.slice(-50), JSON.parse(JSON.stringify(itemsRef.current))]
+                      redoStackRef.current = []
                       richTextEditorRef.current.formatItalic()
                     } else {
-                      updateItem(selectedItem.id, { isItalic: !selectedItem.isItalic })
+                      const runs = getRuns(selectedItem)
+                      const newRuns = runs.map(r => ({ ...r, italic: !selectedItem.isItalic }))
+                      updateItem(selectedItem.id, { isItalic: !selectedItem.isItalic, runs: newRuns })
                     }
                   }}
                   title="Italic"
@@ -9666,9 +10113,13 @@ const toggleMobileSheetSize = () => {
                   className={`workspace-style-btn ${selectedItem.isUnderline ? 'active' : ''}`}
                   onClick={() => {
                     if (editingText && richTextEditorRef.current) {
+                      undoStackRef.current = [...undoStackRef.current.slice(-50), JSON.parse(JSON.stringify(itemsRef.current))]
+                      redoStackRef.current = []
                       richTextEditorRef.current.formatUnderline()
                     } else {
-                      updateItem(selectedItem.id, { isUnderline: !selectedItem.isUnderline })
+                      const runs = getRuns(selectedItem)
+                      const newRuns = runs.map(r => ({ ...r, underline: !selectedItem.isUnderline }))
+                      updateItem(selectedItem.id, { isUnderline: !selectedItem.isUnderline, runs: newRuns })
                     }
                   }}
                   title="Underline"
@@ -10330,44 +10781,54 @@ const toggleMobileSheetSize = () => {
                   <span className="workspace-shapes-category-title">Connector Lines</span>
                 </div>
                 <div className="workspace-shapes-row">
-                  {connectorPresets.map((connector) => (
-                    <button
-                      type="button"
-                      key={connector.id}
-                      className="workspace-shape-card"
-                      onClick={() => {
-                        setConnectorDraft(null)
-                        setConnectorTool((current) => (current?.id === connector.id ? null : connector))
-                      }}
-                      style={{
-                        borderColor: connectorTool?.id === connector.id ? '#7c6df2' : undefined,
-                        boxShadow: connectorTool?.id === connector.id ? '0 0 0 1px rgba(124,109,242,0.45)' : undefined,
-                      }}
-                    >
-                      <div className="workspace-shape-preview">
-                        {connector.pathType === 'curve' ? (
-                          <div className="workspace-shape-preview-icon">
-                            <ArrowUpRightIcon size={32} strokeWidth={1.5} />
-                          </div>
-                        ) : connector.arrowHead ? (
-                          <div className="workspace-shape-preview-icon">
-                            <ArrowUpRightIcon size={32} strokeWidth={1.5} />
-                          </div>
-                        ) : (
-                          <div
-                            className="workspace-shape-preview-line"
-                            style={{
-                              width: connector.pathType === 'elbow' ? '42px' : '50px',
-                              height: '3px',
-                              background: '#7c6df2',
-                              borderRadius: '2px',
-                            }}
-                          />
-                        )}
-                      </div>
-                      <span className="workspace-shape-label">{connector.label}</span>
-                    </button>
-                  ))}
+                    {connectorPresets.map((connector) => (
+                      <button
+                        type="button"
+                        key={connector.id}
+                        className="workspace-shape-card"
+                        onClick={() => {
+                          setConnectorDraft(null)
+                          setConnectorTool((current) => (current?.id === connector.id ? null : connector))
+                        }}
+                        style={{
+                          borderColor: connectorTool?.id === connector.id ? '#7c6df2' : undefined,
+                          boxShadow: connectorTool?.id === connector.id ? '0 0 0 1px rgba(124,109,242,0.45)' : undefined,
+                        }}
+                      >
+                        <div className="workspace-shape-preview">
+                          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            {connector.id === 'straight' && (
+                              <line x1="4" y1="18" x2="32" y2="18" stroke="#7c6df2" strokeWidth="2.5" strokeLinecap="round" />
+                            )}
+                            {connector.id === 'straight-arrow' && (
+                              <>
+                                <line x1="4" y1="18" x2="24" y2="18" stroke="#7c6df2" strokeWidth="2.5" strokeLinecap="round" />
+                                <polygon points="24,12 32,18 24,24" fill="#7c6df2" />
+                              </>
+                            )}
+                            {connector.id === 'elbow' && (
+                              <polyline points="6,8 20,8 20,28" stroke="#7c6df2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                            )}
+                            {connector.id === 'elbow-arrow' && (
+                              <>
+                                <polyline points="6,8 20,8 20,24" stroke="#7c6df2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <polygon points="14,24 20,32 26,24" fill="#7c6df2" />
+                              </>
+                            )}
+                            {connector.id === 'curve' && (
+                              <path d="M4,24 C12,6 24,6 32,24" stroke="#7c6df2" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                            )}
+                            {connector.id === 'curve-arrow' && (
+                              <>
+                                <path d="M4,24 C12,6 24,6 28,18" stroke="#7c6df2" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                                <polygon points="26,12 34,16 30,22" fill="#7c6df2" />
+                              </>
+                            )}
+                          </svg>
+                        </div>
+                        <span className="workspace-shape-label">{connector.label}</span>
+                      </button>
+                    ))}
                 </div>
               </div>
             </div>
@@ -10445,6 +10906,12 @@ const toggleMobileSheetSize = () => {
       )}
       {activePanel === 'settings' && (
         <div className="workspace-typography-compact">
+          <div className="workspace-section-card">
+            <div className="workspace-section-title">Project Name</div>
+            <label className="workspace-typography-field workspace-typography-field-full">
+              <input type="text" value={workspaceTitle} onChange={(event) => setWorkspaceTitle(event.target.value)} />
+            </label>
+          </div>
           <div className="workspace-section-card">
             <div className="workspace-section-title">Canvas Ratio</div>
             <div className="workspace-style-toolbar" style={{ flexWrap: 'wrap' }}>
@@ -10601,6 +11068,7 @@ const toggleMobileSheetSize = () => {
             onCropStart={beginImageCrop}
             cropSession={cropSession}
             canvasSize={canvasSize}
+            fontInjectVersion={fontInjectVersion}
             onSyncTransformer={() => {
               transformerRef.current?.forceUpdate?.()
               transformerRef.current?.getLayer()?.batchDraw()
@@ -10635,6 +11103,7 @@ const toggleMobileSheetSize = () => {
           onFrameImageEdit={handleFrameImageEdit}
           onCropStart={beginImageCrop}
           isCropTarget={cropSession?.itemId === item.id}
+          fontInjectVersion={fontInjectVersion}
         />
       )
     })
@@ -11115,61 +11584,6 @@ const toggleMobileSheetSize = () => {
                     />
                   )
                 ))}
-                {/* Brush stroke preview */}
-                {(activePanel === 'brush' && (currentStroke || currentStrokeRef.current)) && (
-                  brushSettings.mode === 'erase' ? (
-                    <>
-                      <Line
-                        points={(() => {
-                          const pts = currentStrokeRef.current?.points
-                          if (!pts) return []
-                          if (!brushDrawingRef.current || !latestPointerRef.current) return pts
-                          const s = camera.scale || 1
-                          const cx = camera.x || 0
-                          const cy = camera.y || 0
-                          return [...pts, (latestPointerRef.current.x - cx) / s, (latestPointerRef.current.y - cy) / s]
-                        })()}
-                        stroke="#ff4444"
-                        strokeWidth={brushSettings.size + 4}
-                        opacity={0.5}
-                        tension={0.3}
-                        lineCap="round"
-                        lineJoin="round"
-                        listening={false}
-                        dash={[8, 6]}
-                      />
-                      <Line
-                        points={(() => {
-                          const pts = currentStrokeRef.current?.points
-                          if (!pts) return []
-                          if (!brushDrawingRef.current || !latestPointerRef.current) return pts
-                          const s = camera.scale || 1
-                          const cx = camera.x || 0
-                          const cy = camera.y || 0
-                          return [...pts, (latestPointerRef.current.x - cx) / s, (latestPointerRef.current.y - cy) / s]
-                        })()}
-                        stroke="#ffffff"
-                        strokeWidth={brushSettings.size}
-                        opacity={0.7}
-                        tension={0.3}
-                        lineCap="round"
-                        lineJoin="round"
-                        listening={false}
-                      />
-                    </>
-                  ) : (
-                    <Line
-                      points={currentStrokeRef.current?.points?.slice() || []}
-                      stroke={brushSettings.color}
-                      strokeWidth={brushSettings.size}
-                      opacity={brushSettings.opacity}
-                      tension={0.3}
-                      lineCap="round"
-                      lineJoin="round"
-                      listening={false}
-                    />
-                  )
-                )}
                 {/* Bezier anchors preview */}
                 {activePanel === 'bezier' && bezierAnchors.length > 0 && (
                   <>
@@ -11410,7 +11824,6 @@ const toggleMobileSheetSize = () => {
                 )}
                 shiftBehavior="invert"
                 enabledAnchors={
-                  activePanel === 'brush' && brushSettings.mode === 'erase' ? [] : (
                   areAllLocked ? [] : (
                   isSelectedCompositeGroup
                     ? cornerTransformAnchors
@@ -11423,7 +11836,7 @@ const toggleMobileSheetSize = () => {
                         : selectedItem?.kind === 'shape' && (selectedItem?.shapeType === 'freehand' || selectedItem?.shapeType === 'bezier-path')
                           ? []
                           : transformAnchors
-                  ))
+                  )
                 }
                 onTransform={() => {
                   const box = transformerRef.current?.getClientRect?.()

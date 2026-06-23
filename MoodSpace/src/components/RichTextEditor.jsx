@@ -37,6 +37,7 @@ const RichTextEditor = forwardRef(({ item, onCommit, onCancel, style }, ref) => 
     },
     hasSelection() { return window.getSelection()?.toString()?.length > 0 },
     getRuns() { return htmlToRuns(editorRef.current?.innerHTML || '') },
+    setHtml(html) { if (editorRef.current) editorRef.current.innerHTML = html },
     focus() { editorRef.current?.focus() },
   }))
 

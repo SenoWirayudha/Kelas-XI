@@ -78,6 +78,14 @@ export const loadImageMetadata = (src) => new Promise((resolve) => {
 
 const fontLoadCache = new Map()
 
+const isFontAvailable = (fontName) => {
+  try {
+    return document.fonts?.check(`16px "${fontName}"`)
+  } catch {
+    return false
+  }
+}
+
 const injectGoogleFontLink = (fontName) => {
   const family = fontName.replace(/ /g, '+')
   const href   = `https://fonts.googleapis.com/css2?family=${family}:wght@300;400;500;600;700;800&display=swap`
@@ -102,7 +110,8 @@ export const preloadFont = (fontFamily) => {
   if (fontLoadCache.has(primaryFont)) return fontLoadCache.get(primaryFont)
 
   const isSystemFont = SYSTEM_FONTS.has(primaryFont)
-  const promise = isSystemFont
+  const isAlreadyLoaded = isFontAvailable(primaryFont)
+  const promise = isSystemFont || isAlreadyLoaded
     ? document.fonts.load(`16px "${primaryFont}"`).catch(() => {})
     : injectGoogleFontLink(primaryFont)
 

@@ -2102,6 +2102,10 @@
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
 }
 
+.project-row-card-menu-open {
+  z-index: 10;
+}
+
 .project-row-main {
   flex: 1;
   min-width: 0;
@@ -2180,10 +2184,13 @@
 .project-row-options button {
   width: 100%;
   min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #fca5a5;
+  color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
   font: inherit;
   font-size: 12px;
@@ -2193,7 +2200,99 @@
 }
 
 .project-row-options button:hover {
-  background: rgba(239, 68, 68, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.project-row-options-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 4px;
+}
+
+.project-row-options-header span {
+  color: #f6f7fb;
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-row-options-header button {
+  width: auto !important;
+  min-height: auto !important;
+  height: 28px;
+  padding: 0 6px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.project-row-options-header button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.project-row-rename-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.project-row-rename-inline input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.project-row-rename-inline button {
+  width: 26px !important;
+  height: 26px !important;
+  min-height: auto !important;
+  padding: 0 !important;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.project-row-rename-inline button:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.project-row-options-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 4px 0;
+}
+
+.project-row-options-delete {
+  color: #fca5a5 !important;
+}
+
+.project-row-options-delete:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
 }
 
 .project-create-modal {
@@ -2232,6 +2331,27 @@
 }
 
 .project-preset-grid button.active {
+  border-color: rgba(168, 85, 247, 0.78);
+  background: rgba(168, 85, 247, 0.2);
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.16);
+}
+
+.project-preset-btn {
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  font: inherit;
+  display: grid;
+  place-items: center;
+  padding: 6px 8px;
+  transition: all 0.15s ease;
+}
+
+.project-preset-btn.active {
   border-color: rgba(168, 85, 247, 0.78);
   background: rgba(168, 85, 247, 0.2);
   color: #ffffff;
@@ -8775,6 +8895,81 @@
   flex-direction: column;
   height: calc(100vh - 200px);
   overflow-y: auto;
+  position: relative;
+}
+
+.workspace-font-import-fab {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 0;
+  background: #7c6df2;
+  color: #ffffff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 16px rgba(124, 109, 242, 0.4);
+  transition: all 0.2s ease;
+  z-index: 5;
+}
+
+.workspace-font-import-fab:hover {
+  transform: scale(1.08);
+  background: #8f82f5;
+  box-shadow: 0 6px 24px rgba(124, 109, 242, 0.55);
+}
+
+.workspace-font-import-fab:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
+.workspace-font-refresh-btn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: rgba(255,255,255,0.55);
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.workspace-font-refresh-btn:hover {
+  color: #ffffff;
+  border-color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.06);
+}
+
+.workspace-font-import-progress {
+  padding: 12px 16px 4px;
+}
+.workspace-font-import-progress-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.1);
+  overflow: hidden;
+}
+.workspace-font-import-progress-track span {
+  display: block;
+  height: 100%;
+  background: #7c6df2;
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+.workspace-font-import-progress-label {
+  display: block;
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 4px;
+  text-align: right;
 }
 
 .workspace-font-sticky-top {
@@ -8913,6 +9108,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  width: 100%;
 
   gap: 6px;
 
@@ -8966,6 +9162,81 @@
 .workspace-font-item.active::before {
   opacity: 1;
   background: radial-gradient(circle at center, rgba(185, 140, 255, 0.08), transparent 70%);
+}
+
+.workspace-font-item-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.workspace-font-item-wrapper.opacity-50 {
+  opacity: 0.5;
+}
+
+.workspace-font-delete-btn {
+  position: absolute;
+  top: 6px;
+  right: 32px;
+  background: rgba(0,0,0,0.4);
+  border: 0;
+  color: rgba(255,255,255,0.45);
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  opacity: 0;
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+.workspace-font-item:hover .workspace-font-delete-btn {
+  opacity: 1;
+}
+.workspace-font-delete-btn:hover {
+  color: #ff6b6b;
+  background: rgba(255,50,50,0.25);
+}
+
+.workspace-font-fav-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0,0,0,0.3);
+  border: 0;
+  color: rgba(255,255,255,0.35);
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  opacity: 0;
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+.workspace-font-item:hover .workspace-font-fav-btn {
+  opacity: 1;
+}
+.workspace-font-fav-btn:hover {
+  color: #fbbf24;
+  background: rgba(251,191,36,0.15);
+}
+.workspace-font-fav-btn.is-fav {
+  opacity: 1;
+  color: #fbbf24;
+  background: rgba(251,191,36,0.12);
+}
+
+.workspace-font-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: rgba(255,255,255,0.3);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .workspace-font-preview {
@@ -9150,6 +9421,7 @@
   grid-column: 1 / -1;
 }
 
+.workspace-typography-field input[type="text"],
 .workspace-typography-field input[type="number"] {
   padding: 9px 11px;
   background: rgba(255, 255, 255, 0.03);
@@ -11285,6 +11557,9 @@
 
 .workspace-fx-detail-content {
   padding: 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 320px);
+  overscroll-behavior: contain;
 }
 
 .workspace-fx-detail-switch {
@@ -12013,6 +12288,64 @@
 
 .brush-color-picker-btn:hover {
   border-color: rgba(255,255,255,0.4);
+}
+
+.brush-type-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.brush-type-btn:last-child:nth-child(3n - 1) {
+  grid-column: span 2;
+}
+.brush-type-btn:last-child:nth-child(3n - 2) {
+  grid-column: span 3;
+}
+
+.brush-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px 4px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+
+.brush-type-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.9);
+}
+
+.brush-type-btn.active {
+  border-color: #7c6df2;
+  background: rgba(124, 109, 242, 0.2);
+  color: #fff;
+}
+
+.brush-type-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brush-type-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.brush-type-label {
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .workspace-color-palette-row {
