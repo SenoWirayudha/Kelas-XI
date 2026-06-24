@@ -108,8 +108,8 @@ Konva.Filters.Whites = function (imageData) {
   const amount = val / 100 * 60
   processPixels(imageData, (r, g, b) => {
     const luma = luminance(r, g, b)
-    if (luma > 200) return [r + amount, g + amount, b + amount]
-    return [r, g, b]
+    const f = luma > 128 ? Math.pow((luma - 128) / 127, 2) : 0
+    return [r + amount * f, g + amount * f, b + amount * f]
   })
 }
 
@@ -119,8 +119,8 @@ Konva.Filters.Blacks = function (imageData) {
   const amount = val / 100 * 60
   processPixels(imageData, (r, g, b) => {
     const luma = luminance(r, g, b)
-    if (luma < 55) return [r + amount, g + amount, b + amount]
-    return [r, g, b]
+    const f = luma < 128 ? Math.pow((128 - luma) / 128, 2) : 0
+    return [r + amount * f, g + amount * f, b + amount * f]
   })
 }
 
@@ -281,12 +281,14 @@ if (hueRotation) {
 
     if (whiteAmount) {
       const luma = 0.299 * r + 0.587 * g + 0.114 * b
-      if (luma > 200) { r += whiteAmount; g += whiteAmount; b += whiteAmount }
+      const f = luma > 128 ? Math.pow((luma - 128) / 127, 2) : 0
+      r += whiteAmount * f; g += whiteAmount * f; b += whiteAmount * f
     }
 
     if (blackAmount) {
       const luma = 0.299 * r + 0.587 * g + 0.114 * b
-      if (luma < 55) { r += blackAmount; g += blackAmount; b += blackAmount }
+      const f = luma < 128 ? Math.pow((128 - luma) / 128, 2) : 0
+      r += blackAmount * f; g += blackAmount * f; b += blackAmount * f
     }
 
     if (brightAdj) {

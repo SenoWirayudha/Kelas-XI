@@ -607,18 +607,20 @@ const SHADERS = {
     varying vec2 vUV;
 
     void main(){
-      vec2 uv = vUV;
       float amp = uAmplitude / uResolution.y;
       float freq = uFrequency * 6.2832;
-      float aspect = uResolution.x / uResolution.y;
+      float phase = uTime * uSpeed;
 
-      vec2 dir = vec2(cos(uAngle), sin(uAngle));
-      float wave = sin(dot(uv, dir) * freq + uTime * uSpeed);
+      // Scanline displacement: setiap baris pixel digeser mengikuti sin
+      float wave = sin(vUV.y * freq + phase) * amp;
+      float waveX = sin(vUV.x * freq + phase) * amp;
 
-      vec2 disp = dir * wave * amp;
-      disp.x *= aspect;
-      uv += disp;
+      vec2 disp = vec2(
+        wave * cos(uAngle),
+        waveX * sin(uAngle)
+      );
 
+      vec2 uv = vUV + disp;
       gl_FragColor = texture2D(uTexture, clamp(uv, 0., 1.));
     }`,
 
@@ -663,6 +665,35 @@ const SHADERS = {
       if (uInvert > 0.5) val = 1.0 - val;
       gl_FragColor = vec4(vec3(val), src.a);
     }`,
+
+  spectralMap: `${HIGH_P}
+    uniform sampler2D uTexture;
+    uniform float uHue0, uHue1, uHue2;
+    uniform float uTahap, uRepeat, uSaturation, uAlpha;
+    varying vec2 vUV;
+
+    vec3 hsv2rgb(vec3 c) {
+      vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+      vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+      return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    }
+
+    void main() {
+      vec4 src = texture2D(uTexture, vUV);
+      float luma = dot(src.rgb, vec3(0.299, 0.587, 0.114));
+      float t = mod(luma * uRepeat + uTahap, 1.0);
+
+      float seg = t * 3.0;
+      float frac = fract(seg);
+      float i = floor(seg);
+      float hue;
+      if (i == 0.0) hue = mix(uHue0, uHue1, frac);
+      else if (i == 1.0) hue = mix(uHue1, uHue2, frac);
+      else hue = mix(uHue2, uHue0 + 1.0, frac);
+
+      vec3 col = hsv2rgb(vec3(fract(hue), uSaturation, 1.0));
+      gl_FragColor = vec4(mix(src.rgb, col, uAlpha), src.a);
+    }`,
 }
 
 for (const [name, src] of Object.entries(SHADERS)) webglEngine.register(name, src)
@@ -702,30 +733,6 @@ function spotColorPixels(d, w, h, hex, thr, fea) {
       d[i+1]=Math.round(d[i+1]*keep+luma*(1-keep))
       d[i+2]=Math.round(d[i+2]*keep+luma*(1-keep))
     }
-  }
-}
-
-function spectralMapPixels(d, w, h, s1, s2, s3, repeat, stage, cycle) {
-  const toRGB = hex => [parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]
-  const colors = [toRGB(s1), toRGB(s2), toRGB(s3)]
-  const c = Math.round(cycle || 0) % 3
-  const [sa,sb,sc] = c === 0 ? colors
-    : c === 1 ? [colors[1], colors[2], colors[0]]
-    : [colors[2], colors[0], colors[1]]
-  const sp = stage ?? 0.5
-  const lut = new Uint8Array(256*3)
-  const lerp = (a,b,f) => a+(b-a)*f
-  const rep = repeat||1
-  for (let i=0;i<256;i++) {
-    let t=(i/255)*rep; if(t>1)t-=Math.floor(t)
-    const [r,g,b] = t<sp
-      ? [lerp(sa[0],sb[0],t/sp),lerp(sa[1],sb[1],t/sp),lerp(sa[2],sb[2],t/sp)]
-      : [lerp(sb[0],sc[0],(t-sp)/(1-sp)),lerp(sb[1],sc[1],(t-sp)/(1-sp)),lerp(sb[2],sc[2],(t-sp)/(1-sp))]
-    lut[i*3]=Math.round(r); lut[i*3+1]=Math.round(g); lut[i*3+2]=Math.round(b)
-  }
-  for (let i=0;i<d.length;i+=4) {
-    const l=Math.round(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2])
-    d[i]=lut[l*3]; d[i+1]=lut[l*3+1]; d[i+2]=lut[l*3+2]
   }
 }
 
@@ -780,22 +787,6 @@ function duotonePixels(d, w, h, hexA, hexB) {
   }
 }
 
-function tritonePixels(d, w, h, hexA, hexB, hexC) {
-  const ra=parseInt(hexA.slice(1,3),16), ga=parseInt(hexA.slice(3,5),16), ba=parseInt(hexA.slice(5,7),16)
-  const rb=parseInt(hexB.slice(1,3),16), gb=parseInt(hexB.slice(3,5),16), bb=parseInt(hexB.slice(5,7),16)
-  const rc=parseInt(hexC.slice(1,3),16), gc=parseInt(hexC.slice(3,5),16), bc=parseInt(hexC.slice(5,7),16)
-  for (let i=0;i<d.length;i+=4) {
-    const l=(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2])/255
-    let r,g,b
-    if (l<0.5) {
-      const t=l*2; r=ra+(rb-ra)*t; g=ga+(gb-ga)*t; b=ba+(bb-ba)*t
-    } else {
-      const t=(l-0.5)*2; r=rb+(rc-rb)*t; g=gb+(gc-gb)*t; b=bb+(bc-bb)*t
-    }
-    d[i]=Math.round(r); d[i+1]=Math.round(g); d[i+2]=Math.round(b)
-  }
-}
-
 function reflectPixels(d, w, h, angleDeg) {
   const cx=w/2, cy=h/2, a=angleDeg*Math.PI/180
   const cos2a=Math.cos(2*a), sin2a=Math.sin(2*a)
@@ -827,7 +818,10 @@ export class EffectManager {
   // Panggil ini setiap kali item.effects berubah
   // adjustments opsional — objek item (exposure, brightness, dll) untuk MoodSpaceCombined
   applyAll(node, effects = {}, adjustments) {
-    this._clearFilters(node)
+    // Don't clear filters/cache here — let the final node.filters()+cache() at the end
+    // replace them atomically. This prevents an intermediate un-filtered frame when the
+    // previously-scheduled batchDraw fires mid-applyAll.
+    // Spectral animation cycle is managed by React useEffect (not EffectManager).
     this._clearOverlay(node)
     this._clearRepeater(node)
     this._clearBounds(node)
@@ -980,6 +974,7 @@ export class EffectManager {
       }
       if (id === 'waveWarp' && val) {
         const p = val
+        addPad(Math.ceil((p.amplitude ?? 20) * 1.5))
         filterList.push(function waveWarpFilter(imgData) {
           webglEngine.processSync(imgData, 'waveWarp', {
             uAmplitude: p.amplitude ?? 20,
@@ -1145,18 +1140,27 @@ export class EffectManager {
         })
         continue
       }
-      if (id === 'tritone' && val) {
-        const p = val
-        filterList.push(function tritoneFilter(imgData) {
-          tritonePixels(imgData.data, imgData.width, imgData.height, p.colorA ?? '#000000', p.colorB ?? '#888888', p.colorC ?? '#ffffff')
-        })
-        continue
-      }
       if (id === 'spectralMap' && val) {
         const p = val
+        const hueOf = hex => {
+          const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255
+          const mx = Math.max(r,g,b), mn = Math.min(r,g,b), d = mx - mn
+          if (d === 0) return 0
+          let h; if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6
+          else if (mx === g) h = ((b - r) / d + 2) / 6
+          else h = ((r - g) / d + 4) / 6
+          return h
+        }
         filterList.push(function spectralMapFilter(imgData) {
-          spectralMapPixels(imgData.data, imgData.width, imgData.height,
-            p.shadowColor ?? '#000000', p.midColor ?? '#888888', p.highlightColor ?? '#ffffff', p.repeat ? 2 : 1, p.stage ?? 0.5, p.cycle ?? 0)
+          webglEngine.processSync(imgData, 'spectralMap', {
+            uHue0: hueOf(p.shadowColor ?? '#ff0000'),
+            uHue1: hueOf(p.midColor ?? '#00ff00'),
+            uHue2: hueOf(p.highlightColor ?? '#0000ff'),
+            uTahap: p.tahap ?? p.stage ?? 0,
+            uRepeat: p.repeat ?? 1,
+            uSaturation: p.saturation ?? 1,
+            uAlpha: p.alpha ?? 1,
+          })
         })
         continue
       }
@@ -1348,6 +1352,8 @@ export class EffectManager {
   _clearBounds(node) {
     // Reserved for future bounds-based effects
   }
+
+  // Spectral map is a pure WebGL shader — no animation loop needed.
 
   _applyGradientOverlay(node, p) {
     const rawColors = p.colors ?? ['#000000', '#ffffff']
@@ -1587,12 +1593,26 @@ export class EffectManager {
         const p = val; duotonePixels(d, w, h, p.colorA ?? '#000000', p.colorB ?? '#ffffff')
         continue
       }
-      if (id === 'tritone' && val) {
-        const p = val; tritonePixels(d, w, h, p.colorA ?? '#000000', p.colorB ?? '#888888', p.colorC ?? '#ffffff')
-        continue
-      }
       if (id === 'spectralMap' && val) {
-        const p = val; spectralMapPixels(d, w, h, p.shadowColor ?? '#000000', p.midColor ?? '#888888', p.highlightColor ?? '#ffffff', p.repeat ? 2 : 1, p.stage ?? 0.5, p.cycle ?? 0)
+        const p = val
+        const hueOf = hex => {
+          const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255
+          const mx = Math.max(r,g,b), mn = Math.min(r,g,b), d = mx - mn
+          if (d === 0) return 0
+          let h; if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6
+          else if (mx === g) h = ((b - r) / d + 2) / 6
+          else h = ((r - g) / d + 4) / 6
+          return h
+        }
+        webglEngine.processSync(imageData, 'spectralMap', {
+          uHue0: hueOf(p.shadowColor ?? '#ff0000'),
+          uHue1: hueOf(p.midColor ?? '#00ff00'),
+          uHue2: hueOf(p.highlightColor ?? '#0000ff'),
+          uTahap: p.tahap ?? p.stage ?? 0,
+          uRepeat: p.repeat ?? 1,
+          uSaturation: p.saturation ?? 1,
+          uAlpha: p.alpha ?? 1,
+        })
         continue
       }
       if (id === 'chromaKey' && val) {

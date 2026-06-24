@@ -1550,6 +1550,49 @@ function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect,
   )
 }
 
+const ADJUSTMENT_PRESETS = [
+  {
+    label: 'Cinematic',
+    values: {
+      exposure: 0, temperature: -5, hue: 0, highlights: -10, shadows: 15,
+      whites: -5, blacks: 10, brightness: 8, contrast: 12, saturation: 8,
+      sharpen: 5, vignette: 15, blur: 0,
+    },
+  },
+  {
+    label: 'Muted',
+    values: {
+      exposure: 0, temperature: 0, hue: 0, highlights: -5, shadows: 5,
+      whites: -10, blacks: -5, brightness: -4, contrast: -8, saturation: -22,
+      sharpen: 0, vignette: 0, blur: 0,
+    },
+  },
+  {
+    label: 'Dreamy',
+    values: {
+      exposure: 5, temperature: 5, hue: 0, highlights: 15, shadows: -5,
+      whites: 10, blacks: -5, brightness: 10, contrast: -6, saturation: 16,
+      sharpen: -10, vignette: 8, blur: 1,
+    },
+  },
+  {
+    label: 'Noir',
+    values: {
+      exposure: -5, temperature: -10, hue: 0, highlights: 20, shadows: -20,
+      whites: -15, blacks: 20, brightness: -8, contrast: 28, saturation: -100,
+      sharpen: 15, vignette: 10, blur: 0,
+    },
+  },
+  {
+    label: 'Vibrant',
+    values: {
+      exposure: 3, temperature: 2, hue: 0, highlights: 8, shadows: -5,
+      whites: 5, blacks: -8, brightness: 4, contrast: 18, saturation: 28,
+      sharpen: 5, vignette: 0, blur: 0,
+    },
+  },
+]
+
 function Workspace() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -1742,7 +1785,7 @@ function Workspace() {
   // Tool states
   const [brushSettings, setBrushSettings] = useState({ size: 10, color: '#000000', opacity: 1, mode: 'paint', type: 'solid' })
   const brushSettingsRef = useRef(brushSettings)
-  brushSettingsRef.current = brushSettings
+  useEffect(() => { brushSettingsRef.current = brushSettings })
   // Offscreen brush layer infrastructure
   const brushCanvasRef = useRef(null)
   const brushCtxRef = useRef(null)
@@ -1817,6 +1860,7 @@ function Workspace() {
   }
 
   const prepareCtxForBrushType = (ctx, type, mode, lineWidth) => {
+    console.log('[prepareCtx] type received:', type)
     ctx.setLineDash([])
     ctx.globalAlpha = 1
     ctx.lineCap = 'round'
@@ -1885,19 +1929,43 @@ function Workspace() {
   const handleBrushStart = (e) => {
     if (brushSettings.mode === 'erase') {
       const pointer = stageRef.current?.getPointerPosition()
-      if (pointer) {
-        const targetImg = hitTestImageAtPointer(stageRef.current, pointer)
-        if (targetImg) {
-          eraserImageTargetRef.current = targetImg
-          eraserImagePointsRef.current = []
-          const worldPos = getWorldPointFromViewport(pointer, cameraRef.current)
-          eraserImagePointsRef.current.push(worldPos.x, worldPos.y)
-          isDrawingRef.current = true
-          lastBrushPosRef.current = worldPos
-          return
+      if (!pointer) { eraserImageTargetRef.current = null; return }
+
+      let clickedId = null
+      const hitNode = stageRef.current?.getIntersection({ x: pointer.x, y: pointer.y })
+      if (hitNode && hitNode !== stageRef.current) {
+        let node = hitNode
+        while (node && node !== stageRef.current) {
+          const id = node.id()
+          if (id) { clickedId = id; break }
+          node = node.parent
         }
       }
+
+      let targetItem = null
+      if (clickedId && clickedId === selectedId) {
+        targetItem = selectedId ? itemsRef.current.find(i => i.id === selectedId) : null
+      } else if (!selectedId && activeBrushLayerIdRef.current) {
+        const activeLayer = itemsRef.current.find(i => i.id === activeBrushLayerIdRef.current)
+        if (activeLayer?.kind === 'brushLayer') {
+          targetItem = activeLayer
+          setSelectedId(activeLayer.id)
+          setSelectedIds([activeLayer.id])
+        }
+      }
+
+      if (targetItem?.kind === 'image') {
+        eraserImageTargetRef.current = targetItem
+        eraserImagePointsRef.current = []
+        const worldPos = getWorldPointFromViewport(pointer, cameraRef.current)
+        eraserImagePointsRef.current.push(worldPos.x, worldPos.y)
+        isDrawingRef.current = true
+        lastBrushPosRef.current = worldPos
+        return
+      }
+
       eraserImageTargetRef.current = null
+      if (!targetItem || targetItem.kind !== 'brushLayer') return
     }
 
     ensureBrushLayer()
@@ -2105,37 +2173,176 @@ function Workspace() {
     const displayH = Math.max(1, Math.ceil(targetItem.h))
     const nativeW = img.naturalWidth
     const nativeH = img.naturalHeight
-    const scaleX = nativeW / displayW
-    const scaleY = nativeH / displayH
     const cam = cameraRef.current
-    const worldSize = brushSettings.size / (cam.scale || 1)
+    const radius = brushSettingsRef.current.size / (cam.scale || 1) / 2
+    const lineWidth = radius * 2
+    const type = brushSettingsRef.current.type
+    console.log('[eraseImage] brushType:', type)
 
-    const canvas = document.createElement('canvas')
-    canvas.width = nativeW
-    canvas.height = nativeH
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(img, 0, 0, nativeW, nativeH)
-
-    ctx.globalCompositeOperation = 'destination-out'
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.lineWidth = worldSize * ((scaleX + scaleY) / 2)
-    ctx.strokeStyle = 'rgba(0,0,0,1)'
-    ctx.beginPath()
+    // Convert world points to display-local coordinates
+    const localPts = []
     for (let i = 0; i < points.length; i += 2) {
-      const lx = (points[i] - originX) * scaleX
-      const ly = (points[i + 1] - originY) * scaleY
-      if (i === 0) ctx.moveTo(lx, ly)
-      else ctx.lineTo(lx, ly)
+      localPts.push({ x: points[i] - originX, y: points[i + 1] - originY })
     }
-    ctx.stroke()
 
-    canvas.toBlob((blob) => {
+    // Build eraser mask canvas at display resolution using the same brush engine
+    const maskCanvas = document.createElement('canvas')
+    maskCanvas.width = displayW
+    maskCanvas.height = displayH
+    const maskCtx = maskCanvas.getContext('2d')
+
+    const typeIsStamp = type === 'dotted' || type === 'dashed' || type === 'pixel'
+
+    console.log('[eraseImage] prepareCtxForBrushType dipanggil?')
+    if (type === 'solid') {
+      prepareCtxForBrushType(maskCtx, type, 'paint', lineWidth)
+      maskCtx.fillStyle = 'rgba(0,0,0,1)'
+      maskCtx.strokeStyle = 'rgba(0,0,0,1)'
+      maskCtx.beginPath()
+      maskCtx.moveTo(localPts[0].x, localPts[0].y)
+      for (let i = 1; i < localPts.length; i++) {
+        maskCtx.lineTo(localPts[i].x, localPts[i].y)
+      }
+      maskCtx.stroke()
+    } else if (typeIsStamp) {
+      const stampDist = type === 'dotted' ? lineWidth * 2.25
+        : type === 'dashed' ? lineWidth * 4
+        : lineWidth
+      const dashLen = type === 'dashed' ? lineWidth * 3 : 0
+
+      // Draw initial stamp at first point (same as handleBrushStart)
+      prepareCtxForBrushType(maskCtx, type, 'paint', lineWidth)
+      maskCtx.fillStyle = 'rgba(0,0,0,1)'
+      maskCtx.strokeStyle = 'rgba(0,0,0,1)'
+      if (type === 'dotted') {
+        maskCtx.beginPath()
+        maskCtx.arc(localPts[0].x, localPts[0].y, lineWidth / 2, 0, Math.PI * 2)
+        maskCtx.fill()
+      } else if (type === 'pixel') {
+        const d = Math.max(1, lineWidth)
+        maskCtx.fillRect(localPts[0].x - d / 2, localPts[0].y - d / 2, d, d)
+      } else if (type === 'dashed') {
+        maskCtx.beginPath()
+        maskCtx.moveTo(localPts[0].x, localPts[0].y)
+        maskCtx.lineTo(localPts[0].x + lineWidth * 2, localPts[0].y)
+        maskCtx.stroke()
+      }
+
+      let lastStamp = { x: localPts[0].x, y: localPts[0].y }
+
+      for (let i = 1; i < localPts.length; i++) {
+        const end = localPts[i]
+        const sdx = end.x - lastStamp.x
+        const sdy = end.y - lastStamp.y
+        const sDist = Math.sqrt(sdx * sdx + sdy * sdy)
+
+        if (sDist >= stampDist) {
+          prepareCtxForBrushType(maskCtx, type, 'paint', lineWidth)
+          maskCtx.fillStyle = 'rgba(0,0,0,1)'
+          maskCtx.strokeStyle = 'rgba(0,0,0,1)'
+
+          const nx = sdx / sDist
+          const ny = sdy / sDist
+          let placed = 0
+
+          while (placed + stampDist <= sDist) {
+            placed += stampDist
+
+            if (type === 'dotted') {
+              const px = lastStamp.x + nx * placed
+              const py = lastStamp.y + ny * placed
+              maskCtx.beginPath()
+              maskCtx.arc(px, py, lineWidth / 2, 0, Math.PI * 2)
+              maskCtx.fill()
+            } else if (type === 'pixel') {
+              const px = lastStamp.x + nx * placed
+              const py = lastStamp.y + ny * placed
+              const d = Math.max(1, lineWidth)
+              maskCtx.fillRect(px - d / 2, py - d / 2, d, d)
+            } else if (type === 'dashed') {
+              const halfDash = dashLen / 2
+              const cx = lastStamp.x + nx * placed
+              const cy = lastStamp.y + ny * placed
+              const sx = cx - nx * halfDash
+              const sy = cy - ny * halfDash
+              const ex = cx + nx * halfDash
+              const ey = cy + ny * halfDash
+              maskCtx.beginPath()
+              maskCtx.moveTo(sx, sy)
+              maskCtx.lineTo(ex, ey)
+              maskCtx.stroke()
+            }
+          }
+
+          lastStamp = {
+            x: lastStamp.x + nx * placed,
+            y: lastStamp.y + ny * placed,
+          }
+        }
+      }
+    } else if (type === 'airbrush') {
+      // First point spray
+      prepareCtxForBrushType(maskCtx, type, 'paint', lineWidth)
+      airbrushSpray(maskCtx, localPts[0].x, localPts[0].y, radius, Math.round(radius * 3))
+
+      for (let i = 1; i < localPts.length; i++) {
+        const last = localPts[i - 1]
+        const curr = localPts[i]
+        const dx = curr.x - last.x
+        const dy = curr.y - last.y
+        const segDist = Math.sqrt(dx * dx + dy * dy)
+        if (segDist === 0) continue
+
+        prepareCtxForBrushType(maskCtx, type, 'paint', lineWidth)
+        const steps = Math.max(1, Math.round(segDist / (radius * 0.5)))
+        for (let j = 0; j <= steps; j++) {
+          const t = j / steps
+          const px = last.x + dx * t
+          const py = last.y + dy * t
+          airbrushSpray(maskCtx, px, py, radius, Math.round(radius * 2))
+        }
+      }
+    } else if (type === 'watercolor') {
+      const wcSize = lineWidth * 2.5
+      // First point
+      drawWatercolor(maskCtx, localPts[0].x, localPts[0].y, wcSize, 'rgba(0,0,0,1)', 0.2)
+
+      for (let i = 1; i < localPts.length; i++) {
+        const last = localPts[i - 1]
+        const curr = localPts[i]
+        const dx = curr.x - last.x
+        const dy = curr.y - last.y
+        const segDist = Math.sqrt(dx * dx + dy * dy)
+        if (segDist === 0) continue
+
+        const steps = Math.max(1, Math.round(segDist / (wcSize * 0.4)))
+        for (let j = 0; j <= steps; j++) {
+          const t = j / steps
+          const px = last.x + dx * t
+          const py = last.y + dy * t
+          drawWatercolor(maskCtx, px, py, wcSize, 'rgba(0,0,0,1)', 0.2)
+        }
+      }
+    }
+
+    // Capture oldSrc synchronously before any async boundary
+    const oldSrc = targetItem.src
+
+    // Render native image and composite mask with destination-out
+    const nativeCanvas = document.createElement('canvas')
+    nativeCanvas.width = nativeW
+    nativeCanvas.height = nativeH
+    const nativeCtx = nativeCanvas.getContext('2d')
+    nativeCtx.drawImage(img, 0, 0, nativeW, nativeH)
+    nativeCtx.globalCompositeOperation = 'destination-out'
+    nativeCtx.drawImage(maskCanvas, 0, 0, nativeW, nativeH)
+
+    nativeCanvas.toBlob((blob) => {
       if (!blob) return
       const localUrl = URL.createObjectURL(blob)
       setItems((current) => current.map((item) => {
         if (item.id !== targetItem.id) return item
-        return { ...item, src: localUrl, _pendingUpload: blob }
+        return { ...item, src: localUrl, _oldSrc: oldSrc, _pendingUpload: blob }
       }))
     })
   }
@@ -2306,6 +2513,7 @@ function Workspace() {
   const canvasMetadataSyncTimerRef = useRef(null)
   const lastSyncedCanvasMetadataHashRef = useRef(null)
   const isAutosavingRef = useRef(false)
+  const isPersistingRef = useRef(false)
   const skipNextAutosaveRef = useRef(shouldLoadWorkspace)
   const shouldCenterAfterPanelCloseRef = useRef(false)
 
@@ -2906,7 +3114,7 @@ function Workspace() {
       paddingTop: undefined,
       transform: `rotate(${editingTextItem.rotation || 0}deg)`,
       transformOrigin: 'top left',
-      textAlign: isShapeText ? (editingTextItem.shapeTextAlign || 'center') : 'center',
+      textAlign: isShapeText ? (editingTextItem.shapeTextAlign || 'center') : (editingTextItem.align || 'center'),
       overflow: 'hidden',
       resize: 'none',
     }
@@ -3486,7 +3694,7 @@ function Workspace() {
         const uploaded = await uploadMediaFile({ file, addToUploads: false })
         const newUrl = uploaded?.media?.url
         if (newUrl) {
-          await deleteOldSrc(item.src)
+          await deleteOldSrc(item._oldSrc || item.src)
           URL.revokeObjectURL(item.src)
           updates.push({ id: item.id, src: newUrl })
         }
@@ -3504,6 +3712,7 @@ function Workspace() {
       const newSrc = updateMap.get(item.id)
       const next = newSrc ? { ...item, src: newSrc } : { ...item }
       delete next._pendingUpload
+      delete next._oldSrc
       return next
     })
     return {
@@ -3529,40 +3738,46 @@ function Workspace() {
 
   const persistWorkspaceSnapshot = useCallback(async (saveType = 'autosave', options = {}) => {
     if (!workspaceId || !hasRestoredWorkspaceRef.current) return null
-    const updates = await uploadPendingItems()
-    if (updates.length > 0) {
-      setItems((prev) => prev.map((item) => {
-        const match = updates.find((u) => u.id === item.id)
-        if (match) {
-          const next = { ...item, src: match.src }
-          delete next._pendingUpload
-          return next
-        }
-        return item
-      }))
-    }
-    const snapshot = buildSnapshotWithSrc(updates)
-    const snapshotHash = getSnapshotHash(snapshot)
-    if (snapshotHash === lastSavedSnapshotHashRef.current) return null
+    if (isPersistingRef.current) return null
+    isPersistingRef.current = true
+    try {
+      const updates = await uploadPendingItems()
+      if (updates.length > 0) {
+        setItems((prev) => prev.map((item) => {
+          const match = updates.find((u) => u.id === item.id)
+          if (match) {
+            const next = { ...item, src: match.src }
+            delete next._pendingUpload
+            return next
+          }
+          return item
+        }))
+      }
+      const snapshot = buildSnapshotWithSrc(updates)
+      const snapshotHash = getSnapshotHash(snapshot)
+      if (snapshotHash === lastSavedSnapshotHashRef.current) return null
 
-    const body = {
-      snapshot,
-      title: workspaceTitle,
-      canvasWidth: canvasSettings.width,
-      canvasHeight: canvasSettings.height,
-      canvasRatio: canvasSettings.ratio,
-      background: canvasSettings.background,
-      settings: canvasSettings,
-    }
+      const body = {
+        snapshot,
+        title: workspaceTitle,
+        canvasWidth: canvasSettings.width,
+        canvasHeight: canvasSettings.height,
+        canvasRatio: canvasSettings.ratio,
+        background: canvasSettings.background,
+        settings: canvasSettings,
+      }
 
-    const result = saveType === 'manual'
-      ? await saveWorkspace(workspaceId, body, { keepalive: options.keepalive })
-      : await autosaveWorkspace(workspaceId, body, { keepalive: options.keepalive })
-    lastSavedSnapshotHashRef.current = snapshotHash
-    if (result && !result.skipped && !options.skipThumbnail) {
-      await uploadWorkspaceThumbnail()
+      const result = saveType === 'manual'
+        ? await saveWorkspace(workspaceId, body, { keepalive: options.keepalive })
+        : await autosaveWorkspace(workspaceId, body, { keepalive: options.keepalive })
+      lastSavedSnapshotHashRef.current = snapshotHash
+      if (result && !result.skipped && !options.skipThumbnail) {
+        await uploadWorkspaceThumbnail()
+      }
+      return result
+    } finally {
+      isPersistingRef.current = false
     }
-    return result
   }, [buildSnapshotWithSrc, canvasSettings, uploadPendingItems, uploadWorkspaceThumbnail, workspaceId, workspaceTitle])
 
   const syncCanvasMetadata = useCallback(async (settings) => {
@@ -5124,7 +5339,7 @@ const attachTransformer = useCallback((idOrIds) => {
       const oldItem = itemsRef.current.find((i) => i.id === item.id)
       if (oldItem?.src?.startsWith('blob:')) URL.revokeObjectURL(oldItem.src)
       setItems((prev) => prev.map((i) =>
-        i.id === item.id ? { ...i, src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH), _pendingUpload: blob } : i
+        i.id === item.id ? { ...i, src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH), _oldSrc: oldItem?.src, _pendingUpload: blob } : i
       ))
 
       warpedItemIdRef.current = null
@@ -5384,8 +5599,9 @@ const attachTransformer = useCallback((idOrIds) => {
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
     if (!blob) return
     const localUrl = URL.createObjectURL(blob)
+    const oldSrc = itemsRef.current.find((i) => i.id === item.id)?.src
 
-    updateItem(item.id, { src: localUrl, relight: null, _pendingUpload: blob })
+    updateItem(item.id, { src: localUrl, relight: null, _oldSrc: oldSrc, _pendingUpload: blob })
 
     setRelightActive(false)
     setActiveToolCard(null)
@@ -6990,7 +7206,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const handleObjectSelect = (event, id) => {
     event.cancelBubble = true
-    if (activePanel === 'brush' || activePanel === 'bezier') return
+    if ((activePanel === 'brush' && brushSettings.mode !== 'erase') || activePanel === 'bezier') return
     const isMultiSelect = isGroupSelectMode || event.evt?.shiftKey
 
     requestAnimationFrame(() => {
@@ -9343,11 +9559,11 @@ const toggleMobileSheetSize = () => {
             {isImageAdjustmentsOpen && (
               <div className="workspace-adjustment-content">
             <div className="workspace-filter-row">
-              <button type="button" onClick={() => updateItem(selectedItem.id, { exposure: 0, temperature: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0, brightness: 8, contrast: 12, saturation: 8, sharpen: 0, vignette: 0, blur: 0, shadow: 0 })}>Cinematic</button>
-              <button type="button" onClick={() => updateItem(selectedItem.id, { exposure: 0, temperature: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0, brightness: -4, contrast: -8, saturation: -22, sharpen: 0, vignette: 0, blur: 0, shadow: 0 })}>Muted</button>
-              <button type="button" onClick={() => updateItem(selectedItem.id, { exposure: 0, temperature: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0, brightness: 10, contrast: -6, saturation: 16, sharpen: 0, vignette: 0, blur: 1, shadow: 0 })}>Dreamy</button>
-              <button type="button" onClick={() => updateItem(selectedItem.id, { exposure: 0, temperature: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0, brightness: -8, contrast: 28, saturation: -100, sharpen: 0, vignette: 0, blur: 0, shadow: 0 })}>Noir</button>
-              <button type="button" onClick={() => updateItem(selectedItem.id, { exposure: 0, temperature: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0, brightness: 4, contrast: 18, saturation: 28, sharpen: 0, vignette: 0, blur: 0, shadow: 0 })}>Vibrant</button>
+              {ADJUSTMENT_PRESETS.map((preset) => (
+                <button key={preset.label} type="button" onClick={() => updateItem(selectedItem.id, preset.values)}>
+                  {preset.label}
+                </button>
+              ))}
             </div>
 <div className="workspace-slider-list">
   {[
@@ -11113,7 +11329,7 @@ const toggleMobileSheetSize = () => {
     const phaseInfo = isWorkspaceLoading
       ? { num: '1/3', text: 'Memuat workspace' }
       : loadingPhase === 'analyzing'
-        ? { num: '2/3', text: 'Menganalisa visual dan text' }
+        ? { num: '2/3', text: 'Menyiapkan alat AI' }
         : { num: '3/3', text: 'Menyiapkan canvas' }
     return (
       <section className="workspace-page workspace-loading-state">
@@ -11875,7 +12091,15 @@ const toggleMobileSheetSize = () => {
                     const activeAnchor = transformerRef.current?.getActiveAnchor?.()
                     if (activeAnchor?.startsWith('middle') || activeAnchor === 'top-center' || activeAnchor === 'bottom-center') return oldBox
                     const aspectRatio = (selectedItem.w / selectedItem.h) || 1
-                    return { ...candidateBox, height: candidateBox.width / aspectRatio }
+                    const newHeight = candidateBox.width / aspectRatio
+                    if (activeAnchor?.includes('top')) {
+                      return {
+                        ...candidateBox,
+                        height: newHeight,
+                        y: candidateBox.y + candidateBox.height - newHeight,
+                      }
+                    }
+                    return { ...candidateBox, height: newHeight }
                   }
                   if (selectedItem?.kind === 'shape' && selectedItem.shapeType === 'arrow-shape') {
                     const activeAnchor = transformerRef.current?.getActiveAnchor?.()

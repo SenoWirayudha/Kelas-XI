@@ -5521,6 +5521,27 @@
   animation: post-detail-toast-in 0.18s ease both;
 }
 
+.toast-ubah-btn {
+  all: unset;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.toast-ubah-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.toast-ubah-btn:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 @keyframes post-detail-toast-in {
   from {
     opacity: 0;
@@ -11557,9 +11578,6 @@
 
 .workspace-fx-detail-content {
   padding: 16px;
-  overflow-y: auto;
-  max-height: calc(100vh - 320px);
-  overscroll-behavior: contain;
 }
 
 .workspace-fx-detail-switch {
@@ -12321,6 +12339,13 @@
 .brush-type-btn:hover {
   background: rgba(255,255,255,0.1);
   color: rgba(255,255,255,0.9);
+}
+
+.brush-type-btn.disabled,
+.brush-type-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .brush-type-btn.active {

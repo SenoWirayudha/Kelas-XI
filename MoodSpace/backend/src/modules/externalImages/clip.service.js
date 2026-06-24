@@ -37,6 +37,15 @@ export const l2Normalize = (vector) => {
   return normalized
 }
 
+export const warmUpClip = async () => {
+  try {
+    await getTextModel()
+    console.log('[CLIP] Models pre-warmed')
+  } catch (error) {
+    console.error('[CLIP] Pre-warm failed:', error.message)
+  }
+}
+
 export const getTextEmbedding = async (text) => {
   try {
     if (!text || typeof text !== 'string' || text.trim().length < 2) {

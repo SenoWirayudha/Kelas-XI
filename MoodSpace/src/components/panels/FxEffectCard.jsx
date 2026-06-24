@@ -35,7 +35,20 @@ export function getDefaultEnabledValue(effect) {
     return Math.round(mid / (effect.step || 1)) * (effect.step || 1)
   }
   if (effect.type === 'select') return effect.options?.[1]?.value || 'h'
-  if (effect.type === 'object') return {}
+  if (effect.type === 'object') {
+    if (effect.id === 'spectralMap') {
+      return {
+        shadowColor: '#ff0000',
+        midColor: '#00ff00',
+        highlightColor: '#0000ff',
+        tahap: 0,
+        repeat: 1,
+        saturation: 1.0,
+        alpha: 1,
+      }
+    }
+    return {}
+  }
   return true
 }
 

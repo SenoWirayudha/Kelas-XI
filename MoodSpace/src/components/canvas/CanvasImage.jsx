@@ -182,6 +182,7 @@ function CanvasImage({
   disableDrag,
   onCropStart,
   isCropTarget,
+  getActiveTransformAnchor,
 }) {
   const image          = useCanvasImage(item.src)
   const imageNodeRef   = useRef(null)
@@ -192,7 +193,7 @@ function CanvasImage({
   const rgbPadXRef        = useRef(0)
   const rgbPadYRef        = useRef(0)
   const rgbLayersRef      = useRef(null)
-  const processTimerRef   = useRef(null)
+  const channelCacheRef   = useRef(null)
   // eslint-disable-next-line no-unused-vars
   const [rgbSplitVer, setRgbSplitVer] = useState(0)
 
@@ -201,13 +202,14 @@ function CanvasImage({
   // Simpan reference ke original image (dari useCanvasImage, bukan hasil proses)
   useEffect(() => { originalImageRef.current = image }, [image])
 
-  // rgbSplit: pre-composite shifted layers (Screen) into one canvas,
-  // clear center area (destination-out), render behind full-RGB center.
+  // rgbSplit: cached channel canvases (rebuilt only on image change),
+  // offset/direction recomputed instantly (no debounce) on slider drag.
   useEffect(() => {
     const p = item.effects?.rgbSplit
     if (!p || !image) {
       if (!p) {
         rgbLayersRef.current = null
+        channelCacheRef.current = null
         processedImageRef.current = null
         rgbPadXRef.current = 0
         rgbPadYRef.current = 0
@@ -217,36 +219,19 @@ function CanvasImage({
       return
     }
 
-    if (processTimerRef.current) clearTimeout(processTimerRef.current)
-    processTimerRef.current = setTimeout(() => {
-      const img = originalImageRef.current
-      if (!img || !img.complete || !img.naturalWidth) return
+    const img = originalImageRef.current
+    if (!img || !img.complete || !img.naturalWidth) return
 
-      const nw = img.naturalWidth, nh = img.naturalHeight
+    const nw = img.naturalWidth, nh = img.naturalHeight
 
-      // Source-space offset
-      const pixelOffset = (p.offset ?? 0.01) * Math.max(nw, nh)
-      const angleRad = (p.angle ?? 0) * Math.PI / 180
-      const dxSrc = Math.cos(angleRad) * pixelOffset
-      const dySrc = Math.sin(angleRad) * pixelOffset
-
-      // Symmetrical source padding
-      const pad = Math.ceil(Math.max(Math.abs(dxSrc), Math.abs(dySrc))) + 20
-
-      // Display-space offset & padding
-      const scX = item.w / nw, scY = item.h / nh
-      const dxDisp = dxSrc * scX
-      const dyDisp = dySrc * scY
-      const padDisp = Math.ceil(Math.max(Math.abs(dxDisp), Math.abs(dyDisp))) + 20
-
-      // Draw original to temp canvas → get pixel data for isolation
+    // Build isolated channel canvases once per image
+    if (!channelCacheRef.current || channelCacheRef.current.src !== img.src) {
       const srcCanvas = document.createElement('canvas')
       srcCanvas.width = nw; srcCanvas.height = nh
       const srcCtx = srcCanvas.getContext('2d')
       if (!srcCtx) return
       srcCtx.drawImage(img, 0, 0, nw, nh)
-      const srcData = srcCtx.getImageData(0, 0, nw, nh)
-      const d = srcData.data
+      const d = srcCtx.getImageData(0, 0, nw, nh).data
 
       function isolate(ch) {
         const buf = new Uint8ClampedArray(d.length)
@@ -266,43 +251,35 @@ function CanvasImage({
         return c
       }
 
-      const rCanvas = dataToCanvas(isolate(0))
-      const gCanvas = dataToCanvas(isolate(1))
-      const bCanvas = dataToCanvas(isolate(2))
-
-      // Assign center / left / right per mode
-      // Center = channel-isolated (primary color), left+right = shifted channels
-      const m = p.mode ?? 'g'
-      let centerCanvas, leftCanvas, rightCanvas
-      if (m === 'g') { centerCanvas = gCanvas; leftCanvas = bCanvas; rightCanvas = rCanvas }
-      else if (m === 'r') { centerCanvas = rCanvas; leftCanvas = bCanvas; rightCanvas = gCanvas }
-      else                { centerCanvas = bCanvas; leftCanvas = gCanvas; rightCanvas = rCanvas }
-
-      // Pre-composite shifted layers into one canvas
-      const shiftCanvas = document.createElement('canvas')
-      shiftCanvas.width = nw + pad * 2
-      shiftCanvas.height = nh + pad * 2
-      const shiftCtx = shiftCanvas.getContext('2d')
-      if (!shiftCtx) return
-
-      // Screen blend each shifted layer at its offset
-      shiftCtx.globalCompositeOperation = 'screen'
-      shiftCtx.drawImage(leftCanvas, pad - Math.round(dxSrc), pad - Math.round(dySrc))
-      shiftCtx.drawImage(rightCanvas, pad + Math.round(dxSrc), pad + Math.round(dySrc))
-      shiftCtx.globalCompositeOperation = 'source-over'
-      // Shift canvas now has left+right screened together (overlaps center area too).
-      // At render time it's drawn ON TOP with Screen blend via Shape sceneFunc.
-
-      rgbLayersRef.current = { shift: shiftCanvas, center: centerCanvas, dxDisp, dyDisp, padDisp }
-      processedImageRef.current = null
-      rgbPadXRef.current = 0
-      rgbPadYRef.current = 0
-      setRgbSplitVer(v => v + 1)
-    }, 150)
-
-    return () => {
-      if (processTimerRef.current) clearTimeout(processTimerRef.current)
+      channelCacheRef.current = {
+        src: img.src,
+        r: dataToCanvas(isolate(0)),
+        g: dataToCanvas(isolate(1)),
+        b: dataToCanvas(isolate(2)),
+      }
     }
+
+    // Compute offset (lightweight — runs on every slider/angle change)
+    const pixelOffset = (p.offset ?? 0.01) * Math.max(nw, nh)
+    const angleRad = (p.angle ?? 0) * Math.PI / 180
+    const dxSrc = Math.cos(angleRad) * pixelOffset
+    const dySrc = Math.sin(angleRad) * pixelOffset
+    const scX = item.w / nw, scY = item.h / nh
+    const dxDisp = dxSrc * scX
+    const dyDisp = dySrc * scY
+
+    const { r: rCanvas, g: gCanvas, b: bCanvas } = channelCacheRef.current
+    const m = p.mode ?? 'g'
+    let centerCanvas, leftCanvas, rightCanvas
+    if (m === 'g') { centerCanvas = gCanvas; leftCanvas = bCanvas; rightCanvas = rCanvas }
+    else if (m === 'r') { centerCanvas = rCanvas; leftCanvas = bCanvas; rightCanvas = gCanvas }
+    else                { centerCanvas = bCanvas; leftCanvas = gCanvas; rightCanvas = rCanvas }
+
+    rgbLayersRef.current = { center: centerCanvas, left: leftCanvas, right: rightCanvas, dxDisp, dyDisp }
+    processedImageRef.current = null
+    rgbPadXRef.current = 0
+    rgbPadYRef.current = 0
+    setRgbSplitVer(v => v + 1)
   }, [image, item.effects?.rgbSplit, item.w, item.h])
   const cropFit = image ? getCropFit(item, image) : null
   const cropProps = image ? getImageCropProps(item, image) : {}
@@ -425,13 +402,14 @@ function CanvasImage({
       onDragMove={(e)   => onDragMove?.(e, item.id)}
       onDragEnd={(e)    => onDragEnd(e, item.id)}
       onTransformEnd={(e) => {
-        const node   = e.target
-        const scaleX = node.scaleX()
-        const scaleY = node.scaleY()
+        const node     = e.target
+        const scaleX   = node.scaleX()
+        const scaleY   = node.scaleY()
+        const anchor   = getActiveTransformAnchor?.()
         let reqW, reqH
         if (item.lockAspectRatio) {
-          const ratio = item.w / item.h || 1
-          const maxScale = Math.max(scaleX, scaleY)
+          const ratio   = item.w / item.h || 1
+          const maxScale = Math.max(Math.abs(scaleX), Math.abs(scaleY))
           reqW = Math.max(80, item.w * maxScale)
           reqH = Math.max(80, reqW / ratio)
         } else {
@@ -440,7 +418,24 @@ function CanvasImage({
         }
         const next   = getCanvasContainedSize(reqW, reqH)
         node.scaleX(1); node.scaleY(1)
-        const nextPos = getClampedCanvasPosition(next.w, next.h, { x: node.x(), y: node.y() }, canvasBounds)
+        const oldCenterX = node.x() + reqW / 2
+        const oldCenterY = node.y() + reqH / 2
+        let newX, newY
+        if (anchor?.includes('left')) {
+          newX = node.x() + reqW - next.w
+        } else if (anchor?.includes('right')) {
+          newX = node.x()
+        } else {
+          newX = oldCenterX - next.w / 2
+        }
+        if (anchor?.includes('top')) {
+          newY = node.y() + reqH - next.h
+        } else if (anchor?.includes('bottom')) {
+          newY = node.y()
+        } else {
+          newY = oldCenterY - next.h / 2
+        }
+        const nextPos = getClampedCanvasPosition(next.w, next.h, { x: newX, y: newY }, canvasBounds)
         onChange({ x: nextPos.x, y: nextPos.y, w: next.w, h: next.h, rotation: node.rotation() })
       }}
     >
@@ -545,14 +540,12 @@ function CanvasImage({
                   listening={false}
                 />
                 <Shape
-                  name="canvas-image-rgb-shift"
-                  x={-rgbLayersRef.current.padDisp}
-                  y={-rgbLayersRef.current.padDisp}
                   sceneFunc={(ctx) => {
                     ctx.save()
                     ctx.globalCompositeOperation = 'screen'
                     const ref = rgbLayersRef.current
-                    ctx.drawImage(ref.shift, 0, 0, item.w + ref.padDisp * 2, item.h + ref.padDisp * 2)
+                    ctx.drawImage(ref.left, -ref.dxDisp, -ref.dyDisp, item.w, item.h)
+                    ctx.drawImage(ref.right, ref.dxDisp, ref.dyDisp, item.w, item.h)
                     ctx.restore()
                   }}
                   listening={false}

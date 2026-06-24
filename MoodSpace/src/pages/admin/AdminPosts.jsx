@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { listPosts, deletePost } from '../../lib/api/admin'
 import { Search, ChevronLeft, ChevronRight, Trash2, ExternalLink } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import ConfirmationModal from '../../components/ConfirmationModal'
 
 const PAGE_SIZE = 20
 
@@ -12,6 +13,7 @@ function AdminPosts() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [loading, setLoading] = useState(true)
+  const [confirmingId, setConfirmingId] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -30,9 +32,7 @@ function AdminPosts() {
   useEffect(() => { setPage(1) }, [search, statusFilter])
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this post? This cannot be undone.')) return
-    await deletePost(id)
-    load()
+    setConfirmingId(id)
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -121,6 +121,19 @@ function AdminPosts() {
           <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={16} /></button>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={confirmingId !== null}
+        title="Delete Post"
+        description="Delete this post? This cannot be undone."
+        isDanger={true}
+        onConfirm={async () => {
+          await deletePost(confirmingId)
+          setConfirmingId(null)
+          load()
+        }}
+        onCancel={() => setConfirmingId(null)}
+      />
     </div>
   )
 }

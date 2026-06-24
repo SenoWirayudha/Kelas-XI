@@ -30,6 +30,16 @@ export const createApp = () => {
   app.use(express.json({ limit: '2mb' }))
   app.use(cookieParser())
 
+  app.use((req, res, next) => {
+    const timer = setTimeout(() => {
+      if (!res.headersSent) {
+        res.status(503).json({ error: { message: 'Server timeout', code: 'TIMEOUT' } })
+      }
+    }, 25_000)
+    res.on('finish', () => clearTimeout(timer))
+    next()
+  })
+
   app.get('/api/health', (req, res) => {
     res.json({ ok: true })
   })

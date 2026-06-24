@@ -81,7 +81,7 @@ export const EFFECTS = [
     { key: 'mode', label: 'Mode', type: 'select', default: 'g', options: [
       { value: 'r', label: 'R' }, { value: 'g', label: 'G' }, { value: 'b', label: 'B' },
     ]},
-    { key: 'offset', label: 'Offset', type: 'slider', default: 0.01, min: 0, max: 0.1, step: 0.005 },
+    { key: 'offset', label: 'Offset', type: 'slider', default: 0.01, min: -0.1, max: 0.1, step: 0.005 },
     { key: 'angle', label: 'Angle', type: 'slider', default: 0, min: 0, max: 360, unit: '°' },
   ]},
 
@@ -90,11 +90,6 @@ export const EFFECTS = [
     { key: 'colorA', label: 'Shadow Color', type: 'color', default: '#000000' },
     { key: 'colorB', label: 'Highlight Color', type: 'color', default: '#ffffff' },
   ]},
-  { id: 'tritone', label: 'Tritone', category: 'color', type: 'object', default: null, icon: 'Palette', params: [
-    { key: 'colorA', label: 'Shadow Color', type: 'color', default: '#000000' },
-    { key: 'colorB', label: 'Midtone Color', type: 'color', default: '#888888' },
-    { key: 'colorC', label: 'Highlight Color', type: 'color', default: '#ffffff' },
-  ]},
   { id: 'risograph', label: 'Risograph', category: 'stylize', type: 'object', default: null, icon: 'Palette', params: [
     { key: 'color1', label: 'Color', type: 'color', default: '#2d5a27' },
     { key: 'paper', label: 'Paper', type: 'color', default: '#f4cfc6' },
@@ -102,12 +97,13 @@ export const EFFECTS = [
     { key: 'grain', label: 'Grain', type: 'slider', default: 0.15, min: 0, max: 1, step: 0.01 },
   ]},
   { id: 'spectralMap', label: 'Spectral Map', category: 'color', type: 'object', default: null, icon: 'Palette', params: [
-    { key: 'shadowColor', label: 'Shadow', type: 'color', default: '#000000' },
-    { key: 'midColor', label: 'Midtone', type: 'color', default: '#888888' },
-    { key: 'highlightColor', label: 'Highlight', type: 'color', default: '#ffffff' },
-    { key: 'repeat', label: 'Repeat', type: 'toggle', default: false },
-    { key: 'stage', label: 'Stage', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
-    { key: 'cycle', label: 'Cycle', type: 'slider', default: 0, min: 0, max: 2, step: 1 },
+    { key: 'shadowColor', label: 'Shadow', type: 'color', default: '#ff0000' },
+    { key: 'midColor', label: 'Midtone', type: 'color', default: '#00ff00' },
+    { key: 'highlightColor', label: 'Highlight', type: 'color', default: '#0000ff' },
+    { key: 'tahap', label: 'Tahap', type: 'slider', default: 0, min: -1, max: 1, step: 0.01 },
+    { key: 'repeat', label: 'Repeat', type: 'slider', default: 1, min: 1, max: 10, step: 0.1 },
+    { key: 'saturation', label: 'Saturation', type: 'slider', default: 1, min: 0, max: 1, step: 0.05 },
+    { key: 'alpha', label: 'Opacity', type: 'slider', default: 1, min: 0, max: 1, step: 0.05 },
   ]},
   { id: 'halftone', label: 'Halftone', category: 'stylize', type: 'object', default: null, icon: 'Grid', params: [
     { key: 'dotSize', label: 'Dot Size', type: 'slider', default: 8, min: 2, max: 50 },

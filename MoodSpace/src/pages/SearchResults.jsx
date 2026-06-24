@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { FolderPlus } from 'lucide-react'
 import BoardPickerModal from '../components/BoardPickerModal'
 import CommunityPostCard from '../components/CommunityPostCard'
 import NewBoardModal from '../components/NewBoardModal'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
 import { Skeleton, createSkeletonItems } from '../components/Skeleton'
 import { useAuth } from '../context/authState'
-import { addBoardItem, listBoards } from '../lib/api/boards'
+import { addBoardItem, listBoards, removeBoardItem } from '../lib/api/boards'
 import { saveExternalImage, searchExternalImages, unsaveExternalImage } from '../lib/api/externalImages'
 import { likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
 import { searchPosts } from '../lib/api/search'
@@ -34,6 +35,7 @@ function SearchResults() {
   const [error, setError] = useState('')
   const [boardPicker, setBoardPicker] = useState({ isOpen: false, post: null, boards: [] })
   const [isNewBoardModalOpen, setIsNewBoardModalOpen] = useState(false)
+  const [toastData, setToastData] = useState(null)
   const sentinelRef = useRef(null)
   const loadingRef = useRef(false)
   const requestSerialRef = useRef(0)
@@ -111,6 +113,12 @@ function SearchResults() {
     return () => observer.disconnect()
   }, [hasMore, loadResults])
 
+  useEffect(() => {
+    if (!toastData) return undefined
+    const timer = window.setTimeout(() => setToastData(null), 1800)
+    return () => window.clearTimeout(timer)
+  }, [toastData])
+
   const updateSort = (nextSort) => {
     const next = new URLSearchParams(searchParams)
     next.set('sort', nextSort)
@@ -160,7 +168,8 @@ function SearchResults() {
     const payload = await listBoards()
     const body = post.isExternalImage ? { externalImage: postToExternalImagePayload(post) } : { postId: post.id }
     if (payload.boards.length === 1) {
-      await addBoardItem(payload.boards[0].id, body)
+      const result = await addBoardItem(payload.boards[0].id, body)
+      setToastData({ message: `Disimpan ke ${payload.boards[0].name}`, post, currentBoardId: payload.boards[0].id, boardItemId: result?.itemId })
       return
     }
     setBoardPicker({ isOpen: true, post, boards: payload.boards })
@@ -169,16 +178,35 @@ function SearchResults() {
   const handleSelectBoard = async (board) => {
     if (!boardPicker.post) return
     const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
-    await addBoardItem(board.id, body)
-    setBoardPicker({ isOpen: false, post: null, boards: [] })
+
+    if (boardPicker.changingFrom) {
+      await removeBoardItem(boardPicker.changingFrom.boardId, boardPicker.changingFrom.itemId)
+    }
+
+    const result = await addBoardItem(board.id, body)
+    setToastData({ message: `Disimpan ke ${board.name}`, post: boardPicker.post, currentBoardId: board.id, boardItemId: result?.itemId })
+    setBoardPicker({ isOpen: false, post: null, boards: [], changingFrom: null })
   }
 
   const handleCreateBoardForPost = async (board) => {
     if (!boardPicker.post) return
     const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
-    await addBoardItem(board.id, body)
+
+    if (boardPicker.changingFrom) {
+      await removeBoardItem(boardPicker.changingFrom.boardId, boardPicker.changingFrom.itemId)
+    }
+
+    const result = await addBoardItem(board.id, body)
+    setToastData({ message: `Disimpan ke ${board.name}`, post: boardPicker.post, currentBoardId: board.id, boardItemId: result?.itemId })
     setIsNewBoardModalOpen(false)
-    setBoardPicker({ isOpen: false, post: null, boards: [] })
+    setBoardPicker({ isOpen: false, post: null, boards: [], changingFrom: null })
+  }
+
+  const handleUbahBoard = async () => {
+    if (!toastData) return
+    const payload = await listBoards()
+    setBoardPicker({ isOpen: true, post: toastData.post, boards: payload.boards, changingFrom: { boardId: toastData.currentBoardId, itemId: toastData.boardItemId } })
+    setToastData(null)
   }
 
   return (
@@ -236,6 +264,13 @@ function SearchResults() {
         onCancel={() => setIsNewBoardModalOpen(false)}
         onCreated={handleCreateBoardForPost}
       />
+      {toastData && (
+        <div className="post-detail-toast" role="status" aria-live="polite">
+          <FolderPlus size={15} />
+          <span>{toastData.message}</span>
+          <button type="button" className="toast-ubah-btn" onClick={handleUbahBoard}>Ubah</button>
+        </div>
+      )}
     </section>
   )
 }

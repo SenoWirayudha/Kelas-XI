@@ -12,7 +12,7 @@ import FollowListModal from '../components/FollowListModal'
 import NewBoardModal from '../components/NewBoardModal'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
 import { useAuth } from '../context/authState'
-import { addBoardItem, listBoards } from '../lib/api/boards'
+import { addBoardItem, listBoards, removeBoardItem } from '../lib/api/boards'
 import { updateCurrentProfile } from '../lib/api/auth'
 import { getSavedExternalImages, saveExternalImage, unsaveExternalImage } from '../lib/api/externalImages'
 import { deletePost as deletePostApi, getSavedPosts, getUserPosts, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
@@ -46,14 +46,14 @@ function Profile() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState('')
-  const [toastMessage, setToastMessage] = useState('')
+  const [toastData, setToastData] = useState(null)
   const [followList, setFollowList] = useState({ isOpen: false, type: '' })
 
   useEffect(() => {
-    if (!toastMessage) return undefined
-    const timer = window.setTimeout(() => setToastMessage(''), 1800)
+    if (!toastData) return undefined
+    const timer = window.setTimeout(() => setToastData(null), 1800)
     return () => window.clearTimeout(timer)
-  }, [toastMessage])
+  }, [toastData])
 
   useEffect(() => {
     if (!headerRef.current) return undefined
@@ -151,8 +151,8 @@ function Profile() {
     if (!requireAuth('login')) return
     if (boards.length === 1) {
       const body = post.isExternalImage ? { externalImage: postToExternalImagePayload(post) } : { postId: post.id }
-      await addBoardItem(boards[0].id, body)
-      setToastMessage(`Disimpan ke ${boards[0].name}`)
+      const result = await addBoardItem(boards[0].id, body)
+      setToastData({ message: `Disimpan ke ${boards[0].name}`, post, currentBoardId: boards[0].id, boardItemId: result?.itemId })
       return
     }
     setBoardPicker({ isOpen: true, post })
@@ -161,19 +161,35 @@ function Profile() {
   const handleSelectBoard = async (board) => {
     if (!boardPicker.post) return
     const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
-    await addBoardItem(board.id, body)
-    setToastMessage(`Disimpan ke ${board.name}`)
-    setBoardPicker({ isOpen: false, post: null })
+
+    if (boardPicker.changingFrom) {
+      await removeBoardItem(boardPicker.changingFrom.boardId, boardPicker.changingFrom.itemId)
+    }
+
+    const result = await addBoardItem(board.id, body)
+    setToastData({ message: `Disimpan ke ${board.name}`, post: boardPicker.post, currentBoardId: board.id, boardItemId: result?.itemId })
+    setBoardPicker({ isOpen: false, post: null, changingFrom: null })
   }
 
   const handleCreateBoardForPost = async (board) => {
     if (!boardPicker.post) return
     setBoards((current) => [board, ...current])
     const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
-    await addBoardItem(board.id, body)
-    setToastMessage(`Disimpan ke ${board.name}`)
+
+    if (boardPicker.changingFrom) {
+      await removeBoardItem(boardPicker.changingFrom.boardId, boardPicker.changingFrom.itemId)
+    }
+
+    const result = await addBoardItem(board.id, body)
+    setToastData({ message: `Disimpan ke ${board.name}`, post: boardPicker.post, currentBoardId: board.id, boardItemId: result?.itemId })
     setIsNewBoardModalOpen(false)
-    setBoardPicker({ isOpen: false, post: null })
+    setBoardPicker({ isOpen: false, post: null, changingFrom: null })
+  }
+
+  const handleUbahBoard = async () => {
+    if (!toastData) return
+    setBoardPicker({ isOpen: true, post: toastData.post, changingFrom: { boardId: toastData.currentBoardId, itemId: toastData.boardItemId } })
+    setToastData(null)
   }
 
   const handleDeleteClick = (post) => {
@@ -395,10 +411,11 @@ function Profile() {
         userId={user?.id}
         onClose={() => setFollowList({ isOpen: false, type: '' })}
       />
-      {toastMessage && (
+      {toastData && (
         <div className="post-detail-toast" role="status" aria-live="polite">
           <FolderPlus size={15} />
-          <span>{toastMessage}</span>
+          <span>{toastData.message}</span>
+          <button type="button" className="toast-ubah-btn" onClick={handleUbahBoard}>Ubah</button>
         </div>
       )}
     </section>

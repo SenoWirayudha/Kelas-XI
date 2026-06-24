@@ -44,10 +44,12 @@ const RichTextEditor = forwardRef(({ item, onCommit, onCancel, style }, ref) => 
   function exec(cmd) {
     const el = editorRef.current
     if (!el) return
-    el.focus()
     const sel = window.getSelection()
-    if (!sel || !sel.toString().length) {
-      sel?.selectAllChildren(el)
+    const hasSelection = sel && sel.toString().length > 0 && el.contains(sel.anchorNode)
+    el.focus()
+    if (!hasSelection) {
+      const newSel = window.getSelection()
+      if (newSel && !newSel.toString().length) newSel?.selectAllChildren(el)
     }
     document.execCommand(cmd, false, null)
     el.focus()

@@ -10,7 +10,7 @@ import ReportModal from '../components/ReportModal'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
 import { Skeleton, createSkeletonItems } from '../components/Skeleton'
 import { useAuth } from '../context/authState'
-import { addBoardItem, listBoards } from '../lib/api/boards'
+import { addBoardItem, listBoards, removeBoardItem } from '../lib/api/boards'
 import { createComment, deleteComment, listComments } from '../lib/api/comments'
 import { saveExternalImage, searchExternalImages, unsaveExternalImage } from '../lib/api/externalImages'
 import { getHomeFeed, getPost, getRecommendedPosts, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
@@ -122,7 +122,7 @@ function PostDetail() {
   const [isMoreOpen, setIsMoreOpen] = useState(false)
   const [reportPostId, setReportPostId] = useState(null)
   const [reportCommentId, setReportCommentId] = useState(null)
-  const [toastMessage, setToastMessage] = useState('')
+  const [toastData, setToastData] = useState(null)
   const moreMenuRef = useRef(null)
   const recommendedSentinelRef = useRef(null)
   const recommendedLoadingRef = useRef(false)
@@ -205,10 +205,10 @@ function PostDetail() {
   }, [isMoreOpen])
 
   useEffect(() => {
-    if (!toastMessage) return undefined
-    const timer = window.setTimeout(() => setToastMessage(''), 1800)
+    if (!toastData) return undefined
+    const timer = window.setTimeout(() => setToastData(null), 1800)
     return () => window.clearTimeout(timer)
-  }, [toastMessage])
+  }, [toastData])
 
   const loadMoreComments = useCallback(async () => {
     if (!id || !commentsCursor) return
@@ -310,8 +310,8 @@ function PostDetail() {
     const payload = await listBoards()
     const body = targetPost.isExternalImage ? { externalImage: postToExternalImagePayload(targetPost) } : { postId: targetPost.id }
     if (payload.boards.length === 1) {
-      await addBoardItem(payload.boards[0].id, body)
-      setToastMessage(`Disimpan ke ${payload.boards[0].name}`)
+      const result = await addBoardItem(payload.boards[0].id, body)
+      setToastData({ message: `Disimpan ke ${payload.boards[0].name}`, post: targetPost, currentBoardId: payload.boards[0].id, boardItemId: result?.itemId })
       setIsMoreOpen(false)
       return
     }
@@ -389,17 +389,34 @@ function PostDetail() {
 
   const handleSelectBoard = async (board) => {
     const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
-    await addBoardItem(board.id, body)
-    setToastMessage(`Disimpan ke ${board.name}`)
-    setBoardPicker({ isOpen: false, post: null, boards: [] })
+
+    if (boardPicker.changingFrom) {
+      await removeBoardItem(boardPicker.changingFrom.boardId, boardPicker.changingFrom.itemId)
+    }
+
+    const result = await addBoardItem(board.id, body)
+    setToastData({ message: `Disimpan ke ${board.name}`, post: boardPicker.post, currentBoardId: board.id, boardItemId: result?.itemId })
+    setBoardPicker({ isOpen: false, post: null, boards: [], changingFrom: null })
   }
 
   const handleCreateBoardForPost = async (board) => {
     const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
-    await addBoardItem(board.id, body)
-    setToastMessage(`Disimpan ke ${board.name}`)
-    setBoardPicker({ isOpen: false, post: null, boards: [] })
+
+    if (boardPicker.changingFrom) {
+      await removeBoardItem(boardPicker.changingFrom.boardId, boardPicker.changingFrom.itemId)
+    }
+
+    const result = await addBoardItem(board.id, body)
+    setToastData({ message: `Disimpan ke ${board.name}`, post: boardPicker.post, currentBoardId: board.id, boardItemId: result?.itemId })
+    setBoardPicker({ isOpen: false, post: null, boards: [], changingFrom: null })
     setIsNewBoardModalOpen(false)
+  }
+
+  const handleUbahBoard = async () => {
+    if (!toastData) return
+    const payload = await listBoards()
+    setBoardPicker({ isOpen: true, post: toastData.post, boards: payload.boards, changingFrom: { boardId: toastData.currentBoardId, itemId: toastData.boardItemId } })
+    setToastData(null)
   }
 
   const handleSubmitComment = async () => {
@@ -670,10 +687,11 @@ function PostDetail() {
       />
       <ReportModal isOpen={!!reportPostId} targetType="post" targetId={reportPostId} onClose={() => setReportPostId(null)} />
       <ReportModal isOpen={!!reportCommentId} targetType="comment" targetId={reportCommentId} onClose={() => setReportCommentId(null)} />
-      {toastMessage && (
+      {toastData && (
         <div className="post-detail-toast" role="status" aria-live="polite">
           <FolderPlus size={15} />
-          <span>{toastMessage}</span>
+          <span>{toastData.message}</span>
+          <button type="button" className="toast-ubah-btn" onClick={handleUbahBoard}>Ubah</button>
         </div>
       )}
     </div>

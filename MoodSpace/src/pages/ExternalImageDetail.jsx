@@ -7,7 +7,7 @@ import NewBoardModal from '../components/NewBoardModal'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
 import { Skeleton, createSkeletonItems } from '../components/Skeleton'
 import { useAuth } from '../context/authState'
-import { addBoardItem, listBoards } from '../lib/api/boards'
+import { addBoardItem, listBoards, removeBoardItem } from '../lib/api/boards'
 import { getExternalImage, saveExternalImage, searchExternalImages, unsaveExternalImage } from '../lib/api/externalImages'
 import { getSimilarPostsByImage, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
 import { externalImageToPost, postToExternalImagePayload } from '../utils/externalImagePost'
@@ -66,7 +66,7 @@ function ExternalImageDetail() {
   const [error, setError] = useState('')
   const [boardPicker, setBoardPicker] = useState({ isOpen: false, post: null, boards: [] })
   const [isNewBoardModalOpen, setIsNewBoardModalOpen] = useState(false)
-  const [toastMessage, setToastMessage] = useState('')
+  const [toastData, setToastData] = useState(null)
   const recommendedSentinelRef = useRef(null)
   const recommendedLoadingRef = useRef(false)
   const recommendedOffsetRef = useRef(0)
@@ -171,10 +171,10 @@ function ExternalImageDetail() {
   }, [hasMoreRecommended, loadMoreRecommended])
 
   useEffect(() => {
-    if (!toastMessage) return undefined
-    const timer = window.setTimeout(() => setToastMessage(''), 1800)
+    if (!toastData) return undefined
+    const timer = window.setTimeout(() => setToastData(null), 1800)
     return () => window.clearTimeout(timer)
-  }, [toastMessage])
+  }, [toastData])
 
   const handleSave = async (targetPost = post) => {
     if (!requireAuth('login') || !targetPost) return
@@ -198,8 +198,8 @@ function ExternalImageDetail() {
     const payload = await listBoards()
     const body = targetPost.isExternalImage ? { externalImage: postToExternalImagePayload(targetPost) } : { postId: targetPost.id }
     if (payload.boards.length === 1) {
-      await addBoardItem(payload.boards[0].id, body)
-      setToastMessage(`Disimpan ke ${payload.boards[0].name}`)
+      const result = await addBoardItem(payload.boards[0].id, body)
+      setToastData({ message: `Disimpan ke ${payload.boards[0].name}`, post: targetPost, currentBoardId: payload.boards[0].id, boardItemId: result?.itemId })
       return
     }
     setBoardPicker({ isOpen: true, post: targetPost, boards: payload.boards })
@@ -208,14 +208,26 @@ function ExternalImageDetail() {
   const handleSelectBoard = async (board) => {
     if (!boardPicker.post) return
     const body = boardPicker.post.isExternalImage ? { externalImage: postToExternalImagePayload(boardPicker.post) } : { postId: boardPicker.post.id }
-    await addBoardItem(board.id, body)
-    setToastMessage(`Disimpan ke ${board.name}`)
-    setBoardPicker({ isOpen: false, post: null, boards: [] })
+
+    if (boardPicker.changingFrom) {
+      await removeBoardItem(boardPicker.changingFrom.boardId, boardPicker.changingFrom.itemId)
+    }
+
+    const result = await addBoardItem(board.id, body)
+    setToastData({ message: `Disimpan ke ${board.name}`, post: boardPicker.post, currentBoardId: board.id, boardItemId: result?.itemId })
+    setBoardPicker({ isOpen: false, post: null, boards: [], changingFrom: null })
   }
 
   const handleCreateBoardForPost = async (board) => {
     await handleSelectBoard(board)
     setIsNewBoardModalOpen(false)
+  }
+
+  const handleUbahBoard = async () => {
+    if (!toastData) return
+    const payload = await listBoards()
+    setBoardPicker({ isOpen: true, post: toastData.post, boards: payload.boards, changingFrom: { boardId: toastData.currentBoardId, itemId: toastData.boardItemId } })
+    setToastData(null)
   }
 
   const handleDownload = useCallback(async () => {
@@ -336,10 +348,11 @@ function ExternalImageDetail() {
         onCancel={() => setIsNewBoardModalOpen(false)}
         onCreated={handleCreateBoardForPost}
       />
-      {toastMessage && (
+      {toastData && (
         <div className="post-detail-toast" role="status" aria-live="polite">
           <FolderPlus size={15} />
-          <span>{toastMessage}</span>
+          <span>{toastData.message}</span>
+          <button type="button" className="toast-ubah-btn" onClick={handleUbahBoard}>Ubah</button>
         </div>
       )}
     </section>

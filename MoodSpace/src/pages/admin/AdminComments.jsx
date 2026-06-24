@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listComments, deleteComment } from '../../lib/api/admin'
 import { Search, ChevronLeft, ChevronRight, Trash2, ExternalLink } from 'lucide-react'
+import ConfirmationModal from '../../components/ConfirmationModal'
 
 const PAGE_SIZE = 20
 
@@ -11,6 +12,7 @@ function AdminComments() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [confirmingId, setConfirmingId] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -29,9 +31,7 @@ function AdminComments() {
   useEffect(() => { setPage(1) }, [search])
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this comment?')) return
-    await deleteComment(id)
-    load()
+    setConfirmingId(id)
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -96,6 +96,19 @@ function AdminComments() {
           <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={16} /></button>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={confirmingId !== null}
+        title="Delete Comment"
+        description="Delete this comment?"
+        isDanger={true}
+        onConfirm={async () => {
+          await deleteComment(confirmingId)
+          setConfirmingId(null)
+          load()
+        }}
+        onCancel={() => setConfirmingId(null)}
+      />
     </div>
   )
 }

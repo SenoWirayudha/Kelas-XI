@@ -13,7 +13,7 @@ Done:
 - `RemoveBgOverlay.jsx` with animated spinner + "Sedang menghapus background..." text
 - FX panel: `EFFECT_COLOR_SUGGESTIONS`, `imageDominantColors` prop, merged color presets (image dominants + effect suggestions + standard, deduped via Set)
 - Max signals reduced 8 → 5 in 3 places
-- Loading phase: real CLIP pre-warm via `searchExternalImages` API call (triggers server cold-start before canvas mounts). 3-step progress: (1/3) Memuat workspace..., (2/3) Menganalisa visual dan text..., (3/3) Menyiapkan canvas...
+- Loading phase: real CLIP pre-warm via `searchExternalImages` API call (triggers server cold-start before canvas mounts). 3-step progress: (1/3) Memuat workspace..., (2/3) Menyiapkan alat AI..., (3/3) Menyiapkan canvas...
 - Lightbulb icon removed from Relight panel header
 - Loading phase `.loading-phase-num` CSS span for counter
 - Animated loading dots (`loadingDots` keyframes, cycles `''` → `'.'` → `'..'` → `'...'`)

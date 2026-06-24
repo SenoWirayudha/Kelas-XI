@@ -1,6 +1,7 @@
 import { createApp } from './app.js'
 import { env } from './config/env.js'
 import { pool } from './db/pool.js'
+import { warmUpClip } from './modules/externalImages/clip.service.js'
 
 const app = createApp()
 
@@ -8,7 +9,13 @@ const port = env.PORT || 4000
 
 const server = app.listen(port, () => {
   console.log(`Backend running on http://localhost:${port}`)
+  warmUpClip()
 })
+
+server.keepAliveTimeout = 65_000
+server.headersTimeout = 66_000
+server.timeout = 120_000
+server.requestTimeout = 120_000
 
 const shutdown = async (signal) => {
   console.log(`Received ${signal}, shutting down backend`)

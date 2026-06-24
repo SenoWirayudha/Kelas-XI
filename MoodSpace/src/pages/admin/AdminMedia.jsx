@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { listMedia, deleteMedia } from '../../lib/api/admin'
 import { ChevronLeft, ChevronRight, Trash2, ExternalLink, HardDrive } from 'lucide-react'
+import ConfirmationModal from '../../components/ConfirmationModal'
 
 const PAGE_SIZE = 20
 
@@ -10,6 +11,7 @@ function AdminMedia() {
   const [totalSize, setTotalSize] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [confirmingId, setConfirmingId] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -28,9 +30,7 @@ function AdminMedia() {
   useEffect(() => { load() }, [load])
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this media file?')) return
-    await deleteMedia(id)
-    load()
+    setConfirmingId(id)
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -124,6 +124,19 @@ function AdminMedia() {
           <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={16} /></button>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={confirmingId !== null}
+        title="Delete Media"
+        description="Delete this media file?"
+        isDanger={true}
+        onConfirm={async () => {
+          await deleteMedia(confirmingId)
+          setConfirmingId(null)
+          load()
+        }}
+        onCancel={() => setConfirmingId(null)}
+      />
     </div>
   )
 }

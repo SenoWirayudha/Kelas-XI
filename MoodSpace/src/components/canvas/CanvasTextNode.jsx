@@ -313,7 +313,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     const totalH = y + lineHeight
     runsLayoutRef.current = { height: totalH }
 
-    // Second pass: center each line
+    // Second pass: align each line
+    const align = item.align || 'center'
     const lineMap = new Map()
     segments.forEach(s => {
       if (!lineMap.has(s.line)) lineMap.set(s.line, { items: [], totalW: 0 })
@@ -324,7 +325,14 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     const nodes = []
     lineMap.forEach(line => {
       const totalW = line.items.reduce((sum, s, i) => sum + s.w + (i < line.items.length - 1 ? lsp : 0), 0)
-      const offset = Math.max(0, (maxW - totalW) / 2)
+      let offset
+      if (align === 'left') {
+        offset = 0
+      } else if (align === 'right') {
+        offset = Math.max(0, maxW - totalW)
+      } else {
+        offset = Math.max(0, (maxW - totalW) / 2)
+      }
       line.items.forEach(s => {
         nodes.push(
           <Text key={s.key} x={s.x + offset} y={s.y} text={s.text} width={s.w + 2}
@@ -336,7 +344,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       })
     })
     return nodes
-  }, [runs, isMultiRun, hasCurve, item.fontSize, item.fontFamily, item.fill, displayWidth, letterSpacing, hasEffects, gradientProps.fill, fontLoaded])
+  }, [runs, isMultiRun, hasCurve, item.fontSize, item.fontFamily, item.fill, displayWidth, letterSpacing, hasEffects, gradientProps.fill, fontLoaded, item.align])
 
   const textHeight = isMultiRun
     ? (runsLayoutRef.current.height || Math.max(item.h || 1, item.fontSize || 1))

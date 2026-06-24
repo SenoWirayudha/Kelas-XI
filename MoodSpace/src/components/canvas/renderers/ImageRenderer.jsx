@@ -15,6 +15,7 @@ export default function ImageRenderer({
   canvasBounds,
   onCropStart,
   isCropTarget,
+  getActiveTransformAnchor,
 }) {
   return (
     <CanvasImage
@@ -31,6 +32,7 @@ export default function ImageRenderer({
       canvasBounds={canvasBounds}
       onCropStart={onCropStart}
       isCropTarget={isCropTarget}
+      getActiveTransformAnchor={getActiveTransformAnchor}
     />
   )
 }
