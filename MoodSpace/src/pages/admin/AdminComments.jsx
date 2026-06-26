@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listComments, deleteComment } from '../../lib/api/admin'
-import { Search, ChevronLeft, ChevronRight, Trash2, ExternalLink } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Ban, Trash2, ExternalLink } from 'lucide-react'
 import ConfirmationModal from '../../components/ConfirmationModal'
 
 const PAGE_SIZE = 20
@@ -13,6 +13,7 @@ function AdminComments() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [confirmingId, setConfirmingId] = useState(null)
+  const [confirmingHard, setConfirmingHard] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -30,8 +31,9 @@ function AdminComments() {
   useEffect(() => { load() }, [load])
   useEffect(() => { setPage(1) }, [search])
 
-  const handleDelete = async (id) => {
+  const handleDelete = (id, hard) => {
     setConfirmingId(id)
+    setConfirmingHard(hard)
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -58,6 +60,7 @@ function AdminComments() {
             <tr>
               <th>Content</th>
               <th>Author</th>
+              <th>Status</th>
               <th>Post</th>
               <th>Date</th>
               <th>Actions</th>
@@ -65,13 +68,14 @@ function AdminComments() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="admin-table-empty">Loading...</td></tr>
+              <tr><td colSpan={6} className="admin-table-empty">Loading...</td></tr>
             ) : comments.length === 0 ? (
-              <tr><td colSpan={5} className="admin-table-empty">No comments found</td></tr>
+              <tr><td colSpan={6} className="admin-table-empty">No comments found</td></tr>
             ) : comments.map((comment) => (
               <tr key={comment.id}>
                 <td className="admin-comment-content">{comment.content}</td>
                 <td>{comment.authorUsername}</td>
+                <td><span className={`admin-badge status-${comment.status || 'active'}`}>{comment.status || 'active'}</span></td>
                 <td>
                   <Link to={`/post/${comment.postId}`} className="admin-link" target="_blank">
                     {comment.postTitle || 'Untitled'} <ExternalLink size={12} />
@@ -79,9 +83,15 @@ function AdminComments() {
                 </td>
                 <td>{new Date(comment.createdAt).toLocaleDateString()}</td>
                 <td>
-                  <button className="admin-btn-icon danger" onClick={() => handleDelete(comment.id)} title="Delete">
-                    <Trash2 size={16} />
-                  </button>
+                  {comment.status === 'banned' ? (
+                    <button className="admin-btn-icon danger" onClick={() => handleDelete(comment.id, true)} title="Delete permanently">
+                      <Trash2 size={16} />
+                    </button>
+                  ) : (
+                    <button className="admin-btn-icon danger" onClick={() => handleDelete(comment.id, false)} title="Ban">
+                      <Ban size={16} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -99,15 +109,16 @@ function AdminComments() {
 
       <ConfirmationModal
         isOpen={confirmingId !== null}
-        title="Delete Comment"
-        description="Delete this comment?"
+        title={confirmingHard ? 'Delete Comment Permanently' : 'Ban Comment'}
+        description={confirmingHard ? 'Permanently delete this comment? This cannot be undone.' : 'Ban this comment? It will no longer appear. The author will be notified.'}
         isDanger={true}
         onConfirm={async () => {
-          await deleteComment(confirmingId)
+          await deleteComment(confirmingId, confirmingHard)
           setConfirmingId(null)
+          setConfirmingHard(false)
           load()
         }}
-        onCancel={() => setConfirmingId(null)}
+        onCancel={() => { setConfirmingId(null); setConfirmingHard(false) }}
       />
     </div>
   )

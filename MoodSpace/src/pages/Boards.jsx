@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MoreVertical, Trash2 } from 'lucide-react'
+import { MoreVertical, Pen, Trash2 } from 'lucide-react'
 import ConfirmationModal from '../components/ConfirmationModal'
 import NewBoardModal from '../components/NewBoardModal'
 import { useAuth } from '../context/authState'
@@ -34,6 +34,7 @@ function Boards() {
   const [query, setQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [editBoard, setEditBoard] = useState(null)
   const [error, setError] = useState('')
   const [openMenuId, setOpenMenuId] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -59,9 +60,14 @@ function Boards() {
     setIsCreateModalOpen(true)
   }
 
-  const handleCreated = (board) => {
-    setBoards((current) => [board, ...current])
-    navigate(`/boards/${board.id}`)
+  const handleCreated = (updated) => {
+    if (editBoard) {
+      setBoards((current) => current.map((b) => b.id === updated.id ? { ...b, ...updated } : b))
+      setEditBoard(null)
+    } else {
+      setBoards((current) => [updated, ...current])
+      navigate(`/boards/${updated.id}`)
+    }
   }
 
   const handleDelete = async () => {
@@ -131,6 +137,10 @@ function Boards() {
                 </button>
                 {openMenuId === board.id && (
                   <div className="board-dropdown-menu" onClick={(event) => event.stopPropagation()}>
+                    <button type="button" className="board-dropdown-item" onClick={(event) => { event.stopPropagation(); setOpenMenuId(null); setEditBoard(board) }}>
+                      <Pen size={14} />
+                      Edit Board
+                    </button>
                     <button type="button" className="board-dropdown-item danger" onClick={(event) => { event.stopPropagation(); setOpenMenuId(null); setDeleteTarget(board) }}>
                       <Trash2 size={14} />
                       Delete Board
@@ -150,8 +160,9 @@ function Boards() {
         ))}
       </div>
       <NewBoardModal
-        isOpen={isCreateModalOpen}
-        onCancel={() => setIsCreateModalOpen(false)}
+        isOpen={isCreateModalOpen || !!editBoard}
+        board={editBoard}
+        onCancel={() => { setIsCreateModalOpen(false); setEditBoard(null) }}
         onCreated={handleCreated}
       />
       <ConfirmationModal

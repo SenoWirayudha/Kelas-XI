@@ -906,7 +906,6 @@ export class EffectManager {
         addPad(Math.ceil((p.strength ?? 0.5) * 20)); continue
       }
       if (id === 'rgbSplit' && val) {
-        if (node.getClassName() === 'Image') continue // handled by CanvasImage.jsx with offscreen canvas
         const p = val
         addPad(Math.min(
           Math.ceil((p.offset ?? 0.01) * Math.max(node.getAttr('width'), node.getAttr('height'), 200)),
@@ -1299,16 +1298,18 @@ export class EffectManager {
     node.filters(filterList)
     if (filterList.length > 0) {
       const fontSize = typeof node.fontSize === 'function' ? (node.fontSize() || 0) : 0
-      const pr = Math.min(window.devicePixelRatio || 1, fontSize > 80 ? 1 : 2)
+      const pr = Math.min(window.devicePixelRatio || 1, 3)
       const pad = Math.max(cachePad, 2)
-      const clientRect = node.getClientRect({
-        skipTransform: true,
-        skipShadow: true,
-        skipStroke: true,
-      })
-      const w = clientRect.width > 0 ? clientRect.width : (node.getAttr('width') || 100)
-      const h = clientRect.height > 0 ? clientRect.height : (node.getAttr('height') || 100)
-      node.cache({ x: -pad, y: -pad, width: w + pad * 2, height: h + pad * 2, pixelRatio: pr })
+      const nw = typeof node.width === 'function' ? node.width() : (node.getAttr('width') || 0)
+      const nh = typeof node.height === 'function' ? node.height() : (node.getAttr('height') || 0)
+      let w = nw > 0 ? nw : 0
+      let h = nh > 0 ? nh : 0
+      if (w <= 0 || h <= 0) {
+        const cr = node.getClientRect({ skipTransform: true, skipShadow: true, skipStroke: true })
+        if (w <= 0) w = cr.width > 0 ? cr.width : 100
+        if (h <= 0) h = cr.height > 0 ? cr.height : 100
+      }
+      node.cache({ x: 0, y: 0, width: w + pad * 2, height: h + pad * 2, pixelRatio: pr })
     } else {
       node.clearCache()
     }
@@ -1625,6 +1626,43 @@ export class EffectManager {
       }
       if (id === 'replaceColor' && val) {
         const p = val; replaceColorPixels(d, w, h, p.fromColor ?? '#ff0000', p.toColor ?? '#00ff00', p.threshold ?? 30, p.feather ?? 0.2)
+        continue
+      }
+
+      // ── Gradient Overlay — canvas composited onto ImageData ──
+      if (id === 'gradientOverlay' && val) {
+        const p = val
+        const colors = Array.isArray(p.colors) ? p.colors : ['#000000', '#ffffff']
+        const stops  = Array.isArray(p.stops)  ? p.stops  : [0, 1]
+        while (stops.length > colors.length) stops.pop()
+        const angle = (p.angle ?? 0) * Math.PI / 180
+        const len = Math.sqrt(w * w + h * h) / 2
+        const cx = w / 2, cy = h / 2
+        const src = document.createElement('canvas')
+        src.width = w; src.height = h
+        const sctx = src.getContext('2d')
+        const gradient = sctx.createLinearGradient(
+          cx - Math.cos(angle) * len, cy - Math.sin(angle) * len,
+          cx + Math.cos(angle) * len, cy + Math.sin(angle) * len,
+        )
+        for (let i = 0; i < stops.length; i++) {
+          gradient.addColorStop(stops[i], colors[i] || '#000000')
+        }
+        sctx.fillStyle = gradient
+        sctx.fillRect(0, 0, w, h)
+        const blendMode = p.blendMode ?? 'overlay'
+        const blendMap = { overlay: 'overlay', multiply: 'multiply', screen: 'screen', color: 'color', normal: 'source-over' }
+        const bm = blendMap[blendMode] || 'overlay'
+        const tmpCanvas = document.createElement('canvas')
+        tmpCanvas.width = w; tmpCanvas.height = h
+        const tctx = tmpCanvas.getContext('2d')
+        const srcData = new ImageData(new Uint8ClampedArray(d), w, h)
+        tctx.putImageData(srcData, 0, 0)
+        tctx.globalCompositeOperation = bm
+        tctx.globalAlpha = p.opacity ?? 1
+        tctx.drawImage(src, 0, 0)
+        const out = tctx.getImageData(0, 0, w, h)
+        d.set(out.data)
         continue
       }
     }

@@ -12,9 +12,13 @@ import {
   deleteBoardRecord,
   findBoardById,
   findBoardablePost,
+  findPublicBoardById,
   insertBoardItem,
   listBoardItems,
   listBoardsByOwner,
+  listPublicBoardsByUsername,
+  listPublicBoardItems,
+  updateBoardRecord,
 } from './boards.repository.js'
 
 const serializeBoard = (board) => ({
@@ -23,6 +27,7 @@ const serializeBoard = (board) => ({
   description: board.description,
   categories: board.categories || [],
   visibility: board.visibility,
+  ownerId: board.owner_id,
   itemCount: board.itemCount || 0,
   coverImages: board.coverImages || [],
   createdAt: board.createdAt,
@@ -31,6 +36,10 @@ const serializeBoard = (board) => ({
 
 export const listBoards = async (userId) => (
   (await listBoardsByOwner(userId)).map(serializeBoard)
+)
+
+export const listPublicUserBoards = async (username) => (
+  (await listPublicBoardsByUsername(username)).map(serializeBoard)
 )
 
 export const getBoard = async ({ userId, boardId }) => {
@@ -43,6 +52,19 @@ export const getBoard = async ({ userId, boardId }) => {
 export const createBoard = async ({ userId, body }) => (
   serializeBoard(await createBoardRecord({ ownerId: userId, ...body }))
 )
+
+export const getPublicBoard = async (boardId) => {
+  const board = await findPublicBoardById(boardId)
+  if (!board) throw notFound('Board not found')
+  const items = await listPublicBoardItems(boardId)
+  return { ...serializeBoard(board), items }
+}
+
+export const updateBoard = async ({ userId, boardId, body }) => {
+  const board = await updateBoardRecord({ boardId, ownerId: userId, name: body.name, visibility: body.visibility })
+  if (!board) throw notFound('Board not found')
+  return serializeBoard(board)
+}
 
 export const addBoardItem = async ({ userId, boardId, body }) => {
   const board = await findBoardById({ boardId, ownerId: userId })

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Flag, Globe, MapPin, MoreVertical, User, UserPlus, UserCheck } from 'lucide-react'
 import { detectPlatform, SocialLinkIcon, toAbsoluteUrl } from '../components/SocialLinkIcon'
 import CommunityPostCard from '../components/CommunityPostCard'
@@ -11,6 +11,7 @@ import { useAuth } from '../context/authState'
 import { followUser, unfollowUser } from '../lib/api/follows'
 import { getUserPosts, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
 import { getPublicProfile } from '../lib/api/profiles'
+import { listPublicUserBoards } from '../lib/api/boards'
 
 const formatCount = (value = 0) => value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value
 const estimatePostHeight = (post, columnWidth) => {
@@ -19,10 +20,13 @@ const estimatePostHeight = (post, columnWidth) => {
 }
 
 function UserProfile() {
+  const navigate = useNavigate()
   const { username } = useParams()
   const { user, requireAuth } = useAuth()
   const [profile, setProfile] = useState(null)
   const [posts, setPosts] = useState([])
+  const [boards, setBoards] = useState([])
+  const [activeTab, setActiveTab] = useState('posts')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [isFollowing, setIsFollowing] = useState(false)
@@ -39,12 +43,14 @@ function UserProfile() {
     setIsLoading(true)
     setError('')
     try {
-      const [profilePayload, postsPayload] = await Promise.all([
+      const [profilePayload, postsPayload, boardsPayload] = await Promise.all([
         getPublicProfile(username),
         getUserPosts(username),
+        listPublicUserBoards(username),
       ])
       setProfile(profilePayload.profile)
       setPosts(postsPayload.items)
+      setBoards(boardsPayload.boards || [])
       setIsFollowing(profilePayload.profile?.isFollowing || false)
     } catch (nextError) {
       setError(nextError.message || 'Profile gagal dimuat')
@@ -210,10 +216,36 @@ function UserProfile() {
         </div>
 
         <div className="profile-content">
-          <ResponsiveMasonry items={posts} estimateHeight={estimatePostHeight} renderItem={(post) => (
-            <CommunityPostCard key={post.id} post={post} isOwner={false} onToggleLike={handleToggleLike} onToggleSave={handleToggleSave} />
-          )} />
-          {posts.length === 0 && <p className="community-state">Belum ada workspace yang dipublish.</p>}
+          <nav className="profile-tabs" aria-label="Profile sections">
+            <button type="button" className={`profile-tab ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>Posts</button>
+            {boards.length > 0 && <button type="button" className={`profile-tab ${activeTab === 'boards' ? 'active' : ''}`} onClick={() => setActiveTab('boards')}>Boards</button>}
+          </nav>
+          {activeTab === 'posts' ? (
+            <>
+              <ResponsiveMasonry items={posts} estimateHeight={estimatePostHeight} renderItem={(post) => (
+                <CommunityPostCard key={post.id} post={post} isOwner={false} onToggleLike={handleToggleLike} onToggleSave={handleToggleSave} />
+              )} />
+              {posts.length === 0 && <p className="community-state">Belum ada workspace yang dipublish.</p>}
+            </>
+          ) : (
+            <div className="boards-grid">
+              {boards.map((board) => (
+                <article key={board.id} className="board-card" onClick={() => navigate(`/boards/${board.id}`)}>
+                  <div className="board-cover">
+                    {(board.coverImages || []).slice(0, 4).map((url, index) => (
+                      <div key={`${url || 'empty'}-${index}`} className="board-thumb" style={url ? { backgroundImage: `url("${url}")` } : undefined} />
+                    ))}
+                  </div>
+                  <div className="board-card-header">
+                    <h3 className="board-title">{board.name}</h3>
+                  </div>
+                  <div className="board-meta">
+                    <span>{board.itemCount} items</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <FollowListModal

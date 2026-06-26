@@ -110,7 +110,7 @@ function AdminUsers() {
                     </button>
                     {user.status === 'active' ? (
                       <>
-                        <button className="admin-btn-icon" onClick={() => handleToggleStatus(user, 'suspended')} title="Suspend">
+                        <button className="admin-btn-icon" onClick={() => handleToggleStatus(user, 'banned')} title="Ban">
                           <Ban size={16} />
                         </button>
                       </>

@@ -1,8 +1,28 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Group, Rect, Text, Ellipse, RegularPolygon, Star, Arrow, Line, Path } from 'react-konva'
+import { Image as KonvaImage } from 'react-konva'
+
 import { getShadowProps, preloadFont } from '../../../utils/konvaUtils'
 import { getArrowShapePath, getShapeFillProps, getShapeTextBounds } from '../../../utils/shapeUtils'
 import { effectManager } from '../../../utils/konva-effects-engine'
+
+const isolateChannel = (data, ch, nw, nh) => {
+  const buf = new Uint8ClampedArray(data.length)
+  for (let i = 0; i < data.length; i += 4) {
+    buf[i]   = ch === 0 ? data[i]   : 0
+    buf[i+1] = ch === 1 ? data[i+1] : 0
+    buf[i+2] = ch === 2 ? data[i+2] : 0
+    buf[i+3] = data[i+3]
+  }
+  return new ImageData(buf, nw, nh)
+}
+
+const dataToCanvas = (imgData) => {
+  const c = document.createElement('canvas')
+  c.width = imgData.width; c.height = imgData.height
+  c.getContext('2d').putImageData(imgData, 0, 0)
+  return c
+}
 
 const buildBezierDisplayPath = (item) => {
   const pts = []
@@ -136,18 +156,58 @@ export default function ShapeRenderer({
   const filterItemRef = useRef(item)
   const rAFRef = useRef(null)
 
-  // Synchronous effect application so transform effects (repeater etc.) render immediately.
-  // Includes position deps so repeater clones follow the original on move/resize.
+  const hasRgbSplit = !!item.effects?.rgbSplit
+  const [shapeCapture, setShapeCapture] = useState(null)
+  const channelGenerationRef = useRef(0)
+  const centerRef = useRef(null)
+
+  const nonRgbEffects = useMemo(() => {
+    if (!hasRgbSplit) return item.effects
+    const { rgbSplit, ...rest } = item.effects
+    return Object.keys(rest).length > 0 ? rest : {}
+  }, [item.effects, hasRgbSplit])
+
+  // Derive display channels from captured pixel data + current rgbSplit params
+  const shapeChannels = useMemo(() => {
+    if (!shapeCapture || !hasRgbSplit) return null
+    const { rC, gC, bC } = shapeCapture
+    const nw = item.w; const nh = item.h
+    const m = item.effects?.rgbSplit?.mode ?? 'g'
+    let center, left, right
+    if (m === 'g') { center = gC; left = bC; right = rC }
+    else if (m === 'r') { center = rC; left = bC; right = gC }
+    else { center = bC; left = gC; right = rC }
+
+    const pixelOffset = (item.effects?.rgbSplit?.offset ?? 0.01) * Math.max(nw, nh)
+    const angleRad = (item.effects?.rgbSplit?.angle ?? 0) * Math.PI / 180
+    const dxDisp = Math.cos(angleRad) * pixelOffset
+    const dyDisp = Math.sin(angleRad) * pixelOffset
+
+    return { center, left, right, dxDisp, dyDisp }
+  }, [shapeCapture, hasRgbSplit,
+      item.effects?.rgbSplit?.mode, item.effects?.rgbSplit?.offset, item.effects?.rgbSplit?.angle,
+      item.w, item.h])
+
+  // Apply non-rgbSplit effects on the center channel Image (same pattern as CanvasTextNode)
+  useLayoutEffect(() => {
+    const img = centerRef.current
+    if (!img || !shapeChannels) return
+    img.clearCache()
+    try { effectManager.applyAll(img, nonRgbEffects) } catch {}
+    img.getLayer()?.batchDraw()
+  }, [nonRgbEffects, shapeChannels])
+
+  // Synchronous effect application for when rgbSplit is NOT active
   useLayoutEffect(() => {
     const node = groupRef.current
     if (!node) return
-    effectManager.applyAll(node, item.effects)
+    if (hasRgbSplit && shapeChannels) return
+    effectManager.applyAll(node, nonRgbEffects)
     node.getLayer()?.draw()
     return () => {
-      // Clean up repeater clones on unmount (delete) so they don't linger on the layer
       effectManager._clearRepeater(node)
     }
-  }, [item.effects, item.x, item.y, item.rotation, item.w, item.h])
+  }, [nonRgbEffects, item.x, item.y, item.rotation, item.w, item.h, hasRgbSplit, shapeChannels])
 
   useEffect(() => {
     filterItemRef.current = item
@@ -156,16 +216,80 @@ export default function ShapeRenderer({
       rAFRef.current = null
       const node = groupRef.current
       if (!node) return
-      effectManager.applyAll(node, filterItemRef.current.effects)
+      if (hasRgbSplit && shapeChannels) return
+      const rafFx = { ...filterItemRef.current.effects }
+      if (hasRgbSplit) delete rafFx.rgbSplit
+      if (Object.keys(rafFx).length > 0) {
+        effectManager.applyAll(node, rafFx)
+      }
     })
     return () => {
       if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null }
     }
-  }, [item.effects])
+  }, [item.effects, hasRgbSplit, shapeChannels])
 
   useEffect(() => {
     if (item.fontFamily) preloadFont(item.fontFamily)
   }, [item.fontFamily])
+
+  // Capture raw shape pixel data for RGB Split (no effects).
+  // Non-rgb effects are applied separately on the center channel Image via useLayoutEffect.
+  useEffect(() => {
+    if (!hasRgbSplit) {
+      setShapeCapture(null)
+      return
+    }
+    if (!groupRef.current) return
+
+    const gen = ++channelGenerationRef.current
+
+    const capture = async () => {
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      if (gen !== channelGenerationRef.current) return
+
+      const node = groupRef.current
+      if (!node) return
+
+      const clone = node.clone({ visible: true, opacity: 1 })
+      clone.position({ x: 0, y: 0 })
+      clone.rotation(0)
+
+      let cleanCanvas
+      try {
+        cleanCanvas = clone.toCanvas({ width: item.w, height: item.h, pixelRatio: 1 })
+      } catch {
+        clone.destroy()
+        return
+      }
+      clone.destroy()
+
+      if (!cleanCanvas || cleanCanvas.width === 0 || cleanCanvas.height === 0) return
+      if (gen !== channelGenerationRef.current) return
+
+      const tmpC = document.createElement('canvas')
+      tmpC.width = item.w; tmpC.height = item.h
+      const tmpCtx = tmpC.getContext('2d')
+      if (!tmpCtx) return
+      tmpCtx.drawImage(cleanCanvas, 0, 0, item.w, item.h)
+      const d = tmpCtx.getImageData(0, 0, item.w, item.h).data
+
+      let hasAlpha = false
+      for (let i = 3; i < d.length; i += 4) { if (d[i] > 0) { hasAlpha = true; break } }
+      if (!hasAlpha) return
+      if (gen !== channelGenerationRef.current) return
+
+      const nw = item.w; const nh = item.h
+      const rC = dataToCanvas(isolateChannel(d, 0, nw, nh))
+      const gC = dataToCanvas(isolateChannel(d, 1, nw, nh))
+      const bC = dataToCanvas(isolateChannel(d, 2, nw, nh))
+
+      if (gen !== channelGenerationRef.current) return
+      setShapeCapture({ rC, gC, bC })
+    }
+
+    const timer = setTimeout(capture, 0)
+    return () => { clearTimeout(timer) }
+  }, [hasRgbSplit, item.w, item.h])
 
   return (
     <Group
@@ -183,6 +307,9 @@ export default function ShapeRenderer({
       }}
     >
       {renderAdjustmentHitArea(item)}
+
+      {/* Shape visual — hidden when rgbSplit channels are active */}
+      <Group opacity={hasRgbSplit && shapeChannels ? 0 : 1} listening={false}>
 
       {item.shapeType === 'rect' && (
         <Rect
@@ -341,6 +468,40 @@ export default function ShapeRenderer({
           </Group>
         )
       })()}
+      </Group>
+
+      {/* RGB Split channel rendering */}
+      {hasRgbSplit && shapeChannels && (
+        <>
+          <KonvaImage
+            ref={centerRef}
+            image={shapeChannels.center}
+            x={0}
+            y={0}
+            width={item.w}
+            height={item.h}
+            listening={false}
+          />
+          <KonvaImage
+            image={shapeChannels.left}
+            x={-shapeChannels.dxDisp}
+            y={-shapeChannels.dyDisp}
+            width={item.w}
+            height={item.h}
+            globalCompositeOperation={'screen'}
+            listening={false}
+          />
+          <KonvaImage
+            image={shapeChannels.right}
+            x={shapeChannels.dxDisp}
+            y={shapeChannels.dyDisp}
+            width={item.w}
+            height={item.h}
+            globalCompositeOperation={'screen'}
+            listening={false}
+          />
+        </>
+      )}
     </Group>
   )
 }

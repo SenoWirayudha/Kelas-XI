@@ -27,8 +27,8 @@ export const listPosts = async ({ search, status, page, pageSize } = {}) => {
   return apiRequest(`/admin/posts?${params}`)
 }
 
-export const deletePost = async (id) => (
-  apiRequest(`/admin/posts/${id}`, { method: 'DELETE' })
+export const deletePost = async (id, hard) => (
+  apiRequest(`/admin/posts/${id}${hard ? '?hard=true' : ''}`, { method: 'DELETE' })
 )
 
 export const listReports = async ({ resolved, page, pageSize } = {}) => {
@@ -51,8 +51,8 @@ export const listComments = async ({ search, page, pageSize } = {}) => {
   return apiRequest(`/admin/comments?${params}`)
 }
 
-export const deleteComment = async (id) => (
-  apiRequest(`/admin/comments/${id}`, { method: 'DELETE' })
+export const deleteComment = async (id, hard) => (
+  apiRequest(`/admin/comments/${id}${hard ? '?hard=true' : ''}`, { method: 'DELETE' })
 )
 
 export const listMedia = async ({ page, pageSize } = {}) => {

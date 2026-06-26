@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Bookmark, ChevronLeft, ChevronRight, Eye, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import ConfirmationModal from '../components/ConfirmationModal'
 import MasonryImage from '../components/MasonryImage'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
 import { useAuth } from '../context/authState'
-import { getBoard, removeBoardItem } from '../lib/api/boards'
+import { getPublicBoard, removeBoardItem } from '../lib/api/boards'
 
 const estimateBoardItemHeight = (item, columnWidth) => {
   const media = item.postMedia?.[0] || item
@@ -15,7 +15,7 @@ const estimateBoardItemHeight = (item, columnWidth) => {
 
 function BoardDetail() {
   const { id } = useParams()
-  const { user: currentUser } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const [board, setBoard] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -23,9 +23,12 @@ function BoardDetail() {
   const [error, setError] = useState('')
   const [activeIndex, setActiveIndex] = useState({})
 
+  const isOwner = isAuthenticated && board?.ownerId === user?.id
+
   useEffect(() => {
     setIsLoading(true)
-    getBoard(id)
+    setError('')
+    getPublicBoard(id)
       .then((payload) => setBoard(payload.board))
       .catch((nextError) => setError(nextError.message || 'Board gagal dimuat'))
       .finally(() => setIsLoading(false))
@@ -77,8 +80,6 @@ function BoardDetail() {
               : []
           const activeMedia = media[activeIndex[item.id] || 0] || media[0]
           const ratio = activeMedia?.width && activeMedia?.height ? activeMedia.width / activeMedia.height : 1
-          const isOwnPost = currentUser?.id === item.postAuthorId
-
           return (
           <article className="gallery-card" key={item.id}>
             {media.length > 1 ? (
@@ -99,17 +100,13 @@ function BoardDetail() {
             )}
             <div className="gallery-card-metadata">
               <div className="metadata-left">
-                <span className="author-username">{item.username ? `@${item.username}` : 'Uploaded asset'}</span>
+                <span className="author-username">{item.username ? `@${item.username}` : item.externalProvider ? item.externalProvider : 'External'}</span>
                 <h3 className="metadata-title">{item.title}</h3>
               </div>
               <div className="metadata-right">
-                <button type="button" className="metadata-menu-btn" title="Remove from board" onClick={() => setDeleteTarget(item)}>
+                {isOwner && <button type="button" className="metadata-menu-btn" title="Remove from board" onClick={() => setDeleteTarget(item)}>
                   <Trash2 size={15} />
-                </button>
-                <div className="metadata-stats">
-                  <span className="stat-item"><Bookmark size={13} />{item.saveCount}</span>
-                  {isOwnPost && <span className="stat-item" title={`${item.uniqueViewCount || 0} unique viewers`}><Eye size={13} />{item.viewCount}</span>}
-                </div>
+                </button>}
               </div>
             </div>
           </article>

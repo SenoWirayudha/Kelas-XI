@@ -71,6 +71,8 @@ import {
   Paintbrush,
   PenTool,
   WandSparkles,
+  List,
+  ListOrdered,
 } from 'lucide-react'
 import { Stage, Layer, Rect, Text, Group, Image as KonvaImage, Line, Transformer, Circle, Ellipse, RegularPolygon, Star, Arrow, Path } from 'react-konva'
 import {
@@ -139,7 +141,7 @@ import ToolWarpPanel from '../components/panels/ToolWarpPanel'
 import ToolRelightPanel from '../components/panels/ToolRelightPanel'
 import WarpHandles from '../components/canvas/WarpHandles'
 import RichTextEditor from '../components/RichTextEditor'
-import { getRuns, runsToHtml, runsToText, applyFormatToRange } from '../utils/textRuns'
+import { getRuns, runsToHtml, runsToText, stripListPrefix } from '../utils/textRuns'
 
 import { getCanvasItemTransformPatch } from '../engines/transformEngine'
 import RelightBalls, { LightOverlay } from '../components/canvas/RelightBalls'
@@ -148,7 +150,7 @@ import { useAuth } from '../context/authState'
 import { useMediaUpload } from '../hooks/useMediaUpload'
 import { useCanvasImage, useCanvasImages } from '../hooks/useCanvasImages'
 import { autosaveWorkspace, getWorkspace, saveWorkspace, setWorkspaceThumbnail, updateWorkspace } from '../lib/api/workspaces'
-import { getHomeFeed, getSimilarPostsByImage, publishWorkspace } from '../lib/api/posts'
+import { getHomeFeed, getSavedPosts, getSimilarPostsByImage, publishWorkspace } from '../lib/api/posts'
 import { getBoard, listBoards } from '../lib/api/boards'
 import { searchPosts as searchPublicPosts } from '../lib/api/search'
 import { ensureExternalImage, searchExternalImages } from '../lib/api/externalImages'
@@ -1647,6 +1649,9 @@ function Workspace() {
   const [selectedBoardItem, setSelectedBoardItem] = useState(null)
   const [isBoardsLoading, setIsBoardsLoading] = useState(false)
   const [boardsError, setBoardsError] = useState('')
+  const [savedPosts, setSavedPosts] = useState([])
+  const [isSavedPostsLoading, setIsSavedPostsLoading] = useState(false)
+  const [savedPostsError, setSavedPostsError] = useState('')
   const [items, setItems] = useState(() => {
     if (initialProject.imageSrc) {
       return [{
@@ -2799,9 +2804,30 @@ function Workspace() {
     }
   }, [isAuthenticated])
 
+  const refreshSavedPosts = useCallback(async () => {
+    if (!isAuthenticated) {
+      setSavedPosts([])
+      return
+    }
+    setIsSavedPostsLoading(true)
+    setSavedPostsError('')
+    try {
+      const payload = await getSavedPosts({ limit: 50 })
+      setSavedPosts(payload.items || [])
+    } catch (error) {
+      setSavedPostsError(error.message || 'Gagal memuat saved posts')
+    } finally {
+      setIsSavedPostsLoading(false)
+    }
+  }, [isAuthenticated])
+
   useEffect(() => {
     refreshDatabaseBoards()
   }, [refreshDatabaseBoards])
+
+  useEffect(() => {
+    refreshSavedPosts()
+  }, [refreshSavedPosts])
 
   useEffect(() => {
     setAssetContextSignals([])
@@ -2967,6 +2993,24 @@ function Workspace() {
       boardName: board?.name,
       boardItemId: item.id,
       postId: item.postId,
+    }))
+  }, [])
+  const getSavedPostAssets = useCallback((post) => {
+    const postMedia = post.media || []
+    const entries = postMedia.length > 0 ? postMedia : (post.cover ? [post.cover] : [])
+    if (entries.length === 0) return []
+    return entries.map((entry, index) => toDatabaseImageAsset({
+      url: entry.publicUrl || entry.url,
+      width: entry.width,
+      height: entry.height,
+      mimeType: entry.mimeType,
+      mediaId: entry.mediaId || `${post.id}-${index}`,
+      title: entries.length > 1 ? `${post.title || 'Saved'} ${index + 1}` : post.title || 'Saved',
+      tags: post.metadata?.tags || post.tags || [],
+      description: post.caption || '',
+    }, {
+      boardName: 'Saved',
+      postId: post.id,
     }))
   }, [])
   const uploadAssets = useMemo(
@@ -7360,7 +7404,8 @@ if (item?.kind === 'image') {
     } else {
       const editor = richTextEditorRef.current
       if (editor) {
-        const runs = editor.getRuns()
+        const raw = editor.getRuns()
+        const runs = stripListPrefix(raw)
         const text = runsToText(runs)
         const globalBold = runs.length > 0 && runs.every((r) => r.bold)
         const globalItalic = runs.length > 0 && runs.every((r) => r.italic)
@@ -7676,6 +7721,51 @@ const handleFrameImageEdit = (id, slotIdx = 0) => {
       })}
     </div>
   )
+
+  const renderSavedPosts = () => {
+    const allAssets = savedPosts.flatMap((post) => getSavedPostAssets(post))
+    return (
+      <div className="workspace-asset-grid">
+        {allAssets.map((asset, index) => (
+          <button
+            type="button"
+            key={`${asset.mediaId || asset.source}-${index}`}
+            title={asset.title}
+            draggable
+            style={{ touchAction: 'none' }}
+            onClick={() => addAssetToCanvas(asset)}
+            onTouchStart={(e) => {
+              touchDragAssetRef.current = asset
+              touchDragMovedRef.current = false
+              touchDragStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+            }}
+            onTouchMove={(e) => {
+              if (!touchDragAssetRef.current) return
+              e.preventDefault()
+              const start = touchDragStartPosRef.current
+              if (start) {
+                const dx = e.touches[0].clientX - start.x
+                const dy = e.touches[0].clientY - start.y
+                if (Math.abs(dx) > 8 || Math.abs(dy) > 8) touchDragMovedRef.current = true
+              }
+            }}
+            onDragStart={(event) => beginAssetDrag(event, asset)}
+            onDragEnd={() => {
+              dragAssetRef.current = null
+              setDropTargetFrameId(null)
+              setStageCursor('default')
+            }}
+          >
+            <span className="workspace-asset-preview">
+              <img src={asset.source} alt="" crossOrigin="anonymous" />
+            </span>
+            <strong title={asset.title}>{asset.title}</strong>
+            <small>Saved</small>
+          </button>
+        ))}
+      </div>
+    )
+  }
 
   const confirmAssetDelete = () => {
     if (!assetDeleteTarget?.mediaId) return
@@ -9731,6 +9821,62 @@ const toggleMobileSheetSize = () => {
             )}
           </div>
         )}
+        {selectedItem.kind === 'image' && (
+          <div className="workspace-section-card">
+            <div className="workspace-section-title">Opacity & Blend</div>
+            <label className="workspace-typography-field workspace-typography-field-full">
+              Opacity
+              <div className="workspace-opacity-control">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={Math.round((selectedItem.opacity ?? 1) * 100)}
+                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  className="workspace-opacity-slider"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={Math.round((selectedItem.opacity ?? 1) * 100)}
+                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  className="workspace-opacity-input"
+                />
+                <span className="workspace-opacity-unit">%</span>
+              </div>
+            </label>
+            <label className="workspace-typography-field workspace-typography-field-full">
+              Blend Mode
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  className="workspace-font-picker-trigger"
+                  onClick={() => setIsBlendModeOpen(!isBlendModeOpen)}
+                >
+                  {(BLEND_MODES.find((m) => m.value === (selectedItem.blendMode || 'source-over'))?.label) || 'Normal'}
+                </button>
+                {isBlendModeOpen && (
+                  <div className="workspace-blend-mode-dropdown">
+                    {BLEND_MODES.map((mode) => (
+                      <button
+                        key={mode.value}
+                        type="button"
+                        className={`workspace-blend-mode-item ${(selectedItem.blendMode === mode.value || (!selectedItem.blendMode && mode.value === 'source-over')) ? 'active' : ''}`}
+                        onClick={() => {
+                          updateItem(selectedItem.id, { blendMode: mode.value === 'source-over' ? undefined : mode.value })
+                          setIsBlendModeOpen(false)
+                        }}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
+        )}
         {supportsShadow && (
           <div className="workspace-section-card">
             <div className="workspace-section-title">Drop Shadow</div>
@@ -10379,6 +10525,42 @@ const toggleMobileSheetSize = () => {
                 </button>
               </div>
             </div>
+            <div className="workspace-style-toolbar" style={{ marginTop: '8px' }}>
+              <button
+                type="button"
+                className={`workspace-style-btn ${selectedItem.runs?.some(r => r.listType === 'bullet') ? 'active' : ''}`}
+                onClick={() => {
+                  if (editingText) {
+                    richTextEditorRef.current?.toggleListType('bullet')
+                  } else {
+                    const runs = getRuns(selectedItem)
+                    const hasType = runs.some(r => r.listType === 'bullet')
+                    const newRuns = runs.map(r => ({ ...r, listType: hasType ? null : 'bullet' }))
+                    updateItem(selectedItem.id, { runs: newRuns, text: runsToText(newRuns) })
+                  }
+                }}
+                title="Bullet List"
+              >
+                <List size={16} />
+              </button>
+              <button
+                type="button"
+                className={`workspace-style-btn ${selectedItem.runs?.some(r => r.listType === 'numbered') ? 'active' : ''}`}
+                onClick={() => {
+                  if (editingText) {
+                    richTextEditorRef.current?.toggleListType('numbered')
+                  } else {
+                    const runs = getRuns(selectedItem)
+                    const hasType = runs.some(r => r.listType === 'numbered')
+                    const newRuns = runs.map(r => ({ ...r, listType: hasType ? null : 'numbered' }))
+                    updateItem(selectedItem.id, { runs: newRuns, text: runsToText(newRuns) })
+                  }
+                }}
+                title="Numbered List"
+              >
+                <ListOrdered size={16} />
+              </button>
+            </div>
 
           </>
         )}
@@ -10396,6 +10578,7 @@ const toggleMobileSheetSize = () => {
         <div className="workspace-panel-tabs">
           <button type="button" className={assetTab === 'boards' ? 'active' : ''} onClick={() => { setAssetTab('boards'); setAssetSubView(null); setSelectedBoardId(null); setSelectedBoardItem(null) }}>Boards</button>
           <button type="button" className={assetTab === 'assets' ? 'active' : ''} onClick={() => { setAssetTab('assets'); setAssetSubView(null); setSelectedBoardId(null); setSelectedBoardItem(null) }}>Assets</button>
+          <button type="button" className={assetTab === 'saved' ? 'active' : ''} onClick={() => { setAssetTab('saved'); setSelectedBoardId(null); setSelectedBoardItem(null) }}>Saved</button>
         </div>
 
         {assetTab === 'boards' && !selectedBoardId && (
@@ -10428,6 +10611,18 @@ const toggleMobileSheetSize = () => {
             </div>
             <p className="workspace-upload-hint">{selectedBoardItem.title}</p>
             {renderAssetGrid(getBoardItemAssets(selectedBoardItem, selectedBoard))}
+          </div>
+        )}
+
+        {assetTab === 'saved' && (
+          <div className="workspace-asset-subview">
+            <div className="workspace-elements-header">
+              <div className="workspace-elements-title">Saved</div>
+              {isAuthenticated && <button type="button" className="workspace-refresh-button" onClick={refreshSavedPosts} disabled={isSavedPostsLoading} aria-label="Refresh saved posts"><RotateCw size={15} /></button>}
+            </div>
+            {!isAuthenticated && <div className="workspace-upload-hint">Login untuk melihat post tersimpan.</div>}
+            {savedPostsError && <div className="workspace-upload-error"><span>{savedPostsError}</span></div>}
+            {isSavedPostsLoading ? <div className="workspace-upload-empty">Memuat saved posts...</div> : savedPosts.length ? renderSavedPosts() : <div className="workspace-upload-empty">Belum ada saved post.</div>}
           </div>
         )}
 
@@ -11574,7 +11769,7 @@ const toggleMobileSheetSize = () => {
                 fill="#ebe8dd"
               />
               {workspaceGridLines.map((points, index) => (
-                <Line key={`workspace-grid-${index}`} points={points} stroke="#d8d2c7" strokeWidth={1} opacity={0.44} listening={false} />
+                <Line key={`workspace-grid-${index}`} points={points} stroke="#d8d2c7" strokeWidth={1.5} opacity={0.44} listening={false} />
               ))}
               {canvasSettings.background.type === 'transparent' && checkerboardPattern && (
                 <Rect
@@ -11747,7 +11942,7 @@ const toggleMobileSheetSize = () => {
                     key={`grid-overlay-${index}`}
                     points={points}
                     stroke="#a970ff"
-                    strokeWidth={1}
+                    strokeWidth={4}
                     opacity={0.42}
                     listening={false}
                     perfectDrawEnabled={false}
@@ -12261,11 +12456,12 @@ const toggleMobileSheetSize = () => {
             style={inlineTextEditorStyle}
             onCommit={(runs) => {
               if (!editingText) return
-              const text = runsToText(runs)
-              const globalBold = runs.length > 0 && runs.every((r) => r.bold)
-              const globalItalic = runs.length > 0 && runs.every((r) => r.italic)
-              const globalUnderline = runs.length > 0 && runs.every((r) => r.underline)
-              updateItem(editingText.id, { runs, text, isBold: globalBold, isItalic: globalItalic, isUnderline: globalUnderline })
+              const cleaned = stripListPrefix(runs)
+              const text = runsToText(cleaned)
+              const globalBold = cleaned.length > 0 && cleaned.every((r) => r.bold)
+              const globalItalic = cleaned.length > 0 && cleaned.every((r) => r.italic)
+              const globalUnderline = cleaned.length > 0 && cleaned.every((r) => r.underline)
+              updateItem(editingText.id, { runs: cleaned, text, isBold: globalBold, isItalic: globalItalic, isUnderline: globalUnderline })
               setEditingText(null)
               requestAnimationFrame(() => attachTransformer(editingText.id))
             }}
@@ -12313,18 +12509,20 @@ const toggleMobileSheetSize = () => {
       <div className="workspace-panel-scroll">
         {renderPanel()}
         {assetSubView === 'uploads' && (
-          <button
-            type="button"
-            className="workspace-upload-fab"
-            title="Upload image"
-            onClick={() => {
-              if (!requireAuth('login')) return
-              uploadInputRef.current?.click()
-            }}
-            disabled={isUploading || deletingMediaIds.size > 0}
-          >
-            <Plus size={22} />
-          </button>
+          <div className="workspace-upload-fab-wrap">
+            <button
+              type="button"
+              className="workspace-upload-fab"
+              title="Upload image"
+              onClick={() => {
+                if (!requireAuth('login')) return
+                uploadInputRef.current?.click()
+              }}
+              disabled={isUploading || deletingMediaIds.size > 0}
+            >
+              <Plus size={22} />
+            </button>
+          </div>
         )}
       </div>
     </aside>
@@ -12417,6 +12615,47 @@ const toggleMobileSheetSize = () => {
           <button className="zoom-btn" onClick={() => detachFrameImages(selectedItem.id)} title="Pisahkan gambar" type="button" style={{ width: 28, height: 28, fontSize: 14 }}><Unlink size={14} /></button>
         )}
         <button className="zoom-btn" onClick={deleteSelectedObject} title="Delete" type="button" style={{ width: 28, height: 28, fontSize: 14 }}><Trash2 size={14} /></button>
+        {selectedItem?.kind === 'text' && (
+          <>
+            <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.15)', margin: '0 2px' }} />
+            <button
+              className={`zoom-btn ${selectedItem.runs?.some(r => r.listType === 'bullet') ? 'active' : ''}`}
+              onClick={() => {
+                if (editingText) {
+                  richTextEditorRef.current?.toggleListType('bullet')
+                } else {
+                  const runs = getRuns(selectedItem)
+                  const hasType = runs.some(r => r.listType === 'bullet')
+                  const newRuns = runs.map(r => ({ ...r, listType: hasType ? null : 'bullet' }))
+                  updateItem(selectedItem.id, { runs: newRuns, text: runsToText(newRuns) })
+                }
+              }}
+              title="Bullet List"
+              type="button"
+              style={{ width: 28, height: 28, fontSize: 14 }}
+            >
+              <List size={14} />
+            </button>
+            <button
+              className={`zoom-btn ${selectedItem.runs?.some(r => r.listType === 'numbered') ? 'active' : ''}`}
+              onClick={() => {
+                if (editingText) {
+                  richTextEditorRef.current?.toggleListType('numbered')
+                } else {
+                  const runs = getRuns(selectedItem)
+                  const hasType = runs.some(r => r.listType === 'numbered')
+                  const newRuns = runs.map(r => ({ ...r, listType: hasType ? null : 'numbered' }))
+                  updateItem(selectedItem.id, { runs: newRuns, text: runsToText(newRuns) })
+                }
+              }}
+              title="Numbered List"
+              type="button"
+              style={{ width: 28, height: 28, fontSize: 14 }}
+            >
+              <ListOrdered size={14} />
+            </button>
+          </>
+        )}
         <div style={{ position: 'relative' }}>
           <button className="zoom-btn" onClick={() => { setShowMoreMenu((v) => !v); setShowAlignSubmenu(false) }} title="More" type="button" style={{ width: 28, height: 28, fontSize: 14, fontWeight: 600 }}><MoreHorizontal size={14} /></button>
           {showMoreMenu && (

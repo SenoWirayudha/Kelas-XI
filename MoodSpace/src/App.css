@@ -4531,6 +4531,7 @@
   gap: 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   padding-bottom: 10px;
+  margin-bottom: 20px;
 }
 
 .profile-tab {
@@ -6355,8 +6356,7 @@
 }
 
 .workspace-panel-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 6px;
   margin-bottom: 18px;
 }
@@ -6374,6 +6374,7 @@
 }
 
 .workspace-panel-tabs button {
+  flex: 1;
   height: 36px;
 }
 
@@ -6808,21 +6809,27 @@
   line-height: 1;
 }
 
-.workspace-upload-fab {
+.workspace-upload-fab-wrap {
   position: sticky;
   bottom: 14px;
-  left: calc(100% - 52px);
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  z-index: 1;
+}
+
+.workspace-upload-fab {
   width: 44px;
   height: 44px;
   display: grid;
   place-items: center;
-  margin-top: 16px;
   border: 0;
   border-radius: 50%;
   color: #fff;
   background: #8b5cf6;
   box-shadow: 0 14px 30px rgba(139, 92, 246, 0.35);
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .workspace-panel-heading {
@@ -8706,6 +8713,11 @@
 .zoom-btn:hover:not(:disabled) {
   background: rgba(124, 58, 237, 0.25);
   transform: scale(1.1);
+}
+
+.zoom-btn.active {
+  background: rgba(124, 58, 237, 0.35);
+  color: #c4b5fd;
 }
 
 .zoom-btn:disabled {

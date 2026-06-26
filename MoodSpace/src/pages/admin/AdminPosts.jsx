@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { listPosts, deletePost } from '../../lib/api/admin'
-import { Search, ChevronLeft, ChevronRight, Trash2, ExternalLink } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Ban, Trash2, ExternalLink } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import ConfirmationModal from '../../components/ConfirmationModal'
 
@@ -14,6 +14,7 @@ function AdminPosts() {
   const [statusFilter, setStatusFilter] = useState('')
   const [loading, setLoading] = useState(true)
   const [confirmingId, setConfirmingId] = useState(null)
+  const [confirmingHard, setConfirmingHard] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -31,8 +32,9 @@ function AdminPosts() {
   useEffect(() => { load() }, [load])
   useEffect(() => { setPage(1) }, [search, statusFilter])
 
-  const handleDelete = async (id) => {
+  const handleDelete = (id, hard) => {
     setConfirmingId(id)
+    setConfirmingHard(hard)
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -103,9 +105,15 @@ function AdminPosts() {
                     <Link to={`/post/${post.id}`} className="admin-btn-icon" target="_blank" title="View">
                       <ExternalLink size={16} />
                     </Link>
-                    <button className="admin-btn-icon danger" onClick={() => handleDelete(post.id)} title="Delete">
-                      <Trash2 size={16} />
-                    </button>
+                    {post.status === 'banned' ? (
+                      <button className="admin-btn-icon danger" onClick={() => handleDelete(post.id, true)} title="Delete permanently">
+                        <Trash2 size={16} />
+                      </button>
+                    ) : (
+                      <button className="admin-btn-icon danger" onClick={() => handleDelete(post.id, false)} title="Ban">
+                        <Ban size={16} />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -124,15 +132,16 @@ function AdminPosts() {
 
       <ConfirmationModal
         isOpen={confirmingId !== null}
-        title="Delete Post"
-        description="Delete this post? This cannot be undone."
+        title={confirmingHard ? 'Delete Post Permanently' : 'Ban Post'}
+        description={confirmingHard ? 'Permanently delete this post? This cannot be undone.' : 'Ban this post? It will no longer appear in feeds. The author will be notified.'}
         isDanger={true}
         onConfirm={async () => {
-          await deletePost(confirmingId)
+          await deletePost(confirmingId, confirmingHard)
           setConfirmingId(null)
+          setConfirmingHard(false)
           load()
         }}
-        onCancel={() => setConfirmingId(null)}
+        onCancel={() => { setConfirmingId(null); setConfirmingHard(false) }}
       />
     </div>
   )

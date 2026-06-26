@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Image as KonvaImage } from 'react-konva'
+import RgbSplitImage from '../RgbSplitImage'
 import { calculateCoverFit, getFrameImageCropBounds, getMinFrameImageZoom } from '../../../utils/frameUtils'
 
 export default function GridSlotImage({ image, slot, item, slotIndex, isEditing, onImageDragEnd, onImageScaleChange, imageRef }) {
@@ -35,9 +36,10 @@ export default function GridSlotImage({ image, slot, item, slotIndex, isEditing,
   const centerY = slot.y + (slot.height - fit.height) / 2
  
   return (
-    <KonvaImage
-      ref={imageRef}
+    <RgbSplitImage
+      imageRef={imageRef}
       image={image}
+      rgbSplit={item.effects?.rgbSplit}
       x={fit.x}
       y={fit.y}
       width={fit.width}

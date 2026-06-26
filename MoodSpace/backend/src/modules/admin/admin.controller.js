@@ -40,7 +40,11 @@ export const listPosts = async (req, res, next) => {
 
 export const deletePost = async (req, res, next) => {
   try {
-    await adminService.deletePost(req.params.id)
+    if (req.query.hard === 'true') {
+      await adminService.hardDeletePost(req.params.id)
+    } else {
+      await adminService.deletePost(req.params.id, req.auth.sub)
+    }
     return res.status(204).end()
   } catch (error) {
     return next(error)
@@ -78,7 +82,11 @@ export const listComments = async (req, res, next) => {
 
 export const deleteComment = async (req, res, next) => {
   try {
-    await adminService.deleteComment(req.params.id)
+    if (req.query.hard === 'true') {
+      await adminService.hardDeleteComment(req.params.id)
+    } else {
+      await adminService.deleteComment(req.params.id, req.auth.sub)
+    }
     return res.status(204).end()
   } catch (error) {
     return next(error)

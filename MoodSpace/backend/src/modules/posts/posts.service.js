@@ -288,30 +288,54 @@ const averageEmbeddings = (embeddings) => {
 
 const computePostEmbedding = async (postId) => {
   try {
-    const { rows } = await query(
+    const { rows: mediaUrls } = await query(
       `select m.public_url
        from post_media pm
        join media_assets m on m.id = pm.media_id
        where pm.post_id = $1
          and m.public_url is not null
-       order by pm.position`,
+       union
+       select m.public_url
+       from posts p
+       join media_assets m on m.id = p.cover_media_id
+       where p.id = $1
+         and m.public_url is not null
+       limit 5`,
       [postId],
     )
-    const urls = rows.map((r) => r.public_url).filter(Boolean)
-    if (!urls.length) return
+    const urls = [...new Set(mediaUrls.map((r) => r.public_url).filter(Boolean))]
 
-    const results = await Promise.allSettled(
-      urls.map((url) => getImageEmbedding(url)),
-    )
-    const embeddings = results
-      .filter((r) => r.status === 'fulfilled' && r.value)
-      .map((r) => r.value)
+    let combined = null
+    if (uniqueUrls.length) {
+      const results = await Promise.allSettled(
+        uniqueUrls.map((url) => getImageEmbedding(url)),
+      )
+      const embeddings = results
+        .filter((r) => r.status === 'fulfilled' && r.value)
+        .map((r) => r.value)
+      if (embeddings.length) {
+        combined = averageEmbeddings(embeddings)
+      }
+    }
 
-    const combined = averageEmbeddings(embeddings)
-    if (!combined) return
+    if (!combined) {
+      const { rows: [post] } = await query(
+        `select title, caption, metadata from posts where id = $1`,
+        [postId],
+      )
+      if (!post) return
+      const tags = post.metadata?.tags || []
+      const parts = [post.title, post.caption, ...tags].filter(Boolean)
+      const text = parts.join(', ')
+      if (text.length >= 3) {
+        combined = await getTextEmbedding(text)
+      } else {
+        return
+      }
+    }
 
     await updatePostEmbedding({ postId, embedding: combined })
-    console.log('[EMBED] Stored embedding for post', postId, `(${embeddings.length} images)`)
+    console.log('[EMBED] Stored embedding for post', postId, uniqueUrls.length ? `(${uniqueUrls.length} images)` : '(text fallback)')
   } catch (error) {
     console.error('[EMBED] Failed for post', postId, error.message)
   }
@@ -530,7 +554,7 @@ export const homeFeed = async ({ viewerId = null, query }) => {
   if (hasProfile && rows.length) {
     const reranked = rankPostsByProfile(rows, profile)
 
-    let filtered = reranked.filter(p => p._clipScore >= 0.05)
+    let filtered = reranked.filter(p => p._clipScore >= CLIP_SCORE_THRESHOLD)
 
     const HARD_FLOOR = Math.min(10, query.limit)
     const target = query.limit
@@ -542,7 +566,7 @@ export const homeFeed = async ({ viewerId = null, query }) => {
       } else if (loosened.length >= HARD_FLOOR) {
         filtered = loosened
       } else {
-        filtered = reranked.slice(0, Math.min(Math.max(HARD_FLOOR, target), reranked.length))
+        filtered = loosened.length ? loosened.slice(0, Math.min(HARD_FLOOR, loosened.length)) : filtered
       }
     }
 

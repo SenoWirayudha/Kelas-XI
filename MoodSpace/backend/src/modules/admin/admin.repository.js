@@ -234,7 +234,7 @@ export const countAllPosts = async ({ search, status }) => {
 
 export const banPostById = async (postId) => {
   const { rows } = await query(
-    `update posts set status = 'banned' where id = $1 returning id`,
+    `update posts set status = 'banned' where id = $1 returning id, title, author_id as "authorId"`,
     [postId],
   )
   return rows[0] || null
@@ -335,7 +335,7 @@ export const listAllComments = async ({ search, limit, offset }) => {
 
   const { rows } = await query(
     `select
-       c.id, c.content, c.created_at as "createdAt",
+       c.id, c.content, c.status, c.created_at as "createdAt",
        u.id as "authorId", u.username as "authorUsername",
        p.id as "postId", p.title as "postTitle"
      from comments c
@@ -379,10 +379,21 @@ export const deleteCommentById = async (commentId) => {
 
 export const banCommentById = async (commentId, adminId) => {
   const { rows } = await query(
-    `update comments set status = 'banned', banned_at = now(), banned_by = $2 where id = $1 returning id`,
+    `update comments set status = 'banned', banned_at = now(), banned_by = $2 where id = $1 returning id, author_id as "authorId"`,
     [commentId, adminId],
   )
   return rows[0] || null
+}
+
+export const banUserContentById = async (userId) => {
+  await query(
+    `update posts set status = 'banned' where author_id = $1 and status = 'published'`,
+    [userId],
+  )
+  await query(
+    `update comments set status = 'banned', banned_at = now() where author_id = $1 and status = 'active'`,
+    [userId],
+  )
 }
 
 export const banUserById = async (userId) => {
@@ -391,14 +402,7 @@ export const banUserById = async (userId) => {
     [userId],
   )
   if (rows[0]) {
-    await query(
-      `update posts set status = 'banned' where author_id = $1 and status = 'published'`,
-      [userId],
-    )
-    await query(
-      `update comments set status = 'banned', banned_at = now() where author_id = $1 and status = 'active'`,
-      [userId],
-    )
+    await banUserContentById(userId)
   }
   return rows[0] || null
 }

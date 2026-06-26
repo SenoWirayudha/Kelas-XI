@@ -3,12 +3,12 @@
  * Konva Text node for canvas text items.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Group, Image, Rect, Text } from 'react-konva'
+import { Group, Image, Rect, Shape, Text } from 'react-konva'
 import { preloadFont, getShadowProps } from '../../utils/konvaUtils'
 import { getClampedCanvasPosition } from '../../utils/canvasPositionUtils'
 import { clamp } from '../../utils/mathUtils'
 import { effectManager } from '../../utils/konva-effects-engine'
-import { getRuns, runsToText } from '../../utils/textRuns'
+import { getRuns, runsToText, addListPrefix } from '../../utils/textRuns'
 
 function renderCurvedText(text, fontFamily, fontSize, fontStyle, curveAmount, letterSpacing, fillColor, runs) {
   const chars = Array.from(text || ' ')
@@ -76,6 +76,57 @@ const getTextMinWidth = (node, text, fontSize) => {
   return Math.max(24, Math.ceil(widestGlyph + Math.max(4, fontSize * 0.08)))
 }
 
+function isolateChannel(data, ch, nw, nh) {
+  const buf = new Uint8ClampedArray(data.length)
+  for (let i = 0; i < data.length; i += 4) {
+    buf[i]   = ch === 0 ? data[i]   : 0
+    buf[i+1] = ch === 1 ? data[i+1] : 0
+    buf[i+2] = ch === 2 ? data[i+2] : 0
+    buf[i+3] = data[i+3]
+  }
+  return new ImageData(buf, nw, nh)
+}
+function dataToCanvas(imgData) {
+  const c = document.createElement('canvas')
+  c.width = imgData.width; c.height = imgData.height
+  c.getContext('2d').putImageData(imgData, 0, 0)
+  return c
+}
+function processTextRgbSplit(cleanCanvas, item, textHeight, pad = { y: 0 }, align = 'center') {
+  const displayW = item.w
+  const displayH = pad.y ? (textHeight + pad.y) : textHeight
+  const nw = cleanCanvas.width
+  const nh = cleanCanvas.height
+  const extractH = Math.min(pad.y ? nh : nh, displayH)
+  const halfDiff = Math.max(0, Math.floor((nw - displayW) / 2))
+  let srcX = 0
+  if (align === 'center') srcX = halfDiff
+  else if (align === 'right') srcX = Math.max(0, nw - displayW)
+  const offsetParam = item.effects?.rgbSplit
+  if (!offsetParam) return null
+  const pixelOffset = (offsetParam.offset ?? 0.01) * Math.max(displayW, displayH)
+  const angleRad = (offsetParam.angle ?? 0) * Math.PI / 180
+  const dxDisp = Math.cos(angleRad) * pixelOffset
+  const dyDisp = Math.sin(angleRad) * pixelOffset
+
+  const tmpC = document.createElement('canvas')
+  tmpC.width = displayW; tmpC.height = displayH
+  const tmpCtx = tmpC.getContext('2d')
+  tmpCtx.drawImage(cleanCanvas, srcX, 0, displayW, extractH, 0, 0, displayW, extractH)
+  const d = tmpCtx.getImageData(0, 0, displayW, displayH).data
+  const rC = dataToCanvas(isolateChannel(d, 0, displayW, displayH))
+  const gC = dataToCanvas(isolateChannel(d, 1, displayW, displayH))
+  const bC = dataToCanvas(isolateChannel(d, 2, displayW, displayH))
+
+  const m = offsetParam.mode ?? 'g'
+  let center, left, right
+  if (m === 'g') { center = gC; left = bC; right = rC }
+  else if (m === 'r') { center = rC; left = bC; right = gC }
+  else                { center = bC; left = gC; right = rC }
+
+  return { center, left, right, dxDisp, dyDisp, padY: pad.y || 0 }
+}
+
 export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, canvasBounds, getActiveTransformAnchor, fontInjectVersion }) {
   const textNodeRef = useRef(null)
   const curveImageRef = useRef(null)
@@ -89,8 +140,21 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   const [dragWidth, setDragWidth] = useState(null)
   const displayWidth = dragWidth !== null ? dragWidth : item.w
 
+  const rgbLayersRef = useRef(null)
+  const textRgbChannelCacheRef = useRef(null)
+  const [textRgbSplitVer, setTextRgbSplitVer] = useState(0)
+  const textRgbCenterRef = useRef(null)
+  const textContentKeyRef = useRef('')
+  const capturePadRef = useRef({ y: 0 })
+
+  const hasEffects = item.effects && Object.keys(item.effects).some(k => !['letterSpacing', 'curve'].includes(k))
+  const hasRgbSplit = !!item.effects?.rgbSplit
+
   const runs = useMemo(() => getRuns(item), [item.runs, item.text, item.isBold, item.isItalic, item.isUnderline])
-  const text = runsToText(runs)
+  const displayRuns = useMemo(() => {
+    return addListPrefix(runs)
+  }, [runs])
+  const text = runsToText(displayRuns)
   const isMultiRun = runs.length > 1
 
   const letterSpacing = item.effects?.letterSpacing?.value ?? 0
@@ -154,7 +218,9 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
 
     node.clearCache()
     if (typeof node._clearTextCache === 'function') node._clearTextCache()
-    try { effectManager.applyAll(node, item.effects) } catch {}
+    const fx = { ...item.effects }
+    delete fx.rgbSplit
+    try { effectManager.applyAll(node, fx) } catch {}
     node.getLayer()?.draw()
   }, [
     item.strokeWidth, item.stroke, item.fill,
@@ -173,7 +239,9 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     if (!hasCurve) return
     const node = curveImageRef.current
     if (!node) return
-    try { effectManager.applyAll(node, item.effects) } catch {}
+    const fx = { ...item.effects }
+    delete fx.rgbSplit
+    try { effectManager.applyAll(node, fx) } catch {}
     node.getLayer()?.draw()
   }, [item.effects, hasCurve, text, item.fontFamily, item.fontSize, runs, item.fill])
 
@@ -182,9 +250,114 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     const node = multiRunGroupRef.current
     if (!node || !isMultiRun || hasCurve) return
     node.clearCache()
-    try { effectManager.applyAll(node, item.effects) } catch {}
+    const fx = { ...item.effects }
+    delete fx.rgbSplit
+    try { effectManager.applyAll(node, fx) } catch {}
     node.getLayer()?.draw()
   }, [item.effects, isMultiRun, hasCurve, runs, item.fontSize, item.fontFamily, item.fill, letterSpacing])
+
+  // rgbSplit capture: build R/G/B channel canvases from clean text
+  useLayoutEffect(() => {
+    const rgbSplit = item.effects?.rgbSplit
+    if (!rgbSplit) {
+      if (rgbLayersRef.current) {
+        rgbLayersRef.current = null
+        textRgbChannelCacheRef.current = null
+        capturePadRef.current = { y: 0 }
+        setTextRgbSplitVer(v => v + 1)
+      }
+      return
+    }
+
+    if (!fontLoaded) return
+
+    let node
+    if (isMultiRun) {
+      node = multiRunGroupRef.current
+    } else {
+      node = textNodeRef.current
+    }
+    if (!node) return
+
+    // Compute content key — only re-capture when text content actually changes
+    const contentKey = `${text}|${item.w}|${item.h}|${item.fontSize}|${isMultiRun}|${displayWidth}|${item.fontFamily}|${item.fill}|${item.align}|${letterSpacing}|${hasEffects}|${rgbSplit.offset}|${rgbSplit.angle}|${rgbSplit.mode}|${fontLoaded}|${item.stroke}|${item.strokeWidth}|${item.gradientType}|${item.gradientStops}|${item.strokeGradientType}|${item.strokeGradientStops}|${item.shadowEnabled}|${item.shadow}|${item.shadowColor}|${item.shadowOpacity}|${item.shadowOffsetX}|${item.shadowOffsetY}|${JSON.stringify(runs)}`
+
+    // Check cache
+    const cached = textRgbChannelCacheRef.current
+    if (cached && cached.key === contentKey) {
+      rgbLayersRef.current = cached.channels
+      return
+    }
+
+    // Use clone to capture — avoids visible=false issues and doesn't modify the real node
+    const clone = node.clone({ visible: true, opacity: 1 })
+
+    let cleanCanvas
+    if (isMultiRun) {
+      const clipOff = Math.ceil((item.fontSize || 48) * 0.35)
+      const children = clone.getChildren()
+      const origXs = children.map(c => c.x())
+      const origYs = children.map(c => c.y())
+      const align = item.align || 'center'
+      let xShift = 0
+      if (align === 'center') xShift = Math.floor((displayWidth - item.w) / 2)
+      else if (align === 'right') xShift = displayWidth - item.w
+      children.forEach(c => { c.x(c.x() - xShift); c.y(c.y() + clipOff) })
+      const origH = clone.height()
+      const captureH = origH + clipOff
+      clone.width(item.w)
+      clone.height(captureH)
+      clone.clipY(0)
+      clone.clipHeight(captureH)
+      clone.clipWidth(item.w)
+      const tempCanvas = clone.toCanvas({ x: 0, y: 0, width: item.w, height: captureH, pixelRatio: 1 })
+      children.forEach((c, i) => { c.x(origXs[i]); c.y(origYs[i]) })
+
+      // Crop out topPad empty space
+      const sourceCanvas = document.createElement('canvas')
+      sourceCanvas.width = item.w
+      sourceCanvas.height = origH
+      const sCtx = sourceCanvas.getContext('2d')
+      sCtx.drawImage(tempCanvas, 0, clipOff, item.w, origH, 0, 0, item.w, origH)
+      cleanCanvas = sourceCanvas
+      capturePadRef.current = { y: 0 }
+    } else {
+      cleanCanvas = clone.toCanvas({ x: 0, y: 0, width: item.w, height: textHeight, pixelRatio: 1 })
+      capturePadRef.current = { y: 0 }
+    }
+    clone.destroy()
+
+    if (!cleanCanvas || cleanCanvas.width === 0 || cleanCanvas.height === 0) return
+
+    const channels = processTextRgbSplit(cleanCanvas, item, textHeight, capturePadRef.current, item.align || 'center')
+    if (channels) {
+      textRgbChannelCacheRef.current = { key: contentKey, channels }
+      rgbLayersRef.current = channels
+      setTextRgbSplitVer(v => v + 1)
+    }
+  }, [
+    item.effects?.rgbSplit, item.effects?.rgbSplit?.offset,
+    item.effects?.rgbSplit?.angle, item.effects?.rgbSplit?.mode,
+    isMultiRun, item.w, item.h, item.fontSize, text, item.fontFamily,
+    item.fill, item.align, displayWidth, letterSpacing, hasEffects, fontLoaded,
+    item.stroke, item.strokeWidth,
+    item.gradientType, item.gradientStops,
+    item.strokeGradientType, item.strokeGradientStops,
+    item.shadowEnabled, item.shadow, item.shadowColor, item.shadowOpacity,
+    item.shadowOffsetX, item.shadowOffsetY,
+    runs,
+  ])
+
+  // Apply non-rgbSplit effects to center channel Image
+  useLayoutEffect(() => {
+    const img = textRgbCenterRef.current
+    if (!img || !rgbLayersRef.current) return
+    img.clearCache()
+    const fx = { ...item.effects }
+    delete fx.rgbSplit
+    try { effectManager.applyAll(img, fx) } catch {}
+    img.getLayer()?.batchDraw()
+  }, [item.effects, textRgbSplitVer])
 
   const filterItemRef = useRef(item)
   const rAFRef = useRef(null)
@@ -203,14 +376,14 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         node = textNodeRef.current
       }
       if (!node) return
-      try { effectManager.applyAll(node, filterItemRef.current.effects) } catch {}
+      const rafFx = { ...filterItemRef.current.effects }
+      delete rafFx.rgbSplit
+      try { effectManager.applyAll(node, rafFx) } catch {}
     })
     return () => {
       if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null }
     }
   }, [item, fontLoaded, hasCurve, isMultiRun])
-
-  const hasEffects = item.effects && Object.keys(item.effects).some(k => !['letterSpacing', 'curve'].includes(k))
 
   const hasTextFill = item.fill !== null && item.fill !== 'transparent'
   const hasFillGradient = hasTextFill && item.gradientType !== 'solid' && item.gradientStops?.length >= 2
@@ -283,7 +456,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
 
     // Expand runs into single-character segments
     const expanded = []
-    runs.forEach((run, runIdx) => {
+    displayRuns.forEach((run, runIdx) => {
       for (let i = 0; i < run.text.length; i++) {
         const runFontStyle = [run.bold && 'bold', run.italic && 'italic'].filter(Boolean).join(' ') || 'normal'
         expanded.push({
@@ -301,6 +474,11 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     let x = 0
     let y = 0
     expanded.forEach((run) => {
+      if (run.text === '\n') {
+        y += lineHeight
+        x = 0
+        return
+      }
       ctx.font = `${run.fontStyle} ${fs}px ${run.fontFamily}`
       const charW = measureRun(run.text)
       if (x + charW > maxW && x > 0) {
@@ -344,7 +522,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       })
     })
     return nodes
-  }, [runs, isMultiRun, hasCurve, item.fontSize, item.fontFamily, item.fill, displayWidth, letterSpacing, hasEffects, gradientProps.fill, fontLoaded, item.align])
+  }, [displayRuns, isMultiRun, hasCurve, item.fontSize, item.fontFamily, item.fill, displayWidth, letterSpacing, hasEffects, gradientProps.fill, fontLoaded, item.align])
 
   const textHeight = isMultiRun
     ? (runsLayoutRef.current.height || Math.max(item.h || 1, item.fontSize || 1))
@@ -436,7 +614,9 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           groupNode.scaleY(1)
           node.clearCache()
           if (typeof node._clearTextCache === 'function') node._clearTextCache()
-          try { effectManager.applyAll(node, filterItemRef.current.effects) } catch {}
+          const transformFx = { ...filterItemRef.current.effects }
+          delete transformFx.rgbSplit
+          try { effectManager.applyAll(node, transformFx) } catch {}
           node.getLayer()?.batchDraw()
         }
       }}
@@ -492,7 +672,9 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         node.fontSize(nextFontSize)
         node.clearCache()
         if (typeof node._clearTextCache === 'function') node._clearTextCache()
-        try { effectManager.applyAll(node, filterItemRef.current.effects) } catch {}
+        const endFx = { ...filterItemRef.current.effects }
+        delete endFx.rgbSplit
+        try { effectManager.applyAll(node, endFx) } catch {}
 
         const textRect = node.getClientRect({ skipTransform: true, skipShadow: true })
         const nextHeight = Math.max(8, Math.ceil(textRect.height || node.height() || nextFontSize))
@@ -517,7 +699,42 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         fill="rgba(0,0,0,0)"
         strokeWidth={0}
       />
-      {hasCurve && curveCanvas ? (
+      {hasRgbSplit ? (
+        <>
+          {/* Hidden source for capture */}
+          {isMultiRun ? (
+            <Group ref={multiRunGroupRef} listening={false} visible={false} clipX={0} clipY={-Math.ceil((item.fontSize || 48) * 0.35)} clipWidth={displayWidth} clipHeight={textHeight + Math.ceil((item.fontSize || 48) * 0.35)} width={displayWidth} height={textHeight}>
+              {multiRunTexts}
+            </Group>
+          ) : (
+            <>
+              {hasStroke && (
+                <Text {...textProps} {...strokeGradientProps} fillEnabled={false} strokeWidth={item.strokeWidth || 0} listening={false} visible={false} />
+              )}
+              <Text ref={textNodeRef} {...textProps} {...gradientProps} {...(hasShadow ? shadowProps : {})} fillEnabled={hasTextFill} strokeEnabled={false} listening={false} visible={false} />
+            </>
+          )}
+          {/* Channel rendering */}
+          {rgbLayersRef.current && (
+            <>
+              <Image ref={textRgbCenterRef} image={rgbLayersRef.current.center} x={0} y={-(rgbLayersRef.current.padY || 0)} width={item.w} height={textHeight + (rgbLayersRef.current.padY || 0)} listening={false} />
+              <Shape
+                sceneFunc={(ctx) => {
+                  ctx.save()
+                  ctx.globalCompositeOperation = 'screen'
+                  const ref = rgbLayersRef.current
+                  const h = textHeight + (ref.padY || 0)
+                  ctx.drawImage(ref.left, -ref.dxDisp, -(ref.padY || 0), item.w, h)
+                  ctx.drawImage(ref.right, ref.dxDisp, -(ref.padY || 0), item.w, h)
+                  ctx.restore()
+                }}
+                listening={false}
+                perfectDrawEnabled={false}
+              />
+            </>
+          )}
+        </>
+      ) : hasCurve && curveCanvas ? (
         <Image
           ref={curveImageRef}
           image={curveCanvas}

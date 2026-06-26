@@ -6,6 +6,7 @@ import { useFrameKeyboard } from '../../../hooks/frame/useFrameKeyboard'
 import { useFrameTransform } from '../../../hooks/frame/useFrameTransform'
 import GridSlotImage from './GridSlotImage'
 import FramePlaceholder from './FramePlaceholder'
+import RgbSplitImage from '../RgbSplitImage'
 import { getShadowProps } from '../../../utils/konvaUtils'
 import {
   isGridFrame,
@@ -828,9 +829,10 @@ export default function FrameWithImage({
       ) : (
         <Group clipFunc={applyFrameSlotClip(singleSlot)} listening={isEditing}>
           {singleImage && singleFit ? (
-            <KonvaImage
-              ref={imageRefs[0]}
+            <RgbSplitImage
+              imageRef={imageRefs[0]}
               image={singleImage}
+              rgbSplit={item.effects?.rgbSplit}
               x={singleFit.x}
               y={singleFit.y}
               width={singleFit.width}
@@ -861,10 +863,10 @@ export default function FrameWithImage({
                 const sy = Math.abs(node.scaleY())
                 node.scaleX(1)
                 node.scaleY(1)
- 
+
                 if (!singleImage) return
                 if (Math.abs(sx - 1) < 0.001 && Math.abs(sy - 1) < 0.001) return
- 
+
                 const avgScale = (sx + sy) / 2
                 const minZoom = getMinFrameImageZoom({
                   imageWidth: singleImage.width,
@@ -875,7 +877,7 @@ export default function FrameWithImage({
                 const prevZoom = singleZoomRef.current || minZoom
                 const newZoom = Math.max(minZoom, prevZoom * avgScale)
                 singleZoomRef.current = newZoom
- 
+
                 const newFit = calculateCoverFit({
                   imageWidth: singleImage.width,
                   imageHeight: singleImage.height,
@@ -891,15 +893,14 @@ export default function FrameWithImage({
                   node.height(newFit.height)
                   node.getLayer()?.batchDraw()
                 }
-                // TIDAK panggil onImageScaleChange di sini
               }}
               onTransformEnd={(e) => {
                 const node = e.target
                 node.scaleX(1)
                 node.scaleY(1)
- 
+
                 if (!singleImage || !onImageScaleChange) return
- 
+
                 const minZoom = getMinFrameImageZoom({
                   imageWidth: singleImage.width,
                   imageHeight: singleImage.height,
@@ -907,7 +908,7 @@ export default function FrameWithImage({
                   fit: item.frameImageFit || 'cover',
                 })
                 const finalZoom = Math.max(minZoom, singleZoomRef.current || minZoom)
- 
+
                 const newBounds = getFrameImageCropBounds({
                   imageWidth: singleImage.width,
                   imageHeight: singleImage.height,
@@ -915,12 +916,12 @@ export default function FrameWithImage({
                   fit: item.frameImageFit || 'cover',
                   zoom: finalZoom,
                 })
- 
+
                 const clampedPos = {
                   x: Math.min(newBounds.maxX, Math.max(newBounds.minX, item.frameImagePosition?.x || 0)),
                   y: Math.min(newBounds.maxY, Math.max(newBounds.minY, item.frameImagePosition?.y || 0)),
                 }
- 
+
                 const newFit = calculateCoverFit({
                   imageWidth: singleImage.width,
                   imageHeight: singleImage.height,
@@ -936,7 +937,7 @@ export default function FrameWithImage({
                   node.height(newFit.height)
                 }
                 node.getLayer()?.batchDraw()
- 
+
                 onImageScaleChange({ zoom: finalZoom, position: clampedPos })
               }}
               onMouseEnter={(e) => { if (isEditing) e.target.getStage().container().style.cursor = 'grab' }}

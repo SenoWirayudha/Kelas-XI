@@ -213,8 +213,8 @@ function Projects() {
           file: uploadFileRef.current,
           width,
           height,
-          sourceType: 'project_seed',
-          addToUploads: false,
+          sourceType: 'upload',
+          addToUploads: true,
         })
         uploadedImageSrc = completed?.media?.url || completed?.asset?.media?.url || null
         uploadedMediaId = completed?.media?.id || completed?.asset?.media?.id || null

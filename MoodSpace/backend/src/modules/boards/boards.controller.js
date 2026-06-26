@@ -1,8 +1,25 @@
 import * as service from './boards.service.js'
 
+export const listPublicUserBoards = async (req, res, next) => {
+  try {
+    res.json({ boards: await service.listPublicUserBoards(req.params.username) })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const listBoards = async (req, res, next) => {
   try {
     res.json({ boards: await service.listBoards(req.auth.sub) })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getPublicBoard = async (req, res, next) => {
+  try {
+    const boardId = req.validated?.params?.id || req.params.id
+    res.json({ board: await service.getPublicBoard(boardId) })
   } catch (error) {
     next(error)
   }
@@ -45,6 +62,14 @@ export const removeBoardItem = async (req, res, next) => {
       itemId: req.validated.params.itemId,
     })
     res.status(204).send()
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const updateBoard = async (req, res, next) => {
+  try {
+    res.json({ board: await service.updateBoard({ userId: req.auth.sub, boardId: req.validated.params.id, body: req.validated.body }) })
   } catch (error) {
     next(error)
   }

@@ -47,7 +47,13 @@ export function getDefaultEnabledValue(effect) {
         alpha: 1,
       }
     }
-    return {}
+    const defaults = {}
+    if (effect.params) {
+      for (const p of effect.params) {
+        defaults[p.key] = p.default
+      }
+    }
+    return defaults
   }
   return true
 }

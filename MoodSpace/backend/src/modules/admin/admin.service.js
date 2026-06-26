@@ -49,6 +49,9 @@ export const listUsers = async ({ search, role, status, page, pageSize }) => {
 export const patchUser = async (userId, patch) => {
   const user = await repo.updateUser(userId, patch)
   if (!user) throw notFound('User not found')
+  if (patch.status === 'banned') {
+    await repo.banUserContentById(userId)
+  }
   return user
 }
 
@@ -64,9 +67,25 @@ export const listPosts = async ({ search, status, page, pageSize }) => {
   return { posts, total, page: page || 1, pageSize: limit }
 }
 
-export const deletePost = async (postId) => {
+export const hardDeletePost = async (postId) => {
+  const post = await repo.deletePostById(postId)
+  if (!post) throw notFound('Post not found')
+  return post
+}
+
+export const deletePost = async (postId, adminId) => {
   const post = await repo.banPostById(postId)
   if (!post) throw notFound('Post not found')
+  if (post.authorId) {
+    await notificationRepo.insertNotification({
+      userId: post.authorId,
+      actorId: adminId,
+      type: 'post_deleted',
+      targetType: 'post',
+      targetId: postId,
+      metadata: { postTitle: post.title || 'Untitled' },
+    })
+  }
   return post
 }
 
@@ -156,9 +175,25 @@ export const listComments = async ({ search, page, pageSize }) => {
   return { comments, total, page: page || 1, pageSize: limit }
 }
 
-export const deleteComment = async (commentId) => {
+export const hardDeleteComment = async (commentId) => {
   const comment = await repo.deleteCommentById(commentId)
   if (!comment) throw notFound('Comment not found')
+  return comment
+}
+
+export const deleteComment = async (commentId, adminId) => {
+  const comment = await repo.banCommentById(commentId, adminId)
+  if (!comment) throw notFound('Comment not found')
+  if (comment.authorId) {
+    await notificationRepo.insertNotification({
+      userId: comment.authorId,
+      actorId: adminId,
+      type: 'comment_deleted',
+      targetType: 'comment',
+      targetId: commentId,
+      metadata: {},
+    })
+  }
   return comment
 }
 

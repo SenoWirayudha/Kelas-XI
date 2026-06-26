@@ -66,7 +66,7 @@ export function useMediaUpload({ enabled = true } = {}) {
     try {
       const payload = await listUploadedMedia()
       const uploadAssets = (payload.assets || []).filter((asset) => (
-        !asset.media?.sourceType || asset.media.sourceType === 'upload'
+        !asset.media?.sourceType || asset.media.sourceType === 'upload' || asset.media.sourceType === 'project_seed'
       ))
       setAssets(uploadAssets)
       return uploadAssets

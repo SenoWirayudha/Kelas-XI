@@ -34,6 +34,15 @@ const applyItemFiltersToClone = (clone, item) => {
     })
   } else if (item.effects && Object.keys(item.effects).length > 0) {
     try {
+      // Frame Groups in Konva don't have explicit width/height attrs
+      // (they rely on monkey-patched getSelfRect/getClientRect in FrameWithImage).
+      // When cloned for the offscreen capture stage, those patches are lost,
+      // causing effectManager.applyAll to compute wrong cache dimensions.
+      // Set explicit attrs so cache() uses the correct size.
+      if (item.kind === 'frame') {
+        clone.setAttr('width', item.w)
+        clone.setAttr('height', item.h)
+      }
       effectManager.applyAll(clone, item.effects, item)
     } catch {
       clone.clearCache?.()

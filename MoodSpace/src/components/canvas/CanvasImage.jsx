@@ -295,7 +295,9 @@ function CanvasImage({
 
       try {
         if (!item.isAdjustmentLayer) {
-          effectManager.applyAll(node, item.effects, item)
+          const fx = { ...item.effects }
+          delete fx.rgbSplit
+          effectManager.applyAll(node, fx, item)
         }
       } catch (error) {
         console.warn('[canvas image] failed to apply effects', {
@@ -391,6 +393,7 @@ function CanvasImage({
       draggable={!item.cropEnabled && !item.locked && !disableDrag}
       opacity={item.opacity ?? 1}
       visible={item.visible !== false}
+      globalCompositeOperation={item.blendMode && item.blendMode !== 'source-over' ? item.blendMode : undefined}
       dragBoundFunc={(pos) => getClampedCanvasPosition(sizeRef.current.w, sizeRef.current.h, pos, canvasBounds)}
       onClick={(e)  => onSelect(e, item.id)}
       onTap={(e)    => onSelect(e, item.id)}
@@ -580,6 +583,7 @@ export default React.memo(CanvasImage, (prev, next) => {
     && prev.item.w === next.item.w && prev.item.h === next.item.h
     && prev.item.rotation === next.item.rotation
     && prev.item.opacity === next.item.opacity
+    && prev.item.blendMode === next.item.blendMode
     && prev.item.visible === next.item.visible
     && prev.item.locked === next.item.locked
     && prev.item.radius === next.item.radius

@@ -9,7 +9,7 @@ export const EFFECT_CATEGORIES = [
 
 // Effect IDs yang dilarang untuk adjustment layer
 export const ADJUSTMENT_RESTRICTED_EFFECTS = new Set([
-  'repeater', 'chromaKey', 'lumaKey', 'spotColor',
+  'repeater', 'chromaKey', 'lumaKey', 'spotColor', 'maskFade', 'roughenEdge', 'feather', 'letterSpacing', 'curve', 'stretch',
 ])
 
 export const EFFECTS = [

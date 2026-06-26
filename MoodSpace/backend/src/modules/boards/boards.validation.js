@@ -48,6 +48,16 @@ export const addBoardItemSchema = z.object({
   query: z.object({}).optional(),
 })
 
+export const updateBoardSchema = z.object({
+  params: z.object({ id: uuid }),
+  body: z.object({
+    name: z.string().trim().min(1).max(120).optional(),
+    description: z.string().trim().max(1000).nullable().optional(),
+    visibility: z.enum(['private', 'public']).optional(),
+  }),
+  query: z.object({}).optional(),
+})
+
 export const boardItemIdSchema = z.object({
   params: z.object({ id: uuid, itemId: uuid }),
   body: z.object({}).optional(),
