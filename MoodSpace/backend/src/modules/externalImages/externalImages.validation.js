@@ -13,6 +13,7 @@ export const externalImageSearchSchema = z.object({
     visualType: z.enum(['poster', 'backdrop']).optional(),
     includeRecommendations: z.coerce.boolean().optional(),
     visualSimilarTo: z.string().trim().max(240).optional(),
+    semanticText: z.string().trim().max(500).optional(),
   }),
   params: z.object({}).optional(),
   body: z.object({}).optional(),

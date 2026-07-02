@@ -7,6 +7,7 @@ export const searchQuerySchema = z.object({
     sort: z.enum(['relevance', 'recent', 'popular']).optional().default('relevance'),
     limit: z.coerce.number().int().min(1).max(50).optional().default(30),
     offset: z.coerce.number().int().min(0).max(1000).optional().default(0),
+    semantic: z.coerce.boolean().optional().default(false),
   }),
   params: z.object({}).optional(),
   body: z.object({}).optional(),

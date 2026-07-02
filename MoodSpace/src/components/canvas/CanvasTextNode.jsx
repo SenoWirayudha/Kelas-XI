@@ -466,9 +466,20 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           decoration: run.underline ? 'underline' : 'none',
           fill: run.fill || gradientProps.fill || item.fill || '#2b2830',
           key: `${runIdx}_${i}`,
+          isPrefix: !!run.isPrefix,
+          align: run.align || null,
         })
       }
     })
+
+    const isLeftAlign = (item.align || 'center') === 'left'
+    const prefixWidth = (() => {
+      if (!isLeftAlign) return 0
+      const prefixRun = displayRuns.find(r => r.isPrefix)
+      if (!prefixRun) return 0
+      ctx.font = `normal ${fs}px ${item.fontFamily || 'Inter, Arial'}`
+      return measureRun(prefixRun.text)
+    })()
 
     const segments = []
     let x = 0
@@ -483,7 +494,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       const charW = measureRun(run.text)
       if (x + charW > maxW && x > 0) {
         y += lineHeight
-        x = 0
+        x = isLeftAlign ? prefixWidth : 0
       }
       segments.push({ x, y, text: run.text, w: charW, ...run, line: y })
       x += charW + lsp
@@ -491,36 +502,63 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     const totalH = y + lineHeight
     runsLayoutRef.current = { height: totalH }
 
-    // Second pass: align each line
-    const align = item.align || 'center'
+    // Second pass: align each line — prefix anchors at 0, content moves within remaining space
     const lineMap = new Map()
     segments.forEach(s => {
-      if (!lineMap.has(s.line)) lineMap.set(s.line, { items: [], totalW: 0 })
-      const entry = lineMap.get(s.line)
-      entry.items.push(s)
-      entry.totalW += s.w
+      if (!lineMap.has(s.line)) lineMap.set(s.line, { items: [] })
+      lineMap.get(s.line).items.push(s)
     })
     const nodes = []
     lineMap.forEach(line => {
-      const totalW = line.items.reduce((sum, s, i) => sum + s.w + (i < line.items.length - 1 ? lsp : 0), 0)
-      let offset
-      if (align === 'left') {
-        offset = 0
-      } else if (align === 'right') {
-        offset = Math.max(0, maxW - totalW)
-      } else {
-        offset = Math.max(0, (maxW - totalW) / 2)
+      const prefixSegments = line.items.filter(s => s.isPrefix)
+      const contentSegments = line.items.filter(s => !s.isPrefix)
+      // Per-line alignment: from first content segment's align, else fall back to item.align
+      const lineAlign = contentSegments.length > 0 && contentSegments[0].align
+        ? contentSegments[0].align
+        : (item.align || 'center')
+
+      if (prefixSegments.length === 0 || contentSegments.length === 0) {
+        // No list line — use full-line alignment
+        const totalW = line.items.reduce((sum, s, i) => sum + s.w + (i < line.items.length - 1 ? lsp : 0), 0)
+        let offset
+        if (lineAlign === 'left') offset = 0
+        else if (lineAlign === 'right') offset = Math.max(0, maxW - totalW)
+        else offset = Math.max(0, (maxW - totalW) / 2)
+        line.items.forEach(s => {
+          nodes.push(renderText(s, s.x + offset, s.y))
+        })
+        return
       }
-      line.items.forEach(s => {
-        nodes.push(
-          <Text key={s.key} x={s.x + offset} y={s.y} text={s.text} width={s.w + 2}
-            fontSize={fs} fontFamily={s.fontFamily} fontStyle={s.fontStyle}
-            textDecoration={s.decoration} fill={s.fill}
-            wrap="none"
-            lineJoin={hasStroke ? 'round' : 'miter'} miterLimit={hasStroke ? 2 : 10} perfectDrawEnabled={false} listening={false} />
-        )
-      })
+
+      // Compute content start position within remaining space after prefix
+      const prefixTotalW = prefixSegments.reduce((sum, s, i) => sum + s.w + (i < prefixSegments.length - 1 ? lsp : 0), 0)
+      const contentTotalW = contentSegments.reduce((sum, s, i) => sum + s.w + (i < contentSegments.length - 1 ? lsp : 0), 0)
+      const availableW = maxW - prefixTotalW
+      let contentStartX
+      if (lineAlign === 'left') {
+        contentStartX = prefixTotalW
+      } else if (lineAlign === 'right') {
+        contentStartX = Math.max(prefixTotalW, maxW - contentTotalW)
+      } else {
+        contentStartX = prefixTotalW + Math.max(0, (availableW - contentTotalW) / 2)
+      }
+
+      // Render prefix at original x (anchored left)
+      prefixSegments.forEach(s => nodes.push(renderText(s, s.x, s.y)))
+      // Render content offset within the remaining space
+      const firstX = contentSegments[0].x
+      contentSegments.forEach(s => nodes.push(renderText(s, contentStartX + (s.x - firstX), s.y)))
     })
+
+    function renderText(s, x, y) {
+      return (
+        <Text key={s.key} x={x} y={y} text={s.text} width={s.w + 2}
+          fontSize={fs} fontFamily={s.fontFamily} fontStyle={s.fontStyle}
+          textDecoration={s.decoration} fill={s.fill}
+          wrap="none"
+          lineJoin={hasStroke ? 'round' : 'miter'} miterLimit={hasStroke ? 2 : 10} perfectDrawEnabled={false} listening={false} />
+      )
+    }
     return nodes
   }, [displayRuns, isMultiRun, hasCurve, item.fontSize, item.fontFamily, item.fill, displayWidth, letterSpacing, hasEffects, gradientProps.fill, fontLoaded, item.align])
 

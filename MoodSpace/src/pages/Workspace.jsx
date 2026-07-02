@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Konva from 'konva'
 import {
@@ -867,7 +867,18 @@ function DefaultItemRenderer({ item, commonProps }) {
   )
 }
 
-function CanvasItem({ item, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false, fontInjectVersion }) {
+const CanvasItemComparitor = (prev, next) => {
+  if (prev.item !== next.item) return false
+  if (prev.selectedId !== next.selectedId) return false
+  if (prev.selectedIds !== next.selectedIds) return false
+  if (prev.isTextEditing !== next.isTextEditing) return false
+  if (prev.disableDrag !== next.disableDrag) return false
+  if (prev.isShiftDown !== next.isShiftDown) return false
+  if (prev.isCropTarget !== next.isCropTarget) return false
+  if (prev.fontInjectVersion !== next.fontInjectVersion) return false
+  return true
+}
+const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false, fontInjectVersion }) {
   const sizeRef = useRef({ w: item.w, h: item.h })
   const compositeOperation = allowComposite
     ? getItemCompositeOperation(item)
@@ -944,7 +955,7 @@ function CanvasItem({ item, items, selectedId, selectedIds, onSelect, onChange, 
       fontInjectVersion={fontInjectVersion}
     />
   )
-}
+})
 
 const drawCompositeMaskPath = (ctx, item) => {
   if (!item) return
@@ -1344,15 +1355,31 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode }) {
   )
 }
 
-function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion }) {
+const CompositeCanvasGroupMemoComparitor = (prev, next) => {
+  if (prev.entry !== next.entry) return false
+  if (prev.selectedId !== next.selectedId) return false
+  if (prev.selectedIds !== next.selectedIds) return false
+  if (prev.isTextEditing !== next.isTextEditing) return false
+  if (prev.disableDrag !== next.disableDrag) return false
+  if (prev.isShiftDown !== next.isShiftDown) return false
+  if (prev.cropSession !== next.cropSession) return false
+  if (prev.canvasSize !== next.canvasSize) return false
+  if (prev.fontInjectVersion !== next.fontInjectVersion) return false
+  return true
+}
+const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion, getItemsVisualBounds, getSnappedDelta, setAlignmentGuides, skipGroupDragEndRef, selectedIdsRef, multiDragRef }) {
   const groupRef = useRef(null)
   const dragStartRef = useRef(null)
+  const snapResultRef = useRef(null)
+  const alignmentGuidesFrameRef = useRef(null)
   const sourceItem = entry.members.find((item) => item.id === entry.operatorId)
   const destinationItems = entry.members.filter((item) => item.id !== entry.operatorId)
   const orderedDestinationItems = [...destinationItems].reverse()
   const sourceMode = sourceItem?.compositeMode
   const isGroupLocked = entry.members.every((item) => item.locked)
   const isCompositeSelected = entry.members.some((item) => selectedIds?.includes(item.id) || selectedId === item.id)
+  const externalSel = selectedIdsRef?.current || selectedIds
+  const hasExternalSelection = externalSel?.length > 0 && externalSel.some((sid) => !entry.members.some((m) => m.id === sid))
   const groupBounds = entry.members.reduce((bounds, item) => {
     const itemBounds = getCompositeItemBounds(item)
     const { left, top, right, bottom } = itemBounds
@@ -1396,39 +1423,128 @@ function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect,
     if (sourceItem) onSelect(event, sourceItem.id)
   }
 
+  const computeGroupSnap = (rawDx, rawDy) => {
+    const start = dragStartRef.current
+    if (!start) return null
+    // Snap pakai union bounds semua member — konsisten dengan Transformer bounding box
+    const baseBounds = getItemsVisualBounds(entry.members.map((item) => {
+      const pos = start.positions[item.id]
+      return { ...item, x: pos?.x ?? item.x ?? 0, y: pos?.y ?? item.y ?? 0 }
+    }))
+    if (!baseBounds) return null
+    return getSnappedDelta(entry.members.map((m) => m.id), baseBounds, rawDx, rawDy)
+  }
+
   const handleGroupDragStart = (event) => {
     event.cancelBubble = true
+    // Detect seletion dari ref (synchronous) — cari item di luar composite group
+    const currentSelectedIds = selectedIdsRef?.current || selectedIds || []
+    const externalIds = currentSelectedIds.filter((sid) => !entry.members.some((m) => m.id === sid))
+    // Ambil posisi ALL selected items (composite members + external items)
+    const memberPositions = Object.fromEntries(entry.members.map((item) => [item.id, { x: item.x || 0, y: item.y || 0 }]))
+    const externalPositions = externalIds.length > 0
+      ? Object.fromEntries(
+          externalIds.map((sid) => {
+            const item = itemsRef.current.find((i) => i.id === sid)
+            return [sid, { x: item?.x || 0, y: item?.y || 0 }]
+          })
+        )
+      : {}
+    // Sync selection
+    if (!isCompositeSelected && sourceItem) {
+      onSelect(event, sourceItem.id)
+    }
     dragStartRef.current = {
       x: event.target.x(),
       y: event.target.y(),
-      positions: Object.fromEntries(entry.members.map((item) => [item.id, { x: item.x || 0, y: item.y || 0 }])),
+      startTime: Date.now(),
+      moveCount: 0,
+      positions: { ...memberPositions, ...externalPositions },
     }
+    snapResultRef.current = null
     onCursor('move')
   }
 
   const handleGroupDragMove = (event) => {
     event.cancelBubble = true
+    if (!dragStartRef.current) return
     onSyncTransformer?.()
+    const start = dragStartRef.current
+    if (start) {
+      start.moveCount = (start.moveCount || 0) + 1
+      const rawDx = event.target.x() - start.x
+      const rawDy = event.target.y() - start.y
+      const result = computeGroupSnap(rawDx, rawDy)
+      if (result) {
+        snapResultRef.current = result
+        setAlignmentGuides(result.guides)
+      }
+    }
     groupRef.current?.getLayer()?.batchDraw()
   }
 
   const handleGroupDragEnd = (event) => {
     event.cancelBubble = true
+    if (!dragStartRef.current) return
+    // Skip jika handleObjectDragEnd sudah handle semua (multi-drag source bukan composite)
+    if (skipGroupDragEndRef?.current) return
     const start = dragStartRef.current
-    dragStartRef.current = null
-    const dx = event.target.x() - (start?.x || 0)
-    const dy = event.target.y() - (start?.y || 0)
+    // Log metrics di handleGroupDragEnd
+    if (start) {
+      console.log('[DragEndMetrics-group]', {
+        timestamp: Date.now(),
+        groupId: entry.groupId,
+        isSkipped: skipGroupDragEndRef?.current,
+        dragDurationMs: Date.now() - (start.startTime || Date.now()),
+        moveCount: start.moveCount || 0,
+        rawDx: event.target.x() - start.x,
+        rawDy: event.target.y() - start.y,
+        zoomLevel: canvasSize.height ? 1 : 1,
+      })
+    }
+    const rawDx = event.target.x() - (start?.x || 0)
+    const rawDy = event.target.y() - (start?.y || 0)
+    const result = start ? computeGroupSnap(rawDx, rawDy) : null
+    console.log('[GroupSnapEnd]', { rawDx, rawDy, result: result ? { dx: result.dx, dy: result.dy, snapped: result.snapped, guideCount: result.guides?.length } : null, finalDx: result?.dx ?? rawDx, finalDy: result?.dy ?? rawDy })
+    const dx = result?.dx ?? rawDx
+    const dy = result?.dy ?? rawDy
     event.target.position({ x: 0, y: 0 })
+    setAlignmentGuides([])
+    dragStartRef.current = null
+    snapResultRef.current = null
+    cancelAnimationFrame(alignmentGuidesFrameRef.current)
+    alignmentGuidesFrameRef.current = null
     if (!start || (!dx && !dy)) {
       groupRef.current?.clearCache()
       groupRef.current?.getLayer()?.batchDraw()
       onCursor('default')
       return
     }
-    entry.members.forEach((item) => {
-      const pos = start.positions[item.id]
-      if (!pos || item.locked) return
-      onChange(item.id, { x: pos.x + dx, y: pos.y + dy })
+    // Jika multiDragRef aktif (drag via child), handleObjectDragEnd handle external items
+    // Jika tidak aktif (drag via Group Rect), kita handle ALL items
+    const entriesToWrite = multiDragRef?.current
+      ? Object.entries(start.positions).filter(([id]) => entry.members.some((m) => m.id === id))
+      : Object.entries(start.positions)
+    entriesToWrite.forEach(([itemId, pos]) => {
+      const item = entry.members.find((m) => m.id === itemId) || itemsRef.current.find((i) => i.id === itemId) || items.find((i) => i.id === itemId)
+      if (!item || item.locked) return
+      const newX = pos.x + dx
+      const newY = pos.y + dy
+      console.log('[DragEndDebug]', {
+        location: 'handleGroupDragEnd',
+        groupId: entry.groupId,
+        memberId: itemId,
+        oldX: item.x,
+        oldY: item.y,
+        startX: pos.x,
+        startY: pos.y,
+        dx,
+        dy,
+        newX,
+        newY,
+        source: multiDragRef?.current ? 'compositeOnly (multiDragRef active)' : 'allItems (no multiDragRef)',
+      })
+      onChange(itemId, { x: newX, y: newY })
     })
     requestAnimationFrame(() => {
       groupRef.current?.clearCache()
@@ -1437,6 +1553,11 @@ function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect,
     })
     onCursor('default')
   }
+
+  // Cleanup RAF on unmount (prevents setState on unmounted component from stale RAF)
+  useEffect(() => {
+    return () => cancelAnimationFrame(alignmentGuidesFrameRef.current)
+  }, [])
 
   return (
     <Group
@@ -1550,7 +1671,7 @@ function CompositeCanvasGroup({ entry, items, selectedId, selectedIds, onSelect,
       )}
     </Group>
   )
-}
+})
 
 const ADJUSTMENT_PRESETS = [
   {
@@ -1711,6 +1832,7 @@ function Workspace() {
   })
   const [selectionBox, setSelectionBox] = useState(null)
   const [alignmentGuides, setAlignmentGuides] = useState([])
+  useEffect(() => { selectedIdsRef.current = selectedIds }, [selectedIds])
   const [connectorTool, setConnectorTool] = useState(null)
   const [connectorDraft, setConnectorDraft] = useState(null)
   const [editingText, setEditingText] = useState(null)
@@ -2500,10 +2622,18 @@ function Workspace() {
   const wheelPanClampTimerRef = useRef(null)
   const wheelPanFrameRef = useRef(null)
   const wheelPanDeltaRef = useRef({ x: 0, y: 0 })
+  const wheelZoomAccumRef = useRef(null)
+  const wheelZoomFrameRef = useRef(null)
+  const mousePanAccumRef = useRef(null)
+  const mousePanFrameRef = useRef(null)
+  const touchPinchAccumRef = useRef(null)
+  const touchPinchFrameRef = useRef(null)
   const hasCenteredCameraRef = useRef(false)
   const imageMetadataRef = useRef(new Map())
   const activeObjectDragRef = useRef(null)
   const multiDragRef = useRef(null)
+  const skipGroupDragEndRef = useRef(false)
+  const selectedIdsRef = useRef(selectedIds)
   const selectionBoxRef = useRef(null)
   const clipboardRef = useRef([])
   const itemsRef = useRef(initialItems)
@@ -2596,8 +2726,8 @@ function Workspace() {
   const renderedCompositeGroupsRef = useRef(new Set())
   const cropActiveItem = useMemo(() => items.find((item) => item.id === cropSession?.itemId), [cropSession?.itemId, items])
   const cropOverlayImage = useCanvasImage(cropActiveItem?.src)
-  canvasSize = { width: canvasSettings.width, height: canvasSettings.height }
-  canvasBounds = { x: 0, y: 0, width: canvasSettings.width, height: canvasSettings.height }
+  canvasSize = useMemo(() => ({ width: canvasSettings.width, height: canvasSettings.height }), [canvasSettings.width, canvasSettings.height])
+  canvasBounds = useMemo(() => ({ x: 0, y: 0, width: canvasSettings.width, height: canvasSettings.height }), [canvasSettings.width, canvasSettings.height])
   const workspaceGridLines = useMemo(() => buildWorkspaceGridLines(virtualWorkspace), [])
   const canvasGridLines = useMemo(
     () => getDynamicGridLines(canvasSize, canvasSettings.gridVertical, canvasSettings.gridHorizontal),
@@ -3996,6 +4126,15 @@ function Workspace() {
     if (wheelPanFrameRef.current) {
       cancelAnimationFrame(wheelPanFrameRef.current)
     }
+    if (wheelZoomFrameRef.current) {
+      cancelAnimationFrame(wheelZoomFrameRef.current)
+    }
+    if (mousePanFrameRef.current) {
+      cancelAnimationFrame(mousePanFrameRef.current)
+    }
+    if (touchPinchFrameRef.current) {
+      cancelAnimationFrame(touchPinchFrameRef.current)
+    }
   }, [])
 
   useEffect(() => {
@@ -4285,31 +4424,25 @@ const attachTransformer = useCallback((idOrIds) => {
     return
   }
 
-  const selectedGroupIds = Array.from(new Set(ids.map((id) => itemsRef.current.find((item) => item.id === id)?.groupId).filter(Boolean)))
-  if (selectedGroupIds.length === 1) {
-    const groupId = selectedGroupIds[0]
-    const groupMembers = itemsRef.current.filter((item) => item.groupId === groupId)
-    const isCompositeGroup = groupMembers.some((item) => item.compositeMode === 'mask' || item.compositeMode === 'exclude')
-    if (isCompositeGroup) {
-      const compositeNode = stageRef.current.findOne(`#composite-${groupId}`)
-      if (compositeNode) {
-        transformerRef.current.nodes([compositeNode])
-        transformerRef.current.forceUpdate?.()
-        transformerRef.current.getLayer()?.batchDraw()
-        return
-      }
-    }
-  }
+  // Collect composite group nodes + individual item nodes together
+  const seenGroups = new Set()
+  const nodes = []
 
-  const nodes = ids
-    .map((id) => {
+  ids.forEach((id) => {
+    const info = getCompositeInfoForItemId(id)
+    if (info && !seenGroups.has(info.groupId)) {
+      seenGroups.add(info.groupId)
+      const groupNode = stageRef.current?.findOne(`#composite-${info.groupId}`)
+      if (groupNode) nodes.push(groupNode)
+    } else if (!info) {
+      const itemNode = stageRef.current?.findOne(`[id="${id}"]`) || stageRef.current?.findOne(`#${id}`)
       const item = itemsRef.current.find((candidate) => candidate.id === id)
-      const node = stageRef.current.findOne(`[id="${id}"]`) || stageRef.current.findOne(`#${id}`)
-      return node && item?.kind !== 'connector' ? node : null
-    })
-    .filter(Boolean)
+      if (itemNode && item?.kind !== 'connector') nodes.push(itemNode)
+    }
+  })
 
   transformerRef.current.nodes(nodes)
+  transformerRef.current.forceUpdate?.()
   transformerRef.current.getLayer()?.batchDraw()
 }, [])
 
@@ -4717,8 +4850,35 @@ const attachTransformer = useCallback((idOrIds) => {
   const alignCanvasItems = useCallback((alignment) => {
     const ids = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
     if (!ids.length) return
+    const compositeDeltas = new Map()
+    const compositeGroups = new Map()
+    ids.forEach((id) => {
+      const item = itemsRef.current.find((c) => c.id === id)
+      if (!item?.groupId) return
+      if (compositeGroups.has(item.groupId)) return
+      const members = itemsRef.current.filter((c) => c.groupId === item.groupId)
+      const isComposite = members.some((m) => m.compositeMode === 'mask' || m.compositeMode === 'exclude')
+      if (!isComposite) return
+      compositeGroups.set(item.groupId, members)
+      const groupBounds = getItemsVisualBounds(members)
+      if (!groupBounds) return
+      let dx = 0, dy = 0
+      switch (alignment) {
+        case 'left':   dx = canvasBounds.x - groupBounds.left; break
+        case 'right':  dx = (canvasBounds.x + canvasBounds.width) - groupBounds.right; break
+        case 'center': dx = (canvasBounds.x + canvasBounds.width / 2) - groupBounds.centerX; break
+        case 'top':    dy = canvasBounds.y - groupBounds.top; break
+        case 'bottom': dy = (canvasBounds.y + canvasBounds.height) - groupBounds.bottom; break
+        case 'middle': dy = (canvasBounds.y + canvasBounds.height / 2) - groupBounds.centerY; break
+      }
+      members.forEach((m) => compositeDeltas.set(m.id, { dx, dy }))
+    })
     setItems((current) => current.map((item) => {
       if (!ids.includes(item.id)) return item
+      const compositeDelta = compositeDeltas.get(item.id)
+      if (compositeDelta) {
+        return { ...item, x: (item.x || 0) + compositeDelta.dx, y: (item.y || 0) + compositeDelta.dy }
+      }
       const bounds = getItemVisualBounds(item)
       switch (alignment) {
         case 'left':   return { ...item, x: (item.x || 0) + canvasBounds.x - bounds.left }
@@ -5057,6 +5217,22 @@ const attachTransformer = useCallback((idOrIds) => {
       const oldItem = itemsRef.current.find((i) => i.id === id)
       if (oldItem?.src?.startsWith('blob:') && oldItem.src !== patch.src) {
         URL.revokeObjectURL(oldItem.src)
+      }
+    }
+    const currentItem = itemsRef.current.find((i) => i.id === id)
+    if (patch.x !== undefined || patch.y !== undefined) {
+      const compositeInfo = getCompositeInfoForItemId(id)
+      if (compositeInfo) {
+        console.log('[DragEndDebug]', {
+          location: 'updateItem (final write)',
+          groupId: compositeInfo.groupId,
+          memberId: id,
+          oldX: currentItem?.x,
+          oldY: currentItem?.y,
+          patchX: patch.x,
+          patchY: patch.y,
+          source: 'updateItem → onChange dari mana pun',
+        })
       }
     }
     setItems((current) => current.map((item) => {
@@ -5882,6 +6058,34 @@ const attachTransformer = useCallback((idOrIds) => {
       centerX: left + (right - left) / 2,
       centerY: top + (bottom - top) / 2,
     }
+  }
+
+  // === Composite Group Interaction Utilities ===
+  const getCompositeGroupInfo = (groupId) => {
+    if (!groupId) return null
+    const members = itemsRef.current.filter((item) => item.groupId === groupId)
+    if (members.length < 2) return null
+    const isComposite = members.some((item) => item.compositeMode === 'mask' || item.compositeMode === 'exclude')
+    return isComposite ? { groupId, members } : null
+  }
+
+  const getCompositeInfoForItemId = (itemId) => {
+    const item = itemsRef.current.find((c) => c.id === itemId)
+    if (!item?.groupId) return null
+    return getCompositeGroupInfo(item.groupId)
+  }
+
+  const getInteractionBounds = (itemId) => {
+    const info = getCompositeInfoForItemId(itemId)
+    if (info) return getItemsVisualBounds(info.members)
+    const item = itemsRef.current.find((c) => c.id === itemId)
+    return item ? getItemVisualBounds(item) : null
+  }
+
+  const getInteractionNode = (itemId) => {
+    const info = getCompositeInfoForItemId(itemId)
+    if (info) return stageRef.current?.findOne(`#composite-${info.groupId}`)
+    return stageRef.current?.findOne(`#${itemId}`) || stageRef.current?.findOne(`[id="${itemId}"]`)
   }
 
   // Drag & drop handler for layers panel
@@ -7270,6 +7474,9 @@ const attachTransformer = useCallback((idOrIds) => {
     multiDragRef.current = {
       id,
       start: { x: event.target.x(), y: event.target.y() },
+      startTime: Date.now(),
+      moveCount: 0,
+      snapWasActive: false,
       positions: Object.fromEntries(
         itemsRef.current
           .filter((item) => activeSelection.includes(item.id))
@@ -7286,24 +7493,38 @@ const attachTransformer = useCallback((idOrIds) => {
     const dragSession = multiDragRef.current
     if (!dragSession || dragSession.id !== id) return
 
+    dragSession.moveCount = (dragSession.moveCount || 0) + 1
+
     const movingIds = Object.keys(dragSession.positions)
     const movingItems = itemsRef.current.filter((item) => movingIds.includes(item.id))
     const baseBounds = getItemsVisualBounds(movingItems.map((item) => ({ ...item, ...dragSession.positions[item.id] })))
     const rawDx = event.target.x() - dragSession.start.x
     const rawDy = event.target.y() - dragSession.start.y
     const snapped = getSnappedDelta(movingIds, baseBounds, rawDx, rawDy)
+    dragSession.snapWasActive = snapped.snapped
 
     if (movingIds.length === 1 && !snapped.snapped) {
       setAlignmentGuides(snapped.guides)
       return
     }
 
+    const processedGroups = new Set()
     movingIds.forEach((movingId) => {
       const startPosition = dragSession.positions[movingId]
-      const node = stageRef.current?.findOne(`[id="${movingId}"]`) || stageRef.current?.findOne(`#${movingId}`)
       const item = itemsRef.current.find((current) => current.id === movingId)
-      if (!node || !item || !startPosition) return
+      if (!item || !startPosition) return
 
+      const compositeInfo = getCompositeInfoForItemId(movingId)
+      if (compositeInfo) {
+        if (processedGroups.has(compositeInfo.groupId)) return
+        processedGroups.add(compositeInfo.groupId)
+        const groupNode = getInteractionNode(movingId)
+        if (groupNode) groupNode.position({ x: snapped.dx, y: snapped.dy })
+        return
+      }
+
+      const node = getInteractionNode(movingId)
+      if (!node) return
       const nextPosition = getClampedCanvasPosition(item.w || 1, item.h || 1, {
         x: startPosition.x + snapped.dx,
         y: startPosition.y + snapped.dy,
@@ -7334,14 +7555,100 @@ const attachTransformer = useCallback((idOrIds) => {
 
     if (dragSession && Object.keys(dragSession.positions).length > 1) {
       const movingIds = Object.keys(dragSession.positions)
-      setItems((current) => current.map((currentItem) => {
-        if (!movingIds.includes(currentItem.id)) return currentItem
-        const movedNode = stageRef.current?.findOne(`[id="${currentItem.id}"]`) || stageRef.current?.findOne(`#${currentItem.id}`)
-        if (!movedNode) return currentItem
-        const clamped = getClampedCanvasPosition(currentItem.w || 1, currentItem.h || 1, { x: movedNode.x(), y: movedNode.y() }, canvasBounds)
-        return { ...currentItem, ...clamped }
-      }))
-      requestAnimationFrame(() => attachTransformer(movingIds))
+
+      // Detect apakah drag source adalah composite group member
+      // Jika ya, handleGroupDragEnd juga akan fire → skip composite members di sini
+      // Jika tidak, handleGroupDragEnd tidak fire → kita handle semua items
+      const isDraggingCompositeSource = !!getCompositeInfoForItemId(id)
+
+      // Log drag metrics untuk debugging intermittent bug
+      console.log('[DragEndMetrics]', {
+        timestamp: Date.now(),
+        dragSourceId: id,
+        isDraggingCompositeSource,
+        movingCount: movingIds.length,
+        compositeMembersInSelection: movingIds.filter((mid) => getCompositeInfoForItemId(mid)).length,
+        dragDurationMs: Date.now() - (dragSession.startTime || Date.now()),
+        moveCount: dragSession.moveCount || 0,
+        snapWasActive: dragSession.snapWasActive,
+        zoomLevel: cameraRef.current?.scale || 1,
+        mousePos: { x: event.evt?.clientX, y: event.evt?.clientY },
+        rawDx: event.target.x() - (dragSession.start?.x || 0),
+        rawDy: event.target.y() - (dragSession.start?.y || 0),
+        hasMultipleCompositeGroups: [...new Set(movingIds.map((mid) => getCompositeInfoForItemId(mid)?.groupId).filter(Boolean))].length > 1,
+      })
+
+      // Canary: memberitahu handleGroupDragEnd agar skip update (prevent double-write)
+      skipGroupDragEndRef.current = !isDraggingCompositeSource
+
+      if (isDraggingCompositeSource) {
+        // Hanya update regular items — composite members di-handle oleh handleGroupDragEnd
+        setItems((current) => current.map((currentItem) => {
+          if (!movingIds.includes(currentItem.id)) return currentItem
+          if (getCompositeInfoForItemId(currentItem.id)) {
+            console.log('[DragEndDebug]', { location: 'handleObjectDragEnd.isDraggingComposite.skip', memberId: currentItem.id, reason: 'handleGroupDragEnd akan handle', oldX: currentItem.x, oldY: currentItem.y })
+            return currentItem
+          }
+          const movedNode = getInteractionNode(currentItem.id)
+          if (!movedNode) return currentItem
+          const clamped = getClampedCanvasPosition(currentItem.w || 1, currentItem.h || 1, { x: movedNode.x(), y: movedNode.y() }, canvasBounds)
+          return { ...currentItem, ...clamped }
+        }))
+      } else {
+        // Baca group deltas SEKALIGUS sebelum setItems (hindari stale read setelah reset)
+        const groupDeltas = new Map()
+        movingIds.forEach((movingId) => {
+          const info = getCompositeInfoForItemId(movingId)
+          if (info && !groupDeltas.has(info.groupId)) {
+            const groupNode = getInteractionNode(movingId)
+            if (groupNode) {
+              groupDeltas.set(info.groupId, { x: groupNode.x(), y: groupNode.y() })
+              groupNode.position({ x: 0, y: 0 })
+            }
+          }
+        })
+
+        setItems((current) => current.map((currentItem) => {
+          if (!movingIds.includes(currentItem.id)) return currentItem
+
+          const compositeInfo = getCompositeInfoForItemId(currentItem.id)
+          if (compositeInfo) {
+            const delta = groupDeltas.get(compositeInfo.groupId)
+            if (!delta) return currentItem
+            const startPos = dragSession.positions[currentItem.id]
+            if (!startPos) return currentItem
+            const newX = startPos.x + delta.x
+            const newY = startPos.y + delta.y
+            const clamped = getClampedCanvasPosition(currentItem.w || 1, currentItem.h || 1, {
+              x: newX,
+              y: newY,
+            }, canvasBounds)
+            console.log('[DragEndDebug]', {
+              location: 'handleObjectDragEnd.multiSelect.noCompositeSource',
+              groupId: compositeInfo.groupId,
+              memberId: currentItem.id,
+              oldX: currentItem.x,
+              oldY: currentItem.y,
+              startX: startPos.x,
+              startY: startPos.y,
+              deltaX: delta.x,
+              deltaY: delta.y,
+              newX: clamped.x,
+              newY: clamped.y,
+              source: 'startPos + groupNodePosition(dari dragMove)',
+            })
+            return { ...currentItem, ...clamped }
+          }
+
+          const movedNode = getInteractionNode(currentItem.id)
+          if (!movedNode) return currentItem
+          const clamped = getClampedCanvasPosition(currentItem.w || 1, currentItem.h || 1, { x: movedNode.x(), y: movedNode.y() }, canvasBounds)
+          return { ...currentItem, ...clamped }
+        }))
+      }
+
+      // Clear di RAF — pastikan handleGroupDragEnd (event bubble) sudah sempat cek canary
+      requestAnimationFrame(() => { skipGroupDragEndRef.current = false; attachTransformer(movingIds) })
       return
     }
 
@@ -7775,6 +8082,22 @@ const handleFrameImageEdit = (id, slotIdx = 0) => {
   }
 
 const beginPan = (event) => {
+  // Cancel pending wheel zoom RAF — pan should take priority
+  if (wheelZoomFrameRef.current) {
+    cancelAnimationFrame(wheelZoomFrameRef.current)
+    wheelZoomFrameRef.current = null
+  }
+  wheelZoomAccumRef.current = null
+  if (wheelPanFrameRef.current) {
+    cancelAnimationFrame(wheelPanFrameRef.current)
+    wheelPanFrameRef.current = null
+  }
+  wheelPanDeltaRef.current = { x: 0, y: 0 }
+  if (wheelPanClampTimerRef.current) {
+    window.clearTimeout(wheelPanClampTimerRef.current)
+    wheelPanClampTimerRef.current = null
+  }
+
   const stage = stageRef.current
   const pointer = stage?.getPointerPosition()
 
@@ -7956,15 +8279,36 @@ const handleStageMouseMove = (e) => {
   if (!session || !pointer) return
   if (!session.isTouchPan && !canPanCamera(session.camera)) return
 
-  const nextCamera = {
-    ...session.camera,
-    x: session.camera.x + pointer.x - session.pointer.x,
-    y: session.camera.y + pointer.y - session.pointer.y,
+  // RAF-coalesced mouse drag pan — accumulate latest pointer, apply 1× per frame
+  if (!mousePanAccumRef.current) {
+    mousePanAccumRef.current = {
+      baseCamera: { ...session.camera },
+      basePointer: { x: session.pointer.x, y: session.pointer.y },
+      currentPointer: { x: pointer.x, y: pointer.y },
+      isTouchPan: session.isTouchPan,
+    }
+  } else {
+    mousePanAccumRef.current.currentPointer = { x: pointer.x, y: pointer.y }
   }
-  const clamped = session.isTouchPan ? clampCameraToCanvas(nextCamera) : nextCamera
-  cameraRef.current = clamped
-  targetCameraRef.current = clamped
-  setCamera(clamped)
+
+  if (!mousePanFrameRef.current) {
+    mousePanFrameRef.current = requestAnimationFrame(() => {
+      mousePanFrameRef.current = null
+      const accum = mousePanAccumRef.current
+      mousePanAccumRef.current = null
+      if (!accum) return
+
+      const nextCamera = {
+        ...accum.baseCamera,
+        x: accum.baseCamera.x + accum.currentPointer.x - accum.basePointer.x,
+        y: accum.baseCamera.y + accum.currentPointer.y - accum.basePointer.y,
+      }
+      const clamped = accum.isTouchPan ? clampCameraToCanvas(nextCamera) : nextCamera
+      cameraRef.current = clamped
+      targetCameraRef.current = clamped
+      setCamera(clamped)
+    })
+  }
 }
 
 const handleStageMouseUp = (event) => {
@@ -8025,6 +8369,13 @@ const handleStageMouseUp = (event) => {
 const endPan = () => {
   setAlignmentGuides([])
   if (!panSessionRef.current) return
+
+  // Cancel pending mouse pan RAF so final clamp is accurate
+  if (mousePanFrameRef.current) {
+    cancelAnimationFrame(mousePanFrameRef.current)
+    mousePanFrameRef.current = null
+  }
+  mousePanAccumRef.current = null
 
   panSessionRef.current = null
   setIsPanning(false)
@@ -8203,6 +8554,9 @@ const handleWheel = (event) => {
       setCamera(centeredCamera)
       return
     }
+    // If a mouse/touch drag or pinch is active, skip wheel pan to avoid conflict
+    if (panSessionRef.current || pinchSessionRef.current || touchStartPosRef.current) return
+
     // Cancel any ongoing zoom animation so pan is immediate
     if (zoomAnimationRef.current) {
       cancelAnimationFrame(zoomAnimationRef.current)
@@ -8250,14 +8604,32 @@ const handleWheel = (event) => {
 
 
 
-  // Zoom: ctrlKey (pinch) or plain mouse wheel
-  const actualCamera = cameraRef.current
+  // Zoom: ctrlKey (pinch) or plain mouse wheel — RAF-coalesced
   const zoomIntensity = event.evt.ctrlKey ? 1.035 : zoomSpeed
-  const nextScale = Math.min(
-    maxZoom,
-    Math.max(minZoom, event.evt.deltaY < 0 ? actualCamera.scale * zoomIntensity : actualCamera.scale / zoomIntensity),
-  )
-  zoomCameraAtPoint(nextScale, pointer)
+  const factor = event.evt.deltaY < 0 ? zoomIntensity : 1 / zoomIntensity
+
+  // Accumulate scale factor across events within the same frame
+  const accum = wheelZoomAccumRef.current
+  if (accum) {
+    accum.scaleFactor *= factor
+  } else {
+    // Snap point on first event so zoom-toward-cursor anchor stays consistent
+    wheelZoomAccumRef.current = { scaleFactor: factor, point: { x: pointer.x, y: pointer.y } }
+  }
+
+  // RAF apply: only 1× per frame regardless of how many wheel events arrived
+  if (!wheelZoomFrameRef.current) {
+    wheelZoomFrameRef.current = requestAnimationFrame(() => {
+      wheelZoomFrameRef.current = null
+      const session = wheelZoomAccumRef.current
+      wheelZoomAccumRef.current = null
+      if (!session) return
+
+      const currentScale = cameraRef.current.scale
+      const nextScale = clamp(currentScale * session.scaleFactor, minZoom, maxZoom)
+      zoomCameraAtPoint(nextScale, session.point)
+    })
+  }
 }
 
 const getTouchDistance = (touches) => {
@@ -8281,32 +8653,39 @@ const handleStageTouchStart = (event) => {
   }
   const touches = event.evt.touches
   if (touches?.length === 2) {
+    // Cancel any in-flight wheel pan/zoom/pinch to prevent conflict
+    if (wheelPanFrameRef.current) {
+      cancelAnimationFrame(wheelPanFrameRef.current)
+      wheelPanFrameRef.current = null
+    }
+    wheelPanDeltaRef.current = { x: 0, y: 0 }
+    if (wheelPanClampTimerRef.current) {
+      window.clearTimeout(wheelPanClampTimerRef.current)
+      wheelPanClampTimerRef.current = null
+    }
+    if (wheelZoomFrameRef.current) {
+      cancelAnimationFrame(wheelZoomFrameRef.current)
+      wheelZoomFrameRef.current = null
+    }
+    wheelZoomAccumRef.current = null
+    if (touchPinchFrameRef.current) {
+      cancelAnimationFrame(touchPinchFrameRef.current)
+      touchPinchFrameRef.current = null
+    }
+    touchPinchAccumRef.current = null
     panSessionRef.current = null
+    touchStartPosRef.current = null
     setIsPanning(false)
+    const center = getTouchCenter(touches)
     pinchSessionRef.current = {
       distance: getTouchDistance(touches),
-      scale: cameraRef.current.scale,
+      center,
+      camera: { ...cameraRef.current },
     }
   } else if (isEmptyCanvasTarget(event.target)) {
     touchStartPosRef.current = stageRef.current?.getPointerPosition()
-    beginPan(event)
+    // 1 finger on empty canvas: no pan — tool mode only (brush/eraser/select)
   }
-}
-
-const doTouchPan = () => {
-  const stage = stageRef.current
-  const session = panSessionRef.current
-  const pointer = stage?.getPointerPosition()
-  if (!session || !pointer) return
-  const nextCamera = {
-    ...session.camera,
-    x: session.camera.x + pointer.x - session.pointer.x,
-    y: session.camera.y + pointer.y - session.pointer.y,
-  }
-  const clamped = clampCameraToCanvas(nextCamera)
-  cameraRef.current = clamped
-  targetCameraRef.current = clamped
-  setCamera(clamped)
 }
 
 const handleStageTouchMove = (event) => {
@@ -8316,17 +8695,54 @@ const handleStageTouchMove = (event) => {
   }
   const touches = event.evt.touches
   const pinchSession = pinchSessionRef.current
+
   if (touches?.length === 2 && pinchSession) {
     const nextDistance = getTouchDistance(touches)
-    if (pinchSession.distance && nextDistance) {
-      const nextScale = cameraRef.current.scale * (nextDistance / pinchSession.distance)
-      pinchSession.distance = nextDistance
-      pinchSession.scale = nextScale
-      zoomCameraAtPoint(nextScale, getTouchCenter(touches), { constrain: false })
+    const nextCenter = getTouchCenter(touches)
+
+    // Accumulate for RAF batching (reuse proven pattern from wheel zoom)
+    touchPinchAccumRef.current = {
+      startCamera: pinchSession.camera,
+      startCenter: pinchSession.center,
+      startDistance: pinchSession.distance,
+      nextDistance,
+      nextCenter,
+    }
+
+    if (!touchPinchFrameRef.current) {
+      touchPinchFrameRef.current = requestAnimationFrame(() => {
+        touchPinchFrameRef.current = null
+        const accum = touchPinchAccumRef.current
+        touchPinchAccumRef.current = null
+        if (!accum) return
+
+        const { startCamera, startCenter, startDistance, nextDistance, nextCenter } = accum
+
+        // Atomic pan + zoom: keep the start world-point under the current midpoint
+        const scaleFactor = startDistance > 0 ? nextDistance / startDistance : 1
+        const nextScale = clamp(startCamera.scale * scaleFactor, minZoom, maxZoom)
+
+        const worldPoint = {
+          x: (startCenter.x - startCamera.x) / startCamera.scale,
+          y: (startCenter.y - startCamera.y) / startCamera.scale,
+        }
+
+        const nextCamera = {
+          scale: nextScale,
+          x: nextCenter.x - worldPoint.x * nextScale,
+          y: nextCenter.y - worldPoint.y * nextScale,
+        }
+
+        const clamped = clampCameraToCanvas(nextCamera)
+        cameraRef.current = clamped
+        targetCameraRef.current = clamped
+        setCamera(clamped)
+      })
     }
     return
   }
-  doTouchPan()
+
+  // 1 finger: no pan — tool mode only
 }
 
 const handleStageTouchEnd = (event) => {
@@ -10494,7 +10910,13 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-style-btn ${selectedItem.align === 'left' ? 'active' : ''}`}
-                  onClick={() => updateItem(selectedItem.id, { align: 'left' })}
+                  onClick={() => {
+                    if (editingText) {
+                      richTextEditorRef.current?.formatAlign('left')
+                    } else {
+                      updateItem(selectedItem.id, { align: 'left' })
+                    }
+                  }}
                   title="Align Left"
                 >
                   <AlignLeft size={16} />
@@ -10502,7 +10924,13 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-style-btn ${selectedItem.align === 'center' ? 'active' : ''}`}
-                  onClick={() => updateItem(selectedItem.id, { align: 'center' })}
+                  onClick={() => {
+                    if (editingText) {
+                      richTextEditorRef.current?.formatAlign('center')
+                    } else {
+                      updateItem(selectedItem.id, { align: 'center' })
+                    }
+                  }}
                   title="Align Center"
                 >
                   <AlignCenter size={16} />
@@ -10510,7 +10938,13 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-style-btn ${selectedItem.align === 'right' ? 'active' : ''}`}
-                  onClick={() => updateItem(selectedItem.id, { align: 'right' })}
+                  onClick={() => {
+                    if (editingText) {
+                      richTextEditorRef.current?.formatAlign('right')
+                    } else {
+                      updateItem(selectedItem.id, { align: 'right' })
+                    }
+                  }}
                   title="Align Right"
                 >
                   <AlignRight size={16} />
@@ -10518,7 +10952,13 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-style-btn ${selectedItem.align === 'justify' ? 'active' : ''}`}
-                  onClick={() => updateItem(selectedItem.id, { align: 'justify' })}
+                  onClick={() => {
+                    if (editingText) {
+                      richTextEditorRef.current?.formatAlign('justify')
+                    } else {
+                      updateItem(selectedItem.id, { align: 'justify' })
+                    }
+                  }}
                   title="Justify"
                 >
                   <AlignJustify size={16} />
@@ -11485,6 +11925,12 @@ const toggleMobileSheetSize = () => {
               transformerRef.current?.getLayer()?.batchDraw()
               requestAnimationFrame(updateToolbarPosition)
             }}
+            getItemsVisualBounds={getItemsVisualBounds}
+            getSnappedDelta={getSnappedDelta}
+            setAlignmentGuides={setAlignmentGuides}
+            skipGroupDragEndRef={skipGroupDragEndRef}
+            selectedIdsRef={selectedIdsRef}
+            multiDragRef={multiDragRef}
           />
         )
       }
@@ -11519,6 +11965,67 @@ const toggleMobileSheetSize = () => {
       )
     })
   }
+
+  // Memoize rendered output to skip re-computation when only camera changes.
+  // During panning/zoom, setCamera() triggers a full re-render of Workspace, but
+  // item data (belowItems/aboveItems/selectedId/etc.) is stable — the memoized
+  // output prevents ~50+ CanvasItem re-renders per frame.
+  const renderedBelowCanvasContent = useMemo(() =>
+    renderCanvasStackItems(belowItems),
+    [belowItems, compositeGroupMap, items, selectedId, selectedIds,
+      handleObjectSelect, updateItem, handleObjectDragStart, handleObjectDragMove,
+      handleObjectDragEnd, editTextObject, editingText, handleItemCursor,
+      setHoveredItemId, isSpaceDown, isPanning, activePanel, isShiftDown,
+      dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot,
+      handleFrameImageEdit, beginImageCrop, cropSession, canvasSize, fontInjectVersion,
+      updateToolbarPosition, transformerRef],
+  )
+  const renderedAboveCanvasContent = useMemo(() =>
+    renderCanvasStackItems(aboveItems),
+    [aboveItems, compositeGroupMap, items, selectedId, selectedIds,
+      handleObjectSelect, updateItem, handleObjectDragStart, handleObjectDragMove,
+      handleObjectDragEnd, editTextObject, editingText, handleItemCursor,
+      setHoveredItemId, isSpaceDown, isPanning, activePanel, isShiftDown,
+      dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot,
+      handleFrameImageEdit, beginImageCrop, cropSession, canvasSize, fontInjectVersion,
+      updateToolbarPosition, transformerRef],
+  )
+  const renderedAdjustmentLayerItems = useMemo(() =>
+    [...items].reverse().filter((item) => item.isAdjustmentLayer).map((item) => (
+      <CanvasItem
+        key={item.id}
+        item={item}
+        items={items}
+        selectedId={selectedId}
+        selectedIds={selectedIds}
+        onSelect={handleObjectSelect}
+        onChange={(patch) => updateItem(item.id, patch)}
+        onDragStart={handleObjectDragStart}
+        onDragMove={handleObjectDragMove}
+        onDragEnd={handleObjectDragEnd}
+        onTextEdit={editTextObject}
+        isTextEditing={editingText?.id === item.id}
+        onCursor={handleItemCursor}
+        onItemHover={setHoveredItemId}
+        disableDrag={isSpaceDown || isPanning || activePanel === 'brush' || cropSession?.itemId === item.id}
+        isShiftDown={isShiftDown}
+        getActiveTransformAnchor={() => transformerRef.current?.getActiveAnchor?.()}
+        dropTargetFrameId={dropTargetFrameId}
+        dropTargetSlotIndex={dropTargetSlotIndex}
+        editingFrameId={editingFrameId}
+        editingFrameSlot={editingFrameSlot}
+        onFrameImageEdit={handleFrameImageEdit}
+        onCropStart={beginImageCrop}
+        isCropTarget={cropSession?.itemId === item.id}
+      />
+    )),
+    [items, selectedId, selectedIds, handleObjectSelect, updateItem,
+      handleObjectDragStart, handleObjectDragMove, handleObjectDragEnd,
+      editTextObject, editingText, handleItemCursor, setHoveredItemId,
+      isSpaceDown, isPanning, activePanel, isShiftDown, transformerRef,
+      dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot,
+      handleFrameImageEdit, beginImageCrop, cropSession],
+  )
 
   if (isWorkspaceLoading || (shouldLoadWorkspace && isAuthLoading) || (shouldLoadWorkspace && loadingPhase !== 'done')) {
     const phaseInfo = isWorkspaceLoading
@@ -11811,7 +12318,7 @@ const toggleMobileSheetSize = () => {
                   {...canvasBackgroundProps}
                 />
                 <Group name="canvas-content">
-                  {renderCanvasStackItems(belowItems)}
+                  {renderedBelowCanvasContent}
                 </Group>
               </Group>
 
@@ -11828,35 +12335,8 @@ const toggleMobileSheetSize = () => {
                   canvasWidth={canvasSize.width}
                   canvasHeight={canvasSize.height}
                 />
-                {[...items].reverse().filter((item) => item.isAdjustmentLayer).map((item) => (
-                  <CanvasItem
-                    key={item.id}
-                    item={item}
-                    items={items}
-                    selectedId={selectedId}
-                    selectedIds={selectedIds}
-                    onSelect={handleObjectSelect}
-                    onChange={(patch) => updateItem(item.id, patch)}
-                    onDragStart={handleObjectDragStart}
-                    onDragMove={handleObjectDragMove}
-                    onDragEnd={handleObjectDragEnd}
-                    onTextEdit={editTextObject}
-                    isTextEditing={editingText?.id === item.id}
-                    onCursor={handleItemCursor}
-                    onItemHover={setHoveredItemId}
-                    disableDrag={isSpaceDown || isPanning || activePanel === 'brush' || cropSession?.itemId === item.id}
-                    isShiftDown={isShiftDown}
-                    getActiveTransformAnchor={() => transformerRef.current?.getActiveAnchor?.()}
-                    dropTargetFrameId={dropTargetFrameId}
-                    dropTargetSlotIndex={dropTargetSlotIndex} 
-                    editingFrameId={editingFrameId}
-                    editingFrameSlot={editingFrameSlot}
-                    onFrameImageEdit={handleFrameImageEdit}
-                    onCropStart={beginImageCrop}
-                    isCropTarget={cropSession?.itemId === item.id}
-                  />
-                ))}
-                {renderCanvasStackItems(aboveItems)}
+                {renderedAdjustmentLayerItems}
+                {renderedAboveCanvasContent}
                 {items.map((item) => (
                   <ObjectAnchors
                     key={`anchors-${item.id}`}

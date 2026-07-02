@@ -30,11 +30,12 @@ function normalizeColor(c) {
 }
 
 export function getRuns(item) {
+  const defaultAlign = item.align || 'left'
   let runs
   if (item.runs && item.runs.length > 0) {
-    runs = item.runs
+    runs = item.runs.map(r => ({ ...r, align: r.align !== undefined ? r.align : (r.listType ? defaultAlign : undefined) }))
   } else if (!item.text && item.text !== '') {
-    runs = [{ text: '', bold: false, italic: false, underline: false }]
+    runs = [{ text: '', bold: false, italic: false, underline: false, align: defaultAlign }]
   } else {
     runs = [{
       text: item.text || '',
@@ -44,6 +45,7 @@ export function getRuns(item) {
       fontFamily: item.fontFamily || undefined,
       fontSize: item.fontSize || undefined,
       fill: item.fill || undefined,
+      align: defaultAlign,
     }]
   }
 
@@ -51,10 +53,8 @@ export function getRuns(item) {
   if (item.listType && !runs.some(r => r.listType)) {
     const skipLines = item.listSkipLines || []
     const hasSkip = skipLines.length > 0
-    // First pass: assign listType to all runs
     const migrated = runs.map(r => ({ ...r, listType: item.listType }))
     if (!hasSkip) return migrated
-    // Handle skipped lines by splitting runs at \n boundaries
     const out = []
     let lineIdx = 0
     for (const run of migrated) {
@@ -81,27 +81,69 @@ export function runsToText(runs) {
   return runs.map((r) => r.text).join('')
 }
 
+function fmtContent(ct, run, baseFontFamily, baseFill) {
+  let r = ct
+  const styles = []
+  if (run.fontFamily && run.fontFamily !== baseFontFamily) styles.push(`font-family:${run.fontFamily}`)
+  if (run.fill && run.fill !== baseFill) styles.push(`color:${run.fill}`)
+  if (styles.length) r = `<span style="${styles.join(';')}">${r}</span>`
+  if (run.bold) r = `<b>${r}</b>`
+  if (run.italic) r = `<i>${r}</i>`
+  if (run.underline) r = `<u>${r}</u>`
+  return r
+}
+
+function fmtListDiv(content, listType, align, lineFormat) {
+  const styleParts = []
+  if (align && align !== 'left') styleParts.push(`text-align:${align}`)
+  if (lineFormat?.bold) styleParts.push('font-weight:bold')
+  if (lineFormat?.italic) styleParts.push('font-style:italic')
+  if (lineFormat?.underline) styleParts.push('text-decoration:underline')
+  if (lineFormat?.fontFamily) styleParts.push(`font-family:${lineFormat.fontFamily}`)
+  if (lineFormat?.fill) styleParts.push(`color:${lineFormat.fill}`)
+  const style = styleParts.join(';')
+  return `<div class="list-line" data-list="${listType}" data-align="${align || 'left'}" style="${style}">${content}</div>`
+}
+
 export function runsToHtml(runs, baseFontFamily, baseFill) {
-  return runs.map((run) => {
+  let html = ''
+  let afterNewline = true
+  for (let ri = 0; ri < runs.length; ri++) {
+    const run = runs[ri]
+    if (run.text === '\n') {
+      const brList = run.listType ? ` data-list="${run.listType}"` : ''
+      html += `<br${brList}>`
+      afterNewline = true
+      continue
+    }
     let t = escapeHtml(run.text)
-    const styles = []
-    if (run.fontFamily && run.fontFamily !== baseFontFamily) styles.push(`font-family:${run.fontFamily}`)
-    if (run.fill && run.fill !== baseFill) styles.push(`color:${run.fill}`)
-    if (run.bold) t = `<b>${t}</b>`
-    if (run.italic) t = `<i>${t}</i>`
-    if (run.underline) t = `<u>${t}</u>`
-    if (styles.length) t = `<span style="${styles.join(';')}">${t}</span>`
-    if (run.listType) t = `<span data-list="${run.listType}">${t}</span>`
-    return t
-  }).join('')
+    if (t.includes('\n')) t = t.replace(/\n/g, '<br>')
+    t = fmtContent(t, run, baseFontFamily, baseFill)
+    if (run.listType) {
+      if (!t) t = '\u200B'
+      const lineFormat = afterNewline ? {
+        bold: !!run.bold, italic: !!run.italic, underline: !!run.underline,
+        fontFamily: run.fontFamily || undefined,
+        fill: run.fill || undefined,
+      } : null
+      t = fmtListDiv(t, run.listType, run.align || 'left', lineFormat)
+      afterNewline = false
+    } else {
+      if (!t) t = '\u200B'
+      const style = run.align ? `text-align:${run.align}` : ''
+      const alignAttr = run.align ? ` data-align="${run.align}"` : ''
+      t = `<div${alignAttr} style="${style}">${t}</div>`
+    }
+    html += t
+  }
+  return html
 }
 
 export function htmlToRuns(html) {
   const div = document.createElement('div')
   div.innerHTML = html
   const runs = []
-  walkTextNodes(div, (text, tags, styles, listType) => {
-    if (!text) return
+  walkTextNodes(div, (text, tags, styles, listType, align) => {
     runs.push({
       text,
       bold: tags.has('b') || tags.has('strong'),
@@ -110,31 +152,42 @@ export function htmlToRuns(html) {
       fontFamily: normalizeFontFamily(styles.fontFamily),
       fill: normalizeColor(styles.color),
       listType: listType || null,
+      align: align || null,
     })
   })
   return normalizeRuns(runs)
 }
 
-function walkTextNodes(node, fn, inheritedTags = new Set(), inheritedStyles = {}, inheritedListType = null) {
+function walkTextNodes(node, fn, inheritedTags = new Set(), inheritedStyles = {}, inheritedListType = null, inheritedAlign = null) {
   if (node.nodeType === 3) {
-    fn(node.textContent || '', new Set(inheritedTags), { ...inheritedStyles }, inheritedListType)
+    const cleanText = (node.textContent || '').replace(/\u200B/g, '')
+    fn(cleanText, new Set(inheritedTags), { ...inheritedStyles }, inheritedListType, inheritedAlign)
     return
   }
   const tag = node.nodeName?.toLowerCase?.()
+  if (tag === 'br') {
+    const brListType = node.dataset?.list || inheritedListType
+    fn('\n', new Set(inheritedTags), { ...inheritedStyles }, brListType, inheritedAlign)
+    return
+  }
   const newTags = new Set(inheritedTags)
   const newStyles = { ...inheritedStyles }
   let newListType = inheritedListType
+  let newAlign = inheritedAlign
   if (['b', 'strong', 'i', 'em', 'u'].includes(tag)) newTags.add(tag)
   if (node.style?.fontFamily) newStyles.fontFamily = node.style.fontFamily
   if (node.style?.color) newStyles.color = node.style.color
   if (node.style?.fontStyle === 'italic') newTags.add('i')
   if (node.style?.fontWeight === 'bold' || node.style?.fontWeight === '700') newTags.add('b')
   if (node.style?.textDecoration?.includes('underline')) newTags.add('u')
-  if (tag === 'span' && node.dataset?.list) {
+  if (node.dataset?.list) {
     newListType = node.dataset.list
   }
+  if (node.dataset?.align) {
+    newAlign = node.dataset.align
+  }
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    walkTextNodes(child, fn, newTags, newStyles, newListType)
+    walkTextNodes(child, fn, newTags, newStyles, newListType, newAlign)
   }
 }
 
@@ -148,16 +201,17 @@ export function normalizeRuns(runs) {
     fontFamily: runs[0].fontFamily || undefined,
     fill: runs[0].fill || undefined,
     listType: runs[0].listType || null,
-    isPrefix: !!runs[0].isPrefix,
+    align: runs[0].align || null,
   }]
   for (let i = 1; i < runs.length; i++) {
     const prev = out[out.length - 1]
     const cur = runs[i]
-    if (prev.listType === (cur.listType || null) &&
-        prev.isPrefix === !!cur.isPrefix &&
+    if (prev.text !== '\n' && cur.text !== '\n' && !prev.text.endsWith('\n') &&
+        prev.listType === (cur.listType || null) &&
         prev.bold === !!cur.bold && prev.italic === !!cur.italic && prev.underline === !!cur.underline &&
         (prev.fontFamily || undefined) === (cur.fontFamily || undefined) &&
-        (prev.fill || undefined) === (cur.fill || undefined)) {
+        (prev.fill || undefined) === (cur.fill || undefined) &&
+        (prev.align || null) === (cur.align || null)) {
       prev.text += (cur.text || '')
     } else {
       out.push({
@@ -168,7 +222,7 @@ export function normalizeRuns(runs) {
         fontFamily: cur.fontFamily || undefined,
         fill: cur.fill || undefined,
         listType: cur.listType || null,
-        isPrefix: !!cur.isPrefix,
+        align: cur.align || null,
       })
     }
   }
@@ -238,9 +292,10 @@ export function addListPrefix(runs) {
   for (const run of runs) {
     const lt = run.listType
     const text = run.text || ''
+    const runAlign = run.align || null
 
-    if (atLineStart && lt) {
-      result.push({ text: lt === 'numbered' ? `${lineNum}. ` : '• ', listType: lt, isPrefix: true, bold: false, italic: false, underline: false })
+    if (atLineStart && lt && text !== '\n') {
+      result.push({ text: lt === 'numbered' ? `${lineNum}. ` : '• ', listType: lt, isPrefix: true, bold: !!run.bold, italic: !!run.italic, underline: !!run.underline, fontFamily: run.fontFamily, fill: run.fill })
       if (lt === 'numbered') lineNum++
     }
     atLineStart = false
@@ -251,16 +306,21 @@ export function addListPrefix(runs) {
     while (remaining.length > 0) {
       const nl = remaining.indexOf('\n')
       if (nl === -1) {
-        result.push({ ...run, text: remaining })
+        result.push({ ...run, text: remaining, align: runAlign })
         atLineStart = false
         break
       }
-      if (nl > 0) result.push({ ...run, text: remaining.slice(0, nl) })
-      result.push({ ...run, text: '\n' })
+      if (nl > 0) {
+        result.push({ ...run, text: remaining.slice(0, nl) + '\n', align: runAlign })
+      } else {
+        // Always push standalone \n as separate run to preserve item boundaries,
+        // even when previous result already ends with \n (e.g. pressing Enter on empty list item)
+        result.push({ ...run, text: '\n', align: runAlign })
+      }
       remaining = remaining.slice(nl + 1)
       atLineStart = true
-      if (remaining.length > 0 && lt) {
-        result.push({ text: lt === 'numbered' ? `${lineNum}. ` : '• ', listType: lt, isPrefix: true, bold: false, italic: false, underline: false })
+      if (remaining.length > 0 && lt && run.isNewItem) {
+        result.push({ text: lt === 'numbered' ? `${lineNum}. ` : '• ', listType: lt, isPrefix: true, bold: !!run.bold, italic: !!run.italic, underline: !!run.underline, fontFamily: run.fontFamily, fill: run.fill })
         if (lt === 'numbered') lineNum++
       }
     }
@@ -270,7 +330,7 @@ export function addListPrefix(runs) {
     const lastRun = runs[runs.length - 1]
     const lt = lastRun.listType
     if (lt) {
-      result.push({ text: lt === 'numbered' ? `${lineNum}. ` : '• ', listType: lt, isPrefix: true, bold: false, italic: false, underline: false })
+      result.push({ text: lt === 'numbered' ? `${lineNum}. ` : '• ', listType: lt, isPrefix: true, bold: !!lastRun.bold, italic: !!lastRun.italic, underline: !!lastRun.underline, fontFamily: lastRun.fontFamily, fill: lastRun.fill })
     }
   }
 
@@ -309,5 +369,5 @@ export function stripListPrefix(runs) {
     if (out) result.push({ ...run, text: out, isPrefix: undefined })
   }
 
-  return normalizeRuns(result).map(r => { const { isPrefix, ...rest } = r; return rest })
+  return normalizeRuns(result).map(r => { const { isPrefix, align, ...rest } = r; const out = { ...rest, align: align || undefined }; if (rest.listType && !out.align) out.align = 'left'; return out })
 }

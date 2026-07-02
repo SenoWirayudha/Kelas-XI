@@ -37,6 +37,7 @@
     "react-konva": "^19.2.4",
     "react-router-dom": "^6.30.3",
     "recharts": "^2.15.3",
+    "tesseract.js": "^7.0.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {

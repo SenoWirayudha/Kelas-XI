@@ -24,6 +24,7 @@ const envSchema = z.object({
   PIXABAY_API_KEY: z.string().optional().default(''),
   TMDB_API_KEY: z.string().optional().default(''),
   HF_TOKEN: z.string().optional().default(''),
+  ENTITY_MATCH_THRESHOLD: z.coerce.number().min(0).max(1).default(0.85),
 })
 
 const parsed = envSchema.safeParse(process.env)

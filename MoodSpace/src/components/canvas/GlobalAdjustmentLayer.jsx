@@ -8,6 +8,10 @@ import { EffectManager } from '../../utils/konva-effects-engine'
 
 const effectManager = new EffectManager()
 
+// Debug: set globalThis.__COMPOSITE_DEBUG__=true in browser console to trace
+// composite group capture in adjustment layer pipeline
+// e.g. in devtools: globalThis.__COMPOSITE_DEBUG__ = true
+
 const cloneCanvasNode = (node) => {
   const clone = node.clone({ listening: false })
   clone.draggable?.(false)
@@ -127,7 +131,7 @@ const createAdjustmentClipFunc = (layer) => (ctx) => {
   drawRoundedRectPath(ctx, 0, 0, layer.w, layer.h, layer.cornerRadius || 0)
 }
 
-async function renderItemsToCanvas({ stageRef, sourceItems, bounds, canvasWidth, canvasHeight, processedLayers = {}, includeBackground = false }) {
+async function renderItemsToCanvas({ stageRef, sourceItems, bounds, canvasWidth, canvasHeight, processedLayers = {}, includeBackground = false, compositeGroupMap }) {
   const { x, y, w, h } = bounds
   const stage = stageRef.current
   if (!stage || !w || !h) return null
@@ -164,6 +168,17 @@ async function renderItemsToCanvas({ stageRef, sourceItems, bounds, canvasWidth,
       }
     }
 
+    // Build lookup for mask/exclude composite group members
+    const compositeMembers = new Set()
+    const compositeHandled = new Set()
+    if (compositeGroupMap) {
+      for (const [, entry] of compositeGroupMap) {
+        if (entry.memberIds.size >= 2) {
+          entry.memberIds.forEach(mid => compositeMembers.add(mid))
+        }
+      }
+    }
+
     ;[...sourceItems].reverse().forEach((item) => {
       if (item.visible === false) return
       if (item.isAdjustmentLayer) {
@@ -182,6 +197,48 @@ async function renderItemsToCanvas({ stageRef, sourceItems, bounds, canvasWidth,
         }
         return
       }
+
+      // Capture mask/exclude composite group via direct cached canvas access
+      if (compositeMembers.has(item.id)) {
+        if (!compositeHandled.has(item.groupId)) {
+          compositeHandled.add(item.groupId)
+          const groupNode = stage.findOne(`#composite-${item.groupId}`)
+          if (groupNode) {
+            if (typeof globalThis.__COMPOSITE_DEBUG__ !== 'undefined' && globalThis.__COMPOSITE_DEBUG__) {
+              console.log('[AdjCapture] composite group found', item.groupId, 'children:', groupNode.children?.length)
+            }
+            // Access the cached canvas directly instead of going through
+            // toCanvas() which clamps to the scene bounding box. The cache
+            // covers (0,0) to (canvasWidth,canvasHeight) in local space.
+            // _getCachedSceneCanvas() returns the internal Konva.Canvas object
+            // that holds the raw cached pixel data at cache pixel ratio.
+            const cachedCanvas = groupNode._getCachedSceneCanvas()
+            if (cachedCanvas) {
+              const nativeCanvas = cachedCanvas._canvas
+              const cachePR = cachedCanvas.getPixelRatio()
+              const img = new Konva.Image({
+                image: nativeCanvas,
+                x: 0,
+                y: 0,
+                width: canvasWidth,
+                height: canvasHeight,
+                listening: false,
+              })
+              exportLayer.add(img)
+              if (typeof globalThis.__COMPOSITE_DEBUG__ !== 'undefined' && globalThis.__COMPOSITE_DEBUG__) {
+                console.log('[AdjCapture] composite group', item.groupId,
+                  'cachePR:', cachePR,
+                  'native canvas:', nativeCanvas.width, 'x', nativeCanvas.height,
+                  'stage units:', canvasWidth, 'x', canvasHeight,
+                  'group x/y:', groupNode.x(), groupNode.y(),
+                  'children:', groupNode.children?.length)
+              }
+            }
+          }
+        }
+        return
+      }
+
       const itemNode = stage.findOne(`#${item.id}`) || stage.findOne(`[id="${item.id}"]`)
       if (!itemNode) return
       const clone = cloneCanvasNode(itemNode)
@@ -260,6 +317,31 @@ export default function GlobalAdjustmentLayer({ stageRef, items, canvasWidth, ca
       const next = {}
       const prevMap = oldLayerCanvasRef.current
 
+      // Build composite group map for mask/exclude group handling
+      const groupsByGroupId = new Map()
+      items.forEach((item) => {
+        if (!item.groupId || item.isAdjustmentLayer) return
+        const entry = groupsByGroupId.get(item.groupId) || {
+          groupId: item.groupId,
+          memberIds: new Set(),
+          hasOperator: false,
+          operatorId: null,
+        }
+        entry.memberIds.add(item.id)
+        if (item.compositeMode === 'mask' || item.compositeMode === 'exclude') {
+          entry.hasOperator = true
+          entry.operatorId = item.id
+        }
+        groupsByGroupId.set(item.groupId, entry)
+      })
+      // Keep only mask/exclude groups with >= 2 members
+      const compositeGroupMap = new Map()
+      for (const [groupId, entry] of groupsByGroupId) {
+        if (entry.memberIds.size >= 2 && entry.hasOperator) {
+          compositeGroupMap.set(groupId, entry)
+        }
+      }
+
       for (const layer of sortedLayers) {
         try {
           const layerIndex = items.findIndex((item) => item.id === layer.id)
@@ -280,6 +362,7 @@ export default function GlobalAdjustmentLayer({ stageRef, items, canvasWidth, ca
             canvasHeight,
             processedLayers: next,
             includeBackground,
+            compositeGroupMap,
           })
           if (!offscreen) continue
 

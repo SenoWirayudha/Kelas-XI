@@ -211,3 +211,15 @@ export const listSavedExternalImages = async ({ userId, limit = 30 }) => {
   )
   return rows.map((row) => ({ ...row, isSaved: true }))
 }
+
+export const findEntityCandidates = async () => {
+  const { rows } = await query(
+    `select id, provider, external_id as "externalId",
+            title, description, metadata, embedding
+     from external_images
+     where embedding is not null
+       and provider in ('tmdb', 'itunes')
+       and (provider != 'tmdb' or (metadata->>'imageType' in ('poster', 'backdrop')))`,
+  )
+  return rows
+}

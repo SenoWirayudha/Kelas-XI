@@ -6815,7 +6815,6 @@
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
-  z-index: 1;
 }
 
 .workspace-upload-fab {
@@ -6995,6 +6994,27 @@
   background: rgba(255, 255, 255, 0.12);
   caret-color: #7b42f6;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.38);
+  counter-reset: list-counter;
+}
+
+.workspace-inline-text-editor .list-line[data-list="numbered"] {
+  counter-increment: list-counter;
+  display: block;
+}
+.workspace-inline-text-editor .list-line[data-list="numbered"]::before {
+  content: counter(list-counter) ". ";
+}
+.workspace-inline-text-editor .list-line[data-list="bullet"] {
+  display: block;
+}
+.workspace-inline-text-editor .list-line[data-list="bullet"]::before {
+  content: "• ";
+}
+/* Hide BR between list blocks — block display already provides line break.
+   br[data-list] is only for TreeWalker traversal (getDisplayText / setCaretCharOffset),
+   never visible. Hide all of them, not just those immediately after list-line. */
+.workspace-inline-text-editor br[data-list] {
+  display: none;
 }
 
 .workspace-filter-row {

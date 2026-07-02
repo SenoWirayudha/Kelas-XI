@@ -9,8 +9,8 @@ const withQuery = (path, query = {}) => {
   return suffix ? `${path}?${suffix}` : path
 }
 
-export const searchPosts = async ({ q = '', tags = '', sort = 'relevance', limit = 30, offset = 0 } = {}) => (
-  apiRequest(withQuery('/search', { q, tags, sort, limit, offset }))
+export const searchPosts = async ({ q = '', tags = '', sort = 'relevance', limit = 30, offset = 0, semantic = false } = {}) => (
+  apiRequest(withQuery('/search', { q, tags, sort, limit, offset, semantic }))
 )
 
 export const getSearchSuggestions = async ({ q = '', limit = 8 } = {}) => (

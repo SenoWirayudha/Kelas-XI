@@ -64,7 +64,7 @@ function SearchResults() {
     }
     try {
       const [internalResult, externalResult] = await Promise.allSettled([
-        searchPosts({ q, tags, sort, limit: 21, offset: nextOffsetRef.current }),
+        searchPosts({ q, tags, sort, limit: 21, offset: nextOffsetRef.current, semantic: true }),
         searchExternalImages({ q: q || tags || 'design inspiration', limit: 9, cursor: externalCursorRef.current }),
       ])
       if (requestSerialRef.current !== requestId) return
@@ -78,11 +78,17 @@ function SearchResults() {
       setItems((current) => {
         const nextItems = (reset ? [] : current).filter((p) => !p._isSkeleton)
         const seen = new Set(nextItems.map((item) => item.id))
-        return [...nextItems, ...[...internalItems, ...externalItems].filter((item) => {
-          if (seen.has(item.id)) return false
-          seen.add(item.id)
-          return true
-        })]
+        const interleave = []
+        let ii = 0, ei = 0
+        while (ii < internalItems.length || ei < externalItems.length) {
+          for (let c = 0; c < 3 && ii < internalItems.length; c++) {
+            const item = internalItems[ii++]
+            if (!seen.has(item.id)) { seen.add(item.id); interleave.push(item) }
+          }
+          while (ei < externalItems.length && seen.has(externalItems[ei].id)) ei++
+          if (ei < externalItems.length) { seen.add(externalItems[ei].id); interleave.push(externalItems[ei++]) }
+        }
+        return [...nextItems, ...interleave]
       })
       setHasMore(!!internalPayload.nextOffset || !!externalPayload.nextCursor)
     } catch (nextError) {
@@ -214,7 +220,7 @@ function SearchResults() {
       <div className="search-results-header">
         <div>
           <h1>{title}</h1>
-          <p>{isLoading ? <Skeleton width={120} height={14} borderRadius={6} /> : `${items.length} result${items.length === 1 ? '' : 's'}`}</p>
+          <div>{isLoading ? <Skeleton width={120} height={14} borderRadius={6} /> : `${items.length} result${items.length === 1 ? '' : 's'}`}</div>
         </div>
         <div className="search-sort-tabs" aria-label="Sort search results">
           {[
