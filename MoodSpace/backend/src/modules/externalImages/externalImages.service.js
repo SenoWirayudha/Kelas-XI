@@ -15,7 +15,7 @@ import {
   updateEmbedding,
   upsertExternalImage,
 } from './externalImages.repository.js'
-import { getTextEmbedding, getImageEmbedding, rerankByQueryEmbedding, averageEmbeddings } from './clip.service.js'
+import { getTextEmbedding, getImageEmbedding, rerankByQueryEmbedding, averageEmbeddings, cosineSimilarity } from './clip.service.js'
 import { computeZeroShotTags } from '../../shared/clipZeroShot.service.js'
 import { clearEntityCache } from '../../shared/entityMatch.service.js'
 
@@ -55,7 +55,7 @@ const buildTags = (...sources) => {
 const movieIntentWords = ['movie', 'film', 'cinema', 'cinematic', 'poster', 'scene', 'still', 'wallpaper', 'backdrop', 'key art']
 const movieBackdropWords = ['scene', 'still', 'wallpaper', 'cinematic shot', 'cinematic', 'backdrop']
 const moviePosterWords = ['poster', 'movie poster', 'film poster', 'cinema poster', 'key art']
-const nonMovieWords = ['album', 'music', 'song', 'vinyl', 'interior', 'room', 'fashion', 'typography', 'logo', 'ui', 'ux']
+const nonMovieWords = ['album', 'music', 'song', 'vinyl', 'interior', 'room', 'fashion', 'typography', 'logo', 'ui', 'ux', 'null', 'unggahan', 'trending']
 
 const designIntentWords = new Set([
   'texture', 'pattern', 'background', 'overlay', 'grunge', 'noise', 'grain', 'paper',
@@ -127,9 +127,18 @@ const titleNoiseWords = [
   'the', 'a', 'an',
 ]
 
+const FILE_EXT_RE = /\.(webp|jpe?g|png|gif|bmp|svg|tiff?|avif|heic?)\b/i
+
 export const classifyMovieQuery = (value = '') => {
   const normalized = normalizeTag(value)
   const tokens = normalized.split(' ')
+
+  // Gate 0: filter nonsense queries — file extension, too long
+  if (FILE_EXT_RE.test(value) || normalized.length > 50) {
+    console.log('[TMDB-DEBUG] classifyMovieQuery REJECTED gate0 (nonsense query):', { raw: value, normalized, len: normalized.length })
+    return null
+  }
+
   const matchWord = (word) => word.includes(' ') ? normalized.includes(word) : tokens.includes(word)
   const gate1 = !normalized || tokens.some((token) => nonMovieWords.includes(token))
   if (gate1) { console.log('[TMDB-DEBUG] classifyMovieQuery REJECTED gate1 (null/empty/nonMovie):', { raw: value, normalized }); return null }
@@ -1196,8 +1205,12 @@ const providerSearchers = [
   ['unsplash', searchUnsplash],
   ['pexels', searchPexels],
   ['pixabay', searchPixabay],
-  ['itunes', searchiTunes],
   ['openverse', searchOpenverse],
+]
+
+const providerSearchersWithItunes = [
+  ...providerSearchers,
+  ['itunes', searchiTunes],
 ]
 
 const getProviderSearchers = ({ context = '', hasMovieQuery = false }) => {
@@ -1211,7 +1224,8 @@ const getProviderSearchers = ({ context = '', hasMovieQuery = false }) => {
 }
 
 const getProviderSearchersForQuery = ({ context = '', query = '' }) => {
-  if (classifyMovieQuery(query)) {
+  const classifier = classifyMovieQuery(query)
+  if (classifier) {
     if (context === 'home') {
       return [
         ['tmdb', searchTmdb],
@@ -1228,6 +1242,8 @@ const getProviderSearchersForQuery = ({ context = '', query = '' }) => {
     }
     return providerSearchers
   }
+  // Query rejected by classifyMovieQuery — skip all providers (garbage query)
+  if (context === 'home') return []
   return providerSearchers
 }
 
@@ -1407,7 +1423,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
 
   const queryPlan = await resolveExternalQueries({ q, context, mode, viewerId, seed })
   const decodedCursor = decodeCursor(cursor)
-  const queries = queryPlan.generatedQueries.length ? queryPlan.generatedQueries : ['design inspiration']
+  const queries = queryPlan.generatedQueries.length ? [...new Set(queryPlan.generatedQueries)] : ['design inspiration']
   const querySlots = queries.map((query) => {
     const slot = queryPlan.querySlots?.find((item) => item.query === query)
     return {
@@ -1423,6 +1439,135 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
   console.log('[TMDB-DEBUG] searchExternalImages routing:', {
     context, queries, hasMovieQuery, perQueryLimit, limit, cursor: !!cursor,
   })
+
+  // browse_asset: skip all external provider searches (TMDB/iTunes/Wikimedia/dll).
+  // Query dari asset names/tags tidak representatif sebagai judul film,
+  // menghasilkan 0 results dan buang 60+ detik network wait.
+  // Hanya gunakan visual similarity + semantic path + CLIP rerank.
+  if (context === 'browse_asset') {
+    console.log('[BROWSE-ASSET] Skipping provider search, queries:', queries.join(' | '), 'visualSimilarTo:', visualSimilarTo ? `${visualSimilarTo.split(',').length} ids` : 'none')
+    console.time('[BROWSE-ASSET] Total')
+    let items = []
+
+    // Visual similarity (visualSimilarTo)
+    if (visualSimilarTo) {
+      console.time('[BROWSE-ASSET] Lazy CLIP for uploaded images')
+      const ids = visualSimilarTo.split(',').filter(Boolean)
+      const embeddings = []
+      for (const id of ids) {
+        console.time(`[BROWSE-ASSET] Process image ${id.slice(0,8)}`)
+        let emb = await findAnyEmbedding({ id })
+        console.timeLog(`[BROWSE-ASSET] Process image ${id.slice(0,8)}`, 'findAnyEmbedding done')
+        if (!emb && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+          if (uploadEmbeddingCache.has(id)) {
+            console.timeLog(`[BROWSE-ASSET] Process image ${id.slice(0,8)}`, 'cache hit')
+            emb = uploadEmbeddingCache.get(id)
+          } else {
+            try {
+              const media = await findMediaById(id)
+              console.timeLog(`[BROWSE-ASSET] Process image ${id.slice(0,8)}`, 'findMediaById done')
+              if (media?.publicUrl) {
+                console.timeLog(`[BROWSE-ASSET] Process image ${id.slice(0,8)}`, 'calling getImageEmbedding')
+                const computed = await getImageEmbedding(media.publicUrl)
+                console.timeLog(`[BROWSE-ASSET] Process image ${id.slice(0,8)}`, 'getImageEmbedding done')
+                if (computed) {
+                  uploadEmbeddingCache.set(id, computed)
+                  emb = computed
+                }
+              }
+            } catch { void 0 }
+          }
+        }
+        console.timeEnd(`[BROWSE-ASSET] Process image ${id.slice(0,8)}`)
+        if (emb) embeddings.push(emb)
+      }
+      console.timeEnd('[BROWSE-ASSET] Lazy CLIP for uploaded images')
+      console.time('[BROWSE-ASSET] Visual similarity DB search')
+      const embedding = averageEmbeddings(embeddings)
+      if (embedding) {
+        const dbResults = await findImagesByVisualSimilarity({ embedding, limit: Math.min(limit, 6), offset: 0 })
+        console.timeEnd('[BROWSE-ASSET] Visual similarity DB search')
+        if (dbResults.length) {
+          items = dbResults.map((item) => {
+            const { _embedding, createdAt, updatedAt, ...rest } = item
+            return { ...rest, clipScore: item._clipScore }
+          })
+        }
+      } else {
+        console.timeEnd('[BROWSE-ASSET] Visual similarity DB search')
+      }
+    }
+
+    // TMDB search from OCR text — only newest drop, split per line
+    let tmdbQuery = null
+    if (visualSimilarTo) {
+      const ids = visualSimilarTo.split(',').filter(Boolean)
+      const newestId = ids[0]
+      if (newestId) {
+        const media = await findMediaById(newestId).catch(() => null)
+        if (media?.ocrText) {
+          const lines = media.ocrText
+            .split(/\r?\n/)
+            .map((l) => l.replace(/[^a-zA-Z0-9\s':.!?-]/g, ' ').replace(/\s+/g, ' ').trim())
+            .filter((l) => l.length > 3)
+          for (const line of lines) {
+            if (classifyMovieQuery(line)) {
+              tmdbQuery = line.slice(0, 120)
+              break
+            }
+          }
+        }
+      }
+    }
+    if (!tmdbQuery && queries.length) {
+      tmdbQuery = queries.find((q) => classifyMovieQuery(q)) || null
+    }
+    if (tmdbQuery) {
+      console.log('[BROWSE-ASSET] TMDB search for:', tmdbQuery)
+      const tmdbResult = await searchTmdb({ query: tmdbQuery, limit: Math.min(limit, 6), cursor: null }).catch(() => null)
+      if (tmdbResult?.items?.length) {
+        const seen = new Set(items.map((i) => i.id))
+        for (const tmdbItem of tmdbResult.items) {
+          if (!seen.has(tmdbItem.id)) {
+            items.push({ ...tmdbItem, clipScore: null })
+            seen.add(tmdbItem.id)
+          }
+        }
+        console.log('[BROWSE-ASSET] TMDB items added:', tmdbResult.items.length, 'total items:', items.length)
+      }
+    }
+
+    // Final CLIP rerank (attach stored embeddings first)
+    console.time('[BROWSE-ASSET] CLIP rerank')
+    const rerankText = semanticText || queries.join(' ')
+    const queryEmbedding = await getTextEmbedding(rerankText)
+    if (queryEmbedding && items.length) {
+      const itemIds = items.map((item) => item.id).filter(Boolean)
+      const storedEmbeddings = itemIds.length ? await findEmbeddingsByItemIds(itemIds) : {}
+      for (const item of items) {
+        if (storedEmbeddings[item.id]) {
+          item._embedding = storedEmbeddings[item.id]
+        }
+      }
+      computeAndStoreEmbeddings(items).catch(() => {})
+    }
+    const rerankedItems = queryEmbedding ? rerankByQueryEmbedding(items, queryEmbedding) : items
+    console.timeEnd('[BROWSE-ASSET] CLIP rerank')
+    console.timeEnd('[BROWSE-ASSET] Total')
+
+    const hasTmdbItems = items.some((i) => i.provider === 'tmdb')
+    return {
+      providers: hasTmdbItems ? ['tmdb'] : [],
+      query: queries[0],
+      generatedQueries: queries,
+      recentTags: queryPlan.recentTags,
+      recentQueries: queryPlan.recentQueries,
+      fallbackUsed: queryPlan.fallbackUsed,
+      movieQuery: hasTmdbItems,
+      items: rerankedItems,
+      nextCursor: null,
+    }
+  }
 
   const requests = querySlots.flatMap(({ query, slots }, queryIndex) => {
     const queryProviderSearchers = getProviderSearchersForQuery({ context, query })
@@ -1493,6 +1638,17 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     interleaveProviderItems(providerResults, limit * 2, { preferTmdb: hasMovieQuery && !hasMusicQuery, preferCoverArt: hasMusicQuery, hasMusicQuery }),
   ).slice(0, limit)
 
+  // For recommended context, skip text providers and use visual similarity as primary
+  if (context === 'recommended' && !!visualSimilarTo) {
+    items.splice(0, items.length)
+  }
+
+  // Visual offset pagination
+  const visOffset = (decodedCursor && typeof decodedCursor === 'object' && 'visOffset' in decodedCursor)
+    ? Number(decodedCursor.visOffset) || 0
+    : 0
+  let visExhausted = false
+
   let visualSimilarItems = []
   if (visualSimilarTo) {
     const ids = visualSimilarTo.split(',').filter(Boolean)
@@ -1521,30 +1677,37 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     }
     const embedding = averageEmbeddings(embeddings)
     if (embedding) {
-      const dbResults = await findImagesByVisualSimilarity({ embedding, limit: Math.min(limit, 6) })
+      const visLimit = context === 'recommended' ? Math.min(limit, 6) : Math.min(limit, 6)
+      const dbResults = await findImagesByVisualSimilarity({ embedding, limit: visLimit, offset: visOffset })
+      visExhausted = dbResults.length < visLimit
       if (dbResults.length) {
         visualSimilarItems = dbResults.map((item) => {
           const { _embedding, createdAt, updatedAt, ...rest } = item
           return { ...rest, clipScore: item._clipScore }
         })
-        const textIds = new Set(items.map((i) => i.id))
-        const uniqueVisual = visualSimilarItems.filter((i) => !textIds.has(i.id))
-        const mixed = []
-        let ti = 0, vi = 0
-        while (ti < items.length || vi < uniqueVisual.length) {
-          for (let c = 0; c < 3 && ti < items.length; c++) mixed.push(items[ti++])
-          if (vi < uniqueVisual.length) mixed.push(uniqueVisual[vi++])
+        if (context === 'recommended') {
+          // Visual similarity is primary — replace items entirely
+          items.splice(0, items.length, ...visualSimilarItems.slice(0, limit))
+        } else {
+          const textIds = new Set(items.map((i) => i.id))
+          const uniqueVisual = visualSimilarItems.filter((i) => !textIds.has(i.id))
+          const mixed = []
+          let ti = 0, vi = 0
+          while (ti < items.length || vi < uniqueVisual.length) {
+            for (let c = 0; c < 3 && ti < items.length; c++) mixed.push(items[ti++])
+            if (vi < uniqueVisual.length) mixed.push(uniqueVisual[vi++])
+          }
+          items.splice(0, items.length, ...mixed.slice(0, limit))
         }
-        items.splice(0, items.length, ...mixed.slice(0, limit))
       }
     }
   }
 
   // Semantic text-to-image visual similarity
-  if (semanticText && !visualSimilarTo) {
+  if (semanticText) {
     const textEmb = await getTextEmbedding(semanticText).catch(() => null)
     if (textEmb) {
-      const dbResults = await findImagesByVisualSimilarity({ embedding: textEmb, limit: Math.min(limit * 2, 16) })
+      const dbResults = await findImagesByVisualSimilarity({ embedding: textEmb, limit: Math.min(limit * 2, 16), offset: 0 })
       if (dbResults.length) {
         const semanticItems = dbResults.map((item) => {
           const { _embedding, ...rest } = item
@@ -1564,8 +1727,13 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
   }
 
   const rerankText = semanticText || queries.join(' ')
-  const queryEmbedding = await getTextEmbedding(rerankText)
-  if (queryEmbedding && items.length) {
+  const textEmb = await getTextEmbedding(rerankText).catch(() => null)
+  let imageEmb = null
+  if (visualSimilarTo) {
+    const ids = visualSimilarTo.split(',').filter(Boolean)
+    imageEmb = await findAnyEmbedding({ id: ids[0] }).catch(() => null)
+  }
+  if ((textEmb || imageEmb) && items.length) {
     const itemIds = items.map((item) => item.id).filter(Boolean)
     const storedEmbeddings = itemIds.length ? await findEmbeddingsByItemIds(itemIds) : {}
     for (const item of items) {
@@ -1573,22 +1741,53 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
         item._embedding = storedEmbeddings[item.id]
       }
     }
-    console.log('[CLIP] Starting background embedding computation for', items.filter((i) => !i._embedding).length, 'items')
+    const pendingCount = items.filter((i) => !i._embedding).length
+    console.log('[CLIP] Background embedding:',
+      pendingCount ? `computing ${pendingCount} new items` : 'all ' + items.length + ' items already cached')
     computeAndStoreEmbeddings(items).then((stored) => {
-      console.log('[CLIP] Background embedding stored:', stored?.length, 'items')
+      if (stored?.length) console.log('[CLIP] Background embedding stored:', stored.length, 'new items')
     }).catch((error) => {
       console.error('[CLIP] Background embedding failed:', error.message)
     })
   }
-  const rerankedItems = queryEmbedding ? rerankByQueryEmbedding(items, queryEmbedding) : items
+  const rerankedItems = (textEmb || imageEmb) && items.length
+    ? items
+      .map((item) => {
+        const textScore = item._embedding && textEmb ? cosineSimilarity(textEmb, item._embedding) : 0
+        const visScore = item._embedding && imageEmb ? cosineSimilarity(imageEmb, item._embedding) : 0
+        const score = context === 'recommended' && imageEmb && item._embedding
+          ? visScore * 0.8 + textScore * 0.2
+          : Math.max(textScore, visScore)
+        return { item, score }
+      })
+      .sort((a, b) => b.score - a.score)
+      .filter(({ score }) => context !== 'recommended' || score >= 0.20)
+      .map(({ item: { _embedding, ...rest }, score }) => ({ ...rest, clipScore: score }))
+    : items.map(({ _embedding, ...rest }) => rest)
+
+  // Build hybrid cursor for recommended visual context
+  let finalCursor = null
+  if (context === 'recommended' && visualSimilarTo) {
+    if (!visExhausted) {
+      // Visual similarity has more pages — advance visOffset, carry provider cursors
+      finalCursor = { visOffset: visOffset + limit }
+      if (nextCursor?.queries) finalCursor.queries = nextCursor.queries
+    } else if (hasActiveCursor) {
+      // Visual exhausted but text providers remain
+      finalCursor = nextCursor
+    }
+  } else if (hasActiveCursor) {
+    finalCursor = nextCursor
+  }
 
   console.log('[TMDB-DEBUG] searchExternalImages FINAL response:', {
     totalItems: rerankedItems.length,
     firstItemProvider: rerankedItems[0]?.provider || rerankedItems[0]?.source || null,
     movieQuery: hasMovieQuery,
-    clipReranked: !!queryEmbedding,
+    clipReranked: !!(textEmb || imageEmb),
     itemProviders: [...new Set(rerankedItems.map((i) => i.provider || i.source || 'unknown'))],
     itemTitles: rerankedItems.slice(0, 3).map((i) => i.title || i.alt_description || '(no title)'),
+    finalCursor,
   })
 
   return {
@@ -1607,7 +1806,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     fallbackUsed: queryPlan.fallbackUsed,
     movieQuery: hasMovieQuery,
     items: rerankedItems,
-    nextCursor: hasActiveCursor ? encodeCursor(nextCursor) : null,
+    nextCursor: finalCursor ? encodeCursor(finalCursor) : null,
   }
 }
 
@@ -1678,7 +1877,7 @@ export const visualSearch = async ({ imageUrl, limit = 30, viewerId = null }) =>
     throw new Error('Failed to compute image embedding')
   }
 
-  const similarFromDb = await findImagesByVisualSimilarity({ embedding, limit })
+  const similarFromDb = await findImagesByVisualSimilarity({ embedding, limit, offset: 0 })
 
   const items = similarFromDb.map((item) => {
     const { _embedding, embedding: _, ...rest } = item

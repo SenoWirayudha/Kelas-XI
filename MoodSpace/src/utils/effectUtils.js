@@ -95,6 +95,8 @@ export const EFFECTS = [
     { key: 'paper', label: 'Paper', type: 'color', default: '#f4cfc6' },
     { key: 'threshold', label: 'Threshold', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
     { key: 'grain', label: 'Grain', type: 'slider', default: 0.15, min: 0, max: 1, step: 0.01 },
+    { key: 'density', label: 'Density', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
+    { key: 'misalignment', label: 'Misalignment', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
   ]},
   { id: 'spectralMap', label: 'Spectral Map', category: 'color', type: 'object', default: null, icon: 'Palette', params: [
     { key: 'shadowColor', label: 'Shadow', type: 'color', default: '#ff0000' },

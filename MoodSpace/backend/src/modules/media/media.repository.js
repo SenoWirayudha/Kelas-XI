@@ -15,6 +15,7 @@ const mediaSelect = `
     m.size_bytes as "sizeBytes",
     m.upload_status as "uploadStatus",
     m.metadata,
+    m.ocr_text as "ocrText",
     m.created_at as "createdAt",
     m.updated_at as "updatedAt"
   from media_assets m
@@ -132,6 +133,19 @@ export const findMediaByUrl = async (url) => {
      where m.public_url = $1 and m.deleted_at is null
      limit 1`,
     [url],
+  )
+  return rows[0] || null
+}
+
+export const updateMediaAssetEmbedding = async ({ id, embedding, ocrText }) => {
+  const { rows } = await query(
+    `update media_assets
+     set embedding = $2::jsonb,
+         ocr_text = $3,
+         updated_at = now()
+     where id = $1
+     returning id`,
+    [id, embedding ? JSON.stringify(embedding) : null, ocrText || null],
   )
   return rows[0] || null
 }

@@ -8,6 +8,12 @@ import { getImageEmbedding, averageEmbeddings } from '../src/modules/externalIma
 
 dotenv.config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.env') })
 
+// Catch Tesseract worker thread crashes that bypass promise chains
+process.on('uncaughtException', (err) => {
+  console.error('[Backfill] Uncaught exception (worker crash):', err.message)
+  // Resume processing — worker will be recreated on next call
+})
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const backfillOcrEntityMatch = async () => {

@@ -5,7 +5,7 @@ export const externalImageSearchSchema = z.object({
     q: z.string().trim().max(120).optional(),
     limit: z.coerce.number().int().min(1).max(30).default(12),
     cursor: z.string().trim().max(12000).optional(),
-    context: z.enum(['home', 'search', 'related', 'browse_asset']).optional(),
+    context: z.enum(['home', 'search', 'related', 'browse_asset', 'recommended']).optional(),
     mode: z.enum(['for-you', 'recent', 'popular']).optional(),
     seed: z.string().trim().max(120).optional(),
     tmdbId: z.coerce.number().int().positive().optional(),

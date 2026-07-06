@@ -16,6 +16,18 @@ import { saveExternalImage, searchExternalImages, unsaveExternalImage } from '..
 import { getHomeFeed, getPost, getRecommendedPosts, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
 import { externalImageToPost, postToExternalImagePayload } from '../utils/externalImagePost'
 
+const interleavePosts = (internal, external, excludeId) => {
+  const filteredInternal = excludeId ? internal.filter(i => i.id !== excludeId) : internal
+  const filteredExternal = excludeId ? external.filter(i => i.id !== excludeId) : external
+  const mixed = []
+  let ii = 0, ei = 0
+  while (ii < filteredInternal.length || ei < filteredExternal.length) {
+    for (let c = 0; c < 3 && ii < filteredInternal.length; c++) mixed.push(filteredInternal[ii++])
+    if (ei < filteredExternal.length) mixed.push(filteredExternal[ei++])
+  }
+  return mixed
+}
+
 const timeAgo = (date) => {
   const diff = Date.now() - new Date(date).getTime()
   const mins = Math.floor(diff / 60000)
@@ -126,20 +138,20 @@ function PostDetail() {
   const moreMenuRef = useRef(null)
   const recommendedSentinelRef = useRef(null)
   const recommendedLoadingRef = useRef(false)
-  const recommendedOffsetRef = useRef(0)
-  const recommendedExternalCursorRef = useRef(null)
+  const recommendedCursorRef = useRef(null)
   const recommendedQueryRef = useRef('')
   const recommendedSemanticRef = useRef('')
+  const recommendedVisualRef = useRef('')
 
   useEffect(() => {
     let cancelled = false
     setIsLoading(true)
     setRecommendedPosts([])
     setHasMoreRecommended(false)
-    recommendedOffsetRef.current = 0
-    recommendedExternalCursorRef.current = null
+    recommendedCursorRef.current = null
     recommendedQueryRef.current = ''
     recommendedSemanticRef.current = ''
+    recommendedVisualRef.current = ''
     setIsLoadingRecommended(false)
     getPost(id)
       .then((payload) => {
@@ -171,32 +183,37 @@ function PostDetail() {
         tags.forEach(t => t.toLowerCase().split(/\s+/).forEach(w => uniqueTokens.add(w)))
         const semanticText = [...uniqueTokens].join(' ').trim()
         recommendedSemanticRef.current = semanticText
-        getRecommendedPosts(id, { limit: 8, offset: 0 }).then(async (result) => {
+        const mediaId = payload.post.media?.[0]?.mediaId || payload.post.cover?.mediaId || ''
+        recommendedVisualRef.current = mediaId
+        getRecommendedPosts(id, { limit: 12, offset: 0 }).then(async (result) => {
           if (cancelled) return
-          const items = result.items || []
-          recommendedOffsetRef.current = result.nextOffset
-          const external = await searchExternalImages({ q: recommendedQueryRef.current, semanticText: semanticText || undefined, limit: 6 }).catch(() => ({ items: [], nextCursor: null }))
-          recommendedExternalCursorRef.current = external.nextCursor || null
+          const internalItems = result.items || []
+          const external = await searchExternalImages({ q: recommendedQueryRef.current, semanticText: semanticText || undefined, visualSimilarTo: mediaId || undefined, limit: 6, context: 'recommended' }).catch(() => ({ items: [], nextCursor: null }))
+          recommendedCursorRef.current = {
+            internalOffset: result.nextOffset,
+            externalCursor: external.nextCursor || null,
+          }
           const externalItems = (external.items || []).map(externalImageToPost)
+          const mixed = interleavePosts(internalItems, externalItems, id)
           setHasMoreRecommended(!!result.nextOffset || !!external.nextCursor)
-          if (items.length > 0) {
-            setRecommendedPosts([...items, ...externalItems])
+          if (mixed.length > 0) {
+            setRecommendedPosts(mixed)
             return
           }
           return getHomeFeed({ limit: 9 }).then((fallback) => {
             if (cancelled) return
-            recommendedOffsetRef.current = fallback.nextCursor
-            setHasMoreRecommended(!!fallback.nextCursor || !!external.nextCursor)
             const filtered = (fallback.items || []).filter((item) => item.id !== id).slice(0, 8)
-            setRecommendedPosts([...filtered, ...externalItems])
+            setHasMoreRecommended(!!fallback.nextCursor)
+            recommendedCursorRef.current = { internalOffset: null, externalCursor: null }
+            setRecommendedPosts(filtered)
           }).catch(() => {
             if (!cancelled) setRecommendedPosts([])
           })
         }).catch(() => {
           return getHomeFeed({ limit: 9 }).then((fallback) => {
             if (cancelled) return
-            recommendedOffsetRef.current = fallback.nextCursor
             setHasMoreRecommended(!!fallback.nextCursor)
+            recommendedCursorRef.current = { internalOffset: null, externalCursor: null }
             setRecommendedPosts((fallback.items || []).filter((item) => item.id !== id).slice(0, 8))
           }).catch(() => {
             if (!cancelled) setRecommendedPosts([])
@@ -246,22 +263,26 @@ function PostDetail() {
     setIsLoadingRecommended(true)
     setRecommendedPosts((current) => [...current, ...createSkeletonItems(RECOMMENDED_SKELETON_COUNT)])
     try {
+      const cursor = recommendedCursorRef.current || {}
       const [internalResult, externalResult] = await Promise.allSettled([
-        recommendedOffsetRef.current === null
-          ? Promise.resolve({ items: [], nextOffset: null })
-          : getRecommendedPosts(id, { limit: 8, offset: recommendedOffsetRef.current || 0 }),
-        recommendedExternalCursorRef.current
-          ? searchExternalImages({ q: recommendedQueryRef.current || 'design inspiration', semanticText: recommendedSemanticRef.current || undefined, limit: 6, cursor: recommendedExternalCursorRef.current })
+        cursor.internalOffset !== null && cursor.internalOffset !== undefined
+          ? getRecommendedPosts(id, { limit: 12, offset: cursor.internalOffset || 0 })
+          : Promise.resolve({ items: [], nextOffset: null }),
+        cursor.externalCursor
+          ? searchExternalImages({ q: recommendedQueryRef.current || 'design inspiration', semanticText: recommendedSemanticRef.current || undefined, visualSimilarTo: recommendedVisualRef.current || undefined, limit: 6, cursor: cursor.externalCursor, context: 'recommended' })
           : Promise.resolve({ items: [], nextCursor: null }),
       ])
       const internalPayload = internalResult.status === 'fulfilled' ? internalResult.value : { items: [], nextOffset: null }
       const externalPayload = externalResult.status === 'fulfilled' ? externalResult.value : { items: [], nextCursor: null }
-      recommendedOffsetRef.current = internalPayload.nextOffset
-      recommendedExternalCursorRef.current = externalPayload.nextCursor || null
-      const nextItems = [
-        ...(internalPayload.items || []),
-        ...(externalPayload.items || []).map(externalImageToPost),
-      ]
+      recommendedCursorRef.current = {
+        internalOffset: internalPayload.nextOffset,
+        externalCursor: externalPayload.nextCursor || null,
+      }
+      const nextItems = interleavePosts(
+        internalPayload.items || [],
+        (externalPayload.items || []).map(externalImageToPost),
+        id,
+      )
       setRecommendedPosts((current) => {
         const clean = current.filter((p) => !p._isSkeleton)
         const seen = new Set(clean.map((item) => item.id))

@@ -18,8 +18,11 @@ import {
   findMediaByUrl,
   listUploadedAssets,
   softDeleteMedia,
+  updateMediaAssetEmbedding,
   updateMediaObjectKey,
 } from './media.repository.js'
+import { getImageEmbedding } from '../externalImages/clip.service.js'
+import { extractText } from '../../shared/ocr.service.js'
 
 const extensionFromMime = (mimeType, filename) => {
   const fromName = path.extname(filename || '').replace('.', '').toLowerCase()
@@ -162,6 +165,20 @@ export const uploadImageFile = async ({
       originalFilename: filename || null,
       checksum,
     },
+  })
+
+  // Background CLIP embedding + OCR (non-blocking)
+  setImmediate(async () => {
+    try {
+      const embedding = await getImageEmbedding(fileBuffer)
+      const ocrText = await extractText(fileBuffer)
+      if (embedding || ocrText) {
+        await updateMediaAssetEmbedding({ id: media.id, embedding, ocrText })
+        console.log('[MEDIA] Background embedding done:', media.id)
+      }
+    } catch (err) {
+      console.error('[MEDIA] Background embedding failed:', media.id, err.message)
+    }
   })
 
   const asset = addToUploads ? await createUploadedAsset({

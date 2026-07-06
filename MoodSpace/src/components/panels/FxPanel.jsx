@@ -29,7 +29,6 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
   const [editValue, setEditValue] = useState('')
   const editInputRef = useRef(null)
   const isColorEffect = ['chromaKey', 'spotColor', 'replaceColor'].includes(effect.id)
-
   const updateParam = (key, paramVal) => {
     if (pickerStateRef.current) {
       pickerStateRef.current = { ...pickerStateRef.current, [key]: paramVal }
@@ -182,7 +181,128 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
           </div>
         )}
 
-        {effect.type === 'object' && params && (
+        {effect.type === 'object' && params && effect.id === 'risograph' && <>
+              <div className="workspace-fx-tabs">
+                <button
+                  type="button"
+                  className={`workspace-fx-tab ${(value||{}).mode !== 'texture' ? 'is-active' : ''}`}
+                  onClick={() => updateParam('mode', 'threshold')}
+                >
+                  Threshold
+                </button>
+                <button
+                  type="button"
+                  className={`workspace-fx-tab ${(value||{}).mode === 'texture' ? 'is-active' : ''}`}
+                  onClick={() => updateParam('mode', 'texture')}
+                >
+                  Texture
+                </button>
+              </div>
+              <div className="workspace-fx-detail-params">
+                {params
+                  .filter((param) => {
+                    const currentMode = (value||{}).mode ?? 'threshold'
+                    if (currentMode === 'threshold') return ['color1', 'paper', 'threshold', 'grain'].includes(param.key)
+                    return ['density', 'misalignment'].includes(param.key)
+                  })
+                  .map((param) => {
+                    const paramVal = (value || {})[param.key] ?? param.default
+
+                    if (param.type === 'toggle') {
+                      return (
+                        <label key={param.key} className="workspace-fx-param-toggle">
+                          <span>{param.label}</span>
+                          <input
+                            type="checkbox"
+                            checked={!!paramVal}
+                            onChange={(e) => updateParam(param.key, e.target.checked)}
+                          />
+                          <span className="toggle-track" />
+                        </label>
+                      )
+                    }
+
+                    if (param.type === 'color') {
+                      return (
+                        <div key={param.key} className="workspace-fx-param-color">
+                          <div className="workspace-fx-detail-label">{param.label}</div>
+                          <div className="workspace-fx-color-row">
+                            <div className="workspace-fx-color-swatch-wrapper">
+                              <input
+                                type="color"
+                                value={paramVal}
+                                onChange={(e) => updateParam(param.key, e.target.value)}
+                              />
+                              <div className="workspace-fx-color-swatch-overlay" style={{ background: paramVal }} />
+                            </div>
+                            <input
+                              type="text"
+                              className="workspace-fx-color-hex-input"
+                              value={paramVal}
+                              onChange={(e) => updateParam(param.key, e.target.value)}
+                            />
+                          </div>
+                          <div className="workspace-fx-color-presets">
+                            {[...new Set([
+                              ...(imageDominantColors || []),
+                              ...(EFFECT_COLOR_SUGGESTIONS[effect.id] || []),
+                              ...COLOR_PRESETS,
+                            ])].map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                className={`workspace-fx-color-preset ${c === paramVal ? 'is-selected' : ''}`}
+                                style={{ background: c }}
+                                onClick={() => updateParam(param.key, c)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    const isEditing = editingKey === param.key
+                    return (
+                      <div key={param.key} className="workspace-fx-param-slider">
+                        <div className="workspace-fx-param-slider-header">
+                          <span className="workspace-fx-detail-label">{param.label}</span>
+                          {isEditing ? (
+                            <input
+                              ref={editInputRef}
+                              type="text"
+                              className="workspace-fx-param-edit-input"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') commitEdit(param)
+                                if (e.key === 'Escape') setEditingKey(null)
+                              }}
+                              onBlur={() => commitEdit(param)}
+                            />
+                          ) : (
+                            <span
+                              className="workspace-fx-param-value"
+                              onDoubleClick={() => startEditing(param.key, paramVal, param)}
+                            >
+                              {paramVal}{param.unit || ''}
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="range"
+                          min={param.min ?? 0}
+                          max={param.max ?? 100}
+                          step={param.step ?? 1}
+                          value={paramVal}
+                          onChange={(e) => updateParam(param.key, Number(e.target.value))}
+                        />
+                      </div>
+                    )
+                  })}
+              </div>
+            </>
+        }
+        {effect.type === 'object' && params && effect.id !== 'risograph' && (
           <div className="workspace-fx-detail-params">
             {params.map((param) => {
               const paramVal = (value || {})[param.key] ?? param.default
@@ -408,7 +528,7 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
                 </div>
               )
             })}
-          </div>
+            </div>
         )}
       </div>
     </>

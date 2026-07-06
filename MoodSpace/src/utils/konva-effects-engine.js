@@ -699,6 +699,73 @@ const SHADERS = {
 for (const [name, src] of Object.entries(SHADERS)) webglEngine.register(name, src)
 
 // ─────────────────────────────────────────────
+// Risograph Texture — full-color single pass (no threshold)
+// ─────────────────────────────────────────────
+function applyRisographTextureFullColor(imgData, p) {
+  const { pr, pg, pb, density, misalignment } = p
+  const w = imgData.width, h = imgData.height, d = imgData.data
+  const src = new Uint8ClampedArray(d)
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4
+      const or = src[i], og = src[i+1], ob = src[i+2]
+      const origL = (or * 0.299 + og * 0.587 + ob * 0.114) / 255
+
+      let r = or, g = og, b = ob
+
+      // (a) FM DOT SCREENING — density follows luminance
+      if (density > 0.01) {
+        const localDensity = (1 - origL) * density
+        const dotHash = (Math.sin(x * 57.123 + y * 33.789) * 43758.5453) % 1
+        const dotNoise = dotHash < 0 ? dotHash + 1 : dotHash
+        if (dotNoise > localDensity) {
+          const blend = 0.12
+          r = r + (pr - r) * blend
+          g = g + (pg - g) * blend
+          b = b + (pb - b) * blend
+        }
+      }
+
+      // (b) EDGE-BASED CHANNEL SPLIT — Sobel-like gradient, threshold 0.06
+      if (misalignment > 0.01 && x > 0 && x < w - 1 && y > 0 && y < h - 1) {
+        const L = (idx) => (src[idx] * 0.299 + src[idx+1] * 0.587 + src[idx+2] * 0.114) / 255
+        const gx = L((y * w + (x-1)) * 4) - L((y * w + (x+1)) * 4)
+        const gy = L(((y-1) * w + x) * 4) - L(((y+1) * w + x) * 4)
+        const gradMag = Math.sqrt(gx * gx + gy * gy)
+
+        if (gradMag > 0.06) {
+          const hDir = (Math.sin(x * 13.37 + y * 42.69) * 43758.5453) % 1
+          const dir = hDir < 0 ? hDir + 1 : hDir
+          const angle = dir * Math.PI * 2
+          const off = Math.round(misalignment * 4)
+          const dx = Math.round(Math.cos(angle) * off)
+          const dy = Math.round(Math.sin(angle) * off)
+
+          const rx = Math.max(0, Math.min(w - 1, x + dx))
+          const ry = Math.max(0, Math.min(h - 1, y + dy))
+          const bx = Math.max(0, Math.min(w - 1, x - dx))
+          const by = Math.max(0, Math.min(h - 1, y - dy))
+
+          r = src[(ry * w + rx) * 4]
+          b = src[(by * w + bx) * 4 + 2]
+        }
+      }
+
+      // (c) PAPER GRAIN OVERLAY
+      const ph = (Math.sin(x * 67.319 + y * 53.827) * 43758.5453) % 1
+      const pn = ph < 0 ? ph + 1 : ph
+      const grainFactor = 0.94 + pn * 0.12
+      r = Math.max(0, Math.min(255, r * grainFactor))
+      g = Math.max(0, Math.min(255, g * grainFactor))
+      b = Math.max(0, Math.min(255, b * grainFactor))
+
+      d[i] = Math.round(r); d[i+1] = Math.round(g); d[i+2] = Math.round(b)
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
 // Canvas 2D pixel helpers
 // ─────────────────────────────────────────────
 function mirrorPixels(d, w, h, axis) {
@@ -990,23 +1057,30 @@ export class EffectManager {
         const c1r = parseInt(hex1.slice(1,3),16), c1g = parseInt(hex1.slice(3,5),16), c1b = parseInt(hex1.slice(5,7),16)
         const pr = parseInt(hexP.slice(1,3),16), pg = parseInt(hexP.slice(3,5),16), pb = parseInt(hexP.slice(5,7),16)
         const thr = p.threshold ?? 0.5, grain = p.grain ?? 0.15
-        filterList.push(function risographFilter(imgData) {
-          const w = imgData.width, h = imgData.height, d = imgData.data
-          for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-              const i = (y * w + x) * 4
-              const noise = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1
-              const n = noise < 0 ? noise + 1 : noise
-              let L = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114) / 255
-              L = Math.max(0, Math.min(1, L + (n - 0.5) * grain * 2))
-              if (L < thr) {
-                d[i] = c1r; d[i+1] = c1g; d[i+2] = c1b
-              } else {
-                d[i] = pr; d[i+1] = pg; d[i+2] = pb
+        if (p.mode === 'texture') {
+          const density = p.density ?? 0.5, misalignment = p.misalignment ?? 0.3
+          filterList.push(function risographTextureFilter(imgData) {
+            applyRisographTextureFullColor(imgData, { pr, pg, pb, density, misalignment })
+          })
+        } else {
+          filterList.push(function risographFilter(imgData) {
+            const w = imgData.width, h = imgData.height, d = imgData.data
+            for (let y = 0; y < h; y++) {
+              for (let x = 0; x < w; x++) {
+                const i = (y * w + x) * 4
+                const noise = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1
+                const n = noise < 0 ? noise + 1 : noise
+                let L = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114) / 255
+                L = Math.max(0, Math.min(1, L + (n - 0.5) * grain * 2))
+                if (L < thr) {
+                  d[i] = c1r; d[i+1] = c1g; d[i+2] = c1b
+                } else {
+                  d[i] = pr; d[i+1] = pg; d[i+2] = pb
+                }
               }
             }
-          }
-        })
+          })
+        }
         continue
       }
       if (id === 'dotMatrix' && val) {
@@ -1492,17 +1566,22 @@ export class EffectManager {
         const c1r = parseInt(hex1.slice(1,3),16), c1g = parseInt(hex1.slice(3,5),16), c1b = parseInt(hex1.slice(5,7),16)
         const pr = parseInt(hexP.slice(1,3),16), pg = parseInt(hexP.slice(3,5),16), pb = parseInt(hexP.slice(5,7),16)
         const thr = p.threshold ?? 0.5, grain = p.grain ?? 0.15
-        for (let y = 0; y < h; y++) {
-          for (let x = 0; x < w; x++) {
-            const i = (y * w + x) * 4
-            const noise = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1
-            const n = noise < 0 ? noise + 1 : noise
-            let L = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114) / 255
-            L = Math.max(0, Math.min(1, L + (n - 0.5) * grain * 2))
-            if (L < thr) {
-              d[i] = c1r; d[i+1] = c1g; d[i+2] = c1b
-            } else {
-              d[i] = pr; d[i+1] = pg; d[i+2] = pb
+        if (p.mode === 'texture') {
+          const density = p.density ?? 0.5, misalignment = p.misalignment ?? 0.3
+          applyRisographTextureFullColor(imageData, { pr, pg, pb, density, misalignment })
+        } else {
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const i = (y * w + x) * 4
+              const noise = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1
+              const n = noise < 0 ? noise + 1 : noise
+              let L = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114) / 255
+              L = Math.max(0, Math.min(1, L + (n - 0.5) * grain * 2))
+              if (L < thr) {
+                d[i] = c1r; d[i+1] = c1g; d[i+2] = c1b
+              } else {
+                d[i] = pr; d[i+1] = pg; d[i+2] = pb
+              }
             }
           }
         }

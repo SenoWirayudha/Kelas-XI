@@ -961,48 +961,62 @@ const drawCompositeMaskPath = (ctx, item) => {
   if (!item) return
   const w = Math.max(1, item.w || 1)
   const h = Math.max(1, item.h || item.fontSize || 1)
-  const rotation = ((item.rotation || 0) * Math.PI) / 180
+  const rotationDeg = item.rotation || 0
+  const rotation = (rotationDeg * Math.PI) / 180
+  const centerX = (item.x || 0) + w / 2
+  const centerY = (item.y || 0) + h / 2
+
+  /* DEBUG: clipFunc path */
+  console.log('[drawCompositeMaskPath]', JSON.stringify({
+    itemId: item.id,
+    kind: item.kind,
+    shapeType: item.shapeType,
+    x: item.x, y: item.y,
+    w, h,
+    rotationDeg,
+    centerX: Math.round(centerX),
+    centerY: Math.round(centerY),
+    translate: `${Math.round(centerX)}, ${Math.round(centerY)}`,
+    rectFrom: `${Math.round(-w/2)}, ${Math.round(-h/2)}`,
+    rectTo: `${Math.round(w/2)}, ${Math.round(h/2)}`,
+  }))
 
   ctx.save()
-  ctx.translate(item.x || 0, item.y || 0)
+  ctx.translate(centerX, centerY)
   if (rotation) ctx.rotate(rotation)
   ctx.beginPath()
 
   if (item.kind === 'text') {
-    ctx.rect(0, 0, w, h)
+    ctx.rect(-w / 2, -h / 2, w, h)
     ctx.restore()
     return
   }
 
   if (item.kind === 'shape') {
     if (item.shapeType === 'circle' || item.shapeType === 'ellipse') {
-      ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2)
+      ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2)
     } else if (item.shapeType === 'polygon') {
       const sides = Math.max(3, item.sides || 3)
       const radius = Math.min(w, h) / 2
-      const cx = w / 2
-      const cy = h / 2
       for (let i = 0; i < sides; i++) {
         const angle = -Math.PI / 2 + (i * Math.PI * 2) / sides
-        const x = cx + Math.cos(angle) * radius
-        const y = cy + Math.sin(angle) * radius
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
+        const px = Math.cos(angle) * radius
+        const py = Math.sin(angle) * radius
+        if (i === 0) ctx.moveTo(px, py)
+        else ctx.lineTo(px, py)
       }
       ctx.closePath()
     } else if (item.shapeType === 'star') {
       const points = item.numPoints || 5
-      const cx = w / 2
-      const cy = h / 2
       const outer = Math.min(w, h) / 2
       const inner = Math.min(w, h) * (item.starInnerRatio ?? 0.25)
       for (let i = 0; i < points * 2; i++) {
         const radius = i % 2 === 0 ? outer : inner
         const angle = -Math.PI / 2 + (i * Math.PI) / points
-        const x = cx + Math.cos(angle) * radius
-        const y = cy + Math.sin(angle) * radius
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
+        const px = Math.cos(angle) * radius
+        const py = Math.sin(angle) * radius
+        if (i === 0) ctx.moveTo(px, py)
+        else ctx.lineTo(px, py)
       }
       ctx.closePath()
     } else if (item.shapeType === 'bezier-path' && item.path) {
@@ -1013,7 +1027,7 @@ const drawCompositeMaskPath = (ctx, item) => {
         const cmd = part[0].toUpperCase()
         const nums = part.slice(1).trim().split(/[, ]+/).map(Number)
         for (let i = 0; i < nums.length; i += 2) {
-          const px = nums[i], py = nums[i + 1]
+          const px = nums[i] - w / 2, py = nums[i + 1] - h / 2
           if (first) { ctx.moveTo(px, py); first = false }
           else ctx.lineTo(px, py)
         }
@@ -1022,35 +1036,35 @@ const drawCompositeMaskPath = (ctx, item) => {
     } else {
       const r = Math.max(0, Math.min(item.cornerRadius || 0, w / 2, h / 2))
       if (r) {
-        ctx.moveTo(r, 0)
-        ctx.lineTo(w - r, 0)
-        ctx.quadraticCurveTo(w, 0, w, r)
-        ctx.lineTo(w, h - r)
-        ctx.quadraticCurveTo(w, h, w - r, h)
-        ctx.lineTo(r, h)
-        ctx.quadraticCurveTo(0, h, 0, h - r)
-        ctx.lineTo(0, r)
-        ctx.quadraticCurveTo(0, 0, r, 0)
+        ctx.moveTo(r - w / 2, -h / 2)
+        ctx.lineTo(w - r - w / 2, -h / 2)
+        ctx.quadraticCurveTo(w - w / 2, -h / 2, w - w / 2, r - h / 2)
+        ctx.lineTo(w - w / 2, h - r - h / 2)
+        ctx.quadraticCurveTo(w - w / 2, h - h / 2, w - r - w / 2, h - h / 2)
+        ctx.lineTo(r - w / 2, h - h / 2)
+        ctx.quadraticCurveTo(-w / 2, h - h / 2, -w / 2, h - r - h / 2)
+        ctx.lineTo(-w / 2, r - h / 2)
+        ctx.quadraticCurveTo(-w / 2, -h / 2, r - w / 2, -h / 2)
         ctx.closePath()
       } else {
-        ctx.rect(0, 0, w, h)
+        ctx.rect(-w / 2, -h / 2, w, h)
       }
     }
   } else {
     const r = Math.max(0, Math.min(item.radius || item.cornerRadius || 0, w / 2, h / 2))
     if (r) {
-      ctx.moveTo(r, 0)
-      ctx.lineTo(w - r, 0)
-      ctx.quadraticCurveTo(w, 0, w, r)
-      ctx.lineTo(w, h - r)
-      ctx.quadraticCurveTo(w, h, w - r, h)
-      ctx.lineTo(r, h)
-      ctx.quadraticCurveTo(0, h, 0, h - r)
-      ctx.lineTo(0, r)
-      ctx.quadraticCurveTo(0, 0, r, 0)
+      ctx.moveTo(r - w / 2, -h / 2)
+      ctx.lineTo(w - r - w / 2, -h / 2)
+      ctx.quadraticCurveTo(w - w / 2, -h / 2, w - w / 2, r - h / 2)
+      ctx.lineTo(w - w / 2, h - r - h / 2)
+      ctx.quadraticCurveTo(w - w / 2, h - h / 2, w - r - w / 2, h - h / 2)
+      ctx.lineTo(r - w / 2, h - h / 2)
+      ctx.quadraticCurveTo(-w / 2, h - h / 2, -w / 2, h - r - h / 2)
+      ctx.lineTo(-w / 2, r - h / 2)
+      ctx.quadraticCurveTo(-w / 2, -h / 2, r - w / 2, -h / 2)
       ctx.closePath()
     } else {
-      ctx.rect(0, 0, w, h)
+      ctx.rect(-w / 2, -h / 2, w, h)
     }
   }
 
@@ -1063,12 +1077,13 @@ const drawWrappedMaskText = (ctx, item, offsetX, offsetY) => {
   const fontFamily = item.fontFamily || 'Inter, Arial'
   const lineHeight = fontSize * 0.9
   const width = Math.max(1, item.w || 1)
+  const height = Math.max(1, item.h || lineHeight || 1)
   const rotation = ((item.rotation || 0) * Math.PI) / 180
   const scaleX = item.scaleX || 1
   const scaleY = item.scaleY || 1
 
   ctx.save()
-  ctx.translate((item.x || 0) - offsetX, (item.y || 0) - offsetY)
+  ctx.translate((item.x || 0) + width / 2 - offsetX, (item.y || 0) + height / 2 - offsetY)
   if (rotation) ctx.rotate(rotation)
   if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY)
   ctx.font = `${fontStyle || ''} ${fontSize}px ${fontFamily}`.trim()
@@ -1080,11 +1095,11 @@ const drawWrappedMaskText = (ctx, item, offsetX, offsetY) => {
   ;(lines.length ? lines : ['']).forEach((line, index) => {
     const lineWidth = ctx.measureText(line).width
     const x = align === 'right'
-      ? Math.max(0, width - lineWidth)
+      ? Math.max(0, width - lineWidth) - width / 2
       : align === 'left'
-        ? 0
-        : Math.max(0, (width - lineWidth) / 2)
-    ctx.fillText(line, x, index * lineHeight)
+        ? -width / 2
+        : Math.max(0, (width - lineWidth) / 2) - width / 2
+    ctx.fillText(line, x, index * lineHeight - height / 2)
   })
   ctx.restore()
 }
@@ -1136,26 +1151,49 @@ const getCompositeItemBounds = (item) => {
   const y = item.y || 0
   const w = Math.max(1, item.w || 1)
   const h = Math.max(1, item.kind === 'text' ? getWrappedMaskTextHeight(item) : (item.h || item.fontSize || 1))
-  const rotation = ((item.rotation || 0) * Math.PI) / 180
+  const rotationDeg = item.rotation || 0
+  const rotation = (rotationDeg * Math.PI) / 180
   const scaleX = item.scaleX || 1
   const scaleY = item.scaleY || 1
   const cos = Math.cos(rotation)
   const sin = Math.sin(rotation)
+  const dw = w * scaleX
+  const dh = h * scaleY
   const corners = [
-    { x: 0, y: 0 },
-    { x: w * scaleX, y: 0 },
-    { x: w * scaleX, y: h * scaleY },
-    { x: 0, y: h * scaleY },
+    { x: -dw / 2, y: -dh / 2 },
+    { x: dw / 2, y: -dh / 2 },
+    { x: dw / 2, y: dh / 2 },
+    { x: -dw / 2, y: dh / 2 },
   ].map((point) => ({
-    x: x + point.x * cos - point.y * sin,
-    y: y + point.x * sin + point.y * cos,
+    x: (x + dw / 2) + point.x * cos - point.y * sin,
+    y: (y + dh / 2) + point.x * sin + point.y * cos,
   }))
-  return {
+  const result = {
     left: Math.min(...corners.map((point) => point.x)),
     top: Math.min(...corners.map((point) => point.y)),
     right: Math.max(...corners.map((point) => point.x)),
     bottom: Math.max(...corners.map((point) => point.y)),
   }
+  /* DEBUG: rotation AABB */
+  console.log('[getCompositeItemBounds]', JSON.stringify({
+    itemId: item.id,
+    kind: item.kind,
+    x, y, w, h,
+    rotationDeg,
+    scaleX, scaleY,
+    dw, dh,
+    sin, cos,
+    corners: corners.map(c => ({ x: Math.round(c.x), y: Math.round(c.y) })),
+    left: Math.round(result.left),
+    top: Math.round(result.top),
+    right: Math.round(result.right),
+    bottom: Math.round(result.bottom),
+    calcW: Math.round(result.right - result.left),
+    calcH: Math.round(result.bottom - result.top),
+    aabbFormulaW: Math.round(Math.abs(dw * cos) + Math.abs(dh * sin)),
+    aabbFormulaH: Math.round(Math.abs(dw * sin) + Math.abs(dh * cos)),
+  }))
+  return result
 }
 
 const drawImageItemToCanvas = (ctx, item, image, offsetX, offsetY) => {
@@ -1165,6 +1203,8 @@ const drawImageItemToCanvas = (ctx, item, image, offsetX, offsetY) => {
   const w = Math.max(1, item.w || image.naturalWidth || image.width || 1)
   const h = Math.max(1, item.h || image.naturalHeight || image.height || 1)
   const rotation = ((item.rotation || 0) * Math.PI) / 180
+  const scaleX = item.scaleX || 1
+  const scaleY = item.scaleY || 1
   const sourceWidth = image.naturalWidth || image.width || w
   const sourceHeight = image.naturalHeight || image.height || h
   const crop = item.imageCropRect ? {
@@ -1175,12 +1215,13 @@ const drawImageItemToCanvas = (ctx, item, image, offsetX, offsetY) => {
   } : null
   ctx.save()
   ctx.globalAlpha = item.opacity ?? 1
-  ctx.translate(x, y)
+  ctx.translate(x + w / 2, y + h / 2)
   if (rotation) ctx.rotate(rotation)
+  if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY)
   if (crop) {
-    ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, w, h)
+    ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, -w / 2, -h / 2, w, h)
   } else {
-    ctx.drawImage(image, 0, 0, w, h)
+    ctx.drawImage(image, -w / 2, -h / 2, w, h)
   }
   ctx.restore()
 }
@@ -1355,6 +1396,293 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode }) {
     }
     ctx.globalCompositeOperation = 'source-over'
 
+    /* DEBUG: verify composited content */
+    const imageData = ctx.getImageData(0, 0, width, height)
+    let nonZeroPixels = 0
+    for (let i = 3; i < imageData.data.length; i += 4) {
+      if (imageData.data[i] > 0) nonZeroPixels++
+    }
+    const nonZeroBounds = (() => {
+      let minX = width, minY = height, maxX = 0, maxY = 0
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4 + 3
+          if (imageData.data[idx] > 0) {
+            minX = Math.min(minX, x)
+            minY = Math.min(minY, y)
+            maxX = Math.max(maxX, x)
+            maxY = Math.max(maxY, y)
+          }
+        }
+      }
+      return minX <= maxX ? { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } : null
+    })()
+    const sourceImageData = (() => {
+      const c = document.createElement('canvas')
+      c.width = width; c.height = height
+      const t = c.getContext('2d')
+      drawImageItemToCanvas(t, sourceItem, sourceImage, groupMinX, groupMinY)
+      const d = t.getImageData(0, 0, width, height)
+      let px = 0
+      for (let i = 3; i < d.data.length; i += 4) { if (d.data[i] > 0) px++ }
+      return px
+    })()
+    const destImageData = (() => {
+      const d = contentCtx.getImageData(0, 0, width, height)
+      let px = 0
+      for (let i = 3; i < d.data.length; i += 4) { if (d.data[i] > 0) px++ }
+      return px
+    })()
+    console.log('[CompositeImageBitmap result]', JSON.stringify({
+      width,
+      height,
+      mode,
+      sourceItemId: sourceItem.id,
+      sourceOpaquePx: sourceImageData,
+      destOpaquePx: destImageData,
+      resultOpaquePx: nonZeroPixels,
+      resultNonZeroBounds: nonZeroBounds,
+    }))
+
+    updateBitmap(canvas, groupMinX, groupMinY, width, height)
+  }, [bounds, destinationItems, imageItems, loadedImages, mode, sourceItem, sourceImage])
+
+  return (
+    <KonvaImage
+      ref={imageRef}
+      listening={false}
+      perfectDrawEnabled={false}
+    />
+  )
+}
+
+const getEffectedAlphaMask = (sourceItem, sourceImage) => {
+  if (!sourceItem || !sourceImage) return null
+  const w = Math.max(1, Math.ceil(sourceItem.w || sourceImage.naturalWidth || sourceImage.width || 1))
+  const h = Math.max(1, Math.ceil(sourceItem.h || sourceImage.naturalHeight || sourceImage.height || 1))
+  const scaleX = sourceItem.scaleX || 1
+  const scaleY = sourceItem.scaleY || 1
+  const rotation = ((sourceItem.rotation || 0) * Math.PI) / 180
+  const cos = Math.cos(rotation)
+  const sin = Math.sin(rotation)
+  const dw = w * scaleX
+  const dh = h * scaleY
+  const corners = [
+    { x: -dw / 2, y: -dh / 2 },
+    { x: dw / 2, y: -dh / 2 },
+    { x: dw / 2, y: dh / 2 },
+    { x: -dw / 2, y: dh / 2 },
+  ].map((p) => ({
+    x: p.x * cos - p.y * sin,
+    y: p.x * sin + p.y * cos,
+  }))
+  const canvasW = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.x)) - Math.min(...corners.map((p) => p.x))))
+  const canvasH = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.y)) - Math.min(...corners.map((p) => p.y))))
+  const canvas = document.createElement('canvas')
+  canvas.width = canvasW
+  canvas.height = canvasH
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  const sourceWidth = sourceImage.naturalWidth || sourceImage.width || w
+  const sourceHeight = sourceImage.naturalHeight || sourceImage.height || h
+  const crop = sourceItem.imageCropRect ? {
+    x: Math.max(0, Math.min(sourceWidth, sourceItem.imageCropRect.x || 0)),
+    y: Math.max(0, Math.min(sourceHeight, sourceItem.imageCropRect.y || 0)),
+    width: Math.max(1, Math.min(sourceWidth, sourceItem.imageCropRect.width || sourceWidth)),
+    height: Math.max(1, Math.min(sourceHeight, sourceItem.imageCropRect.height || sourceHeight)),
+  } : null
+
+  const timerLabel = `[getEffectedAlphaMask] ${sourceItem.id || 'anon'} ${canvasW}x${canvasH}`
+  console.time(timerLabel)
+
+  ctx.save()
+  ctx.globalAlpha = sourceItem.opacity ?? 1
+  ctx.translate(canvasW / 2, canvasH / 2)
+  if (rotation) ctx.rotate(rotation)
+  ctx.scale(scaleX, scaleY)
+  if (crop) {
+    ctx.drawImage(sourceImage, crop.x, crop.y, crop.width, crop.height, -w / 2, -h / 2, w, h)
+  } else {
+    ctx.drawImage(sourceImage, -w / 2, -h / 2, w, h)
+  }
+  ctx.restore()
+
+  if (sourceItem.effects && Object.keys(sourceItem.effects).length > 0) {
+    try {
+      const imageData = ctx.getImageData(0, 0, canvasW, canvasH)
+      effectManager.applyEffectsToImageData(imageData, sourceItem.effects)
+      ctx.putImageData(imageData, 0, 0)
+    } catch (e) {
+      console.warn('[getEffectedAlphaMask] effect apply failed:', e)
+    }
+  }
+
+  console.timeEnd(timerLabel)
+
+  return canvas
+}
+
+function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode }) {
+  const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
+  const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
+  const sourceImage = useCanvasImage(sourceItem?.src)
+  const imageRef = useRef(null)
+  const maskCacheRef = useRef(null)
+  const maskKeyRef = useRef(null)
+  const versionRef = useRef(0)
+
+  useLayoutEffect(() => {
+    const updateBitmap = (newCanvas, newX, newY, w, h) => {
+      const node = imageRef.current
+      if (!node) return
+      node.image(newCanvas || null)
+      node.x(newX || 0)
+      node.y(newY || 0)
+      node.width(w || 0)
+      node.height(h || 0)
+      node.getLayer()?.batchDraw()
+    }
+
+    if (!sourceItem || !bounds || !imageItems.length || !sourceImage) {
+      updateBitmap(null, 0, 0, 0, 0)
+      return
+    }
+    const imagesReady = imageItems.every((_, index) => {
+      const img = loadedImages[index]
+      return img && img.complete && (img.naturalWidth || img.width)
+    })
+    if (!imagesReady || !sourceImage.complete) {
+      console.log('[AlphaMask] images NOT ready yet', {
+        sourceReady: sourceImage?.complete,
+        sourceNW: sourceImage?.naturalWidth,
+        destCount: imageItems.length,
+        destReady: imageItems.map((_, i) => loadedImages[i]?.complete),
+        run: ++versionRef.current,
+      })
+      updateBitmap(null, 0, 0, 0, 0)
+      return
+    }
+
+    console.log('[AlphaMask] images ready, computing mask', {
+      sourceComplete: sourceImage.complete,
+      sourceNW: sourceImage.naturalWidth,
+      sourceW: sourceImage.width,
+      destCount: imageItems.length,
+      effects: sourceItem.effects ? Object.keys(sourceItem.effects) : [],
+      run: ++versionRef.current,
+    })
+
+    const effectsKey = JSON.stringify({
+      src: sourceItem?.src,
+      effects: sourceItem?.effects,
+      w: sourceItem?.w,
+      h: sourceItem?.h,
+      rotation: sourceItem?.rotation,
+      imageCropRect: sourceItem?.imageCropRect,
+      opacity: sourceItem?.opacity,
+    })
+
+    let maskCanvas
+    if (maskKeyRef.current === effectsKey && maskCacheRef.current) {
+      maskCanvas = maskCacheRef.current
+    } else {
+      maskCanvas = getEffectedAlphaMask(sourceItem, sourceImage)
+      maskCacheRef.current = maskCanvas
+      maskKeyRef.current = effectsKey
+    }
+
+    if (!maskCanvas) {
+      updateBitmap(null, 0, 0, 0, 0)
+      return
+    }
+
+    const itemBounds = [
+      ...imageItems.map((item) => getCompositeItemBounds(item)),
+      getCompositeItemBounds(sourceItem),
+    ]
+    const groupMinX = Math.min(...itemBounds.map((b) => b.left))
+    const groupMinY = Math.min(...itemBounds.map((b) => b.top))
+    const groupMaxX = Math.max(...itemBounds.map((b) => b.right))
+    const groupMaxY = Math.max(...itemBounds.map((b) => b.bottom))
+    const width = Math.max(1, Math.ceil(groupMaxX - groupMinX))
+    const height = Math.max(1, Math.ceil(groupMaxY - groupMinY))
+
+    const contentCanvas = document.createElement('canvas')
+    contentCanvas.width = width
+    contentCanvas.height = height
+    const contentCtx = contentCanvas.getContext('2d')
+    imageItems.forEach((item, index) => {
+      drawImageItemToCanvas(contentCtx, item, loadedImages[index], groupMinX, groupMinY)
+    })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    const maskSW = Math.max(1, sourceItem.w || sourceImage.naturalWidth || sourceImage.width || 1) * (sourceItem.scaleX || 1)
+    const maskSH = Math.max(1, sourceItem.h || sourceImage.naturalHeight || sourceImage.height || 1) * (sourceItem.scaleY || 1)
+    const maskCx = (sourceItem.x || 0) + maskSW / 2 - groupMinX
+    const maskCy = (sourceItem.y || 0) + maskSH / 2 - groupMinY
+    const maskX = maskCx - maskCanvas.width / 2
+    const maskY = maskCy - maskCanvas.height / 2
+
+    if (mode === 'mask') {
+      ctx.drawImage(maskCanvas, maskX, maskY)
+      ctx.globalCompositeOperation = 'source-in'
+      ctx.drawImage(contentCanvas, 0, 0)
+    } else {
+      ctx.drawImage(contentCanvas, 0, 0)
+      ctx.globalCompositeOperation = 'destination-out'
+      ctx.drawImage(maskCanvas, maskX, maskY)
+    }
+    ctx.globalCompositeOperation = 'source-over'
+
+    // Debug: verify composited result pixel count + bounds
+    const resultData = ctx.getImageData(0, 0, width, height)
+    let opaquePx = 0
+    let rMinX = width, rMinY = height, rMaxX = 0, rMaxY = 0
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const a = resultData.data[(y * width + x) * 4 + 3]
+        if (a > 0) {
+          opaquePx++
+          if (x < rMinX) rMinX = x
+          if (y < rMinY) rMinY = y
+          if (x > rMaxX) rMaxX = x
+          if (y > rMaxY) rMaxY = y
+        }
+      }
+    }
+    const nonZeroBounds = opaquePx > 0 ? { x: rMinX, y: rMinY, w: rMaxX - rMinX + 1, h: rMaxY - rMinY + 1 } : null
+    const maskData = (() => {
+      const c = document.createElement('canvas')
+      c.width = width; c.height = height
+      const t = c.getContext('2d')
+      t.drawImage(maskCanvas, maskX, maskY)
+      const d = t.getImageData(0, 0, width, height)
+      let p = 0
+      for (let i = 3; i < d.data.length; i += 4) { if (d.data[i] > 0) p++ }
+      return p
+    })()
+    const destData = (() => {
+      const d = contentCtx.getImageData(0, 0, width, height)
+      let p = 0
+      for (let i = 3; i < d.data.length; i += 4) { if (d.data[i] > 0) p++ }
+      return p
+    })()
+    console.log('[AlphaMask result]', JSON.stringify({
+      width,
+      height,
+      mode,
+      maskCanvasSize: `${maskCanvas.width}x${maskCanvas.height}`,
+      maskPos: `(${Math.round(maskX)}, ${Math.round(maskY)})`,
+      maskOpaquePx: maskData,
+      destOpaquePx: destData,
+      resultOpaquePx: opaquePx,
+      nonZeroBounds,
+    }))
+
     updateBitmap(canvas, groupMinX, groupMinY, width, height)
   }, [bounds, destinationItems, imageItems, loadedImages, mode, sourceItem, sourceImage])
 
@@ -1379,7 +1707,7 @@ const CompositeCanvasGroupMemoComparitor = (prev, next) => {
   if (prev.fontInjectVersion !== next.fontInjectVersion) return false
   return true
 }
-const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion, getItemsVisualBounds, getSnappedDelta, setAlignmentGuides, skipGroupDragEndRef, selectedIdsRef, multiDragRef }) {
+const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion, getItemsVisualBounds, getSnappedDelta, setAlignmentGuides, skipGroupDragEndRef, selectedIdsRef, multiDragRef, stageRef }) {
   const groupRef = useRef(null)
   const dragStartRef = useRef(null)
   const snapResultRef = useRef(null)
@@ -1404,10 +1732,39 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     }
   }, null)
 
+  /* DEBUG: group bounds union */
+  const debugGroupBounds = groupBounds ? {
+    left: Math.round(groupBounds.left),
+    top: Math.round(groupBounds.top),
+    right: Math.round(groupBounds.right),
+    bottom: Math.round(groupBounds.bottom),
+    width: Math.round(groupBounds.right - groupBounds.left),
+    height: Math.round(groupBounds.bottom - groupBounds.top),
+  } : null
+  const debugMembers = entry.members.map(m => {
+    const b = getCompositeItemBounds(m)
+    return {
+      id: m.id, kind: m.kind,
+      x: m.x, y: m.y, w: m.w, h: m.h,
+      rot: m.rotation,
+      bounds: { left: Math.round(b.left), top: Math.round(b.top), right: Math.round(b.right), bottom: Math.round(b.bottom) }
+    }
+  })
+  console.log('[CompositeGroup bounds]', JSON.stringify({
+    groupId: entry.groupId,
+    mode: sourceMode,
+    sourceId: sourceItem?.id,
+    sourceKind: sourceItem?.kind,
+    groupBounds: debugGroupBounds,
+    members: debugMembers,
+  }))
+
   useLayoutEffect(() => {
     const node = groupRef.current
     if (!node) return
     const recache = () => {
+      const timerLabel = `[CompositeGroup recache] ${entry.groupId} ${canvasSize.width}x${canvasSize.height}`
+      console.time(timerLabel)
       node.clearCache()
       node.cache({
         x: 0,
@@ -1417,6 +1774,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
         pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
       })
       node.getLayer()?.batchDraw()
+      console.timeEnd(timerLabel)
     }
     recache()
     const rafId = requestAnimationFrame(recache)
@@ -1666,7 +2024,31 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           onTap={handleGroupPointerSelect}
         />
       )}
-      {sourceItem?.kind === 'text' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
+      {(
+        (() => {
+          const hasEffects = sourceItem?.effects && Object.keys(sourceItem.effects).length > 0
+          if (sourceItem?.maskSourceType === 'alpha' || hasEffects) {
+            console.log('[CompositeCanvasGroup] branch check', {
+              maskSourceType: sourceItem?.maskSourceType,
+              hasEffects,
+              effectsKeys: sourceItem?.effects ? Object.keys(sourceItem.effects) : [],
+              kind: sourceItem?.kind,
+              mode: sourceMode,
+              taken: sourceItem?.maskSourceType === 'alpha' ? 'ALPHA' : 'SHAPE (falls through)',
+            })
+          }
+          return null
+        })()
+      )}
+      {sourceItem?.maskSourceType === 'alpha' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
+        <CompositeAlphaBitmap
+          sourceItem={sourceItem}
+          destinationItems={orderedDestinationItems}
+          bounds={groupBounds}
+          mode={sourceMode}
+          stageRef={stageRef}
+        />
+      ) : sourceItem?.kind === 'text' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
         <>
           <CompositeTextBitmap
             sourceItem={sourceItem}
@@ -2782,6 +3164,9 @@ function Workspace() {
   const canUseCompositeGroupMode = useMemo(() => (
     selectedItems.filter((item) => !item.isAdjustmentLayer).length > 1
   ), [selectedItem, selectedItems])
+  const hasCompositeInSelection = useMemo(() => (
+    selectedItems.some((item) => item.compositeMode === 'mask' || item.compositeMode === 'exclude')
+  ), [selectedItems])
   const isSelectedCompositeGroup = useMemo(() => {
     const groupId = selectedItem?.groupId
     if (!groupId) return false
@@ -2849,22 +3234,17 @@ function Workspace() {
     height: Math.round(canvasSettings.height * exportScale),
   }), [canvasSettings.height, canvasSettings.width, exportScale])
 
-  const lowestAdjIndex = useMemo(() => {
-    for (let i = items.length - 1; i >= 0; i--) {
-      if (items[i].isAdjustmentLayer) return i
-    }
-    return -1
-  }, [items])
+  const frontAdjIndex = useMemo(() => items.findIndex((item) => item.isAdjustmentLayer), [items])
 
   const belowItems = useMemo(() => {
-    if (lowestAdjIndex === -1) return items
-    return items.filter((_, index) => index > lowestAdjIndex)
-  }, [items, lowestAdjIndex])
+    if (frontAdjIndex === -1) return items
+    return items.filter((_, index) => index > frontAdjIndex)
+  }, [items, frontAdjIndex])
 
   const aboveItems = useMemo(() => {
-    if (lowestAdjIndex === -1) return []
-    return items.filter((_, index) => index < lowestAdjIndex)
-  }, [items, lowestAdjIndex])
+    if (frontAdjIndex === -1) return []
+    return items.filter((_, index) => index < frontAdjIndex)
+  }, [items, frontAdjIndex])
 
   const buildWorkspaceSnapshot = useCallback(() => ({
     schemaVersion: 1,
@@ -3072,12 +3452,7 @@ function Workspace() {
     setPublicBrowseError('')
   }, [workspaceId])
 
-  const browseEffectFirstRunRef = useRef(true)
-
   useEffect(() => {
-    if (browseEffectFirstRunRef.current) {
-      console.time('[WORKSPACE] browse effect pertama')
-    }
     if (assetTab !== 'assets' || assetSubView !== 'browse') return undefined
     if (!hasRestoredWorkspaceRef.current) {
       setPublicBrowseError('')
@@ -3091,7 +3466,7 @@ function Workspace() {
     lastMixedKeysRef.current = new Set()
     setBrowsePageInfo({ internalNextOffset: null, internalNextCursor: null, externalNextCursor: null })
     setPublicBrowseError('')
-    const timer = window.setTimeout(() => {
+    const doFetch = () => {
       const fallbackInternal = () => query
         ? searchPublicPosts({ q: query, sort: 'relevance', limit: 36 })
         : getHomeFeed({ mode: 'for-you', limit: 36, seed: browseShuffleSeed })
@@ -3142,16 +3517,13 @@ function Workspace() {
           if (!cancelled) {
             setIsPublicBrowseLoading(false)
             setIsBrowseRefreshing(false)
-            if (browseEffectFirstRunRef.current) {
-              browseEffectFirstRunRef.current = false
-              console.timeEnd('[WORKSPACE] browse effect pertama')
-            }
           }
         })
-    }, query ? 220 : 0)
+    }
+    const timer = query ? window.setTimeout(doFetch, 220) : (doFetch(), null)
     return () => {
       cancelled = true
-      window.clearTimeout(timer)
+      if (timer !== null) window.clearTimeout(timer)
     }
   }, [assetContextSignals, assetSearchQuery, assetSubView, assetTab, browseRefreshKey, browseShuffleSeed])
 
@@ -4342,35 +4714,21 @@ function Workspace() {
   useLayoutEffect(() => {
     if (hasCenteredCameraRef.current || isWorkspaceLoading || loadingPhase !== 'done' || (shouldLoadWorkspace && !hasRestoredWorkspaceRef.current)) return undefined
 
-    console.time('[WORKSPACE] canvas render')
-    let firstFrame = 0
-    let secondFrame = 0
-
-    firstFrame = requestAnimationFrame(() => {
-      secondFrame = requestAnimationFrame(() => {
-        console.timeEnd('[WORKSPACE] canvas render')
-        const rect = viewportRef.current?.getBoundingClientRect()
-        const actualViewport = {
-          width: Math.max(1, Math.round(rect?.width || viewportSize.width || 1)),
-          height: Math.max(1, Math.round(rect?.height || viewportSize.height || 1)),
-        }
-        if (!actualViewport.width || !actualViewport.height) return
-
-        const centeredCamera = getCenteredCamera(actualViewport)
-        hasCenteredCameraRef.current = true
-        prevViewportWidthRef.current = actualViewport.width
-        targetCameraRef.current = centeredCamera
-        cameraRef.current = centeredCamera
-        viewportSizeRef.current = actualViewport
-        setViewportSize(actualViewport)
-        setCamera(centeredCamera)
-      })
-    })
-
-    return () => {
-      cancelAnimationFrame(firstFrame)
-      cancelAnimationFrame(secondFrame)
+    const rect = viewportRef.current?.getBoundingClientRect()
+    const actualViewport = {
+      width: Math.max(1, Math.round(rect?.width || viewportSize.width || 1)),
+      height: Math.max(1, Math.round(rect?.height || viewportSize.height || 1)),
     }
+    if (!actualViewport.width || !actualViewport.height) return
+
+    const centeredCamera = getCenteredCamera(actualViewport)
+    hasCenteredCameraRef.current = true
+    prevViewportWidthRef.current = actualViewport.width
+    targetCameraRef.current = centeredCamera
+    cameraRef.current = centeredCamera
+    viewportSizeRef.current = actualViewport
+    setViewportSize(actualViewport)
+    setCamera(centeredCamera)
   }, [
     canvasSettings.height,
     canvasSettings.width,
@@ -4826,6 +5184,7 @@ const attachTransformer = useCallback((idOrIds) => {
       return resolvedIds
     })
     requestRecenterAfterWorkspaceLayoutChange()
+    setActivePanel('properties')
     setIsRightPanelOpen(true)
     if (window.innerWidth <= 860) {
       setMobileSheetState('half')
@@ -4839,6 +5198,9 @@ const attachTransformer = useCallback((idOrIds) => {
     if (target?.src?.startsWith('blob:')) URL.revokeObjectURL(target.src)
 
     setItems((current) => current.filter((item) => item.id !== id))
+    if (target?.mediaId) {
+      setAssetContextSignals((current) => current.filter((s) => s.mediaId !== target.mediaId))
+    }
     if (selectedId === id) {
       console.log('[DEBUG] deleteObject: setting activePanel to null')
       setSelectedId(null)
@@ -4854,7 +5216,11 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const deleteSelectedObject = useCallback(() => {
     const idsToDelete = selectedIds.length ? selectedIds : [selectedId]
+    const mediaIds = idsToDelete.map((id) => itemsRef.current.find((i) => i.id === id)?.mediaId).filter(Boolean)
     setItems((current) => current.filter((item) => !idsToDelete.includes(item.id)))
+    if (mediaIds.length) {
+      setAssetContextSignals((current) => current.filter((s) => !mediaIds.includes(s.mediaId)))
+    }
     setSelectedId(null)
     setSelectedIds([])
     setActivePanel(null)
@@ -5368,6 +5734,14 @@ const attachTransformer = useCallback((idOrIds) => {
         })
       }
     }
+
+    // Reactive maskSourceType: when effects change on composite operator, auto-update
+    if ('effects' in patch && (currentItem?.compositeMode === 'mask' || currentItem?.compositeMode === 'exclude')) {
+      const newEffects = patch.effects
+      const hasEffects = newEffects && typeof newEffects === 'object' && Object.keys(newEffects).length > 0
+      patch.maskSourceType = (hasEffects && currentItem?.kind === 'image') ? 'alpha' : undefined
+    }
+
     setItems((current) => current.map((item) => {
       if (item.id !== id) return item
       const next = { ...item, ...patch }
@@ -6024,15 +6398,24 @@ const attachTransformer = useCallback((idOrIds) => {
     const selectedSet = new Set(compositableIds)
     const nextMode = activeCompositeMode === mode ? null : mode
 
+    let capturedGroupMembers = null
+
     setItems((current) => {
       const groupMembers = current
         .filter((item) => selectedSet.has(item.id))
-        .map((item, index) => ({
-          ...item,
-          groupId,
-          compositeMode: index === 0 ? nextMode : null,
-        }))
+        .map((item, index) => {
+          const isOperator = index === 0 && nextMode !== null
+          const hasEffects = isOperator && item.effects && Object.keys(item.effects).length > 0
+          return {
+            ...item,
+            groupId,
+            compositeMode: index === 0 ? nextMode : null,
+            ...(isOperator ? { maskSourceType: (hasEffects && item.kind === 'image') ? 'alpha' : undefined } : {}),
+          }
+        })
       if (groupMembers.length < 2) return current
+
+      capturedGroupMembers = groupMembers
 
       const rest = current.filter((item) => !selectedSet.has(item.id))
       const firstSelectedIndex = current.findIndex((item) => selectedSet.has(item.id))
@@ -6042,6 +6425,19 @@ const attachTransformer = useCallback((idOrIds) => {
         ...groupMembers,
         ...rest.slice(insertIndex),
       ]
+    })
+
+    console.log('[CompositeGroup] applyCompositeGroupMode', {
+      mode,
+      groupId,
+      capturedGroupMembers: capturedGroupMembers?.map((item) => ({
+        id: item.id,
+        compositeMode: item.compositeMode,
+        maskSourceType: item.maskSourceType,
+        kind: item.kind,
+        hasEffects: !!item.effects && Object.keys(item.effects).length > 0,
+        effectsKeys: item.effects ? Object.keys(item.effects) : [],
+      })),
     })
 
     setIsGroupSelectMode(false)
@@ -7115,11 +7511,19 @@ const attachTransformer = useCallback((idOrIds) => {
     }
 
     const removeId = options.removeItemId
+    let removedMediaId = null
+    if (removeId) {
+      const removedItem = itemsRef.current.find((i) => i.id === removeId)
+      if (removedItem?.mediaId) removedMediaId = removedItem.mediaId
+    }
     setItems((current) => {
       let next = current.map((item) => (item.id === frameId ? { ...item, ...patch } : item))
       if (removeId) next = next.filter((i) => i.id !== removeId)
       return next
     })
+    if (removedMediaId) {
+      setAssetContextSignals((current) => current.filter((s) => s.mediaId !== removedMediaId))
+    }
 
     requestAnimationFrame(() => {
       const layer = stageRef.current?.findOne('Layer')
@@ -9719,7 +10123,11 @@ const toggleMobileSheetSize = () => {
                   const entry = layerEntries.find((candidate) => candidate.id === id)
                   if (entry?.kind === 'group') {
                     const ids = entry.members.map((member) => member.id)
+                    const mediaIds = ids.map((mid) => itemsRef.current.find((i) => i.id === mid)?.mediaId).filter(Boolean)
                     setItems((current) => current.filter((item) => !ids.includes(item.id)))
+                    if (mediaIds.length) {
+                      setAssetContextSignals((current) => current.filter((s) => !mediaIds.includes(s.mediaId)))
+                    }
                     setSelectedId(null)
                     setSelectedIds([])
                     attachTransformer(null)
@@ -9847,14 +10255,15 @@ const toggleMobileSheetSize = () => {
               <strong>{selectedItems.length}</strong>
             </button>
           </div>
-          {canUseCompositeGroupMode && (
+          {(canUseCompositeGroupMode || hasCompositeInSelection) && (
             <div className="workspace-section-card">
               <div className="workspace-section-title">Composite Group</div>
               <div className="workspace-canvas-align-grid-modern workspace-composite-mode-grid">
                 <button
                   type="button"
                   className={`workspace-align-btn-modern ${activeCompositeMode === 'mask' ? 'active' : ''}`}
-                  title="Layer paling atas menjadi mask untuk object terpilih di bawahnya"
+                  disabled={hasCompositeInSelection}
+                  title={hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : 'Layer paling atas menjadi mask untuk object terpilih di bawahnya'}
                   onClick={() => applyCompositeGroupMode('mask')}
                 >
                   <Box size={18} />
@@ -9863,7 +10272,8 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-align-btn-modern ${activeCompositeMode === 'exclude' ? 'active' : ''}`}
-                  title="Layer paling atas melubangi object terpilih di bawahnya"
+                  disabled={hasCompositeInSelection}
+                  title={hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : 'Layer paling atas melubangi object terpilih di bawahnya'}
                   onClick={() => applyCompositeGroupMode('exclude')}
                 >
                   <MinusIcon size={18} />
@@ -9963,14 +10373,15 @@ const toggleMobileSheetSize = () => {
             </button>
           </div>
 
-          {canUseCompositeGroupMode && (
+          {(canUseCompositeGroupMode || hasCompositeInSelection) && (
             <div className="workspace-section-card">
               <div className="workspace-section-title">{activeSelectionCount > 1 ? 'Composite Group' : 'Masking & Exclude'}</div>
               <div className="workspace-canvas-align-grid-modern workspace-composite-mode-grid">
                 <button
                   type="button"
                   className={`workspace-align-btn-modern ${activeCompositeMode === 'mask' ? 'active' : ''}`}
-                  title={activeSelectionCount > 1 ? 'Layer paling atas menjadi mask untuk object terpilih di bawahnya' : 'Layer ini menjadi mask untuk layer di bawahnya'}
+                  disabled={hasCompositeInSelection}
+                  title={hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : (activeSelectionCount > 1 ? 'Layer paling atas menjadi mask untuk object terpilih di bawahnya' : 'Layer ini menjadi mask untuk layer di bawahnya')}
                   onClick={() => applyCompositeGroupMode('mask')}
                 >
                   <Box size={18} />
@@ -9979,7 +10390,8 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-align-btn-modern ${activeCompositeMode === 'exclude' ? 'active' : ''}`}
-                  title={activeSelectionCount > 1 ? 'Layer paling atas melubangi object terpilih di bawahnya' : 'Layer ini melubangi layer di bawahnya'}
+                  disabled={hasCompositeInSelection}
+                  title={hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : (activeSelectionCount > 1 ? 'Layer paling atas melubangi object terpilih di bawahnya' : 'Layer ini melubangi layer di bawahnya')}
                   onClick={() => applyCompositeGroupMode('exclude')}
                 >
                   <MinusIcon size={18} />
@@ -12081,6 +12493,7 @@ const toggleMobileSheetSize = () => {
             skipGroupDragEndRef={skipGroupDragEndRef}
             selectedIdsRef={selectedIdsRef}
             multiDragRef={multiDragRef}
+            stageRef={stageRef}
           />
         )
       }
@@ -12479,13 +12892,13 @@ const toggleMobileSheetSize = () => {
                 clipWidth={canvasSize.width}
                 clipHeight={canvasSize.height}
               >
+                {renderedAdjustmentLayerItems}
                 <GlobalAdjustmentLayer
                   stageRef={stageRef}
                   items={items}
                   canvasWidth={canvasSize.width}
                   canvasHeight={canvasSize.height}
                 />
-                {renderedAdjustmentLayerItems}
                 {renderedAboveCanvasContent}
                 {items.map((item) => (
                   <ObjectAnchors
@@ -13136,27 +13549,25 @@ const toggleMobileSheetSize = () => {
           </button>
         </div>
       </div>
-      <div className="workspace-panel-scroll-wrap">
-        <div className="workspace-panel-scroll">
-          {renderPanel()}
-        </div>
-        {assetSubView === 'uploads' && (
-          <div className="workspace-upload-fab-wrap">
-            <button
-              type="button"
-              className="workspace-upload-fab"
-              title="Upload image"
-              onClick={() => {
-                if (!requireAuth('login')) return
-                uploadInputRef.current?.click()
-              }}
-              disabled={isUploading || deletingMediaIds.size > 0}
-            >
-              <Plus size={22} />
-            </button>
-          </div>
-        )}
+      <div className="workspace-panel-scroll">
+        {renderPanel()}
       </div>
+      {activePanel === 'assets' && assetSubView === 'uploads' && (
+        <div className="workspace-upload-fab-wrap">
+          <button
+            type="button"
+            className="workspace-upload-fab"
+            title="Upload image"
+            onClick={() => {
+              if (!requireAuth('login')) return
+              uploadInputRef.current?.click()
+            }}
+            disabled={isUploading || deletingMediaIds.size > 0}
+          >
+            <Plus size={22} />
+          </button>
+        </div>
+      )}
     </aside>
 
     <div className="canvas-bottom-toolbar">
@@ -13313,9 +13724,9 @@ const toggleMobileSheetSize = () => {
                 { label: 'Duplikat', action: () => duplicateItems(selectedIds.length ? selectedIds : [selectedId]), Icon: CopyPlus },
                 { label: 'Hapus (Delete)', action: deleteSelectedObject, Icon: Trash2 },
                 ...(selectedItem?.kind === 'image' && selectedIds.length <= 1 ? [{ label: 'Pangkas', action: () => beginImageCrop(selectedItem.id), Icon: Crop }] : []),
-                ...(canUseCompositeGroupMode ? [
-                  { label: activeCompositeMode === 'mask' ? 'Matikan Masking' : activeSelectionCount > 1 ? `Masking (${activeSelectionCount})` : 'Masking', action: () => applyCompositeGroupMode('mask'), Icon: Box },
-                  { label: activeCompositeMode === 'exclude' ? 'Matikan Exclude' : activeSelectionCount > 1 ? `Exclude (${activeSelectionCount})` : 'Exclude', action: () => applyCompositeGroupMode('exclude'), Icon: MinusIcon },
+                ...((canUseCompositeGroupMode || hasCompositeInSelection) ? [
+                  { label: activeCompositeMode === 'mask' ? 'Matikan Masking' : activeSelectionCount > 1 ? `Masking (${activeSelectionCount})` : 'Masking', action: hasCompositeInSelection ? null : () => applyCompositeGroupMode('mask'), Icon: Box, disabled: hasCompositeInSelection },
+                  { label: activeCompositeMode === 'exclude' ? 'Matikan Exclude' : activeSelectionCount > 1 ? `Exclude (${activeSelectionCount})` : 'Exclude', action: hasCompositeInSelection ? null : () => applyCompositeGroupMode('exclude'), Icon: MinusIcon, disabled: hasCompositeInSelection },
                 ] : []),
                 { label: '---' },
                 { label: 'Canvas Align', action: 'submenu', Icon: AlignCenter },
@@ -13367,7 +13778,7 @@ const toggleMobileSheetSize = () => {
                   )
                 }
                 return (
-                  <div key={i} style={menuItemStyle} onClick={() => { item.action(); closeAllMenus() }}>
+                  <div key={i} style={{ ...menuItemStyle, opacity: item.disabled ? 0.4 : 1, cursor: item.disabled ? 'not-allowed' : 'pointer' }} onClick={() => { if (!item.disabled) { item.action?.(); closeAllMenus() } }} title={item.disabled ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : undefined}>
                     {item.Icon && <item.Icon size={14} style={{ flexShrink: 0 }} />}
                     <span>{item.label}</span>
                   </div>
@@ -13401,9 +13812,9 @@ const toggleMobileSheetSize = () => {
             : { label: activeSelectionCount > 1 ? `Kelompokkan (${activeSelectionCount})` : 'Group', shortcut: '', action: handleGroupSelectionAction, Icon: GroupIcon },
           { label: 'Duplikat', shortcut: '', action: () => duplicateItems(selectedIds.length ? selectedIds : [selectedId]), Icon: CopyPlus },
           ...(selectedItem?.kind === 'image' && selectedIds.length <= 1 ? [{ label: 'Pangkas', shortcut: '', action: () => beginImageCrop(selectedItem.id), Icon: Crop }] : []),
-          ...(canUseCompositeGroupMode ? [
-            { label: activeCompositeMode === 'mask' ? 'Matikan Masking' : activeSelectionCount > 1 ? `Masking (${activeSelectionCount})` : 'Masking', shortcut: '', action: () => applyCompositeGroupMode('mask'), Icon: Box },
-            { label: activeCompositeMode === 'exclude' ? 'Matikan Exclude' : activeSelectionCount > 1 ? `Exclude (${activeSelectionCount})` : 'Exclude', shortcut: '', action: () => applyCompositeGroupMode('exclude'), Icon: MinusIcon },
+          ...((canUseCompositeGroupMode || hasCompositeInSelection) ? [
+            { label: activeCompositeMode === 'mask' ? 'Matikan Masking' : activeSelectionCount > 1 ? `Masking (${activeSelectionCount})` : 'Masking', shortcut: '', action: hasCompositeInSelection ? null : () => applyCompositeGroupMode('mask'), Icon: Box, disabled: hasCompositeInSelection },
+            { label: activeCompositeMode === 'exclude' ? 'Matikan Exclude' : activeSelectionCount > 1 ? `Exclude (${activeSelectionCount})` : 'Exclude', shortcut: '', action: hasCompositeInSelection ? null : () => applyCompositeGroupMode('exclude'), Icon: MinusIcon, disabled: hasCompositeInSelection },
           ] : []),
           { label: '---' },
           { label: 'Canvas Align', shortcut: '', action: 'submenu', Icon: AlignCenter },
@@ -13456,7 +13867,7 @@ const toggleMobileSheetSize = () => {
             )
           }
           return (
-            <div key={i} style={menuItemStyle} onClick={() => { item.action(); closeAllMenus() }}>
+            <div key={i} style={{ ...menuItemStyle, opacity: item.disabled ? 0.4 : 1, cursor: item.disabled ? 'not-allowed' : 'pointer' }} onClick={() => { if (!item.disabled) { item.action?.(); closeAllMenus() } }} title={item.disabled ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : undefined}>
               {item.Icon && <item.Icon size={14} style={{ flexShrink: 0 }} />}
               <span>{item.label}</span>
               {item.shortcut && <span style={{ marginLeft: 'auto', opacity: 0.4, fontSize: 11 }}>{item.shortcut}</span>}

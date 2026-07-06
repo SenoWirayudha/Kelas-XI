@@ -84,11 +84,17 @@ export const getUserProfileEmbedding = async (userId) => {
 export const rankPostsByProfile = (posts, profileEmbedding) => {
   if (!profileEmbedding || !posts?.length) return posts
   return posts
-    .map((post) => ({
-      ...post,
-      _clipScore: post.embedding
+    .map((post) => {
+      const scoreA = post.embedding
         ? cosineSimilarity(profileEmbedding, post.embedding)
-        : 0,
-    }))
+        : 0
+      const scoreB = post.textEmbedding
+        ? cosineSimilarity(profileEmbedding, post.textEmbedding)
+        : 0
+      return {
+        ...post,
+        _clipScore: Math.max(scoreA, scoreB),
+      }
+    })
     .sort((a, b) => b._clipScore - a._clipScore)
 }

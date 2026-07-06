@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Konva from 'konva'
-import { Group, Image as KonvaImage } from 'react-konva'
+import { Group, Image as KonvaImage, Rect } from 'react-konva'
 import { getActiveAdjustmentLayers, hasAnyAdjustment } from '../../utils/adjustmentLayerUtils'
 import { applyImageFilters, applyMoodSpaceToImageData } from '../../utils/imageFilters'
 import { hasAnyEffect } from '../../utils/effectUtils'
@@ -215,11 +215,32 @@ async function renderItemsToCanvas({ stageRef, sourceItems, bounds, canvasWidth,
             const cachedCanvas = groupNode._getCachedSceneCanvas()
             if (cachedCanvas) {
               const nativeCanvas = cachedCanvas._canvas
+              // Sample cache to check if it has actual content
+              const ctx2d = nativeCanvas?.getContext?.('2d')
+              if (ctx2d && typeof globalThis.__ADJ_DEBUG__ !== 'undefined') {
+                // Sample from center of cache (content is at groupMinX/Y, not at 0,0)
+                const sx = Math.max(0, Math.floor(nativeCanvas.width / 2 - 4))
+                const sy = Math.max(0, Math.floor(nativeCanvas.height / 2 - 4))
+                const sample = ctx2d.getImageData(sx, sy, 4, 4)
+                let opaque = 0
+                for (let i = 3; i < sample.data.length; i += 4) {
+                  if (sample.data[i] > 0) opaque++
+                }
+                console.log('[AdjCapture] cache sample', item.groupId,
+                  'sample at:', sx, sy,
+                  'native:', nativeCanvas.width, 'x', nativeCanvas.height,
+                  'pixelRatio:', cachedCanvas.getPixelRatio(),
+                  'opaque pixels:', opaque, '/', sample.data.length / 4,
+                  'group children:', groupNode.children?.length,
+                  'has cache canvas:', !!groupNode._getCachedSceneCanvas())
+              }
               const cachePR = cachedCanvas.getPixelRatio()
+              const gx = groupNode.x()
+              const gy = groupNode.y()
               const img = new Konva.Image({
                 image: nativeCanvas,
-                x: 0,
-                y: 0,
+                x: gx,
+                y: gy,
                 width: canvasWidth,
                 height: canvasHeight,
                 listening: false,
@@ -230,7 +251,7 @@ async function renderItemsToCanvas({ stageRef, sourceItems, bounds, canvasWidth,
                   'cachePR:', cachePR,
                   'native canvas:', nativeCanvas.width, 'x', nativeCanvas.height,
                   'stage units:', canvasWidth, 'x', canvasHeight,
-                  'group x/y:', groupNode.x(), groupNode.y(),
+                  'group x/y:', gx, gy,
                   'children:', groupNode.children?.length)
               }
             }
@@ -240,7 +261,10 @@ async function renderItemsToCanvas({ stageRef, sourceItems, bounds, canvasWidth,
       }
 
       const itemNode = stage.findOne(`#${item.id}`) || stage.findOne(`[id="${item.id}"]`)
-      if (!itemNode) return
+      if (!itemNode) {
+        console.warn('[AdjCapture] MISSING node for item', item.id, 'kind:', item.kind, 'groupId:', item.groupId, 'compositeMode:', item.compositeMode)
+        return
+      }
       const clone = cloneCanvasNode(itemNode)
       exportLayer.add(clone)
       applyItemFiltersToClone(clone, item)
@@ -368,19 +392,68 @@ export default function GlobalAdjustmentLayer({ stageRef, items, canvasWidth, ca
 
           if (gen !== generationRef.current) return
 
+          if (typeof globalThis.__ADJ_DEBUG__ !== 'undefined') {
+            console.log('[AdjLayer] includeBackground=' + includeBackground + ' sourceItems=' + sourceItems.length + ' layerIdx=' + layerIndex + ' layerW=' + w + ' layerH=' + h + ' offW=' + offscreen.width + ' offH=' + offscreen.height + ' layerOpacity=' + (layer.opacity ?? 1) + ' layerVisible=' + (layer.visible !== false))
+          }
+
           const ctx = offscreen.getContext('2d', { willReadFrequently: true })
           const imageData = ctx.getImageData(0, 0, offscreen.width, offscreen.height)
+
+          // Debug: sample pixel at center before adjustment
+          if (typeof globalThis.__ADJ_DEBUG__ !== 'undefined') {
+            const cx = Math.min(Math.floor(offscreen.width / 2), offscreen.width - 1)
+            const cy = Math.min(Math.floor(offscreen.height / 2), offscreen.height - 1)
+            const idx = (cy * offscreen.width + cx) * 4
+            console.log('[AdjLayer] before ' + [
+              'cx=' + cx, 'cy=' + cy,
+              'r=' + imageData.data[idx],
+              'g=' + imageData.data[idx + 1],
+              'b=' + imageData.data[idx + 2],
+              'a=' + imageData.data[idx + 3],
+            ].join(' '))
+          }
+
           applyMoodSpaceToImageData(imageData, layer)
 
           if (hasAnyEffect(layer)) {
             effectManager.applyEffectsToImageData(imageData, layer.effects)
           }
 
-          ctx.putImageData(imageData, 0, 0)
+          // Write adjusted pixels to a FRESH canvas at offscreen size
+          const freshCanvas = document.createElement('canvas')
+          freshCanvas.width = offscreen.width
+          freshCanvas.height = offscreen.height
+          const freshCtx = freshCanvas.getContext('2d')
+          freshCtx.putImageData(imageData, 0, 0)
+
+          // Copy to display-sized canvas
+          const displayCanvas = document.createElement('canvas')
+          displayCanvas.width = w
+          displayCanvas.height = h
+          const dCtx = displayCanvas.getContext('2d')
+          dCtx.drawImage(freshCanvas, 0, 0, w, h)
+
+          // Convert to PNG data URL and load as Image for clean GPU texture
+          const dataUrl = displayCanvas.toDataURL('image/png')
+          const img = await new Promise((resolve, reject) => {
+            const i = new window.Image()
+            i.onload = () => resolve(i)
+            i.onerror = reject
+            i.src = dataUrl
+          })
+
+          if (typeof globalThis.__ADJ_DEBUG__ !== 'undefined') {
+            const midX = Math.floor(canvasWidth / 2)
+            const midY = Math.floor(canvasHeight / 2)
+            const spx = dCtx.getImageData(midX, midY, 1, 1).data
+            console.log('[AdjLayer] display center after=' +
+              spx[0] + ',' + spx[1] + ',' + spx[2] + ',' + spx[3] +
+              ' img=' + img.width + 'x' + img.height)
+          }
 
           if (gen !== generationRef.current) return
           const renderKey = ++renderKeyRef.current
-          next[layer.id] = { canvas: offscreen, x, y, w, h, layer, renderKey }
+          next[layer.id] = { canvas: img, x, y, w, h, layer, renderKey }
           anySuccess = true
         } catch (err) {
           console.warn('[GlobalAdjustmentLayer] failed to process layer', layer.id, err)
@@ -436,18 +509,17 @@ export default function GlobalAdjustmentLayer({ stageRef, items, canvasWidth, ca
           <Group
             key={id}
             name="adjustment-overlay"
-            x={lx}
-            y={ly}
-            width={lw}
-            height={lh}
-            clipFunc={createAdjustmentClipFunc(liveLayer)}
+            x={0}
+            y={0}
+            width={canvasWidth}
+            height={canvasHeight}
             listening={false}
           >
             <KonvaImage
               key={`img-${data.renderKey ?? 0}`}
               image={data.canvas}
-              x={0}
-              y={0}
+              x={lx}
+              y={ly}
               width={lw}
               height={lh}
               opacity={liveLayer?.opacity ?? 1}

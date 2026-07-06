@@ -117,8 +117,9 @@ export const findEmbeddingsByItemIds = async (ids) => {
   return results
 }
 
-export const findImagesByVisualSimilarity = async ({ embedding, limit = 30, excludeIds = [] }) => {
+export const findImagesByVisualSimilarity = async ({ embedding, limit = 30, offset = 0, excludeIds = [] }) => {
   if (!embedding?.length) return []
+  const poolLimit = 500 + offset
   const { rows } = await query(
     `select id, provider, external_id as "externalId", title, description, tags,
             url, thumbnail_url as "thumbnailUrl", width, height,
@@ -127,7 +128,8 @@ export const findImagesByVisualSimilarity = async ({ embedding, limit = 30, excl
      from external_images
      where embedding is not null
      order by updated_at desc
-     limit 500`,
+     limit $1`,
+    [poolLimit],
   )
   const scored = rows
     .filter((row) => row.embedding && !excludeIds.includes(row.id))
@@ -137,7 +139,7 @@ export const findImagesByVisualSimilarity = async ({ embedding, limit = 30, excl
       _clipScore: cosineSimilarity(embedding, row.embedding),
     }))
     .sort((a, b) => b._clipScore - a._clipScore)
-    .slice(0, limit)
+    .slice(offset, offset + limit)
   return scored
 }
 
@@ -173,14 +175,21 @@ export const findAnyEmbedding = async ({ id }) => {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     return null
   }
-  const { rows } = await query(
+  // Check posts
+  const { rows: postRows } = await query(
     `select p.embedding from posts p
      join post_media pm on pm.post_id = p.id
      where pm.media_id = $1 and p.embedding is not null
      limit 1`,
     [id],
   )
-  return rows[0]?.embedding || null
+  if (postRows[0]?.embedding) return postRows[0].embedding
+  // Check media_assets (uploaded image embeddings stored during upload)
+  const { rows: mediaRows } = await query(
+    `select embedding from media_assets where id = $1 and embedding is not null limit 1`,
+    [id],
+  )
+  return mediaRows[0]?.embedding || null
 }
 
 export const saveExternalImage = async ({ userId, externalImageId }) => {
@@ -219,7 +228,8 @@ export const findEntityCandidates = async () => {
      from external_images
      where embedding is not null
        and provider in ('tmdb', 'itunes')
-       and (provider != 'tmdb' or (metadata->>'imageType' in ('poster', 'backdrop')))`,
+       and (provider != 'tmdb' or (metadata->>'imageType' in ('poster', 'backdrop')))
+      order by (provider = 'tmdb') desc, id`,
   )
   return rows
 }

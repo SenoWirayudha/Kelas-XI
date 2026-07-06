@@ -37,10 +37,21 @@ export const l2Normalize = (vector) => {
   return normalized
 }
 
+// 1x1 pixel white PNG as Buffer — used for vision model warm-up without external file
+const DUMMY_IMAGE = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+)
+
 export const warmUpClip = async () => {
   try {
-    await getTextModel()
-    console.log('[CLIP] Models pre-warmed')
+    console.log('[CLIP] Warming up models...')
+    const start = Date.now()
+    await Promise.all([
+      getTextEmbedding('warmup'),
+      getImageEmbedding(DUMMY_IMAGE),
+    ])
+    console.log(`[CLIP] Models pre-warmed in ${Date.now() - start}ms`)
   } catch (error) {
     console.error('[CLIP] Pre-warm failed:', error.message)
   }
@@ -63,11 +74,15 @@ export const getTextEmbedding = async (text) => {
   }
 }
 
-export const getImageEmbedding = async (imageUrl) => {
+export const getImageEmbedding = async (imageInput) => {
   try {
-    if (!imageUrl) return null
+    if (!imageInput) return null
     const { model, processor } = await getVisionModel()
-    const image = await RawImage.read(imageUrl)
+    // RawImage.read() only accepts string (URL/path) or URL instance.
+    // For Buffer/Uint8Array/Blob input, use fromBlob() instead.
+    const image = typeof imageInput === 'string' || imageInput instanceof URL
+      ? await RawImage.read(imageInput)
+      : await RawImage.fromBlob(new Blob([imageInput]))
     const inputs = await processor(image)
     const outputs = await model(inputs)
     const embedding = outputs.image_embeds?.data
@@ -81,11 +96,14 @@ export const getImageEmbedding = async (imageUrl) => {
 
 export const cosineSimilarity = (a, b) => {
   if (!a || !b || a.length !== b.length) return 0
-  let dot = 0
+  let dot = 0, na = 0, nb = 0
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i]
+    na += a[i] * a[i]
+    nb += b[i] * b[i]
   }
-  return dot
+  const denom = Math.sqrt(na) * Math.sqrt(nb)
+  return denom === 0 ? 0 : dot / denom
 }
 
 export const averageEmbeddings = (embeddings) => {

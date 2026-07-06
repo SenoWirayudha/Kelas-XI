@@ -31,7 +31,7 @@ const mixRecommendedItems = (internalItems = [], externalItems = []) => {
   let internalIndex = 0
   let externalIndex = 0
   while (internalIndex < internalItems.length || externalIndex < externalItems.length) {
-    for (let count = 0; count < 2 && internalIndex < internalItems.length; count += 1) {
+    for (let count = 0; count < 3 && internalIndex < internalItems.length; count += 1) {
       mixed.push(internalItems[internalIndex])
       internalIndex += 1
     }
@@ -69,11 +69,9 @@ function ExternalImageDetail() {
   const [toastData, setToastData] = useState(null)
   const recommendedSentinelRef = useRef(null)
   const recommendedLoadingRef = useRef(false)
-  const recommendedOffsetRef = useRef(0)
-  const recommendedExternalCursorRef = useRef(null)
+  const recommendedCursorRef = useRef(null)
   const recommendedQueryRef = useRef('')
   const recommendedExternalParamsRef = useRef({})
-  const internalExhaustedRef = useRef(false)
 
   const decodedId = useMemo(() => decodeURIComponent(id || ''), [id])
 
@@ -84,10 +82,8 @@ function ExternalImageDetail() {
     setError('')
     setRecommended([])
     setHasMoreRecommended(false)
-    recommendedOffsetRef.current = 0
-    recommendedExternalCursorRef.current = null
+    recommendedCursorRef.current = null
     recommendedExternalParamsRef.current = {}
-    internalExhaustedRef.current = false
     getExternalImage(decodedId)
       .then(({ image }) => {
         if (cancelled) return
@@ -99,10 +95,12 @@ function ExternalImageDetail() {
         if (image?.provider === 'tmdb') {
           relatedParams.includeRecommendations = true
         }
+        relatedParams.visualSimilarTo = decodedId
+        relatedParams.semanticText = [image.title, ...(image.tags || [])].filter(Boolean).slice(0, 10).join('. ')
         recommendedExternalParamsRef.current = relatedParams
         return Promise.allSettled([
           getSimilarPostsByImage(decodedId, { q: recommendedQueryRef.current, limit: 12 }),
-          searchExternalImages({ ...recommendedExternalParamsRef.current, context: 'related', limit: 6 }),
+          searchExternalImages({ ...recommendedExternalParamsRef.current, context: 'recommended', limit: 6 }),
         ])
       })
       .then((results) => {
@@ -110,11 +108,13 @@ function ExternalImageDetail() {
         const [internalResult, externalResult] = results
         const internalItems = internalResult.status === 'fulfilled' ? internalResult.value.items || [] : []
         const externalPayload = externalResult.status === 'fulfilled' ? externalResult.value : { items: [], nextCursor: null }
-        internalExhaustedRef.current = true
         const externalItems = (externalPayload.items || [])
           .filter((image) => image.id !== decodedId)
           .map(externalImageToPost)
-        recommendedExternalCursorRef.current = externalPayload.nextCursor || null
+        recommendedCursorRef.current = {
+          internalExhausted: true,
+          externalCursor: externalPayload.nextCursor || null,
+        }
         setHasMoreRecommended(!!externalPayload.nextCursor)
         setRecommended(mixRecommendedItems(internalItems, externalItems))
       })
@@ -134,11 +134,15 @@ function ExternalImageDetail() {
     setIsLoadingRecommended(true)
     setRecommended((current) => [...current, ...createSkeletonItems(RECOMMENDED_SKELETON_COUNT)])
     try {
+      const cursor = recommendedCursorRef.current || {}
       const externalResult = await searchExternalImages({
-        ...recommendedExternalParamsRef.current, context: 'related', limit: 6,
-        cursor: recommendedExternalCursorRef.current,
+        ...recommendedExternalParamsRef.current, context: 'recommended', limit: 6,
+        cursor: cursor.externalCursor,
       }).catch(() => ({ items: [], nextCursor: null }))
-      recommendedExternalCursorRef.current = externalResult.nextCursor || null
+      recommendedCursorRef.current = {
+        internalExhausted: true,
+        externalCursor: externalResult.nextCursor || null,
+      }
       const externalItems = (externalResult.items || [])
         .filter((image) => image.id !== decodedId)
         .map(externalImageToPost)
@@ -151,7 +155,7 @@ function ExternalImageDetail() {
           return true
         })]
       })
-      setHasMoreRecommended(!!recommendedExternalCursorRef.current)
+      setHasMoreRecommended(!!recommendedCursorRef.current.externalCursor)
     } catch {
       setRecommended((current) => current.filter((p) => !p._isSkeleton))
     } finally {
