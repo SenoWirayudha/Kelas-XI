@@ -67,12 +67,14 @@ import {
   LoaderCircle,
   SlidersHorizontal,
   ChevronDown,
+  ChevronRight,
   X,
   Paintbrush,
   PenTool,
   WandSparkles,
   List,
   ListOrdered,
+  Image,
 } from 'lucide-react'
 import { Stage, Layer, Rect, Text, Group, Image as KonvaImage, Line, Transformer, Circle, Ellipse, RegularPolygon, Star, Arrow, Path } from 'react-konva'
 import {
@@ -116,7 +118,7 @@ import { getArrowShapePath, getShapeTextBounds, getShapeMinSizeForText, getShape
 import { fetchGoogleFonts, getGoogleFontsApiKey } from '../utils/googleFontsApi'
 import { isGridFrame, getResolvedFrameSlot, getResolvedFrameSlots, clampFrameImagePosition, getMinFrameImageZoom } from '../utils/frameUtils'
 import { getItemAnchorPoint, getClosestAnchorToPoint, getBestConnectorAnchors, resolveConnectorEndpointPoint, getConnectorLinePoints, getConnectorCurvePath, getConnectorArrowTail } from '../utils/connectorUtils'
-import { getShadowProps, getCanvasBackgroundProps, loadImageMetadata, preloadFont } from '../utils/konvaUtils'
+import { getShadowProps, getCanvasBackgroundProps, loadImageMetadata, preloadFont, clearFontCache } from '../utils/konvaUtils'
 import { applyImageFilters } from '../utils/imageFilters'
 import { getDefaultEffects } from '../utils/effectUtils'
 import { effectManager } from '../utils/konva-effects-engine'
@@ -913,7 +915,7 @@ const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, sele
     onDragEnd: (event) => onDragEnd(event, item.id),
     onTextEdit,
     onTransformEnd: (event) => {
-      if (item.kind === 'shape' && (item.shapeType === 'freehand' || item.shapeType === 'bezier-path')) return
+      if (item.kind === 'shape' && item.shapeType === 'freehand') return
       const patch = getCanvasItemTransformPatch({
         item,
         node: event.target,
@@ -957,77 +959,115 @@ const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, sele
   )
 })
 
+// Rect-type shapes: rotate corners (0,0),(w,0),(w,h),(0,h) around origin (ox,oy)
+const drawRotatedRect = (ctx, ox, oy, w, h, cos, sin) => {
+  ctx.moveTo(ox, oy)
+  ctx.lineTo(ox + w * cos, oy + w * sin)
+  ctx.lineTo(ox + w * cos - h * sin, oy + w * sin + h * cos)
+  ctx.lineTo(ox - h * sin, oy + h * cos)
+  ctx.closePath()
+}
+
+// Rounded rect-type shapes: rotate all 12 points around origin (ox,oy)
+const drawRotatedRoundedRect = (ctx, ox, oy, w, h, r, cos, sin) => {
+  r = Math.max(0, Math.min(r, w / 2, h / 2))
+  const rot = (x, y) => ({ x: ox + x * cos - y * sin, y: oy + x * sin + y * cos })
+  const A1 = rot(r, 0), A2 = rot(w - r, 0)
+  const Bc = rot(w, 0), B1 = rot(w, r), B2 = rot(w, h - r)
+  const Cc = rot(w, h), C1 = rot(w - r, h), C2 = rot(r, h)
+  const Dc = rot(0, h), D1 = rot(0, h - r), D2 = rot(0, r)
+  const Ac = rot(0, 0)
+  ctx.moveTo(A1.x, A1.y)
+  ctx.lineTo(A2.x, A2.y)
+  ctx.quadraticCurveTo(Bc.x, Bc.y, B1.x, B1.y)
+  ctx.lineTo(B2.x, B2.y)
+  ctx.quadraticCurveTo(Cc.x, Cc.y, C1.x, C1.y)
+  ctx.lineTo(C2.x, C2.y)
+  ctx.quadraticCurveTo(Dc.x, Dc.y, D1.x, D1.y)
+  ctx.lineTo(D2.x, D2.y)
+  ctx.quadraticCurveTo(Ac.x, Ac.y, A1.x, A1.y)
+  ctx.closePath()
+}
+
 const drawCompositeMaskPath = (ctx, item) => {
   if (!item) return
   const w = Math.max(1, item.w || 1)
   const h = Math.max(1, item.h || item.fontSize || 1)
   const rotationDeg = item.rotation || 0
   const rotation = (rotationDeg * Math.PI) / 180
-  const centerX = (item.x || 0) + w / 2
-  const centerY = (item.y || 0) + h / 2
+  const ox = item.x || 0
+  const oy = item.y || 0
+  const cx = ox + w / 2
+  const cy = oy + h / 2
 
-  /* DEBUG: clipFunc path */
-  console.log('[drawCompositeMaskPath]', JSON.stringify({
-    itemId: item.id,
-    kind: item.kind,
-    shapeType: item.shapeType,
-    x: item.x, y: item.y,
-    w, h,
-    rotationDeg,
-    centerX: Math.round(centerX),
-    centerY: Math.round(centerY),
-    translate: `${Math.round(centerX)}, ${Math.round(centerY)}`,
-    rectFrom: `${Math.round(-w/2)}, ${Math.round(-h/2)}`,
-    rectTo: `${Math.round(w/2)}, ${Math.round(h/2)}`,
-  }))
-
-  ctx.save()
-  ctx.translate(centerX, centerY)
-  if (rotation) ctx.rotate(rotation)
   ctx.beginPath()
 
   if (item.kind === 'text') {
-    ctx.rect(-w / 2, -h / 2, w, h)
-    ctx.restore()
+    if (rotation) {
+      const cos = Math.cos(rotation), sin = Math.sin(rotation)
+      drawRotatedRect(ctx, ox, oy, w, h, cos, sin)
+    } else {
+      ctx.rect(ox, oy, w, h)
+    }
     return
   }
 
   if (item.kind === 'shape') {
     if (item.shapeType === 'circle' || item.shapeType === 'ellipse') {
-      ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2)
+      if (rotation) {
+        const cos = Math.cos(rotation), sin = Math.sin(rotation)
+        const cx_abs = ox + (w / 2) * cos - (h / 2) * sin
+        const cy_abs = oy + (w / 2) * sin + (h / 2) * cos
+        ctx.ellipse(cx_abs, cy_abs, w / 2, h / 2, rotation, 0, Math.PI * 2)
+      } else {
+        ctx.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2)
+      }
     } else if (item.shapeType === 'polygon') {
+      let centerX = cx, centerY = cy
+      if (rotation) {
+        const cos = Math.cos(rotation), sin = Math.sin(rotation)
+        centerX = ox + (w / 2) * cos - (h / 2) * sin
+        centerY = oy + (w / 2) * sin + (h / 2) * cos
+      }
       const sides = Math.max(3, item.sides || 3)
       const radius = Math.min(w, h) / 2
       for (let i = 0; i < sides; i++) {
-        const angle = -Math.PI / 2 + (i * Math.PI * 2) / sides
-        const px = Math.cos(angle) * radius
-        const py = Math.sin(angle) * radius
+        const angle = -Math.PI / 2 + (i * Math.PI * 2) / sides + rotation
+        const px = centerX + Math.cos(angle) * radius
+        const py = centerY + Math.sin(angle) * radius
         if (i === 0) ctx.moveTo(px, py)
         else ctx.lineTo(px, py)
       }
       ctx.closePath()
     } else if (item.shapeType === 'star') {
+      let centerX = cx, centerY = cy
+      if (rotation) {
+        const cos = Math.cos(rotation), sin = Math.sin(rotation)
+        centerX = ox + (w / 2) * cos - (h / 2) * sin
+        centerY = oy + (w / 2) * sin + (h / 2) * cos
+      }
       const points = item.numPoints || 5
       const outer = Math.min(w, h) / 2
       const inner = Math.min(w, h) * (item.starInnerRatio ?? 0.25)
       for (let i = 0; i < points * 2; i++) {
         const radius = i % 2 === 0 ? outer : inner
-        const angle = -Math.PI / 2 + (i * Math.PI) / points
-        const px = Math.cos(angle) * radius
-        const py = Math.sin(angle) * radius
+        const angle = -Math.PI / 2 + (i * Math.PI) / points + rotation
+        const px = centerX + Math.cos(angle) * radius
+        const py = centerY + Math.sin(angle) * radius
         if (i === 0) ctx.moveTo(px, py)
         else ctx.lineTo(px, py)
       }
       ctx.closePath()
     } else if (item.shapeType === 'bezier-path' && item.path) {
+      const cos = Math.cos(rotation), sin = Math.sin(rotation)
       const parts = item.path.split(/(?=[MLZ])/i).filter(Boolean)
       let first = true
       for (const part of parts) {
         if (/^z$/i.test(part)) { ctx.closePath(); break }
-        const cmd = part[0].toUpperCase()
         const nums = part.slice(1).trim().split(/[, ]+/).map(Number)
         for (let i = 0; i < nums.length; i += 2) {
-          const px = nums[i] - w / 2, py = nums[i + 1] - h / 2
+          const px = rotation ? ox + nums[i] * cos - nums[i + 1] * sin : ox + nums[i]
+          const py = rotation ? oy + nums[i] * sin + nums[i + 1] * cos : oy + nums[i + 1]
           if (first) { ctx.moveTo(px, py); first = false }
           else ctx.lineTo(px, py)
         }
@@ -1035,40 +1075,56 @@ const drawCompositeMaskPath = (ctx, item) => {
       if (!/z/i.test(item.path)) ctx.closePath()
     } else {
       const r = Math.max(0, Math.min(item.cornerRadius || 0, w / 2, h / 2))
-      if (r) {
-        ctx.moveTo(r - w / 2, -h / 2)
-        ctx.lineTo(w - r - w / 2, -h / 2)
-        ctx.quadraticCurveTo(w - w / 2, -h / 2, w - w / 2, r - h / 2)
-        ctx.lineTo(w - w / 2, h - r - h / 2)
-        ctx.quadraticCurveTo(w - w / 2, h - h / 2, w - r - w / 2, h - h / 2)
-        ctx.lineTo(r - w / 2, h - h / 2)
-        ctx.quadraticCurveTo(-w / 2, h - h / 2, -w / 2, h - r - h / 2)
-        ctx.lineTo(-w / 2, r - h / 2)
-        ctx.quadraticCurveTo(-w / 2, -h / 2, r - w / 2, -h / 2)
-        ctx.closePath()
+      if (rotation) {
+        const cos = Math.cos(rotation), sin = Math.sin(rotation)
+        if (r) {
+          drawRotatedRoundedRect(ctx, ox, oy, w, h, r, cos, sin)
+        } else {
+          drawRotatedRect(ctx, ox, oy, w, h, cos, sin)
+        }
       } else {
-        ctx.rect(-w / 2, -h / 2, w, h)
+        if (r) {
+          ctx.moveTo(ox + r, oy)
+          ctx.lineTo(ox + w - r, oy)
+          ctx.quadraticCurveTo(ox + w, oy, ox + w, oy + r)
+          ctx.lineTo(ox + w, oy + h - r)
+          ctx.quadraticCurveTo(ox + w, oy + h, ox + w - r, oy + h)
+          ctx.lineTo(ox + r, oy + h)
+          ctx.quadraticCurveTo(ox, oy + h, ox, oy + h - r)
+          ctx.lineTo(ox, oy + r)
+          ctx.quadraticCurveTo(ox, oy, ox + r, oy)
+          ctx.closePath()
+        } else {
+          ctx.rect(ox, oy, w, h)
+        }
       }
     }
   } else {
     const r = Math.max(0, Math.min(item.radius || item.cornerRadius || 0, w / 2, h / 2))
-    if (r) {
-      ctx.moveTo(r - w / 2, -h / 2)
-      ctx.lineTo(w - r - w / 2, -h / 2)
-      ctx.quadraticCurveTo(w - w / 2, -h / 2, w - w / 2, r - h / 2)
-      ctx.lineTo(w - w / 2, h - r - h / 2)
-      ctx.quadraticCurveTo(w - w / 2, h - h / 2, w - r - w / 2, h - h / 2)
-      ctx.lineTo(r - w / 2, h - h / 2)
-      ctx.quadraticCurveTo(-w / 2, h - h / 2, -w / 2, h - r - h / 2)
-      ctx.lineTo(-w / 2, r - h / 2)
-      ctx.quadraticCurveTo(-w / 2, -h / 2, r - w / 2, -h / 2)
-      ctx.closePath()
+    if (rotation) {
+      const cos = Math.cos(rotation), sin = Math.sin(rotation)
+      if (r) {
+        drawRotatedRoundedRect(ctx, ox, oy, w, h, r, cos, sin)
+      } else {
+        drawRotatedRect(ctx, ox, oy, w, h, cos, sin)
+      }
     } else {
-      ctx.rect(-w / 2, -h / 2, w, h)
+      if (r) {
+        ctx.moveTo(ox + r, oy)
+        ctx.lineTo(ox + w - r, oy)
+        ctx.quadraticCurveTo(ox + w, oy, ox + w, oy + r)
+        ctx.lineTo(ox + w, oy + h - r)
+        ctx.quadraticCurveTo(ox + w, oy + h, ox + w - r, oy + h)
+        ctx.lineTo(ox + r, oy + h)
+        ctx.quadraticCurveTo(ox, oy + h, ox, oy + h - r)
+        ctx.lineTo(ox, oy + r)
+        ctx.quadraticCurveTo(ox, oy, ox + r, oy)
+        ctx.closePath()
+      } else {
+        ctx.rect(ox, oy, w, h)
+      }
     }
   }
-
-  ctx.restore()
 }
 
 const drawWrappedMaskText = (ctx, item, offsetX, offsetY) => {
@@ -1083,7 +1139,7 @@ const drawWrappedMaskText = (ctx, item, offsetX, offsetY) => {
   const scaleY = item.scaleY || 1
 
   ctx.save()
-  ctx.translate((item.x || 0) + width / 2 - offsetX, (item.y || 0) + height / 2 - offsetY)
+  ctx.translate((item.x || 0) - offsetX, (item.y || 0) - offsetY)
   if (rotation) ctx.rotate(rotation)
   if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY)
   ctx.font = `${fontStyle || ''} ${fontSize}px ${fontFamily}`.trim()
@@ -1095,11 +1151,11 @@ const drawWrappedMaskText = (ctx, item, offsetX, offsetY) => {
   ;(lines.length ? lines : ['']).forEach((line, index) => {
     const lineWidth = ctx.measureText(line).width
     const x = align === 'right'
-      ? Math.max(0, width - lineWidth) - width / 2
+      ? Math.max(0, width - lineWidth)
       : align === 'left'
-        ? -width / 2
-        : Math.max(0, (width - lineWidth) / 2) - width / 2
-    ctx.fillText(line, x, index * lineHeight - height / 2)
+        ? 0
+        : Math.max(0, (width - lineWidth) / 2)
+    ctx.fillText(line, x, index * lineHeight)
   })
   ctx.restore()
 }
@@ -1160,13 +1216,13 @@ const getCompositeItemBounds = (item) => {
   const dw = w * scaleX
   const dh = h * scaleY
   const corners = [
-    { x: -dw / 2, y: -dh / 2 },
-    { x: dw / 2, y: -dh / 2 },
-    { x: dw / 2, y: dh / 2 },
-    { x: -dw / 2, y: dh / 2 },
+    { x: 0, y: 0 },
+    { x: dw, y: 0 },
+    { x: dw, y: dh },
+    { x: 0, y: dh },
   ].map((point) => ({
-    x: (x + dw / 2) + point.x * cos - point.y * sin,
-    y: (y + dh / 2) + point.x * sin + point.y * cos,
+    x: x + point.x * cos - point.y * sin,
+    y: y + point.x * sin + point.y * cos,
   }))
   const result = {
     left: Math.min(...corners.map((point) => point.x)),
@@ -1174,25 +1230,6 @@ const getCompositeItemBounds = (item) => {
     right: Math.max(...corners.map((point) => point.x)),
     bottom: Math.max(...corners.map((point) => point.y)),
   }
-  /* DEBUG: rotation AABB */
-  console.log('[getCompositeItemBounds]', JSON.stringify({
-    itemId: item.id,
-    kind: item.kind,
-    x, y, w, h,
-    rotationDeg,
-    scaleX, scaleY,
-    dw, dh,
-    sin, cos,
-    corners: corners.map(c => ({ x: Math.round(c.x), y: Math.round(c.y) })),
-    left: Math.round(result.left),
-    top: Math.round(result.top),
-    right: Math.round(result.right),
-    bottom: Math.round(result.bottom),
-    calcW: Math.round(result.right - result.left),
-    calcH: Math.round(result.bottom - result.top),
-    aabbFormulaW: Math.round(Math.abs(dw * cos) + Math.abs(dh * sin)),
-    aabbFormulaH: Math.round(Math.abs(dw * sin) + Math.abs(dh * cos)),
-  }))
   return result
 }
 
@@ -1215,22 +1252,65 @@ const drawImageItemToCanvas = (ctx, item, image, offsetX, offsetY) => {
   } : null
   ctx.save()
   ctx.globalAlpha = item.opacity ?? 1
-  ctx.translate(x + w / 2, y + h / 2)
+  ctx.translate(x, y)
   if (rotation) ctx.rotate(rotation)
   if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY)
   if (crop) {
-    ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, -w / 2, -h / 2, w, h)
+    ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, w, h)
   } else {
-    ctx.drawImage(image, -w / 2, -h / 2, w, h)
+    ctx.drawImage(image, 0, 0, w, h)
   }
   ctx.restore()
 }
 
-function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode }) {
+const _destFxCache = new Map()
+const _DESTFX_CACHE_MAX = 32
+
+const getDestFxKey = (item) =>
+  `${item.src}|${item.w}|${item.h}|${item.scaleX}|${item.scaleY}|${item.rotation}|${item.opacity}|${JSON.stringify(item.imageCropRect)}|${JSON.stringify(item.effects)}`
+
+const drawDestinationWithEffects = (contentCtx, item, image, groupMinX, groupMinY) => {
+  if (!item.effects || Object.keys(item.effects).length === 0) {
+    drawImageItemToCanvas(contentCtx, item, image, groupMinX, groupMinY)
+    return
+  }
+  const b = getCompositeItemBounds(item)
+  const itemW = Math.ceil(b.right - b.left)
+  const itemH = Math.ceil(b.bottom - b.top)
+  const cacheKey = getDestFxKey(item)
+  const cached = _destFxCache.get(cacheKey)
+  if (cached && cached.w === itemW && cached.h === itemH) {
+    contentCtx.drawImage(cached.canvas, b.left - groupMinX, b.top - groupMinY)
+    return
+  }
+  const tempCanvas = document.createElement('canvas')
+  tempCanvas.width = itemW
+  tempCanvas.height = itemH
+  const tempCtx = tempCanvas.getContext('2d')
+  try {
+    drawImageItemToCanvas(tempCtx, item, image, b.left, b.top)
+    const imageData = tempCtx.getImageData(0, 0, itemW, itemH)
+    effectManager.applyEffectsToImageData(imageData, item.effects)
+    tempCtx.putImageData(imageData, 0, 0)
+    contentCtx.drawImage(tempCanvas, b.left - groupMinX, b.top - groupMinY)
+    if (_destFxCache.size >= _DESTFX_CACHE_MAX) {
+      const firstKey = _destFxCache.keys().next().value
+      _destFxCache.delete(firstKey)
+    }
+    _destFxCache.set(cacheKey, { canvas: tempCanvas, w: itemW, h: itemH })
+  } catch (e) {
+    console.warn('[drawDestinationWithEffects] fallback to raw draw:', e)
+    drawImageItemToCanvas(contentCtx, item, image, groupMinX, groupMinY)
+  }
+}
+
+function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef }) {
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
   const imageRef = useRef(null)
   const [fontReady, setFontReady] = useState(false)
+  const prevImageIdsRef = useRef()
+  const prevModeRef = useRef()
 
   useEffect(() => {
     let cancelled = false
@@ -1255,6 +1335,8 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode }) {
       node.getLayer()?.batchDraw()
     }
 
+    if (isDraggingRef?.current) return () => {}
+
     if (!fontReady || !sourceItem || !bounds || !imageItems.length) {
       updateBitmap(null, 0, 0, 0, 0)
       return
@@ -1268,57 +1350,69 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode }) {
       return
     }
 
-    const sourceWidth = Math.max(1, sourceItem.w || sourceItem.width || 1)
-    const wrappedSourceHeight = getWrappedMaskTextHeight({ ...sourceItem, w: sourceWidth })
-    const sourceHeight = Math.max(1, sourceItem.h || 0, sourceItem.height || 0, wrappedSourceHeight)
-    const textLeft = sourceItem.x || 0
-    const textTop = sourceItem.y || 0
-    const textRenderItem = { ...sourceItem, x: textLeft, y: textTop, w: sourceWidth, h: sourceHeight }
-    const itemBounds = [
-      ...imageItems.map((item) => getCompositeItemBounds(item)),
-      getCompositeItemBounds(textRenderItem),
-    ]
-    const groupMinX = Math.min(...itemBounds.map((item) => item.left))
-    const groupMinY = Math.min(...itemBounds.map((item) => item.top))
-    const groupMaxX = Math.max(...itemBounds.map((item) => item.right))
-    const groupMaxY = Math.max(...itemBounds.map((item) => item.bottom))
-    const groupRect = {
-      x: groupMinX,
-      y: groupMinY,
-      width: Math.max(1, groupMaxX - groupMinX),
-      height: Math.max(1, groupMaxY - groupMinY),
-    }
-    const width = Math.max(1, Math.ceil(groupRect.width))
-    const height = Math.max(1, Math.ceil(groupRect.height))
+    const currentImageIds = imageItems.map(i => i.id).join(',')
+    const isNewContent = currentImageIds !== prevImageIdsRef.current
+      || mode !== prevModeRef.current
+    prevImageIdsRef.current = currentImageIds
+    prevModeRef.current = mode
 
-    const contentCanvas = document.createElement('canvas')
-    contentCanvas.width = width
-    contentCanvas.height = height
-    const contentCtx = contentCanvas.getContext('2d')
-    if (!contentCtx) return
-    imageItems.forEach((item, index) => {
-      drawImageItemToCanvas(contentCtx, item, loadedImages[index], groupMinX, groupMinY)
+    if (isNewContent) {
+      updateBitmap(null, 0, 0, 0, 0)
+    }
+
+    const rafId = requestAnimationFrame(() => {
+      const sourceWidth = Math.max(1, sourceItem.w || sourceItem.width || 1)
+      const wrappedSourceHeight = getWrappedMaskTextHeight({ ...sourceItem, w: sourceWidth })
+      const sourceHeight = Math.max(1, sourceItem.h || 0, sourceItem.height || 0, wrappedSourceHeight)
+      const textLeft = sourceItem.x || 0
+      const textTop = sourceItem.y || 0
+      const textRenderItem = { ...sourceItem, x: textLeft, y: textTop, w: sourceWidth, h: sourceHeight }
+      const itemBounds = [
+        ...imageItems.map((item) => getCompositeItemBounds(item)),
+        getCompositeItemBounds(textRenderItem),
+      ]
+      const groupMinX = Math.min(...itemBounds.map((item) => item.left))
+      const groupMinY = Math.min(...itemBounds.map((item) => item.top))
+      const groupMaxX = Math.max(...itemBounds.map((item) => item.right))
+      const groupMaxY = Math.max(...itemBounds.map((item) => item.bottom))
+      const groupRect = {
+        x: groupMinX,
+        y: groupMinY,
+        width: Math.max(1, groupMaxX - groupMinX),
+        height: Math.max(1, groupMaxY - groupMinY),
+      }
+      const width = Math.max(1, Math.ceil(groupRect.width))
+      const height = Math.max(1, Math.ceil(groupRect.height))
+
+      const contentCanvas = document.createElement('canvas')
+      contentCanvas.width = width
+      contentCanvas.height = height
+      const contentCtx = contentCanvas.getContext('2d')
+      if (!contentCtx) return
+      imageItems.forEach((item, index) => {
+        drawDestinationWithEffects(contentCtx, item, loadedImages[index], groupMinX, groupMinY)
+      })
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+
+      if (mode === 'mask') {
+        drawWrappedMaskText(ctx, textRenderItem, groupMinX, groupMinY)
+        ctx.globalCompositeOperation = 'source-in'
+        ctx.drawImage(contentCanvas, 0, 0)
+        ctx.globalCompositeOperation = 'source-over'
+      } else {
+        ctx.drawImage(contentCanvas, 0, 0)
+        ctx.globalCompositeOperation = 'destination-out'
+        drawWrappedMaskText(ctx, textRenderItem, groupMinX, groupMinY)
+        ctx.globalCompositeOperation = 'source-over'
+      }
+
+      updateBitmap(canvas, groupRect.x, groupRect.y, width, height)
     })
-
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    if (mode === 'mask') {
-      drawWrappedMaskText(ctx, textRenderItem, groupMinX, groupMinY)
-      ctx.globalCompositeOperation = 'source-in'
-      ctx.drawImage(contentCanvas, 0, 0)
-      ctx.globalCompositeOperation = 'source-over'
-    } else {
-      ctx.drawImage(contentCanvas, 0, 0)
-      ctx.globalCompositeOperation = 'destination-out'
-      drawWrappedMaskText(ctx, textRenderItem, groupMinX, groupMinY)
-      ctx.globalCompositeOperation = 'source-over'
-    }
-
-    updateBitmap(canvas, groupRect.x, groupRect.y, width, height)
+    return () => cancelAnimationFrame(rafId)
   }, [bounds, destinationItems, fontReady, imageItems, loadedImages, mode, sourceItem])
 
   return (
@@ -1330,11 +1424,15 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode }) {
   )
 }
 
-function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode }) {
+function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef }) {
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
   const sourceImage = useCanvasImage(sourceItem?.src)
   const imageRef = useRef(null)
+  const prevSourceIdRef = useRef()
+  const prevSourceSrcRef = useRef()
+  const prevImageIdsRef = useRef()
+  const prevModeRef = useRef()
 
   useLayoutEffect(() => {
     const updateBitmap = (newCanvas, newX, newY, w, h) => {
@@ -1347,6 +1445,8 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode }) {
       node.height(h || 0)
       node.getLayer()?.batchDraw()
     }
+
+    if (isDraggingRef?.current) return () => {}
 
     if (!sourceItem || !bounds || !imageItems.length || !sourceImage) {
       updateBitmap(null, 0, 0, 0, 0)
@@ -1361,90 +1461,59 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode }) {
       return
     }
 
-    const itemBounds = [
-      ...imageItems.map((item) => getCompositeItemBounds(item)),
-      getCompositeItemBounds(sourceItem),
-    ]
-    const groupMinX = Math.min(...itemBounds.map((b) => b.left))
-    const groupMinY = Math.min(...itemBounds.map((b) => b.top))
-    const groupMaxX = Math.max(...itemBounds.map((b) => b.right))
-    const groupMaxY = Math.max(...itemBounds.map((b) => b.bottom))
-    const width = Math.max(1, Math.ceil(groupMaxX - groupMinX))
-    const height = Math.max(1, Math.ceil(groupMaxY - groupMinY))
+    const currentImageIds = imageItems.map(i => i.id).join(',')
+    const isNewContent = sourceItem?.id !== prevSourceIdRef.current
+      || sourceItem?.src !== prevSourceSrcRef.current
+      || currentImageIds !== prevImageIdsRef.current
+      || mode !== prevModeRef.current
+    prevSourceIdRef.current = sourceItem?.id
+    prevSourceSrcRef.current = sourceItem?.src
+    prevImageIdsRef.current = currentImageIds
+    prevModeRef.current = mode
 
-    const contentCanvas = document.createElement('canvas')
-    contentCanvas.width = width
-    contentCanvas.height = height
-    const contentCtx = contentCanvas.getContext('2d')
-    imageItems.forEach((item, index) => {
-      drawImageItemToCanvas(contentCtx, item, loadedImages[index], groupMinX, groupMinY)
-    })
-
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-
-    if (mode === 'mask') {
-      drawImageItemToCanvas(ctx, sourceItem, sourceImage, groupMinX, groupMinY)
-      ctx.globalCompositeOperation = 'source-in'
-      ctx.drawImage(contentCanvas, 0, 0)
-    } else {
-      ctx.drawImage(contentCanvas, 0, 0)
-      ctx.globalCompositeOperation = 'destination-out'
-      drawImageItemToCanvas(ctx, sourceItem, sourceImage, groupMinX, groupMinY)
+    if (isNewContent) {
+      updateBitmap(null, 0, 0, 0, 0)
     }
-    ctx.globalCompositeOperation = 'source-over'
 
-    /* DEBUG: verify composited content */
-    const imageData = ctx.getImageData(0, 0, width, height)
-    let nonZeroPixels = 0
-    for (let i = 3; i < imageData.data.length; i += 4) {
-      if (imageData.data[i] > 0) nonZeroPixels++
-    }
-    const nonZeroBounds = (() => {
-      let minX = width, minY = height, maxX = 0, maxY = 0
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const idx = (y * width + x) * 4 + 3
-          if (imageData.data[idx] > 0) {
-            minX = Math.min(minX, x)
-            minY = Math.min(minY, y)
-            maxX = Math.max(maxX, x)
-            maxY = Math.max(maxY, y)
-          }
-        }
+    const rafId = requestAnimationFrame(() => {
+      const itemBounds = [
+        ...imageItems.map((item) => getCompositeItemBounds(item)),
+        getCompositeItemBounds(sourceItem),
+      ]
+      const groupMinX = Math.min(...itemBounds.map((b) => b.left))
+      const groupMinY = Math.min(...itemBounds.map((b) => b.top))
+      const groupMaxX = Math.max(...itemBounds.map((b) => b.right))
+      const groupMaxY = Math.max(...itemBounds.map((b) => b.bottom))
+      const width = Math.max(1, Math.ceil(groupMaxX - groupMinX))
+      const height = Math.max(1, Math.ceil(groupMaxY - groupMinY))
+
+      const contentCanvas = document.createElement('canvas')
+      contentCanvas.width = width
+      contentCanvas.height = height
+      const contentCtx = contentCanvas.getContext('2d')
+      imageItems.forEach((item, index) => {
+        drawDestinationWithEffects(contentCtx, item, loadedImages[index], groupMinX, groupMinY)
+      })
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+
+      if (mode === 'mask') {
+        drawImageItemToCanvas(ctx, sourceItem, sourceImage, groupMinX, groupMinY)
+        ctx.globalCompositeOperation = 'source-in'
+        ctx.drawImage(contentCanvas, 0, 0)
+      } else {
+        ctx.drawImage(contentCanvas, 0, 0)
+        ctx.globalCompositeOperation = 'destination-out'
+        drawImageItemToCanvas(ctx, sourceItem, sourceImage, groupMinX, groupMinY)
       }
-      return minX <= maxX ? { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } : null
-    })()
-    const sourceImageData = (() => {
-      const c = document.createElement('canvas')
-      c.width = width; c.height = height
-      const t = c.getContext('2d')
-      drawImageItemToCanvas(t, sourceItem, sourceImage, groupMinX, groupMinY)
-      const d = t.getImageData(0, 0, width, height)
-      let px = 0
-      for (let i = 3; i < d.data.length; i += 4) { if (d.data[i] > 0) px++ }
-      return px
-    })()
-    const destImageData = (() => {
-      const d = contentCtx.getImageData(0, 0, width, height)
-      let px = 0
-      for (let i = 3; i < d.data.length; i += 4) { if (d.data[i] > 0) px++ }
-      return px
-    })()
-    console.log('[CompositeImageBitmap result]', JSON.stringify({
-      width,
-      height,
-      mode,
-      sourceItemId: sourceItem.id,
-      sourceOpaquePx: sourceImageData,
-      destOpaquePx: destImageData,
-      resultOpaquePx: nonZeroPixels,
-      resultNonZeroBounds: nonZeroBounds,
-    }))
+      ctx.globalCompositeOperation = 'source-over'
 
-    updateBitmap(canvas, groupMinX, groupMinY, width, height)
+      updateBitmap(canvas, groupMinX, groupMinY, width, height)
+    })
+    return () => cancelAnimationFrame(rafId)
   }, [bounds, destinationItems, imageItems, loadedImages, mode, sourceItem, sourceImage])
 
   return (
@@ -1467,17 +1536,20 @@ const getEffectedAlphaMask = (sourceItem, sourceImage) => {
   const sin = Math.sin(rotation)
   const dw = w * scaleX
   const dh = h * scaleY
+  /* Origin-based AABB: rotate rect (0,0)-(dw,dh) around origin (0,0) */
   const corners = [
-    { x: -dw / 2, y: -dh / 2 },
-    { x: dw / 2, y: -dh / 2 },
-    { x: dw / 2, y: dh / 2 },
-    { x: -dw / 2, y: dh / 2 },
+    { x: 0, y: 0 },
+    { x: dw, y: 0 },
+    { x: dw, y: dh },
+    { x: 0, y: dh },
   ].map((p) => ({
     x: p.x * cos - p.y * sin,
     y: p.x * sin + p.y * cos,
   }))
-  const canvasW = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.x)) - Math.min(...corners.map((p) => p.x))))
-  const canvasH = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.y)) - Math.min(...corners.map((p) => p.y))))
+  const canvasMinX = Math.min(...corners.map((p) => p.x))
+  const canvasMinY = Math.min(...corners.map((p) => p.y))
+  const canvasW = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.x)) - canvasMinX))
+  const canvasH = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.y)) - canvasMinY))
   const canvas = document.createElement('canvas')
   canvas.width = canvasW
   canvas.height = canvasH
@@ -1498,13 +1570,13 @@ const getEffectedAlphaMask = (sourceItem, sourceImage) => {
 
   ctx.save()
   ctx.globalAlpha = sourceItem.opacity ?? 1
-  ctx.translate(canvasW / 2, canvasH / 2)
+  ctx.translate(-canvasMinX, -canvasMinY)
   if (rotation) ctx.rotate(rotation)
   ctx.scale(scaleX, scaleY)
   if (crop) {
-    ctx.drawImage(sourceImage, crop.x, crop.y, crop.width, crop.height, -w / 2, -h / 2, w, h)
+    ctx.drawImage(sourceImage, crop.x, crop.y, crop.width, crop.height, 0, 0, w, h)
   } else {
-    ctx.drawImage(sourceImage, -w / 2, -h / 2, w, h)
+    ctx.drawImage(sourceImage, 0, 0, w, h)
   }
   ctx.restore()
 
@@ -1518,19 +1590,129 @@ const getEffectedAlphaMask = (sourceItem, sourceImage) => {
     }
   }
 
+  /* Fill AABB gaps with transparent black — alpha compositing should not extend beyond original image content */
+  if (rotation !== 0 && scaleX && scaleY) {
+    const imageData = ctx.getImageData(0, 0, canvasW, canvasH)
+    const cosR = Math.cos(rotation)
+    const sinR = Math.sin(rotation)
+    for (let y = 0; y < canvasH; y++) {
+      for (let x = 0; x < canvasW; x++) {
+        const idx = (y * canvasW + x) * 4
+        if (imageData.data[idx + 3] > 0) continue /* already opaque */
+        /* Inverse-rotate pixel to check if it's within the unrotated rectangle at origin */
+        const dx = x + canvasMinX
+        const dy = y + canvasMinY
+        const rx = dx * cosR + dy * sinR
+        const ry = -dx * sinR + dy * cosR
+        if (rx >= 0 && rx <= dw && ry >= 0 && ry <= dh) continue /* intentional alpha=0 (transparent image or chroma key) */
+        /* Outside unrotated rect → AABB gap → fill transparent (no mask contribution) */
+        imageData.data[idx + 3] = 0
+      }
+    }
+    ctx.putImageData(imageData, 0, 0)
+  }
+
   console.timeEnd(timerLabel)
 
-  return canvas
+  return { canvas, originOffsetX: canvasMinX, originOffsetY: canvasMinY }
 }
 
-function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode }) {
+const getBezierMaskCanvas = (sourceItem) => {
+  if (!sourceItem || !sourceItem.path) return null
+  const w = Math.max(1, Math.ceil(sourceItem.w || 1))
+  const h = Math.max(1, Math.ceil(sourceItem.h || 1))
+  const scaleX = sourceItem.scaleX || 1
+  const scaleY = sourceItem.scaleY || 1
+  const rotation = ((sourceItem.rotation || 0) * Math.PI) / 180
+  const cos = Math.cos(rotation)
+  const sin = Math.sin(rotation)
+  const dw = w * scaleX
+  const dh = h * scaleY
+  /* Origin-based AABB */
+  const corners = [
+    { x: 0, y: 0 },
+    { x: dw, y: 0 },
+    { x: dw, y: dh },
+    { x: 0, y: dh },
+  ].map((p) => ({
+    x: p.x * cos - p.y * sin,
+    y: p.x * sin + p.y * cos,
+  }))
+  const canvasMinX = Math.min(...corners.map((p) => p.x))
+  const canvasMinY = Math.min(...corners.map((p) => p.y))
+  const canvasW = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.x)) - canvasMinX))
+  const canvasH = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.y)) - canvasMinY))
+  const canvas = document.createElement('canvas')
+  canvas.width = canvasW
+  canvas.height = canvasH
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  ctx.save()
+  ctx.globalAlpha = sourceItem.opacity ?? 1
+  ctx.translate(-canvasMinX, -canvasMinY)
+  if (rotation) ctx.rotate(rotation)
+  ctx.scale(scaleX, scaleY)
+  try {
+    const maskPathStr = sourceItem.bezierData ? (() => {
+      const pts = []
+      const parts = sourceItem.path?.match(/[ML]\s+([\d.]+)\s*,\s*([\d.]+)/g)
+      if (parts && parts.length >= 2) {
+        for (const p of parts) {
+          const m = p.match(/[ML]\s+([\d.]+)\s*,\s*([\d.]+)/)
+          if (m) pts.push({ x: parseFloat(m[1]), y: parseFloat(m[2]) })
+        }
+        const cp = sourceItem.bezierData
+        const n = pts.length
+        let result = `M ${pts[0].x},${pts[0].y}`
+        for (let i = 0; i < n; i++) {
+          const curr = pts[i]; const next = pts[(i + 1) % n]
+          const cpo = cp?.[i]; const cpi = cp?.[(i + 1) % n]
+          const hasCurve = cpo && cpi && (cpo.cpOutX || cpo.cpOutY || cpi.cpInX || cpi.cpInY)
+          if (hasCurve) {
+            result += ` C ${curr.x + cpo.cpOutX},${curr.y + cpo.cpOutY} ${next.x + cpi.cpInX},${next.y + cpi.cpInY} ${next.x},${next.y}`
+          } else {
+            result += ` L ${next.x},${next.y}`
+          }
+        }
+        return result + ' Z'
+      }
+      return sourceItem.path
+    })() : (sourceItem.path || '')
+    const path = new Path2D(maskPathStr)
+    ctx.fillStyle = '#ffffff'
+    ctx.fill(path)
+  } catch (e) {
+    console.warn('[getBezierMaskCanvas] Path2D failed:', e)
+    ctx.restore()
+    return null
+  }
+  ctx.restore()
+
+  if (sourceItem.effects && Object.keys(sourceItem.effects).length > 0) {
+    try {
+      const imageData = ctx.getImageData(0, 0, canvasW, canvasH)
+      effectManager.applyEffectsToImageData(imageData, sourceItem.effects)
+      ctx.putImageData(imageData, 0, 0)
+    } catch (e) {
+      console.warn('[getBezierMaskCanvas] effect apply failed:', e)
+    }
+  }
+
+  return { canvas, originOffsetX: canvasMinX, originOffsetY: canvasMinY }
+}
+
+function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef }) {
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
   const sourceImage = useCanvasImage(sourceItem?.src)
   const imageRef = useRef(null)
   const maskCacheRef = useRef(null)
   const maskKeyRef = useRef(null)
-  const versionRef = useRef(0)
+  const prevSourceIdRef = useRef()
+  const prevSourceSrcRef = useRef()
+  const prevImageIdsRef = useRef()
+  const prevModeRef = useRef()
 
   useLayoutEffect(() => {
     const updateBitmap = (newCanvas, newX, newY, w, h) => {
@@ -1544,7 +1726,14 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode }) {
       node.getLayer()?.batchDraw()
     }
 
-    if (!sourceItem || !bounds || !imageItems.length || !sourceImage) {
+    if (isDraggingRef?.current) return () => {}
+
+    if (!sourceItem || !bounds || !imageItems.length) {
+      updateBitmap(null, 0, 0, 0, 0)
+      return
+    }
+    const isBezier = sourceItem.kind === 'shape' && sourceItem.shapeType === 'bezier-path'
+    if (!isBezier && !sourceImage) {
       updateBitmap(null, 0, 0, 0, 0)
       return
     }
@@ -1552,138 +1741,101 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode }) {
       const img = loadedImages[index]
       return img && img.complete && (img.naturalWidth || img.width)
     })
-    if (!imagesReady || !sourceImage.complete) {
-      console.log('[AlphaMask] images NOT ready yet', {
-        sourceReady: sourceImage?.complete,
-        sourceNW: sourceImage?.naturalWidth,
-        destCount: imageItems.length,
-        destReady: imageItems.map((_, i) => loadedImages[i]?.complete),
-        run: ++versionRef.current,
+    if (!imagesReady || (!isBezier && !sourceImage.complete)) {
+      updateBitmap(null, 0, 0, 0, 0)
+      return
+    }
+
+    const currentImageIds = imageItems.map(i => i.id).join(',')
+    const isNewContent = sourceItem?.id !== prevSourceIdRef.current
+      || sourceItem?.src !== prevSourceSrcRef.current
+      || currentImageIds !== prevImageIdsRef.current
+      || mode !== prevModeRef.current
+    prevSourceIdRef.current = sourceItem?.id
+    prevSourceSrcRef.current = sourceItem?.src
+    prevImageIdsRef.current = currentImageIds
+    prevModeRef.current = mode
+
+    if (isNewContent) {
+      updateBitmap(null, 0, 0, 0, 0)
+    }
+
+    const rafId = requestAnimationFrame(() => {
+      const effectsKey = JSON.stringify({
+        src: sourceItem?.src,
+        effects: sourceItem?.effects,
+        w: sourceItem?.w,
+        h: sourceItem?.h,
+        rotation: sourceItem?.rotation,
+        imageCropRect: sourceItem?.imageCropRect,
+        opacity: sourceItem?.opacity,
+        path: isBezier ? sourceItem.path : undefined,
+        shapeType: sourceItem?.shapeType,
       })
-      updateBitmap(null, 0, 0, 0, 0)
-      return
-    }
 
-    console.log('[AlphaMask] images ready, computing mask', {
-      sourceComplete: sourceImage.complete,
-      sourceNW: sourceImage.naturalWidth,
-      sourceW: sourceImage.width,
-      destCount: imageItems.length,
-      effects: sourceItem.effects ? Object.keys(sourceItem.effects) : [],
-      run: ++versionRef.current,
-    })
-
-    const effectsKey = JSON.stringify({
-      src: sourceItem?.src,
-      effects: sourceItem?.effects,
-      w: sourceItem?.w,
-      h: sourceItem?.h,
-      rotation: sourceItem?.rotation,
-      imageCropRect: sourceItem?.imageCropRect,
-      opacity: sourceItem?.opacity,
-    })
-
-    let maskCanvas
-    if (maskKeyRef.current === effectsKey && maskCacheRef.current) {
-      maskCanvas = maskCacheRef.current
-    } else {
-      maskCanvas = getEffectedAlphaMask(sourceItem, sourceImage)
-      maskCacheRef.current = maskCanvas
-      maskKeyRef.current = effectsKey
-    }
-
-    if (!maskCanvas) {
-      updateBitmap(null, 0, 0, 0, 0)
-      return
-    }
-
-    const itemBounds = [
-      ...imageItems.map((item) => getCompositeItemBounds(item)),
-      getCompositeItemBounds(sourceItem),
-    ]
-    const groupMinX = Math.min(...itemBounds.map((b) => b.left))
-    const groupMinY = Math.min(...itemBounds.map((b) => b.top))
-    const groupMaxX = Math.max(...itemBounds.map((b) => b.right))
-    const groupMaxY = Math.max(...itemBounds.map((b) => b.bottom))
-    const width = Math.max(1, Math.ceil(groupMaxX - groupMinX))
-    const height = Math.max(1, Math.ceil(groupMaxY - groupMinY))
-
-    const contentCanvas = document.createElement('canvas')
-    contentCanvas.width = width
-    contentCanvas.height = height
-    const contentCtx = contentCanvas.getContext('2d')
-    imageItems.forEach((item, index) => {
-      drawImageItemToCanvas(contentCtx, item, loadedImages[index], groupMinX, groupMinY)
-    })
-
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-    const maskSW = Math.max(1, sourceItem.w || sourceImage.naturalWidth || sourceImage.width || 1) * (sourceItem.scaleX || 1)
-    const maskSH = Math.max(1, sourceItem.h || sourceImage.naturalHeight || sourceImage.height || 1) * (sourceItem.scaleY || 1)
-    const maskCx = (sourceItem.x || 0) + maskSW / 2 - groupMinX
-    const maskCy = (sourceItem.y || 0) + maskSH / 2 - groupMinY
-    const maskX = maskCx - maskCanvas.width / 2
-    const maskY = maskCy - maskCanvas.height / 2
-
-    if (mode === 'mask') {
-      ctx.drawImage(maskCanvas, maskX, maskY)
-      ctx.globalCompositeOperation = 'source-in'
-      ctx.drawImage(contentCanvas, 0, 0)
-    } else {
-      ctx.drawImage(contentCanvas, 0, 0)
-      ctx.globalCompositeOperation = 'destination-out'
-      ctx.drawImage(maskCanvas, maskX, maskY)
-    }
-    ctx.globalCompositeOperation = 'source-over'
-
-    // Debug: verify composited result pixel count + bounds
-    const resultData = ctx.getImageData(0, 0, width, height)
-    let opaquePx = 0
-    let rMinX = width, rMinY = height, rMaxX = 0, rMaxY = 0
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const a = resultData.data[(y * width + x) * 4 + 3]
-        if (a > 0) {
-          opaquePx++
-          if (x < rMinX) rMinX = x
-          if (y < rMinY) rMinY = y
-          if (x > rMaxX) rMaxX = x
-          if (y > rMaxY) rMaxY = y
-        }
+      let maskCanvasResult
+      if (maskKeyRef.current === effectsKey && maskCacheRef.current) {
+        maskCanvasResult = maskCacheRef.current
+      } else if (isBezier) {
+        maskCanvasResult = getBezierMaskCanvas(sourceItem)
+        maskCacheRef.current = maskCanvasResult
+        maskKeyRef.current = effectsKey
+      } else {
+        maskCanvasResult = getEffectedAlphaMask(sourceItem, sourceImage)
+        maskCacheRef.current = maskCanvasResult
+        maskKeyRef.current = effectsKey
       }
-    }
-    const nonZeroBounds = opaquePx > 0 ? { x: rMinX, y: rMinY, w: rMaxX - rMinX + 1, h: rMaxY - rMinY + 1 } : null
-    const maskData = (() => {
-      const c = document.createElement('canvas')
-      c.width = width; c.height = height
-      const t = c.getContext('2d')
-      t.drawImage(maskCanvas, maskX, maskY)
-      const d = t.getImageData(0, 0, width, height)
-      let p = 0
-      for (let i = 3; i < d.data.length; i += 4) { if (d.data[i] > 0) p++ }
-      return p
-    })()
-    const destData = (() => {
-      const d = contentCtx.getImageData(0, 0, width, height)
-      let p = 0
-      for (let i = 3; i < d.data.length; i += 4) { if (d.data[i] > 0) p++ }
-      return p
-    })()
-    console.log('[AlphaMask result]', JSON.stringify({
-      width,
-      height,
-      mode,
-      maskCanvasSize: `${maskCanvas.width}x${maskCanvas.height}`,
-      maskPos: `(${Math.round(maskX)}, ${Math.round(maskY)})`,
-      maskOpaquePx: maskData,
-      destOpaquePx: destData,
-      resultOpaquePx: opaquePx,
-      nonZeroBounds,
-    }))
 
-    updateBitmap(canvas, groupMinX, groupMinY, width, height)
+      if (!maskCanvasResult) {
+        updateBitmap(null, 0, 0, 0, 0)
+        return
+      }
+      const maskCanvas = maskCanvasResult.canvas
+      const originOffsetX = maskCanvasResult.originOffsetX
+      const originOffsetY = maskCanvasResult.originOffsetY
+
+      const itemBounds = [
+        ...imageItems.map((item) => getCompositeItemBounds(item)),
+        getCompositeItemBounds(sourceItem),
+      ]
+      const groupMinX = Math.min(...itemBounds.map((b) => b.left))
+      const groupMinY = Math.min(...itemBounds.map((b) => b.top))
+      const groupMaxX = Math.max(...itemBounds.map((b) => b.right))
+      const groupMaxY = Math.max(...itemBounds.map((b) => b.bottom))
+      const width = Math.max(1, Math.ceil(groupMaxX - groupMinX))
+      const height = Math.max(1, Math.ceil(groupMaxY - groupMinY))
+
+      const contentCanvas = document.createElement('canvas')
+      contentCanvas.width = width
+      contentCanvas.height = height
+      const contentCtx = contentCanvas.getContext('2d')
+      imageItems.forEach((item, index) => {
+        drawDestinationWithEffects(contentCtx, item, loadedImages[index], groupMinX, groupMinY)
+      })
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      const maskOriginX = (sourceItem.x || 0) - groupMinX
+      const maskOriginY = (sourceItem.y || 0) - groupMinY
+      const maskX = maskOriginX + originOffsetX
+      const maskY = maskOriginY + originOffsetY
+
+      if (mode === 'mask') {
+        ctx.drawImage(maskCanvas, maskX, maskY)
+        ctx.globalCompositeOperation = 'source-in'
+        ctx.drawImage(contentCanvas, 0, 0)
+      } else {
+        ctx.drawImage(contentCanvas, 0, 0)
+        ctx.globalCompositeOperation = 'destination-out'
+        ctx.drawImage(maskCanvas, maskX, maskY)
+      }
+      ctx.globalCompositeOperation = 'source-over'
+
+      updateBitmap(canvas, groupMinX, groupMinY, width, height)
+    })
+    return () => cancelAnimationFrame(rafId)
   }, [bounds, destinationItems, imageItems, loadedImages, mode, sourceItem, sourceImage])
 
   return (
@@ -1707,10 +1859,11 @@ const CompositeCanvasGroupMemoComparitor = (prev, next) => {
   if (prev.fontInjectVersion !== next.fontInjectVersion) return false
   return true
 }
-const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion, getItemsVisualBounds, getSnappedDelta, setAlignmentGuides, skipGroupDragEndRef, selectedIdsRef, multiDragRef, stageRef }) {
+const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion, getItemsVisualBounds, getCompositeSnapBounds, getSnappedDelta, setAlignmentGuides, setRotationSnapGuide, skipGroupDragEndRef, selectedIdsRef, itemsRef, multiDragRef, stageRef, setStageCursor, getInteractionNode }) {
   const groupRef = useRef(null)
   const dragStartRef = useRef(null)
   const snapResultRef = useRef(null)
+  const isDraggingRef = useRef(false)
   const alignmentGuidesFrameRef = useRef(null)
   const sourceItem = entry.members.find((item) => item.id === entry.operatorId)
   const destinationItems = entry.members.filter((item) => item.id !== entry.operatorId)
@@ -1732,61 +1885,18 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     }
   }, null)
 
-  /* DEBUG: group bounds union */
-  const debugGroupBounds = groupBounds ? {
-    left: Math.round(groupBounds.left),
-    top: Math.round(groupBounds.top),
-    right: Math.round(groupBounds.right),
-    bottom: Math.round(groupBounds.bottom),
-    width: Math.round(groupBounds.right - groupBounds.left),
-    height: Math.round(groupBounds.bottom - groupBounds.top),
-  } : null
-  const debugMembers = entry.members.map(m => {
-    const b = getCompositeItemBounds(m)
-    return {
-      id: m.id, kind: m.kind,
-      x: m.x, y: m.y, w: m.w, h: m.h,
-      rot: m.rotation,
-      bounds: { left: Math.round(b.left), top: Math.round(b.top), right: Math.round(b.right), bottom: Math.round(b.bottom) }
-    }
-  })
-  console.log('[CompositeGroup bounds]', JSON.stringify({
-    groupId: entry.groupId,
-    mode: sourceMode,
-    sourceId: sourceItem?.id,
-    sourceKind: sourceItem?.kind,
-    groupBounds: debugGroupBounds,
-    members: debugMembers,
-  }))
-
   useLayoutEffect(() => {
     const node = groupRef.current
     if (!node) return
-    const recache = () => {
-      const timerLabel = `[CompositeGroup recache] ${entry.groupId} ${canvasSize.width}x${canvasSize.height}`
-      console.time(timerLabel)
-      node.clearCache()
-      node.cache({
-        x: 0,
-        y: 0,
-        width: canvasSize.width,
-        height: canvasSize.height,
-        pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-      })
+    // Cache tidak digunakan untuk bitmap-based composite — semua efek dikomposisi
+    // via JS canvas di bitmap components (CompositeAlphaBitmap, etc).
+    // Cached bitmap bisa stale jika children update async (RAF).
+    // batchDraw dipanggil untuk trigger layer redraw saat cacheKey berubah.
+    const rafId = requestAnimationFrame(() => {
       node.getLayer()?.batchDraw()
-      console.timeEnd(timerLabel)
-    }
-    recache()
-    const rafId = requestAnimationFrame(recache)
-    const shortTimer = window.setTimeout(recache, 120)
-    const longTimer = window.setTimeout(recache, 420)
-    return () => {
-      cancelAnimationFrame(rafId)
-      window.clearTimeout(shortTimer)
-      window.clearTimeout(longTimer)
-      node.clearCache()
-    }
-  }, [entry.cacheKey, canvasSize.height, canvasSize.width])
+    })
+    return () => cancelAnimationFrame(rafId)
+  }, [entry.cacheKey])
 
   const handleGroupPointerSelect = (event) => {
     event.cancelBubble = true
@@ -1796,11 +1906,11 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
   const computeGroupSnap = (rawDx, rawDy) => {
     const start = dragStartRef.current
     if (!start) return null
-    // Snap pakai union bounds semua member — konsisten dengan Transformer bounding box
-    const baseBounds = getItemsVisualBounds(entry.members.map((item) => {
+    const adjustedMembers = entry.members.filter((item) => item.visible !== false).map((item) => {
       const pos = start.positions[item.id]
       return { ...item, x: pos?.x ?? item.x ?? 0, y: pos?.y ?? item.y ?? 0 }
-    }))
+    })
+    const baseBounds = getCompositeSnapBounds(entry, adjustedMembers)
     if (!baseBounds) return null
     return getSnappedDelta(entry.members.map((m) => m.id), baseBounds, rawDx, rawDy)
   }
@@ -1853,6 +1963,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       positions: { ...memberPositions, ...externalPositions },
       posCount: Object.keys({ ...memberPositions, ...externalPositions }).length,
     }
+    isDraggingRef.current = true
     snapResultRef.current = null
     onCursor('move')
   }
@@ -1869,6 +1980,10 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       if (result) {
         snapResultRef.current = result
         setAlignmentGuides(result.guides)
+        // Snap group position ke snapped delta (bukan raw), biar guide line & posisi konsisten
+        if (result.snapped) {
+          event.target.position({ x: start.x + result.dx, y: start.y + result.dy })
+        }
       }
       // Gerakkin external items secara real-time bareng composite group
       const dx = result?.dx ?? rawDx
@@ -1926,16 +2041,17 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     console.log('[GroupSnapEnd]', { rawDx, rawDy, result: result ? { dx: result.dx, dy: result.dy, snapped: result.snapped, guideCount: result.guides?.length } : null, finalDx: result?.dx ?? rawDx, finalDy: result?.dy ?? rawDy })
     const dx = result?.dx ?? rawDx
     const dy = result?.dy ?? rawDy
-    event.target.position({ x: 0, y: 0 })
     setAlignmentGuides([])
+    setRotationSnapGuide(null)
     dragStartRef.current = null
     snapResultRef.current = null
+    isDraggingRef.current = false
     cancelAnimationFrame(alignmentGuidesFrameRef.current)
     alignmentGuidesFrameRef.current = null
     if (!start || (!dx && !dy)) {
-      groupRef.current?.clearCache()
+      event.target.position({ x: 0, y: 0 })
       groupRef.current?.getLayer()?.batchDraw()
-      onCursor('default')
+      setStageCursor('default')
       return
     }
     const isMultiDragActive = !!multiDragRef?.current
@@ -1957,6 +2073,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     const entriesToWrite = isMultiDragActive
       ? Object.entries(start.positions).filter(([id]) => entry.members.some((m) => m.id === id))
       : Object.entries(start.positions)
+    const itemUpdates = []
     entriesToWrite.forEach(([itemId, pos]) => {
       const item = entry.members.find((m) => m.id === itemId) || itemsRef.current.find((i) => i.id === itemId) || items.find((i) => i.id === itemId)
       if (!item || item.locked) return
@@ -1982,14 +2099,23 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
         clamped,
         source: multiDragRef?.current ? 'compositeOnly (multiDragRef active)' : 'allItems (no multiDragRef)',
       })
-      onChange(itemId, { x: clamped.x, y: clamped.y })
+      itemUpdates.push({ itemId, patch: { x: clamped.x, y: clamped.y } })
     })
-    requestAnimationFrame(() => {
-      groupRef.current?.clearCache()
-      groupRef.current?.getLayer()?.batchDraw()
-      onSyncTransformer?.()
+    // Directly set Konva node positions BEFORE group reset (sync, no react-konva delay)
+    itemUpdates.forEach(({ itemId, patch }) => {
+      const node = stageRef.current?.findOne(`#${itemId}`)
+      if (node) {
+        node.position({ x: patch.x, y: patch.y })
+      }
     })
-    onCursor('default')
+    // Update React state (persistence — no visual glitch since Konva already correct)
+    itemUpdates.forEach(({ itemId, patch }) => onChange(itemId, patch))
+    // Reset Group position AFTER all items are at their final absolute positions
+    event.target.position({ x: 0, y: 0 })
+    // Force immediate redraw
+    groupRef.current?.getLayer()?.batchDraw()
+    onSyncTransformer?.()
+    setStageCursor('default')
   }
 
   // Cleanup RAF on unmount (prevents setState on unmounted component from stale RAF)
@@ -2027,16 +2153,23 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       {(
         (() => {
           const hasEffects = sourceItem?.effects && Object.keys(sourceItem.effects).length > 0
-          if (sourceItem?.maskSourceType === 'alpha' || hasEffects) {
-            console.log('[CompositeCanvasGroup] branch check', {
-              maskSourceType: sourceItem?.maskSourceType,
-              hasEffects,
-              effectsKeys: sourceItem?.effects ? Object.keys(sourceItem.effects) : [],
-              kind: sourceItem?.kind,
-              mode: sourceMode,
-              taken: sourceItem?.maskSourceType === 'alpha' ? 'ALPHA' : 'SHAPE (falls through)',
-            })
-          }
+          console.log('[LOAD] CompositeCanvasGroup render', {
+            groupId: entry.groupId,
+            operatorId: entry.operatorId,
+            memberCount: entry.members.length,
+            sourceKind: sourceItem?.kind,
+            sourceMode,
+            maskSourceType: sourceItem?.maskSourceType,
+            hasEffects,
+            effectsKeys: sourceItem?.effects ? Object.keys(sourceItem.effects).filter(k => sourceItem.effects[k]) : [],
+            src: sourceItem?.src?.substring(0, 60),
+            branch: sourceItem?.maskSourceType === 'alpha' ? 'ALPHA'
+              : sourceItem?.kind === 'text' ? 'TEXT'
+              : sourceItem?.kind === 'image' ? 'IMAGE'
+              : (sourceItem?.kind === 'shape' && sourceItem?.shapeType === 'bezier-path') ? 'BEZIER'
+              : sourceMode === 'mask' ? 'CLIPFUNC'
+              : 'FALLBACK',
+          })
           return null
         })()
       )}
@@ -2047,6 +2180,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           bounds={groupBounds}
           mode={sourceMode}
           stageRef={stageRef}
+          isDraggingRef={isDraggingRef}
         />
       ) : sourceItem?.kind === 'text' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
         <>
@@ -2055,6 +2189,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
             destinationItems={orderedDestinationItems}
             bounds={groupBounds}
             mode={sourceMode}
+            isDraggingRef={isDraggingRef}
           />
         </>
       ) : sourceItem?.kind === 'image' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
@@ -2063,6 +2198,16 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           destinationItems={orderedDestinationItems}
           bounds={groupBounds}
           mode={sourceMode}
+          isDraggingRef={isDraggingRef}
+        />
+      ) : sourceItem?.kind === 'shape' && sourceItem?.shapeType === 'bezier-path' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
+        <CompositeAlphaBitmap
+          sourceItem={sourceItem}
+          destinationItems={orderedDestinationItems}
+          bounds={groupBounds}
+          mode={sourceMode}
+          stageRef={stageRef}
+          isDraggingRef={isDraggingRef}
         />
       ) : sourceMode === 'mask' ? (
         <Group
@@ -2294,6 +2439,7 @@ function Workspace() {
   })
   const [selectionBox, setSelectionBox] = useState(null)
   const [alignmentGuides, setAlignmentGuides] = useState([])
+  const [rotationSnapGuide, setRotationSnapGuide] = useState(null)
   useEffect(() => { selectedIdsRef.current = selectedIds }, [selectedIds])
   const [connectorTool, setConnectorTool] = useState(null)
   const [connectorDraft, setConnectorDraft] = useState(null)
@@ -3059,6 +3205,8 @@ function Workspace() {
   const [hasClipboard, setHasClipboard] = useState(false)
   const [isMorePanelOpen, setIsMorePanelOpen] = useState(false)
   const [isFxPanelOpen, setIsFxPanelOpen] = useState(false)
+  const [destFxTargetId, setDestFxTargetId] = useState(null)
+  const [showDestPicker, setShowDestPicker] = useState(false)
   const [isGroupSelectMode, setIsGroupSelectMode] = useState(false)
   const stageRef = useRef(null)
   const viewportRef = useRef(null)
@@ -3162,7 +3310,7 @@ function Workspace() {
   ), [items, selectedId, selectedIds, selectedItem])
   const activeCompositeMode = activeCompositeOperator?.compositeMode || null
   const canUseCompositeGroupMode = useMemo(() => (
-    selectedItems.filter((item) => !item.isAdjustmentLayer).length > 1
+    selectedItems.filter((item) => !item.isAdjustmentLayer && !['frame', 'freehand', 'connector'].includes(item.kind)).length > 1
   ), [selectedItem, selectedItems])
   const hasCompositeInSelection = useMemo(() => (
     selectedItems.some((item) => item.compositeMode === 'mask' || item.compositeMode === 'exclude')
@@ -3277,10 +3425,26 @@ function Workspace() {
 
   const restoreWorkspaceSnapshot = useCallback((workspace) => {
     const snapshot = workspace.latestVersion?.snapshot || {}
-    const restoredItems = Array.isArray(snapshot.items) ? snapshot.items.map((item) => ({
-      ...item,
-      effects: item.effects || getDefaultEffects(),
-    })) : []
+    const restoredItems = Array.isArray(snapshot.items) ? snapshot.items.map((item) => {
+      if (item.src?.startsWith('blob:')) {
+        console.warn(`[RESTORE] Item ${item.id} memiliki blob URL yang tidak valid setelah refresh:`, item.src)
+      }
+      if (item.groupId || item.compositeMode) {
+        console.log(`[LOAD] Item ${item.id} memiliki composite fields:`, {
+          groupId: item.groupId,
+          compositeMode: item.compositeMode,
+          maskSourceType: item.maskSourceType,
+          kind: item.kind,
+          shapeType: item.shapeType,
+          src: item.src?.substring(0, 60),
+          effectsKeys: item.effects ? Object.keys(item.effects).filter(k => item.effects[k]) : [],
+        })
+      }
+      return {
+        ...item,
+        effects: item.effects || getDefaultEffects(),
+      }
+    }) : []
     const restoredAssetContextSignals = Array.isArray(snapshot.browseAssetContext) && snapshot.browseAssetContext.length > 0
       ? normalizeAssetContextSignals(snapshot.browseAssetContext)
       : restoredItems.filter((item) => item.kind === 'image').slice(0, 5).map((item) => {
@@ -3819,15 +3983,13 @@ function Workspace() {
         const face = new FontFace(family, `url(${font.url})`)
         const loaded = await face.load()
         document.fonts.add(loaded)
+        clearFontCache(family)
+        preloadFont(family).catch(() => {})
       } catch (err) {
         console.warn('[inject] skip:', family, err.message)
       }
     }
-    setItems((prev) => prev.map((item) =>
-      item.kind === 'text'
-        ? { ...item, _fontVersion: Date.now() }
-        : item
-    ))
+    // No _fontVersion setItems here — fontInjectVersion handles re-render.
   }
 
   const refreshCustomFonts = useCallback(() => {
@@ -4314,25 +4476,39 @@ function Workspace() {
 
   const uploadPendingItems = useCallback(async () => {
     const pendingItems = itemsRef.current.filter((item) => item._pendingUpload)
-    if (pendingItems.length === 0) return []
+    if (pendingItems.length === 0) return { updates: [], failed: [] }
 
     const updates = []
+    const failed = []
     for (const item of pendingItems) {
       const blob = item._pendingUpload
       const file = new File([blob], `pending-${Date.now()}-${item.id}.png`, { type: 'image/png' })
-      try {
-        const uploaded = await uploadMediaFile({ file, addToUploads: false })
-        const newUrl = uploaded?.media?.url
-        if (newUrl) {
-          await deleteOldSrc(item._oldSrc || item.src)
-          URL.revokeObjectURL(item.src)
-          updates.push({ id: item.id, src: newUrl })
+      let lastError = null
+      let success = false
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const uploaded = await uploadMediaFile({ file, addToUploads: false })
+          const newUrl = uploaded?.media?.url
+          if (newUrl) {
+            await deleteOldSrc(item._oldSrc || item.src)
+            URL.revokeObjectURL(item.src)
+            updates.push({ id: item.id, src: newUrl })
+            success = true
+            break
+          }
+        } catch (err) {
+          lastError = err
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, 1000 * attempt))
+          }
         }
-      } catch (err) {
-        console.error('Failed to upload pending item:', item.id, err)
+      }
+      if (!success) {
+        console.error(`Failed to upload pending item after 3 attempts:`, item.id, lastError)
+        failed.push(item.id)
       }
     }
-    return updates
+    return { updates, failed }
   }, [deleteOldSrc])
 
   const buildSnapshotWithSrc = useCallback((srcUpdates) => {
@@ -4341,8 +4517,10 @@ function Workspace() {
     const patchedItems = snapshot.items.map((item) => {
       const newSrc = updateMap.get(item.id)
       const next = newSrc ? { ...item, src: newSrc } : { ...item }
-      delete next._pendingUpload
-      delete next._oldSrc
+      if (newSrc) {
+        delete next._pendingUpload
+        delete next._oldSrc
+      }
       return next
     })
     return {
@@ -4371,7 +4549,12 @@ function Workspace() {
     if (isPersistingRef.current) return null
     isPersistingRef.current = true
     try {
-      const updates = await uploadPendingItems()
+      const { updates, failed } = await uploadPendingItems()
+      if (failed.length > 0) {
+        console.warn(`[PERSIST] ${failed.length} item(s) gagal diupload — simpan dibatalkan. Coba simpan lagi.`, failed)
+        alert(`⚠️ ${failed.length} gambar gagal disimpan ke server. Coba simpan lagi.`)
+        return null
+      }
       if (updates.length > 0) {
         setItems((prev) => prev.map((item) => {
           const match = updates.find((u) => u.id === item.id)
@@ -4386,6 +4569,17 @@ function Workspace() {
       const snapshot = buildSnapshotWithSrc(updates)
       const snapshotHash = getSnapshotHash(snapshot)
       if (snapshotHash === lastSavedSnapshotHashRef.current) return null
+
+      const compositeItems = snapshot.items.filter((i) => i.groupId || i.compositeMode)
+      if (compositeItems.length > 0) {
+        console.log('[SAVE] Items dengan composite fields akan disimpan:', compositeItems.map((i) => ({
+          id: i.id,
+          groupId: i.groupId,
+          compositeMode: i.compositeMode,
+          maskSourceType: i.maskSourceType,
+          src: i.src?.substring(0, 50),
+        })))
+      }
 
       const body = {
         snapshot,
@@ -5140,6 +5334,7 @@ const attachTransformer = useCallback((idOrIds) => {
     setSelectedIds([])
     setSelectionBox(null)
     setAlignmentGuides([])
+    setRotationSnapGuide(null)
     setActivePanel(null)
     setIsGroupSelectMode(false)
     closeRightPanelAndCenter()
@@ -5865,7 +6060,7 @@ const attachTransformer = useCallback((idOrIds) => {
     if (parts) {
       for (const p of parts) {
         const m = p.match(/[ML]\s+([\d.]+)\s*,\s*([\d.]+)/)
-        if (m) result.push({ x: item.x + parseFloat(m[1]), y: item.y + parseFloat(m[2]) })
+        if (m) result.push({ x: parseFloat(m[1]), y: parseFloat(m[2]) })
       }
     }
     return result
@@ -5899,15 +6094,19 @@ const attachTransformer = useCallback((idOrIds) => {
       minX = Math.min(minX, a.x); minY = Math.min(minY, a.y)
       maxX = Math.max(maxX, a.x); maxY = Math.max(maxY, a.y)
     }
+    const rotRad = ((item.rotation || 0) * Math.PI) / 180
+    const cos = Math.cos(rotRad); const sin = Math.sin(rotRad)
+    const newOriginX = item.x + minX * cos - minY * sin
+    const newOriginY = item.y + minX * sin + minY * cos
     const rel = anchors.map((a) => ({ x: a.x - minX, y: a.y - minY }))
     let pathData = `M ${rel[0].x},${rel[0].y}`
     for (let i = 1; i < rel.length; i++) pathData += ` L ${rel[i].x},${rel[i].y}`
     pathData += ' Z'
     setItems((items) => items.map((item) => {
       if (item.id !== itemId) return item
-      return { ...item, x: minX, y: minY, w: Math.max(1, maxX - minX), h: Math.max(1, maxY - minY), path: pathData }
+      return { ...item, x: newOriginX, y: newOriginY, w: Math.max(1, maxX - minX), h: Math.max(1, maxY - minY), path: pathData }
     }))
-    setBezierEditAnchors(anchors.map((a) => ({ x: a.x, y: a.y })))
+    setBezierEditAnchors(rel)
   }
 
   const finishEditingBezier = () => {
@@ -6389,7 +6588,7 @@ const attachTransformer = useCallback((idOrIds) => {
     const activeIds = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
     const compositableIds = activeIds.filter((id) => {
       const item = itemsRef.current.find((candidate) => candidate.id === id)
-      return item && !item.isAdjustmentLayer
+      return item && !item.isAdjustmentLayer && !['frame', 'freehand', 'connector'].includes(item.kind)
     })
 
     if (compositableIds.length <= 1) return
@@ -6587,6 +6786,10 @@ const attachTransformer = useCallback((idOrIds) => {
       centerX: left + (right - left) / 2,
       centerY: top + (bottom - top) / 2,
     }
+  }
+
+  const getCompositeSnapBounds = (entry, adjustedMembers) => {
+    return getItemsVisualBounds(adjustedMembers)
   }
 
   // === Composite Group Interaction Utilities ===
@@ -7276,8 +7479,11 @@ const attachTransformer = useCallback((idOrIds) => {
       effects: getDefaultEffects(),
     }
 
+    const pendingBlob = asset.isPending && asset.source?.startsWith('blob:')
+      ? await fetch(asset.source).then((r) => r.blob()).catch(() => null)
+      : null
     const nextItem = asset.type === 'image'
-      ? { ...base, kind: 'image', src: asset.source, radius: 0, aspectRatio: imageSize.aspectRatio, lockAspectRatio: true, mediaId: asset.mediaId || null, sourceType: asset.sourceType || null, title: asset.title || '', tags: asset.tags || [] }
+      ? { ...base, kind: 'image', src: asset.source, radius: 0, aspectRatio: imageSize.aspectRatio, lockAspectRatio: true, mediaId: asset.mediaId || null, sourceType: asset.sourceType || null, title: asset.title || '', tags: asset.tags || [], ...(pendingBlob ? { _pendingUpload: pendingBlob, _oldSrc: null } : {}) }
       : asset.type === 'text'
         ? { ...base, kind: 'text', text: asset.text, fontSize: 72, fill: '#2b2830', isBold: true, isItalic: false, isUnderline: false, fontFamily: 'Inter, Arial', runs: [{ text: asset.text, bold: true, italic: false, underline: false }] }
         : { ...base, kind: 'note', text: asset.text, fill: '#f5d56b' }
@@ -8088,6 +8294,7 @@ const attachTransformer = useCallback((idOrIds) => {
     activeObjectDragRef.current = null
     multiDragRef.current = null
     setAlignmentGuides([])
+    setRotationSnapGuide(null)
     setStageCursor(isSpaceDown ? 'grab' : 'default')
 
     if (dragSession && Object.keys(dragSession.positions).length > 1) {
@@ -8128,7 +8335,6 @@ const attachTransformer = useCallback((idOrIds) => {
         movingExternalCount: externalMovingIds.length,
       })
 
-      // Canary: memberitahu handleGroupDragEnd agar skip update (prevent double-write)
       skipGroupDragEndRef.current = !isDraggingCompositeSource
 
       if (isDraggingCompositeSource) {
@@ -8945,11 +9151,12 @@ const commitTransformerChanges = () => {
 
   const ids = nodes.map((node) => node.id()).filter(Boolean)
   setAlignmentGuides([])
+  setRotationSnapGuide(null)
   setItems((current) => current.map((item) => {
     if (!ids.includes(item.id)) return item
     if (item.locked) return item
     if (item.kind === 'text' || item.kind === 'image') return item
-    if (item.kind === 'shape' && (item.shapeType === 'freehand' || item.shapeType === 'bezier-path')) return item
+    if (item.kind === 'shape' && item.shapeType === 'freehand') return item
     const node = nodes.find((candidate) => candidate.id() === item.id)
     if (!node) return item
 
@@ -10216,6 +10423,34 @@ const toggleMobileSheetSize = () => {
     )
   }
 
+  if (isFxPanelOpen) {
+    const handleBack = () => setIsFxPanelOpen(false)
+    if (!selectedItem) { handleBack(); return null }
+    const fxOperatorId = compositeGroupMap.get(selectedItem.id)?.operatorId
+    const fxTargetItem = fxOperatorId ? items.find(i => i.id === fxOperatorId) : selectedItem
+    return (
+      <FxPanel
+        item={fxTargetItem || selectedItem}
+        onBack={handleBack}
+        onUpdate={updateItem}
+      />
+    )
+  }
+
+  if (destFxTargetId) {
+    const destItem = items.find((i) => i.id === destFxTargetId)
+    const handleBack = () => setDestFxTargetId(null)
+    if (destItem) {
+      return (
+        <FxPanel
+          item={destItem}
+          onBack={handleBack}
+          onUpdate={updateItem}
+        />
+      )
+    }
+  }
+
   if (selectedItem) {
     if (activeGroupId && selectedItems.length > 1) {
       return (
@@ -10280,6 +10515,62 @@ const toggleMobileSheetSize = () => {
                   <span>Exclude</span>
                 </button>
               </div>
+              {hasCompositeInSelection && compositeGroupMap.get(selectedItem?.id)?.operatorId && (() => {
+                const entry = compositeGroupMap.get(selectedItem?.id)
+                const operatorId = entry?.operatorId
+                const dests = entry ? entry.members.filter((m) => m.id !== operatorId) : []
+                const singleDest = dests.length === 1 ? dests[0] : null
+                return (
+                  <>
+                    <button
+                      type="button"
+                      className="workspace-adjustment-card"
+                      onClick={() => { setIsFxPanelOpen(true); setDestFxTargetId(null); setShowDestPicker(false) }}
+                    >
+                      <span className="workspace-adjustment-card-icon"><Sparkles size={16} /></span>
+                      <span>
+                        <strong>Effect Library</strong>
+                        <small>Chroma key, spot color, mask alpha</small>
+                      </span>
+                      <ChevronRight size={16} className="workspace-adjustment-card-chevron" />
+                    </button>
+                    <button
+                      type="button"
+                      className="workspace-adjustment-card"
+                      onClick={() => {
+                        if (singleDest) {
+                          setDestFxTargetId(singleDest.id)
+                        } else {
+                          setShowDestPicker((v) => !v)
+                        }
+                      }}
+                    >
+                      <span className="workspace-adjustment-card-icon"><Image size={16} /></span>
+                      <span>
+                        <strong>Effect untuk Gambar</strong>
+                        <small>Risograph, duotone, color — untuk foto</small>
+                      </span>
+                      <ChevronRight size={16} className="workspace-adjustment-card-chevron" />
+                    </button>
+                    {showDestPicker && dests.length > 1 && (
+                      <div className="workspace-dest-picker">
+                        {dests.map((d, i) => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            className="workspace-dest-picker-item"
+                            onClick={() => { setDestFxTargetId(d.id); setShowDestPicker(false) }}
+                          >
+                            <Image size={14} />
+                            <span>Foto {i + 1}</span>
+                            <small>{d.title || d.kind}</small>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           )}
           <div className="workspace-section-card">
@@ -10312,17 +10603,6 @@ const toggleMobileSheetSize = () => {
             </div>
           </div>
         </>
-      )
-    }
-
-    if (isFxPanelOpen) {
-      const handleBack = () => setIsFxPanelOpen(false)
-      return (
-        <FxPanel
-          item={selectedItem}
-          onBack={handleBack}
-          onUpdate={updateItem}
-        />
       )
     }
 
@@ -10537,7 +10817,9 @@ const toggleMobileSheetSize = () => {
               />
             </label>
           ))}
-          {selectedItem.kind === 'image' ? (
+          {selectedItem.kind === 'shape' && (selectedItem.shapeType === 'bezier-path' || selectedItem.shapeType === 'freehand')
+            ? null
+          : selectedItem.kind === 'image' ? (
             <div className="workspace-size-row">
               <div className="workspace-aspect-lock-cell">
                 <button
@@ -12469,6 +12751,7 @@ const toggleMobileSheetSize = () => {
             onTextEdit={editTextObject}
             isTextEditing={editingText}
             onCursor={handleItemCursor}
+            setStageCursor={setStageCursor}
             onItemHover={setHoveredItemId}
             disableDrag={isSpaceDown || isPanning || activePanel === 'brush'}
             isShiftDown={isShiftDown}
@@ -12488,12 +12771,16 @@ const toggleMobileSheetSize = () => {
               requestAnimationFrame(updateToolbarPosition)
             }}
             getItemsVisualBounds={getItemsVisualBounds}
+            getCompositeSnapBounds={getCompositeSnapBounds}
             getSnappedDelta={getSnappedDelta}
             setAlignmentGuides={setAlignmentGuides}
+            setRotationSnapGuide={setRotationSnapGuide}
             skipGroupDragEndRef={skipGroupDragEndRef}
             selectedIdsRef={selectedIdsRef}
+            itemsRef={itemsRef}
             multiDragRef={multiDragRef}
             stageRef={stageRef}
+            getInteractionNode={getInteractionNode}
           />
         )
       }
@@ -13014,6 +13301,16 @@ const toggleMobileSheetSize = () => {
                     />
                   )
                 ))}
+                {rotationSnapGuide && (
+                  <Line
+                    points={[rotationSnapGuide.p1x, rotationSnapGuide.p1y, rotationSnapGuide.p2x, rotationSnapGuide.p2y]}
+                    stroke="#ff4fd8"
+                    strokeWidth={1.5}
+                    opacity={0.7}
+                    dash={[8, 6]}
+                    listening={false}
+                  />
+                )}
                 {/* Bezier alignment guides */}
                 {bezierGuides.map((g, i) => (
                   g.type === 'h' ? (
@@ -13077,12 +13374,14 @@ const toggleMobileSheetSize = () => {
                   />
                 )}
                 {editingBezierId && bezierEditAnchors && (() => {
+                  const editingBezierItem = items.find((i) => i.id === editingBezierId)
+                  if (!editingBezierItem) return null
                   const anchors = bezierEditAnchors
                   const previewPathStr = anchors.length >= 2
                     ? anchors.map((a, i) => `${i === 0 ? 'M' : 'L'} ${a.x},${a.y}`).join(' ') + ' Z'
                     : ''
                   return (
-                    <>
+                    <Group x={editingBezierItem.x} y={editingBezierItem.y} rotation={editingBezierItem.rotation}>
                       {previewPathStr && (
                         <Path
                           ref={bezierPreviewPathRef}
@@ -13253,7 +13552,7 @@ const toggleMobileSheetSize = () => {
                           </>
                         )
                       })()}
-                    </>
+                    </Group>
                   )
                 })()}
                 {renderCropOverlay()}
@@ -13261,6 +13560,8 @@ const toggleMobileSheetSize = () => {
                              <Transformer
                 ref={transformerRef}
                 rotateEnabled={!areAllLocked}
+                rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
+                rotationSnapTolerance={6}
                 keepRatio={!areAllLocked && (
                   isSelectedCompositeGroup
                     ? true
@@ -13292,25 +13593,62 @@ const toggleMobileSheetSize = () => {
                           : transformAnchors
                   )
                 }
-                onTransform={() => {
-                  const box = transformerRef.current?.getClientRect?.()
-                  if (!box) return
-                  const worldBox = {
-                    left: box.x,
-                    right: box.x + box.width,
-                    top: box.y,
-                    bottom: box.y + box.height,
-                    centerX: box.x + box.width / 2,
-                    centerY: box.y + box.height / 2,
-                  }
-                  const guides = []
-                  const canvasCenterX = canvasBounds.x + canvasBounds.width / 2
-                  const canvasCenterY = canvasBounds.y + canvasBounds.height / 2
-                  if (Math.abs(worldBox.centerX - canvasCenterX) <= snapTolerance) guides.push({ axis: 'x', value: canvasCenterX, type: 'canvas-center' })
-                  if (Math.abs(worldBox.centerY - canvasCenterY) <= snapTolerance) guides.push({ axis: 'y', value: canvasCenterY, type: 'canvas-center' })
-                  setAlignmentGuides(guides)
-                  requestAnimationFrame(updateToolbarPosition)
-                }}
+                  onTransform={() => {
+                    const nodes = transformerRef.current?.nodes?.()
+                    const firstNode = nodes?.[0]
+                    const nodeRect = firstNode?.getClientRect?.()
+                    if (!nodeRect) return
+                    // getClientRect() returns STAGE coordinates (viewport space with camera zoom/pan).
+                    // Convert to WORLD coordinates (camera Group space) since guides render inside the camera Group.
+                    const cam = cameraRef.current
+                    const worldX = (nodeRect.x - cam.x) / cam.scale
+                    const worldY = (nodeRect.y - cam.y) / cam.scale
+                    const worldW = nodeRect.width / cam.scale
+                    const worldH = nodeRect.height / cam.scale
+                    const worldBox = {
+                      left: worldX,
+                      right: worldX + worldW,
+                      top: worldY,
+                      bottom: worldY + worldH,
+                      centerX: worldX + worldW / 2,
+                      centerY: worldY + worldH / 2,
+                    }
+                    const guides = []
+                    const canvasCenterX = canvasBounds.x + canvasBounds.width / 2
+                    const canvasCenterY = canvasBounds.y + canvasBounds.height / 2
+                    if (Math.abs(worldBox.centerX - canvasCenterX) <= snapTolerance) guides.push({ axis: 'x', value: canvasCenterX, type: 'canvas-center' })
+                    if (Math.abs(worldBox.centerY - canvasCenterY) <= snapTolerance) guides.push({ axis: 'y', value: canvasCenterY, type: 'canvas-center' })
+                    setAlignmentGuides(guides)
+
+                    if (nodes?.length === 1) {
+                      const normalizedRot = ((firstNode.rotation() % 360) + 360) % 360
+                      const snappedAngle = [0, 45, 90, 135, 180, 225, 270, 315].find((a) => Math.abs(normalizedRot - a) <= 3 || Math.abs(normalizedRot - (a + 360)) <= 3)
+                      if (snappedAngle !== undefined) {
+                        const angleRad = (snappedAngle * Math.PI) / 180
+                        const len = Math.max(canvasBounds.width, canvasBounds.height)
+                        const upX = Math.sin(angleRad)
+                        const upY = -Math.cos(angleRad)
+                        const originX = worldBox.centerX
+                        const originY = worldBox.centerY
+                        const guidePoints = {
+                          centerX: originX,
+                          centerY: originY,
+                          angle: snappedAngle,
+                          p1x: originX - upX * len,
+                          p1y: originY - upY * len,
+                          p2x: originX + upX * len,
+                          p2y: originY + upY * len,
+                        }
+                        setRotationSnapGuide(guidePoints)
+                      } else {
+                        setRotationSnapGuide(null)
+                      }
+                    } else {
+                      setRotationSnapGuide(null)
+                    }
+
+                    requestAnimationFrame(updateToolbarPosition)
+                  }}
                 onTransformEnd={commitTransformerChanges}
                 boundBoxFunc={(oldBox, newBox) => {
                   const snappedResize = snapResizeBox(oldBox, newBox)

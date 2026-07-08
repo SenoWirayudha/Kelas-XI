@@ -118,3 +118,12 @@ export const preloadFont = (fontFamily) => {
   fontLoadCache.set(primaryFont, promise)
   return promise
 }
+
+export const clearFontCache = (fontName) => {
+  const primaryFont = fontName.split(',')[0].trim()
+  fontLoadCache.delete(primaryFont)
+}
+
+export const clearAllFontCache = () => {
+  fontLoadCache.clear()
+}

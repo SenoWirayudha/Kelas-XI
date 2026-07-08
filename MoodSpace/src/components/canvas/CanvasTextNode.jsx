@@ -176,6 +176,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
 
   useEffect(() => {
     setFontLoaded(false)
+    hasAutoExpandedRef.current = false
     const families = new Set([item.fontFamily || 'Inter, Arial'])
     runs.forEach(r => { if (r.fontFamily) families.add(r.fontFamily) })
     let cancelled = false
@@ -678,6 +679,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
             w: nextWidth,
             h: runsLayoutRef.current.height || item.h || Math.max(32, nextFontSize * 1.5),
             fontSize: nextFontSize,
+            rotation: groupNode.rotation(),
           })
           setDragWidth(null)
           transformStartRef.current = null
@@ -725,7 +727,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           w: nextWidth,
           h: nextHeight,
           fontSize: nextFontSize,
-          rotation: node.rotation(),
+          rotation: groupNode.rotation(),
         })
         transformStartRef.current = null
         transformAnchorRef.current = null

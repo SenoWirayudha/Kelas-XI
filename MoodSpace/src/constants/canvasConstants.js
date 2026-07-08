@@ -12,7 +12,7 @@ export const cornerTransformAnchors = [
 ]
 
 // ─── Snap / guide tolerances ─────────────────────────────────────────────────
-export const snapTolerance = 6
+export const snapTolerance = 10
 export const marginSnapTolerance = 10
 export const edgeSnapTolerance = 16
 export const canvasInnerMargin = 64

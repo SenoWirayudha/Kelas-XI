@@ -536,6 +536,7 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
 }
 
 export default function FxPanel({ item, onBack, onUpdate }) {
+  if (!item) return null
   const [selectedEffect, setSelectedEffect] = useState(null)
   const scrollPosRef = useRef(null)
   const panelRef = useRef(null)

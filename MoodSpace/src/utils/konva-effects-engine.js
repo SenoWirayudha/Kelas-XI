@@ -701,7 +701,16 @@ for (const [name, src] of Object.entries(SHADERS)) webglEngine.register(name, sr
 // ─────────────────────────────────────────────
 // Risograph Texture — full-color single pass (no threshold)
 // ─────────────────────────────────────────────
+const _risoWeakCache = new WeakMap()
+
 function applyRisographTextureFullColor(imgData, p) {
+  const paramKey = JSON.stringify(p)
+  const cached = _risoWeakCache.get(imgData)
+  if (cached && cached.paramKey === paramKey) {
+    imgData.data.set(cached.data)
+    return
+  }
+
   const { pr, pg, pb, density, misalignment } = p
   const w = imgData.width, h = imgData.height, d = imgData.data
   const src = new Uint8ClampedArray(d)
@@ -763,6 +772,10 @@ function applyRisographTextureFullColor(imgData, p) {
       d[i] = Math.round(r); d[i+1] = Math.round(g); d[i+2] = Math.round(b)
     }
   }
+  _risoWeakCache.set(imgData, {
+    paramKey,
+    data: new Uint8ClampedArray(d),
+  })
 }
 
 // ─────────────────────────────────────────────
