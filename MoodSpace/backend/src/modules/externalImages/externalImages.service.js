@@ -57,6 +57,24 @@ const movieBackdropWords = ['scene', 'still', 'wallpaper', 'cinematic shot', 'ci
 const moviePosterWords = ['poster', 'movie poster', 'film poster', 'cinema poster', 'key art']
 const nonMovieWords = ['album', 'music', 'song', 'vinyl', 'interior', 'room', 'fashion', 'typography', 'logo', 'ui', 'ux', 'null', 'unggahan', 'trending']
 
+const connectingWords = ['and', 'or', 'of', 'in', 'on', 'at', 'by', 'for', 'with', 'to', 'from']
+
+const genericVisualWords = [
+  'black', 'white', 'red', 'blue', 'green', 'yellow', 'pink', 'purple', 'orange',
+  'grey', 'gray', 'brown', 'gold', 'silver', 'teal', 'navy', 'beige', 'cream',
+  'dark', 'light', 'bright', 'pale', 'deep', 'vintage', 'retro', 'old', 'classic',
+  'modern', 'minimal', 'abstract', 'moody', 'dramatic', 'dreamy', 'romantic',
+  'calm', 'serene', 'tranquil', 'ethereal', 'surreal', 'whimsical', 'peaceful',
+  'beautiful', 'pretty', 'stunning', 'gorgeous', 'lovely', 'nice', 'cool',
+  'shadow', 'silhouette', 'rain', 'night', 'sunset', 'sunrise', 'cloud', 'sky',
+  'ocean', 'nature', 'urban', 'city', 'street', 'landscape', 'aesthetic',
+  'hd', '4k', 'high', 'resolution', 'quality', 'cover', 'desktop', 'mobile',
+  'christmas', 'halloween', 'winter', 'spring', 'summer', 'autumn', 'fall',
+  'rainy', 'foggy', 'misty', 'snowy', 'floral', 'forest', 'mountain', 'beach',
+  'indie', 'folk', 'artistic', 'pixel', 'vector', 'flat', 'gradient',
+  'japanese', 'korean', 'japan', 'korea',
+]
+
 const designIntentWords = new Set([
   'texture', 'pattern', 'background', 'overlay', 'grunge', 'noise', 'grain', 'paper',
   'fabric', 'canvas', 'brush', 'stroke', 'splatter', 'watercolor', 'acrylic', 'oil',
@@ -154,7 +172,10 @@ export const classifyMovieQuery = (value = '') => {
   const allTokensAreMovieNoise = tokens.length > 0 && tokens.every((token) => (
     titleNoiseWords.includes(token) || movieIntentWords.includes(token)
   ))
-  const isGeneric = allTokensAreMovieNoise
+  const titleTokensAreGeneric = titleTokens.length > 0 && titleTokens.every((token) =>
+    genericVisualWords.includes(token) || connectingWords.includes(token)
+  )
+  const isGeneric = allTokensAreMovieNoise || titleTokensAreGeneric
 
   if (!isGeneric) {
     const gate2 = !titleCandidate || (!hasMovieIntent && titleCandidate.split(' ').length >= 8)
