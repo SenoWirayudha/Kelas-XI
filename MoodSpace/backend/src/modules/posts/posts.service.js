@@ -883,24 +883,31 @@ export const similarPostsByImage = async ({ viewerId = null, imageId, q, limit =
   if (!rows.length) return { items: [] }
 
   const qLower = q?.trim().toLowerCase()
-  const textFiltered = rows.filter(p => {
-    if (!qLower) return true
-    const text = `${p.title || ''} ${p.caption || ''} ${(p.metadata?.tags || []).join(' ')}`.toLowerCase()
-    return qLower.split(/\s+/).some(word => text.includes(word))
+
+  const scored = rows.map(p => {
+    const _clipScore = p.embedding ? cosineSimilarity(embedding, p.embedding) : 0
+    let _kwMatch = true
+    if (qLower) {
+      const text = `${p.title || ''} ${p.caption || ''} ${(p.metadata?.tags || []).join(' ')}`.toLowerCase()
+      _kwMatch = qLower.split(/\s+/).some(word => text.includes(word))
+    }
+    return { ...p, _clipScore, _kwMatch }
   })
 
-  const scored = textFiltered.map(p => ({
-    ...p,
-    _clipScore: p.embedding ? cosineSimilarity(embedding, p.embedding) : 0,
-  }))
-
+  const BYPASS_THRESHOLD = 0.40
   const target = Math.min(limit, 12)
   const HARD_FLOOR = Math.min(5, target)
 
-  let filtered = scored.filter(p => p._clipScore >= CLIP_SCORE_THRESHOLD)
+  const passesFilter = (p, threshold) => {
+    if (p._clipScore >= BYPASS_THRESHOLD) return true
+    if (p._clipScore >= threshold && p._kwMatch) return true
+    return false
+  }
+
+  let filtered = scored.filter(p => passesFilter(p, CLIP_SCORE_THRESHOLD))
 
   if (filtered.length < target) {
-    const loosened = scored.filter(p => p._clipScore >= 0.05)
+    const loosened = scored.filter(p => passesFilter(p, 0.05))
     if (loosened.length >= target) {
       console.warn('[similarPostsByImage] safety net level 2: threshold 0.10 → 0.05 (%d items)', loosened.length)
       filtered = loosened
@@ -908,7 +915,7 @@ export const similarPostsByImage = async ({ viewerId = null, imageId, q, limit =
       console.warn('[similarPostsByImage] safety net level 2: threshold 0.10 → 0.05 (partial, %d items)', loosened.length)
       filtered = loosened
     } else {
-      const more = scored.filter(p => p._clipScore >= 0.02)
+      const more = scored.filter(p => passesFilter(p, 0.02))
       if (more.length >= HARD_FLOOR) {
         console.warn('[similarPostsByImage] safety net level 3: threshold 0.10 → 0.02 (%d items)', more.length)
         filtered = more
