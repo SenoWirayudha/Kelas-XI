@@ -298,7 +298,7 @@ const isStableHomeQuerySignal = (signal) => (
   || (signal?.eventTypes || []).some((eventType) => strongQueryEventTypes.has(eventType))
 )
 
-const allocateQuerySlots = (queries = [], max = 6) => {
+const allocateQuerySlots = (queries = [], max = 6, maxSlotsPerItem = null) => {
   if (!queries.length) return []
   const totalScore = queries.reduce((sum, item) => sum + Math.max(0, Number(item.score || 0)), 0)
   const baseSlots = queries.map((item) => ({
@@ -318,6 +318,26 @@ const allocateQuerySlots = (queries = [], max = 6) => {
     const target = [...baseSlots].sort((a, b) => b.score - a.score)[0]
     target.slots += 1
     slotTotal += 1
+  }
+
+  if (maxSlotsPerItem && maxSlotsPerItem > 0) {
+    let excess = 0
+    for (const item of baseSlots) {
+      if (item.slots > maxSlotsPerItem) {
+        excess += item.slots - maxSlotsPerItem
+        item.slots = maxSlotsPerItem
+      }
+    }
+    while (excess > 0) {
+      const target = [...baseSlots]
+        .filter((item) => item.slots < maxSlotsPerItem)
+        .sort((a, b) => b.score - a.score)[0]
+      if (!target) break
+      const room = maxSlotsPerItem - target.slots
+      const give = Math.min(excess, room)
+      target.slots += give
+      excess -= give
+    }
   }
 
   return baseSlots
@@ -357,8 +377,10 @@ const buildHomeExternalQueries = ({ recentQuerySignals = [], recentTags = [], re
     })
   }
 
+  const MAX_SLOTS_PER_FILM = Math.ceil(max / 2)
+
   if (movieSignals.length >= 1) {
-    const querySlots = allocateQuerySlots(movieSignals, max)
+    const querySlots = allocateQuerySlots(movieSignals, max, MAX_SLOTS_PER_FILM)
     const explorationQueries = buildExplorationQueries(effectiveTags, 'cinematic')
     const queries = uniqueQueries(
       [
