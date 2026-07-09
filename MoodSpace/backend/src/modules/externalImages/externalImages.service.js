@@ -1,7 +1,7 @@
 import { env } from '../../config/env.js'
 import { notFound } from '../../utils/errors.js'
 import { getTopRecentInterestQuerySignals, getTopRecentInterestTagsWithScores, normalizeInterestTag, recordInterestEvent } from '../interest/interest.service.js'
-import { updateProfile } from '../profile/profile.service.js'
+import { updateProfile, getUserProfileEmbedding } from '../profile/profile.service.js'
 import { findMediaById } from '../media/media.repository.js'
 import {
   findAnyEmbedding,
@@ -1582,7 +1582,41 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
 
     // Final CLIP rerank (attach stored embeddings first)
     console.time('[BROWSE-ASSET] CLIP rerank')
-    const rerankText = semanticText || queries.join(' ')
+  // Visual similarity pool — profile-based discovery for home feed
+  // Uses stored user embedding (from EMA profile) to find visually similar
+  // external images, independent of keyword/title search.
+  if (context === 'home' && viewerId && !visualSimilarTo && !semanticText) {
+    const profileEmb = await getUserProfileEmbedding(viewerId).catch(() => null)
+    if (profileEmb) {
+      const POOL_LIMIT = 6
+      const dbResults = await findImagesByVisualSimilarity({ embedding: profileEmb, limit: POOL_LIMIT, offset: 0 })
+      if (dbResults.length) {
+        let poolItems = dbResults.map((item) => {
+          const { _embedding, createdAt, updatedAt, ...rest } = item
+          return { ...rest, clipScore: item._clipScore }
+        })
+        if (!hasMusicQuery) {
+          poolItems = poolItems.filter((i) => i.provider !== 'itunes')
+        }
+        poolItems = poolItems.filter((i) => {
+          if (i.provider === 'tmdb' || i.provider === 'itunes') return true
+          return isDesignItem(i)
+        })
+        const existingIds = new Set(items.map((i) => i.id))
+        const uniquePoolItems = poolItems.filter((i) => !existingIds.has(i.id))
+        uniquePoolItems.sort((a, b) => (b.clipScore || 0) - (a.clipScore || 0))
+        const mixed = []
+        let ti = 0, pi = 0
+        while (ti < items.length || pi < uniquePoolItems.length) {
+          for (let c = 0; c < 2 && ti < items.length; c++) mixed.push(items[ti++])
+          if (pi < uniquePoolItems.length) mixed.push(uniquePoolItems[pi++])
+        }
+        items.splice(0, items.length, ...mixed.slice(0, limit))
+      }
+    }
+  }
+
+  const rerankText = semanticText || queries.join(' ')
     const queryEmbedding = await getTextEmbedding(rerankText)
     if (queryEmbedding && items.length) {
       const itemIds = items.map((item) => item.id).filter(Boolean)
