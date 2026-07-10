@@ -51,6 +51,7 @@ export const normalizeInterestTag = (value = '') => (
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\.[a-z0-9]{2,5}$/i, '')
+    .replace(/\b(?:jpe?g|png|webp|gif|bmp|svg|tiff?|avif|heic?)\b/gi, '')
     .replace(/[_-]+/g, ' ')
     .replace(/[^a-z0-9\s.]+/g, ' ')
     .replace(/\s+/g, ' ')

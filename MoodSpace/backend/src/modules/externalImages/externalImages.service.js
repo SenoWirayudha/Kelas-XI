@@ -35,10 +35,12 @@ const cleanText = (value = '') => String(value)
   .replace(/\s+/g, ' ')
   .trim()
 
+const EXT_WORD_RE = /\b(?:jpe?g|png|webp|gif|bmp|svg|tiff?|avif|heic?)\b/gi
 const normalizeTag = (value = '') => cleanText(value)
   .toLowerCase()
   .replace(/^file:/, '')
   .replace(/\.[a-z0-9]{2,5}$/i, '')
+  .replace(EXT_WORD_RE, '')
   .replace(/[_-]+/g, ' ')
   .replace(/[^a-z0-9\s]+/g, ' ')
   .replace(/\s+/g, ' ')
@@ -177,6 +179,18 @@ export const classifyMovieQuery = (value = '') => {
   )
   const isGeneric = allTokensAreMovieNoise || titleTokensAreGeneric
 
+  // Gate 3: generic design-only queries (e.g. "design inspiration editorial poster moodboard")
+  // have no actual movie title and no strong movie intent → not a movie query
+  if (isGeneric && !titleCandidate) {
+    const strongMovieIntent = tokens.some((t) =>
+      ['movie', 'film', 'cinema', 'cinematic', 'scene', 'still'].includes(t)
+    )
+    if (!strongMovieIntent) {
+      console.log('[TMDB-DEBUG] classifyMovieQuery REJECTED gate3 (design-only generic):', { raw: value, normalized })
+      return null
+    }
+  }
+
   if (!isGeneric) {
     const gate2 = !titleCandidate || (!hasMovieIntent && titleCandidate.split(' ').length >= 8)
     if (gate2) { console.log('[TMDB-DEBUG] classifyMovieQuery REJECTED gate2 (>=5 tokens no movie intent):', { raw: value, normalized, hasMovieIntent, titleCandidate, tokenCount: titleCandidate.split(' ').length }); return null }
@@ -193,13 +207,16 @@ export const classifyMovieQuery = (value = '') => {
   return result
 }
 
+const musicKeywords = ['album', 'music', 'song', 'vinyl', 'single', 'ep', 'mixtape', 'remix', 'feat', 'featuring', 'soundtrack', 'ost', 'band', 'singer', 'rapper', 'producer', 'record', 'playlist']
 const classifyMusicQuery = (query) => {
   if (!query || typeof query !== 'string') return false
   const lower = query.trim().toLowerCase()
   if (!lower || lower.length < 2) return false
   const movieResult = classifyMovieQuery(query)
   if (movieResult?.isGeneric) return false
-  if (movieResult && movieResult.titleCandidate.split(' ').length === 1) return false
+  // Rejected by classifyMovieQuery (e.g. garbage like filenames, "unggahan") → only music if explicit music keywords
+  if (!movieResult) return musicKeywords.some((w) => lower.includes(w))
+  if (movieResult.titleCandidate.split(' ').length === 1) return false
   const movieIntentWords = ['movie', 'film', 'cinema', 'cinematic', 'poster', 'scene', 'still', 'backdrop', 'key art']
   if (movieIntentWords.some((w) => lower.includes(w))) return false
   return true
@@ -266,9 +283,11 @@ const uniqueQueries = (queries = [], max = 3) => {
     .slice(0, max)
 }
 
+const EXPAND_EXT_RE = /\.(webp|jpe?g|png|gif|bmp|svg|tiff?|avif|heic?)/i
 const expandHomeTagToQueries = (tag) => {
   const normalized = normalizeInterestTag(tag)
   if (!normalized) return []
+  if (EXPAND_EXT_RE.test(normalized.replace(/\s+/g, ''))) return []
   const matched = queryExpansionMap.find((entry) => (
     entry.match.some((keyword) => normalized === keyword || normalized.includes(keyword) || keyword.includes(normalized))
   ))
@@ -379,10 +398,18 @@ const buildHomeExternalQueries = ({ recentQuerySignals = [], recentTags = [], re
 
   const MAX_SLOTS_PER_FILM = Math.ceil(max / 2)
 
+  const ensureFallback = (queries) => {
+    if (!queries.includes(fallbackQuery)) {
+      if (queries.length >= max) queries.pop()
+      queries.push(fallbackQuery)
+    }
+    return queries
+  }
+
   if (movieSignals.length >= 1) {
     const querySlots = allocateQuerySlots(movieSignals, max, MAX_SLOTS_PER_FILM)
     const explorationQueries = buildExplorationQueries(effectiveTags, 'cinematic')
-    const queries = uniqueQueries(
+    let queries = uniqueQueries(
       [
         ...querySlots.map((item) => item.query),
         ...explorationQueries,
@@ -391,6 +418,7 @@ const buildHomeExternalQueries = ({ recentQuerySignals = [], recentTags = [], re
       ].filter(Boolean),
       max,
     )
+    queries = ensureFallback(queries)
     return {
       queries,
       slotsPerQuery: querySlots.filter((item) => queries.includes(item.query)),
@@ -410,7 +438,7 @@ const buildHomeExternalQueries = ({ recentQuerySignals = [], recentTags = [], re
 
   const explorationQueries = buildExplorationQueries(effectiveTags, 'explore')
 
-  const queries = uniqueQueries(
+  let queries = uniqueQueries(
     [
       ...expandedQuerySignals,
       ...expandedTagSignals,
@@ -419,6 +447,7 @@ const buildHomeExternalQueries = ({ recentQuerySignals = [], recentTags = [], re
     ].filter(Boolean),
     max,
   )
+  queries = ensureFallback(queries)
   return {
     queries,
     slotsPerQuery: queries.map((query) => {
@@ -1285,8 +1314,16 @@ const getProviderSearchersForQuery = ({ context = '', query = '' }) => {
     }
     return providerSearchers
   }
-  // Query rejected by classifyMovieQuery — skip all providers (garbage query)
-  if (context === 'home') return []
+  // Non-movie query in home context — use design providers (Unsplash, Pexels, etc.)
+  if (context === 'home') {
+    return [
+      ['unsplash', searchUnsplash],
+      ['pexels', searchPexels],
+      ['pixabay', searchPixabay],
+      ['openverse', searchOpenverse],
+      ['wikimedia', searchWikimedia],
+    ]
+  }
   return providerSearchers
 }
 
@@ -1582,39 +1619,6 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
 
     // Final CLIP rerank (attach stored embeddings first)
     console.time('[BROWSE-ASSET] CLIP rerank')
-  // Visual similarity pool — profile-based discovery for home feed
-  // Uses stored user embedding (from EMA profile) to find visually similar
-  // external images, independent of keyword/title search.
-  if (context === 'home' && viewerId && !visualSimilarTo && !semanticText) {
-    const profileEmb = await getUserProfileEmbedding(viewerId).catch(() => null)
-    if (profileEmb) {
-      const POOL_LIMIT = 6
-      const dbResults = await findImagesByVisualSimilarity({ embedding: profileEmb, limit: POOL_LIMIT, offset: 0 })
-      if (dbResults.length) {
-        let poolItems = dbResults.map((item) => {
-          const { _embedding, createdAt, updatedAt, ...rest } = item
-          return { ...rest, clipScore: item._clipScore }
-        })
-        if (!hasMusicQuery) {
-          poolItems = poolItems.filter((i) => i.provider !== 'itunes')
-        }
-        poolItems = poolItems.filter((i) => {
-          if (i.provider === 'tmdb' || i.provider === 'itunes') return true
-          return isDesignItem(i)
-        })
-        const existingIds = new Set(items.map((i) => i.id))
-        const uniquePoolItems = poolItems.filter((i) => !existingIds.has(i.id))
-        uniquePoolItems.sort((a, b) => (b.clipScore || 0) - (a.clipScore || 0))
-        const mixed = []
-        let ti = 0, pi = 0
-        while (ti < items.length || pi < uniquePoolItems.length) {
-          for (let c = 0; c < 2 && ti < items.length; c++) mixed.push(items[ti++])
-          if (pi < uniquePoolItems.length) mixed.push(uniquePoolItems[pi++])
-        }
-        items.splice(0, items.length, ...mixed.slice(0, limit))
-      }
-    }
-  }
 
   const rerankText = semanticText || queries.join(' ')
     const queryEmbedding = await getTextEmbedding(rerankText)
@@ -1797,6 +1801,40 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
         while (ti < items.length || si < uniqueSemantic.length) {
           for (let c = 0; c < 2 && si < uniqueSemantic.length; c++) mixed.push(uniqueSemantic[si++])
           if (ti < items.length) mixed.push(items[ti++])
+        }
+        items.splice(0, items.length, ...mixed.slice(0, limit))
+      }
+    }
+  }
+
+  // Visual similarity pool — profile-based discovery for home feed
+  // Uses stored user embedding (from EMA profile) to find visually similar
+  // external images, independent of keyword/title search.
+  if (context === 'home' && viewerId && !visualSimilarTo && !semanticText) {
+    const profileEmb = await getUserProfileEmbedding(viewerId).catch(() => null)
+    if (profileEmb) {
+      const POOL_LIMIT = 6
+      const dbResults = await findImagesByVisualSimilarity({ embedding: profileEmb, limit: POOL_LIMIT, offset: 0 })
+      if (dbResults.length) {
+        let poolItems = dbResults.map((item) => {
+          const { _embedding, createdAt, updatedAt, ...rest } = item
+          return { ...rest, clipScore: item._clipScore }
+        })
+        if (!hasMusicQuery) {
+          poolItems = poolItems.filter((i) => i.provider !== 'itunes')
+        }
+        poolItems = poolItems.filter((i) => {
+          if (i.provider === 'tmdb' || i.provider === 'itunes') return true
+          return isDesignItem(i)
+        })
+        const existingIds = new Set(items.map((i) => i.id))
+        const uniquePoolItems = poolItems.filter((i) => !existingIds.has(i.id))
+        uniquePoolItems.sort((a, b) => (b.clipScore || 0) - (a.clipScore || 0))
+        const mixed = []
+        let ti = 0, pi = 0
+        while (ti < items.length || pi < uniquePoolItems.length) {
+          for (let c = 0; c < 2 && ti < items.length; c++) mixed.push(items[ti++])
+          if (pi < uniquePoolItems.length) mixed.push(uniquePoolItems[pi++])
         }
         items.splice(0, items.length, ...mixed.slice(0, limit))
       }
