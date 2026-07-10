@@ -1785,7 +1785,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
   const hasActiveCursor = providerResults.some((result) => !!result.cursor)
   const items = uniqueItemsById(
     interleaveProviderItems(providerResults, limit * 2, { preferTmdb: hasMovieQuery && !hasMusicQuery, preferCoverArt: hasMusicQuery, hasMusicQuery }),
-  ).slice(0, limit)
+  ).slice(0, limit * 3)
 
   // For recommended context, skip text providers and use visual similarity as primary
   if (context === 'recommended' && !!visualSimilarTo) {
@@ -1904,7 +1904,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
           for (let c = 0; c < 2 && ti < items.length; c++) mixed.push(items[ti++])
           if (pi < uniquePoolItems.length) mixed.push(uniquePoolItems[pi++])
         }
-        items.splice(0, items.length, ...mixed.slice(0, limit))
+        items.splice(0, items.length, ...mixed.slice(0, limit * 2))
       }
     }
   }
@@ -1948,6 +1948,27 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
       .map(({ item: { _embedding, ...rest }, score }) => ({ ...rest, clipScore: score }))
     : items.map(({ _embedding, ...rest }) => rest)
 
+  // Per-film entity cap for home feed: prevent a single TMDB entity from
+  // dominating all slots after CLIP rerank. Non-TMDB items (design, iTunes)
+  // pass through without limitation.
+  const MAX_TMDB_ITEMS_PER_ENTITY = 4
+  const entityCount = new Map()
+  const entityCapped = []
+  for (const item of rerankedItems) {
+    let entityKey = null
+    if (item.provider === 'tmdb' && item.id) {
+      const parts = item.id.split(':')
+      if (parts.length >= 2) entityKey = parts[0] + ':' + parts[1]
+    }
+    if (entityKey) {
+      const count = entityCount.get(entityKey) || 0
+      if (count >= MAX_TMDB_ITEMS_PER_ENTITY) continue
+      entityCount.set(entityKey, count + 1)
+    }
+    entityCapped.push(item)
+  }
+  const finalItems = entityCapped.slice(0, limit)
+
   // Build hybrid cursor for recommended visual context
   let finalCursor = null
   if (context === 'recommended' && visualSimilarTo) {
@@ -1963,13 +1984,18 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     finalCursor = nextCursor
   }
 
+  const entityCapDebug = {}
+  for (const [key, count] of entityCount) entityCapDebug[key] = count
   console.log('[TMDB-DEBUG] searchExternalImages FINAL response:', {
     totalItems: rerankedItems.length,
+    finalItems: finalItems.length,
+    entityCap: MAX_TMDB_ITEMS_PER_ENTITY,
+    entityCounts: entityCapDebug,
     firstItemProvider: rerankedItems[0]?.provider || rerankedItems[0]?.source || null,
     movieQuery: hasMovieQuery,
     clipReranked: !!(textEmb || imageEmb),
-    itemProviders: [...new Set(rerankedItems.map((i) => i.provider || i.source || 'unknown'))],
-    itemTitles: rerankedItems.slice(0, 3).map((i) => i.title || i.alt_description || '(no title)'),
+    itemProviders: [...new Set(finalItems.map((i) => i.provider || i.source || 'unknown'))],
+    itemTitles: finalItems.slice(0, 3).map((i) => i.title || i.alt_description || '(no title)'),
     finalCursor,
   })
 
@@ -1988,7 +2014,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     recentQueries: queryPlan.recentQueries,
     fallbackUsed: queryPlan.fallbackUsed,
     movieQuery: hasMovieQuery,
-    items: rerankedItems,
+    items: finalItems,
     nextCursor: finalCursor ? encodeCursor(finalCursor) : null,
   }
 }
