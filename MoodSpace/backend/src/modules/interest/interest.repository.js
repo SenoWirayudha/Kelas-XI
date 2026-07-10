@@ -20,7 +20,7 @@ export const getTopRecentInterestTags = async ({ userId, limit = 24 }) => {
            -extract(epoch from (now() - created_at)) /
            extract(epoch from (
              case event_type
-               when 'open_post'       then interval '6 hours'
+                when 'open_post'       then interval '3 days'
                when 'search'          then interval '3 days'
                when 'save_post'       then interval '7 days'
                when 'add_to_board'    then interval '7 days'
@@ -54,7 +54,7 @@ export const getTopRecentInterestTagsWithScores = async ({ userId, limit = 24 })
            -extract(epoch from (now() - created_at)) /
            extract(epoch from (
              case event_type
-               when 'open_post'       then interval '6 hours'
+                when 'open_post'       then interval '3 days'
                when 'search'          then interval '3 days'
                when 'save_post'       then interval '7 days'
                when 'add_to_board'    then interval '7 days'
@@ -88,7 +88,7 @@ export const getTopRecentInterestQueries = async ({ userId, limit = 12 }) => {
            -extract(epoch from (now() - created_at)) /
            extract(epoch from (
              case event_type
-               when 'open_post'       then interval '6 hours'
+                when 'open_post'       then interval '3 days'
                when 'search'          then interval '3 days'
                when 'save_post'       then interval '7 days'
                when 'add_to_board'    then interval '7 days'
