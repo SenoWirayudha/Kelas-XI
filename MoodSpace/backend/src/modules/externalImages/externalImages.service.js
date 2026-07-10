@@ -41,6 +41,7 @@ const normalizeTag = (value = '') => cleanText(value)
   .replace(/^file:/, '')
   .replace(/\.[a-z0-9]{2,5}$/i, '')
   .replace(EXT_WORD_RE, '')
+  .replace(/\s*\.\s*/g, ' ')
   .replace(/[_-]+/g, ' ')
   .replace(/[^a-z0-9\s]+/g, ' ')
   .replace(/\s+/g, ' ')
@@ -284,10 +285,20 @@ const uniqueQueries = (queries = [], max = 3) => {
 }
 
 const EXPAND_EXT_RE = /\.(webp|jpe?g|png|gif|bmp|svg|tiff?|avif|heic?)/i
+const HOME_GARBAGE_WORDS = new Set(['unggahan', 'saved', 'download', 'untitled', 'screenshot', 'file', 'null'])
+const isHomeGarbageTag = (tag) => {
+  const s = tag.trim().toLowerCase()
+  if (!s) return true
+  if (EXPAND_EXT_RE.test(s.replace(/\s+/g, ''))) return true
+  if (!s.includes(' ') && s.length > 12) return true
+  if (HOME_GARBAGE_WORDS.has(s.split(' ')[0])) return true
+  return false
+}
 const expandHomeTagToQueries = (tag) => {
+  if (EXPAND_EXT_RE.test(tag.replace(/\s+/g, ''))) return []
   const normalized = normalizeInterestTag(tag)
   if (!normalized) return []
-  if (EXPAND_EXT_RE.test(normalized.replace(/\s+/g, ''))) return []
+  if (isHomeGarbageTag(tag) || isHomeGarbageTag(normalized)) return []
   const matched = queryExpansionMap.find((entry) => (
     entry.match.some((keyword) => normalized === keyword || normalized.includes(keyword) || keyword.includes(normalized))
   ))
@@ -308,6 +319,33 @@ const rotateQueriesBySeed = (queries, seed = '') => {
 const hashString = (value = '') => (
   Array.from(String(value)).reduce((hash, character) => ((hash << 5) - hash + character.charCodeAt(0)) | 0, 0)
 )
+
+const seededRandom = (seed) => {
+  let s = Math.abs(hashString(String(seed))) || 1
+  return () => {
+    s = (s * 16807) % 2147483647
+    return s / 2147483647
+  }
+}
+
+const weightedSampleByScore = (items = [], count = 1, seed = '') => {
+  if (!items.length) return []
+  if (items.length <= count) return [...items]
+  const rng = seededRandom(seed)
+  const result = []
+  const pool = items.map((item) => ({ ...item }))
+  while (result.length < count && pool.length > 0) {
+    const total = pool.reduce((sum, item) => sum + Math.max(0.001, Number(item.score || 0.001)), 0)
+    const r = rng() * total
+    let cumulative = 0
+    const idx = pool.findIndex((item) => {
+      cumulative += Math.max(0.001, Number(item.score || 0.001))
+      return cumulative >= r
+    })
+    result.push(pool.splice(idx >= 0 ? idx : 0, 1)[0])
+  }
+  return result
+}
 
 const strongQueryEventTypes = new Set(['save_post', 'add_to_board', 'drop_to_canvas'])
 
@@ -381,7 +419,8 @@ const buildHomeExternalQueries = ({ recentQuerySignals = [], recentTags = [], re
   const stableQueries = buildWeightedQueryCandidates(stableQuerySignals)
 
   const stableTags = recentTags.filter((tag) => (recentTagScores[tag] || 0) >= 4)
-  const effectiveTags = stableTags.length ? stableTags : recentTags.slice(0, 3)
+  const effectiveTags = (stableTags.length ? stableTags : recentTags.slice(0, 3))
+    .filter((tag) => !isHomeGarbageTag(tag))
 
   const movieSignals = stableQueries.filter((item) => item.query && classifyMovieQuery(item.query))
 
@@ -432,9 +471,30 @@ const buildHomeExternalQueries = ({ recentQuerySignals = [], recentTags = [], re
   const expandedQuerySignals = nonMovieQuerySlots
     .filter((item) => !classifyMovieQuery(item.query))
     .flatMap((item) => expandHomeTagToQueries(item.query))
-  const expandedTagSignals = effectiveTags
-    .filter((tag) => !classifyMovieQuery(tag))
-    .flatMap((tag) => expandHomeTagToQueries(tag))
+
+  // Include ALL tags (movie + non-movie) for query diversity.
+  // Round-robin interleave across tags with per-tag slot cap
+  // to prevent a single high-score tag from dominating all slots.
+  const interleaveTagExpansions = (tags = [], scores = {}, maxSlotsPerTag = 3, seed = '') => {
+    const batches = tags
+      .map((tag) => ({ tag, queries: expandHomeTagToQueries(tag), score: scores[tag] || 0 }))
+      .filter(({ queries }) => queries.length > 0)
+    // Weighted sample when more tags than available query slots
+    const usedBatches = seed && batches.length > MAX_SLOTS_PER_FILM
+      ? weightedSampleByScore(batches, Math.max(MAX_SLOTS_PER_FILM, Math.min(batches.length, 8)), seed)
+      : batches
+    const result = []
+    const maxLen = Math.max(...usedBatches.map((b) => Math.min(b.queries.length, maxSlotsPerTag)), 0)
+    for (let round = 0; round < maxLen; round++) {
+      for (const { tag, queries } of usedBatches) {
+        if (round < queries.length) {
+          result.push(queries[round])
+        }
+      }
+    }
+    return result
+  }
+  const expandedTagSignals = interleaveTagExpansions(effectiveTags, recentTagScores, MAX_SLOTS_PER_FILM, seed)
 
   const explorationQueries = buildExplorationQueries(effectiveTags, 'explore')
 
