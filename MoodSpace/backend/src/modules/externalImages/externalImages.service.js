@@ -142,7 +142,7 @@ const isDesignItem = (item) => {
   return true
 }
 const titleNoiseWords = [
-  'movie', 'film', 'cinema', 'cinematic', 'shot', 'scene', 'still', 'wallpaper', 'backdrop', 'poster', 'key', 'art',
+  'movie', 'film', 'films', 'cinema', 'cinematic', 'shot', 'scene', 'still', 'wallpaper', 'backdrop', 'poster', 'key', 'art',
   'minimal', 'editorial', 'design', 'inspiration', 'moodboard', 'graphic', 'aesthetic', 'official',
   'cast', 'crew', 'actor', 'actress', 'director', 'starring', 'pemeran', 'pemain', 'karakter', 'character',
   'the', 'a', 'an',
@@ -195,6 +195,14 @@ export const classifyMovieQuery = (value = '') => {
   if (!isGeneric) {
     const gate2 = !titleCandidate || (!hasMovieIntent && titleCandidate.split(' ').length >= 8)
     if (gate2) { console.log('[TMDB-DEBUG] classifyMovieQuery REJECTED gate2 (>=5 tokens no movie intent):', { raw: value, normalized, hasMovieIntent, titleCandidate, tokenCount: titleCandidate.split(' ').length }); return null }
+  }
+
+  // Gate 4: single-word titleCandidate without movie intent → too generic for TMDB title search.
+  // Single common nouns like "films", "movie", "cinema" are not specific entity titles.
+  // Multi-word candidates (e.g. "past lives", "la haine") are specific enough.
+  if (titleCandidate && !titleCandidate.includes(' ') && !hasMovieIntent) {
+    console.log('[TMDB-DEBUG] classifyMovieQuery REJECTED gate4 (single word, no movie intent):', { raw: value, titleCandidate })
+    return null
   }
 
   const visualType = movieBackdropWords.some(matchWord)
