@@ -31,6 +31,7 @@ import {
   Type,
   Unlock,
   Unlink,
+  Upload,
   Italic,
   Underline,
   Undo2,
@@ -149,6 +150,13 @@ import { getCanvasItemTransformPatch } from '../engines/transformEngine'
 import RelightBalls, { LightOverlay } from '../components/canvas/RelightBalls'
 import RemoveBgOverlay from '../components/canvas/RemoveBgOverlay'
 import { useAuth } from '../context/authState'
+import { CollaborationProvider } from '../context/CollaborationContext'
+import { ToastProvider } from '../context/ToastContext'
+import { ToastContainer } from '../components/ToastContainer'
+import { CollaborationPresence } from '../components/canvas/CollaborationPresence'
+import { CollaborationCursors } from '../components/canvas/CollaborationCursors'
+import { useCursorBroadcast } from '../hooks/useCursorBroadcast'
+import ShareModal from '../components/workspace/ShareModal'
 import { useMediaUpload } from '../hooks/useMediaUpload'
 import { useCanvasImage, useCanvasImages } from '../hooks/useCanvasImages'
 import { autosaveWorkspace, getWorkspace, saveWorkspace, setWorkspaceThumbnail, updateWorkspace } from '../lib/api/workspaces'
@@ -1127,36 +1135,155 @@ const drawCompositeMaskPath = (ctx, item) => {
   }
 }
 
-const drawWrappedMaskText = (ctx, item, offsetX, offsetY) => {
+const renderTextViaKonva = (item, isMask) => {
   const fontSize = item.fontSize || 48
-  const fontStyle = item.fontStyle || [item.isItalic && 'italic', item.isBold && 'bold'].filter(Boolean).join(' ')
   const fontFamily = item.fontFamily || 'Inter, Arial'
+  const fontStyle = [item.isItalic && 'italic', item.isBold && 'bold'].filter(Boolean).join(' ')
+  const maxW = Math.max(1, item.w || 1)
+  const runs = item.runs || []
+  const isMultiRun = runs.length > 1 || (runs.length === 1 && runs[0].fontFamily && runs[0].fontFamily !== fontFamily)
+  const hasEffects = item.effects && Object.keys(item.effects).some(k => !['letterSpacing', 'curve'].includes(k))
+  const fill = isMask ? '#ffffff' : (item.fill || '#ffffff')
+
+  if (!isMultiRun) {
+    const expectedH = Math.max(1, getWrappedMaskTextHeight(item))
+    const container = document.createElement('div')
+    const stage = new Konva.Stage({ width: maxW, height: expectedH, container })
+    const layer = new Konva.Layer()
+    stage.add(layer)
+    const textNode = new Konva.Text({
+      x: 0, y: 0,
+      text: item.text,
+      width: maxW,
+      fontSize,
+      fontFamily,
+      fontStyle,
+      lineHeight: hasEffects ? 1.25 : 0.9,
+      wrap: 'word',
+      align: item.align || 'center',
+      fill,
+      perfectDrawEnabled: false,
+      listening: false,
+    })
+    layer.add(textNode)
+    layer.draw()
+    const actualH = Math.max(1, Math.ceil(textNode.height()))
+    if (actualH !== expectedH) {
+      stage.height(actualH); layer.draw()
+    }
+    const canvas = stage.toCanvas({ pixelRatio: 1 })
+    stage.destroy()
+    return { canvas, originY: 0 }
+  }
+
+  const measureCtx = document.createElement('canvas').getContext('2d')
   const lineHeight = fontSize * 0.9
-  const width = Math.max(1, item.w || 1)
-  const height = Math.max(1, item.h || lineHeight || 1)
+
+  const charFonts = []
+  for (const run of runs) {
+    const rfs = run.fontSize || fontSize
+    const rfsStyle = [run.italic && 'italic', run.bold && 'bold'].filter(Boolean).join(' ') || 'normal'
+    const rff = run.fontFamily || fontFamily
+    const rf = `${rfsStyle || ''} ${rfs}px ${rff}`.trim()
+    const runFill = isMask ? '#ffffff' : (run.fill || item.fill || '#ffffff')
+    for (const ch of run.text || '') {
+      charFonts.push({ char: ch, font: rf, fontFamily: rff, fontStyle: rfsStyle, fill: runFill })
+    }
+  }
+
+  const lines = []
+  let currentLine = [], currentWidth = 0
+  for (const cf of charFonts) {
+    measureCtx.font = cf.font
+    const cw = measureCtx.measureText(cf.char).width
+    if (currentWidth + cw > maxW && currentLine.length > 0) {
+      lines.push(currentLine); currentLine = []; currentWidth = 0
+    }
+    currentLine.push(cf); currentWidth += cw
+  }
+  if (currentLine.length > 0) lines.push(currentLine)
+
+  const tYCache = {}
+  const getTranslateY = (ff, fsStyle) => {
+    const key = `${fsStyle}|${ff}`
+    if (tYCache[key] !== undefined) return tYCache[key]
+    measureCtx.font = `${fsStyle} ${fontSize}px ${ff}`
+    const m = measureCtx.measureText('M')
+    const tAcc = m.fontBoundingBoxAscent ?? m.actualBoundingBoxAscent ?? fontSize * 0.7
+    const tDesc = m.fontBoundingBoxDescent ?? m.actualBoundingBoxDescent ?? fontSize * 0.2
+    tYCache[key] = (tAcc - tDesc) / 2 + fontSize / 2
+    return tYCache[key]
+  }
+
+  const baseFontFamily = item.fontFamily || 'Inter, Arial'
+  const baseTranslateY = getTranslateY(baseFontFamily, 'normal')
+  const align = item.align || 'center'
+
+  let minYOff = 0, maxYOff = 0
+  const konvaNodes = []
+  lines.forEach((lineChars, li) => {
+    let lineWidth = 0
+    for (const lc of lineChars) { measureCtx.font = lc.font; lineWidth += measureCtx.measureText(lc.char).width }
+    const startX = align === 'right'
+      ? Math.max(0, maxW - lineWidth)
+      : align === 'left' ? 0 : Math.max(0, (maxW - lineWidth) / 2)
+    let cursorX = startX
+    for (const lc of lineChars) {
+      const charTranslateY = getTranslateY(lc.fontFamily, lc.fontStyle || 'normal')
+      const yOff = Math.round(baseTranslateY - charTranslateY)
+      if (yOff < minYOff) minYOff = yOff
+      if (yOff > maxYOff) maxYOff = yOff
+      measureCtx.font = lc.font
+      konvaNodes.push({
+        x: cursorX,
+        y: li * lineHeight + yOff,
+        text: lc.char,
+        w: measureCtx.measureText(lc.char).width + 2,
+        fontFamily: lc.fontFamily,
+        fontStyle: lc.fontStyle || 'normal',
+        fill: lc.fill,
+      })
+      cursorX += measureCtx.measureText(lc.char).width
+    }
+  })
+
+  const baseH = Math.max(1, (lines.length || 1) * lineHeight)
+  let originY = 0
+  let stageH = baseH
+  if (minYOff < 0) { originY = -minYOff; stageH = baseH + originY }
+  if (maxYOff > 0) stageH = baseH + originY + maxYOff
+  const container = document.createElement('div')
+  const stage = new Konva.Stage({ width: maxW, height: Math.max(1, stageH), container })
+  const layer = new Konva.Layer()
+  stage.add(layer)
+
+  for (const n of konvaNodes) {
+    layer.add(new Konva.Text({
+      x: n.x, y: n.y + originY,
+      text: n.text, width: n.w,
+      fontSize, fontFamily: n.fontFamily, fontStyle: n.fontStyle,
+      fill: n.fill || fill, wrap: 'none',
+      perfectDrawEnabled: false, listening: false,
+    }))
+  }
+
+  layer.draw()
+  const canvas = stage.toCanvas({ pixelRatio: 1 })
+  stage.destroy()
+  return { canvas, originY: -(originY) }
+}
+
+const drawWrappedMaskText = (ctx, item, offsetX, offsetY) => {
   const rotation = ((item.rotation || 0) * Math.PI) / 180
   const scaleX = item.scaleX || 1
   const scaleY = item.scaleY || 1
-
+  const result = renderTextViaKonva(item, true)
+  if (!result) return
   ctx.save()
   ctx.translate((item.x || 0) - offsetX, (item.y || 0) - offsetY)
   if (rotation) ctx.rotate(rotation)
   if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY)
-  ctx.font = `${fontStyle || ''} ${fontSize}px ${fontFamily}`.trim()
-  ctx.textBaseline = 'top'
-  ctx.textAlign = 'left'
-  ctx.fillStyle = '#ffffff'
-  const align = item.align || 'center'
-  const lines = getMaskTextLines(ctx, item.text, width)
-  ;(lines.length ? lines : ['']).forEach((line, index) => {
-    const lineWidth = ctx.measureText(line).width
-    const x = align === 'right'
-      ? Math.max(0, width - lineWidth)
-      : align === 'left'
-        ? 0
-        : Math.max(0, (width - lineWidth) / 2)
-    ctx.fillText(line, x, index * lineHeight)
-  })
+  ctx.drawImage(result.canvas, 0, result.originY)
   ctx.restore()
 }
 
@@ -1190,16 +1317,145 @@ const getMaskTextLines = (ctx, text, width) => {
 
 const getWrappedMaskTextHeight = (item) => {
   const fontSize = item.fontSize || 48
+  const fontFamily = item.fontFamily || 'Inter, Arial'
   const width = Math.max(1, item.w || 1)
   const lineHeight = fontSize * 0.9
   if (typeof document === 'undefined') return Math.max(item.h || 0, lineHeight)
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
   if (!ctx) return Math.max(item.h || 0, lineHeight)
-  const fontStyle = item.fontStyle || [item.isItalic && 'italic', item.isBold && 'bold'].filter(Boolean).join(' ')
-  ctx.font = `${fontStyle || ''} ${fontSize}px ${item.fontFamily || 'Inter, Arial'}`.trim()
-  const lineCount = getMaskTextLines(ctx, item.text, width).length
+  const runs = item.runs || []
+  const isMultiRun = runs.length > 1 || (runs.length === 1 && runs[0].fontFamily && runs[0].fontFamily !== fontFamily)
+  let lineCount
+  if (!isMultiRun) {
+    const fontStyle = item.fontStyle || [item.isItalic && 'italic', item.isBold && 'bold'].filter(Boolean).join(' ')
+    ctx.font = `${fontStyle || ''} ${fontSize}px ${fontFamily}`.trim()
+    lineCount = getMaskTextLines(ctx, item.text, width).length
+  } else {
+    const charFonts = []
+    for (const run of runs) {
+      const runFontSize = run.fontSize || fontSize
+      const runFontStyle = [run.italic && 'italic', run.bold && 'bold'].filter(Boolean).join(' ')
+      const runFontFamily = run.fontFamily || fontFamily
+      const runFont = `${runFontStyle || ''} ${runFontSize}px ${runFontFamily}`.trim()
+      for (const ch of run.text || '') {
+        charFonts.push({ char: ch, font: runFont })
+      }
+    }
+    const lines = []
+    let currentLine = []
+    let currentWidth = 0
+    for (const cf of charFonts) {
+      ctx.font = cf.font
+      const charWidth = ctx.measureText(cf.char).width
+      if (currentWidth + charWidth > width && currentLine.length > 0) {
+        lines.push(currentLine)
+        currentLine = []
+        currentWidth = 0
+      }
+      currentLine.push(cf)
+      currentWidth += charWidth
+    }
+    if (currentLine.length > 0) lines.push(currentLine)
+    lineCount = lines.length || 1
+  }
   return Math.max(item.h || 0, Math.max(1, lineCount) * lineHeight)
+}
+
+const drawDestinationTextItem = (ctx, item, offsetX, offsetY) => {
+  if (!item || item.visible === false) return
+  const rotation = ((item.rotation || 0) * Math.PI) / 180
+  const scaleX = item.scaleX || 1
+  const scaleY = item.scaleY || 1
+  const result = renderTextViaKonva(item, false)
+  if (!result) return
+  ctx.save()
+  ctx.translate((item.x || 0) - offsetX, (item.y || 0) - offsetY)
+  if (rotation) ctx.rotate(rotation)
+  if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY)
+  ctx.globalAlpha = item.opacity ?? 1
+  ctx.drawImage(result.canvas, 0, result.originY)
+  ctx.restore()
+}
+
+const drawDestinationShapeItem = (ctx, item, offsetX, offsetY) => {
+  if (!item || item.visible === false) return
+  const x = (item.x || 0) - offsetX
+  const y = (item.y || 0) - offsetY
+  const rotation = ((item.rotation || 0) * Math.PI) / 180
+  const scaleX = item.scaleX || 1
+  const scaleY = item.scaleY || 1
+  ctx.save()
+  ctx.translate(x, y)
+  if (rotation) ctx.rotate(rotation)
+  if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY)
+  ctx.globalAlpha = item.opacity ?? 1
+  const w = Math.max(1, item.w || 1)
+  const h = Math.max(1, item.h || 1)
+  const st = item.shapeType
+  ctx.beginPath()
+  if (st === 'circle' || st === 'ellipse') {
+    ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2)
+  } else if (st === 'polygon') {
+    const sides = Math.max(3, item.sides || 3)
+    const radius = Math.min(w, h) / 2
+    for (let i = 0; i < sides; i++) {
+      const angle = -Math.PI / 2 + (i * Math.PI * 2) / sides
+      const px = w / 2 + Math.cos(angle) * radius
+      const py = h / 2 + Math.sin(angle) * radius
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py)
+    }
+    ctx.closePath()
+  } else if (st === 'star') {
+    const pts = item.numPoints || 5
+    const outer = Math.min(w, h) / 2
+    const inner = Math.min(w, h) * (item.starInnerRatio ?? 0.25)
+    for (let i = 0; i < pts * 2; i++) {
+      const r = i % 2 === 0 ? outer : inner
+      const angle = -Math.PI / 2 + (i * Math.PI) / pts
+      const px = w / 2 + Math.cos(angle) * r
+      const py = h / 2 + Math.sin(angle) * r
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py)
+    }
+    ctx.closePath()
+  } else if (st === 'bezier-path' && item.path) {
+    const parts = item.path.split(/(?=[MLZ])/i).filter(Boolean)
+    let first = true
+    for (const part of parts) {
+      if (/^z$/i.test(part)) { ctx.closePath(); break }
+      const nums = part.slice(1).trim().split(/[, ]+/).map(Number)
+      for (let i = 0; i < nums.length; i += 2) {
+        const px = nums[i]; const py = nums[i + 1]
+        if (first) { ctx.moveTo(px, py); first = false }
+        else ctx.lineTo(px, py)
+      }
+    }
+    if (!/z/i.test(item.path)) ctx.closePath()
+  } else {
+    const r = Math.max(0, Math.min(item.cornerRadius || 0, w / 2, h / 2))
+    if (r) {
+      ctx.moveTo(r, 0); ctx.lineTo(w - r, 0)
+      ctx.quadraticCurveTo(w, 0, w, r)
+      ctx.lineTo(w, h - r); ctx.quadraticCurveTo(w, h, w - r, h)
+      ctx.lineTo(r, h); ctx.quadraticCurveTo(0, h, 0, h - r)
+      ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0)
+      ctx.closePath()
+    } else {
+      ctx.rect(0, 0, w, h)
+    }
+  }
+  const fillColor = item.fill
+  if (fillColor && fillColor !== 'transparent') {
+    ctx.fillStyle = fillColor
+    ctx.fill()
+  }
+  const sw = item.strokeWidth || 0
+  if (sw > 0 && item.stroke) {
+    ctx.strokeStyle = item.stroke
+    ctx.lineWidth = sw
+    ctx.stroke()
+  }
+  ctx.restore()
 }
 
 const getCompositeItemBounds = (item) => {
@@ -1263,6 +1519,79 @@ const drawImageItemToCanvas = (ctx, item, image, offsetX, offsetY) => {
   ctx.restore()
 }
 
+const renderCompositeShadow = (contentCanvas, sourceItem) => {
+  if (!sourceItem?.compositeShadowEnabled) return null
+  const shadowColor = sourceItem.compositeShadowColor || '#050505'
+  const shadowBlur = Math.max(0, sourceItem.compositeShadow ?? 15)
+  const shadowOpacity = Math.max(0, Math.min(1, sourceItem.compositeShadowOpacity ?? 0.35))
+  const shadowOffsetX = sourceItem.compositeShadowOffsetX ?? 0
+  const shadowOffsetY = sourceItem.compositeShadowOffsetY ?? 4
+  const expand = Math.ceil(shadowBlur + Math.max(Math.abs(shadowOffsetX), Math.abs(shadowOffsetY), 0))
+  if (!expand) return null
+  const W = contentCanvas.width
+  const H = contentCanvas.height
+  if (!W || !H) return null
+  const newW = W + expand * 2
+  const newH = H + expand * 2
+
+  // Fill content shape with shadow color, preserving alpha
+  const shadowContent = document.createElement('canvas')
+  shadowContent.width = newW
+  shadowContent.height = newH
+  const scCtx = shadowContent.getContext('2d')
+  if (!scCtx) return null
+  scCtx.drawImage(contentCanvas, expand, expand)
+  scCtx.globalCompositeOperation = 'source-in'
+  scCtx.globalAlpha = shadowOpacity
+  scCtx.fillStyle = shadowColor
+  scCtx.fillRect(0, 0, newW, newH)
+  scCtx.globalCompositeOperation = 'source-over'
+  scCtx.globalAlpha = 1
+
+  // Blur shadow
+  const blurredShadow = document.createElement('canvas')
+  blurredShadow.width = newW
+  blurredShadow.height = newH
+  const bsCtx = blurredShadow.getContext('2d')
+  if (!bsCtx) return null
+  bsCtx.filter = `blur(${shadowBlur}px)`
+  bsCtx.drawImage(shadowContent, 0, 0)
+  bsCtx.filter = 'none'
+
+  // Composite: shadow + content
+  const result = document.createElement('canvas')
+  result.width = newW
+  result.height = newH
+  const rCtx = result.getContext('2d')
+  if (!rCtx) return null
+  rCtx.drawImage(blurredShadow, shadowOffsetX, shadowOffsetY)
+  rCtx.drawImage(contentCanvas, expand, expand)
+
+  return { canvas: result, offsetX: -expand, offsetY: -expand }
+}
+
+const createCompositeStrokeCanvas = (sourceCanvas, strokeWidth, strokeColor) => {
+  const sw = Math.max(1, Math.round(strokeWidth || 0))
+  if (!sw) return null
+  const w = sourceCanvas.width
+  const h = sourceCanvas.height
+  const canvas = document.createElement('canvas')
+  canvas.width = w + sw * 2
+  canvas.height = h + sw * 2
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  const steps = Math.max(16, Math.min(40, sw * 4))
+  for (let i = 0; i < steps; i++) {
+    const angle = (Math.PI * 2 * i) / steps
+    ctx.drawImage(sourceCanvas, sw + Math.cos(angle) * sw, sw + Math.sin(angle) * sw)
+  }
+  ctx.globalCompositeOperation = 'source-in'
+  ctx.fillStyle = strokeColor || '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.globalCompositeOperation = 'source-over'
+  return canvas
+}
+
 const _destFxCache = new Map()
 const _DESTFX_CACHE_MAX = 32
 
@@ -1304,9 +1633,27 @@ const drawDestinationWithEffects = (contentCtx, item, image, groupMinX, groupMin
   }
 }
 
+const drawAnyItemToCanvas = (ctx, item, imageMap, offsetX, offsetY) => {
+  if (!item || item.visible === false) return
+  if (item.kind === 'image') {
+    const img = imageMap?.[item.id || item.src] || imageMap?.[item.src]
+    if (img) drawDestinationWithEffects(ctx, item, img, offsetX, offsetY)
+  } else if (item.kind === 'text') {
+    drawDestinationTextItem(ctx, item, offsetX, offsetY)
+  } else if (item.kind === 'shape') {
+    drawDestinationShapeItem(ctx, item, offsetX, offsetY)
+  }
+}
+
 function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef }) {
+  const allItems = useMemo(() => destinationItems, [destinationItems])
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
+  const imageMap = useMemo(() => {
+    const map = {}
+    imageItems.forEach((item, i) => { map[item.id] = loadedImages[i]; map[item.src] = loadedImages[i] })
+    return map
+  }, [imageItems, loadedImages])
   const imageRef = useRef(null)
   const [fontReady, setFontReady] = useState(false)
   const prevImageIdsRef = useRef()
@@ -1315,13 +1662,16 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
   useEffect(() => {
     let cancelled = false
     setFontReady(false)
-    preloadFont(sourceItem?.fontFamily || 'Inter, Arial')
-      .catch(() => {})
+    const families = new Set([sourceItem?.fontFamily || 'Inter, Arial'])
+    ;(sourceItem?.runs || []).forEach(r => { if (r.fontFamily) families.add(r.fontFamily) })
+    Promise.all([...families].map(f => preloadFont(f).catch(() => {})))
       .finally(() => {
         if (!cancelled) setFontReady(true)
       })
     return () => { cancelled = true }
-  }, [sourceItem?.fontFamily])
+  }, [sourceItem?.fontFamily, sourceItem?.runs])
+
+  const strokeRef = useRef(null)
 
   useLayoutEffect(() => {
     const updateBitmap = (newCanvas, newX, newY, w, h) => {
@@ -1334,30 +1684,48 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
       node.height(h || 0)
       node.getLayer()?.batchDraw()
     }
+    const updateStrokeBitmap = (sourceCanvas, sw, sc, imgX, imgY) => {
+      const sNode = strokeRef.current
+      if (!sNode || !sw || !sourceCanvas) {
+        if (sNode) { sNode.image(null); sNode.getLayer()?.batchDraw() }
+        return
+      }
+      const strokeCanvas = createCompositeStrokeCanvas(sourceCanvas, sw, sc || '#ffffff')
+      if (!strokeCanvas) { sNode.image(null); sNode.getLayer()?.batchDraw(); return }
+      sNode.image(strokeCanvas)
+      sNode.x((imgX || 0) - sw)
+      sNode.y((imgY || 0) - sw)
+      sNode.width(strokeCanvas.width)
+      sNode.height(strokeCanvas.height)
+      sNode.getLayer()?.batchDraw()
+    }
 
     if (isDraggingRef?.current) return () => {}
 
-    if (!fontReady || !sourceItem || !bounds || !imageItems.length) {
+    if (!fontReady || !sourceItem || !bounds || !allItems.length) {
       updateBitmap(null, 0, 0, 0, 0)
+      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
       return
     }
-    const imagesReady = imageItems.every((_, index) => {
+    const imagesReady = !imageItems.length || imageItems.every((_, index) => {
       const image = loadedImages[index]
       return image && image.complete && (image.naturalWidth || image.width)
     })
     if (!imagesReady) {
       updateBitmap(null, 0, 0, 0, 0)
+      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
       return
     }
 
-    const currentImageIds = imageItems.map(i => i.id).join(',')
-    const isNewContent = currentImageIds !== prevImageIdsRef.current
+    const currentItemIds = allItems.map(i => i.id).join(',')
+    const isNewContent = currentItemIds !== prevImageIdsRef.current
       || mode !== prevModeRef.current
-    prevImageIdsRef.current = currentImageIds
+    prevImageIdsRef.current = currentItemIds
     prevModeRef.current = mode
 
     if (isNewContent) {
       updateBitmap(null, 0, 0, 0, 0)
+      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
     }
 
     const rafId = requestAnimationFrame(() => {
@@ -1368,7 +1736,7 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
       const textTop = sourceItem.y || 0
       const textRenderItem = { ...sourceItem, x: textLeft, y: textTop, w: sourceWidth, h: sourceHeight }
       const itemBounds = [
-        ...imageItems.map((item) => getCompositeItemBounds(item)),
+        ...allItems.map((item) => getCompositeItemBounds(item)),
         getCompositeItemBounds(textRenderItem),
       ]
       const groupMinX = Math.min(...itemBounds.map((item) => item.left))
@@ -1389,8 +1757,8 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
       contentCanvas.height = height
       const contentCtx = contentCanvas.getContext('2d')
       if (!contentCtx) return
-      imageItems.forEach((item, index) => {
-        drawDestinationWithEffects(contentCtx, item, loadedImages[index], groupMinX, groupMinY)
+      allItems.forEach((item) => {
+        drawAnyItemToCanvas(contentCtx, item, imageMap, groupMinX, groupMinY)
       })
 
       const canvas = document.createElement('canvas')
@@ -1410,25 +1778,54 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
         ctx.globalCompositeOperation = 'source-over'
       }
 
-      updateBitmap(canvas, groupRect.x, groupRect.y, width, height)
+      const shadowResult = renderCompositeShadow(canvas, sourceItem)
+      const finalCanvas = shadowResult?.canvas || canvas
+      const finalX = shadowResult ? groupRect.x + (shadowResult.offsetX || 0) : groupRect.x
+      const finalY = shadowResult ? groupRect.y + (shadowResult.offsetY || 0) : groupRect.y
+      const finalW = shadowResult ? finalCanvas.width : width
+      const finalH = shadowResult ? finalCanvas.height : height
+
+      updateBitmap(finalCanvas, finalX, finalY, finalW, finalH)
+      const compositeStrokeEnabled = !!(sourceItem?.compositeStrokeEnabled && (sourceItem?.compositeStrokeWidth ?? 0) > 0)
+      if (compositeStrokeEnabled) {
+        const sw = sourceItem?.compositeStrokeWidth || 0
+        updateStrokeBitmap(canvas, sw, sourceItem?.compositeStrokeColor || '#ffffff', groupRect.x, groupRect.y)
+      } else {
+        updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
+      }
     })
     return () => cancelAnimationFrame(rafId)
-  }, [bounds, destinationItems, fontReady, imageItems, loadedImages, mode, sourceItem])
+  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem])
 
   return (
-    <KonvaImage
-      ref={imageRef}
-      listening={false}
-      perfectDrawEnabled={false}
-    />
+    <>
+      <KonvaImage
+        ref={strokeRef}
+        listening={false}
+        perfectDrawEnabled={false}
+      />
+      <KonvaImage
+        ref={imageRef}
+        listening={false}
+        perfectDrawEnabled={false}
+      />
+    </>
   )
 }
 
+
 function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef }) {
+  const allItems = useMemo(() => destinationItems, [destinationItems])
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
+  const imageMap = useMemo(() => {
+    const map = {}
+    imageItems.forEach((item, i) => { map[item.id] = loadedImages[i]; map[item.src] = loadedImages[i] })
+    return map
+  }, [imageItems, loadedImages])
   const sourceImage = useCanvasImage(sourceItem?.src)
   const imageRef = useRef(null)
+  const strokeRef = useRef(null)
   const prevSourceIdRef = useRef()
   const prevSourceSrcRef = useRef()
   const prevImageIdsRef = useRef()
@@ -1445,39 +1842,57 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       node.height(h || 0)
       node.getLayer()?.batchDraw()
     }
+    const updateStrokeBitmap = (sourceCanvas, sw, sc, imgX, imgY) => {
+      const sNode = strokeRef.current
+      if (!sNode || !sw || !sourceCanvas) {
+        if (sNode) { sNode.image(null); sNode.getLayer()?.batchDraw() }
+        return
+      }
+      const strokeCanvas = createCompositeStrokeCanvas(sourceCanvas, sw, sc || '#ffffff')
+      if (!strokeCanvas) { sNode.image(null); sNode.getLayer()?.batchDraw(); return }
+      sNode.image(strokeCanvas)
+      sNode.x((imgX || 0) - sw)
+      sNode.y((imgY || 0) - sw)
+      sNode.width(strokeCanvas.width)
+      sNode.height(strokeCanvas.height)
+      sNode.getLayer()?.batchDraw()
+    }
 
     if (isDraggingRef?.current) return () => {}
 
-    if (!sourceItem || !bounds || !imageItems.length || !sourceImage) {
+    if (!sourceItem || !bounds || !allItems.length || !sourceImage) {
       updateBitmap(null, 0, 0, 0, 0)
+      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
       return
     }
-    const imagesReady = imageItems.every((_, index) => {
+    const imagesReady = !imageItems.length || imageItems.every((_, index) => {
       const img = loadedImages[index]
       return img && img.complete && (img.naturalWidth || img.width)
     })
     if (!imagesReady || !sourceImage.complete) {
       updateBitmap(null, 0, 0, 0, 0)
+      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
       return
     }
 
-    const currentImageIds = imageItems.map(i => i.id).join(',')
+    const currentItemIds = allItems.map(i => i.id).join(',')
     const isNewContent = sourceItem?.id !== prevSourceIdRef.current
       || sourceItem?.src !== prevSourceSrcRef.current
-      || currentImageIds !== prevImageIdsRef.current
+      || currentItemIds !== prevImageIdsRef.current
       || mode !== prevModeRef.current
     prevSourceIdRef.current = sourceItem?.id
     prevSourceSrcRef.current = sourceItem?.src
-    prevImageIdsRef.current = currentImageIds
+    prevImageIdsRef.current = currentItemIds
     prevModeRef.current = mode
 
     if (isNewContent) {
       updateBitmap(null, 0, 0, 0, 0)
+      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
     }
 
     const rafId = requestAnimationFrame(() => {
       const itemBounds = [
-        ...imageItems.map((item) => getCompositeItemBounds(item)),
+        ...allItems.map((item) => getCompositeItemBounds(item)),
         getCompositeItemBounds(sourceItem),
       ]
       const groupMinX = Math.min(...itemBounds.map((b) => b.left))
@@ -1491,8 +1906,8 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       contentCanvas.width = width
       contentCanvas.height = height
       const contentCtx = contentCanvas.getContext('2d')
-      imageItems.forEach((item, index) => {
-        drawDestinationWithEffects(contentCtx, item, loadedImages[index], groupMinX, groupMinY)
+      allItems.forEach((item) => {
+        drawAnyItemToCanvas(contentCtx, item, imageMap, groupMinX, groupMinY)
       })
 
       const canvas = document.createElement('canvas')
@@ -1511,17 +1926,38 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       }
       ctx.globalCompositeOperation = 'source-over'
 
-      updateBitmap(canvas, groupMinX, groupMinY, width, height)
+      const shadowResult = renderCompositeShadow(canvas, sourceItem)
+      const finalCanvas = shadowResult?.canvas || canvas
+      const finalX = shadowResult ? groupMinX + (shadowResult.offsetX || 0) : groupMinX
+      const finalY = shadowResult ? groupMinY + (shadowResult.offsetY || 0) : groupMinY
+      const finalW = shadowResult ? finalCanvas.width : width
+      const finalH = shadowResult ? finalCanvas.height : height
+
+      updateBitmap(finalCanvas, finalX, finalY, finalW, finalH)
+      const compositeStrokeEnabled = !!(sourceItem?.compositeStrokeEnabled && (sourceItem?.compositeStrokeWidth ?? 0) > 0)
+      if (compositeStrokeEnabled) {
+        const sw = sourceItem?.compositeStrokeWidth || 0
+        updateStrokeBitmap(canvas, sw, sourceItem?.compositeStrokeColor || '#ffffff', groupMinX, groupMinY)
+      } else {
+        updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
+      }
     })
     return () => cancelAnimationFrame(rafId)
-  }, [bounds, destinationItems, imageItems, loadedImages, mode, sourceItem, sourceImage])
+  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, sourceImage])
 
   return (
-    <KonvaImage
-      ref={imageRef}
-      listening={false}
-      perfectDrawEnabled={false}
-    />
+    <>
+      <KonvaImage
+        ref={strokeRef}
+        listening={false}
+        perfectDrawEnabled={false}
+      />
+      <KonvaImage
+        ref={imageRef}
+        listening={false}
+        perfectDrawEnabled={false}
+      />
+    </>
   )
 }
 
@@ -1702,11 +2138,130 @@ const getBezierMaskCanvas = (sourceItem) => {
   return { canvas, originOffsetX: canvasMinX, originOffsetY: canvasMinY }
 }
 
+const getShapeMaskCanvas = (sourceItem) => {
+  if (!sourceItem) return null
+  const w = Math.max(1, Math.ceil(sourceItem.w || 1))
+  const h = Math.max(1, Math.ceil(sourceItem.h || 1))
+  const scaleX = sourceItem.scaleX || 1
+  const scaleY = sourceItem.scaleY || 1
+  const rotation = ((sourceItem.rotation || 0) * Math.PI) / 180
+  const cos = Math.cos(rotation), sin = Math.sin(rotation)
+  const dw = w * scaleX, dh = h * scaleY
+  const corners = [
+    { x: 0, y: 0 }, { x: dw, y: 0 }, { x: dw, y: dh }, { x: 0, y: dh },
+  ].map(p => ({ x: p.x * cos - p.y * sin, y: p.x * sin + p.y * cos }))
+  const canvasMinX = Math.min(...corners.map(p => p.x))
+  const canvasMinY = Math.min(...corners.map(p => p.y))
+  const canvasW = Math.max(1, Math.ceil(Math.max(...corners.map(p => p.x)) - canvasMinX))
+  const canvasH = Math.max(1, Math.ceil(Math.max(...corners.map(p => p.y)) - canvasMinY))
+  const canvas = document.createElement('canvas')
+  canvas.width = canvasW
+  canvas.height = canvasH
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  ctx.save()
+  ctx.globalAlpha = sourceItem.opacity ?? 1
+  ctx.translate(-canvasMinX, -canvasMinY)
+  if (rotation) ctx.rotate(rotation)
+  ctx.scale(scaleX, scaleY)
+
+  ctx.beginPath()
+  const st = sourceItem.shapeType
+  if (st === 'circle' || st === 'ellipse') {
+    ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2)
+  } else if (st === 'polygon') {
+    const sides = Math.max(3, sourceItem.sides || 3)
+    const radius = Math.min(w, h) / 2
+    for (let i = 0; i < sides; i++) {
+      const angle = -Math.PI / 2 + (i * Math.PI * 2) / sides
+      const px = w / 2 + Math.cos(angle) * radius
+      const py = h / 2 + Math.sin(angle) * radius
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py)
+    }
+    ctx.closePath()
+  } else if (st === 'star') {
+    const pts = sourceItem.numPoints || 5
+    const outer = Math.min(w, h) / 2
+    const inner = Math.min(w, h) * (sourceItem.starInnerRatio ?? 0.25)
+    for (let i = 0; i < pts * 2; i++) {
+      const r = i % 2 === 0 ? outer : inner
+      const angle = -Math.PI / 2 + (i * Math.PI) / pts
+      const px = w / 2 + Math.cos(angle) * r
+      const py = h / 2 + Math.sin(angle) * r
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py)
+    }
+    ctx.closePath()
+  } else if (st === 'bezier-path' && sourceItem.path) {
+    const parts = sourceItem.path.split(/(?=[MLZ])/i).filter(Boolean)
+    let first = true
+    for (const part of parts) {
+      if (/^z$/i.test(part)) { ctx.closePath(); break }
+      const nums = part.slice(1).trim().split(/[, ]+/).map(Number)
+      for (let i = 0; i < nums.length; i += 2) {
+        const px = nums[i]; const py = nums[i + 1]
+        if (first) { ctx.moveTo(px, py); first = false }
+        else ctx.lineTo(px, py)
+      }
+    }
+    if (!/z/i.test(sourceItem.path)) ctx.closePath()
+  } else {
+    const r = Math.max(0, Math.min(sourceItem.cornerRadius || 0, w / 2, h / 2))
+    if (r) {
+      ctx.moveTo(r, 0); ctx.lineTo(w - r, 0)
+      ctx.quadraticCurveTo(w, 0, w, r)
+      ctx.lineTo(w, h - r); ctx.quadraticCurveTo(w, h, w - r, h)
+      ctx.lineTo(r, h); ctx.quadraticCurveTo(0, h, 0, h - r)
+      ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0)
+      ctx.closePath()
+    } else {
+      ctx.rect(0, 0, w, h)
+    }
+  }
+  ctx.fillStyle = '#ffffff'
+  ctx.fill()
+  ctx.restore()
+
+  if (sourceItem.effects && Object.keys(sourceItem.effects).length > 0) {
+    try {
+      const imageData = ctx.getImageData(0, 0, canvasW, canvasH)
+      effectManager.applyEffectsToImageData(imageData, sourceItem.effects)
+      ctx.putImageData(imageData, 0, 0)
+    } catch (e) {
+      console.warn('[getShapeMaskCanvas] effect apply failed:', e)
+    }
+  }
+
+  if (rotation !== 0 && scaleX && scaleY) {
+    const imageData = ctx.getImageData(0, 0, canvasW, canvasH)
+    for (let y = 0; y < canvasH; y++) {
+      for (let x = 0; x < canvasW; x++) {
+        const idx = (y * canvasW + x) * 4
+        if (imageData.data[idx + 3] > 0) continue
+        const dx = x + canvasMinX, dy = y + canvasMinY
+        const rx = dx * cos + dy * sin, ry = -dx * sin + dy * cos
+        if (rx >= 0 && rx <= dw && ry >= 0 && ry <= dh) continue
+        imageData.data[idx + 3] = 0
+      }
+    }
+    ctx.putImageData(imageData, 0, 0)
+  }
+
+  return { canvas, originOffsetX: canvasMinX, originOffsetY: canvasMinY }
+}
+
 function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef }) {
+  const allItems = useMemo(() => destinationItems, [destinationItems])
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
+  const imageMap = useMemo(() => {
+    const map = {}
+    imageItems.forEach((item, i) => { map[item.id] = loadedImages[i]; map[item.src] = loadedImages[i] })
+    return map
+  }, [imageItems, loadedImages])
   const sourceImage = useCanvasImage(sourceItem?.src)
   const imageRef = useRef(null)
+  const strokeRef = useRef(null)
   const maskCacheRef = useRef(null)
   const maskKeyRef = useRef(null)
   const prevSourceIdRef = useRef()
@@ -1725,39 +2280,59 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       node.height(h || 0)
       node.getLayer()?.batchDraw()
     }
+    const updateStrokeBitmap = (sourceCanvas, sw, sc, imgX, imgY) => {
+      const sNode = strokeRef.current
+      if (!sNode || !sw || !sourceCanvas) {
+        if (sNode) { sNode.image(null); sNode.getLayer()?.batchDraw() }
+        return
+      }
+      const strokeCanvas = createCompositeStrokeCanvas(sourceCanvas, sw, sc || '#ffffff')
+      if (!strokeCanvas) { sNode.image(null); sNode.getLayer()?.batchDraw(); return }
+      sNode.image(strokeCanvas)
+      sNode.x((imgX || 0) - sw)
+      sNode.y((imgY || 0) - sw)
+      sNode.width(strokeCanvas.width)
+      sNode.height(strokeCanvas.height)
+      sNode.getLayer()?.batchDraw()
+    }
 
     if (isDraggingRef?.current) return () => {}
 
-    if (!sourceItem || !bounds || !imageItems.length) {
+    if (!sourceItem || !bounds || !allItems.length) {
       updateBitmap(null, 0, 0, 0, 0)
+      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
       return
     }
     const isBezier = sourceItem.kind === 'shape' && sourceItem.shapeType === 'bezier-path'
-    if (!isBezier && !sourceImage) {
+    const isShape = sourceItem.kind === 'shape'
+    if (!isBezier && !isShape && !sourceImage) {
       updateBitmap(null, 0, 0, 0, 0)
+      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
       return
     }
-    const imagesReady = imageItems.every((_, index) => {
+    const imagesReady = !imageItems.length || imageItems.every((_, index) => {
       const img = loadedImages[index]
       return img && img.complete && (img.naturalWidth || img.width)
     })
-    if (!imagesReady || (!isBezier && !sourceImage.complete)) {
+    if (!imagesReady || (!isBezier && !isShape && !sourceImage?.complete)) {
       updateBitmap(null, 0, 0, 0, 0)
+      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
       return
     }
 
-    const currentImageIds = imageItems.map(i => i.id).join(',')
+    const currentItemIds = allItems.map(i => i.id).join(',')
     const isNewContent = sourceItem?.id !== prevSourceIdRef.current
       || sourceItem?.src !== prevSourceSrcRef.current
-      || currentImageIds !== prevImageIdsRef.current
+      || currentItemIds !== prevImageIdsRef.current
       || mode !== prevModeRef.current
     prevSourceIdRef.current = sourceItem?.id
     prevSourceSrcRef.current = sourceItem?.src
-    prevImageIdsRef.current = currentImageIds
+    prevImageIdsRef.current = currentItemIds
     prevModeRef.current = mode
 
     if (isNewContent) {
       updateBitmap(null, 0, 0, 0, 0)
+      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
     }
 
     const rafId = requestAnimationFrame(() => {
@@ -1771,6 +2346,10 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
         opacity: sourceItem?.opacity,
         path: isBezier ? sourceItem.path : undefined,
         shapeType: sourceItem?.shapeType,
+        cornerRadius: sourceItem?.cornerRadius,
+        sides: sourceItem?.sides,
+        numPoints: sourceItem?.numPoints,
+        starInnerRatio: sourceItem?.starInnerRatio,
       })
 
       let maskCanvasResult
@@ -1778,6 +2357,10 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
         maskCanvasResult = maskCacheRef.current
       } else if (isBezier) {
         maskCanvasResult = getBezierMaskCanvas(sourceItem)
+        maskCacheRef.current = maskCanvasResult
+        maskKeyRef.current = effectsKey
+      } else if (isShape) {
+        maskCanvasResult = getShapeMaskCanvas(sourceItem)
         maskCacheRef.current = maskCanvasResult
         maskKeyRef.current = effectsKey
       } else {
@@ -1788,6 +2371,7 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
 
       if (!maskCanvasResult) {
         updateBitmap(null, 0, 0, 0, 0)
+        updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
         return
       }
       const maskCanvas = maskCanvasResult.canvas
@@ -1795,7 +2379,7 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       const originOffsetY = maskCanvasResult.originOffsetY
 
       const itemBounds = [
-        ...imageItems.map((item) => getCompositeItemBounds(item)),
+        ...allItems.map((item) => getCompositeItemBounds(item)),
         getCompositeItemBounds(sourceItem),
       ]
       const groupMinX = Math.min(...itemBounds.map((b) => b.left))
@@ -1809,8 +2393,8 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       contentCanvas.width = width
       contentCanvas.height = height
       const contentCtx = contentCanvas.getContext('2d')
-      imageItems.forEach((item, index) => {
-        drawDestinationWithEffects(contentCtx, item, loadedImages[index], groupMinX, groupMinY)
+      allItems.forEach((item) => {
+        drawAnyItemToCanvas(contentCtx, item, imageMap, groupMinX, groupMinY)
       })
 
       const canvas = document.createElement('canvas')
@@ -1833,17 +2417,38 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       }
       ctx.globalCompositeOperation = 'source-over'
 
-      updateBitmap(canvas, groupMinX, groupMinY, width, height)
+      const shadowResult = renderCompositeShadow(canvas, sourceItem)
+      const finalCanvas = shadowResult?.canvas || canvas
+      const finalX = shadowResult ? groupMinX + (shadowResult.offsetX || 0) : groupMinX
+      const finalY = shadowResult ? groupMinY + (shadowResult.offsetY || 0) : groupMinY
+      const finalW = shadowResult ? finalCanvas.width : width
+      const finalH = shadowResult ? finalCanvas.height : height
+
+      updateBitmap(finalCanvas, finalX, finalY, finalW, finalH)
+      const compositeStrokeEnabled = !!(sourceItem?.compositeStrokeEnabled && (sourceItem?.compositeStrokeWidth ?? 0) > 0)
+      if (compositeStrokeEnabled) {
+        const sw = sourceItem?.compositeStrokeWidth || 0
+        updateStrokeBitmap(canvas, sw, sourceItem?.compositeStrokeColor || '#ffffff', groupMinX, groupMinY)
+      } else {
+        updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
+      }
     })
     return () => cancelAnimationFrame(rafId)
-  }, [bounds, destinationItems, imageItems, loadedImages, mode, sourceItem, sourceImage])
+  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, sourceImage])
 
   return (
-    <KonvaImage
-      ref={imageRef}
-      listening={false}
-      perfectDrawEnabled={false}
-    />
+    <>
+      <KonvaImage
+        ref={strokeRef}
+        listening={false}
+        perfectDrawEnabled={false}
+      />
+      <KonvaImage
+        ref={imageRef}
+        listening={false}
+        perfectDrawEnabled={false}
+      />
+    </>
   )
 }
 
@@ -2136,6 +2741,13 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       onDragStart={handleGroupDragStart}
       onDragMove={handleGroupDragMove}
       onDragEnd={handleGroupDragEnd}
+      opacity={sourceItem?.compositeOpacity ?? 1}
+      globalCompositeOperation={sourceItem?.compositeBlendMode && sourceItem?.compositeBlendMode !== 'source-over' ? sourceItem.compositeBlendMode : undefined}
+      shadowColor={sourceItem?.compositeShadowEnabled ? (sourceItem.compositeShadowColor || '#050505') : undefined}
+      shadowBlur={sourceItem?.compositeShadowEnabled ? (sourceItem.compositeShadow ?? 15) : undefined}
+      shadowOpacity={sourceItem?.compositeShadowEnabled ? (sourceItem.compositeShadowOpacity ?? 0.35) : undefined}
+      shadowOffsetX={sourceItem?.compositeShadowEnabled ? (sourceItem.compositeShadowOffsetX ?? 0) : undefined}
+      shadowOffsetY={sourceItem?.compositeShadowEnabled ? (sourceItem.compositeShadowOffsetY ?? 4) : undefined}
     >
       {groupBounds && (
         <Rect
@@ -2145,6 +2757,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           height={Math.max(1, groupBounds.bottom - groupBounds.top)}
           fill="rgba(0,0,0,0.001)"
           strokeEnabled={false}
+          shadowEnabled={false}
           listening={true}
           onClick={handleGroupPointerSelect}
           onTap={handleGroupPointerSelect}
@@ -2166,7 +2779,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
             branch: sourceItem?.maskSourceType === 'alpha' ? 'ALPHA'
               : sourceItem?.kind === 'text' ? 'TEXT'
               : sourceItem?.kind === 'image' ? 'IMAGE'
-              : (sourceItem?.kind === 'shape' && sourceItem?.shapeType === 'bezier-path') ? 'BEZIER'
+              : sourceItem?.kind === 'shape' ? 'SHAPE'
               : sourceMode === 'mask' ? 'CLIPFUNC'
               : 'FALLBACK',
           })
@@ -2200,7 +2813,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           mode={sourceMode}
           isDraggingRef={isDraggingRef}
         />
-      ) : sourceItem?.kind === 'shape' && sourceItem?.shapeType === 'bezier-path' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
+      ) : sourceItem?.kind === 'shape' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
         <CompositeAlphaBitmap
           sourceItem={sourceItem}
           destinationItems={orderedDestinationItems}
@@ -2326,7 +2939,7 @@ const ADJUSTMENT_PRESETS = [
 function Workspace() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { isAuthenticated, isLoading: isAuthLoading, requireAuth } = useAuth()
+  const { user, isAuthenticated, isLoading: isAuthLoading, requireAuth } = useAuth()
   const initialProject = useMemo(() => {
     const width = Number(searchParams.get('width'))
     const height = Number(searchParams.get('height'))
@@ -2510,6 +3123,7 @@ function Workspace() {
   const [isImageAdjustmentsOpen, setIsImageAdjustmentsOpen] = useState(false)
   const [cropSession, setCropSession] = useState(null)
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [exportFormat, setExportFormat] = useState('png')
   const [exportScale, setExportScale] = useState(1)
   const [exportTransparent, setExportTransparent] = useState(false)
@@ -3232,6 +3846,7 @@ function Workspace() {
   const wheelPanClampTimerRef = useRef(null)
   const wheelPanFrameRef = useRef(null)
   const wheelPanDeltaRef = useRef({ x: 0, y: 0 })
+  // Moved inside CursorOverlay which renders under CollaborationProvider
   const wheelZoomAccumRef = useRef(null)
   const wheelZoomFrameRef = useRef(null)
   const mousePanAccumRef = useRef(null)
@@ -5291,7 +5906,6 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [isFontPickerOpen, isColorPickerOpen, editingFrameId, finishFrameImageEdit, connectorDraft, connectorTool, handleCopy, handlePaste, handleManualSave, undoActiveBrushLayer])
 
   const openRightPanel = (panel = activePanel) => {
-    console.log('[DEBUG] openRightPanel called with panel:', panel)
     setConnectorTool(null)
     setConnectorDraft(null)
     setActivePanel(panel)
@@ -5327,7 +5941,6 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const deselectCanvas = () => {
-    console.log('[DEBUG] deselectCanvas called')
     setConnectorTool(null)
     setConnectorDraft(null)
     setSelectedId(null)
@@ -5397,7 +6010,6 @@ const attachTransformer = useCallback((idOrIds) => {
       setAssetContextSignals((current) => current.filter((s) => s.mediaId !== target.mediaId))
     }
     if (selectedId === id) {
-      console.log('[DEBUG] deleteObject: setting activePanel to null')
       setSelectedId(null)
       setSelectedIds([])
       setActivePanel(null)
@@ -9568,7 +10180,6 @@ const toggleMobileSheetSize = () => {
 }
 
   const renderPanel = () => {
-  console.log('[DEBUG] renderPanel called - activePanel:', activePanel, 'selectedItem:', selectedItem?.id, 'selectedItem.kind:', selectedItem?.kind)
 
   if (isColorPickerOpen && ['text', 'shape', 'image'].includes(selectedItem?.kind) && colorPickerTarget) {
     const isImageStrokeTarget = selectedItem.kind === 'image' && colorPickerTarget === 'imageStroke'
@@ -10260,7 +10871,6 @@ const toggleMobileSheetSize = () => {
                 item={item}
                 isSelected={item.kind === 'group' ? item.members?.some((member) => selectedIds.includes(member.id)) : selectedIds.includes(item.id)}
                 onSelect={(id) => {
-                  console.log('[DEBUG] Layer onSelect called with id:', id, 'current activePanel:', activePanel)
                   const entry = layerEntries.find((candidate) => candidate.id === id)
                   const ids = entry?.kind === 'group' ? entry.members.map((member) => member.id) : [id]
                   setSelectedId(ids[ids.length - 1] || null)
@@ -10568,6 +11178,162 @@ const toggleMobileSheetSize = () => {
                         ))}
                       </div>
                     )}
+                    {(() => {
+                      const operatorItem = items.find((i) => i.id === operatorId)
+                      if (!operatorItem) return null
+                      return (
+                        <>
+                          <div className="workspace-section-card">
+                            <div className="workspace-section-title">Opacity & Blend</div>
+                            <label className="workspace-typography-field workspace-typography-field-full">
+                              Opacity
+                              <div className="workspace-opacity-control">
+                                <input
+                                  type="range"
+                                  min="0" max="100"
+                                  value={Math.round((operatorItem.compositeOpacity ?? 1) * 100)}
+                                  onChange={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
+                                  className="workspace-opacity-slider"
+                                />
+                                <input
+                                  type="number"
+                                  min="0" max="100"
+                                  value={Math.round((operatorItem.compositeOpacity ?? 1) * 100)}
+                                  onChange={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
+                                  className="workspace-opacity-input"
+                                />
+                                <span className="workspace-opacity-unit">%</span>
+                              </div>
+                            </label>
+                            <label className="workspace-typography-field workspace-typography-field-full">
+                              Blend Mode
+                              <div style={{ position: 'relative' }}>
+                                <button type="button" className="workspace-font-picker-trigger"
+                                  onClick={() => setIsBlendModeOpen(!isBlendModeOpen)}>
+                                  {(BLEND_MODES.find((m) => m.value === (operatorItem.compositeBlendMode || 'source-over'))?.label) || 'Normal'}
+                                </button>
+                                {isBlendModeOpen && (
+                                  <div className="workspace-blend-mode-dropdown">
+                                    {BLEND_MODES.map((mode) => (
+                                      <button key={mode.value} type="button"
+                                        className={`workspace-blend-mode-item ${(operatorItem.compositeBlendMode === mode.value || (!operatorItem.compositeBlendMode && mode.value === 'source-over')) ? 'active' : ''}`}
+                                        onClick={() => {
+                                          updateItem(operatorItem.id, { compositeBlendMode: mode.value === 'source-over' ? undefined : mode.value })
+                                          setIsBlendModeOpen(false)
+                                        }}>
+                                        {mode.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </label>
+                          </div>
+                          <div className="workspace-section-card">
+                            <div className="workspace-section-title">Stroke</div>
+                            <label className="workspace-shadow-toggle">
+                              <input type="checkbox"
+                                checked={!!operatorItem.compositeStrokeEnabled && (operatorItem.compositeStrokeWidth ?? 0) > 0}
+                                onChange={(event) => {
+                                  if (event.target.checked) {
+                                    updateItem(operatorItem.id, { compositeStrokeEnabled: true, compositeStrokeColor: operatorItem.compositeStrokeColor || '#ffffff', compositeStrokeWidth: operatorItem.compositeStrokeWidth || 3 })
+                                  } else {
+                                    updateItem(operatorItem.id, { compositeStrokeEnabled: false, compositeStrokeWidth: 0 })
+                                  }
+                                }}
+                              />
+                              <span className="toggle-track" />
+                              <span className="toggle-label">Enable Stroke</span>
+                            </label>
+                            {!!operatorItem.compositeStrokeEnabled && (operatorItem.compositeStrokeWidth ?? 0) > 0 && (
+                              <div className="workspace-slider-list">
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Color</span>
+                                  <input type="color" className="workspace-shadow-color"
+                                    value={operatorItem.compositeStrokeColor || '#ffffff'}
+                                    onChange={(e) => updateItem(operatorItem.id, { compositeStrokeColor: e.target.value })}
+                                  />
+                                </label>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Width</span>
+                                    <span style={{ fontSize: '11px', color: '#c4bfd4', minWidth: '36px', textAlign: 'right' }}>
+                                      {operatorItem.compositeStrokeWidth ?? 3}px
+                                    </span>
+                                  </div>
+                                  <input type="range" min="1" max="40"
+                                    value={operatorItem.compositeStrokeWidth ?? 3}
+                                    onChange={(event) => updateItem(operatorItem.id, { compositeStrokeEnabled: true, compositeStrokeWidth: Number(event.target.value) })}
+                                  />
+                                </label>
+                              </div>
+                            )}
+                          </div>
+                          <div className="workspace-section-card">
+                            <div className="workspace-section-title">Drop Shadow</div>
+                            <label className="workspace-shadow-toggle">
+                              <input type="checkbox"
+                                checked={!!operatorItem.compositeShadowEnabled}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    updateItem(operatorItem.id, { compositeShadowEnabled: true, compositeShadow: 15, compositeShadowOpacity: 0.35, compositeShadowOffsetX: 0, compositeShadowOffsetY: 4, compositeShadowColor: '#050505' })
+                                  } else {
+                                    updateItem(operatorItem.id, { compositeShadowEnabled: false })
+                                  }
+                                }}
+                              />
+                              <span className="toggle-track" />
+                              <span className="toggle-label">Enable Shadow</span>
+                            </label>
+                            {operatorItem.compositeShadowEnabled && (
+                              <div className="workspace-slider-list">
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Color</span>
+                                  <input type="color" className="workspace-shadow-color"
+                                    value={operatorItem.compositeShadowColor || '#050505'}
+                                    onChange={(e) => updateItem(operatorItem.id, { compositeShadowColor: e.target.value })}
+                                  />
+                                </label>
+                                {[
+                                  { key: 'compositeShadow', label: 'Blur', min: 0, max: 100, value: operatorItem.compositeShadow ?? 15, unit: '' },
+                                  { key: 'compositeShadowOpacity', label: 'Opacity', min: 0, max: 100, value: Math.round((operatorItem.compositeShadowOpacity ?? 0.35) * 100), unit: '%' },
+                                  { key: 'compositeShadowOffsetX', label: 'Offset X', min: -50, max: 50, value: operatorItem.compositeShadowOffsetX ?? 0, unit: '' },
+                                  { key: 'compositeShadowOffsetY', label: 'Offset Y', min: -50, max: 50, value: operatorItem.compositeShadowOffsetY ?? 4, unit: '' },
+                                ].map((ctrl) => (
+                                  <label key={ctrl.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>{ctrl.label}</span>
+                                      {editingSliderKey === ctrl.key ? (
+                                        <input type="number" defaultValue={ctrl.value} min={ctrl.min} max={ctrl.max} autoFocus
+                                          style={{ width: '52px', fontSize: '11px', textAlign: 'right', padding: '1px 4px', border: '1px solid #7c6df2', borderRadius: '4px', background: '#1a1721', color: '#c4bfd4', outline: 'none' }}
+                                          onBlur={(e) => {
+                                            const val = Math.max(ctrl.min, Math.min(ctrl.max, Number(e.target.value)))
+                                            updateItem(operatorItem.id, { [ctrl.key]: ctrl.key === 'compositeShadowOpacity' ? val / 100 : val })
+                                            setEditingSliderKey(null)
+                                          }}
+                                          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingSliderKey(null) }}
+                                        />
+                                      ) : (
+                                        <span style={{ fontSize: '11px', color: '#c4bfd4', minWidth: '36px', textAlign: 'right', cursor: 'text' }}
+                                          onDoubleClick={() => setEditingSliderKey(ctrl.key)}>
+                                          {ctrl.value}{ctrl.unit}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <input type="range" min={ctrl.min} max={ctrl.max} value={ctrl.value}
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value)
+                                        updateItem(operatorItem.id, { [ctrl.key]: ctrl.key === 'compositeShadowOpacity' ? val / 100 : val })
+                                      }}
+                                    />
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )
+                    })()}
                   </>
                 )
               })()}
@@ -12899,6 +13665,8 @@ const toggleMobileSheetSize = () => {
   }
 
   return (
+    <ToastProvider>
+    <CollaborationProvider workspaceId={workspaceId} user={user}>
     <section
       className={`workspace-page ${isRightPanelOpen ? 'panel-open' : 'panel-collapsed'} sheet-${mobileSheetState}`}
       onPointerDown={handleOutsideWorkspacePointerDown}
@@ -12997,7 +13765,7 @@ const toggleMobileSheetSize = () => {
         </button>
         <span>{workspaceTitle}</span>
       </div>
-      <div className="workspace-avatars"><span /><span /><span /><strong>+6</strong></div>
+      <CollaborationPresence />
       <button type="button" className={`workspace-save-status ${saveIndicator.state}`} title={saveIndicator.label} onClick={handleManualSave} disabled={!workspaceId}>
         <span className="workspace-save-icon-wrap">
           <SaveStatusIcon size={15} />
@@ -13011,7 +13779,8 @@ const toggleMobileSheetSize = () => {
       <button type="button" className="workspace-mobile-history" onClick={handleRedo} aria-label="Redo" title="Redo">
         <Redo2 size={15} />
       </button>
-      <button type="button" className="workspace-share" onClick={handlePublishWorkspace}><Share2 size={15} /><span>Share</span></button>
+      <button type="button" className="workspace-share" onClick={() => setIsShareModalOpen(true)}><Share2 size={15} /><span>Share</span></button>
+      <button type="button" className="workspace-publish" onClick={handlePublishWorkspace}><Upload size={15} /><span>Publish</span></button>
       <button
         type="button"
         className="workspace-export"
@@ -13851,6 +14620,8 @@ const toggleMobileSheetSize = () => {
             }}
           />
         )}
+        <ToastContainer />
+        <CursorOverlay stageRef={stageRef} cameraRef={cameraRef} isPanning={isPanning} user={user} />
       </div>
     </main>
 
@@ -14215,6 +14986,10 @@ const toggleMobileSheetSize = () => {
       </div>
     )}
 
+    {isShareModalOpen && (
+      <ShareModal workspaceId={workspaceId} onClose={() => setIsShareModalOpen(false)} />
+    )}
+
     {isExportModalOpen && (
       <div
         className="workspace-export-modal-backdrop"
@@ -14351,9 +15126,16 @@ const toggleMobileSheetSize = () => {
       onCancel={() => setAssetDeleteTarget(null)}
     />
   </section>
+    </CollaborationProvider>
+    </ToastProvider>
   )
 }
 
 
+
+function CursorOverlay({ stageRef, cameraRef, isPanning, user }) {
+  useCursorBroadcast({ stageRef, cameraRef, isPanning, user })
+  return <CollaborationCursors cameraRef={cameraRef} />
+}
 
 export default Workspace

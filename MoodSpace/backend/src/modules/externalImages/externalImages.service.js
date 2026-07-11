@@ -55,7 +55,7 @@ const buildTags = (...sources) => {
   return [...new Set(tokens)].slice(0, 12)
 }
 
-const movieIntentWords = ['movie', 'film', 'cinema', 'cinematic', 'poster', 'scene', 'still', 'wallpaper', 'backdrop', 'key art']
+const movieIntentWords = ['movie', 'film', 'cinema', 'cinematic', 'scene', 'still', 'wallpaper', 'backdrop', 'key art']
 const movieBackdropWords = ['scene', 'still', 'wallpaper', 'cinematic shot', 'cinematic', 'backdrop']
 const moviePosterWords = ['poster', 'movie poster', 'film poster', 'cinema poster', 'key art']
 const nonMovieWords = ['album', 'music', 'song', 'vinyl', 'interior', 'room', 'fashion', 'typography', 'logo', 'ui', 'ux', 'null', 'unggahan', 'trending']
@@ -217,6 +217,7 @@ export const classifyMovieQuery = (value = '') => {
 }
 
 const musicKeywords = ['album', 'music', 'song', 'vinyl', 'single', 'ep', 'mixtape', 'remix', 'feat', 'featuring', 'soundtrack', 'ost', 'band', 'singer', 'rapper', 'producer', 'record', 'playlist']
+const musicMatch = (lower, word) => word.includes(' ') ? lower.includes(word) : lower.split(' ').includes(word)
 const classifyMusicQuery = (query) => {
   if (!query || typeof query !== 'string') return false
   const lower = query.trim().toLowerCase()
@@ -224,11 +225,14 @@ const classifyMusicQuery = (query) => {
   const movieResult = classifyMovieQuery(query)
   if (movieResult?.isGeneric) return false
   // Rejected by classifyMovieQuery (e.g. garbage like filenames, "unggahan") → only music if explicit music keywords
-  if (!movieResult) return musicKeywords.some((w) => lower.includes(w))
+  if (!movieResult) return musicKeywords.some((w) => musicMatch(lower, w))
   if (movieResult.titleCandidate.split(' ').length === 1) return false
   const movieIntentWords = ['movie', 'film', 'cinema', 'cinematic', 'poster', 'scene', 'still', 'backdrop', 'key art']
   if (movieIntentWords.some((w) => lower.includes(w))) return false
-  return true
+  // If none of the rejection clauses caught it, only classify as music when
+  // explicit music keywords are present — prevents movie titles like "past lives"
+  // (which has no movie-intent keyword) from being falsely classified as music.
+  return musicKeywords.some((w) => musicMatch(lower, w))
 }
 
 const buildMovieSearchVariants = (classifier) => {
@@ -1410,9 +1414,12 @@ const interleaveProviderItems = (providerResults, limit, { preferTmdb = false, p
       .flatMap((result) => result.items)
     const result = []
     let tmdbi = 0, creditsi = 0
-    while (result.length < limit && (tmdbi < tmdbQueue.length || creditsi < creditsQueue.length)) {
+    // Reserve up to 2 slots for non-TMDB items so design items aren't
+    // entirely obliterated when preferTmdb fills all limit slots.
+    const tmdbReserve = Math.min(2, otherItems.length)
+    while (result.length < limit - tmdbReserve && (tmdbi < tmdbQueue.length || creditsi < creditsQueue.length)) {
       if (tmdbi < tmdbQueue.length) result.push(tmdbQueue[tmdbi++])
-      if (result.length >= limit) break
+      if (result.length >= limit - tmdbReserve) break
       if (creditsi < creditsQueue.length) result.push(creditsQueue[creditsi++])
     }
     if (result.length === 0) {
@@ -1431,6 +1438,12 @@ const interleaveProviderItems = (providerResults, limit, { preferTmdb = false, p
       }
     } else {
       while (result.length < limit && otherItems.length) result.push(otherItems.shift())
+      // Top up with TMDB/credits if non-TMDB items didn't fill remaining slots
+      while (result.length < limit && (tmdbi < tmdbQueue.length || creditsi < creditsQueue.length)) {
+        if (tmdbi < tmdbQueue.length) result.push(tmdbQueue[tmdbi++])
+        if (result.length >= limit) break
+        if (creditsi < creditsQueue.length) result.push(creditsQueue[creditsi++])
+      }
     }
     console.log('[TMDB-DEBUG] interleaveProviderItems result:', { tmdbCount: tmdbQueue.length, creditsCount: creditsQueue.length, otherCount: otherItems.length, finalCount: result.length })
     return result
@@ -1967,7 +1980,45 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     }
     entityCapped.push(item)
   }
-  const finalItems = entityCapped.slice(0, limit)
+  let finalItems = entityCapped.slice(0, limit)
+
+  // Design floor for home feed: ensure at least 2 non-TMDB items when
+  // the user has design interest signals (non-movie queries from tags).
+  // Without this, CLIP rerank centralizes all slots to film items and
+  // completely buries design-style content (poster aesthetics, moodboard, etc.).
+  if (context === 'home') {
+    const fallbackQ = homeFallbackQueries[mode]?.[0] || homeFallbackQueries['for-you'][0]
+    const nonFallbackQueries = queries.filter(q => q !== fallbackQ)
+    const hasDesignInterest = nonFallbackQueries.length > 0 && nonFallbackQueries.some(q => !classifyMovieQuery(q))
+    if (hasDesignInterest) {
+      const nonTmdbInFull = entityCapped.filter(item => item.provider !== 'tmdb')
+      if (nonTmdbInFull.length >= 2) {
+        const nonTmdbInFinal = finalItems.filter(item => item.provider !== 'tmdb')
+        const needed = Math.min(2 - nonTmdbInFinal.length, nonTmdbInFull.length)
+        if (needed > 0) {
+          const finalIds = new Set(finalItems.map(item => item.id))
+          const candidates = nonTmdbInFull.filter(item => !finalIds.has(item.id)).slice(0, needed)
+          const getEntityKey = (item) => item.provider === 'tmdb' && item.id
+            ? item.id.split(':').slice(0, 2).join(':') : null
+          const replaceable = finalItems
+            .map((item, idx) => ({ item, idx }))
+            .filter(({ item }) => item.provider === 'tmdb')
+            .sort((a, b) => {
+              const entA = getEntityKey(a.item)
+              const entB = getEntityKey(b.item)
+              const countA = entA ? finalItems.filter(i => getEntityKey(i) === entA).length : 0
+              const countB = entB ? finalItems.filter(i => getEntityKey(i) === entB).length : 0
+              if (countA !== countB) return countB - countA
+              return (a.item.clipScore || 0) - (b.item.clipScore || 0)
+            })
+          const swapCount = Math.min(needed, candidates.length, replaceable.length)
+          for (let i = 0; i < swapCount; i++) {
+            finalItems[replaceable[i].idx] = candidates[i]
+          }
+        }
+      }
+    }
+  }
 
   // Build hybrid cursor for recommended visual context
   let finalCursor = null
@@ -1986,12 +2037,20 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
 
   const entityCapDebug = {}
   for (const [key, count] of entityCount) entityCapDebug[key] = count
+  const designFloorActive = context === 'home' && (() => {
+    const fallbackQ = homeFallbackQueries[mode]?.[0] || homeFallbackQueries['for-you'][0]
+    const nonFallback = queries.filter(q => q !== fallbackQ)
+    return nonFallback.length > 0 && nonFallback.some(q => !classifyMovieQuery(q))
+  })()
+  const nonTmdbCount = finalItems.filter(i => i.provider !== 'tmdb').length
   console.log('[TMDB-DEBUG] searchExternalImages FINAL response:', {
     totalItems: rerankedItems.length,
     finalItems: finalItems.length,
     entityCap: MAX_TMDB_ITEMS_PER_ENTITY,
     entityCounts: entityCapDebug,
-    firstItemProvider: rerankedItems[0]?.provider || rerankedItems[0]?.source || null,
+    designFloor: designFloorActive,
+    nonTmdbFinal: nonTmdbCount,
+    firstItemProvider: finalItems[0]?.provider || finalItems[0]?.source || null,
     movieQuery: hasMovieQuery,
     clipReranked: !!(textEmb || imageEmb),
     itemProviders: [...new Set(finalItems.map((i) => i.provider || i.source || 'unknown'))],

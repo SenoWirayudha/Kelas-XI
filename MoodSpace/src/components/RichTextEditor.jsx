@@ -376,6 +376,7 @@ const RichTextEditor = forwardRef(({ item, onCommit, onCancel, style }, ref) => 
     }
     console.groupCollapsed('[RichTextEditor useEffect] triggered')
     console.log('item.id:', item.id, 'raw runs:', JSON.parse(JSON.stringify(raw)))
+    console.log('raw runs charCodes:', raw.map((r, i) => ({ idx: i, text: r.text, codes: Array.from(r.text).map(c => c.charCodeAt(0)) })))
     console.log('htmlContent:', htmlContent)
     console.groupEnd()
     el.innerHTML = htmlContent
@@ -388,6 +389,11 @@ const RichTextEditor = forwardRef(({ item, onCommit, onCancel, style }, ref) => 
     if (commitTimerRef.current) clearTimeout(commitTimerRef.current)
     const html = editorRef.current?.innerHTML || ''
     const clean = htmlToRuns(html)
+    console.groupCollapsed('[TEXT EDITOR] commit — char codes')
+    console.log('HTML:', html)
+    console.log('runs:', clean.map((r, i) => ({ idx: i, text: r.text, codes: Array.from(r.text).map(c => c.charCodeAt(0)), bold: r.bold, italic: r.italic, fontFamily: r.fontFamily, fill: r.fill, listType: r.listType, align: r.align })))
+    console.log('runsText:', runsToText(clean))
+    console.groupEnd()
     onCommit(clean)
   }, [onCommit])
 

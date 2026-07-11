@@ -1,4 +1,5 @@
 import * as service from './workspaces.service.js'
+import { searchUsersByEmail } from '../auth/auth.repository.js'
 
 export const createWorkspace = async (req, res, next) => {
   try {
@@ -94,6 +95,76 @@ export const deleteWorkspace = async (req, res, next) => {
       workspaceId: req.validated.params.id,
     })
     res.status(204).send()
+  } catch (error) {
+    next(error)
+  }
+}
+
+// --- Collaborator handlers ---
+
+export const listCollaborators = async (req, res, next) => {
+  try {
+    const collaborators = await service.listCollaborators({
+      userId: req.auth.sub,
+      workspaceId: req.validated.params.id,
+    })
+    res.json({ collaborators })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const inviteCollaborator = async (req, res, next) => {
+  try {
+    const result = await service.inviteCollaborator({
+      userId: req.auth.sub,
+      workspaceId: req.validated.params.id,
+      targetUserId: req.validated.body.userId,
+      role: req.validated.body.role,
+    })
+    res.status(201).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const changeCollaboratorRole = async (req, res, next) => {
+  try {
+    const result = await service.changeCollaboratorRole({
+      userId: req.auth.sub,
+      workspaceId: req.validated.params.id,
+      targetUserId: req.validated.params.userId,
+      role: req.validated.body.role,
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const removeCollaborator = async (req, res, next) => {
+  try {
+    await service.removeCollaborator({
+      userId: req.auth.sub,
+      workspaceId: req.validated.params.id,
+      targetUserId: req.validated.params.userId,
+    })
+    res.status(204).send()
+  } catch (error) {
+    next(error)
+  }
+}
+
+// --- User search handler ---
+
+export const searchUsers = async (req, res, next) => {
+  try {
+    const q = (req.query.q || '').trim()
+    if (!q || q.length < 1) {
+      return res.json({ users: [] })
+    }
+    const users = await searchUsersByEmail(q, req.auth.sub)
+    res.json({ users })
   } catch (error) {
     next(error)
   }

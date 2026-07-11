@@ -44,6 +44,7 @@ const workspaceToProject = (workspace) => ({
   thumbnailUrl: workspace.thumbnailUrl,
   thumbnailVersion: workspace.thumbnailMediaId || workspace.updatedAt,
   updatedAt: workspace.updatedAt,
+  ownerId: workspace.ownerId,
 })
 
 const withCacheBuster = (url, version) => {
@@ -54,7 +55,7 @@ const withCacheBuster = (url, version) => {
 
 function Projects() {
   const navigate = useNavigate()
-  const { isAuthenticated, isLoading: isAuthLoading, requireAuth } = useAuth()
+  const { user, isAuthenticated, isLoading: isAuthLoading, requireAuth } = useAuth()
   const [projects, setProjects] = useState(readProjects)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
@@ -579,6 +580,7 @@ function Projects() {
               <span>
                 <strong>{project.name}</strong>
                 <small>{project.ratio} · {project.width} × {project.height}px · {formatUpdatedAt(project.updatedAt)}</small>
+                {user && project.ownerId !== user.id && <small className="project-shared-badge">Dibagikan</small>}
               </span>
             </button>
             <button

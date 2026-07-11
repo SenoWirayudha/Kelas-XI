@@ -111,13 +111,17 @@ export function runsToHtml(runs, baseFontFamily, baseFill) {
   for (let ri = 0; ri < runs.length; ri++) {
     const run = runs[ri]
     if (run.text === '\n') {
+      console.log('[runsToHtml] standalone \\n run at idx', ri, 'listType:', run.listType)
       const brList = run.listType ? ` data-list="${run.listType}"` : ''
       html += `<br${brList}>`
       afterNewline = true
       continue
     }
     let t = escapeHtml(run.text)
-    if (t.includes('\n')) t = t.replace(/\n/g, '<br>')
+    if (t.includes('\n')) {
+      console.log('[runsToHtml] \\n EMBEDDED in run text idx', ri, 'text:', JSON.stringify(run.text), 'codes:', Array.from(run.text).map(c => c.charCodeAt(0)))
+      t = t.replace(/\n/g, '<br>')
+    }
     t = fmtContent(t, run, baseFontFamily, baseFill)
     if (run.listType) {
       if (!t) t = '\u200B'
@@ -130,9 +134,10 @@ export function runsToHtml(runs, baseFontFamily, baseFill) {
       afterNewline = false
     } else {
       if (!t) t = '\u200B'
+      const tag = run.align ? 'div' : 'span'
       const style = run.align ? `text-align:${run.align}` : ''
       const alignAttr = run.align ? ` data-align="${run.align}"` : ''
-      t = `<div${alignAttr} style="${style}">${t}</div>`
+      t = `<${tag}${alignAttr} style="${style}">${t}</${tag}>`
     }
     html += t
   }

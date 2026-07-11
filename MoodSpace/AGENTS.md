@@ -171,5 +171,125 @@ From saved canvas items on workspace load (no `browseAssetContext` in snapshot).
 - `src/hooks/useCanvasImages.js` — shared image cache with `imageCache` Map + `subscribe`/`notify` pub/sub
 - `src/App.css` — `.workspace-upload-fab-wrap` position:absolute; `.workspace-align-btn-modern:disabled`
 
+## Session 2026-07-10: Home Feed Empty Fix — 4 Root Causes
+
+### Root causes
+1. **`expandHomeTagToQueries` produced garbage queries**: `drop_to_canvas` filename events (`.jpg`, `.webp`, `.png`) → `expandHomeTagToQueries` returned garbage that filled all 6 query slots → fallback query excluded → all rejected by `classifyMovieQuery` gate0 (FILE_EXT_RE) → `getProviderSearchersForQuery` returned `[]` for non-movie queries in home context → **0 items**
+
+2. **Visual similarity pool was dead code**: Pool code was placed inside `if (context === 'browse_asset'){...}` block; the `if (context === 'home')` check at higher line never executed for home feed
+
+3. **`classifyMusicQuery` false-positive for "unggahan"**: When `classifyMovieQuery` returns null (rejected at gate1 via `nonMovieWords`), all movie-intent guards are skipped → `classifyMusicQuery` returned `true` → `hasMusicQuery: true` changed interleaving to prefer cover art
+
+4. **Generic design queries went to TMDB**: Fallback query "design inspiration editorial poster moodboard" classified as movie query (isGeneric=true) → went to TMDB trending → returned random movie posters instead of design content
+
+### Fixes
+- **`expandHomeTagToQueries`**: Added `EXPAND_EXT_RE` filter — returns `[]` for normalized strings containing `.ext` patterns (jpg, png, etc.)
+- **`buildHomeExternalQueries`**: Added `ensureFallback()` helper — guarantees fallback query is always present by replacing last slot if needed
+- **Visual similarity pool**: Moved from inside `browse_asset` block to after `semanticText` block (now fires for `context === 'home'`)
+- **`normalizeTag` + `normalizeInterestTag`**: Added `EXT_WORD_RE = /\b(?:jpe?g|png|webp|gif|bmp|svg|tiff?|avif|heic?)\b/gi` to strip extension words as whole tokens globally (not just trailing `.ext`)
+- **`classifyMovieQuery` gate3**: Generic design-only queries (isGeneric=true, no titleCandidate, no strong movie intent words) return null → routed to design providers instead of TMDB
+- **`classifyMusicQuery`**: Added `musicKeywords` set + null-movieResult guard — only classifies as music if explicit music keywords present when `classifyMovieQuery` returns null
+- **`getProviderSearchersForQuery`**: Non-movie home queries now return `[unsplash, pexels, pixabay, openverse, wikimedia]` instead of `[]`
+
+### Validation
+- `newacc5` (has garbage events): 12 items (unsplash/openverse/pexels/tmdb mix)
+- `sen` (no events): 12 items (TMDB trending)
+- `accuser`: 12 items (TMDB trending)
+- Normalization: 6 test cases show no residual `jpg`/`png`/`webp` tokens
+- Fallback query → design providers (unsplash/pexels/pixabay), not TMDB
+- `classifyMovieQuery` gate0: no normalized test strings matched FILE_EXT_RE (all passed)
+
+### Key Files
+- `backend/src/modules/externalImages/externalImages.service.js` — all home feed fixes
+- `backend/src/modules/interest/interest.service.js` — `normalizeInterestTag` EXT_WORD_RE
+
+## Session 2026-07-10: Interest Decay Fix + Weighted Sampling + Garbage Tag Filter
+
+### Fix 1 — `open_post` decay 6h → 3d
+- **File**: `interest.repository.js` (3 occurrences: `getTopRecentInterestTags`, `getTopRecentInterestTagsWithScores`, `getTopRecentInterestQueries`)
+- **Change**: `when 'open_post' then interval '6 hours'` → `when 'open_post' then interval '3 days'`
+- **Reason**: 77% of newacc5 activity is `open_post`. With 6h decay, diverse movie interests (La Haine 23.42, Chungking Express 16.42, Parasite 14.43, Yorgos Lanthimos 18.10) decayed to ~0 before contributing to home feed. Only "past lives" survived because it had `search` (3d decay) and `drop_to_canvas` (7d decay) events.
+- **After**: La Haine (23.42), films (24.56), korean (15.02), lanthimos (11.96) now appear in top tags.
+
+### Fix 2 — Weighted Random Sampling + Garbage Tag Filter
+- **`seededRandom` / `weightedSampleByScore`**: Seed-based weighted sampling selects which tags get query slots when more tags exist than available slots (6). Lower-score films get non-zero probability across different 30-minute time buckets.
+- **`interleaveTagExpansions`**: Accepts `scores` + `seed`, applies weighted sampling before round-robin, keeping `MAX_SLOTS_PER_FILM=3` per tag.
+- **`isHomeGarbageTag`**: Filters filename garbage (UUIDs >12 chars, known prefixes: `unggahan`, `download`, `untitled`, `null`) at the `effectiveTags` level, preventing garbage from reaching exploration/expansion paths.
+- **`normalizeInterestTag` / `normalizeTag`**: Added `.replace(/\s*\.\s*/g, ' ')` to remove orphaned dots after `EXT_WORD_RE` strips extension words. Removed `.` from `[^a-z0-9\s.]+` → `[^a-z0-9\s]+`.
+- **`expandHomeTagToQueries`**: Checks original tag (pre-normalization) for `.ext` pattern via `EXPAND_EXT_RE`, so `"past lives .jpg past lives"` is filtered before normalization.
+
+### Verification — newacc5 top tags (after Fix 1)
+| Tag | Score | Status |
+|-----|-------|--------|
+| past lives | 40.42 | ✅ survived |
+| films | 24.56 | ✅ revived (was 0) |
+| haine | 23.42 | ✅ revived (was 0) |
+| la haine poster | 23.42 | ✅ revived (was 0) |
+| lives poster | 22.04 | ✅ revived (was 0) |
+| past lives poster | 22.04 | ✅ revived (was 0) |
+| korean | 15.02 | ✅ revived (was 0) |
+| korean films | 12.61 | ✅ revived (was 0) |
+| lanthimos | 11.96 | ✅ revived (was 0) |
+
+### Verification — Query diversity (across seeds)
+```
+seed=0: past lives | la haine (1995) poster | films | fallback
+seed=2: films | fallback | past lives | la haine (1995) poster
+seed=4: fallback | past lives | la haine (1995) poster | films
+```
+
+### Item-level limitation
+Query slots now diverse (multiple films represented). However, final 12 items remain Past Lives-dominated because:
+- CLIP rerank uses profile embedding (strongest = Past Lives, 40.42)
+- 20 TMDB results from "past lives" + "past lives inspiration"
+- 10 TMDB results from "la haine (1995) poster" — all outranked by rerank
+- Visual similarity pool adds ~4 serendipity items (iTunes, Godzilla, Unsplash)
+
+Item-level interleaving (per-query or per-film cap) would need separate implementation.
+
+### Key Files
+- `backend/src/modules/interest/interest.repository.js` — decay rates
+- `backend/src/modules/externalImages/externalImages.service.js` — weighted sampling, garbage filter, normalizeTag
+- `backend/src/modules/interest/interest.service.js` — `normalizeInterestTag` dot cleanup
+
+### Commits
+- `75c8f18` — Fix(interest): increase open_post decay from 6 hours to 3 days
+- `844498e` — Fix(home-feed): weighted sampling for query slot allocation + garbage tag filter
+- `13883c8` — Fix(classifyMovieQuery): reject generic single-word tags from TMDB title search
+
+## Session 2026-07-10: Fix — Generic Tag "films" Resolved to TMDB Entity
+
+### Root Cause Chain
+1. Tag "films" (score 23.97) survived decay fix and entered `effectiveTags`
+2. `interleaveTagExpansions` → `expandHomeTagToQueries("films")` → `["films", "films inspiration", "films moodboard"]`
+3. `classifyMovieQuery("films")` **passed all gates** because:
+   - `"films"` was NOT in `nonMovieWords`, `titleNoiseWords`, `genericVisualWords`, or `connectingWords`
+   - Gate 3 (`isGeneric && !titleCandidate`) didn't apply because `titleCandidate = "films"` (non-empty)
+   - No other gate caught it
+4. `getProviderSearchersForQuery` routed "films" to TMDB
+5. TMDB partial-token match returned **"Cursed Films (2020)"** — a documentary series containing the word "films"
+
+### Why Previous Fixes Didn't Cover This
+- **Gate 3 (design-only rejection)**: requires ALL tokens to be generic visual/noise words, but "films" as a standalone word isn't in any of those lists
+- **`nonMovieWords`**: only covered "trending", "unggahan", etc., not common nouns like "films"
+- **`titleNoiseWords`**: had `'film'` (singular) but not `'films'` (plural)
+- All previous fixes focused on user SEARCH QUERIES, not TAG EXPANSION queries
+
+### Fix — Gate 4 in `classifyMovieQuery`
+**Rule**: `titleCandidate` is single word AND `hasMovieIntent` is false → reject as too generic for TMDB title search.
+
+Single common nouns like "films", "haine" (standalone) are not specific entity titles. Multi-word candidates (e.g. "past lives", "la haine") are specific enough.
+
+**Also**: Added `'films'` to `titleNoiseWords` so multi-word queries like "korean films" strip the generic word, leaving "korean" (single-word, rejected by Gate 4) → routed to design providers.
+
+### Verification
+- **`newacc5` home feed**: queries include "trending films", "films inspiration", "films cinematic" — ALL routed to design providers (Unsplash/Pexels), NOT TMDB
+- **TMDB debug logs**: No `sq: 'films'` search in any request; only "past lives", "haine" (as buildMovieSearchVariants variant from "la haine (1995) poster"), "poster" appear
+- **Items**: Past Lives + La Haine + iTunes serendipity — no Cursed Films
+- **Multi-seed test**: No single-word "films" query reaches TMDB across any seed
+
+### Key Files
+- `backend/src/modules/externalImages/externalImages.service.js` — Gate 4 in `classifyMovieQuery`, `'films'` in `titleNoiseWords`
+
 Skills provide specialized instructions and workflows for specific tasks.
 Use the skill tool to load a skill when a task matches its description.

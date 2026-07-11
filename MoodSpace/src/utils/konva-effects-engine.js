@@ -1396,7 +1396,105 @@ export class EffectManager {
         if (w <= 0) w = cr.width > 0 ? cr.width : 100
         if (h <= 0) h = cr.height > 0 ? cr.height : 100
       }
-      node.cache({ x: 0, y: 0, width: w + pad * 2, height: h + pad * 2, pixelRatio: pr })
+      // ── Text overflow padding ─────────────────────────────────
+      // Measure actual visual bounds via measureText and add padding so script/cursive
+      // swashes (ascenders, descenders, left/right flourishes) are not clipped by cache.
+      let textPadL = 0, textPadT = 0, textPadR = 0, textPadB = 0
+      let _mea;
+      if (w > 0 && typeof node.measureSize === 'function') {
+        try {
+          const text = typeof node.text === 'function' ? (node.text() || '') : ''
+          if (text) {
+            const m = node.measureSize('M')
+            const mAcc = m.fontBoundingBoxAscent ?? m.actualBoundingBoxAscent ?? fontSize * 0.7
+            const mDesc = m.fontBoundingBoxDescent ?? m.actualBoundingBoxDescent ?? fontSize * 0.2
+            const lh = (typeof node.lineHeight === 'function' ? node.lineHeight() : 1) || 1
+            const lineH = fontSize * lh
+            const translateY = (mAcc - mDesc) / 2 + lineH / 2
+            const cvs = document.createElement('canvas')
+            const cctx = cvs.getContext('2d')
+            if (typeof node._getContextFont === 'function') cctx.font = node._getContextFont()
+            const mt = cctx.measureText(text)
+            const textAcc = mt.actualBoundingBoxAscent || 0
+            const textDec = mt.actualBoundingBoxDescent || 0
+            const textL = mt.actualBoundingBoxLeft || 0
+            const textR = mt.actualBoundingBoxRight || 0
+            const textW = mt.width || 0
+            const align = typeof node.align === 'function' ? node.align() : 'left'
+            let lineX = 0
+            if (align === 'center') lineX = (w - textW) / 2
+            else if (align === 'right') lineX = w - textW
+            textPadL = Math.max(0, -(lineX + textL))
+            textPadR = Math.max(0, lineX + textR - w)
+            textPadT = Math.max(0, -(translateY - textAcc))
+            textPadB = Math.max(0, translateY + textDec - h)
+            const safety = 5
+            textPadL += safety; textPadR += safety; textPadT += safety; textPadB += safety
+            _mea = { textAcc, textDec, textL, textR, textW, translateY, font: cctx.font, textLen: text.length, w, h }
+          }
+        } catch (_) {}
+      } else if (w > 0 && typeof node.getChildren === 'function') {
+        try {
+          const children = node.getChildren()
+          if (children.length > 0) {
+            let minVisT = Infinity, maxVisB = -Infinity, minVisL = Infinity, maxVisR = -Infinity
+            let totalWorked = 0, groupFs = 0
+            const cvs2 = document.createElement('canvas')
+            const cctx2 = cvs2.getContext('2d')
+            children.forEach((child) => {
+              if (typeof child.text !== 'function' || typeof child.fontFamily !== 'function') return
+              const ct = child.text() || ''
+              if (!ct) return
+              const cx = typeof child.x === 'function' ? child.x() : 0
+              const cy = typeof child.y === 'function' ? child.y() : 0
+              const cf = child.fontFamily ? child.fontFamily() : 'Inter, Arial'
+              const cs = (typeof child.fontStyle === 'function' ? child.fontStyle() : 'normal') || 'normal'
+              const cfs = typeof child.fontSize === 'function' ? (child.fontSize() || 0) : 0
+              if (cfs <= 0) return
+              if (!groupFs) groupFs = cfs
+              const ctxFont = `${cs} ${cfs}px ${cf}`
+              cctx2.font = ctxFont
+              const mt2 = cctx2.measureText(ct)
+              const charAcc = mt2.actualBoundingBoxAscent || 0
+              const charDec = mt2.actualBoundingBoxDescent || 0
+              const mM = cctx2.measureText('M')
+              const mAscent = (mM.fontBoundingBoxAscent ?? mM.actualBoundingBoxAscent) || cfs * 0.7
+              const mDescent = (mM.fontBoundingBoxDescent ?? mM.actualBoundingBoxDescent) || cfs * 0.2
+              const tY = (mAscent - mDescent) / 2 + cfs / 2
+              const visT = cy + tY - charAcc
+              const visB = cy + tY + charDec
+              const visL = cx + (mt2.actualBoundingBoxLeft || 0)
+              const visR = cx + (mt2.actualBoundingBoxRight || mt2.width || 0)
+              if (visT < minVisT) minVisT = visT
+              if (visB > maxVisB) maxVisB = visB
+              if (visL < minVisL) minVisL = visL
+              if (visR > maxVisR) maxVisR = visR
+              totalWorked++
+            })
+            if (totalWorked > 0 && (minVisT < Infinity)) {
+              textPadT = Math.max(0, -minVisT)
+              textPadB = Math.max(0, maxVisB - h)
+              textPadL = Math.max(0, -minVisL)
+              textPadR = Math.max(0, maxVisR - w)
+              const safety = 5
+              textPadL += safety; textPadR += safety; textPadT += safety; textPadB += safety
+              _mea = { mode: 'group', minVisT, maxVisB, minVisL, maxVisR, w, h, fs: groupFs, children: totalWorked }
+            }
+          }
+        } catch (_) {}
+      }
+      console.log('[EFFECT CACHE PAD]', {
+        id: (typeof node.id === 'function' ? node.id() : null) || (typeof node._id !== 'undefined' ? node._id : '?'),
+        textPadL, textPadT, textPadR, textPadB,
+        cacheX: -textPadL, cacheY: -textPadT,
+        cacheW: Math.ceil(w + textPadL + textPadR + pad * 2),
+        cacheH: Math.ceil(h + textPadT + textPadB + pad * 2),
+        isText: typeof node.measureSize === 'function',
+        isGroup: typeof node.getChildren === 'function',
+        fontSize,
+        raw: _mea,
+      })
+      node.cache({ x: -textPadL, y: -textPadT, width: w + textPadL + textPadR + pad * 2, height: h + textPadT + textPadB + pad * 2, pixelRatio: pr })
     } else {
       node.clearCache()
     }

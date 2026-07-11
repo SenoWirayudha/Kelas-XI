@@ -56,6 +56,41 @@ export const findUserByUsername = async (username) => {
   return rows[0] || null
 }
 
+export const searchUsersByEmail = async (searchTerm, excludeUserId) => {
+  const { rows } = await query(
+    `select
+       u.id,
+       u.email,
+       u.username,
+       u.display_name as "displayName",
+       ma.public_url as "avatarUrl"
+     from users u
+     left join user_profiles up on up.user_id = u.id
+     left join media_assets ma on ma.id = up.avatar_media_id and ma.deleted_at is null
+     where u.email_verified_at is not null
+       and u.id != $2
+       and (lower(u.email) like lower($1) or lower(u.username) like lower($1))
+     order by
+       case
+         when lower(u.email) = lower($1) then 0
+         when lower(u.username) = lower($1) then 1
+         else 2
+       end,
+       u.created_at desc
+     limit 10`,
+    [`%${searchTerm}%`, excludeUserId],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    username: r.username,
+    displayName: r.displayName,
+    profile: {
+      avatarUrl: r.avatarUrl || null,
+    },
+  }))
+}
+
 export const findPasswordAuthByUserId = async (userId) => {
   const { rows } = await query(
     'select user_id as "userId", password_hash as "passwordHash", locked_until as "lockedUntil" from user_auth where user_id = $1',
@@ -74,8 +109,8 @@ export const updatePassword = async (userId, passwordHash) => {
 
 export const createUserWithPassword = async (client, { email, username, displayName, passwordHash }) => {
   const userResult = await client.query(
-    `insert into users (email, username, display_name)
-     values ($1, $2, $3)
+    `insert into users (email, username, display_name, email_verified_at)
+     values ($1, $2, $3, now())
      returning id, email, username, display_name as "displayName", role, status, created_at as "createdAt"`,
     [email, username, displayName || username],
   )

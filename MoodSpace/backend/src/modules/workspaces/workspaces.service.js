@@ -7,6 +7,7 @@ import {
   createMediaFromDataUrl,
   getOwnedReadyMedia,
 } from '../media/media.service.js'
+import { insertNotification } from '../notifications/notifications.repository.js'
 import {
   createWorkspaceVersion,
   createWorkspaceWithVersion,
@@ -17,11 +18,21 @@ import {
   softDeleteWorkspace,
   updateWorkspaceMetadata,
 } from './workspaces.repository.js'
+import {
+  deleteCollaborator,
+  findCollaborator,
+  findCollaboratorsByWorkspace,
+  findCollaboratorWorkspaceIds,
+  insertCollaborator as insertCollaboratorRepo,
+  updateCollaboratorRole,
+} from './workspaceCollaborators.repository.js'
 import { buildInitialSnapshot, hashSnapshot } from './snapshot.service.js'
 
-const assertOwner = (workspace, userId) => {
+const assertWorkspaceAccess = async (workspace, userId) => {
   if (!workspace) throw notFound('Workspace not found')
-  if (workspace.ownerId !== userId) throw forbidden('You do not own this workspace')
+  if (workspace.ownerId === userId) return
+  const collab = await findCollaborator(workspace.id, userId)
+  if (!collab) throw forbidden('You do not have access to this workspace')
 }
 
 const serializeWorkspace = (workspace, version = null) => ({
@@ -80,27 +91,40 @@ export const createWorkspace = async ({ userId, body }) => {
 }
 
 export const listWorkspaces = async (userId) => {
-  const workspaces = await listWorkspacesByOwner(userId)
+  const [owned, collaboratorIds] = await Promise.all([
+    listWorkspacesByOwner(userId),
+    findCollaboratorWorkspaceIds(userId),
+  ])
+  const ownedIds = new Set(owned.map((w) => w.id))
+  let workspaces = owned
+  if (collaboratorIds.length > 0) {
+    const shared = await Promise.all(
+      collaboratorIds
+        .filter((id) => !ownedIds.has(id))
+        .map((id) => findWorkspaceById(id)),
+    )
+    workspaces = [...owned, ...shared.filter(Boolean)]
+  }
   return workspaces.map((workspace) => serializeWorkspace(workspace))
 }
 
 export const getWorkspace = async ({ userId, workspaceId }) => {
   const workspace = await findWorkspaceById(workspaceId)
-  assertOwner(workspace, userId)
+  await assertWorkspaceAccess(workspace, userId)
   const version = await getLatestVersion(workspaceId)
   return serializeWorkspace(workspace, version)
 }
 
 export const updateWorkspace = async ({ userId, workspaceId, patch }) => {
   const workspace = await findWorkspaceById(workspaceId)
-  assertOwner(workspace, userId)
+  await assertWorkspaceAccess(workspace, userId)
   const updated = await updateWorkspaceMetadata({ workspaceId, ownerId: userId, patch })
   return serializeWorkspace(updated, await getLatestVersion(workspaceId))
 }
 
 export const saveWorkspace = async ({ userId, workspaceId, body, saveType }) => {
   const workspace = await findWorkspaceById(workspaceId)
-  assertOwner(workspace, userId)
+  await assertWorkspaceAccess(workspace, userId)
 
   const snapshotHash = hashSnapshot(body.snapshot)
   const result = await createWorkspaceVersion({
@@ -122,7 +146,7 @@ export const saveWorkspace = async ({ userId, workspaceId, body, saveType }) => 
 
 export const setThumbnail = async ({ userId, workspaceId, mediaId, dataUrl }) => {
   const workspace = await findWorkspaceById(workspaceId)
-  assertOwner(workspace, userId)
+  await assertWorkspaceAccess(workspace, userId)
 
   const oldMediaId = workspace.thumbnailMediaId
   if (oldMediaId) {
@@ -170,7 +194,85 @@ export const setThumbnail = async ({ userId, workspaceId, mediaId, dataUrl }) =>
 
 export const deleteWorkspace = async ({ userId, workspaceId }) => {
   const workspace = await findWorkspaceById(workspaceId)
-  assertOwner(workspace, userId)
+  await assertWorkspaceAccess(workspace, userId)
   const deleted = await softDeleteWorkspace({ workspaceId, ownerId: userId })
   if (!deleted) throw notFound('Workspace not found')
+}
+
+// --- Collaborator management ---
+
+const assertOwner = async (workspace, userId) => {
+  if (!workspace) throw notFound('Workspace not found')
+  if (workspace.ownerId !== userId) throw forbidden('Only the workspace owner can manage collaborators')
+}
+
+export const listCollaborators = async ({ userId, workspaceId }) => {
+  const workspace = await findWorkspaceById(workspaceId)
+  await assertOwner(workspace, userId)
+  const collaborators = await findCollaboratorsByWorkspace(workspaceId)
+  return collaborators.map((c) => ({
+    userId: c.userId,
+    role: c.role,
+    invitedBy: c.invitedBy,
+    invitedAt: c.invitedAt,
+    updatedAt: c.updatedAt,
+    user: {
+      id: c.userId,
+      email: c.email,
+      username: c.username,
+      displayName: c.displayName,
+      profile: {
+        avatarUrl: c.avatarUrl || null,
+      },
+    },
+  }))
+}
+
+export const inviteCollaborator = async ({ userId, workspaceId, targetUserId, role }) => {
+  const workspace = await findWorkspaceById(workspaceId)
+  await assertOwner(workspace, userId)
+
+  const result = await insertCollaboratorRepo({
+    workspaceId,
+    userId: targetUserId,
+    role,
+    invitedBy: userId,
+  })
+
+  await insertNotification({
+    userId: targetUserId,
+    actorId: userId,
+    type: 'workspace_invite',
+    targetType: 'workspace',
+    targetId: workspaceId,
+    metadata: { workspaceTitle: workspace.title },
+  })
+
+  return {
+    userId: result.user_id,
+    role: result.role,
+    invitedAt: result.invitedAt,
+    updatedAt: result.updatedAt,
+  }
+}
+
+export const changeCollaboratorRole = async ({ userId, workspaceId, targetUserId, role }) => {
+  const workspace = await findWorkspaceById(workspaceId)
+  await assertOwner(workspace, userId)
+
+  const result = await updateCollaboratorRole(workspaceId, targetUserId, role)
+  if (!result) throw notFound('Collaborator not found')
+  return {
+    userId: result.user_id,
+    role: result.role,
+    updatedAt: result.updatedAt,
+  }
+}
+
+export const removeCollaborator = async ({ userId, workspaceId, targetUserId }) => {
+  const workspace = await findWorkspaceById(workspaceId)
+  await assertOwner(workspace, userId)
+
+  const result = await deleteCollaborator(workspaceId, targetUserId)
+  if (!result) throw notFound('Collaborator not found')
 }

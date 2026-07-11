@@ -66,3 +66,35 @@ export const deleteWorkspace = async (workspaceId) => (
     method: 'DELETE',
   })
 )
+
+// --- Collaborator API ---
+
+export const listCollaborators = async (workspaceId) => (
+  apiRequest(`/workspaces/${workspaceId}/collaborators`)
+)
+
+export const inviteCollaborator = async (workspaceId, userId, role) => (
+  apiRequest(`/workspaces/${workspaceId}/collaborators`, {
+    method: 'POST',
+    body: { userId, role },
+  })
+)
+
+export const updateCollaboratorRole = async (workspaceId, userId, role) => (
+  apiRequest(`/workspaces/${workspaceId}/collaborators/${userId}`, {
+    method: 'PATCH',
+    body: { role },
+  })
+)
+
+export const removeCollaborator = async (workspaceId, userId) => (
+  apiRequest(`/workspaces/${workspaceId}/collaborators/${userId}`, {
+    method: 'DELETE',
+  })
+)
+
+// --- User search for invite ---
+
+export const searchUsers = async (query) => (
+  apiRequest(`/workspaces/search-users?q=${encodeURIComponent(query)}`)
+)

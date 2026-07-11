@@ -64,3 +64,32 @@ export const thumbnailSchema = z.object({
   }),
   query: z.object({}).optional(),
 })
+
+export const inviteCollaboratorSchema = z.object({
+  params: z.object({ id: uuid }),
+  body: z.object({
+    userId: uuid,
+    role: z.enum(['view', 'edit']),
+  }),
+  query: z.object({}).optional(),
+})
+
+export const collaboratorIdParamSchema = z.object({
+  params: z.object({
+    id: uuid,
+    userId: uuid,
+  }),
+  body: z.object({}).optional(),
+  query: z.object({}).optional(),
+})
+
+export const changeRoleSchema = z.object({
+  params: z.object({
+    id: uuid,
+    userId: uuid,
+  }),
+  body: z.object({
+    role: z.enum(['view', 'edit']),
+  }),
+  query: z.object({}).optional(),
+})

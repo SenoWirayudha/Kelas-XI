@@ -30,6 +30,7 @@ const notificationLabels = {
   follow: 'mengikuti Anda',
   report_warning: 'Postingan Anda mendapat peringatan',
   post_deleted: 'Postingan Anda dihapus karena melanggar aturan',
+  workspace_invite: 'mengundang Anda ke workspace',
 }
 
 function HeaderInner({ isSettingsOpen, setIsSettingsOpen, onToggleSidebar }) {
@@ -276,7 +277,7 @@ function HeaderInner({ isSettingsOpen, setIsSettingsOpen, onToggleSidebar }) {
                       notifItems.map((item) => (
                         <Link
                           key={item.id}
-                          to={item.targetType === 'post' ? `/post/${item.targetId}` : '#'}
+                          to={item.targetType === 'post' ? `/post/${item.targetId}` : item.targetType === 'workspace' ? `/workspace?projectId=${item.targetId}` : '#'}
                           className={`notif-item ${!item.readAt ? 'unread' : ''}`}
                           onClick={() => handleNotifClick(item)}
                         >

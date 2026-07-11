@@ -425,6 +425,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   }
 
   const hasStroke = (item.strokeWidth || 0) > 0 && (item.stroke || item.strokeGradientType)
+  const shadowProps = getShadowProps(item)
+  const hasShadow = Object.keys(shadowProps).length > 0
 
   const textProps = {
     text,
@@ -442,6 +444,15 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     perfectDrawEnabled: true,
   }
 
+  if (!isMultiRun) {
+    const ctx3 = document.createElement('canvas').getContext('2d')
+    ctx3.font = `normal ${item.fontSize || 48}px ${item.fontFamily || 'Inter, Arial'}`
+    const m3 = ctx3.measureText('M')
+    const lineH = hasEffects ? 1.25 : 0.9
+    const tY = ((m3.fontBoundingBoxAscent ?? m3.actualBoundingBoxAscent ?? (item.fontSize||48)*0.7) - (m3.fontBoundingBoxDescent ?? m3.actualBoundingBoxDescent ?? (item.fontSize||48)*0.2)) / 2 + (lineH * (item.fontSize||48)) / 2
+
+  }
+
   // Multi-run text rendering
   const multiRunTexts = useMemo(() => {
     if (!isMultiRun || hasCurve || !fontLoaded) {
@@ -454,24 +465,45 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     const maxW = Math.max(1, displayWidth || 300)
     const lsp = letterSpacing || 0
     const measureRun = (t) => Math.max(1, ctx.measureText(t).width)
+    const translateYCache = {}
+    const getTranslateY = (fontFamily, fontStyle) => {
+      const key = `${fontStyle}|${fontFamily}`
+      if (translateYCache[key] !== undefined) return translateYCache[key]
+      ctx.font = `${fontStyle} ${fs}px ${fontFamily}`
+      const m = ctx.measureText('M')
+      const mAcc = m.fontBoundingBoxAscent ?? m.actualBoundingBoxAscent ?? fs * 0.7
+      const mDesc = m.fontBoundingBoxDescent ?? m.actualBoundingBoxDescent ?? fs * 0.2
+      const val = (mAcc - mDesc) / 2 + fs / 2
+      translateYCache[key] = val
+      return val
+    }
 
     // Expand runs into single-character segments
     const expanded = []
     displayRuns.forEach((run, runIdx) => {
       for (let i = 0; i < run.text.length; i++) {
         const runFontStyle = [run.bold && 'bold', run.italic && 'italic'].filter(Boolean).join(' ') || 'normal'
+        const charFontFamily = run.fontFamily || item.fontFamily || 'Inter, Arial'
         expanded.push({
           text: run.text[i],
-          fontFamily: run.fontFamily || item.fontFamily || 'Inter, Arial',
+          fontFamily: charFontFamily,
           fontStyle: runFontStyle,
           decoration: run.underline ? 'underline' : 'none',
           fill: run.fill || gradientProps.fill || item.fill || '#2b2830',
           key: `${runIdx}_${i}`,
           isPrefix: !!run.isPrefix,
           align: run.align || null,
+          translateY: getTranslateY(charFontFamily, runFontStyle),
         })
       }
     })
+
+    const baseFontFamily = item.fontFamily || 'Inter, Arial'
+    const baseTranslateY = getTranslateY(baseFontFamily, 'normal')
+    const ctx2 = document.createElement('canvas').getContext('2d')
+    ctx2.font = `normal ${fs}px ${baseFontFamily}`
+    const m2 = ctx2.measureText('M')
+    const compareEmAsc = m2.emHeightAscent ?? baseTranslateY
 
     const isLeftAlign = (item.align || 'center') === 'left'
     const prefixWidth = (() => {
@@ -501,7 +533,10 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       x += charW + lsp
     })
     const totalH = y + lineHeight
-    runsLayoutRef.current = { height: totalH }
+    const yOffsets = expanded.filter(e => e.text !== '\n').map(e => e.translateY != null ? Math.round(baseTranslateY - e.translateY) : 0)
+    const minYOff = yOffsets.length ? Math.min(...yOffsets) : 0
+    const maxYOff = yOffsets.length ? Math.max(...yOffsets) : 0
+    runsLayoutRef.current = { height: totalH, minYOff, maxYOff }
 
     // Second pass: align each line — prefix anchors at 0, content moves within remaining space
     const lineMap = new Map()
@@ -552,22 +587,23 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     })
 
     function renderText(s, x, y) {
+      const yOff = s.translateY != null ? Math.round(baseTranslateY - s.translateY) : 0
       return (
-        <Text key={s.key} x={x} y={y} text={s.text} width={s.w + 2}
+        <Text key={s.key} x={x} y={y + yOff} text={s.text} width={s.w + 2}
           fontSize={fs} fontFamily={s.fontFamily} fontStyle={s.fontStyle}
           textDecoration={s.decoration} fill={s.fill}
+          stroke={strokeGradientProps.stroke || item.stroke || null} strokeWidth={hasStroke ? (item.strokeWidth || 0) : 0}
+          {...(hasShadow ? shadowProps : {})}
           wrap="none"
           lineJoin={hasStroke ? 'round' : 'miter'} miterLimit={hasStroke ? 2 : 10} perfectDrawEnabled={false} listening={false} />
       )
     }
     return nodes
-  }, [displayRuns, isMultiRun, hasCurve, item.fontSize, item.fontFamily, item.fill, displayWidth, letterSpacing, hasEffects, gradientProps.fill, fontLoaded, item.align])
+  }, [displayRuns, isMultiRun, hasCurve, item.fontSize, item.fontFamily, item.fill, displayWidth, letterSpacing, hasEffects, gradientProps.fill, fontLoaded, item.align, hasStroke, item.stroke, item.strokeWidth, item.shadow, item.shadowColor, item.shadowOpacity, item.shadowOffsetX, item.shadowOffsetY, item.shadowEnabled])
 
   const textHeight = isMultiRun
     ? (runsLayoutRef.current.height || Math.max(item.h || 1, item.fontSize || 1))
     : Math.max(item.h || 1, item.fontSize || 1)
-  const shadowProps = getShadowProps(item)
-  const hasShadow = Object.keys(shadowProps).length > 0
 
   if (item.isAdjustmentLayer) {
     return (
@@ -783,7 +819,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           listening={false}
         />
       ) : isMultiRun ? (
-        <Group ref={multiRunGroupRef} listening={false} clipX={0} clipY={-Math.ceil((item.fontSize || 48) * 0.35)} clipWidth={displayWidth} clipHeight={textHeight + Math.ceil((item.fontSize || 48) * 0.35)} width={displayWidth} height={textHeight}>
+        <Group ref={multiRunGroupRef} listening={false} clipX={0} clipY={Math.min(-Math.ceil((item.fontSize || 48) * 0.35), (runsLayoutRef.current.minYOff ?? 0) - 5)} clipWidth={displayWidth} clipHeight={textHeight + Math.max(Math.ceil((item.fontSize || 48) * 0.35), (runsLayoutRef.current.maxYOff ?? 0) + 5)} width={displayWidth} height={textHeight}>
           {multiRunTexts}
         </Group>
       ) : (
