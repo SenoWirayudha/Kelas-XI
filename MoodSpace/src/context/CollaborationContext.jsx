@@ -16,6 +16,7 @@ const recentJoinToastTimestamps = new Map()
 export function CollaborationProvider({ workspaceId, user, children }) {
   const [collaborators, setCollaborators] = useState([])
   const [isConnected, setIsConnected] = useState(false)
+  const [collaboratorSelections, setCollaboratorSelections] = useState({})
   const channelRef = useRef(null)
   const cursorPositionsRef = useRef({})
   const { addToast } = useToast()
@@ -134,6 +135,11 @@ export function CollaborationProvider({ workspaceId, user, children }) {
           delete cursorPositionsRef.current[p.userId]
         })
         setCollaborators((prev) => prev.filter((c) => !leftIds.has(c.userId)))
+        setCollaboratorSelections((prev) => {
+          const next = { ...prev }
+          leftIds.forEach((id) => delete next[id])
+          return next
+        })
       })
       .on('broadcast', { event: 'cursor_move' }, (payload) => {
         // supabase-js v2 broadcast callback may wrap payload in { payload: ... }
@@ -150,6 +156,18 @@ export function CollaborationProvider({ workspaceId, user, children }) {
       .on('broadcast', { event: 'cursor_leave' }, (payload) => {
         const data = payload.payload || payload
         delete cursorPositionsRef.current[data.userId]
+      })
+      .on('broadcast', { event: 'selection_change' }, (payload) => {
+        const data = payload.payload || payload
+        if (data.userId === user.id) return
+        setCollaboratorSelections((prev) => ({
+          ...prev,
+          [data.userId]: {
+            selectedIds: data.selectedIds || [],
+            displayName: data.displayName,
+            username: data.username,
+          },
+        }))
       })
       .subscribe(async (status, err) => {
         if (status === 'SUBSCRIBED') {
@@ -249,6 +267,7 @@ export function CollaborationProvider({ workspaceId, user, children }) {
     broadcast,
     cursorPositionsRef,
     currentUserId: user?.id,
+    collaboratorSelections,
   }
 
   return (

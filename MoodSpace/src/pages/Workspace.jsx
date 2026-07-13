@@ -155,7 +155,10 @@ import { ToastProvider } from '../context/ToastContext'
 import { ToastContainer } from '../components/ToastContainer'
 import { CollaborationPresence } from '../components/canvas/CollaborationPresence'
 import { CollaborationCursors } from '../components/canvas/CollaborationCursors'
+import { CollaborationSelectionIndicators } from '../components/canvas/CollaborationSelectionIndicators'
+import { CollaborationSelectionLabels } from '../components/canvas/CollaborationSelectionLabels'
 import { useCursorBroadcast } from '../hooks/useCursorBroadcast'
+import { useCollaboration } from '../hooks/useCollaboration'
 import ShareModal from '../components/workspace/ShareModal'
 import { useMediaUpload } from '../hooks/useMediaUpload'
 import { useCanvasImage, useCanvasImages } from '../hooks/useCanvasImages'
@@ -2464,7 +2467,7 @@ const CompositeCanvasGroupMemoComparitor = (prev, next) => {
   if (prev.fontInjectVersion !== next.fontInjectVersion) return false
   return true
 }
-const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion, getItemsVisualBounds, getCompositeSnapBounds, getSnappedDelta, setAlignmentGuides, setRotationSnapGuide, skipGroupDragEndRef, selectedIdsRef, itemsRef, multiDragRef, stageRef, setStageCursor, getInteractionNode }) {
+const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion, getItemsVisualBounds, getCompositeSnapBounds, getSnappedDelta, setAlignmentGuides, setRotationSnapGuide, skipGroupDragEndRef, selectedIdsRef, itemsRef, multiDragRef, multiDragActiveRef, stageRef, setStageCursor, getInteractionNode }) {
   const groupRef = useRef(null)
   const dragStartRef = useRef(null)
   const snapResultRef = useRef(null)
@@ -2493,12 +2496,19 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
   useLayoutEffect(() => {
     const node = groupRef.current
     if (!node) return
-    // Cache tidak digunakan untuk bitmap-based composite — semua efek dikomposisi
-    // via JS canvas di bitmap components (CompositeAlphaBitmap, etc).
-    // Cached bitmap bisa stale jika children update async (RAF).
-    // batchDraw dipanggil untuk trigger layer redraw saat cacheKey berubah.
     const rafId = requestAnimationFrame(() => {
+      try {
+        const worldLayer = stageRef.current?.findOne('.world-layer')
+        const rect = worldLayer ? node.getClientRect({ relativeTo: worldLayer }) : node.getClientRect()
+        const memberPositions = entry.members.map((m) => ({
+          id: m.id,
+          stateX: m.x,
+          stateY: m.y,
+        }))
+        console.log('[DRAG_END_DEBUG] STEP 4 - group bounds after React commit:', { groupId: entry.groupId, rect, members: memberPositions })
+      } catch (e) {}
       node.getLayer()?.batchDraw()
+      onSyncTransformer?.()
     })
     return () => cancelAnimationFrame(rafId)
   }, [entry.cacheKey])
@@ -2522,6 +2532,21 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
 
   const handleGroupDragStart = (event) => {
     event.cancelBubble = true
+    // Jika multi-drag session aktif (drag dari item non-composite), skip — handleObjectDragStart/Move/End yg handle
+    if (multiDragRef?.current) {
+      dragStartRef.current = null
+      return
+    }
+    // BLOCK: composite group di-drag saat multi-select dengan item non-composite
+    {
+      const selIds = selectedIdsRef?.current || selectedIds || []
+      if (selIds.length > 1 && selIds.some((sid) => !entry.members.some((m) => m.id === sid))) {
+        event.target.stopDrag()
+        setStageCursor('not-allowed')
+        setTimeout(() => setStageCursor('default'), 800)
+        return
+      }
+    }
     // Guard: drag HANYA boleh jika composite group ADA di selection saat ini
     const currentSelectedIds = selectedIdsRef?.current || selectedIds || []
     let isCompositeInSelection = entry.members.some((item) => currentSelectedIds.includes(item.id) || selectedId === item.id)
@@ -2575,6 +2600,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
 
   const handleGroupDragMove = (event) => {
     event.cancelBubble = true
+    if (multiDragRef?.current) return
     if (!dragStartRef.current) return
     const start = dragStartRef.current
     if (start) {
@@ -2608,7 +2634,10 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
 
   const handleGroupDragEnd = (event) => {
     event.cancelBubble = true
+    console.log('[DRAG_END_DEBUG] GROUP_DRAG_END FIRED', { hasDragStart: !!dragStartRef.current, skip: multiDragActiveRef?.current || skipGroupDragEndRef?.current, groupX: event.target.x(), groupY: event.target.y() })
     if (!dragStartRef.current) return
+    // Skip jika handleObjectDragStart sedang aktif (multi-drag session)
+    if (multiDragActiveRef?.current) return
     // Skip jika handleObjectDragEnd sudah handle semua (multi-drag source bukan composite)
     if (skipGroupDragEndRef?.current) return
     const start = dragStartRef.current
@@ -2706,9 +2735,12 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       })
       itemUpdates.push({ itemId, patch: { x: clamped.x, y: clamped.y } })
     })
+    console.log('[GROUP_DRAG_DEBUG] itemUpdates:', itemUpdates.map((u) => ({ itemId: u.itemId, x: u.patch.x, y: u.patch.y, isComposite: entry.members.some((m) => m.id === u.itemId) })))
     // Directly set Konva node positions BEFORE group reset (sync, no react-konva delay)
     itemUpdates.forEach(({ itemId, patch }) => {
       const node = stageRef.current?.findOne(`#${itemId}`)
+      const found = !!node
+      console.log('[GROUP_DRAG_DEBUG] findOne:', { itemId, found, oldX: node?.x(), oldY: node?.y(), newX: patch.x, newY: patch.y, isComposite: entry.members.some((m) => m.id === itemId) })
       if (node) {
         node.position({ x: patch.x, y: patch.y })
       }
@@ -2717,9 +2749,10 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     itemUpdates.forEach(({ itemId, patch }) => onChange(itemId, patch))
     // Reset Group position AFTER all items are at their final absolute positions
     event.target.position({ x: 0, y: 0 })
+    console.log('[GROUP_DRAG_DEBUG] groupPos after reset:', { x: event.target.x(), y: event.target.y() })
     // Force immediate redraw
     groupRef.current?.getLayer()?.batchDraw()
-    onSyncTransformer?.()
+    console.log('[GROUP_DRAG_DEBUG] dragEnd complete')
     setStageCursor('default')
   }
 
@@ -3857,7 +3890,9 @@ function Workspace() {
   const imageMetadataRef = useRef(new Map())
   const activeObjectDragRef = useRef(null)
   const multiDragRef = useRef(null)
+  const multiDragActiveRef = useRef(false)
   const skipGroupDragEndRef = useRef(false)
+  const pendingGroupDeltasRef = useRef({})
   const selectedIdsRef = useRef(selectedIds)
   const selectionBoxRef = useRef(null)
   const clipboardRef = useRef([])
@@ -8838,6 +8873,7 @@ const attachTransformer = useCallback((idOrIds) => {
           .map((item) => [item.id, { x: item.x || 0, y: item.y || 0 }])
       ),
     }
+    multiDragActiveRef.current = true
     requestAnimationFrame(() => {
       attachTransformer(activeSelection)
     })
@@ -8871,10 +8907,18 @@ const attachTransformer = useCallback((idOrIds) => {
 
       const compositeInfo = getCompositeInfoForItemId(movingId)
       if (compositeInfo) {
-        if (processedGroups.has(compositeInfo.groupId)) return
+        if (processedGroups.has(compositeInfo.groupId)) {
+          console.log('[DRAG_END_DEBUG] MOVEMOVE - composite group already processed, skipping:', { groupId: compositeInfo.groupId, movingId })
+          return
+        }
         processedGroups.add(compositeInfo.groupId)
         const groupNode = getInteractionNode(movingId)
-        if (groupNode) groupNode.position({ x: snapped.dx, y: snapped.dy })
+        if (groupNode) {
+          groupNode.position({ x: snapped.dx, y: snapped.dy })
+          console.log('[DRAG_END_DEBUG] MOVEMOVE - set group position:', { groupId: compositeInfo.groupId, snappedDx: snapped.dx, snappedDy: snapped.dy, rawDx, rawDy, movingId })
+        } else {
+          console.log('[DRAG_END_DEBUG] MOVEMOVE - groupNode not found for:', { groupId: compositeInfo.groupId, movingId })
+        }
         return
       }
 
@@ -8904,6 +8948,11 @@ const attachTransformer = useCallback((idOrIds) => {
 
     const dragSession = multiDragRef.current
     activeObjectDragRef.current = null
+    // Set skip BEFORE multiDragRef is cleared — handleGroupDragEnd fires synchronously
+    // when multiDragRef becomes null (between this line and the next).
+    // Must guard before the Group's dragend event can execute.
+    const isDraggingCompositeSource = !!getCompositeInfoForItemId(id)
+    skipGroupDragEndRef.current = !isDraggingCompositeSource
     multiDragRef.current = null
     setAlignmentGuides([])
     setRotationSnapGuide(null)
@@ -8911,6 +8960,13 @@ const attachTransformer = useCallback((idOrIds) => {
 
     if (dragSession && Object.keys(dragSession.positions).length > 1) {
       const movingIds = Object.keys(dragSession.positions)
+      // DEBUG: log movingIds and check groupId of each
+      const debugGroupInfo = movingIds.map((mid) => {
+        const item = itemsRef.current.find((i) => i.id === mid)
+        const compositeInfo = getCompositeInfoForItemId(mid)
+        return { id: mid, groupId: item?.groupId, hasCompositeInfo: !!compositeInfo, compositeGroupId: compositeInfo?.groupId }
+      })
+      console.log('[DRAG_END_DEBUG] CHECK - movingIds group info:', debugGroupInfo)
 
       // Detect apakah drag source adalah composite group member
       // Jika ya, handleGroupDragEnd juga akan fire → skip composite members di sini
@@ -8947,8 +9003,6 @@ const attachTransformer = useCallback((idOrIds) => {
         movingExternalCount: externalMovingIds.length,
       })
 
-      skipGroupDragEndRef.current = !isDraggingCompositeSource
-
       if (isDraggingCompositeSource) {
         // Hanya update regular items — composite members di-handle oleh handleGroupDragEnd
         setItems((current) => current.map((currentItem) => {
@@ -8964,33 +9018,77 @@ const attachTransformer = useCallback((idOrIds) => {
         }))
       } else {
         // Baca group deltas SEKALIGUS sebelum setItems (hindari stale read setelah reset)
-        const groupDeltas = new Map()
+        pendingGroupDeltasRef.current = {}
+        const processedGroupIds = new Set()
         movingIds.forEach((movingId) => {
           const info = getCompositeInfoForItemId(movingId)
-          if (info && !groupDeltas.has(info.groupId)) {
+          if (info && !processedGroupIds.has(info.groupId)) {
+            processedGroupIds.add(info.groupId)
             const groupNode = getInteractionNode(movingId)
             if (groupNode) {
-              groupDeltas.set(info.groupId, { x: groupNode.x(), y: groupNode.y() })
+              const delta = { x: groupNode.x(), y: groupNode.y() }
+              console.log('[DRAG_END_DEBUG] STEP 1 - group delta before reset:', { groupId: info.groupId, delta, infoGroupIdType: typeof info.groupId, infoGroupId: info.groupId })
+              pendingGroupDeltasRef.current[info.groupId] = delta
+              // DEBUG: print all entries and their composite info before inner forEach
+              const posEntries = Object.entries(dragSession.positions)
+              const infoGroupId = info.groupId
+              console.log('[DRAG_END_DEBUG] INNER_FOREACH_PREP:', {
+                infoGroupId,
+                infoGroupIdType: typeof infoGroupId,
+                posEntriesCount: posEntries.length,
+                posEntriesKeys: posEntries.map(([k]) => k),
+                posEntries: posEntries.map(([k, v]) => ({ mid: k, pos: v })),
+                memberLookups: posEntries.map(([mid]) => {
+                  const mi = getCompositeInfoForItemId(mid)
+                  return { mid, hasMemberInfo: !!mi, memberGroupId: mi?.groupId, memberGroupIdType: typeof mi?.groupId, groupIdMatch: mi?.groupId === infoGroupId }
+                }),
+              })
+              // Update member Konva nodes to final relative position BEFORE Group reset
+              // (same pattern as handleGroupDragEnd Step A → Step C)
+              posEntries.forEach(([mid, pos]) => {
+                const memberInfo = getCompositeInfoForItemId(mid)
+                const cond1 = !!memberInfo
+                const cond2 = memberInfo?.groupId === infoGroupId
+                console.log('[DRAG_END_DEBUG] INNER_FOREACH_CHECK:', { mid, hasMemberInfo: cond1, groupIdMatch: cond2, memberGroupId: memberInfo?.groupId, targetGroupId: infoGroupId })
+                if (cond1 && cond2) {
+                  const memberNode = stageRef.current?.findOne(`#${mid}`)
+                  console.log('[DRAG_END_DEBUG] INNER_FOREACH_NODE:', { mid, nodeFound: !!memberNode })
+                  if (memberNode) {
+                    memberNode.position({ x: pos.x + delta.x, y: pos.y + delta.y })
+                    console.log('[DRAG_END_DEBUG] STEP 2 - member pos after fix update:', { memberId: mid, x: memberNode.x(), y: memberNode.y(), groupId: info.groupId })
+                  }
+                }
+              })
               groupNode.position({ x: 0, y: 0 })
+              console.log('[DRAG_END_DEBUG] STEP 3 - group pos after reset:', { groupId: info.groupId, x: groupNode.x(), y: groupNode.y() })
             }
           }
         })
 
+        // DEBUG: before setItems, log pendingGroupDeltas contents and confirm itemsRef state
+        const preDeltaKeys = Object.keys(pendingGroupDeltasRef.current)
+        const preDeltaVal = pendingGroupDeltasRef.current['group-1783868272110']
+        const preItemsHas14 = itemsRef.current.some((i) => i.id === 'image-14')
+        const preItemsHas11 = itemsRef.current.some((i) => i.id === 'image-11')
+        console.log('[DRAG_END_DEBUG] PRE_SETITEMS:', { preDeltaKeys, preDeltaVal, preItemsHas14, preItemsHas11 })
         setItems((current) => current.map((currentItem) => {
-          if (!movingIds.includes(currentItem.id)) return currentItem
+          const cid = currentItem.id
+          if (!movingIds.includes(cid)) return currentItem
 
-          const compositeInfo = getCompositeInfoForItemId(currentItem.id)
-          if (compositeInfo) {
-            const delta = groupDeltas.get(compositeInfo.groupId)
+          const compositeInfo = getCompositeInfoForItemId(cid)
+          const hasComp = !!compositeInfo
+          if (hasComp) {
+            const delta = pendingGroupDeltasRef.current[compositeInfo.groupId]
+            const startPos = dragSession.positions[cid]
+            const deltaCheck = `${delta?.x ?? 'undef'},${delta?.y ?? 'undef'}`
+            console.log('[DRAG_END_DEBUG] SETITEMS_CHECK:', { cid, hasComp, deltaCheck, startPosStr: `${startPos?.x ?? 'undef'},${startPos?.y ?? 'undef'}`, groupId: compositeInfo.groupId, cbType: typeof delta })
             if (!delta) return currentItem
-            const startPos = dragSession.positions[currentItem.id]
             if (!startPos) return currentItem
             const newX = startPos.x + delta.x
             const newY = startPos.y + delta.y
-            const clamped = getClampedCanvasPosition(currentItem.w || 1, currentItem.h || 1, {
-              x: newX,
-              y: newY,
-            }, canvasBounds)
+            // Composite members skip clamping (sama seperti handleGroupDragEnd line 2698-2702)
+            // supaya tidak ada jump antara visual preview (unclamped, Group position) dan final (clamped member position)
+            const newPos = { x: newX, y: newY }
             console.log('[DragEndDebug]', {
               location: 'handleObjectDragEnd.multiSelect.noCompositeSource',
               groupId: compositeInfo.groupId,
@@ -9001,14 +9099,14 @@ const attachTransformer = useCallback((idOrIds) => {
               startY: startPos.y,
               deltaX: delta.x,
               deltaY: delta.y,
-              newX: clamped.x,
-              newY: clamped.y,
-              source: 'startPos + groupNodePosition(dari dragMove)',
+              newX: newPos.x,
+              newY: newPos.y,
+              source: 'startPos + groupNodePosition(dari dragMove, no clamp)',
             })
-            return { ...currentItem, ...clamped }
+            return { ...currentItem, ...newPos }
           }
 
-          const movedNode = getInteractionNode(currentItem.id)
+          const movedNode = getInteractionNode(cid)
           if (!movedNode) return currentItem
           const clamped = getClampedCanvasPosition(currentItem.w || 1, currentItem.h || 1, { x: movedNode.x(), y: movedNode.y() }, canvasBounds)
           return { ...currentItem, ...clamped }
@@ -9016,9 +9114,11 @@ const attachTransformer = useCallback((idOrIds) => {
       }
 
       // Clear di RAF — pastikan handleGroupDragEnd (event bubble) sudah sempat cek canary
-      requestAnimationFrame(() => { skipGroupDragEndRef.current = false; attachTransformer(movingIds) })
+      requestAnimationFrame(() => { skipGroupDragEndRef.current = false; pendingGroupDeltasRef.current = {}; multiDragActiveRef.current = false; attachTransformer(movingIds) })
       return
     }
+
+    multiDragActiveRef.current = false
 
     // NEW: Cek apakah image canvas di-drag ke dalam frame slot
 if (item?.kind === 'image') {
@@ -13545,6 +13645,7 @@ const toggleMobileSheetSize = () => {
             selectedIdsRef={selectedIdsRef}
             itemsRef={itemsRef}
             multiDragRef={multiDragRef}
+            multiDragActiveRef={multiDragActiveRef}
             stageRef={stageRef}
             getInteractionNode={getInteractionNode}
           />
@@ -14521,6 +14622,7 @@ const toggleMobileSheetSize = () => {
     />
   )
 ))}
+            <CollaborationSelectionIndicators items={items} />
             </Group>
           </Layer>
         </Stage>
@@ -14621,7 +14723,7 @@ const toggleMobileSheetSize = () => {
           />
         )}
         <ToastContainer />
-        <CursorOverlay stageRef={stageRef} cameraRef={cameraRef} isPanning={isPanning} user={user} />
+        <CursorOverlay stageRef={stageRef} cameraRef={cameraRef} isPanning={isPanning} user={user} items={items} selectedIds={selectedIds} selectedId={selectedId} />
       </div>
     </main>
 
@@ -15133,9 +15235,28 @@ const toggleMobileSheetSize = () => {
 
 
 
-function CursorOverlay({ stageRef, cameraRef, isPanning, user }) {
+function CursorOverlay({ stageRef, cameraRef, isPanning, user, items, selectedIds, selectedId }) {
   useCursorBroadcast({ stageRef, cameraRef, isPanning, user })
-  return <CollaborationCursors cameraRef={cameraRef} />
+  const { broadcast } = useCollaboration()
+  const userIdRef = useRef(user?.id)
+  userIdRef.current = user?.id
+  useEffect(() => {
+    const uid = userIdRef.current
+    if (!uid) return
+    const ids = selectedIds?.length > 0 ? selectedIds : (selectedId ? [selectedId] : [])
+    broadcast('selection_change', {
+      userId: uid,
+      selectedIds: ids,
+      displayName: user?.displayName || user?.username,
+      username: user?.username,
+    })
+  }, [selectedIds, selectedId, broadcast, user])
+  return (
+    <>
+      <CollaborationCursors cameraRef={cameraRef} />
+      <CollaborationSelectionLabels cameraRef={cameraRef} items={items} />
+    </>
+  )
 }
 
 export default Workspace
