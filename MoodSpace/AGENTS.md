@@ -291,5 +291,42 @@ Single common nouns like "films", "haine" (standalone) are not specific entity t
 ### Key Files
 - `backend/src/modules/externalImages/externalImages.service.js` — Gate 4 in `classifyMovieQuery`, `'films'` in `titleNoiseWords`
 
+## Session 2026-07-13: Collaboration Broadcast — Item Add/Remove + Slider Optimization
+
+### Item Add/Remove Broadcast
+- `item_added` / `item_removed` message types in `CollaborationContext` with `itemAddHandlerRef` / `itemRemoveHandlerRef`
+- `broadcastItemAdd` / `broadcastItemRemove` functions in `Workspace.jsx`
+- Wired for all entry points: `addAssetToCanvas`, `addNote`, `addShapeToCanvas`, `addFrameToCanvas`, `addText`, `finishConnectorDrag`, `duplicateItems`, `handlePaste`, `detachFrameImages`, `addImageToFrame`
+- `detachFrameImages`: broadcasts each new image item as `item_added` + frame clearance as `item_update`
+- `addImageToFrame` (grid + single): broadcasts frame `item_update` + source `item_remove`
+
+### Broadcast Guard (`BROADCAST_KEYS`)
+- Replaced inline conditions with `BROADCAST_KEYS Set` (42 keys)
+- Added `frameImageSrc`, `frameImages`, `frameImagePosition`, `frameImageScale`, `frameImageFit` — frame image edits broadcast
+- Added text properties (`runs`, `text`, `isBold`, `isItalic`, `isUnderline`, `fontSize`, `fontFamily`, `fill`, `align`, `shapeText`) — text commit = 1 broadcast
+- `updateItem` accepts 3rd param `skipBroadcast` (default `false`) to suppress broadcast for rapid slider calls
+
+### Slider Optimization (skipBroadcast + onPointerUp/onBlur commit)
+Pattern: `updateItem(id, patch, true)` on `onChange` + `broadcastItemUpdate(id, patch)` on `onPointerUp`/`onBlur` → 1 broadcast per gesture, not per tick.
+- Opacity sliders: 3 panels (image `~12292`, shape `~12573`, text `~12856`) + `AdjustmentSliders.jsx` via `onOpacityChange`/`onOpacityCommit` props
+- Radius slider (`~12198`)
+- `compositeOpacity` range + number (`~11594-11603`)
+- `imageStrokeWidth` range (`~12258-12264`)
+- `compositeStrokeWidth` range (`~11726-11732`)
+- Shadow sliders: 2 `.map()` loops (regular `~12405-12408`, composite `~11726-11729`) — both updated
+
+### Other Collaboration Fixes
+- Collaborator guard: `collaboratorsRef.current.length === 0` → `<= 1` (presence always includes self)
+- `cursor_move` throttle 50ms→200ms (`useCursorBroadcast.js:5`)
+- `item_update` throttle 50ms→100ms
+- **`undefined` → `null` broadcast fix**: `undefined` values stripped by `JSON.stringify` during broadcast (e.g. `blendMode: undefined` when switching back to Normal). `broadcastItemUpdate` converts `undefined` → `null` before sending; `itemUpdateHandlerRef` deletes properties with `null` values on receipt. Fixes blend mode Normal broadcast (object wouldn't reset on receiver).
+- **Composite stroke broadcast**: Added `compositeStrokeEnabled`, `compositeStrokeWidth`, `compositeStrokeColor` to `BROADCAST_KEYS` — toggle and color picker now broadcast to collaborators.
+
+### Key Files
+- `src/pages/Workspace.jsx` — `BROADCAST_KEYS Set` (~341), `updateItem` guard + `skipBroadcast` (~6725), all sliders, `broadcastItemAdd`/`broadcastItemRemove`, all add/drop/duplicate/paste wiring
+- `src/context/CollaborationContext.jsx` — `item_added`/`item_removed` handlers (~174-179), collaborator length guard (~263), `itemAddHandlerRef`/`itemRemoveHandlerRef` props
+- `src/hooks/useCursorBroadcast.js` — throttle 50→200ms
+- `src/components/panels/AdjustmentSliders.jsx` — `onOpacityChange`/`onOpacityCommit` props
+
 Skills provide specialized instructions and workflows for specific tasks.
 Use the skill tool to load a skill when a task matches its description.

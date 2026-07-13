@@ -12,7 +12,7 @@ const hueGradientStyle = (value) => ({
   )`,
 })
 
-export default function AdjustmentSliders({ item, onChange }) {
+export default function AdjustmentSliders({ item, onChange, onOpacityChange, onOpacityCommit }) {
   const [editingSliderKey, setEditingSliderKey] = useState(null)
   const [isBlendModeOpen, setIsBlendModeOpen] = useState(false)
 
@@ -77,7 +77,19 @@ export default function AdjustmentSliders({ item, onChange }) {
           min={0}
           max={100}
           value={opacityValue}
-          onChange={(event) => onChange(item.id, { opacity: Number(event.target.value) / 100 })}
+          onChange={(event) => {
+            const val = Number(event.target.value) / 100
+            if (onOpacityChange) {
+              onOpacityChange(item.id, val)
+            } else {
+              onChange(item.id, { opacity: val })
+            }
+          }}
+          onPointerUp={(event) => {
+            if (onOpacityCommit) {
+              onOpacityCommit(item.id, Number(event.target.value) / 100)
+            }
+          }}
         />
       </label>
       <div className="workspace-slider-list">

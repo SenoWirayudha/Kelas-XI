@@ -338,6 +338,20 @@ const addRelightOverlayClones = ({ stage, items, exportLayer }) => {
   })
 }
 
+const BROADCAST_KEYS = new Set([
+  'x', 'y', 'w', 'h', 'rotation', 'compositeGroupX',
+  'frameImageSrc', 'frameImages', 'frameImagePosition', 'frameImageScale', 'frameImageFit',
+  'runs', 'text', 'isBold', 'isItalic', 'isUnderline', 'fontSize', 'fontFamily', 'fill', 'align', 'shapeText',
+  'opacity', 'blendMode',
+  'stroke', 'strokeWidth', 'strokeGradientType', 'strokeGradientStops', 'strokeGradientAngle',
+  'shadowEnabled', 'shadow', 'shadowColor', 'shadowOpacity', 'shadowOffsetX', 'shadowOffsetY',
+  'compositeOpacity', 'compositeBlendMode',
+  'compositeShadowEnabled', 'compositeShadow', 'compositeShadowColor', 'compositeShadowOpacity',
+  'compositeShadowOffsetX', 'compositeShadowOffsetY',
+  'compositeStrokeEnabled', 'compositeStrokeWidth', 'compositeStrokeColor',
+  'imageStrokeEnabled', 'imageStrokeColor', 'imageStrokeWidth',
+])
+
 const getRestoredItemCounter = (items) => (
   Math.max(
     items.length,
@@ -2597,7 +2611,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       const updatedItems = itemsRef.current.map((item) => {
         if (item.groupId !== entry.groupId) return item
         if (item.compositeMode) {
-          return { ...item, compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined }
+          return { ...item, x: (cgx || 0) + (item.x || 0) * (cgsx || 1), y: (cgy || 0) + (item.y || 0) * (cgsy || 1), w: (cgsx && cgsx !== 1) ? (item.w || 1) * cgsx : item.w, h: (cgsy && cgsy !== 1) ? (item.h || 1) * cgsy : item.h, rotation: cgr ? (item.rotation || 0) + cgr : item.rotation, compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined }
         }
         const baked = bakedMembers.find((b) => b.id === item.id)
         return baked ? { ...item, x: baked.x, y: baked.y, w: baked.w ?? item.w, h: baked.h ?? item.h, rotation: baked.rotation ?? item.rotation } : item
@@ -2830,6 +2844,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       rotation={sourceItem?.compositeGroupRotation ?? 0}
       ref={groupRef}
       name="composite-group"
+      listening={!multiDragActiveRef?.current}
       draggable={!disableDrag && !isGroupLocked}
       onClick={handleGroupPointerSelect}
       onTap={handleGroupPointerSelect}
@@ -2846,7 +2861,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       shadowOffsetX={sourceItem?.compositeShadowEnabled ? (sourceItem.compositeShadowOffsetX ?? 0) : undefined}
       shadowOffsetY={sourceItem?.compositeShadowEnabled ? (sourceItem.compositeShadowOffsetY ?? 4) : undefined}
     >
-      {groupBounds && (
+      {groupBounds && !multiDragActiveRef?.current && (
         <Rect
           x={groupBounds.left}
           y={groupBounds.top}
@@ -3962,14 +3977,46 @@ function Workspace() {
   const broadcastItemUpdate = useCallback((itemId, patch) => {
     const now = Date.now()
     const throttle = itemUpdateThrottleRef.current
-    if (!throttle[itemId] || now - throttle[itemId] > 50) {
+    if (!throttle[itemId] || now - throttle[itemId] > 100) {
       throttle[itemId] = now
-      broadcastRef.current?.('item_update', { userId: user?.id, itemId, patch })
+      const safePatch = {}
+      for (const [k, v] of Object.entries(patch)) {
+        safePatch[k] = v === undefined ? null : v
+      }
+      broadcastRef.current?.('item_update', { userId: user?.id, itemId, patch: safePatch })
     }
   }, [user?.id])
   const itemUpdateHandlerRef = useRef(null)
   itemUpdateHandlerRef.current = (itemId, patch) => {
-    setItems((prev) => prev.map((item) => item.id === itemId ? { ...item, ...patch } : item))
+    setItems((prev) => prev.map((item) => {
+      if (item.id !== itemId) return item
+      const updated = { ...item }
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === null) {
+          delete updated[k]
+        } else {
+          updated[k] = v
+        }
+      }
+      return updated
+    }))
+  }
+  const broadcastItemAdd = useCallback((item) => {
+    broadcastRef.current?.('item_added', { userId: user?.id, item })
+  }, [user?.id])
+  const itemAddHandlerRef = useRef(null)
+  itemAddHandlerRef.current = (newItem) => {
+    setItems((prev) => {
+      if (prev.some((item) => item.id === newItem.id)) return prev
+      return [newItem, ...prev]
+    })
+  }
+  const broadcastItemRemove = useCallback((itemId) => {
+    broadcastRef.current?.('item_removed', { userId: user?.id, itemId })
+  }, [user?.id])
+  const itemRemoveHandlerRef = useRef(null)
+  itemRemoveHandlerRef.current = (itemId) => {
+    setItems((prev) => prev.filter((item) => item.id !== itemId))
   }
   const selectedIdsRef = useRef(selectedIds)
   const selectionBoxRef = useRef(null)
@@ -5914,6 +5961,7 @@ const attachTransformer = useCallback((idOrIds) => {
     })
     const pastedIds = pasted.map((item) => item.id)
     setItems((current) => [...pasted, ...current])
+    pasted.forEach((item) => broadcastItemAdd(item))
     setSelectedId(pastedIds[pastedIds.length - 1])
     setSelectedIds(pastedIds)
     requestAnimationFrame(() => attachTransformer(pastedIds))
@@ -6340,6 +6388,7 @@ const attachTransformer = useCallback((idOrIds) => {
     }))
     const pastedIds = pasted.map((item) => item.id)
     setItems((current) => [...pasted, ...current])
+    pasted.forEach((item) => broadcastItemAdd(item))
     setSelectedId(pastedIds[pastedIds.length - 1])
     setSelectedIds(pastedIds)
     requestAnimationFrame(() => attachTransformer(pastedIds))
@@ -6648,7 +6697,7 @@ const attachTransformer = useCallback((idOrIds) => {
     }
   }, [deleteSelectedObject, editingFrameId, selectedId, selectedIds])
 
-  const updateItem = (id, patch) => {
+  const updateItem = (id, patch, skipBroadcast = false) => {
     if (patch.src) {
       const oldItem = itemsRef.current.find((i) => i.id === id)
       if (oldItem?.src?.startsWith('blob:') && oldItem.src !== patch.src) {
@@ -6679,8 +6728,8 @@ const attachTransformer = useCallback((idOrIds) => {
       patch.maskSourceType = (hasEffects && currentItem?.kind === 'image') ? 'alpha' : undefined
     }
 
-    // Broadcast transform patches (x, y, w, h, rotation, compositeGroup*) to collaborators
-    if (patch.x !== undefined || patch.y !== undefined || patch.w !== undefined || patch.h !== undefined || patch.rotation !== undefined || patch.compositeGroupX !== undefined) {
+    // Broadcast to collaborators (throttled at 100ms per itemId via broadcastItemUpdate)
+    if (!skipBroadcast && Object.keys(patch).some((k) => BROADCAST_KEYS.has(k))) {
       broadcastItemUpdate(id, patch)
     }
 
@@ -7592,12 +7641,11 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const getNextItemId = (type) => {
     const existingIds = new Set(itemsRef.current.map((item) => item.id))
-    let nextId
+    let nextId = crypto.randomUUID()
 
-    do {
-      itemCounterRef.current += 1
-      nextId = `${type}-${itemCounterRef.current}`
-    } while (existingIds.has(nextId))
+    while (existingIds.has(nextId)) {
+      nextId = crypto.randomUUID()
+    }
 
     return nextId
   }
@@ -8272,6 +8320,7 @@ const attachTransformer = useCallback((idOrIds) => {
     justDroppedIdRef.current = nextItem.id
     // FIX: Prepend to array so new item appears at top layer (frontmost)
     setItems((current) => [nextItem, ...current])
+    broadcastItemAdd(nextItem)
 
     if (nextItem.kind === 'image') {
       extractDominantColors(nextItem.src, 5).then((colors) => {
@@ -8289,7 +8338,9 @@ const attachTransformer = useCallback((idOrIds) => {
     pendingSelectIdRef.current = id
     justDroppedIdRef.current = id
     // FIX: Prepend to array so new note appears at top layer (frontmost)
-    setItems((current) => [{ id, kind: 'note', text: 'New research note', x: position.x, y: position.y, w: 170, h: 120, fill: '#f4c2d7', rotation: -2, effects: getDefaultEffects() }, ...current])
+    const noteItem = { id, kind: 'note', text: 'New research note', x: position.x, y: position.y, w: 170, h: 120, fill: '#f4c2d7', rotation: -2, effects: getDefaultEffects() }
+    setItems((current) => [noteItem, ...current])
+    broadcastItemAdd(noteItem)
   }
 
   const addShapeToCanvas = (shapeData) => {
@@ -8369,6 +8420,7 @@ const attachTransformer = useCallback((idOrIds) => {
     justDroppedIdRef.current = id
     // FIX: Prepend to array so new shape appears at top layer (frontmost)
     setItems((current) => [newShape, ...current])
+    broadcastItemAdd(newShape)
   }
 
   const addFrameToCanvas = (frameData) => {
@@ -8418,6 +8470,7 @@ const attachTransformer = useCallback((idOrIds) => {
     justDroppedIdRef.current = id
     // Prepend to array so new frame appears at top layer (frontmost)
     setItems((current) => [newFrame, ...current])
+    broadcastItemAdd(newFrame)
   }
 
   // Add image to frame
@@ -8482,6 +8535,8 @@ const attachTransformer = useCallback((idOrIds) => {
       if (removeId) next = next.filter((i) => i.id !== removeId)
       return next
     })
+    broadcastItemUpdate(frameId, patch)
+    if (removeId) broadcastItemRemove(removeId)
     if (removedMediaId) {
       setAssetContextSignals((current) => current.filter((s) => s.mediaId !== removedMediaId))
     }
@@ -8562,6 +8617,8 @@ const attachTransformer = useCallback((idOrIds) => {
       ...detachedImages,
       ...current.map((item) => (item.id === frame.id ? { ...item, ...patch } : item)),
     ])
+    detachedImages.forEach((image) => broadcastItemAdd(image))
+    broadcastItemUpdate(frame.id, patch)
     setEditingFrameId(null)
     setEditingFrameSlot(0)
     setSelectedIds(detachedIds)
@@ -8573,14 +8630,7 @@ const attachTransformer = useCallback((idOrIds) => {
   // FIX: addText now uses isBold/isItalic flags from preset instead of legacy fontStyle string.
   // This ensures the hierarchy (Heading=bold, Paragraph=normal) is reflected immediately.
   const addText = (text = 'Add text', fontSize = 48, isBold = false, isItalic = false) => {
-    const existingIds = new Set(items.map((item) => item.id))
-    let nextIndex = items.length + 1
-    let id = `text-${nextIndex}`
-
-    while (existingIds.has(id)) {
-      nextIndex += 1
-      id = `text-${nextIndex}`
-    }
+    const id = getNextItemId('text')
 
     const size = { w: 320, h: Math.max(80, fontSize * 1.5) }
     const viewportCenter = {
@@ -8612,6 +8662,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
     // FIX: Prepend to array so new text appears at top layer (frontmost)
     setItems((current) => [newText, ...current])
+    broadcastItemAdd(newText)
 
     requestAnimationFrame(() => {
       selectItem(id)
@@ -8787,7 +8838,9 @@ const attachTransformer = useCallback((idOrIds) => {
     pendingSelectIdRef.current = id
     justDroppedIdRef.current = id
     setItems((current) => [newConnector, ...current])
+    broadcastItemAdd(newConnector)
     setConnectorDraft(null)
+    setConnectorTool(null)
     setStageCursor('default')
   }
 
@@ -8969,17 +9022,89 @@ const attachTransformer = useCallback((idOrIds) => {
     const activeSelection = selectedIds.includes(id) ? selectedIds : [id]
     setSelectedId(id)
     setSelectedIds(activeSelection)
+
+    // BAKE: compositeGroup* → member positions for selected unbaked composites
+    // commitTransformerChanges leaves composites in unbaked state where member
+    // positions are local. We need world-space for multi-drag position capture.
+    const bakedGroupIds = new Set()
+    itemsRef.current.forEach((item) => {
+      if (!activeSelection.includes(item.id)) return
+      if (!item.groupId || bakedGroupIds.has(item.groupId)) return
+      const groupInfo = getCompositeGroupInfo(item.groupId)
+      if (!groupInfo) return
+      const operatorItem = groupInfo.members.find((m) => m.compositeMode === 'mask' || m.compositeMode === 'exclude')
+      if (!operatorItem) return
+      const cgx = operatorItem.compositeGroupX
+      const cgy = operatorItem.compositeGroupY
+      const cgsx = operatorItem.compositeGroupScaleX
+      const cgsy = operatorItem.compositeGroupScaleY
+      const cgr = operatorItem.compositeGroupRotation
+      const hasBake = (cgx || cgy || (cgsx && cgsx !== 1) || (cgsy && cgsy !== 1) || cgr)
+      if (!hasBake) return
+      bakedGroupIds.add(item.groupId)
+
+      const bakedMembers = groupInfo.members.map((member) => ({
+        id: member.id,
+        x: (cgx || 0) + (member.x || 0) * (cgsx || 1),
+        y: (cgy || 0) + (member.y || 0) * (cgsy || 1),
+        w: (cgsx && cgsx !== 1) ? (member.w || 1) * cgsx : member.w,
+        h: (cgsy && cgsy !== 1) ? (member.h || 1) * cgsy : member.h,
+        rotation: cgr ? (member.rotation || 0) + cgr : member.rotation,
+      }))
+
+      itemsRef.current = itemsRef.current.map((it) => {
+        if (it.groupId !== item.groupId) return it
+        if (it.compositeMode) {
+          return { ...it, x: (cgx || 0) + (it.x || 0) * (cgsx || 1), y: (cgy || 0) + (it.y || 0) * (cgsy || 1), w: (cgsx && cgsx !== 1) ? (it.w || 1) * cgsx : it.w, h: (cgsy && cgsy !== 1) ? (it.h || 1) * cgsy : it.h, rotation: cgr ? (it.rotation || 0) + cgr : it.rotation, compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined }
+        }
+        const baked = bakedMembers.find((b) => b.id === it.id)
+        return baked ? { ...it, x: baked.x, y: baked.y, w: baked.w ?? it.w, h: baked.h ?? it.h, rotation: baked.rotation ?? it.rotation } : it
+      })
+
+      const groupNode = stageRef.current?.findOne(`#composite-${item.groupId}`)
+      if (groupNode) {
+        groupNode.position({ x: 0, y: 0 })
+        groupNode.scale({ x: 1, y: 1 })
+        groupNode.rotation(0)
+      }
+      bakedMembers.forEach((member) => {
+        const node = stageRef.current?.findOne(`#${member.id}`)
+        if (node) {
+          node.x(member.x)
+          node.y(member.y)
+          if (member.w !== undefined) node.width(member.w)
+          if (member.h !== undefined) node.height(member.h)
+          if (member.rotation !== undefined) node.rotation(member.rotation)
+        }
+      })
+    })
+
     multiDragRef.current = {
       id,
       start: { x: event.target.x(), y: event.target.y() },
       startTime: Date.now(),
       moveCount: 0,
       snapWasActive: false,
-      positions: Object.fromEntries(
-        itemsRef.current
-          .filter((item) => activeSelection.includes(item.id))
-          .map((item) => [item.id, { x: item.x || 0, y: item.y || 0 }])
-      ),
+      positions: (() => {
+        const p = {}
+        const memberGroupIds = new Set()
+        itemsRef.current.forEach((item) => {
+          if (!activeSelection.includes(item.id)) return
+          p[item.id] = { x: item.x || 0, y: item.y || 0 }
+          // Expand to include ALL composite members so multi-drag
+          // updates their positions too (not just the operator)
+          if (item.groupId && !memberGroupIds.has(item.groupId)) {
+            const info = getCompositeGroupInfo(item.groupId)
+            if (info) {
+              memberGroupIds.add(item.groupId)
+              info.members.forEach((m) => {
+                if (!p[m.id]) p[m.id] = { x: m.x || 0, y: m.y || 0 }
+              })
+            }
+          }
+        })
+        return p
+      })(),
     }
     multiDragActiveRef.current = true
     requestAnimationFrame(() => {
@@ -9129,6 +9254,9 @@ const attachTransformer = useCallback((idOrIds) => {
           const clamped = getClampedCanvasPosition(currentItem.w || 1, currentItem.h || 1, { x: movedNode.x(), y: movedNode.y() }, canvasBounds)
           return { ...currentItem, ...clamped }
         }))
+        // Allow handleGroupDragEnd to fire (was blocked by multiDragActiveRef=true)
+        // so it can finalize composite member positions
+        multiDragActiveRef.current = false
       } else {
         // Baca group deltas SEKALIGUS sebelum setItems (hindari stale read setelah reset)
         pendingGroupDeltasRef.current = {}
@@ -9216,7 +9344,13 @@ const attachTransformer = useCallback((idOrIds) => {
               newY: newPos.y,
               source: 'startPos + groupNodePosition(dari dragMove, no clamp)',
             })
-            return { ...currentItem, ...newPos }
+            const r = { ...currentItem, ...newPos }
+            if (currentItem.compositeMode) {
+              r.compositeGroupX = undefined; r.compositeGroupY = undefined
+              r.compositeGroupScaleX = undefined; r.compositeGroupScaleY = undefined
+              r.compositeGroupRotation = undefined
+            }
+            return r
           }
 
           const movedNode = getInteractionNode(cid)
@@ -9224,6 +9358,52 @@ const attachTransformer = useCallback((idOrIds) => {
           const clamped = getClampedCanvasPosition(currentItem.w || 1, currentItem.h || 1, { x: movedNode.x(), y: movedNode.y() }, canvasBounds)
           return { ...currentItem, ...clamped }
         }))
+
+        // Sync itemsRef.current dengan posisi final (supaya drag berikutnya mulai dari benar)
+        itemsRef.current = itemsRef.current.map((item) => {
+          if (!movingIds.includes(item.id)) return item
+          const compositeInfo = getCompositeInfoForItemId(item.id)
+          if (compositeInfo) {
+            const delta = pendingGroupDeltasRef.current[compositeInfo.groupId]
+            const startPos = dragSession.positions[item.id]
+            if (!delta || !startPos) return item
+            const result = { ...item, x: startPos.x + delta.x, y: startPos.y + delta.y }
+            if (item.compositeMode) {
+              result.compositeGroupX = undefined; result.compositeGroupY = undefined
+              result.compositeGroupScaleX = undefined; result.compositeGroupScaleY = undefined
+              result.compositeGroupRotation = undefined
+            }
+            return result
+          }
+          const movedNode = getInteractionNode(item.id)
+          if (!movedNode) return item
+          const clamped = getClampedCanvasPosition(item.w || 1, item.h || 1, { x: movedNode.x(), y: movedNode.y() }, canvasBounds)
+          return { ...item, ...clamped }
+        })
+
+        // Broadcast final positions to collaborators
+        movingIds.forEach((movingId) => {
+          const compositeInfo = getCompositeInfoForItemId(movingId)
+          if (compositeInfo) {
+            const delta = pendingGroupDeltasRef.current[compositeInfo.groupId]
+            const startPos = dragSession.positions[movingId]
+            if (delta && startPos) {
+              const patch = { x: startPos.x + delta.x, y: startPos.y + delta.y }
+              const it = itemsRef.current.find((i) => i.id === movingId)
+              if (it?.compositeMode) Object.assign(patch, { compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined })
+              broadcastItemUpdate(movingId, patch)
+            }
+          } else {
+            const movedNode = getInteractionNode(movingId)
+            if (movedNode) {
+              const it = itemsRef.current.find((i) => i.id === movingId)
+              if (it) {
+                const clamped = getClampedCanvasPosition(it.w || 1, it.h || 1, { x: movedNode.x(), y: movedNode.y() }, canvasBounds)
+                broadcastItemUpdate(movingId, clamped)
+              }
+            }
+          }
+        })
       }
 
       // Clear di RAF — pastikan handleGroupDragEnd (event bubble) sudah sempat cek canary
@@ -10561,14 +10741,14 @@ const toggleMobileSheetSize = () => {
                     value={colorInputValue}
                     onChange={(event) => {
                       if (isShapeTextTarget) {
-                        updateItem(selectedItem.id, { shapeTextFill: event.target.value })
+                        updateItem(selectedItem.id, { shapeTextFill: event.target.value }, true)
                       } else if (isImageStrokeTarget) {
                         updateItem(selectedItem.id, {
                           imageStrokeEnabled: true,
                           imageStrokeGradientType: 'solid',
                           imageStrokeColor: event.target.value,
                           imageStrokeWidth: selectedItem.imageStrokeWidth || 3,
-                        })
+                        }, true)
                       } else if (isFillTarget) {
                         if (editingText && selectedItem.kind === 'text' && richTextEditorRef.current) {
                           richTextEditorRef.current.formatColor(event.target.value)
@@ -10576,10 +10756,29 @@ const toggleMobileSheetSize = () => {
                           const color = event.target.value
                           const runs = getRuns(selectedItem)
                           const newRuns = runs.map(r => ({ ...r, fill: color }))
-                          updateItem(selectedItem.id, { fill: color, runs: newRuns })
+                          updateItem(selectedItem.id, { fill: color, runs: newRuns }, true)
                         }
                       } else {
                         updateItem(selectedItem.id, {
+                          stroke: event.target.value,
+                          strokeWidth: selectedItem.kind === 'shape' && !selectedItem.strokeWidth ? 2 : selectedItem.strokeWidth,
+                        }, true)
+                      }
+                    }}
+                    onBlur={(event) => {
+                      if (isShapeTextTarget) return
+                      if (isImageStrokeTarget) {
+                        broadcastItemUpdate(selectedItem.id, {
+                          imageStrokeEnabled: true,
+                          imageStrokeGradientType: 'solid',
+                          imageStrokeColor: event.target.value,
+                          imageStrokeWidth: selectedItem.imageStrokeWidth || 3,
+                        })
+                      } else if (isFillTarget) {
+                        if (editingText && selectedItem.kind === 'text' && richTextEditorRef.current) return
+                        broadcastItemUpdate(selectedItem.id, { fill: event.target.value })
+                      } else {
+                        broadcastItemUpdate(selectedItem.id, {
                           stroke: event.target.value,
                           strokeWidth: selectedItem.kind === 'shape' && !selectedItem.strokeWidth ? 2 : selectedItem.strokeWidth,
                         })
@@ -10804,7 +11003,14 @@ const toggleMobileSheetSize = () => {
                           } else if (isImageStrokeTarget) {
                             updateItem(selectedItem.id, { imageStrokeGradientStops: stops })
                           } else {
-                            updateItem(selectedItem.id, { strokeGradientStops: stops })
+                            updateItem(selectedItem.id, { strokeGradientStops: stops }, true)
+                          }
+                        }}
+                        onBlur={(event) => {
+                          if (!isFillTarget && !isImageStrokeTarget) {
+                            const stops = [...currentStops]
+                            stops[index] = { ...stops[index], color: event.target.value }
+                            broadcastItemUpdate(selectedItem.id, { strokeGradientStops: stops })
                           }
                         }}
                         className="workspace-gradient-stop-color"
@@ -11427,14 +11633,16 @@ const toggleMobileSheetSize = () => {
                                   type="range"
                                   min="0" max="100"
                                   value={Math.round((operatorItem.compositeOpacity ?? 1) * 100)}
-                                  onChange={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
+                                  onChange={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 }, true)}
+                                  onPointerUp={(event) => broadcastItemUpdate(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
                                   className="workspace-opacity-slider"
                                 />
                                 <input
                                   type="number"
                                   min="0" max="100"
                                   value={Math.round((operatorItem.compositeOpacity ?? 1) * 100)}
-                                  onChange={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
+                                  onChange={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 }, true)}
+                                  onBlur={(event) => broadcastItemUpdate(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
                                   className="workspace-opacity-input"
                                 />
                                 <span className="workspace-opacity-unit">%</span>
@@ -11486,7 +11694,8 @@ const toggleMobileSheetSize = () => {
                                   <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Color</span>
                                   <input type="color" className="workspace-shadow-color"
                                     value={operatorItem.compositeStrokeColor || '#ffffff'}
-                                    onChange={(e) => updateItem(operatorItem.id, { compositeStrokeColor: e.target.value })}
+                                    onChange={(e) => updateItem(operatorItem.id, { compositeStrokeColor: e.target.value }, true)}
+                                    onBlur={(e) => broadcastItemUpdate(operatorItem.id, { compositeStrokeColor: e.target.value })}
                                   />
                                 </label>
                                 <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -11498,7 +11707,8 @@ const toggleMobileSheetSize = () => {
                                   </div>
                                   <input type="range" min="1" max="40"
                                     value={operatorItem.compositeStrokeWidth ?? 3}
-                                    onChange={(event) => updateItem(operatorItem.id, { compositeStrokeEnabled: true, compositeStrokeWidth: Number(event.target.value) })}
+                                    onChange={(event) => updateItem(operatorItem.id, { compositeStrokeEnabled: true, compositeStrokeWidth: Number(event.target.value) }, true)}
+                                    onPointerUp={(event) => broadcastItemUpdate(operatorItem.id, { compositeStrokeEnabled: true, compositeStrokeWidth: Number(event.target.value) })}
                                   />
                                 </label>
                               </div>
@@ -11526,7 +11736,8 @@ const toggleMobileSheetSize = () => {
                                   <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Color</span>
                                   <input type="color" className="workspace-shadow-color"
                                     value={operatorItem.compositeShadowColor || '#050505'}
-                                    onChange={(e) => updateItem(operatorItem.id, { compositeShadowColor: e.target.value })}
+                                    onChange={(e) => updateItem(operatorItem.id, { compositeShadowColor: e.target.value }, true)}
+                                    onBlur={(e) => broadcastItemUpdate(operatorItem.id, { compositeShadowColor: e.target.value })}
                                   />
                                 </label>
                                 {[
@@ -11558,7 +11769,11 @@ const toggleMobileSheetSize = () => {
                                     <input type="range" min={ctrl.min} max={ctrl.max} value={ctrl.value}
                                       onChange={(e) => {
                                         const val = Number(e.target.value)
-                                        updateItem(operatorItem.id, { [ctrl.key]: ctrl.key === 'compositeShadowOpacity' ? val / 100 : val })
+                                        updateItem(operatorItem.id, { [ctrl.key]: ctrl.key === 'compositeShadowOpacity' ? val / 100 : val }, true)
+                                      }}
+                                      onPointerUp={(e) => {
+                                        const val = Number(e.target.value)
+                                        broadcastItemUpdate(operatorItem.id, { [ctrl.key]: ctrl.key === 'compositeShadowOpacity' ? val / 100 : val })
                                       }}
                                     />
                                   </label>
@@ -12024,7 +12239,8 @@ const toggleMobileSheetSize = () => {
                 min="0"
                 max="80"
                 value={selectedItem.radius ?? 0}
-                onChange={(event) => updateItem(selectedItem.id, { radius: Number(event.target.value) })}
+                onChange={(event) => updateItem(selectedItem.id, { radius: Number(event.target.value) }, true)}
+                onPointerUp={(event) => broadcastItemUpdate(selectedItem.id, { radius: Number(event.target.value) })}
               />
             </label>
           </div>
@@ -12086,6 +12302,10 @@ const toggleMobileSheetSize = () => {
                     onChange={(event) => updateItem(selectedItem.id, {
                       imageStrokeEnabled: true,
                       imageStrokeWidth: Number(event.target.value),
+                    }, true)}
+                    onPointerUp={(event) => broadcastItemUpdate(selectedItem.id, {
+                      imageStrokeEnabled: true,
+                      imageStrokeWidth: Number(event.target.value),
                     })}
                   />
                 </label>
@@ -12113,7 +12333,8 @@ const toggleMobileSheetSize = () => {
                   min="0"
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
+                  onPointerUp={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-slider"
                 />
                 <input
@@ -12121,7 +12342,8 @@ const toggleMobileSheetSize = () => {
                   min="0"
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
+                  onBlur={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-input"
                 />
                 <span className="workspace-opacity-unit">%</span>
@@ -12184,7 +12406,8 @@ const toggleMobileSheetSize = () => {
                     type="color"
                     className="workspace-shadow-color"
                     value={selectedItem.shadowColor || '#050505'}
-                    onChange={(e) => updateItem(selectedItem.id, { shadowColor: e.target.value })}
+                    onChange={(e) => updateItem(selectedItem.id, { shadowColor: e.target.value }, true)}
+                    onBlur={(e) => broadcastItemUpdate(selectedItem.id, { shadowColor: e.target.value })}
                   />
                 </label>
                 {[
@@ -12230,7 +12453,11 @@ const toggleMobileSheetSize = () => {
                       value={ctrl.value}
                       onChange={(e) => {
                         const val = Number(e.target.value)
-                        updateItem(selectedItem.id, { [ctrl.key]: ctrl.key === 'shadowOpacity' ? val / 100 : val })
+                        updateItem(selectedItem.id, { [ctrl.key]: ctrl.key === 'shadowOpacity' ? val / 100 : val }, true)
+                      }}
+                      onPointerUp={(e) => {
+                        const val = Number(e.target.value)
+                        broadcastItemUpdate(selectedItem.id, { [ctrl.key]: ctrl.key === 'shadowOpacity' ? val / 100 : val })
                       }}
                     />
                   </label>
@@ -12287,7 +12514,7 @@ const toggleMobileSheetSize = () => {
         </label>
 
         {isShapeAdjustmentLayer ? (
-          <AdjustmentSliders item={selectedItem} onChange={(id, patch) => updateItem(id, patch)} />
+          <AdjustmentSliders item={selectedItem} onChange={(id, patch) => updateItem(id, patch)} onOpacityChange={(id, val) => updateItem(id, { opacity: val }, true)} onOpacityCommit={(id, val) => broadcastItemUpdate(id, { opacity: val })} />
         ) : (
           <>
             <div className="workspace-typography-grid">
@@ -12388,7 +12615,8 @@ const toggleMobileSheetSize = () => {
                   min="0"
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
+                  onPointerUp={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-slider"
                 />
                 <input
@@ -12396,7 +12624,8 @@ const toggleMobileSheetSize = () => {
                   min="0"
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
+                  onBlur={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-input"
                 />
                 <span className="workspace-opacity-unit">%</span>
@@ -12408,10 +12637,12 @@ const toggleMobileSheetSize = () => {
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
-                  className="workspace-font-picker-trigger"
-                  onClick={() => setIsBlendModeOpen(!isBlendModeOpen)}
+                  className="workspace-o-dropdown-btn"
+                  style={{ minWidth: 140 }}
+                  onClick={() => setIsBlendModeOpen((current) => !current)}
                 >
-                  {(BLEND_MODES.find((m) => m.value === (selectedItem.blendMode || 'source-over'))?.label) || 'Normal'}
+                  {BLEND_MODES.find((m) => m.value === (selectedItem.blendMode || 'source-over'))?.label || 'Normal'}
+                  <ChevronDown size={12} />
                 </button>
                 {isBlendModeOpen && (
                   <div className="workspace-blend-mode-dropdown">
@@ -12667,7 +12898,8 @@ const toggleMobileSheetSize = () => {
                     min="0"
                     max="100"
                     value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                    onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                    onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
+                    onPointerUp={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                     className="workspace-opacity-slider"
                   />
                   <input
@@ -12675,7 +12907,8 @@ const toggleMobileSheetSize = () => {
                     min="0"
                     max="100"
                     value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                    onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                    onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
+                    onBlur={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                     className="workspace-opacity-input"
                   />
                   <span className="workspace-opacity-unit">%</span>
@@ -13922,7 +14155,7 @@ const toggleMobileSheetSize = () => {
 
   return (
     <ToastProvider>
-    <CollaborationProvider workspaceId={workspaceId} user={user} itemUpdateHandlerRef={itemUpdateHandlerRef}>
+    <CollaborationProvider workspaceId={workspaceId} user={user} itemUpdateHandlerRef={itemUpdateHandlerRef} itemAddHandlerRef={itemAddHandlerRef} itemRemoveHandlerRef={itemRemoveHandlerRef}>
     <section
       className={`workspace-page ${isRightPanelOpen ? 'panel-open' : 'panel-collapsed'} sheet-${mobileSheetState}`}
       onPointerDown={handleOutsideWorkspacePointerDown}
