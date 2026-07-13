@@ -20,14 +20,48 @@ function getItemCorners(item) {
 }
 
 /**
+ * Computes the world-space axis-aligned bounding box corners of a
+ * composite group by applying the operator's compositeGroup* transform
+ * to every member.
+ */
+function getCompositeGroupCorners(items, groupId) {
+  const operator = items.find((item) =>
+    item.groupId === groupId && (item.compositeMode === 'mask' || item.compositeMode === 'exclude'))
+  if (!operator) return []
+
+  const cgx = operator.compositeGroupX ?? 0
+  const cgy = operator.compositeGroupY ?? 0
+  const cgsx = operator.compositeGroupScaleX ?? 1
+  const cgsy = operator.compositeGroupScaleY ?? 1
+  const cgr = operator.compositeGroupRotation ?? 0
+  const rad = cgr * Math.PI / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+
+  const members = items.filter((item) => item.groupId === groupId && !item.compositeMode)
+  return members.flatMap((member) => {
+    const mx = (member.x || 0) * cgsx
+    const my = (member.y || 0) * cgsy
+    const w = (member.w || 0) * cgsx
+    const h = (member.h || 0) * cgsy
+    const rx = cgx + mx * cos - my * sin
+    const ry = cgy + mx * sin + my * cos
+    return [
+      { x: rx, y: ry },
+      { x: rx + w * cos, y: ry + w * sin },
+      { x: rx + w * cos - h * sin, y: ry + w * sin + h * cos },
+      { x: rx - h * sin, y: ry + h * cos },
+    ]
+  })
+}
+
+/**
  * Returns the VISUAL top-left corner (in world space) of the combined
  * bounding box covering all selected items.
  *
  * Always computes from actual world-space corners of each item (accounting
- * for rotation), then picks the smallest X and smallest Y.  This ensures
- * the label is positioned at the screen-space top-left of the outline
- * regardless of item rotation — consistent for the collaborator viewing
- * the canvas.
+ * for rotation), then picks the smallest X and smallest Y.  Composite
+ * operators are expanded to their full member bounds.
  *
  * Items not found in the local array are skipped.
  */
@@ -38,7 +72,12 @@ function getCombinedBounds(items, selectedIds) {
 
   if (selected.length === 0) return null
 
-  const allCorners = selected.flatMap(getItemCorners)
+  const allCorners = selected.flatMap((item) => {
+    if (item.compositeMode === 'mask' || item.compositeMode === 'exclude') {
+      return getCompositeGroupCorners(items, item.groupId)
+    }
+    return getItemCorners(item)
+  })
   const xs = allCorners.map((c) => c.x)
   const ys = allCorners.map((c) => c.y)
   return { x: Math.min(...xs), y: Math.min(...ys) }

@@ -2575,8 +2575,52 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       groupNodeX: event.target.x(),
       groupNodeY: event.target.y(),
     })
+    // BAKE: compositeGroup* → member positions at drag start (non-identity only)
+    const cgx = sourceItem?.compositeGroupX
+    const cgy = sourceItem?.compositeGroupY
+    const cgsx = sourceItem?.compositeGroupScaleX
+    const cgsy = sourceItem?.compositeGroupScaleY
+    const cgr = sourceItem?.compositeGroupRotation
+    const hasCompositeBake = (cgx || cgy || (cgsx && cgsx !== 1) || (cgsy && cgsy !== 1) || cgr)
+    let bakeMemberPositions
+    if (hasCompositeBake) {
+      const bakedMembers = entry.members.map((member) => ({
+        id: member.id,
+        x: (cgx || 0) + (member.x || 0) * (cgsx || 1),
+        y: (cgy || 0) + (member.y || 0) * (cgsy || 1),
+        w: (cgsx && cgsx !== 1) ? (member.w || 1) * cgsx : member.w,
+        h: (cgsy && cgsy !== 1) ? (member.h || 1) * cgsy : member.h,
+        rotation: cgr ? (member.rotation || 0) + cgr : member.rotation,
+      }))
+      bakeMemberPositions = bakedMembers
+      // Update itemsRef synchronously (React state di-update di drag-end via onChange)
+      const updatedItems = itemsRef.current.map((item) => {
+        if (item.groupId !== entry.groupId) return item
+        if (item.compositeMode) {
+          return { ...item, compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined }
+        }
+        const baked = bakedMembers.find((b) => b.id === item.id)
+        return baked ? { ...item, x: baked.x, y: baked.y, w: baked.w ?? item.w, h: baked.h ?? item.h, rotation: baked.rotation ?? item.rotation } : item
+      })
+      itemsRef.current = updatedItems
+      // Update Konva nodes synchronously so drag delta is 0
+      const groupNode = event.target
+      groupNode.position({ x: 0, y: 0 })
+      groupNode.scale({ x: 1, y: 1 })
+      groupNode.rotation(0)
+      bakedMembers.forEach((member) => {
+        const node = stageRef.current.findOne(`#${member.id}`)
+        if (node) {
+          node.x(member.x)
+          node.y(member.y)
+          if (member.w !== undefined) node.width(member.w)
+          if (member.h !== undefined) node.height(member.h)
+          if (member.rotation !== undefined) node.rotation(member.rotation)
+        }
+      })
+    }
     // Ambil posisi ALL selected items (composite members + external items)
-    const memberPositions = Object.fromEntries(entry.members.map((item) => [item.id, { x: item.x || 0, y: item.y || 0 }]))
+    const memberPositions = Object.fromEntries((bakeMemberPositions || entry.members).map((item) => [item.id, { x: item.x || 0, y: item.y || 0 }]))
     const externalPositions = externalIds.length > 0
       ? Object.fromEntries(
           externalIds.map((sid) => {
@@ -2608,6 +2652,11 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       const rawDx = event.target.x() - start.x
       const rawDy = event.target.y() - start.y
       const result = computeGroupSnap(rawDx, rawDy)
+      console.log('[SnapDebug] composite handleGroupDragMove:', {
+        rawDx, rawDy, hasResult: !!result, guideCount: result?.guides?.length, snapped: result?.snapped,
+        startX: start.x, startY: start.y,
+        baseBounds: result?._baseBounds || '(null)',
+      })
       if (result) {
         snapResultRef.current = result
         setAlignmentGuides(result.guides)
@@ -2747,6 +2796,16 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     })
     // Update React state (persistence — no visual glitch since Konva already correct)
     itemUpdates.forEach(({ itemId, patch }) => onChange(itemId, patch))
+    // Clear compositeGroup* pada operator setelah member positions final (React batch)
+    if (sourceItem?.compositeGroupX !== undefined || sourceItem?.compositeGroupScaleX !== undefined) {
+      onChange(sourceItem.id, {
+        compositeGroupX: undefined,
+        compositeGroupY: undefined,
+        compositeGroupScaleX: undefined,
+        compositeGroupScaleY: undefined,
+        compositeGroupRotation: undefined,
+      })
+    }
     // Reset Group position AFTER all items are at their final absolute positions
     event.target.position({ x: 0, y: 0 })
     console.log('[GROUP_DRAG_DEBUG] groupPos after reset:', { x: event.target.x(), y: event.target.y() })
@@ -2764,6 +2823,11 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
   return (
     <Group
       id={`composite-${entry.groupId}`}
+      x={sourceItem?.compositeGroupX ?? 0}
+      y={sourceItem?.compositeGroupY ?? 0}
+      scaleX={sourceItem?.compositeGroupScaleX ?? 1}
+      scaleY={sourceItem?.compositeGroupScaleY ?? 1}
+      rotation={sourceItem?.compositeGroupRotation ?? 0}
       ref={groupRef}
       name="composite-group"
       draggable={!disableDrag && !isGroupLocked}
@@ -3893,6 +3957,20 @@ function Workspace() {
   const multiDragActiveRef = useRef(false)
   const skipGroupDragEndRef = useRef(false)
   const pendingGroupDeltasRef = useRef({})
+  const broadcastRef = useRef(null)
+  const itemUpdateThrottleRef = useRef({})
+  const broadcastItemUpdate = useCallback((itemId, patch) => {
+    const now = Date.now()
+    const throttle = itemUpdateThrottleRef.current
+    if (!throttle[itemId] || now - throttle[itemId] > 50) {
+      throttle[itemId] = now
+      broadcastRef.current?.('item_update', { userId: user?.id, itemId, patch })
+    }
+  }, [user?.id])
+  const itemUpdateHandlerRef = useRef(null)
+  itemUpdateHandlerRef.current = (itemId, patch) => {
+    setItems((prev) => prev.map((item) => item.id === itemId ? { ...item, ...patch } : item))
+  }
   const selectedIdsRef = useRef(selectedIds)
   const selectionBoxRef = useRef(null)
   const clipboardRef = useRef([])
@@ -6140,10 +6218,27 @@ const attachTransformer = useCallback((idOrIds) => {
     const groupIds = itemsRef.current
       .filter((item) => item.groupId === groupId || item.parentGroupId === groupId)
       .map((item) => item.id)
+    // Cari operator composite untuk bake compositeGroup* ke member positions
+    const operatorItem = itemsRef.current.find((item) =>
+      item.groupId === groupId && (item.compositeMode === 'mask' || item.compositeMode === 'exclude'))
+    const cgx = operatorItem?.compositeGroupX
+    const cgy = operatorItem?.compositeGroupY
+    const cgsx = operatorItem?.compositeGroupScaleX
+    const cgsy = operatorItem?.compositeGroupScaleY
+    const cgr = operatorItem?.compositeGroupRotation
+    const hasCompositeTransform = (cgx || cgy || (cgsx && cgsx !== 1) || (cgsy && cgsy !== 1) || cgr)
     setItems((current) => current.map((item) => {
       if (item.groupId === groupId) {
-        // Regular item atau composite operator di parent group — lepas dari group
-        return { ...item, groupId: null, compositeMode: null }
+        let next = { ...item }
+        if (hasCompositeTransform) {
+          // TODO(rotate): bake rotation when composite rotation is active
+          // newX = cgx + (m.x*cos(cgr) - m.y*sin(cgr)) * cgsx
+          next.x = (cgx || 0) + (item.x || 0) * (cgsx || 1)
+          next.y = (cgy || 0) + (item.y || 0) * (cgsy || 1)
+          if (cgsx && cgsx !== 1) { next.w = (item.w || 1) * cgsx; next.h = (item.h || 1) * cgsy }
+          if (cgr) next.rotation = (item.rotation || 0) + cgr
+        }
+        return { ...next, groupId: null, compositeMode: null, compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined }
       }
       if (item.parentGroupId === groupId) {
         // Composite member di parent group — lepas parentGroup saja, composite tetap utuh
@@ -6582,6 +6677,11 @@ const attachTransformer = useCallback((idOrIds) => {
       const newEffects = patch.effects
       const hasEffects = newEffects && typeof newEffects === 'object' && Object.keys(newEffects).length > 0
       patch.maskSourceType = (hasEffects && currentItem?.kind === 'image') ? 'alpha' : undefined
+    }
+
+    // Broadcast transform patches (x, y, w, h, rotation, compositeGroup*) to collaborators
+    if (patch.x !== undefined || patch.y !== undefined || patch.w !== undefined || patch.h !== undefined || patch.rotation !== undefined || patch.compositeGroupX !== undefined) {
+      broadcastItemUpdate(id, patch)
     }
 
     setItems((current) => current.map((item) => {
@@ -7607,8 +7707,16 @@ const attachTransformer = useCallback((idOrIds) => {
       ? points.filter((point) => !point.key.includes('center'))
       : points
 
-    const bestX = guideCandidates
-      .filter((guide) => guide.axis === 'x')
+    const xCandidates = guideCandidates.filter((guide) => guide.axis === 'x')
+    const yCandidates = guideCandidates.filter((guide) => guide.axis === 'y')
+    console.log('[SnapDebug] getSnappedDelta candidates:', {
+      xCount: xCandidates.length, yCount: yCandidates.length,
+      movingXPoints: movingXPoints.map(p => `${p.key}=${p.value}`),
+      movingYPoints: movingYPoints.map(p => `${p.key}=${p.value}`),
+      scale: cameraRef.current?.scale,
+      tolerance: snapTolerance / Math.max(0.1, cameraRef.current?.scale || 1),
+    })
+    const bestX = xCandidates
       .flatMap((guide) => getGuidePoints(guide, movingXPoints).map((point) => ({ guide, point, diff: guide.value - point.value })))
       .filter((candidate) => Math.abs(candidate.diff) <= getGuideTolerance(candidate.guide))
       .sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff))[0]
@@ -7644,7 +7752,7 @@ const attachTransformer = useCallback((idOrIds) => {
       )) === index
     ))
 
-    return { dx: snappedDx, dy: snappedDy, guides: uniqueGuides, snapped: !!(bestX || bestY) }
+    return { dx: snappedDx, dy: snappedDy, guides: uniqueGuides, snapped: !!(bestX || bestY), _baseBounds: baseBounds, _candidateCounts: { x: xCandidates.length, y: yCandidates.length } }
   }
 
   const getResizeSnapCandidates = (activeIds = []) => {
@@ -8892,6 +9000,10 @@ const attachTransformer = useCallback((idOrIds) => {
     const rawDx = event.target.x() - dragSession.start.x
     const rawDy = event.target.y() - dragSession.start.y
     const snapped = getSnappedDelta(movingIds, baseBounds, rawDx, rawDy)
+    console.log('[SnapDebug] regular handleObjectDragMove:', {
+      rawDx, rawDy, guideCount: snapped.guides?.length, snapped: snapped.snapped,
+      movingIds, baseBounds, _candidateCounts: snapped._candidateCounts,
+    })
     dragSession.snapWasActive = snapped.snapped
 
     if (movingIds.length === 1 && !snapped.snapped) {
@@ -8929,6 +9041,7 @@ const attachTransformer = useCallback((idOrIds) => {
         y: startPosition.y + snapped.dy,
       }, canvasBounds)
       node.position(nextPosition)
+      broadcastItemUpdate(movingId, nextPosition)
     })
 
     setAlignmentGuides(snapped.guides)
@@ -9983,7 +10096,29 @@ const commitTransformerChanges = () => {
     return { ...item, ...patch }
   }))
 
-  requestAnimationFrame(() => { attachTransformer(ids); requestAnimationFrame(updateToolbarPosition) })
+  // Handle composite group transform: accumulate compositeGroup* on operator item
+  nodes.forEach((node) => {
+    const nid = node.id()
+    if (!nid || !nid.startsWith('composite-')) return
+    const groupId = nid.slice('composite-'.length)
+    if (!groupId) return
+    const operatorItem = itemsRef.current.find((item) =>
+      item.groupId === groupId && (item.compositeMode === 'mask' || item.compositeMode === 'exclude'))
+    if (!operatorItem) return
+    updateItem(operatorItem.id, {
+      compositeGroupX: node.x(),
+      compositeGroupY: node.y(),
+      compositeGroupScaleX: node.scaleX(),
+      compositeGroupScaleY: node.scaleY(),
+      compositeGroupRotation: node.rotation(),
+    })
+  })
+
+  requestAnimationFrame(() => {
+    attachTransformer(ids)
+    requestAnimationFrame(updateToolbarPosition)
+    commitTransformerChangesLock = false
+  })
 }
 
 const handleWheel = (event) => {
@@ -11679,7 +11814,11 @@ const toggleMobileSheetSize = () => {
                 type="number"
                 value={Math.round((selectedItem[field] ?? 0) * 100) / 100}
                 step={1}
-                onChange={(event) => updateItem(selectedItem.id, { [field]: Number(event.target.value) })}
+                onChange={(event) => {
+                  const patch = { [field]: Number(event.target.value) }
+                  updateItem(selectedItem.id, patch)
+                  broadcastItemUpdate(selectedItem.id, patch)
+                }}
               />
             </label>
           ))}
@@ -11705,12 +11844,16 @@ const toggleMobileSheetSize = () => {
                   step={1}
                   onChange={(event) => {
                     const newW = Number(event.target.value)
+                    let patch
                     if (selectedItem.lockAspectRatio && selectedItem.h > 0) {
                       const ratio = selectedItem.w / selectedItem.h
-                      updateItem(selectedItem.id, { w: newW, h: Math.round(newW / ratio) })
+                      patch = { w: newW, h: Math.round(newW / ratio) }
+                      updateItem(selectedItem.id, patch)
                     } else {
-                      updateItem(selectedItem.id, { w: newW })
+                      patch = { w: newW }
+                      updateItem(selectedItem.id, patch)
                     }
+                    broadcastItemUpdate(selectedItem.id, patch)
                   }}
                 />
               </label>
@@ -11722,12 +11865,16 @@ const toggleMobileSheetSize = () => {
                   step={1}
                   onChange={(event) => {
                     const newH = Number(event.target.value)
+                    let patch
                     if (selectedItem.lockAspectRatio && selectedItem.w > 0) {
                       const ratio = selectedItem.w / selectedItem.h
-                      updateItem(selectedItem.id, { h: newH, w: Math.round(newH * ratio) })
+                      patch = { h: newH, w: Math.round(newH * ratio) }
+                      updateItem(selectedItem.id, patch)
                     } else {
-                      updateItem(selectedItem.id, { h: newH })
+                      patch = { h: newH }
+                      updateItem(selectedItem.id, patch)
                     }
+                    broadcastItemUpdate(selectedItem.id, patch)
                   }}
                 />
               </label>
@@ -11740,7 +11887,11 @@ const toggleMobileSheetSize = () => {
                   type="number"
                   value={Math.round((selectedItem[field] ?? 0) * 100) / 100}
                   step={1}
-                  onChange={(event) => updateItem(selectedItem.id, { [field]: Number(event.target.value) })}
+                  onChange={(event) => {
+                    const patch = { [field]: Number(event.target.value) }
+                    updateItem(selectedItem.id, patch)
+                    broadcastItemUpdate(selectedItem.id, patch)
+                  }}
                 />
               </label>
             ))
@@ -11752,7 +11903,11 @@ const toggleMobileSheetSize = () => {
                 type="number"
                 value={Math.round((selectedItem[field] ?? 0) * 100) / 100}
                 step={1}
-                onChange={(event) => updateItem(selectedItem.id, { [field]: Number(event.target.value) })}
+                onChange={(event) => {
+                  const patch = { [field]: Number(event.target.value) }
+                  updateItem(selectedItem.id, patch)
+                  broadcastItemUpdate(selectedItem.id, patch)
+                }}
               />
             </label>
           ))}
@@ -13767,7 +13922,7 @@ const toggleMobileSheetSize = () => {
 
   return (
     <ToastProvider>
-    <CollaborationProvider workspaceId={workspaceId} user={user}>
+    <CollaborationProvider workspaceId={workspaceId} user={user} itemUpdateHandlerRef={itemUpdateHandlerRef}>
     <section
       className={`workspace-page ${isRightPanelOpen ? 'panel-open' : 'panel-collapsed'} sheet-${mobileSheetState}`}
       onPointerDown={handleOutsideWorkspacePointerDown}
@@ -14723,7 +14878,7 @@ const toggleMobileSheetSize = () => {
           />
         )}
         <ToastContainer />
-        <CursorOverlay stageRef={stageRef} cameraRef={cameraRef} isPanning={isPanning} user={user} items={items} selectedIds={selectedIds} selectedId={selectedId} />
+        <CursorOverlay stageRef={stageRef} cameraRef={cameraRef} isPanning={isPanning} user={user} items={items} selectedIds={selectedIds} selectedId={selectedId} broadcastRef={broadcastRef} />
       </div>
     </main>
 
@@ -15235,9 +15390,10 @@ const toggleMobileSheetSize = () => {
 
 
 
-function CursorOverlay({ stageRef, cameraRef, isPanning, user, items, selectedIds, selectedId }) {
+function CursorOverlay({ stageRef, cameraRef, isPanning, user, items, selectedIds, selectedId, broadcastRef }) {
   useCursorBroadcast({ stageRef, cameraRef, isPanning, user })
   const { broadcast } = useCollaboration()
+  useEffect(() => { broadcastRef.current = broadcast }, [broadcast, broadcastRef])
   const userIdRef = useRef(user?.id)
   userIdRef.current = user?.id
   useEffect(() => {

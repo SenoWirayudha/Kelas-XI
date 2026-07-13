@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { Rect } from 'react-konva'
+import { Group, Rect } from 'react-konva'
 import { CollaborationContext } from '../../context/CollaborationContext'
 import { getCursorColor } from '../../utils/cursorColors'
 
@@ -21,11 +21,47 @@ function getItemCorners(item) {
 }
 
 /**
+ * Computes local-space bounds of all composite members (axis-aligned
+ * in group-local coordinates) plus the operator's compositeGroup*
+ * transform for rendering.
+ */
+function getCompositeGroupBounds(items, groupId) {
+  const operator = items.find((item) =>
+    item.groupId === groupId && (item.compositeMode === 'mask' || item.compositeMode === 'exclude'))
+  if (!operator) return null
+
+  const cgx = operator.compositeGroupX ?? 0
+  const cgy = operator.compositeGroupY ?? 0
+  const cgsx = operator.compositeGroupScaleX ?? 1
+  const cgsy = operator.compositeGroupScaleY ?? 1
+  const cgr = operator.compositeGroupRotation ?? 0
+
+  const members = items.filter((item) => item.groupId === groupId && !item.compositeMode)
+  if (members.length === 0) return null
+
+  // Local-space corners (members' own x/y without compositeGroup*)
+  const localCorners = members.flatMap(getItemCorners)
+  const lxs = localCorners.map((c) => c.x)
+  const lys = localCorners.map((c) => c.y)
+
+  return {
+    _isComposite: true,
+    cgx, cgy, cgsx, cgsy, cgr,
+    x: Math.min(...lxs),
+    y: Math.min(...lys),
+    w: Math.max(...lxs) - Math.min(...lxs),
+    h: Math.max(...lys) - Math.min(...lys),
+  }
+}
+
+/**
  * Returns the combined bounding box for an array of item IDs.
  *
- * - Single item: preserves its rotation (exact match).
- * - Multiple items: axis-aligned union of all items' world-space corners
- *   (rotation = 0).  Items not found in the local items array are skipped.
+ * - Single composite operator → returns compositeGroup* transform + local
+ *   bounds so the caller can render a <Group> wrapper.
+ * - Single regular item → preserves its rotation.
+ * - Multiple items → axis-aligned union (composite operators expanded
+ *   to their members' world-space axis-aligned bounds).
  */
 function getCombinedBounds(items, selectedIds) {
   const selected = selectedIds
@@ -34,12 +70,37 @@ function getCombinedBounds(items, selectedIds) {
 
   if (selected.length === 0) return null
 
+  // Single composite operator → return transform-aware data
   if (selected.length === 1) {
     const item = selected[0]
+    if (item.compositeMode === 'mask' || item.compositeMode === 'exclude') {
+      const groupBounds = getCompositeGroupBounds(items, item.groupId)
+      if (groupBounds) return groupBounds
+    }
     return { x: item.x, y: item.y, w: item.w || 0, h: item.h || 0, rotation: item.rotation || 0 }
   }
 
-  const allCorners = selected.flatMap(getItemCorners)
+  // Multi-item: axis-aligned union (composite operators → member bounds)
+  const expanded = []
+  selected.forEach((item) => {
+    if (item.compositeMode === 'mask' || item.compositeMode === 'exclude') {
+      const groupBounds = getCompositeGroupBounds(items, item.groupId)
+      if (groupBounds) {
+        expanded.push({ x: groupBounds.x, y: groupBounds.y, w: groupBounds.w, h: groupBounds.h, rotation: 0 })
+      }
+    } else {
+      expanded.push(item)
+    }
+  })
+
+  if (expanded.length === 0) return null
+
+  if (expanded.length === 1) {
+    const item = expanded[0]
+    return { x: item.x, y: item.y, w: item.w || 0, h: item.h || 0, rotation: item.rotation || 0 }
+  }
+
+  const allCorners = expanded.flatMap(getItemCorners)
   const xs = allCorners.map((c) => c.x)
   const ys = allCorners.map((c) => c.y)
   const minX = Math.min(...xs)
@@ -89,36 +150,46 @@ export function CollaborationSelectionIndicators({ items }) {
     const combined = getCombinedBounds(items, sel.selectedIds)
     if (!combined) return
 
-    const { x, y, w, h, rotation } = combined
     const color = getCursorColor(userId)
 
-    rects.push(
-      <Rect
-        key={`sel-halo-${userId}`}
-        x={x - 1}
-        y={y - 1}
-        width={w + 2}
-        height={h + 2}
-        rotation={rotation}
-        stroke="white"
-        strokeWidth={5}
-        listening={false}
-        perfectDrawEnabled={false}
-      />,
-      <Rect
-        key={`sel-outline-${userId}`}
-        x={x}
-        y={y}
-        width={w}
-        height={h}
-        rotation={rotation}
-        stroke={color.bg}
-        strokeWidth={3}
-        dash={[6, 5]}
-        listening={false}
-        perfectDrawEnabled={false}
-      />
-    )
+    if (combined._isComposite) {
+      const { cgx, cgy, cgsx, cgsy, cgr, x, y, w, h } = combined
+      rects.push(
+        <Group key={`sel-composite-${userId}`} x={cgx} y={cgy} scaleX={cgsx} scaleY={cgsy} rotation={cgr}>
+          <Rect x={x - 1} y={y - 1} width={w + 2} height={h + 2} stroke="white" strokeWidth={5} listening={false} perfectDrawEnabled={false} />
+          <Rect x={x} y={y} width={w} height={h} stroke={color.bg} strokeWidth={3} dash={[6, 5]} listening={false} perfectDrawEnabled={false} />
+        </Group>
+      )
+    } else {
+      const { x, y, w, h, rotation } = combined
+      rects.push(
+        <Rect
+          key={`sel-halo-${userId}`}
+          x={x - 1}
+          y={y - 1}
+          width={w + 2}
+          height={h + 2}
+          rotation={rotation}
+          stroke="white"
+          strokeWidth={5}
+          listening={false}
+          perfectDrawEnabled={false}
+        />,
+        <Rect
+          key={`sel-outline-${userId}`}
+          x={x}
+          y={y}
+          width={w}
+          height={h}
+          rotation={rotation}
+          stroke={color.bg}
+          strokeWidth={3}
+          dash={[6, 5]}
+          listening={false}
+          perfectDrawEnabled={false}
+        />
+      )
+    }
   })
 
   return rects.length > 0 ? rects : null

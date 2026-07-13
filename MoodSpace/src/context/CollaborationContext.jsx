@@ -13,7 +13,7 @@ const CHANNEL_PREFIX = 'workspace:'
 const leaveToastCooldowns = new Map()
 const recentJoinToastTimestamps = new Map()
 
-export function CollaborationProvider({ workspaceId, user, children }) {
+export function CollaborationProvider({ workspaceId, user, children, itemUpdateHandlerRef }) {
   const [collaborators, setCollaborators] = useState([])
   const [isConnected, setIsConnected] = useState(false)
   const [collaboratorSelections, setCollaboratorSelections] = useState({})
@@ -168,6 +168,11 @@ export function CollaborationProvider({ workspaceId, user, children }) {
             username: data.username,
           },
         }))
+      })
+      .on('broadcast', { event: 'item_update' }, (payload) => {
+        const data = payload.payload || payload
+        if (data.userId === user.id) return
+        itemUpdateHandlerRef?.current?.(data.itemId, data.patch)
       })
       .subscribe(async (status, err) => {
         if (status === 'SUBSCRIBED') {
