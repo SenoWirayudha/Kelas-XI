@@ -102,7 +102,7 @@ From saved canvas items on workspace load (no `browseAssetContext` in snapshot).
 - Eraser quality fix: native resolution used internally, item retains display size for layout
 - Semantic search pool dibatasi 500 post terbaru (O(n) JS scan tanpa pgvector)
 - Stylized poster fonts yang Tesseract gak bisa baca → OCR gagal → fallback ke tag matching. User harus nambah judul film di tags untuk posts yang posternya stylized.
-- **Undo/redo masih FULL-STATE snapshot, belum per-operation/per-user.** Remote changes sudah di-exclude dari undo stack (`skipUndoCaptureRef`), tapi undo user sendiri tetap bisa "melompati" state yang sudah berubah akibat aksi collaborator di antara aksi undo — urutan operasi tidak tersimpan secara terpisah. Perlu per-user undo (operation-based) atau OT/CRDT untuk solusi lengkap, ditunda untuk sesi terpisah setelah deadline.
+- **Undo/redo per-item patch (v1).** Perubahan properti item (warna, posisi, ukuran, visibility, lock, crop, align) menggunakan undo patch per-item (bukan snapshot). Undo dari User A otomatis broadcast ke User B via `updateItem`. Remote changes di-exclude dari undo stack (`skipUndoCaptureRef`). **Belum di-cover:** slider (gesture-based, perlu preGestureRef), delete/add item, layer reorder, composite group operations — masih fallback ke old snapshot undo. Slider tidak menghasilkan sampah undo stack (tiap tick skip karena `skipBroadcast=true`).
 - `matchTagsToEntity` di `posts.service.js` masih pake `candidates.find()` mencari ulang candidate setelah `matchTagsToEntity` return title — bisa mismatch kalo ada multiple candidates dengan title serupa. Workaround: `findEntityCandidates` prioritaskan TMDB, jadi yg ditemukan pertama adalah TMDB.
 
 ## Important

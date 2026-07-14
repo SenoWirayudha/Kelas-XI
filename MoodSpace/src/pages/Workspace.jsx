@@ -4108,7 +4108,11 @@ function Workspace() {
   const targetCameraRef = useRef(camera)
   const undoStackRef = useRef([])
   const redoStackRef = useRef([])
+  const localUndoRef = useRef([])
+  const localRedoRef = useRef([])
   const isUndoingRef = useRef(false)
+  const isLocalUndoingRef = useRef(false)
+  const skipUndoCaptureRef = useRef(false)
   const prevItemsRef = useRef()
   const hasRestoredWorkspaceRef = useRef(!shouldLoadWorkspace)
   const lastSavedSnapshotHashRef = useRef(null)
@@ -6400,6 +6404,23 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [editingText, selectedId])
 
   const handleUndo = useCallback(() => {
+    if (localUndoRef.current.length) {
+      const entry = localUndoRef.current.pop()
+      const currentItem = itemsRef.current.find((i) => i.id === entry.itemId)
+      if (currentItem) {
+        const redoPatch = {}
+        for (const key of Object.keys(entry.prevPatch)) {
+          if (key in currentItem) redoPatch[key] = currentItem[key]
+        }
+        if (Object.keys(redoPatch).length) {
+          localRedoRef.current.push({ itemId: entry.itemId, prevPatch: redoPatch })
+        }
+      }
+      isLocalUndoingRef.current = true
+      updateItem(entry.itemId, entry.prevPatch)
+      isLocalUndoingRef.current = false
+      return
+    }
     if (!undoStackRef.current.length) return
     isUndoingRef.current = true
     redoStackRef.current.push(JSON.parse(JSON.stringify(itemsRef.current)))
@@ -6411,6 +6432,23 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [syncInlineEditor])
 
   const handleRedo = useCallback(() => {
+    if (localRedoRef.current.length) {
+      const entry = localRedoRef.current.pop()
+      const currentItem = itemsRef.current.find((i) => i.id === entry.itemId)
+      if (currentItem) {
+        const prevForUndo = {}
+        for (const key of Object.keys(entry.prevPatch)) {
+          if (key in currentItem) prevForUndo[key] = currentItem[key]
+        }
+        if (Object.keys(prevForUndo).length) {
+          localUndoRef.current.push({ itemId: entry.itemId, prevPatch: prevForUndo })
+        }
+      }
+      isLocalUndoingRef.current = true
+      updateItem(entry.itemId, entry.prevPatch)
+      isLocalUndoingRef.current = false
+      return
+    }
     if (!redoStackRef.current.length) return
     isUndoingRef.current = true
     undoStackRef.current.push(JSON.parse(JSON.stringify(itemsRef.current)))
@@ -6833,6 +6871,20 @@ const attachTransformer = useCallback((idOrIds) => {
     }
   }, [deleteSelectedObject, editingFrameId, selectedId, selectedIds])
 
+  const captureUndo = (id, patch) => {
+    if (isLocalUndoingRef.current) return
+    const item = itemsRef.current.find((i) => i.id === id)
+    if (!item || item.groupId) return
+    const prevPatch = {}
+    for (const key of Object.keys(patch)) {
+      if (key in item && key !== 'undefined') prevPatch[key] = item[key]
+    }
+    if (!Object.keys(prevPatch).length) return
+    localUndoRef.current.push({ itemId: id, prevPatch })
+    if (localUndoRef.current.length > 50) localUndoRef.current.shift()
+    localRedoRef.current = []
+  }
+
   const updateItem = (id, patch, skipBroadcast = false) => {
     if (patch.src) {
       const oldItem = itemsRef.current.find((i) => i.id === id)
@@ -6863,6 +6915,9 @@ const attachTransformer = useCallback((idOrIds) => {
       const hasEffects = newEffects && typeof newEffects === 'object' && Object.keys(newEffects).length > 0
       patch.maskSourceType = (hasEffects && currentItem?.kind === 'image') ? 'alpha' : undefined
     }
+
+    // Capture for per-item undo (committed changes only, not slider ticks)
+    if (!skipBroadcast) captureUndo(id, patch)
 
     // Broadcast to collaborators (throttled at 100ms per itemId via broadcastItemUpdate)
     if (!skipBroadcast && Object.keys(patch).some((k) => BROADCAST_KEYS.has(k))) {
