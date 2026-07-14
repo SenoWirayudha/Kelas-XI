@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { ADJUSTMENT_CONTROLS, ADJUSTMENT_PRESETS, RESET_VALUES } from '../../utils/adjustmentLayerUtils'
 import { BLEND_MODES } from '../../constants/uiConstants'
 
@@ -15,6 +15,7 @@ const hueGradientStyle = (value) => ({
 export default function AdjustmentSliders({ item, onChange, onCommit, onOpacityChange, onOpacityCommit }) {
   const [editingSliderKey, setEditingSliderKey] = useState(null)
   const [isBlendModeOpen, setIsBlendModeOpen] = useState(false)
+  const sliderStartRef = useRef({})
 
   const getValue = (key) => item[key] ?? 0
   const activeBlendMode = item.blendMode || 'source-over'
@@ -140,7 +141,28 @@ export default function AdjustmentSliders({ item, onChange, onCommit, onOpacityC
               className={control.key === 'temperature' ? 'slider-temperature' : control.key === 'hue' ? 'slider-hue' : ''}
               style={control.key === 'hue' ? hueGradientStyle(getValue('hue')) : {}}
               onChange={(event) => onChange(item.id, { [control.key]: Number(event.target.value) })}
-              onPointerUp={(event) => onCommit?.(item.id, { [control.key]: Number(event.target.value) })}
+              onMouseDown={() => { sliderStartRef.current[control.key] = getValue(control.key) }}
+              onMouseUp={(event) => {
+                const val = Number(event.target.value)
+                if (val !== sliderStartRef.current[control.key]) {
+                  onCommit?.(item.id, { [control.key]: val })
+                  sliderStartRef.current[control.key] = val
+                }
+              }}
+              onTouchEnd={(event) => {
+                const val = Number(event.target.value)
+                if (val !== sliderStartRef.current[control.key]) {
+                  onCommit?.(item.id, { [control.key]: val })
+                  sliderStartRef.current[control.key] = val
+                }
+              }}
+              onKeyUp={(event) => {
+                const val = Number(event.target.value)
+                if (val !== sliderStartRef.current[control.key]) {
+                  onCommit?.(item.id, { [control.key]: val })
+                  sliderStartRef.current[control.key] = val
+                }
+              }}
             />
           </label>
         ))}
