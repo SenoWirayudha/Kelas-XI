@@ -6526,11 +6526,24 @@ const attachTransformer = useCallback((idOrIds) => {
       }, canvasBounds)
       return { ...item, ...nextPosition }
     }))
+    // Debounced broadcast — same timer as arrow-key moves
+    if (moveBroadcastTimerRef.current) clearTimeout(moveBroadcastTimerRef.current)
+    moveBroadcastTimerRef.current = setTimeout(() => {
+      moveBroadcastTimerRef.current = null
+      const movedItems = itemsRef.current.filter((item) => activeIds.includes(item.id) && !item.locked)
+      for (const item of movedItems) {
+        const patch = { x: item.x, y: item.y }
+        if (item.compositeMode) {
+          Object.assign(patch, { compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined })
+        }
+        broadcastItemUpdate(item.id, patch)
+      }
+    }, 200)
     requestAnimationFrame(() => {
       const layer = stageRef.current?.findOne('Layer')
       layer?.batchDraw()
     })
-  }, [selectedId, selectedIds, canvasBounds])
+  }, [selectedId, selectedIds, canvasBounds, broadcastItemUpdate])
 
   const menuItemStyle = {
     display: 'flex',
@@ -6636,7 +6649,24 @@ const attachTransformer = useCallback((idOrIds) => {
     animateCameraTo(nextCamera)
   }, [getCenteredCamera])
 
+  const moveBroadcastTimerRef = useRef(null)
+
   useEffect(() => {
+    const scheduleMoveBroadcast = (ids) => {
+      if (moveBroadcastTimerRef.current) clearTimeout(moveBroadcastTimerRef.current)
+      moveBroadcastTimerRef.current = setTimeout(() => {
+        moveBroadcastTimerRef.current = null
+        const movedItems = itemsRef.current.filter((item) => ids.includes(item.id) && !item.locked)
+        for (const item of movedItems) {
+          const patch = { x: item.x, y: item.y }
+          if (item.compositeMode) {
+            Object.assign(patch, { compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined })
+          }
+          broadcastItemUpdate(item.id, patch)
+        }
+      }, 200)
+    }
+
     const handleSelectionKeyboard = (event) => {
       const target = event.target
       const isEditingText = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
@@ -6687,6 +6717,8 @@ const attachTransformer = useCallback((idOrIds) => {
         return { ...item, ...nextPosition }
       }))
 
+      scheduleMoveBroadcast(activeIds)
+
       requestAnimationFrame(() => {
         const layer = stageRef.current?.findOne('Layer')
         layer?.batchDraw()
@@ -6697,6 +6729,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
     return () => {
       window.removeEventListener('keydown', handleSelectionKeyboard)
+      if (moveBroadcastTimerRef.current) clearTimeout(moveBroadcastTimerRef.current)
     }
   }, [deleteSelectedObject, editingFrameId, selectedId, selectedIds])
 
