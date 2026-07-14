@@ -291,6 +291,50 @@ Single common nouns like "films", "haine" (standalone) are not specific entity t
 ### Key Files
 - `backend/src/modules/externalImages/externalImages.service.js` — Gate 4 in `classifyMovieQuery`, `'films'` in `titleNoiseWords`
 
+## Session 2026-07-14: Broadcast Fix — Adjustment Sliders, Radius, Crop, Color Pickers, Blend Mode Undefined
+
+### Color Pickers — skipBroadcast + onBlur commit
+- All `<input type="color">` that modify BROADCAST_KEYS properties now use `skipBroadcast=true` on `onChange` + `broadcastItemUpdate` on `onBlur` → 1 broadcast per picker close, not per tick
+- 5 item-property color inputs fixed: main color (fill/imageStroke/stroke), gradient stop (strokeGradientStops), composite stroke, composite shadow, regular shadow
+- 3 canvas background color inputs left unchanged (not item properties, not in BK)
+
+### `undefined` → `null` Broadcast Fix
+- `blendMode: undefined` (set when switching back to Normal) stripped by `JSON.stringify` during broadcast — receiver stayed on previous blend mode
+- `broadcastItemUpdate` now converts `undefined` → `null` before sending
+- `itemUpdateHandlerRef` deletes properties with `null` values on receipt
+- Fixes blend mode Normal broadcast for both AdjustmentSliders blend mode dropdown and main blend mode dropdowns
+
+### Composite Stroke Broadcast
+- Added `compositeStrokeEnabled`, `compositeStrokeWidth`, `compositeStrokeColor` to `BROADCAST_KEYS`
+- Toggle checkbox and color picker now automatically broadcast via `updateItem` guard
+
+### Audio Notes
+- Audio dihapus — tidak ada kode broadcast untuk audio. Tidak perlu dikerjakan.
+
+### Adjustment Sliders — onCommit Pattern
+- Added 13 adjustment properties (`exposure`, `temperature`, `hue`, `highlights`, `shadows`, `whites`, `blacks`, `brightness`, `contrast`, `saturation`, `sharpen`, `vignette`, `blur`) to `BROADCAST_KEYS`
+- `AdjustmentSliders` now accepts `onCommit` prop → `broadcastItemUpdate`
+- 4 triggers all call `onCommit` after `onChange`:
+  1. Range slider `onPointerUp` — broadcast final drag value
+  2. Number input `onBlur` — broadcast committed value
+  3. Preset button click — broadcast preset values
+  4. Blend mode dropdown click — broadcast `blendMode`
+  5. Reset button click — broadcast `RESET_VALUES`
+- `onChange` prop calls `updateItem(id, patch, true)` — skips broadcast for per-tick slider calls
+- Opacity slider unchanged (already had `onOpacityChange`/`onOpacityCommit` from Session 2026-07-13)
+
+### Radius Slider
+- Added `radius` to `BROADCAST_KEYS` for consistency
+- Already had `skipBroadcast=true` + `onPointerUp` → `broadcastItemUpdate` from Session 2026-07-13
+
+### Crop Image
+- Added `imageCropRect`, `cropSourceWidth`, `cropSourceHeight`, `cropEnabled` to `BROADCAST_KEYS`
+- `applyImageCrop` calls `updateItem(id, { x, y, w, h, imageCropRect, ... })` once on "Done" button — broadcast guard fires for all crop properties automatically
+
+### Key Files
+- `src/components/panels/AdjustmentSliders.jsx` — `onCommit` prop, wired to slider `onPointerUp`, number input `onBlur`, preset/reset/blend mode clicks
+- `src/pages/Workspace.jsx` — BROADCAST_KEYS expanded (adjustment keys, radius, crop keys, composite stroke keys), `undefined→null` in `broadcastItemUpdate`/`itemUpdateHandlerRef`, all color picker `onBlur` handlers, `<AdjustmentSliders>` `onChange`→`skipBroadcast` + `onCommit`
+
 ## Session 2026-07-13: Collaboration Broadcast — Item Add/Remove + Slider Optimization
 
 ### Item Add/Remove Broadcast

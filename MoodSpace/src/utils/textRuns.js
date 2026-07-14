@@ -107,39 +107,69 @@ function fmtListDiv(content, listType, align, lineFormat) {
 
 export function runsToHtml(runs, baseFontFamily, baseFill) {
   let html = ''
-  let afterNewline = true
-  for (let ri = 0; ri < runs.length; ri++) {
-    const run = runs[ri]
+  let i = 0
+  while (i < runs.length) {
+    const run = runs[i]
+
     if (run.text === '\n') {
-      console.log('[runsToHtml] standalone \\n run at idx', ri, 'listType:', run.listType)
+      console.log('[runsToHtml] standalone \\n run at idx', i, 'listType:', run.listType)
       const brList = run.listType ? ` data-list="${run.listType}"` : ''
       html += `<br${brList}>`
-      afterNewline = true
+      i++
       continue
     }
-    let t = escapeHtml(run.text)
-    if (t.includes('\n')) {
-      console.log('[runsToHtml] \\n EMBEDDED in run text idx', ri, 'text:', JSON.stringify(run.text), 'codes:', Array.from(run.text).map(c => c.charCodeAt(0)))
-      t = t.replace(/\n/g, '<br>')
-    }
-    t = fmtContent(t, run, baseFontFamily, baseFill)
+
     if (run.listType) {
-      if (!t) t = '\u200B'
-      const lineFormat = afterNewline ? {
+      // Collect all consecutive runs on this visual line into one list-line div
+      let content = ''
+      let j = i
+      while (j < runs.length) {
+        const cur = runs[j]
+        if (cur.text === '\n') break
+        if (j > i && cur.listType) break
+
+        let part = escapeHtml(cur.text)
+        if (part.includes('\n')) {
+          console.log('[runsToHtml] \\n EMBEDDED in run text idx', j, 'text:', JSON.stringify(cur.text), 'codes:', Array.from(cur.text).map(c => c.charCodeAt(0)))
+          part = part.replace(/\n/g, '<br>')
+        }
+        part = fmtContent(part, cur, baseFontFamily, baseFill)
+        // Inner runs (non-list runs grouped into a list-line div) must be
+        // wrapped in data-list="false" so that htmlToRuns does not inherit
+        // the parent div's listType onto them, keeping the roundtrip stable.
+        if (j > i) part = `<span data-list="false">${part}</span>`
+        content += part
+        j++
+      }
+
+      if (!content) content = '\u200B'
+
+      // lineFormat only when group is a single run (same semantics as old
+      // per-run afterNewline flag); multi-run groups skip lineFormat to avoid
+      // inheriting the first run's color/font properties onto subsequent runs.
+      const isNewLine = i === 0 || runs[i - 1]?.text === '\n'
+      const lineFormat = isNewLine && j === i + 1 ? {
         bold: !!run.bold, italic: !!run.italic, underline: !!run.underline,
         fontFamily: run.fontFamily || undefined,
         fill: run.fill || undefined,
       } : null
-      t = fmtListDiv(t, run.listType, run.align || 'left', lineFormat)
-      afterNewline = false
+
+      html += fmtListDiv(content, run.listType, run.align || 'left', lineFormat)
+      i = j
     } else {
+      let t = escapeHtml(run.text)
+      if (t.includes('\n')) {
+        console.log('[runsToHtml] \\n EMBEDDED in run text idx', i, 'text:', JSON.stringify(run.text), 'codes:', Array.from(run.text).map(c => c.charCodeAt(0)))
+        t = t.replace(/\n/g, '<br>')
+      }
+      t = fmtContent(t, run, baseFontFamily, baseFill)
       if (!t) t = '\u200B'
       const tag = run.align ? 'div' : 'span'
       const style = run.align ? `text-align:${run.align}` : ''
       const alignAttr = run.align ? ` data-align="${run.align}"` : ''
-      t = `<${tag}${alignAttr} style="${style}">${t}</${tag}>`
+      html += `<${tag}${alignAttr} style="${style}">${t}</${tag}>`
+      i++
     }
-    html += t
   }
   return html
 }
@@ -185,7 +215,9 @@ function walkTextNodes(node, fn, inheritedTags = new Set(), inheritedStyles = {}
   if (node.style?.fontStyle === 'italic') newTags.add('i')
   if (node.style?.fontWeight === 'bold' || node.style?.fontWeight === '700') newTags.add('b')
   if (node.style?.textDecoration?.includes('underline')) newTags.add('u')
-  if (node.dataset?.list) {
+  if (node.dataset?.list === 'false') {
+    newListType = null
+  } else if (node.dataset?.list) {
     newListType = node.dataset.list
   }
   if (node.dataset?.align) {
