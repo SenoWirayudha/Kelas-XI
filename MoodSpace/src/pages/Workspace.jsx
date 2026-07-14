@@ -343,6 +343,8 @@ const BROADCAST_KEYS = new Set([
   'frameImageSrc', 'frameImages', 'frameImagePosition', 'frameImageScale', 'frameImageFit',
   'runs', 'text', 'isBold', 'isItalic', 'isUnderline', 'fontSize', 'fontFamily', 'fill', 'align', 'shapeText',
   'opacity', 'blendMode',
+  'exposure', 'temperature', 'hue', 'highlights', 'shadows', 'whites', 'blacks',
+  'brightness', 'contrast', 'saturation', 'sharpen', 'vignette', 'blur',
   'stroke', 'strokeWidth', 'strokeGradientType', 'strokeGradientStops', 'strokeGradientAngle',
   'shadowEnabled', 'shadow', 'shadowColor', 'shadowOpacity', 'shadowOffsetX', 'shadowOffsetY',
   'compositeOpacity', 'compositeBlendMode',
@@ -12514,7 +12516,7 @@ const toggleMobileSheetSize = () => {
         </label>
 
         {isShapeAdjustmentLayer ? (
-          <AdjustmentSliders item={selectedItem} onChange={(id, patch) => updateItem(id, patch)} onOpacityChange={(id, val) => updateItem(id, { opacity: val }, true)} onOpacityCommit={(id, val) => broadcastItemUpdate(id, { opacity: val })} />
+          <AdjustmentSliders item={selectedItem} onChange={(id, patch) => updateItem(id, patch, true)} onCommit={(id, patch) => broadcastItemUpdate(id, patch)} onOpacityChange={(id, val) => updateItem(id, { opacity: val }, true)} onOpacityCommit={(id, val) => broadcastItemUpdate(id, { opacity: val })} />
         ) : (
           <>
             <div className="workspace-typography-grid">

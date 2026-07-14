@@ -12,7 +12,7 @@ const hueGradientStyle = (value) => ({
   )`,
 })
 
-export default function AdjustmentSliders({ item, onChange, onOpacityChange, onOpacityCommit }) {
+export default function AdjustmentSliders({ item, onChange, onCommit, onOpacityChange, onOpacityCommit }) {
   const [editingSliderKey, setEditingSliderKey] = useState(null)
   const [isBlendModeOpen, setIsBlendModeOpen] = useState(false)
 
@@ -28,7 +28,10 @@ export default function AdjustmentSliders({ item, onChange, onOpacityChange, onO
           <button
             key={preset.label}
             type="button"
-            onClick={() => onChange(item.id, preset.values)}
+            onClick={() => {
+              onChange(item.id, preset.values)
+              onCommit?.(item.id, preset.values)
+            }}
           >
             {preset.label}
           </button>
@@ -52,7 +55,9 @@ export default function AdjustmentSliders({ item, onChange, onOpacityChange, onO
                   type="button"
                   className={`workspace-blend-mode-item ${activeBlendMode === mode.value ? 'active' : ''}`}
                   onClick={() => {
-                    onChange(item.id, { blendMode: mode.value === 'source-over' ? undefined : mode.value })
+                    const patch = { blendMode: mode.value === 'source-over' ? undefined : mode.value }
+                    onChange(item.id, patch)
+                    onCommit?.(item.id, patch)
                     setIsBlendModeOpen(false)
                   }}
                 >
@@ -110,6 +115,7 @@ export default function AdjustmentSliders({ item, onChange, onOpacityChange, onO
                   onBlur={(e) => {
                     const val = Math.max(control.min, Math.min(control.max, Number(e.target.value)))
                     onChange(item.id, { [control.key]: val })
+                    onCommit?.(item.id, { [control.key]: val })
                     setEditingSliderKey(null)
                   }}
                   onKeyDown={(e) => {
@@ -134,13 +140,17 @@ export default function AdjustmentSliders({ item, onChange, onOpacityChange, onO
               className={control.key === 'temperature' ? 'slider-temperature' : control.key === 'hue' ? 'slider-hue' : ''}
               style={control.key === 'hue' ? hueGradientStyle(getValue('hue')) : {}}
               onChange={(event) => onChange(item.id, { [control.key]: Number(event.target.value) })}
+              onPointerUp={(event) => onCommit?.(item.id, { [control.key]: Number(event.target.value) })}
             />
           </label>
         ))}
         <button
           type="button"
           className="workspace-reset-adjustments"
-          onClick={() => onChange(item.id, RESET_VALUES)}
+          onClick={() => {
+            onChange(item.id, RESET_VALUES)
+            onCommit?.(item.id, RESET_VALUES)
+          }}
         >
           Reset adjustments
         </button>
