@@ -344,7 +344,7 @@ const BROADCAST_KEYS = new Set([
   'runs', 'text', 'isBold', 'isItalic', 'isUnderline', 'fontSize', 'fontFamily', 'fill', 'align', 'shapeText',
   'opacity', 'blendMode',
   'exposure', 'temperature', 'hue', 'highlights', 'shadows', 'whites', 'blacks',
-  'brightness', 'contrast', 'saturation', 'sharpen', 'vignette', 'blur',
+  'brightness', 'contrast', 'saturation', 'sharpen', 'vignette', 'blur', 'radius',
   'stroke', 'strokeWidth', 'strokeGradientType', 'strokeGradientStops', 'strokeGradientAngle',
   'shadowEnabled', 'shadow', 'shadowColor', 'shadowOpacity', 'shadowOffsetX', 'shadowOffsetY',
   'compositeOpacity', 'compositeBlendMode',
