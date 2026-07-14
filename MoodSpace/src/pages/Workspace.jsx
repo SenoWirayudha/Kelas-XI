@@ -346,6 +346,7 @@ const BROADCAST_KEYS = new Set([
   'exposure', 'temperature', 'hue', 'highlights', 'shadows', 'whites', 'blacks',
   'brightness', 'contrast', 'saturation', 'sharpen', 'vignette', 'blur', 'radius',
   'stroke', 'strokeWidth', 'strokeGradientType', 'strokeGradientStops', 'strokeGradientAngle',
+  'visible', 'locked',
   'shadowEnabled', 'shadow', 'shadowColor', 'shadowOpacity', 'shadowOffsetX', 'shadowOffsetY',
   'compositeOpacity', 'compositeBlendMode',
   'compositeShadowEnabled', 'compositeShadow', 'compositeShadowColor', 'compositeShadowOpacity',
@@ -4024,6 +4025,32 @@ function Workspace() {
   const reorderHandlerRef = useRef(null)
   reorderHandlerRef.current = (itemId, direction, activeIds) => {
     setItems((prev) => {
+      if (direction === 'over') {
+        // Drag reorder in layer panel
+        // itemId = group key or single item ID; activeIds = reference (over.id)
+        const refIdx = prev.findIndex((item) => item.id === activeIds)
+        if (refIdx < 0) return prev
+        const groupMatch = prev.find((item) => item.groupId === itemId || item.parentGroupId === itemId)
+        if (groupMatch) {
+          // Moved a group — move all members to ref position
+          const groupMemberIds = new Set(
+            prev.filter((c) => c.groupId === itemId || c.parentGroupId === itemId).map((c) => c.id)
+          )
+          if (!groupMemberIds.size) return prev
+          const rest = prev.filter((item) => !groupMemberIds.has(item.id))
+          const refInRest = rest.findIndex((item) => item.id === activeIds)
+          const insertAt = refInRest >= 0 ? refInRest : rest.length
+          const block = prev.filter((c) => groupMemberIds.has(c.id))
+          return [...rest.slice(0, insertAt), ...block, ...rest.slice(insertAt)]
+        }
+        // Single item move
+        const draggedIdx = prev.findIndex((item) => item.id === itemId)
+        if (draggedIdx < 0) return prev
+        const next = prev.filter((item) => item.id !== itemId)
+        const insertIdx = refIdx > draggedIdx ? refIdx - 1 : refIdx
+        next.splice(insertIdx, 0, prev[draggedIdx])
+        return next
+      }
       if (activeIds) {
         // Multi-select block reorder (moveLayerBlock)
         const activeSet = new Set(activeIds)
@@ -6213,6 +6240,7 @@ const attachTransformer = useCallback((idOrIds) => {
     if (target?.mediaId) {
       setAssetContextSignals((current) => current.filter((s) => s.mediaId !== target.mediaId))
     }
+    broadcastItemRemove(id)
     if (selectedId === id) {
       setSelectedId(null)
       setSelectedIds([])
@@ -6223,7 +6251,7 @@ const attachTransformer = useCallback((idOrIds) => {
     } else {
       setSelectedIds((current) => current.filter((currentId) => currentId !== id))
     }
-  }, [attachTransformer, selectedId])
+  }, [attachTransformer, broadcastItemRemove, selectedId])
 
   const deleteSelectedObject = useCallback(() => {
     const idsToDelete = selectedIds.length ? selectedIds : [selectedId]
@@ -6232,13 +6260,14 @@ const attachTransformer = useCallback((idOrIds) => {
     if (mediaIds.length) {
       setAssetContextSignals((current) => current.filter((s) => !mediaIds.includes(s.mediaId)))
     }
+    idsToDelete.forEach((id) => broadcastItemRemove(id))
     setSelectedId(null)
     setSelectedIds([])
     setActivePanel(null)
     setIsGroupSelectMode(false)
     closeRightPanelAndCenter()
     attachTransformer(null)
-  }, [attachTransformer, selectedId, selectedIds])
+  }, [attachTransformer, broadcastItemRemove, selectedId, selectedIds])
 
   const handleGroupSelectionAction = useCallback(() => {
     const activeIds = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
@@ -6400,24 +6429,30 @@ const attachTransformer = useCallback((idOrIds) => {
       }
       members.forEach((m) => compositeDeltas.set(m.id, { dx, dy }))
     })
+    const patches = []
     setItems((current) => current.map((item) => {
       if (!ids.includes(item.id)) return item
+      let newX = item.x || 0, newY = item.y || 0
       const compositeDelta = compositeDeltas.get(item.id)
       if (compositeDelta) {
-        return { ...item, x: (item.x || 0) + compositeDelta.dx, y: (item.y || 0) + compositeDelta.dy }
+        newX += compositeDelta.dx
+        newY += compositeDelta.dy
+      } else {
+        const bounds = getItemVisualBounds(item)
+        switch (alignment) {
+          case 'left':   newX = (item.x || 0) + canvasBounds.x - bounds.left; break
+          case 'right':  newX = (item.x || 0) + (canvasBounds.x + canvasBounds.width) - bounds.right; break
+          case 'center': newX = (item.x || 0) + (canvasBounds.x + canvasBounds.width / 2) - bounds.centerX; break
+          case 'top':    newY = (item.y || 0) + canvasBounds.y - bounds.top; break
+          case 'bottom': newY = (item.y || 0) + (canvasBounds.y + canvasBounds.height) - bounds.bottom; break
+          case 'middle': newY = (item.y || 0) + (canvasBounds.y + canvasBounds.height / 2) - bounds.centerY; break
+        }
       }
-      const bounds = getItemVisualBounds(item)
-      switch (alignment) {
-        case 'left':   return { ...item, x: (item.x || 0) + canvasBounds.x - bounds.left }
-        case 'right':  return { ...item, x: (item.x || 0) + (canvasBounds.x + canvasBounds.width) - bounds.right }
-        case 'center': return { ...item, x: (item.x || 0) + (canvasBounds.x + canvasBounds.width / 2) - bounds.centerX }
-        case 'top':    return { ...item, y: (item.y || 0) + canvasBounds.y - bounds.top }
-        case 'bottom': return { ...item, y: (item.y || 0) + (canvasBounds.y + canvasBounds.height) - bounds.bottom }
-        case 'middle': return { ...item, y: (item.y || 0) + (canvasBounds.y + canvasBounds.height / 2) - bounds.centerY }
-        default:       return item
-      }
+      patches.push({ id: item.id, x: newX, y: newY })
+      return { ...item, x: newX, y: newY }
     }))
-  }, [selectedId, selectedIds, canvasBounds])
+    patches.forEach(({ id, x, y }) => broadcastItemUpdate(id, { x, y }))
+  }, [selectedId, selectedIds, canvasBounds, broadcastItemUpdate])
 
   const duplicateItems = useCallback((ids) => {
     if (!ids.length) return
@@ -6446,13 +6481,14 @@ const attachTransformer = useCallback((idOrIds) => {
     setItems((current) => current.map((item) =>
       ids.includes(item.id) ? { ...item, locked: nextLocked } : item
     ))
+    ids.forEach((id) => broadcastItemUpdate(id, { locked: nextLocked }))
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         attachTransformer(ids)
         updateToolbarPosition()
       })
     })
-  }, [attachTransformer, selectedId, selectedIds])
+  }, [attachTransformer, broadcastItemUpdate, selectedId, selectedIds])
 
   const moveLayerBlock = useCallback((direction) => {
     const groupId = activeGroupId
@@ -7719,6 +7755,8 @@ const attachTransformer = useCallback((idOrIds) => {
         return item ? [item] : []
       })
     })
+
+    broadcastLayerReorder(active.id, 'over', over.id)
   }
 
   const getNextItemId = (type) => {
@@ -11435,11 +11473,13 @@ const toggleMobileSheetSize = () => {
                   const entry = layerEntries.find((candidate) => candidate.id === id)
                   if (entry?.kind === 'group') {
                     const nextVisible = entry.visible === false
+                    const groupMembers = itemsRef.current.filter((c) => c.groupId === id || c.parentGroupId === id)
                     setItems((current) => current.map((currentItem) => (
                       currentItem.groupId === id || currentItem.parentGroupId === id
                         ? { ...currentItem, visible: nextVisible }
                         : currentItem
                     )))
+                    groupMembers.forEach((m) => broadcastItemUpdate(m.id, { visible: nextVisible }))
                     return
                   }
                   const targetItem = items.find(i => i.id === id)
@@ -11449,11 +11489,13 @@ const toggleMobileSheetSize = () => {
                   const entry = layerEntries.find((candidate) => candidate.id === id)
                   if (entry?.kind === 'group') {
                     const nextLocked = !entry.locked
+                    const groupMembers = itemsRef.current.filter((c) => c.groupId === id || c.parentGroupId === id)
                     setItems((current) => current.map((currentItem) => (
                       currentItem.groupId === id || currentItem.parentGroupId === id
                         ? { ...currentItem, locked: nextLocked }
                         : currentItem
                     )))
+                    groupMembers.forEach((m) => broadcastItemUpdate(m.id, { locked: nextLocked }))
                     return
                   }
                   const targetItem = items.find(i => i.id === id)
@@ -11468,6 +11510,7 @@ const toggleMobileSheetSize = () => {
                     if (mediaIds.length) {
                       setAssetContextSignals((current) => current.filter((s) => !mediaIds.includes(s.mediaId)))
                     }
+                    ids.forEach((mid) => broadcastItemRemove(mid))
                     setSelectedId(null)
                     setSelectedIds([])
                     attachTransformer(null)
