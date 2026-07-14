@@ -160,6 +160,7 @@ import { CollaborationSelectionIndicators } from '../components/canvas/Collabora
 import { CollaborationSelectionLabels } from '../components/canvas/CollaborationSelectionLabels'
 import { useCursorBroadcast } from '../hooks/useCursorBroadcast'
 import { useCollaboration } from '../hooks/useCollaboration'
+import { getCursorColor } from '../utils/cursorColors'
 import ShareModal from '../components/workspace/ShareModal'
 import { useMediaUpload } from '../hooks/useMediaUpload'
 import { useCanvasImage, useCanvasImages } from '../hooks/useCanvasImages'
@@ -355,6 +356,7 @@ const BROADCAST_KEYS = new Set([
   'compositeStrokeEnabled', 'compositeStrokeWidth', 'compositeStrokeColor',
   'imageStrokeEnabled', 'imageStrokeColor', 'imageStrokeWidth',
   'imageCropRect', 'cropSourceWidth', 'cropSourceHeight', 'cropEnabled',
+  'bezierData', 'path',
 ])
 
 const getRestoredItemCounter = (items) => (
@@ -4120,6 +4122,35 @@ function Workspace() {
   const collaboratorsGuardRef = useRef([])
   const toastRef = useRef(null)
 
+  const bezierStateHandlerRef = useRef(null)
+  bezierStateHandlerRef.current = (data) => {
+    const { anchors, editingItemId } = data
+    if (anchors !== undefined) {
+      setRemoteBezierDraws((prev) => {
+        const next = { ...prev }
+        if (anchors.length === 0) {
+          delete next[data.userId]
+        } else {
+          next[data.userId] = { anchors, userId: data.userId }
+        }
+        return next
+      })
+    }
+    if (editingItemId !== undefined) {
+      if (editingItemId) {
+        remoteBezierEditRef.current = { itemId: editingItemId, userId: data.userId }
+      } else {
+        remoteBezierEditRef.current = null
+      }
+    }
+  }
+  const [remoteBezierDraws, setRemoteBezierDraws] = useState({})
+  const remoteBezierEditRef = useRef(null)
+
+  const broadcastBezierState = useCallback(({ anchors, editingItemId }) => {
+    broadcastRef.current?.('bezier_state', { userId: user?.id, anchors, editingItemId })
+  }, [user?.id])
+
   const selectedIdsRef = useRef(selectedIds)
   const selectionBoxRef = useRef(null)
   const clipboardRef = useRef([])
@@ -7013,11 +7044,15 @@ const attachTransformer = useCallback((idOrIds) => {
       const dist = Math.sqrt((snapped.x - first.x) ** 2 + (snapped.y - first.y) ** 2)
       if (dist < 12) { finishBezierPath(); return }
     }
-    setBezierAnchors((prev) => [...prev, snapped])
+    const nextAnchors = [...bezierAnchors, snapped]
+    setBezierAnchors(nextAnchors)
+    broadcastBezierState({ anchors: nextAnchors })
   }
 
   const undoBezierAnchor = () => {
-    setBezierAnchors((prev) => prev.slice(0, -1))
+    const nextAnchors = bezierAnchors.slice(0, -1)
+    setBezierAnchors(nextAnchors)
+    broadcastBezierState({ anchors: nextAnchors })
   }
 
   const finishBezierPath = () => {
@@ -7047,12 +7082,15 @@ const attachTransformer = useCallback((idOrIds) => {
       effects: getDefaultEffects(),
     }
     setItems((items) => [newItem, ...items])
+    broadcastBezierState({ anchors: [] })
+    broadcastItemAdd(newItem)
     setBezierAnchors([])
     setBezierMousePos(null)
     setBezierGuides([])
   }
 
   const cancelBezierPath = () => {
+    broadcastBezierState({ anchors: [] })
     setBezierAnchors([])
     setBezierMousePos(null)
     setBezierGuides([])
@@ -7074,6 +7112,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const startEditingBezier = (itemId) => {
     setEditingBezierId(itemId)
+    broadcastBezierState({ editingItemId: itemId })
     const item = itemsRef.current.find((i) => i.id === itemId)
     if (item && item.shapeType === 'bezier-path') {
       setBezierEditAnchors(parseBezierAnchors(item))
@@ -7112,11 +7151,13 @@ const attachTransformer = useCallback((idOrIds) => {
       if (item.id !== itemId) return item
       return { ...item, x: newOriginX, y: newOriginY, w: Math.max(1, maxX - minX), h: Math.max(1, maxY - minY), path: pathData }
     }))
+    broadcastItemUpdate(itemId, { x: newOriginX, y: newOriginY, w: Math.max(1, maxX - minX), h: Math.max(1, maxY - minY), path: pathData })
     setBezierEditAnchors(rel)
   }
 
   const finishEditingBezier = () => {
     setEditingBezierId(null)
+    broadcastBezierState({ editingItemId: null })
     setBezierEditAnchors(null)
     setSelectedBezierAnchorIdx(null)
     bezierPreviewPathRef.current = null
@@ -14391,7 +14432,7 @@ const toggleMobileSheetSize = () => {
   return (
     <ToastProvider>
     <ToastRefCapture toastRef={toastRef} />
-    <CollaborationProvider workspaceId={workspaceId} user={user} itemUpdateHandlerRef={itemUpdateHandlerRef} itemAddHandlerRef={itemAddHandlerRef} itemRemoveHandlerRef={itemRemoveHandlerRef} reorderHandlerRef={reorderHandlerRef} workspaceUpdateHandlerRef={workspaceUpdateHandlerRef} collaboratorsGuardRef={collaboratorsGuardRef}>
+    <CollaborationProvider workspaceId={workspaceId} user={user} itemUpdateHandlerRef={itemUpdateHandlerRef} itemAddHandlerRef={itemAddHandlerRef} itemRemoveHandlerRef={itemRemoveHandlerRef} reorderHandlerRef={reorderHandlerRef} workspaceUpdateHandlerRef={workspaceUpdateHandlerRef} collaboratorsGuardRef={collaboratorsGuardRef} bezierStateHandlerRef={bezierStateHandlerRef}>
     <section
       className={`workspace-page ${isRightPanelOpen ? 'panel-open' : 'panel-collapsed'} sheet-${mobileSheetState}`}
       onPointerDown={handleOutsideWorkspacePointerDown}
@@ -14575,6 +14616,10 @@ const toggleMobileSheetSize = () => {
               while (target && target !== event.currentTarget) {
                 const id = target.id?.()
                 if (id && id.startsWith('bezier-')) {
+                  if (remoteBezierEditRef.current?.itemId === id) {
+                    toastRef.current?.('Path ini sedang diedit oleh pengguna lain.', { type: 'error', duration: 4000 })
+                    return
+                  }
                   event.evt.preventDefault()
                   startEditingBezier(id)
                   return
@@ -14591,6 +14636,10 @@ const toggleMobileSheetSize = () => {
               while (target && target !== event.currentTarget) {
                 const id = target.id?.()
                 if (id && id.startsWith('bezier-')) {
+                  if (remoteBezierEditRef.current?.itemId === id) {
+                    toastRef.current?.('Path ini sedang diedit oleh pengguna lain.', { type: 'error', duration: 4000 })
+                    return
+                  }
                   event.evt.preventDefault()
                   startEditingBezier(id)
                   return
@@ -14840,7 +14889,7 @@ const toggleMobileSheetSize = () => {
                     {bezierAnchors.map((a, i) => (
                       <Circle key={i} x={a.x} y={a.y} radius={4} fill={bezierSettings.strokeColor} listening={false} />
                     ))}
-                    {/* Rubber band: line from last anchor to mouse position */}
+                        {/* Rubber band: line from last anchor to mouse position */}
                     {bezierMousePos && (
                       <Line
                         points={[bezierAnchors[bezierAnchors.length - 1].x, bezierAnchors[bezierAnchors.length - 1].y, bezierMousePos.x, bezierMousePos.y]}
@@ -14854,6 +14903,19 @@ const toggleMobileSheetSize = () => {
                     )}
                   </>
                 )}
+                {/* Remote bezier drawing previews */}
+                {Object.entries(remoteBezierDraws).map(([userId, draw]) => {
+                  const color = getCursorColor(userId)
+                  const d = draw.anchors.map((a, i) => `${i === 0 ? 'M' : 'L'} ${a.x},${a.y}`).join(' ') + ' Z'
+                  return (
+                    <>
+                      <Path data={d} stroke={color.bg} strokeWidth={2} fill={color.bg + '30'} dash={[6, 4]} listening={false} />
+                      {draw.anchors.map((a, i) => (
+                        <Circle key={i} x={a.x} y={a.y} radius={4} fill={color.bg} stroke="#fff" strokeWidth={1} listening={false} />
+                      ))}
+                    </>
+                  )
+                })}
                 {selectionBox && (
                   <Rect
                     x={selectionBox.x}
@@ -15008,6 +15070,12 @@ const toggleMobileSheetSize = () => {
                                   data[si] = newCp
                                   return { ...it, bezierData: data }
                                 }))
+                                const target = itemsRef.current.find((it) => it.id === editingBezierId)
+                                if (target) {
+                                  const data = target.bezierData ? [...target.bezierData] : anchors.map(() => ({ cpOutX: 0, cpOutY: 0, cpInX: 0, cpInY: 0 }))
+                                  data[si] = newCp
+                                  broadcastItemUpdate(editingBezierId, { bezierData: data })
+                                }
                               }}
                             />
                             <Line
@@ -15041,6 +15109,12 @@ const toggleMobileSheetSize = () => {
                                   data[si] = newCp
                                   return { ...it, bezierData: data }
                                 }))
+                                const target = itemsRef.current.find((it) => it.id === editingBezierId)
+                                if (target) {
+                                  const data = target.bezierData ? [...target.bezierData] : anchors.map(() => ({ cpOutX: 0, cpOutY: 0, cpInX: 0, cpInY: 0 }))
+                                  data[si] = newCp
+                                  broadcastItemUpdate(editingBezierId, { bezierData: data })
+                                }
                               }}
                             />
                           </>

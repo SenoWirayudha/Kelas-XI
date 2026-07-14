@@ -13,7 +13,7 @@ const CHANNEL_PREFIX = 'workspace:'
 const leaveToastCooldowns = new Map()
 const recentJoinToastTimestamps = new Map()
 
-export function CollaborationProvider({ workspaceId, user, children, itemUpdateHandlerRef, itemAddHandlerRef, itemRemoveHandlerRef, reorderHandlerRef, workspaceUpdateHandlerRef, collaboratorsGuardRef }) {
+export function CollaborationProvider({ workspaceId, user, children, itemUpdateHandlerRef, itemAddHandlerRef, itemRemoveHandlerRef, reorderHandlerRef, workspaceUpdateHandlerRef, collaboratorsGuardRef, bezierStateHandlerRef }) {
   const [collaborators, setCollaborators] = useState([])
   const [isConnected, setIsConnected] = useState(false)
   const [collaboratorSelections, setCollaboratorSelections] = useState({})
@@ -193,6 +193,11 @@ export function CollaborationProvider({ workspaceId, user, children, itemUpdateH
         const data = payload.payload || payload
         if (data.userId === user.id) return
         workspaceUpdateHandlerRef?.current?.(data.patch)
+      })
+      .on('broadcast', { event: 'bezier_state' }, (payload) => {
+        const data = payload.payload || payload
+        if (data.userId === user.id) return
+        bezierStateHandlerRef?.current?.(data)
       })
       .subscribe(async (status, err) => {
         if (status === 'SUBSCRIBED') {
