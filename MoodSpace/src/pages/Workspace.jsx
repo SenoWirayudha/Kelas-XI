@@ -151,6 +151,7 @@ import RelightBalls, { LightOverlay } from '../components/canvas/RelightBalls'
 import RemoveBgOverlay from '../components/canvas/RemoveBgOverlay'
 import { useAuth } from '../context/authState'
 import { CollaborationProvider } from '../context/CollaborationContext'
+import { useToast } from '../context/ToastContext'
 import { ToastProvider } from '../context/ToastContext'
 import { ToastContainer } from '../components/ToastContainer'
 import { CollaborationPresence } from '../components/canvas/CollaborationPresence'
@@ -4101,6 +4102,24 @@ function Workspace() {
   const broadcastLayerReorder = useCallback((itemId, direction, activeIds) => {
     broadcastRef.current?.('layer_reorder', { userId: user?.id, itemId, direction, activeIds })
   }, [user?.id])
+
+  const workspaceUpdateHandlerRef = useRef(null)
+  workspaceUpdateHandlerRef.current = (patch) => {
+    if (patch.workspaceTitle !== undefined) {
+      setWorkspaceTitle(patch.workspaceTitle)
+    }
+    if (patch.canvasSettings) {
+      setCanvasSettings((prev) => ({ ...prev, ...patch.canvasSettings }))
+    }
+  }
+
+  const broadcastWorkspaceUpdate = useCallback((patch) => {
+    broadcastRef.current?.('workspace_update', { userId: user?.id, patch })
+  }, [user?.id])
+
+  const collaboratorsGuardRef = useRef([])
+  const toastRef = useRef(null)
+
   const selectedIdsRef = useRef(selectedIds)
   const selectionBoxRef = useRef(null)
   const clipboardRef = useRef([])
@@ -7633,6 +7652,10 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [activeCompositeMode, activeGroupId, attachTransformer, selectedId, selectedIds])
 
   const resizeCanvas = (nextSize, ratio = canvasSettings.ratio) => {
+    if (collaboratorsGuardRef.current.length > 1) {
+      toastRef.current?.('Tidak bisa mengubah rasio canvas saat ada collaborator lain yang aktif.', { type: 'error', duration: 4000 })
+      return
+    }
     const previous = { width: canvasSettings.width, height: canvasSettings.height }
     const roundedSize = {
       width: Math.round(nextSize.width),
@@ -14056,7 +14079,7 @@ const toggleMobileSheetSize = () => {
           <div className="workspace-section-card">
             <div className="workspace-section-title">Project Name</div>
             <label className="workspace-typography-field workspace-typography-field-full">
-              <input type="text" value={workspaceTitle} onChange={(event) => setWorkspaceTitle(event.target.value)} />
+              <input type="text" value={workspaceTitle} onChange={(event) => setWorkspaceTitle(event.target.value)} onBlur={(event) => broadcastWorkspaceUpdate({ workspaceTitle: event.target.value })} />
             </label>
           </div>
           <div className="workspace-section-card">
@@ -14128,30 +14151,44 @@ const toggleMobileSheetSize = () => {
           <div className="workspace-section-card">
             <div className="workspace-section-title">Grid</div>
             <label className="workspace-toggle-row">
-              <input type="checkbox" checked={canvasSettings.showGrid} onChange={(event) => setCanvasSettings((current) => ({ ...current, showGrid: event.target.checked }))} />
+              <input type="checkbox" checked={canvasSettings.showGrid} onChange={(event) => {
+                const next = event.target.checked
+                setCanvasSettings((current) => ({ ...current, showGrid: next }))
+                broadcastWorkspaceUpdate({ canvasSettings: { showGrid: next } })
+              }} />
               <span className="toggle-track" />
               Show Grid
             </label>
             <label className="workspace-toggle-row">
-              <input type="checkbox" checked={canvasSettings.snapToGrid} onChange={(event) => setCanvasSettings((current) => ({ ...current, snapToGrid: event.target.checked }))} />
+              <input type="checkbox" checked={canvasSettings.snapToGrid} onChange={(event) => {
+                const next = event.target.checked
+                setCanvasSettings((current) => ({ ...current, snapToGrid: next }))
+                broadcastWorkspaceUpdate({ canvasSettings: { snapToGrid: next } })
+              }} />
               <span className="toggle-track" />
               Snap to Grid
             </label>
             <div className="workspace-typography-grid">
               <label className="workspace-typography-field">
                 Vertical
-                <input type="number" min="0" max="64" value={canvasSettings.gridVertical} onChange={(event) => setCanvasSettings((current) => ({ ...current, gridVertical: Number(event.target.value) }))} />
+                <input type="number" min="0" max="64" value={canvasSettings.gridVertical} onChange={(event) => setCanvasSettings((current) => ({ ...current, gridVertical: Number(event.target.value) }))} onBlur={(event) => broadcastWorkspaceUpdate({ canvasSettings: { gridVertical: Number(event.target.value) } })} />
               </label>
               <label className="workspace-typography-field">
                 Horizontal
-                <input type="number" min="0" max="64" value={canvasSettings.gridHorizontal} onChange={(event) => setCanvasSettings((current) => ({ ...current, gridHorizontal: Number(event.target.value) }))} />
+                <input type="number" min="0" max="64" value={canvasSettings.gridHorizontal} onChange={(event) => setCanvasSettings((current) => ({ ...current, gridHorizontal: Number(event.target.value) }))} onBlur={(event) => broadcastWorkspaceUpdate({ canvasSettings: { gridHorizontal: Number(event.target.value) } })} />
               </label>
             </div>
           </div>
 
           <div className="workspace-section-card">
             <label className="workspace-toggle-row">
-              <input type="checkbox" checked={canvasSettings.autosave} onChange={(event) => setCanvasSettings((current) => ({ ...current, autosave: event.target.checked }))} />
+              <input type="checkbox" checked={canvasSettings.autosave} onChange={(event) => {
+                if (collaboratorsGuardRef.current.length > 1) {
+                  toastRef.current?.('Tidak bisa mengubah pengaturan auto-save saat ada collaborator lain yang aktif.', { type: 'error', duration: 4000 })
+                  return
+                }
+                setCanvasSettings((current) => ({ ...current, autosave: event.target.checked }))
+              }} />
               <span className="toggle-track" />
               Simpan Otomatis
             </label>
@@ -14353,7 +14390,8 @@ const toggleMobileSheetSize = () => {
 
   return (
     <ToastProvider>
-    <CollaborationProvider workspaceId={workspaceId} user={user} itemUpdateHandlerRef={itemUpdateHandlerRef} itemAddHandlerRef={itemAddHandlerRef} itemRemoveHandlerRef={itemRemoveHandlerRef} reorderHandlerRef={reorderHandlerRef}>
+    <ToastRefCapture toastRef={toastRef} />
+    <CollaborationProvider workspaceId={workspaceId} user={user} itemUpdateHandlerRef={itemUpdateHandlerRef} itemAddHandlerRef={itemAddHandlerRef} itemRemoveHandlerRef={itemRemoveHandlerRef} reorderHandlerRef={reorderHandlerRef} workspaceUpdateHandlerRef={workspaceUpdateHandlerRef} collaboratorsGuardRef={collaboratorsGuardRef}>
     <section
       className={`workspace-page ${isRightPanelOpen ? 'panel-open' : 'panel-collapsed'} sheet-${mobileSheetState}`}
       onPointerDown={handleOutsideWorkspacePointerDown}
@@ -15820,6 +15858,12 @@ const toggleMobileSheetSize = () => {
 }
 
 
+
+function ToastRefCapture({ toastRef }) {
+  const { addToast } = useToast()
+  useEffect(() => { toastRef.current = addToast }, [addToast, toastRef])
+  return null
+}
 
 function CursorOverlay({ stageRef, cameraRef, isPanning, user, items, selectedIds, selectedId, broadcastRef }) {
   useCursorBroadcast({ stageRef, cameraRef, isPanning, user })

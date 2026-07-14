@@ -13,7 +13,7 @@ const CHANNEL_PREFIX = 'workspace:'
 const leaveToastCooldowns = new Map()
 const recentJoinToastTimestamps = new Map()
 
-export function CollaborationProvider({ workspaceId, user, children, itemUpdateHandlerRef, itemAddHandlerRef, itemRemoveHandlerRef, reorderHandlerRef }) {
+export function CollaborationProvider({ workspaceId, user, children, itemUpdateHandlerRef, itemAddHandlerRef, itemRemoveHandlerRef, reorderHandlerRef, workspaceUpdateHandlerRef, collaboratorsGuardRef }) {
   const [collaborators, setCollaborators] = useState([])
   const [isConnected, setIsConnected] = useState(false)
   const [collaboratorSelections, setCollaboratorSelections] = useState({})
@@ -189,6 +189,11 @@ export function CollaborationProvider({ workspaceId, user, children, itemUpdateH
         if (data.userId === user.id) return
         reorderHandlerRef?.current?.(data.itemId, data.direction, data.activeIds)
       })
+      .on('broadcast', { event: 'workspace_update' }, (payload) => {
+        const data = payload.payload || payload
+        if (data.userId === user.id) return
+        workspaceUpdateHandlerRef?.current?.(data.patch)
+      })
       .subscribe(async (status, err) => {
         if (status === 'SUBSCRIBED') {
           setIsConnected(true)
@@ -270,6 +275,7 @@ export function CollaborationProvider({ workspaceId, user, children, itemUpdateH
 
   const collaboratorsRef = useRef([])
   collaboratorsRef.current = collaborators
+  if (collaboratorsGuardRef) collaboratorsGuardRef.current = collaborators
   const broadcast = useCallback((type, payload, { throttle } = {}) => {
     if (collaboratorsRef.current.length <= 1) return
     const ch = channelRef.current
