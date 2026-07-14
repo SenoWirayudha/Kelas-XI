@@ -4021,6 +4021,46 @@ function Workspace() {
   itemRemoveHandlerRef.current = (itemId) => {
     setItems((prev) => prev.filter((item) => item.id !== itemId))
   }
+  const reorderHandlerRef = useRef(null)
+  reorderHandlerRef.current = (itemId, direction, activeIds) => {
+    setItems((prev) => {
+      if (activeIds) {
+        // Multi-select block reorder (moveLayerBlock)
+        const activeSet = new Set(activeIds)
+        const block = prev.filter((item) => activeSet.has(item.id))
+        if (!block.length) return prev
+        const rest = prev.filter((item) => !activeSet.has(item.id))
+        const firstIndex = prev.findIndex((item) => activeSet.has(item.id))
+        const restBeforeBlock = prev.slice(0, firstIndex).filter((item) => !activeSet.has(item.id)).length
+        let insertIndex = restBeforeBlock
+        if (direction === 'front') insertIndex = 0
+        if (direction === 'back') insertIndex = rest.length
+        if (direction === 'forward') insertIndex = Math.max(0, restBeforeBlock - 1)
+        if (direction === 'backward') insertIndex = Math.min(rest.length, restBeforeBlock + 1)
+        if (insertIndex === restBeforeBlock) return prev
+        return [...rest.slice(0, insertIndex), ...block, ...rest.slice(insertIndex)]
+      }
+      if (!itemId) return prev
+      const idx = prev.findIndex((item) => item.id === itemId)
+      if (idx < 0) return prev
+      const next = [...prev]
+      if (direction === 'forward' && idx > 0) {
+        ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
+      } else if (direction === 'backward' && idx < prev.length - 1) {
+        ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
+      } else if (direction === 'front') {
+        const item = prev[idx]
+        return [item, ...prev.slice(0, idx), ...prev.slice(idx + 1)]
+      } else if (direction === 'back') {
+        const item = prev[idx]
+        return [...prev.slice(0, idx), ...prev.slice(idx + 1), item]
+      }
+      return next
+    })
+  }
+  const broadcastLayerReorder = useCallback((itemId, direction, activeIds) => {
+    broadcastRef.current?.('layer_reorder', { userId: user?.id, itemId, direction, activeIds })
+  }, [user?.id])
   const selectedIdsRef = useRef(selectedIds)
   const selectionBoxRef = useRef(null)
   const clipboardRef = useRef([])
@@ -6442,7 +6482,9 @@ const attachTransformer = useCallback((idOrIds) => {
         ...rest.slice(insertIndex),
       ]
     })
-  }, [activeGroupId, selectedId, selectedIds])
+
+    broadcastLayerReorder(null, direction, activeIds)
+  }, [activeGroupId, selectedId, selectedIds, broadcastLayerReorder])
 
   const bringForward = useCallback(() => {
     if (activeGroupId || selectedIds.length > 1) {
@@ -6458,7 +6500,8 @@ const attachTransformer = useCallback((idOrIds) => {
       ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
       return next
     })
-  }, [activeGroupId, moveLayerBlock, selectedId, selectedIds.length])
+    broadcastLayerReorder(id, 'forward')
+  }, [activeGroupId, moveLayerBlock, selectedId, selectedIds.length, broadcastLayerReorder])
 
   const sendBackward = useCallback(() => {
     if (activeGroupId || selectedIds.length > 1) {
@@ -6474,7 +6517,8 @@ const attachTransformer = useCallback((idOrIds) => {
       ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
       return next
     })
-  }, [activeGroupId, moveLayerBlock, selectedId, selectedIds.length])
+    broadcastLayerReorder(id, 'backward')
+  }, [activeGroupId, moveLayerBlock, selectedId, selectedIds.length, broadcastLayerReorder])
 
   const bringToFront = useCallback(() => {
     if (activeGroupId || selectedIds.length > 1) {
@@ -6489,7 +6533,8 @@ const attachTransformer = useCallback((idOrIds) => {
       const item = current[idx]
       return [item, ...current.slice(0, idx), ...current.slice(idx + 1)]
     })
-  }, [activeGroupId, moveLayerBlock, selectedId, selectedIds.length])
+    broadcastLayerReorder(id, 'front')
+  }, [activeGroupId, moveLayerBlock, selectedId, selectedIds.length, broadcastLayerReorder])
 
   const sendToBack = useCallback(() => {
     if (activeGroupId || selectedIds.length > 1) {
@@ -6504,7 +6549,8 @@ const attachTransformer = useCallback((idOrIds) => {
       const item = current[idx]
       return [...current.slice(0, idx), ...current.slice(idx + 1), item]
     })
-  }, [activeGroupId, moveLayerBlock, selectedId, selectedIds.length])
+    broadcastLayerReorder(id, 'back')
+  }, [activeGroupId, moveLayerBlock, selectedId, selectedIds.length, broadcastLayerReorder])
 
   const moveSelected = useCallback((dx, dy) => {
     const activeIds = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
@@ -14191,7 +14237,7 @@ const toggleMobileSheetSize = () => {
 
   return (
     <ToastProvider>
-    <CollaborationProvider workspaceId={workspaceId} user={user} itemUpdateHandlerRef={itemUpdateHandlerRef} itemAddHandlerRef={itemAddHandlerRef} itemRemoveHandlerRef={itemRemoveHandlerRef}>
+    <CollaborationProvider workspaceId={workspaceId} user={user} itemUpdateHandlerRef={itemUpdateHandlerRef} itemAddHandlerRef={itemAddHandlerRef} itemRemoveHandlerRef={itemRemoveHandlerRef} reorderHandlerRef={reorderHandlerRef}>
     <section
       className={`workspace-page ${isRightPanelOpen ? 'panel-open' : 'panel-collapsed'} sheet-${mobileSheetState}`}
       onPointerDown={handleOutsideWorkspacePointerDown}
