@@ -3992,7 +3992,9 @@ function Workspace() {
   }, [user?.id])
   const itemUpdateHandlerRef = useRef(null)
   itemUpdateHandlerRef.current = (itemId, patch) => {
-    setItems((prev) => prev.map((item) => {
+    setItems((prev) => {
+      skipUndoCaptureRef.current = true
+      return prev.map((item) => {
       if (item.id !== itemId) return item
       const updated = { ...item }
       for (const [k, v] of Object.entries(patch)) {
@@ -4003,7 +4005,8 @@ function Workspace() {
         }
       }
       return updated
-    }))
+    })
+  })
   }
   const broadcastItemAdd = useCallback((item) => {
     broadcastRef.current?.('item_added', { userId: user?.id, item })
@@ -4012,6 +4015,7 @@ function Workspace() {
   itemAddHandlerRef.current = (newItem) => {
     setItems((prev) => {
       if (prev.some((item) => item.id === newItem.id)) return prev
+      skipUndoCaptureRef.current = true
       return [newItem, ...prev]
     })
   }
@@ -4020,7 +4024,10 @@ function Workspace() {
   }, [user?.id])
   const itemRemoveHandlerRef = useRef(null)
   itemRemoveHandlerRef.current = (itemId) => {
-    setItems((prev) => prev.filter((item) => item.id !== itemId))
+    setItems((prev) => {
+      skipUndoCaptureRef.current = true
+      return prev.filter((item) => item.id !== itemId)
+    })
   }
   const reorderHandlerRef = useRef(null)
   reorderHandlerRef.current = (itemId, direction, activeIds) => {
@@ -4041,6 +4048,7 @@ function Workspace() {
           const refInRest = rest.findIndex((item) => item.id === activeIds)
           const insertAt = refInRest >= 0 ? refInRest : rest.length
           const block = prev.filter((c) => groupMemberIds.has(c.id))
+          skipUndoCaptureRef.current = true
           return [...rest.slice(0, insertAt), ...block, ...rest.slice(insertAt)]
         }
         // Single item move
@@ -4049,6 +4057,7 @@ function Workspace() {
         const next = prev.filter((item) => item.id !== itemId)
         const insertIdx = refIdx > draggedIdx ? refIdx - 1 : refIdx
         next.splice(insertIdx, 0, prev[draggedIdx])
+        skipUndoCaptureRef.current = true
         return next
       }
       if (activeIds) {
@@ -4065,6 +4074,7 @@ function Workspace() {
         if (direction === 'forward') insertIndex = Math.max(0, restBeforeBlock - 1)
         if (direction === 'backward') insertIndex = Math.min(rest.length, restBeforeBlock + 1)
         if (insertIndex === restBeforeBlock) return prev
+        skipUndoCaptureRef.current = true
         return [...rest.slice(0, insertIndex), ...block, ...rest.slice(insertIndex)]
       }
       if (!itemId) return prev
@@ -4077,11 +4087,14 @@ function Workspace() {
         ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
       } else if (direction === 'front') {
         const item = prev[idx]
+        skipUndoCaptureRef.current = true
         return [item, ...prev.slice(0, idx), ...prev.slice(idx + 1)]
       } else if (direction === 'back') {
         const item = prev[idx]
+        skipUndoCaptureRef.current = true
         return [...prev.slice(0, idx), ...prev.slice(idx + 1), item]
       }
+      skipUndoCaptureRef.current = true
       return next
     })
   }
@@ -5596,6 +5609,11 @@ function Workspace() {
   }, [selectedId, selectedItem?.kind])
 
   useEffect(() => {
+    if (skipUndoCaptureRef.current) {
+      skipUndoCaptureRef.current = false
+      prevItemsRef.current = items
+      return
+    }
     if (isUndoingRef.current) {
       isUndoingRef.current = false
       prevItemsRef.current = items
