@@ -162,8 +162,9 @@ export default function ShapeRenderer({
   const centerRef = useRef(null)
 
   const nonRgbEffects = useMemo(() => {
-    if (!hasRgbSplit) return item.effects
-    const { rgbSplit, ...rest } = item.effects
+    const fx = item.effects || {}
+    if (!hasRgbSplit) return fx
+    const { rgbSplit, ...rest } = fx
     return Object.keys(rest).length > 0 ? rest : {}
   }, [item.effects, hasRgbSplit])
 
@@ -217,7 +218,7 @@ export default function ShapeRenderer({
       const node = groupRef.current
       if (!node) return
       if (hasRgbSplit && shapeChannels) return
-      const rafFx = { ...filterItemRef.current.effects }
+      const rafFx = { ...(filterItemRef.current.effects || {}) }
       if (hasRgbSplit) delete rafFx.rgbSplit
       if (Object.keys(rafFx).length > 0) {
         effectManager.applyAll(node, rafFx)

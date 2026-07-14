@@ -348,16 +348,19 @@ const BROADCAST_KEYS = new Set([
   'exposure', 'temperature', 'hue', 'highlights', 'shadows', 'whites', 'blacks',
   'brightness', 'contrast', 'saturation', 'sharpen', 'vignette', 'blur', 'radius',
   'stroke', 'strokeWidth', 'strokeGradientType', 'strokeGradientStops', 'strokeGradientAngle',
+  'gradientType', 'gradientStops', 'gradientAngle',
+  'imageStrokeGradientType', 'imageStrokeGradientStops', 'imageStrokeGradientAngle',
   'visible', 'locked',
   'shadowEnabled', 'shadow', 'shadowColor', 'shadowOpacity', 'shadowOffsetX', 'shadowOffsetY',
-  'compositeOpacity', 'compositeBlendMode',
+  'compositeOpacity', 'compositeBlendMode', 'compositeMode',
   'compositeShadowEnabled', 'compositeShadow', 'compositeShadowColor', 'compositeShadowOpacity',
   'compositeShadowOffsetX', 'compositeShadowOffsetY',
   'compositeStrokeEnabled', 'compositeStrokeWidth', 'compositeStrokeColor',
   'imageStrokeEnabled', 'imageStrokeColor', 'imageStrokeWidth',
   'imageCropRect', 'cropSourceWidth', 'cropSourceHeight', 'cropEnabled',
   'bezierData', 'path',
-  'src',
+  'src', 'effects',
+  'isAdjustmentLayer', '_preAdjustmentState',
 ])
 
 const getRestoredItemCounter = (items) => (
@@ -3183,6 +3186,8 @@ function Workspace() {
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false)
   const [isBlendModeOpen, setIsBlendModeOpen] = useState(false)
   const [colorPickerTarget, setColorPickerTarget] = useState(null)
+  const colorPickerActiveRef = useRef(false)
+  const pendingColorPickerPatchRef = useRef(null)
   const [fontSearchQuery, setFontSearchQuery] = useState('')
   const [selectedFontCategory, setSelectedFontCategory] = useState(null)
   const [apiFonts, setApiFonts] = useState(null)
@@ -3265,6 +3270,8 @@ function Workspace() {
   const brushUndoStackRef = useRef([])
   const eraserImageTargetRef = useRef(null)
   const eraserImagePointsRef = useRef([])
+  const brushPaintDebounceRef = useRef(null)
+  const brushEraseDebounceRef = useRef(null)
 
   const hitTestImageAtPointer = (stage, viewportPoint) => {
     const hitNode = stage.getIntersection({ x: viewportPoint.x, y: viewportPoint.y })
@@ -3322,6 +3329,9 @@ function Workspace() {
       effects: getDefaultEffects(),
     }
     setItems(items => [newItem, ...items])
+    if (collaboratorsGuardRef.current.length > 1) {
+      broadcastItemAdd(newItem)
+    }
     activeBrushLayerIdRef.current = id
     brushUndoStackRef.current = []
     _brushImageNode = null
@@ -3813,6 +3823,7 @@ function Workspace() {
         if (item.id !== targetItem.id) return item
         return { ...item, src: localUrl, _oldSrc: oldSrc, _pendingUpload: blob }
       }))
+      debouncedBrushUpload({ eraseBlob: blob, eraseItemId: targetItem.id })
     })
   }
 
@@ -3854,6 +3865,7 @@ function Workspace() {
         reader.readAsDataURL(blob)
       }, 'image/png')
     }, 0)
+    debouncedBrushUpload()
   }
 
   const undoActiveBrushLayer = useCallback(() => {
@@ -3878,6 +3890,8 @@ function Workspace() {
     if (exportCanvas) {
       exportCanvas.toBlob((blob) => {
         if (!blob) return
+        if (brushPaintDebounceRef.current) clearTimeout(brushPaintDebounceRef.current)
+        if (brushEraseDebounceRef.current) clearTimeout(brushEraseDebounceRef.current)
         const reader = new FileReader()
         reader.onload = () => {
           setItems(current => current.map(item =>
@@ -3887,8 +3901,52 @@ function Workspace() {
           ))
         }
         reader.readAsDataURL(blob)
+        if (collaboratorsGuardRef.current.length > 1) {
+          const id = activeBrushLayerIdRef.current
+          if (id) {
+            uploadForBroadcast(blob, 'brush').then((realUrl) => {
+              if (realUrl) {
+                setItems((prev) => prev.map((item) =>
+                  item.id === id ? { ...item, src: realUrl, _pendingUpload: undefined } : item
+                ))
+                broadcastItemUpdate(id, { src: realUrl })
+              }
+            })
+          }
+        }
       }, 'image/png')
     }
+  }, [])
+
+  const debouncedBrushUpload = useCallback(({ eraseBlob, eraseItemId } = {}) => {
+    const isErase = !!(eraseBlob && eraseItemId)
+    const debounceRef = isErase ? brushEraseDebounceRef : brushPaintDebounceRef
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      debounceRef.current = null
+      if (collaboratorsGuardRef.current.length <= 1) return
+      let blob, itemId, prefix
+      if (isErase) {
+        blob = eraseBlob
+        itemId = eraseItemId
+        prefix = 'erase'
+      } else {
+        const canvas = brushCanvasRef.current
+        const id = activeBrushLayerIdRef.current
+        if (!canvas || !id) return
+        blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+        itemId = id
+        prefix = 'brush'
+      }
+      if (!blob || !itemId) return
+      const realUrl = await uploadForBroadcast(blob, prefix)
+      if (realUrl) {
+        setItems((prev) => prev.map((item) =>
+          item.id === itemId ? { ...item, src: realUrl, _pendingUpload: undefined } : item
+        ))
+        broadcastItemUpdate(itemId, { src: realUrl })
+      }
+    }, 500)
   }, [])
 
   const [bezierAnchors, setBezierAnchors] = useState([])
@@ -3985,11 +4043,29 @@ function Workspace() {
   const broadcastItemUpdate = useCallback((itemId, patch) => {
     const now = Date.now()
     const throttle = itemUpdateThrottleRef.current
-    if (!throttle[itemId] || now - throttle[itemId] > 100) {
+    if (!throttle[itemId] || now - throttle[itemId] > 200) {
       throttle[itemId] = now
       const safePatch = {}
       for (const [k, v] of Object.entries(patch)) {
+        if (k === 'src' && typeof v === 'string' && v.startsWith('blob:')) continue
         safePatch[k] = v === undefined ? null : v
+      }
+      // effectPatch: only send entries that differ from defaults (active effects)
+      // plus entries that were active but are now being cleared (toggle-off)
+      if (safePatch.effects && typeof safePatch.effects === 'object') {
+        const defaults = getDefaultEffects()
+        const currentItem = itemsRef.current.find((i) => i.id === itemId)
+        const currentEffects = currentItem?.effects || defaults
+        const nonDefaults = {}
+        for (const [k, v] of Object.entries(safePatch.effects)) {
+          const diffFromDefault = JSON.stringify(v) !== JSON.stringify(defaults[k])
+          const wasActive = currentEffects[k] != null && JSON.stringify(currentEffects[k]) !== JSON.stringify(defaults[k])
+          if (diffFromDefault || wasActive) {
+            nonDefaults[k] = v === undefined ? null : v
+          }
+        }
+        safePatch.effectPatch = nonDefaults
+        delete safePatch.effects
       }
       broadcastRef.current?.('item_update', { userId: user?.id, itemId, patch: safePatch })
     }
@@ -3999,20 +4075,41 @@ function Workspace() {
     setItems((prev) => {
       skipUndoCaptureRef.current = true
       return prev.map((item) => {
-      if (item.id !== itemId) return item
-      const updated = { ...item }
-      for (const [k, v] of Object.entries(patch)) {
-        if (v === null) {
-          delete updated[k]
-        } else {
-          updated[k] = v
+        if (item.id !== itemId) return item
+        const updated = { ...item }
+        for (const [k, v] of Object.entries(patch)) {
+          if (v === null) {
+            delete updated[k]
+          } else if (k === 'effectPatch' && typeof v === 'object' && !Array.isArray(v)) {
+            updated.effects = { ...(item.effects || getDefaultEffects()) }
+            for (const [effectId, effectVal] of Object.entries(v)) {
+              if (effectVal === null || effectVal === undefined) {
+                delete updated.effects[effectId]
+              } else {
+                updated.effects[effectId] = effectVal
+              }
+            }
+          } else {
+            updated[k] = v
+          }
         }
-      }
-      return updated
+        return updated
+      })
     })
-  })
   }
+  const uploadForBroadcast = async (blob, prefix = 'img') => {
+    try {
+      const file = new File([blob], `${prefix}-${Date.now()}.png`, { type: 'image/png' })
+      const uploaded = await uploadMediaFile({ file, addToUploads: false })
+      return uploaded?.media?.url || null
+    } catch (err) {
+      console.error('[uploadForBroadcast]', err)
+      return null
+    }
+  }
+
   const broadcastItemAdd = useCallback((item) => {
+    if (item.src?.startsWith('blob:')) return
     broadcastRef.current?.('item_added', { userId: user?.id, item })
   }, [user?.id])
   const itemAddHandlerRef = useRef(null)
@@ -4020,6 +4117,13 @@ function Workspace() {
     setItems((prev) => {
       if (prev.some((item) => item.id === newItem.id)) return prev
       skipUndoCaptureRef.current = true
+      if (newItem.kind === 'brushLayer') {
+        const existing = prev.find((item) => item.kind === 'brushLayer' && item.id !== newItem.id)
+        if (existing) {
+          activeBrushLayerIdRef.current = newItem.id
+          return prev.map((item) => item.id === existing.id ? newItem : item)
+        }
+      }
       return [newItem, ...prev]
     })
   }
@@ -4191,6 +4295,32 @@ function Workspace() {
       : allImageItems
     return sorted.map((item) => ({ src: item.src, colors: item.dominantColors }))
   }, [items, selectedItem])
+
+  const commitColorPickerChanges = useCallback((id) => {
+    const pending = pendingColorPickerPatchRef.current
+    if (!pending || Object.keys(pending).length === 0) return
+    broadcastItemUpdate(id, pending)
+    pendingColorPickerPatchRef.current = null
+  }, [broadcastItemUpdate])
+
+  const closeColorPicker = useCallback(() => {
+    const id = selectedItem?.id
+    if (id) commitColorPickerChanges(id)
+    colorPickerActiveRef.current = false
+    pendingColorPickerPatchRef.current = null
+    setIsColorPickerOpen(false)
+    setColorPickerTarget(null)
+  }, [selectedItem, commitColorPickerChanges])
+
+  const openColorPicker = useCallback((target) => {
+    const prevId = selectedItem?.id
+    if (prevId) commitColorPickerChanges(prevId)
+    pendingColorPickerPatchRef.current = null
+    colorPickerActiveRef.current = true
+    setIsColorPickerOpen(true)
+    setColorPickerTarget(target)
+  }, [selectedItem, commitColorPickerChanges])
+
   const activeSelectionCount = selectedIds.length || (selectedId ? 1 : 0)
   const activeGroupId = useMemo(() => {
     if (selectedItems.length < 2) {
@@ -6040,8 +6170,7 @@ const attachTransformer = useCallback((idOrIds) => {
     setSelectedIds([id])
     setActivePanel('properties')
     setIsRightPanelOpen(true)
-    setIsColorPickerOpen(false)
-    setColorPickerTarget(null)
+    closeColorPicker()
     setIsFontPickerOpen(false)
     setFontSearchQuery('')
     setSelectedFontCategory(null)
@@ -6138,8 +6267,7 @@ const attachTransformer = useCallback((idOrIds) => {
           setSelectedFontCategory(null)
           setLoadingFont(null)
         } else if (isColorPickerOpen) {
-          setIsColorPickerOpen(false)
-          setColorPickerTarget(null)
+          closeColorPicker()
         } else if (isBlendModeOpen) {
           setIsBlendModeOpen(false)
         }
@@ -6207,7 +6335,7 @@ const attachTransformer = useCallback((idOrIds) => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [isFontPickerOpen, isColorPickerOpen, editingFrameId, finishFrameImageEdit, connectorDraft, connectorTool, handleCopy, handlePaste, handleManualSave, undoActiveBrushLayer])
+  }, [isFontPickerOpen, isColorPickerOpen, editingFrameId, finishFrameImageEdit, connectorDraft, connectorTool, handleCopy, handlePaste, handleManualSave, undoActiveBrushLayer, closeColorPicker])
 
   const openRightPanel = (panel = activePanel) => {
     setConnectorTool(null)
@@ -6970,8 +7098,22 @@ const attachTransformer = useCallback((idOrIds) => {
     // Capture for per-item undo (committed changes only, not slider ticks)
     if (!skipBroadcast) captureUndo(id, patch)
 
+    // Accumulate pending color-picker patches for broadcast on picker close
+    const isColorPickerPatch = colorPickerActiveRef.current && Object.keys(patch).some(k =>
+      ['fill', 'stroke', 'gradientType', 'gradientStops', 'gradientAngle', 'shapeTextFill',
+       'imageStrokeColor', 'imageStrokeEnabled', 'imageStrokeGradientType', 'imageStrokeGradientStops',
+       'imageStrokeGradientAngle', 'imageStrokeWidth', 'strokeGradientType', 'strokeGradientStops',
+       'strokeGradientAngle'].includes(k)
+    )
+    if (isColorPickerPatch) {
+      pendingColorPickerPatchRef.current = { ...pendingColorPickerPatchRef.current, ...patch }
+    }
+
     // Broadcast to collaborators (throttled at 100ms per itemId via broadcastItemUpdate)
-    if (!skipBroadcast && Object.keys(patch).some((k) => BROADCAST_KEYS.has(k))) {
+    // Suppress broadcast only for continuous color-picker changes (skipBroadcast=true)
+    // Discrete changes (preset clicks, solid color commit, type toggles) broadcast immediately
+    const isColorPickerChange = isColorPickerPatch && skipBroadcast
+    if (!skipBroadcast && !isColorPickerChange && Object.keys(patch).some((k) => BROADCAST_KEYS.has(k))) {
       broadcastItemUpdate(id, patch)
     }
 
@@ -7316,6 +7458,17 @@ const attachTransformer = useCallback((idOrIds) => {
         i.id === item.id ? { ...i, src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH), _oldSrc: oldItem?.src, _pendingUpload: blob } : i
       ))
       broadcastItemUpdate(item.id, { src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH) })
+      if (collaboratorsGuardRef.current.length > 1) {
+        uploadForBroadcast(blob, 'warp').then((realUrl) => {
+          if (realUrl) {
+            URL.revokeObjectURL(localUrl)
+            setItems((prev) => prev.map((i) =>
+              i.id === item.id ? { ...i, src: realUrl, _pendingUpload: undefined } : i
+            ))
+            broadcastItemUpdate(item.id, { src: realUrl })
+          }
+        })
+      }
 
       warpedItemIdRef.current = null
       warpStateRef.current = null
@@ -7578,6 +7731,17 @@ const attachTransformer = useCallback((idOrIds) => {
 
     updateItem(item.id, { src: localUrl, relight: null, _oldSrc: oldSrc, _pendingUpload: blob })
 
+    if (collaboratorsGuardRef.current.length > 1) {
+      uploadForBroadcast(blob, 'relight').then((realUrl) => {
+        if (realUrl) {
+          URL.revokeObjectURL(localUrl)
+          setItems((prev) => prev.map((i) =>
+            i.id === item.id ? { ...i, src: realUrl, _pendingUpload: undefined } : i
+          ))
+        }
+      })
+    }
+
     setRelightActive(false)
     setActiveToolCard(null)
   }
@@ -7618,7 +7782,17 @@ const attachTransformer = useCallback((idOrIds) => {
       if (removeBgCancelRef.current) throw CANCELED
       const newItem = { ...selectedItem, id: `image-${Date.now()}`, x: selectedItem.x + 30, y: selectedItem.y + 30, src: localUrl, _pendingUpload: resultBlob }
       setItems((items) => [newItem, ...items])
-      broadcastItemAdd(newItem)
+      if (collaboratorsGuardRef.current.length > 1) {
+        uploadForBroadcast(resultBlob, 'removebg').then((realUrl) => {
+          if (realUrl) {
+            URL.revokeObjectURL(localUrl)
+            setItems((prev) => prev.map((item) =>
+              item.id === newItem.id ? { ...item, src: realUrl, _pendingUpload: undefined } : item
+            ))
+            broadcastItemAdd({ ...newItem, src: realUrl, _pendingUpload: undefined })
+          }
+        })
+      }
     } catch (error) {
       if (error !== CANCELED) console.error('Remove background failed:', error)
     } finally {
@@ -7765,11 +7939,14 @@ const attachTransformer = useCallback((idOrIds) => {
     requestAnimationFrame(() => attachTransformer(selectedIds.length ? selectedIds : selectedId))
   }
 
-  const updateCanvasBackground = (patch) => {
-    setCanvasSettings((current) => ({
-      ...current,
-      background: { ...current.background, ...patch },
-    }))
+  const updateCanvasBackground = (patch, skipBroadcast = false) => {
+    setCanvasSettings((current) => {
+      const next = { ...current, background: { ...current.background, ...patch } }
+      if (!skipBroadcast && collaboratorsGuardRef.current?.length > 1) {
+        broadcastWorkspaceUpdate({ canvasSettings: next })
+      }
+      return next
+    })
   }
 
   const getItemVisualBounds = (item) => {
@@ -10860,7 +11037,7 @@ const toggleMobileSheetSize = () => {
     const isImageStrokeTarget = selectedItem.kind === 'image' && colorPickerTarget === 'imageStroke'
     const isShapeTextTarget = colorPickerTarget === 'shapeText'
     const isFillTarget = colorPickerTarget === 'fill'
-    const supportsGradient = !isShapeTextTarget && (isImageStrokeTarget || selectedItem.kind === 'text' || isFillTarget)
+    const supportsGradient = !isShapeTextTarget && (isImageStrokeTarget || isFillTarget || selectedItem.kind === 'text' || (selectedItem.kind === 'shape' && colorPickerTarget === 'stroke'))
     const currentGradientType = isImageStrokeTarget
       ? (selectedItem.imageStrokeGradientType || 'solid')
       : isFillTarget
@@ -10886,8 +11063,7 @@ const toggleMobileSheetSize = () => {
             type="button"
             className="workspace-back-button"
             onClick={() => {
-              setIsColorPickerOpen(false)
-              setColorPickerTarget(null)
+              closeColorPicker()
             }}
           >
             <ArrowLeft size={16} />
@@ -11001,14 +11177,14 @@ const toggleMobileSheetSize = () => {
                     value={colorInputValue}
                     onChange={(event) => {
                       if (isShapeTextTarget) {
-                        updateItem(selectedItem.id, { shapeTextFill: event.target.value }, true)
+                        updateItem(selectedItem.id, { shapeTextFill: event.target.value })
                       } else if (isImageStrokeTarget) {
                         updateItem(selectedItem.id, {
                           imageStrokeEnabled: true,
                           imageStrokeGradientType: 'solid',
                           imageStrokeColor: event.target.value,
                           imageStrokeWidth: selectedItem.imageStrokeWidth || 3,
-                        }, true)
+                        })
                       } else if (isFillTarget) {
                         if (editingText && selectedItem.kind === 'text' && richTextEditorRef.current) {
                           richTextEditorRef.current.formatColor(event.target.value)
@@ -11016,29 +11192,10 @@ const toggleMobileSheetSize = () => {
                           const color = event.target.value
                           const runs = getRuns(selectedItem)
                           const newRuns = runs.map(r => ({ ...r, fill: color }))
-                          updateItem(selectedItem.id, { fill: color, runs: newRuns }, true)
+                          updateItem(selectedItem.id, { fill: color, runs: newRuns })
                         }
                       } else {
                         updateItem(selectedItem.id, {
-                          stroke: event.target.value,
-                          strokeWidth: selectedItem.kind === 'shape' && !selectedItem.strokeWidth ? 2 : selectedItem.strokeWidth,
-                        }, true)
-                      }
-                    }}
-                    onBlur={(event) => {
-                      if (isShapeTextTarget) return
-                      if (isImageStrokeTarget) {
-                        broadcastItemUpdate(selectedItem.id, {
-                          imageStrokeEnabled: true,
-                          imageStrokeGradientType: 'solid',
-                          imageStrokeColor: event.target.value,
-                          imageStrokeWidth: selectedItem.imageStrokeWidth || 3,
-                        })
-                      } else if (isFillTarget) {
-                        if (editingText && selectedItem.kind === 'text' && richTextEditorRef.current) return
-                        broadcastItemUpdate(selectedItem.id, { fill: event.target.value })
-                      } else {
-                        broadcastItemUpdate(selectedItem.id, {
                           stroke: event.target.value,
                           strokeWidth: selectedItem.kind === 'shape' && !selectedItem.strokeWidth ? 2 : selectedItem.strokeWidth,
                         })
@@ -11196,12 +11353,23 @@ const toggleMobileSheetSize = () => {
                       max="360"
                       value={currentAngle}
                       onChange={(event) => {
+                        const val = Number(event.target.value)
                         if (isFillTarget) {
-                          updateItem(selectedItem.id, { gradientAngle: Number(event.target.value) })
+                          updateItem(selectedItem.id, { gradientAngle: val }, true)
                         } else if (isImageStrokeTarget) {
-                          updateItem(selectedItem.id, { imageStrokeGradientAngle: Number(event.target.value) })
+                          updateItem(selectedItem.id, { imageStrokeGradientAngle: val }, true)
                         } else {
-                          updateItem(selectedItem.id, { strokeGradientAngle: Number(event.target.value) })
+                          updateItem(selectedItem.id, { strokeGradientAngle: val }, true)
+                        }
+                      }}
+                      onPointerUp={(event) => {
+                        const val = Number(event.target.value)
+                        if (isFillTarget) {
+                          broadcastItemUpdate(selectedItem.id, { gradientAngle: val })
+                        } else if (isImageStrokeTarget) {
+                          broadcastItemUpdate(selectedItem.id, { imageStrokeGradientAngle: val })
+                        } else {
+                          broadcastItemUpdate(selectedItem.id, { strokeGradientAngle: val })
                         }
                       }}
                       className="workspace-gradient-angle-slider"
@@ -11263,14 +11431,7 @@ const toggleMobileSheetSize = () => {
                           } else if (isImageStrokeTarget) {
                             updateItem(selectedItem.id, { imageStrokeGradientStops: stops })
                           } else {
-                            updateItem(selectedItem.id, { strokeGradientStops: stops }, true)
-                          }
-                        }}
-                        onBlur={(event) => {
-                          if (!isFillTarget && !isImageStrokeTarget) {
-                            const stops = [...currentStops]
-                            stops[index] = { ...stops[index], color: event.target.value }
-                            broadcastItemUpdate(selectedItem.id, { strokeGradientStops: stops })
+                            updateItem(selectedItem.id, { strokeGradientStops: stops })
                           }
                         }}
                         className="workspace-gradient-stop-color"
@@ -11285,11 +11446,23 @@ const toggleMobileSheetSize = () => {
                           stops[index] = { ...stops[index], offset: Number(event.target.value) / 100 }
                           const sortedStops = stops.sort((a, b) => a.offset - b.offset)
                           if (isFillTarget) {
-                            updateItem(selectedItem.id, { gradientStops: sortedStops })
+                            updateItem(selectedItem.id, { gradientStops: sortedStops }, true)
                           } else if (isImageStrokeTarget) {
-                            updateItem(selectedItem.id, { imageStrokeGradientStops: sortedStops })
+                            updateItem(selectedItem.id, { imageStrokeGradientStops: sortedStops }, true)
                           } else {
-                            updateItem(selectedItem.id, { strokeGradientStops: sortedStops })
+                            updateItem(selectedItem.id, { strokeGradientStops: sortedStops }, true)
+                          }
+                        }}
+                        onPointerUp={(event) => {
+                          const stops = [...currentStops]
+                          stops[index] = { ...stops[index], offset: Number(event.target.value) / 100 }
+                          const sortedStops = stops.sort((a, b) => a.offset - b.offset)
+                          if (isFillTarget) {
+                            broadcastItemUpdate(selectedItem.id, { gradientStops: sortedStops })
+                          } else if (isImageStrokeTarget) {
+                            broadcastItemUpdate(selectedItem.id, { imageStrokeGradientStops: sortedStops })
+                          } else {
+                            broadcastItemUpdate(selectedItem.id, { strokeGradientStops: sortedStops })
                           }
                         }}
                         className="workspace-gradient-stop-slider"
@@ -12479,7 +12652,8 @@ const toggleMobileSheetSize = () => {
             hsl(${control.value + 540}, 100%, 50%)
           )`,
         } : {}}
-        onChange={(event) => updateItem(selectedItem.id, { [control.key]: Number(event.target.value) })}
+        onChange={(event) => updateItem(selectedItem.id, { [control.key]: Number(event.target.value) }, true)}
+        onPointerUp={(event) => updateItem(selectedItem.id, { [control.key]: Number(event.target.value) })}
       />
     </label>
   ))}
@@ -12547,8 +12721,7 @@ const toggleMobileSheetSize = () => {
                           : selectedItem.imageStrokeColor || '#ffffff'
                     }}
                     onClick={() => {
-                      setColorPickerTarget('imageStroke')
-                      setIsColorPickerOpen(true)
+                      openColorPicker('imageStroke')
                     }}
                   />
                 </label>
@@ -12766,11 +12939,28 @@ const toggleMobileSheetSize = () => {
                   strokeWidth: 0,
                   exposure: 0, temperature: 0, highlights: 0, shadows: 0,
                   whites: 0, blacks: 0, brightness: 0, contrast: 0,
-                  saturation: 0, sharpen: 0, vignette: 0, blur: 0,
+                  saturation: 0, sharpen: 0, vignette: 0, blur: 0, hue: 0,
                   effects: getDefaultEffects(),
+                  _preAdjustmentState: {
+                    fill: selectedItem.fill,
+                    stroke: selectedItem.stroke,
+                    strokeWidth: selectedItem.strokeWidth,
+                    effects: selectedItem.effects,
+                  },
                 })
               } else {
-                updateItem(selectedItem.id, { isAdjustmentLayer: false })
+                const saved = selectedItem._preAdjustmentState || {}
+                updateItem(selectedItem.id, {
+                  isAdjustmentLayer: false,
+                  effects: saved.effects ?? getDefaultEffects(),
+                  exposure: 0, temperature: 0, highlights: 0, shadows: 0,
+                  whites: 0, blacks: 0, brightness: 0, contrast: 0,
+                  saturation: 0, sharpen: 0, vignette: 0, blur: 0, hue: 0,
+                  fill: saved.fill ?? null,
+                  stroke: saved.stroke ?? null,
+                  strokeWidth: saved.strokeWidth ?? 0,
+                  _preAdjustmentState: null,
+                })
               }
             }}
           />
@@ -12798,8 +12988,7 @@ const toggleMobileSheetSize = () => {
                           : selectedItem.fill || '#a78bfa'
                   }}
                   onClick={() => {
-                    setColorPickerTarget('fill')
-                    setIsColorPickerOpen(true)
+                    openColorPicker('fill')
                   }}
                 >
                   {selectedItem.fill === null && <span className="workspace-color-preview-none-icon"></span>}
@@ -12811,11 +13000,10 @@ const toggleMobileSheetSize = () => {
                   type="button"
                   className={`workspace-color-preview-button ${selectedItem.stroke === null ? 'workspace-color-preview-none' : ''}`}
                   style={{ background: selectedItem.stroke || 'transparent' }}
-                  onClick={() => {
-                    setColorPickerTarget('stroke')
-                    setIsColorPickerOpen(true)
-                  }}
-                >
+                    onClick={() => {
+                      openColorPicker('stroke')
+                    }}
+                  >
                   {selectedItem.stroke === null && <span className="workspace-color-preview-none-icon"></span>}
                 </button>
               </label>
@@ -12985,8 +13173,7 @@ const toggleMobileSheetSize = () => {
               className="workspace-color-preview-button"
               style={{ background: selectedItem.shapeTextFill || '#231c2f' }}
               onClick={() => {
-                setColorPickerTarget('shapeText')
-                setIsColorPickerOpen(true)
+                openColorPicker('shapeText')
               }}
             />
           </label>
@@ -13111,8 +13298,7 @@ const toggleMobileSheetSize = () => {
                           : selectedItem.fill || 'transparent'
                     }}
                     onClick={() => {
-                      setColorPickerTarget('fill')
-                      setIsColorPickerOpen(true)
+                      openColorPicker('fill')
                     }}
                   >
                     {!selectedItem.fill && (!selectedItem.gradientType || selectedItem.gradientType === 'solid') && (
@@ -13133,8 +13319,7 @@ const toggleMobileSheetSize = () => {
                           : selectedItem.stroke || 'transparent'
                     }}
                     onClick={() => {
-                      setColorPickerTarget('stroke')
-                      setIsColorPickerOpen(true)
+                      openColorPicker('stroke')
                     }}
                   >
                     {!selectedItem.stroke && (!selectedItem.strokeGradientType || selectedItem.strokeGradientType === 'solid') && (
@@ -14171,22 +14356,30 @@ const toggleMobileSheetSize = () => {
             {canvasSettings.background.type === 'solid' && (
               <label className="workspace-typography-field workspace-typography-field-full">
                 Color
-                <input type="color" value={canvasSettings.background.color} onChange={(event) => updateCanvasBackground({ color: event.target.value })} />
+                <input type="color" value={canvasSettings.background.color}
+                  onChange={(event) => updateCanvasBackground({ color: event.target.value }, true)}
+                  onBlur={(event) => updateCanvasBackground({ color: event.target.value })} />
               </label>
             )}
             {canvasSettings.background.type === 'gradient' && (
               <div className="workspace-typography-grid">
                 <label className="workspace-typography-field">
                   From
-                  <input type="color" value={canvasSettings.background.from} onChange={(event) => updateCanvasBackground({ from: event.target.value })} />
+                  <input type="color" value={canvasSettings.background.from}
+                    onChange={(event) => updateCanvasBackground({ from: event.target.value }, true)}
+                    onBlur={(event) => updateCanvasBackground({ from: event.target.value })} />
                 </label>
                 <label className="workspace-typography-field">
                   To
-                  <input type="color" value={canvasSettings.background.to} onChange={(event) => updateCanvasBackground({ to: event.target.value })} />
+                  <input type="color" value={canvasSettings.background.to}
+                    onChange={(event) => updateCanvasBackground({ to: event.target.value }, true)}
+                    onBlur={(event) => updateCanvasBackground({ to: event.target.value })} />
                 </label>
                 <label className="workspace-typography-field workspace-typography-field-full">
                   Angle
-                  <input type="range" min="0" max="360" value={canvasSettings.background.angle} onChange={(event) => updateCanvasBackground({ angle: Number(event.target.value) })} />
+                  <input type="range" min="0" max="360" value={canvasSettings.background.angle}
+                    onChange={(event) => updateCanvasBackground({ angle: Number(event.target.value) }, true)}
+                    onBlur={(event) => updateCanvasBackground({ angle: Number(event.target.value) })} />
                 </label>
               </div>
             )}
@@ -15957,7 +16150,7 @@ function CursorOverlay({ stageRef, cameraRef, isPanning, user, items, selectedId
       selectedIds: ids,
       displayName: user?.displayName || user?.username,
       username: user?.username,
-    })
+    }, { throttle: 100 })
   }, [selectedIds, selectedId, broadcast, user])
   return (
     <>

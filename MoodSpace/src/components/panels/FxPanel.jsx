@@ -29,13 +29,13 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
   const [editValue, setEditValue] = useState('')
   const editInputRef = useRef(null)
   const isColorEffect = ['chromaKey', 'spotColor', 'replaceColor'].includes(effect.id)
-  const updateParam = (key, paramVal) => {
+  const updateParam = (key, paramVal, skipBroadcast = false) => {
     if (pickerStateRef.current) {
       pickerStateRef.current = { ...pickerStateRef.current, [key]: paramVal }
-      onChange(effect.id, pickerStateRef.current)
+      onChange(effect.id, pickerStateRef.current, skipBroadcast)
     } else {
       const next = { ...(value || {}), [key]: paramVal }
-      onChange(effect.id, next)
+      onChange(effect.id, next, skipBroadcast)
     }
   }
 
@@ -156,7 +156,8 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
               max={effect.max ?? 100}
               step={effect.step ?? 1}
               value={typeof value === 'number' ? value : effect.default}
-              onChange={(e) => onChange(effect.id, Number(e.target.value))}
+              onChange={(e) => onChange(effect.id, Number(e.target.value), true)}
+              onPointerUp={(e) => onChange(effect.id, Number(e.target.value), false)}
             />
             <div className="workspace-fx-detail-range-labels">
               <span>{effect.min ?? 0}</span>
@@ -231,7 +232,8 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
                               <input
                                 type="color"
                                 value={paramVal}
-                                onChange={(e) => updateParam(param.key, e.target.value)}
+                                onChange={(e) => updateParam(param.key, e.target.value, true)}
+                                onBlur={(e) => updateParam(param.key, e.target.value, false)}
                               />
                               <div className="workspace-fx-color-swatch-overlay" style={{ background: paramVal }} />
                             </div>
@@ -239,7 +241,8 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
                               type="text"
                               className="workspace-fx-color-hex-input"
                               value={paramVal}
-                              onChange={(e) => updateParam(param.key, e.target.value)}
+                              onChange={(e) => updateParam(param.key, e.target.value, true)}
+                              onBlur={(e) => updateParam(param.key, e.target.value, false)}
                             />
                           </div>
                           <div className="workspace-fx-color-presets">
@@ -294,7 +297,8 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
                           max={param.max ?? 100}
                           step={param.step ?? 1}
                           value={paramVal}
-                          onChange={(e) => updateParam(param.key, Number(e.target.value))}
+                          onChange={(e) => updateParam(param.key, Number(e.target.value), true)}
+                          onPointerUp={(e) => updateParam(param.key, Number(e.target.value), false)}
                         />
                       </div>
                     )
@@ -342,12 +346,12 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
               }
 
               if (param.type === 'color') {
-                const handleColorFocus = () => {
-                  if (value && typeof value === 'object') {
-                    pickerStateRef.current = { ...value }
-                    onChange(effect.id, null)
-                  }
+              const handleColorFocus = () => {
+                if (value && typeof value === 'object') {
+                  pickerStateRef.current = { ...value }
+                  onChange(effect.id, null, true)
                 }
+              }
                 const handleColorBlur = () => {
                   if (pickerStateRef.current) {
                     onChange(effect.id, pickerStateRef.current)
@@ -364,7 +368,7 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
                           value={paramVal}
                           onFocus={handleColorFocus}
                           onBlur={handleColorBlur}
-                          onChange={(e) => updateParam(param.key, e.target.value)}
+                          onChange={(e) => updateParam(param.key, e.target.value, true)}
                         />
                         <div className="workspace-fx-color-swatch-overlay" style={{ background: paramVal }} />
                       </div>
@@ -372,7 +376,8 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
                         type="text"
                         className="workspace-fx-color-hex-input"
                         value={paramVal}
-                        onChange={(e) => updateParam(param.key, e.target.value)}
+                        onChange={(e) => updateParam(param.key, e.target.value, true)}
+                        onBlur={(e) => updateParam(param.key, e.target.value, false)}
                       />
                     </div>
                     <div className="workspace-fx-color-presets">
@@ -403,15 +408,20 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
                       {colors.map((c, i) => (
                         <div key={i} className="workspace-fx-gradient-stop-row">
                           <div className="workspace-fx-color-swatch-wrapper workspace-fx-gradient-swatch">
-                            <input
-                              type="color"
-                              value={c}
-                              onChange={(e) => {
-                                const next = [...colors]
-                                next[i] = e.target.value
-                                updateParam(param.key, next)
-                              }}
-                            />
+                              <input
+                                type="color"
+                                value={c}
+                                onChange={(e) => {
+                                  const next = [...colors]
+                                  next[i] = e.target.value
+                                  updateParam(param.key, next, true)
+                                }}
+                                onBlur={(e) => {
+                                  const next = [...colors]
+                                  next[i] = e.target.value
+                                  updateParam(param.key, next, false)
+                                }}
+                              />
                             <div className="workspace-fx-color-swatch-overlay" style={{ background: c }} />
                           </div>
                           {colors.length > 2 && (
@@ -480,7 +490,12 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
                           onChange={(e) => {
                             const next = [...stopVals]
                             next[i] = Number(e.target.value)
-                            updateParam(param.key, next)
+                            updateParam(param.key, next, true)
+                          }}
+                          onPointerUp={(e) => {
+                            const next = [...stopVals]
+                            next[i] = Number(e.target.value)
+                            updateParam(param.key, next, false)
                           }}
                         />
                       </div>
@@ -523,7 +538,8 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
                     max={param.max ?? 100}
                     step={param.step ?? 1}
                     value={paramVal}
-                    onChange={(e) => updateParam(param.key, Number(e.target.value))}
+                    onChange={(e) => updateParam(param.key, Number(e.target.value), true)}
+                    onPointerUp={(e) => updateParam(param.key, Number(e.target.value), false)}
                   />
                 </div>
               )
@@ -563,10 +579,10 @@ export default function FxPanel({ item, onBack, onUpdate }) {
     if (!selectedEffect) restoreScrollPos()
   }, [selectedEffect])
 
-  const handleEffectChange = (effectId, value) => {
+  const handleEffectChange = (effectId, value, skipBroadcast = false) => {
     onUpdate(item.id, {
       effects: { ...effects, [effectId]: value },
-    })
+    }, skipBroadcast)
   }
 
   const handleToggle = (effectId, enabled) => {

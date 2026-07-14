@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Konva from 'konva'
 import { Group, Image as KonvaImage, Rect } from 'react-konva'
-import { getActiveAdjustmentLayers, hasAnyAdjustment } from '../../utils/adjustmentLayerUtils'
+import { getActiveAdjustmentLayers } from '../../utils/adjustmentLayerUtils'
 import { applyImageFilters, applyMoodSpaceToImageData } from '../../utils/imageFilters'
 import { hasAnyEffect } from '../../utils/effectUtils'
 import { EffectManager } from '../../utils/konva-effects-engine'
@@ -290,7 +290,7 @@ async function renderItemsToCanvas({ stageRef, sourceItems, bounds, canvasWidth,
 
 export default function GlobalAdjustmentLayer({ stageRef, items, canvasWidth, canvasHeight }) {
   const activeLayers = useMemo(
-    () => getActiveAdjustmentLayers(items).filter((l) => l.visible !== false && (hasAnyAdjustment(l) || hasAnyEffect(l))),
+    () => getActiveAdjustmentLayers(items).filter((l) => l.visible !== false),
     [items],
   )
 

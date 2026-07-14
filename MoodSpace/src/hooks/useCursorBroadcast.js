@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { useCollaboration } from './useCollaboration'
 import { getWorldPointFromViewport } from '../utils/canvasPositionUtils'
 
-const THROTTLE_MS = 200
+const THROTTLE_MS = 500
 
 export function useCursorBroadcast({ stageRef, cameraRef, isPanning, user }) {
   const { broadcast, currentUserId } = useCollaboration()
