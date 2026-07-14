@@ -134,10 +134,6 @@ export function runsToHtml(runs, baseFontFamily, baseFill) {
           part = part.replace(/\n/g, '<br>')
         }
         part = fmtContent(part, cur, baseFontFamily, baseFill)
-        // Inner runs (non-list runs grouped into a list-line div) must be
-        // wrapped in data-list="false" so that htmlToRuns does not inherit
-        // the parent div's listType onto them, keeping the roundtrip stable.
-        if (j > i) part = `<span data-list="false">${part}</span>`
         content += part
         j++
       }
@@ -177,9 +173,9 @@ export function runsToHtml(runs, baseFontFamily, baseFill) {
 export function htmlToRuns(html) {
   const div = document.createElement('div')
   div.innerHTML = html
-  const runs = []
+  const rows = []
   walkTextNodes(div, (text, tags, styles, listType, align) => {
-    runs.push({
+    rows.push({
       text,
       bold: tags.has('b') || tags.has('strong'),
       italic: tags.has('i') || tags.has('em'),
@@ -190,6 +186,21 @@ export function htmlToRuns(html) {
       align: align || null,
     })
   })
+  // Post-process: within each visual line (\n boundary), only the first
+  // run keeps the inherited listType.  Runs that were split by a formatting
+  // boundary inside a list item inherit listType from the parent DOM element
+  // but are NOT a new list item — strip listType from subsequent runs.
+  const runs = []
+  let atLineStart = true
+  for (const r of rows) {
+    if (r.text === '\n') {
+      atLineStart = true
+      runs.push(r)
+    } else {
+      runs.push({ ...r, listType: atLineStart ? r.listType : null })
+      atLineStart = false
+    }
+  }
   return normalizeRuns(runs)
 }
 
@@ -215,9 +226,7 @@ function walkTextNodes(node, fn, inheritedTags = new Set(), inheritedStyles = {}
   if (node.style?.fontStyle === 'italic') newTags.add('i')
   if (node.style?.fontWeight === 'bold' || node.style?.fontWeight === '700') newTags.add('b')
   if (node.style?.textDecoration?.includes('underline')) newTags.add('u')
-  if (node.dataset?.list === 'false') {
-    newListType = null
-  } else if (node.dataset?.list) {
+  if (node.dataset?.list) {
     newListType = node.dataset.list
   }
   if (node.dataset?.align) {
