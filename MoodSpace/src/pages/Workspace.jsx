@@ -357,6 +357,7 @@ const BROADCAST_KEYS = new Set([
   'imageStrokeEnabled', 'imageStrokeColor', 'imageStrokeWidth',
   'imageCropRect', 'cropSourceWidth', 'cropSourceHeight', 'cropEnabled',
   'bezierData', 'path',
+  'src',
 ])
 
 const getRestoredItemCounter = (items) => (
@@ -7314,6 +7315,7 @@ const attachTransformer = useCallback((idOrIds) => {
       setItems((prev) => prev.map((i) =>
         i.id === item.id ? { ...i, src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH), _oldSrc: oldItem?.src, _pendingUpload: blob } : i
       ))
+      broadcastItemUpdate(item.id, { src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH) })
 
       warpedItemIdRef.current = null
       warpStateRef.current = null
@@ -7616,6 +7618,7 @@ const attachTransformer = useCallback((idOrIds) => {
       if (removeBgCancelRef.current) throw CANCELED
       const newItem = { ...selectedItem, id: `image-${Date.now()}`, x: selectedItem.x + 30, y: selectedItem.y + 30, src: localUrl, _pendingUpload: resultBlob }
       setItems((items) => [newItem, ...items])
+      broadcastItemAdd(newItem)
     } catch (error) {
       if (error !== CANCELED) console.error('Remove background failed:', error)
     } finally {
