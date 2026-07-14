@@ -352,6 +352,7 @@ const BROADCAST_KEYS = new Set([
   'compositeShadowOffsetX', 'compositeShadowOffsetY',
   'compositeStrokeEnabled', 'compositeStrokeWidth', 'compositeStrokeColor',
   'imageStrokeEnabled', 'imageStrokeColor', 'imageStrokeWidth',
+  'imageCropRect', 'cropSourceWidth', 'cropSourceHeight', 'cropEnabled',
 ])
 
 const getRestoredItemCounter = (items) => (
