@@ -124,6 +124,8 @@ import { applyImageFilters } from '../utils/imageFilters'
 import { getDefaultEffects } from '../utils/effectUtils'
 import { effectManager } from '../utils/konva-effects-engine'
 import { createGrid, cloneGrid, renderWarpedImage, buildSubdividedGrid, gridCorners, updateGridCorners, subdivideMeshGrid, PERSPECTIVE_SUBDIVISIONS, APPLY_SUBDIVISIONS, WARP_PADDING } from '../utils/mesh-warp'
+
+const PREVIEW_PADDING = 2000
 import { extractDominantColors, clearDominantColorCache } from '../utils/dominantColors'
 
 // Components
@@ -388,7 +390,25 @@ const getInitialCanvasZoom = (ratio, width, height, viewportSize) => {
     (viewportSize.width * 0.82) / Math.max(1, width),
     (viewportSize.height * 0.82) / Math.max(1, height),
   )
-  return Math.min(preferredZoom, Math.max(0.18, fitZoom || preferredZoom))
+  const effectiveMin = getEffectiveMinZoom(width, height, viewportSize)
+  return Math.min(preferredZoom, Math.max(effectiveMin, fitZoom || preferredZoom))
+}
+
+const getEffectiveMinZoom = (canvasWidth, canvasHeight, viewport, hardFloor = 0.25) => {
+  const fitZoom = Math.min(
+    viewport.width * 0.82 / Math.max(1, canvasWidth),
+    viewport.height * 0.82 / Math.max(1, canvasHeight)
+  )
+  return Math.min(hardFloor, fitZoom)
+}
+
+const computeFitCamera = (canvasWidth, canvasHeight, viewport, ratio = 'custom') => {
+  const scale = getInitialCanvasZoom(ratio, canvasWidth, canvasHeight, viewport)
+  return {
+    scale,
+    x: (viewport.width - canvasWidth * scale) / 2,
+    y: (viewport.height - canvasHeight * scale) / 2,
+  }
 }
 
 const cropPresets = [
@@ -6383,15 +6403,17 @@ const attachTransformer = useCallback((idOrIds) => {
     setSelectionBox(null)
     setAlignmentGuides([])
     setRotationSnapGuide(null)
-    setActivePanel(null)
-    setIsGroupSelectMode(false)
-    closeRightPanelAndCenter()
-    setIsRenamingTitle(false)
-    setEditingSliderKey(null)
-    attachTransformer(null)
+    if (!cropSession) {
+      setActivePanel(null)
+      setIsGroupSelectMode(false)
+      closeRightPanelAndCenter()
+      setIsRenamingTitle(false)
+      setEditingSliderKey(null)
+      attachTransformer(null)
+      setActiveToolCard(null)
+    }
     warpStateRef.current = null
     warpImageRef.current = null
-    setActiveToolCard(null)
   }
 
   const selectItem = (id, options = {}) => {
@@ -6961,7 +6983,9 @@ const attachTransformer = useCallback((idOrIds) => {
   const zoomCameraAtPoint = useCallback((nextScale, point, options = {}) => {
     const { animated = false, constrain = true } = options
     const currentCamera = cameraRef.current
-    const safeScale = clamp(nextScale, minZoom, maxZoom)
+    const currentVp = viewportSizeRef.current
+    const effectiveMin = getEffectiveMinZoom(canvasSettings.width, canvasSettings.height, currentVp)
+    const safeScale = clamp(nextScale, effectiveMin, maxZoom)
     const safePoint = point || {
       x: viewportSizeRef.current.width / 2,
       y: viewportSizeRef.current.height / 2,
@@ -6989,7 +7013,7 @@ const attachTransformer = useCallback((idOrIds) => {
     targetCameraRef.current = nextCamera
     cameraRef.current = nextCamera
     setCamera(nextCamera)
-  }, [animateCameraTo, clampCameraToCanvas])
+  }, [animateCameraTo, clampCameraToCanvas, canvasSettings.width, canvasSettings.height])
 
   const handleZoomIn = useCallback(() => {
     const viewportCenter = {
@@ -7425,19 +7449,31 @@ const attachTransformer = useCallback((idOrIds) => {
     img.crossOrigin = 'anonymous'
     img.onload = () => {
       const source = getToolSource(img, item)
-      warpImageRef.current = source
+      warpImageRef.current = img
+      const natW = img.naturalWidth || img.width
+      const natH = img.naturalHeight || img.height
       const gridDiv = mode === 'perspective' ? PERSPECTIVE_SUBDIVISIONS : divX
-      const srcGrid = createGrid(0, 0, item.w, item.h, gridDiv, gridDiv)
-      const dstGrid = cloneGrid(srcGrid)
-      const renderGrid = cloneGrid(srcGrid)
+      let srcGrid = createGrid(0, 0, item.w, item.h, gridDiv, gridDiv)
+      let dstGrid = cloneGrid(srcGrid)
+      let renderGrid = cloneGrid(srcGrid)
+      if (item.imageCropRect) {
+        const { x: cx, y: cy, width: cw, height: ch } = item.imageCropRect
+        const adjustUV = (grid) => grid.forEach(row => row.forEach(p => {
+          p.u = (cx + p.u * cw) / natW
+          p.v = (cy + p.v * ch) / natH
+        }))
+        adjustUV(srcGrid)
+        adjustUV(dstGrid)
+        adjustUV(renderGrid)
+      }
       const canvas = document.createElement('canvas')
-      const paddedW = item.w + WARP_PADDING * 2
-      const paddedH = item.h + WARP_PADDING * 2
+      const paddedW = item.w + PREVIEW_PADDING * 2
+      const paddedH = item.h + PREVIEW_PADDING * 2
       canvas.width = paddedW
       canvas.height = paddedH
       const ctx = canvas.getContext('2d')
-      ctx.drawImage(source, WARP_PADDING, WARP_PADDING, item.w, item.h)
-      warpStateRef.current = { itemId: item.id, mode, divX, divY, srcGrid, dstGrid, renderGrid, originalSrc: item.src, itemW: item.w, itemH: item.h, itemX: item.x, itemY: item.y, previewCanvas: canvas }
+      ctx.drawImage(source, PREVIEW_PADDING, PREVIEW_PADDING, item.w, item.h)
+      warpStateRef.current = { itemId: item.id, mode, divX, divY, srcGrid, dstGrid, renderGrid, originalSrc: item.src, itemW: item.w, itemH: item.h, itemX: item.x, itemY: item.y, previewCanvas: canvas, cropRect: item.imageCropRect || null, natW, natH }
       warpedItemIdRef.current = item.id
       updateItem(item.id, { visible: false })
       setWarpRenderTick((t) => t + 1)
@@ -7468,13 +7504,32 @@ const attachTransformer = useCallback((idOrIds) => {
         finalDstGrid = subdivideMeshGrid(renderGrid, 2)
         finalSrcGrid = subdivideMeshGrid(srcGrid, 2)
       }
+      if (ws.cropRect) {
+        const { x: cx, y: cy, width: cw, height: ch } = ws.cropRect
+        finalSrcGrid.forEach(row => row.forEach(p => {
+          p.u = (cx + p.u * cw) / ws.natW
+          p.v = (cy + p.v * ch) / ws.natH
+        }))
+      }
 
       const scaledDstGrid = finalDstGrid.map((row) =>
         row.map((p) => ({ ...p, x: p.x * scaleX, y: p.y * scaleY }))
       )
 
-      const nativePW = Math.ceil(natW + WARP_PADDING * 2 * scaleX)
-      const nativePH = Math.ceil(natH + WARP_PADDING * 2 * scaleY)
+      const allDstPts = finalDstGrid.flat()
+      const minDispX = Math.min(...allDstPts.map(p => p.x))
+      const minDispY = Math.min(...allDstPts.map(p => p.y))
+      const maxDispX = Math.max(...allDstPts.map(p => p.x))
+      const maxDispY = Math.max(...allDstPts.map(p => p.y))
+
+      const leftMargin = Math.max(WARP_PADDING, -minDispX)
+      const rightMargin = Math.max(WARP_PADDING, maxDispX - itemW)
+      const topMargin = Math.max(WARP_PADDING, -minDispY)
+      const bottomMargin = Math.max(WARP_PADDING, maxDispY - itemH)
+      const nativePW = Math.max(1, Math.ceil((itemW + leftMargin + rightMargin) * scaleX))
+      const nativePH = Math.max(1, Math.ceil((itemH + topMargin + bottomMargin) * scaleY))
+      const nativeOffsetX = leftMargin * scaleX
+      const nativeOffsetY = topMargin * scaleY
       const tempCanvas = document.createElement('canvas')
       tempCanvas.width = nativePW
       tempCanvas.height = nativePH
@@ -7484,30 +7539,24 @@ const attachTransformer = useCallback((idOrIds) => {
       renderWarpedImage(tempCtx, img, finalSrcGrid, scaledDstGrid, {
         imgWidth: natW,
         imgHeight: natH,
-        offsetX: WARP_PADDING * scaleX,
-        offsetY: WARP_PADDING * scaleY,
+        offsetX: nativeOffsetX,
+        offsetY: nativeOffsetY,
       })
 
-      const allPoints = scaledDstGrid.flat()
-      const xs = allPoints.map((p) => p.x)
-      const ys = allPoints.map((p) => p.y)
-      const minNativeX = Math.min(...xs)
-      const minNativeY = Math.min(...ys)
-      const maxNativeX = Math.max(...xs)
-      const maxNativeY = Math.max(...ys)
-      const cropNativeW = maxNativeX - minNativeX
-      const cropNativeH = maxNativeY - minNativeY
-
-      const displayMinX = minNativeX / scaleX
-      const displayMinY = minNativeY / scaleY
-      const displayCropW = cropNativeW / scaleX
-      const displayCropH = cropNativeH / scaleY
+      const displayMinX = minDispX
+      const displayMinY = minDispY
+      const displayCropW = maxDispX - minDispX
+      const displayCropH = maxDispY - minDispY
+      const cropNativeW = displayCropW * scaleX
+      const cropNativeH = displayCropH * scaleY
+      const srcNativeX = (minDispX + leftMargin) * scaleX
+      const srcNativeY = (minDispY + topMargin) * scaleY
 
       const canvas = document.createElement('canvas')
       canvas.width = Math.max(1, Math.ceil(cropNativeW))
       canvas.height = Math.max(1, Math.ceil(cropNativeH))
       const ctx = canvas.getContext('2d')
-      ctx.drawImage(tempCanvas, minNativeX + WARP_PADDING * scaleX, minNativeY + WARP_PADDING * scaleY, cropNativeW, cropNativeH, 0, 0, canvas.width, canvas.height)
+      ctx.drawImage(tempCanvas, srcNativeX, srcNativeY, cropNativeW, cropNativeH, 0, 0, canvas.width, canvas.height)
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
       if (!blob) return
       const localUrl = URL.createObjectURL(blob)
@@ -7515,9 +7564,9 @@ const attachTransformer = useCallback((idOrIds) => {
       const oldItem = itemsRef.current.find((i) => i.id === item.id)
       if (oldItem?.src?.startsWith('blob:')) URL.revokeObjectURL(oldItem.src)
       setItems((prev) => prev.map((i) =>
-        i.id === item.id ? { ...i, src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH), _oldSrc: oldItem?.src, _pendingUpload: blob } : i
+        i.id === item.id ? { ...i, src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH), imageCropRect: undefined, cropSourceWidth: undefined, cropSourceHeight: undefined, cropEnabled: undefined, _oldSrc: oldItem?.src, _pendingUpload: blob } : i
       ))
-      broadcastItemUpdate(item.id, { src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH) })
+      broadcastItemUpdate(item.id, { src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH), imageCropRect: null, cropSourceWidth: null, cropSourceHeight: null, cropEnabled: null })
       if (collaboratorsGuardRef.current.length > 1) {
         uploadForBroadcast(blob, 'warp').then((realUrl) => {
           if (realUrl) {
@@ -7547,23 +7596,37 @@ const attachTransformer = useCallback((idOrIds) => {
     setWarpRenderTick((t) => t + 1)
   }, [])
 
+  const adjustWarpGridUVs = (grid, img, cropRect) => {
+    if (!cropRect) return grid
+    const { x: cx, y: cy, width: cw, height: ch } = cropRect
+    const natW = img.naturalWidth || img.width
+    const natH = img.naturalHeight || img.height
+    grid.forEach(row => row.forEach(p => {
+      p.u = (cx + p.u * cw) / natW
+      p.v = (cy + p.v * ch) / natH
+    }))
+    return grid
+  }
+
   const handleWarpReset = useCallback((divX, divY, mode) => {
     if (!warpStateRef.current) {
       if (selectedItem?.kind !== 'image') return
       const img = warpImageRef.current
       if (!img) return
       const gridDiv = mode === 'perspective' ? PERSPECTIVE_SUBDIVISIONS : divX
-      const srcGrid = createGrid(0, 0, selectedItem.w, selectedItem.h, gridDiv, gridDiv)
+      let srcGrid = createGrid(0, 0, selectedItem.w, selectedItem.h, gridDiv, gridDiv)
+      adjustWarpGridUVs(srcGrid, img, selectedItem.imageCropRect)
       const dstGrid = cloneGrid(srcGrid)
       const renderGrid = cloneGrid(srcGrid)
+      const source = getToolSource(img, selectedItem)
       const canvas = document.createElement('canvas')
-      const pW = selectedItem.w + WARP_PADDING * 2
-      const pH = selectedItem.h + WARP_PADDING * 2
+      const pW = selectedItem.w + PREVIEW_PADDING * 2
+      const pH = selectedItem.h + PREVIEW_PADDING * 2
       canvas.width = pW
       canvas.height = pH
       const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, WARP_PADDING, WARP_PADDING, selectedItem.w, selectedItem.h)
-      warpStateRef.current = { itemId: selectedItem.id, mode, divX, divY, srcGrid, dstGrid, renderGrid, originalSrc: selectedItem.src, itemW: selectedItem.w, itemH: selectedItem.h, itemX: selectedItem.x, itemY: selectedItem.y, previewCanvas: canvas }
+      ctx.drawImage(source, PREVIEW_PADDING, PREVIEW_PADDING, selectedItem.w, selectedItem.h)
+      warpStateRef.current = { itemId: selectedItem.id, mode, divX, divY, srcGrid, dstGrid, renderGrid, originalSrc: selectedItem.src, itemW: selectedItem.w, itemH: selectedItem.h, itemX: selectedItem.x, itemY: selectedItem.y, previewCanvas: canvas, cropRect: selectedItem.imageCropRect || null, natW: img.naturalWidth || img.width, natH: img.naturalHeight || img.height }
       setWarpRenderTick((t) => t + 1)
       return
     }
@@ -7572,29 +7635,33 @@ const attachTransformer = useCallback((idOrIds) => {
     if (mode === 'perspective') {
       const item = selectedItem
       if (!item) return
-      const srcGrid = createGrid(0, 0, item.w, item.h, PERSPECTIVE_SUBDIVISIONS, PERSPECTIVE_SUBDIVISIONS)
+      let srcGrid = createGrid(0, 0, item.w, item.h, PERSPECTIVE_SUBDIVISIONS, PERSPECTIVE_SUBDIVISIONS)
+      adjustWarpGridUVs(srcGrid, img, item.imageCropRect)
       const dstGrid = cloneGrid(srcGrid)
       const renderGrid = cloneGrid(srcGrid)
+      const source = getToolSource(img, item)
       const canvas = document.createElement('canvas')
-      const pW = item.w + WARP_PADDING * 2
-      const pH = item.h + WARP_PADDING * 2
+      const pW = item.w + PREVIEW_PADDING * 2
+      const pH = item.h + PREVIEW_PADDING * 2
       canvas.width = pW
       canvas.height = pH
       const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, WARP_PADDING, WARP_PADDING, item.w, item.h)
+      ctx.drawImage(source, PREVIEW_PADDING, PREVIEW_PADDING, item.w, item.h)
       warpStateRef.current = { ...warpStateRef.current, mode, divX: 1, divY: 1, srcGrid, dstGrid, renderGrid, itemX: item.x, itemY: item.y, previewCanvas: canvas }
     } else {
       const item = selectedItem
       if (!item) return
-      const srcGrid = createGrid(0, 0, item.w, item.h, divX, divY)
+      let srcGrid = createGrid(0, 0, item.w, item.h, divX, divY)
+      adjustWarpGridUVs(srcGrid, img, item.imageCropRect)
       const dstGrid = cloneGrid(srcGrid)
+      const source = getToolSource(img, item)
       const canvas = document.createElement('canvas')
-      const pW = item.w + WARP_PADDING * 2
-      const pH = item.h + WARP_PADDING * 2
+      const pW = item.w + PREVIEW_PADDING * 2
+      const pH = item.h + PREVIEW_PADDING * 2
       canvas.width = pW
       canvas.height = pH
       const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, WARP_PADDING, WARP_PADDING, item.w, item.h)
+      ctx.drawImage(source, PREVIEW_PADDING, PREVIEW_PADDING, item.w, item.h)
       warpStateRef.current = { ...warpStateRef.current, mode, divX, divY, srcGrid, dstGrid, renderGrid: dstGrid, itemX: item.x, itemY: item.y, previewCanvas: canvas }
     }
     setWarpRenderTick((t) => t + 1)
@@ -7622,8 +7689,8 @@ const attachTransformer = useCallback((idOrIds) => {
       imgHeight: img.naturalHeight || img.height,
       srcWidth: ws.itemW,
       srcHeight: ws.itemH,
-      offsetX: WARP_PADDING,
-      offsetY: WARP_PADDING,
+      offsetX: PREVIEW_PADDING,
+      offsetY: PREVIEW_PADDING,
     })
     const node = warpImageNodeRef.current
     if (node) {
@@ -8629,6 +8696,8 @@ const attachTransformer = useCallback((idOrIds) => {
     const box = cropSession.box
     const imageSize = cropSession.imageSize || { w: item.w, h: item.h }
     const cropOffset = cropSession.cropOffset || { x: 0, y: 0 }
+    const handleSize = Math.max(10, Math.ceil(16 / (camera.scale || 0.75)))
+    const hh = handleSize / 2
     const baseCrop = item.imageCropRect ? {
       x: item.imageCropRect.x || 0,
       y: item.imageCropRect.y || 0,
@@ -8651,8 +8720,8 @@ const attachTransformer = useCallback((idOrIds) => {
       const imageTop = Math.max(0, cropOffset.y)
       const imageRight = Math.min(item.w, cropOffset.x + imageSize.w)
       const imageBottom = Math.min(item.h, cropOffset.y + imageSize.h)
-      let x = localPosition.x + 5
-      let y = localPosition.y + 5
+      let x = localPosition.x + hh
+      let y = localPosition.y + hh
 
       if (anchor.includes('left')) x = clamp(x, imageLeft, box.x + box.w - minSize)
       else if (anchor.includes('right')) x = clamp(x, box.x + minSize, imageRight)
@@ -8662,7 +8731,7 @@ const attachTransformer = useCallback((idOrIds) => {
       else if (anchor.includes('bottom')) y = clamp(y, box.y + minSize, imageBottom)
       else y = box.y + box.h / 2
 
-      return { x: x - 5, y: y - 5 }
+      return { x: x - hh, y: y - hh }
     }
     const handles = [
       ['top-left', box.x, box.y],
@@ -8760,13 +8829,14 @@ const attachTransformer = useCallback((idOrIds) => {
         {handles.map(([anchor, x, y]) => (
           <Rect
             key={anchor}
-            x={x - 5}
-            y={y - 5}
-            width={10}
-            height={10}
+            x={x - hh}
+            y={y - hh}
+            width={handleSize}
+            height={handleSize}
             fill="#ffffff"
             stroke="#7c3aed"
-            strokeWidth={1}
+            strokeWidth={1.5}
+            strokeScaleEnabled={false}
             draggable
             onMouseDown={(event) => { event.cancelBubble = true }}
             onDragMove={(event) => {
@@ -8774,8 +8844,8 @@ const attachTransformer = useCallback((idOrIds) => {
               const bounded = boundCropHandle(anchor, event.target.position())
               event.target.position(bounded)
               resizeCropBoxFromHandle(anchor, {
-                x: bounded.x + 5,
-                y: bounded.y + 5,
+                x: bounded.x + hh,
+                y: bounded.y + hh,
               })
             }}
             onDragEnd={(event) => {
@@ -8783,8 +8853,8 @@ const attachTransformer = useCallback((idOrIds) => {
               const bounded = boundCropHandle(anchor, event.target.position())
               event.target.position(bounded)
               resizeCropBoxFromHandle(anchor, {
-                x: bounded.x + 5,
-                y: bounded.y + 5,
+                x: bounded.x + hh,
+                y: bounded.y + hh,
               })
             }}
           />
@@ -10484,6 +10554,7 @@ const beginPan = (event) => {
       if (connectorTool && beginFreeConnectorDrag(event)) {
         return
       }
+      if (cropSession) return
       const pointer = stageRef.current?.getPointerPosition()
       if (!pointer) return
       closeRightPanelAndCenter()
@@ -11075,7 +11146,7 @@ const handleStageTouchEnd = (event) => {
             finishFrameImageEdit()
           } else if (editingText) {
             finishTextEditing()
-          } else {
+          } else if (!cropSession) {
             closeRightPanelAndCenter()
             setActivePanel(null)
             setSelectedId(null)
@@ -15564,17 +15635,17 @@ const toggleMobileSheetSize = () => {
               />
                 )}
               {warpStateRef.current && selectedItem && selectedItem.kind === 'image' && warpStateRef.current.itemId === selectedItem.id && (
-                <Group x={warpStateRef.current.itemX - WARP_PADDING} y={warpStateRef.current.itemY - WARP_PADDING}>
+                <Group x={warpStateRef.current.itemX - PREVIEW_PADDING} y={warpStateRef.current.itemY - PREVIEW_PADDING}>
                   {warpStateRef.current.previewCanvas && (
                     <KonvaImage
                       ref={warpImageNodeRef}
                       image={warpStateRef.current.previewCanvas}
-                      width={warpStateRef.current.itemW + WARP_PADDING * 2}
-                      height={warpStateRef.current.itemH + WARP_PADDING * 2}
+                      width={warpStateRef.current.itemW + PREVIEW_PADDING * 2}
+                      height={warpStateRef.current.itemH + PREVIEW_PADDING * 2}
                       listening={false}
                     />
                   )}
-                  <Group x={WARP_PADDING} y={WARP_PADDING}>
+                  <Group x={PREVIEW_PADDING} y={PREVIEW_PADDING}>
                     <WarpHandles
                       grid={warpStateRef.current.dstGrid}
                       mode={warpStateRef.current.mode === 'perspective' ? 'perspective' : 'mesh'}

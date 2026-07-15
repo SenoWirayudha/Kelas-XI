@@ -7865,8 +7865,9 @@
     height: 24px;
   }
 
-  .workspace-fx-color-presets {
-    grid-template-columns: repeat(6, 1fr);
+  .workspace-fx-color-preset {
+    width: 24px;
+    height: 24px;
   }
 }
 
@@ -10422,13 +10423,14 @@
 
 /* Solid Color Presets */
 .workspace-color-presets {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .workspace-color-preset {
-  aspect-ratio: 1;
+  width: 34px;
+  height: 34px;
   border: 2px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   cursor: pointer;
@@ -12267,18 +12269,20 @@
 
 /* ── Fx Color Presets ── */
 .workspace-fx-color-presets {
-  display: grid;
-  grid-template-columns: repeat(9, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
 .workspace-fx-color-preset {
-  aspect-ratio: 1;
+  width: 30px;
+  height: 30px;
   border: 2px solid rgba(255,255,255,0.08);
   border-radius: 6px;
   cursor: pointer;
   padding: 0;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .workspace-fx-color-preset:hover {
