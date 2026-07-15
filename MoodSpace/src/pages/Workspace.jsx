@@ -8126,6 +8126,14 @@ const attachTransformer = useCallback((idOrIds) => {
     const selectedSet = new Set(compositableIds)
     const nextMode = activeCompositeMode === mode ? null : mode
 
+    compositableIds.forEach((id, index) => {
+      const isOperator = index === 0 && nextMode !== null
+      const patch = { groupId }
+      if (isOperator) patch.compositeMode = nextMode
+      else patch.compositeMode = null
+      captureGroupUndo(id, patch)
+    })
+
     let capturedGroupMembers = null
 
     setItems((current) => {
@@ -13581,11 +13589,10 @@ const toggleMobileSheetSize = () => {
                 value={selectedItem.text}
                 onChange={(event) => {
                   const val = event.target.value
-                  const runs = getRuns(selectedItem)
-                  if (runs.length === 1) {
-                    runs[0].text = val
-                    updateItem(selectedItem.id, { text: val, runs })
-                  } else {
+                    const runs = getRuns(selectedItem)
+                    if (runs.length === 1) {
+                      updateItem(selectedItem.id, { text: val, runs: [{ ...runs[0], text: val }] })
+                    } else {
                     const merged = runs.length > 0 ? { ...runs[0], text: val } : { text: val, bold: selectedItem.isBold || false, italic: selectedItem.isItalic || false, underline: selectedItem.isUnderline || false }
                     updateItem(selectedItem.id, { text: val, runs: [merged] })
                   }
