@@ -361,6 +361,7 @@ const BROADCAST_KEYS = new Set([
   'compositeStrokeEnabled', 'compositeStrokeWidth', 'compositeStrokeColor',
   'imageStrokeEnabled', 'imageStrokeColor', 'imageStrokeWidth',
   'imageCropRect', 'cropSourceWidth', 'cropSourceHeight', 'cropEnabled',
+  'starInnerRatio', 'numPoints',
   'bezierData', 'path',
   'src', 'effects', 'dominantColors',
   'isAdjustmentLayer', '_preAdjustmentState',
@@ -3101,6 +3102,7 @@ function Workspace() {
   }, [searchParams])
   const workspaceId = initialProject.id
   const [workspaceOwnerId, setWorkspaceOwnerId] = useState(null)
+  const isViewerRef = useRef(false)
   const uploadInputRef = useRef(null)
   const {
     canvasAssets: uploadedCanvasAssets,
@@ -3876,6 +3878,7 @@ function Workspace() {
         const reader = new FileReader()
         reader.onload = () => {
           const dataUrl = reader.result
+          skipUndoCaptureRef.current = true
           setItems(current => current.map(item =>
             item.id === activeBrushLayerIdRef.current
               ? { ...item, src: dataUrl }
@@ -4061,6 +4064,7 @@ function Workspace() {
   const broadcastRef = useRef(null)
   const itemUpdateThrottleRef = useRef({})
   const broadcastItemUpdate = useCallback((itemId, patch) => {
+    if (isViewerRef.current) return
     const now = Date.now()
     const throttle = itemUpdateThrottleRef.current
     if (!throttle[itemId] || now - throttle[itemId] > 200) {
@@ -4129,9 +4133,10 @@ function Workspace() {
   }
 
   const broadcastItemAdd = useCallback((item) => {
+    if (isViewerRef.current) return
     if (item.src?.startsWith('blob:')) return
     broadcastRef.current?.('item_added', { userId: user?.id, item })
-  }, [user?.id])
+  }, [isViewerRef, user?.id])
   const itemAddHandlerRef = useRef(null)
   itemAddHandlerRef.current = (newItem) => {
     setItems((prev) => {
@@ -4148,13 +4153,25 @@ function Workspace() {
     })
   }
   const broadcastItemRemove = useCallback((itemId) => {
+    if (isViewerRef.current) return
     broadcastRef.current?.('item_removed', { userId: user?.id, itemId })
-  }, [user?.id])
+  }, [isViewerRef, user?.id])
   const itemRemoveHandlerRef = useRef(null)
   itemRemoveHandlerRef.current = (itemId) => {
     setItems((prev) => {
       skipUndoCaptureRef.current = true
       return prev.filter((item) => item.id !== itemId)
+    })
+  }
+  const itemsReorderHandlerRef = useRef(null)
+  itemsReorderHandlerRef.current = (orderedIds) => {
+    skipUndoCaptureRef.current = true
+    setItems((current) => {
+      const idToItem = {}
+      current.forEach((item) => { idToItem[item.id] = item })
+      const reordered = orderedIds.map((id) => idToItem[id]).filter(Boolean)
+      const remaining = current.filter((item) => !orderedIds.includes(item.id))
+      return [...reordered, ...remaining]
     })
   }
   const reorderHandlerRef = useRef(null)
@@ -4241,8 +4258,9 @@ function Workspace() {
   }
 
   const broadcastWorkspaceUpdate = useCallback((patch) => {
+    if (isViewerRef.current) return
     broadcastRef.current?.('workspace_update', { userId: user?.id, patch })
-  }, [user?.id])
+  }, [isViewerRef, user?.id])
 
   const collaboratorsGuardRef = useRef([])
   const toastRef = useRef(null)
@@ -5136,6 +5154,7 @@ function Workspace() {
       .then(({ workspace }) => {
         if (cancelled) return
         setWorkspaceOwnerId(workspace.ownerId || null)
+        isViewerRef.current = workspace.role === 'view'
         restoreWorkspaceSnapshot(workspace)
         hasRestoredWorkspaceRef.current = true
         skipNextAutosaveRef.current = true
@@ -5611,6 +5630,7 @@ function Workspace() {
   }, [buildWorkspaceSnapshot])
 
   const persistWorkspaceSnapshot = useCallback(async (saveType = 'autosave', options = {}) => {
+    if (isViewerRef.current) return null
     if (!workspaceId || !hasRestoredWorkspaceRef.current) return null
     if (isPersistingRef.current) return null
     isPersistingRef.current = true
@@ -6244,6 +6264,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [selectedId, selectedIds])
 
   const handlePaste = useCallback(() => {
+    if (isViewerRef.current) return
     if (!clipboardRef.current.length) return
     const pasted = JSON.parse(JSON.stringify(clipboardRef.current)).map((item) => {
       const id = getNextItemId(item.kind)
@@ -6454,6 +6475,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const deleteObject = useCallback((id) => {
     if (!id) return
+    if (isViewerRef.current) return
 
     const target = itemsRef.current.find((i) => i.id === id)
     if (target?.src?.startsWith('blob:')) URL.revokeObjectURL(target.src)
@@ -6477,6 +6499,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [attachTransformer, broadcastItemRemove, selectedId])
 
   const deleteSelectedObject = useCallback(() => {
+    if (isViewerRef.current) return
     const idsToDelete = selectedIds.length ? selectedIds : [selectedId]
     const mediaIds = idsToDelete.map((id) => itemsRef.current.find((i) => i.id === id)?.mediaId).filter(Boolean)
     captureDeleteUndo(idsToDelete)
@@ -6494,6 +6517,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [attachTransformer, broadcastItemRemove, selectedId, selectedIds])
 
   const handleGroupSelectionAction = useCallback(() => {
+    if (isViewerRef.current) return
     const activeIds = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
     if (!activeIds.length) return
 
@@ -6572,6 +6596,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [activeGroupId, attachTransformer, selectedId, selectedIds])
 
   const ungroupSelectedItems = useCallback(() => {
+    if (isViewerRef.current) return
     const groupId = activeGroupId
     if (!groupId) return
     // Cari items dari parent group (regular items + composite members)
@@ -6646,14 +6671,17 @@ const attachTransformer = useCallback((idOrIds) => {
     if (localUndoRef.current.length) {
       const entry = localUndoRef.current.pop()
       if (entry._type === 'add') {
-        const removeSet = new Set(entry.itemIds)
+        const removedIds = entry.itemIds || []
         const removedItems = itemsRef.current
-          .filter((item) => removeSet.has(item.id))
+          .filter((item) => removedIds.includes(item.id))
           .map((item) => ({ item: JSON.parse(JSON.stringify(item)), index: itemsRef.current.findIndex((c) => c.id === item.id) }))
-        setItems((current) => current.filter((item) => !removeSet.has(item.id)))
+        setItems((current) => current.filter((item) => !removedIds.includes(item.id)))
         isLocalUndoingRef.current = true
         localRedoRef.current.push({ _type: 'add', items: removedItems })
         isLocalUndoingRef.current = false
+        removedIds.forEach((id) => {
+          broadcastRef.current?.('item_removed', { userId: user?.id, itemId: id })
+        })
         return
       }
       if (entry._type === 'delete') {
@@ -6670,6 +6698,10 @@ const attachTransformer = useCallback((idOrIds) => {
           })
           isLocalUndoingRef.current = false
           localRedoRef.current.push({ _type: 'delete', itemIds: itemsToRestore.map((r) => r.item.id) })
+          itemsToRestore.forEach(({ item }) => {
+            if (item.src?.startsWith('blob:')) return
+            broadcastRef.current?.('item_added', { userId: user?.id, item })
+          })
         }
         return
       }
@@ -6686,6 +6718,7 @@ const attachTransformer = useCallback((idOrIds) => {
           isLocalUndoingRef.current = true
           localRedoRef.current.push({ _type: 'reorder', prevItemIds: nextIds })
           isLocalUndoingRef.current = false
+          broadcastRef.current?.('items_reorder', { userId: user?.id, orderedIds: prevIds })
         }
         return
       }
@@ -6712,7 +6745,7 @@ const attachTransformer = useCallback((idOrIds) => {
       setItems(prev)
       requestAnimationFrame(() => syncInlineEditor(prev))
     }
-  }, [syncInlineEditor])
+  }, [syncInlineEditor, user?.id])
 
   const handleRedo = useCallback(() => {
     if (localRedoRef.current.length) {
@@ -6731,6 +6764,10 @@ const attachTransformer = useCallback((idOrIds) => {
           })
           isLocalUndoingRef.current = false
           localUndoRef.current.push({ _type: 'add', itemIds: itemsToRestore.map((r) => r.item.id) })
+          itemsToRestore.forEach(({ item }) => {
+            if (item.src?.startsWith('blob:')) return
+            broadcastRef.current?.('item_added', { userId: user?.id, item })
+          })
         }
         return
       }
@@ -6745,6 +6782,9 @@ const attachTransformer = useCallback((idOrIds) => {
           isLocalUndoingRef.current = true
           localUndoRef.current.push({ _type: 'delete', items: removedItems })
           isLocalUndoingRef.current = false
+          removeIds.forEach((id) => {
+            broadcastRef.current?.('item_removed', { userId: user?.id, itemId: id })
+          })
         }
         return
       }
@@ -6761,6 +6801,7 @@ const attachTransformer = useCallback((idOrIds) => {
           isLocalUndoingRef.current = true
           localUndoRef.current.push({ _type: 'reorder', prevItemIds: nextIds })
           isLocalUndoingRef.current = false
+          broadcastRef.current?.('items_reorder', { userId: user?.id, orderedIds: prevIds })
         }
         return
       }
@@ -6787,7 +6828,7 @@ const attachTransformer = useCallback((idOrIds) => {
       setItems(next)
       requestAnimationFrame(() => syncInlineEditor(next))
     }
-  }, [syncInlineEditor])
+  }, [syncInlineEditor, user?.id])
 
   const alignCanvasItems = useCallback((alignment) => {
     const ids = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
@@ -6815,6 +6856,15 @@ const attachTransformer = useCallback((idOrIds) => {
       }
       members.forEach((m) => compositeDeltas.set(m.id, { dx, dy }))
     })
+    ids.forEach((aid) => {
+      const mi = itemsRef.current.find((c) => c.id === aid)
+      if (!mi) return
+      if (getCompositeInfoForItemId(aid)) {
+        captureGroupUndo(aid, { x: mi.x, y: mi.y })
+      } else {
+        captureUndo(aid, { x: mi.x, y: mi.y })
+      }
+    })
     const patches = []
     setItems((current) => current.map((item) => {
       if (!ids.includes(item.id)) return item
@@ -6841,6 +6891,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [selectedId, selectedIds, canvasBounds, broadcastItemUpdate])
 
   const duplicateItems = useCallback((ids) => {
+    if (isViewerRef.current) return
     if (!ids.length) return
     const pasted = JSON.parse(JSON.stringify(
       itemsRef.current.filter((item) => ids.includes(item.id))
@@ -6860,11 +6911,21 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [attachTransformer])
 
   const lockToggleSelected = useCallback(() => {
+    if (isViewerRef.current) return
     const ids = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
     if (!ids.length) return
     const first = itemsRef.current.find((item) => ids.includes(item.id))
     if (!first) return
     const nextLocked = !first.locked
+    ids.forEach((aid) => {
+      const mi = itemsRef.current.find((c) => c.id === aid)
+      if (!mi) return
+      if (getCompositeInfoForItemId(aid)) {
+        captureGroupUndo(aid, { locked: mi.locked })
+      } else {
+        captureUndo(aid, { locked: mi.locked })
+      }
+    })
     setItems((current) => current.map((item) =>
       ids.includes(item.id) ? { ...item, locked: nextLocked } : item
     ))
@@ -6878,6 +6939,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [attachTransformer, broadcastItemUpdate, selectedId, selectedIds])
 
   const moveLayerBlock = useCallback((direction) => {
+    if (isViewerRef.current) return
     const groupId = activeGroupId
     const activeIds = groupId
       ? itemsRef.current.filter((item) => item.groupId === groupId).map((item) => item.id)
@@ -6983,6 +7045,15 @@ const attachTransformer = useCallback((idOrIds) => {
   const moveSelected = useCallback((dx, dy) => {
     const activeIds = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
     if (!activeIds.length) return
+    activeIds.forEach((aid) => {
+      const mi = itemsRef.current.find((c) => c.id === aid)
+      if (!mi || mi.locked) return
+      if (getCompositeInfoForItemId(aid)) {
+        captureGroupUndo(aid, { x: mi.x, y: mi.y })
+      } else {
+        captureUndo(aid, { x: mi.x, y: mi.y })
+      }
+    })
     setItems((current) => current.map((item) => {
       if (!activeIds.includes(item.id) || item.locked) return item
       if (item.kind === 'connector') {
@@ -7173,6 +7244,8 @@ const attachTransformer = useCallback((idOrIds) => {
         return
       }
 
+      if (isViewerRef.current) return
+
       const arrowDeltaMap = {
         ArrowUp: { x: 0, y: -1 },
         ArrowDown: { x: 0, y: 1 },
@@ -7190,6 +7263,16 @@ const attachTransformer = useCallback((idOrIds) => {
       const step = event.shiftKey ? 10 : 1
       const dx = delta.x * step
       const dy = delta.y * step
+
+      activeIds.forEach((aid) => {
+        const mi = itemsRef.current.find((c) => c.id === aid)
+        if (!mi || mi.locked) return
+        if (getCompositeInfoForItemId(aid)) {
+          captureGroupUndo(aid, { x: mi.x, y: mi.y })
+        } else {
+          captureUndo(aid, { x: mi.x, y: mi.y })
+        }
+      })
 
       setItems((current) => current.map((item) => {
         if (!activeIds.includes(item.id) || item.locked) return item
@@ -7288,6 +7371,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const updateItem = (id, patch, skipBroadcast = false) => {
+    if (isViewerRef.current) return
     if (patch.src) {
       const oldItem = itemsRef.current.find((i) => i.id === id)
       if (oldItem?.src?.startsWith('blob:') && oldItem.src !== patch.src) {
@@ -7319,7 +7403,10 @@ const attachTransformer = useCallback((idOrIds) => {
     }
 
     // Capture for per-item undo (committed changes only, not slider ticks)
-    if (!skipBroadcast) captureUndo(id, patch)
+    if (!skipBroadcast) {
+      if (currentItem?.groupId) captureGroupUndo(id, patch)
+      else captureUndo(id, patch)
+    }
 
     // Accumulate pending color-picker patches for broadcast on picker close
     const isColorPickerPatch = colorPickerActiveRef.current && Object.keys(patch).some(k =>
@@ -7422,6 +7509,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const finishBezierPath = () => {
+    if (isViewerRef.current) return
     if (bezierAnchors.length < 2) return
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
     for (const a of bezierAnchors) {
@@ -7489,6 +7577,8 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const updateBezierCornerRadius = (itemId, radius) => {
+    const cur = itemsRef.current.find((c) => c.id === itemId)
+    if (cur) captureUndo(itemId, { cornerRadius: cur.cornerRadius })
     setItems((items) => items.map((item) => {
       if (item.id !== itemId) return item
       return { ...item, cornerRadius: Math.max(0, Math.min(50, radius)) }
@@ -7500,6 +7590,7 @@ const attachTransformer = useCallback((idOrIds) => {
     if (!item || item.shapeType !== 'bezier-path') return
     const anchors = parseBezierAnchors(item)
     if (anchorIndex < 0 || anchorIndex >= anchors.length) return
+    captureUndo(itemId, { x: item.x, y: item.y, w: item.w, h: item.h, path: item.path })
     anchors[anchorIndex] = { x: newWorldPos.x, y: newWorldPos.y }
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
     for (const a of anchors) {
@@ -7636,6 +7727,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [selectedItem])
 
   const handleApplyWarp = useCallback(async (mode, divX, divY) => {
+    if (isViewerRef.current) return
     const item = selectedItem
     if (!item || item.kind !== 'image') return
     if (warpStateRef.current) {
@@ -8034,6 +8126,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [])
 
   const processRemoveBg = async () => {
+    if (isViewerRef.current) return
     if (!selectedItem || selectedItem.kind !== 'image') return
     setIsRemoveBgProcessing(true)
     removeBgCancelRef.current = false
@@ -8111,6 +8204,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [selectedItem])
 
   const applyCompositeGroupMode = useCallback((mode) => {
+    if (isViewerRef.current) return
     const activeIds = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
     const compositableIds = activeIds.filter((id) => {
       const item = itemsRef.current.find((candidate) => candidate.id === id)
@@ -8383,6 +8477,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
   // Drag & drop handler for layers panel
   const handleDragEnd = (event) => {
+    if (isViewerRef.current) return
     const { active, over } = event
 
     if (!over || active.id === over.id) return
@@ -8787,6 +8882,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const applyImageCrop = async () => {
+    if (isViewerRef.current) return
     const session = cropSession
     if (!session) return
     const item = itemsRef.current.find((candidate) => candidate.id === session.itemId)
@@ -9067,6 +9163,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const addAssetToCanvas = async (asset, position) => {
+    if (isViewerRef.current) return
     const nextItem = await createCanvasItemFromAsset(asset, position)
     if (asset.sourceType === 'external-image') {
       ensureExternalImage({
@@ -9105,6 +9202,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const addNote = () => {
+    if (isViewerRef.current) return
     const id = getNextItemId('note')
     const position = getSafeSpawnPosition({ w: 170, h: 120 })
 
@@ -9118,6 +9216,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const addShapeToCanvas = (shapeData) => {
+    if (isViewerRef.current) return
     const id = getNextItemId('shape')
     const defaultProps = shapeData.defaultProps || {}
     const sanitizeSize = (nextSize) => ({
@@ -9199,6 +9298,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const addFrameToCanvas = (frameData) => {
+    if (isViewerRef.current) return
     const id = getNextItemId('frame')
 
     const viewportCenter = {
@@ -9408,6 +9508,7 @@ const attachTransformer = useCallback((idOrIds) => {
   // FIX: addText now uses isBold/isItalic flags from preset instead of legacy fontStyle string.
   // This ensures the hierarchy (Heading=bold, Paragraph=normal) is reflected immediately.
   const addText = (text = 'Add text', fontSize = 48, isBold = false, isItalic = false) => {
+    if (isViewerRef.current) return
     const id = getNextItemId('text')
 
     const size = { w: 320, h: Math.max(80, fontSize * 1.5) }
@@ -9557,6 +9658,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const finishConnectorDrag = (event, toId = null, toAnchor = null, targetType = 'object') => {
+    if (isViewerRef.current) return
     if (event) event.cancelBubble = true
     if (!connectorDraft) return
 
@@ -9746,6 +9848,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const handleCanvasDrop = async (event) => {
     event.preventDefault()
+    if (isViewerRef.current) return
 
     const asset = dragAssetRef.current
     const position = getCanvasDropPosition(event)
@@ -9954,6 +10057,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const handleObjectDragEnd = async (event, id) => {
+    if (isViewerRef.current) return
     event.cancelBubble = true
 
     if (activeObjectDragRef.current !== id) return
@@ -10022,6 +10126,12 @@ const attachTransformer = useCallback((idOrIds) => {
       })
 
       if (isDraggingCompositeSource) {
+        // Capture undo for non-composite moving items before setItems
+        movingIds.forEach((mid) => {
+          const mi = itemsRef.current.find((c) => c.id === mid)
+          if (!mi || getCompositeInfoForItemId(mid)) return
+          captureUndo(mid, { x: mi.x, y: mi.y })
+        })
         // Hanya update regular items — composite members di-handle oleh handleGroupDragEnd
         setItems((current) => current.map((currentItem) => {
           if (!movingIds.includes(currentItem.id)) return currentItem
@@ -10086,6 +10196,16 @@ const attachTransformer = useCallback((idOrIds) => {
           }
         })
 
+        // Capture undo for all moving items before setItems
+        movingIds.forEach((mid) => {
+          const mi = itemsRef.current.find((c) => c.id === mid)
+          if (!mi) return
+          if (getCompositeInfoForItemId(mid)) {
+            captureGroupUndo(mid, { x: mi.x, y: mi.y })
+          } else {
+            captureUndo(mid, { x: mi.x, y: mi.y })
+          }
+        })
         // DEBUG: before setItems, log pendingGroupDeltas contents and confirm itemsRef state
         const preDeltaKeys = Object.keys(pendingGroupDeltasRef.current)
         const preDeltaVal = pendingGroupDeltasRef.current['group-1783868272110']
@@ -10381,6 +10501,7 @@ if (item?.kind === 'image') {
   }, [items.length])
 
   const editTextObject = (id) => {
+    if (isViewerRef.current) return
     const item = itemsRef.current.find((current) => current.id === id)
 
     if (!item || !['text', 'shape'].includes(item.kind)) return
@@ -11700,10 +11821,13 @@ const toggleMobileSheetSize = () => {
                         const val = Number(event.target.value)
                         if (isFillTarget) {
                           updateItem(selectedItem.id, { gradientAngle: val }, true)
+                          broadcastItemUpdate(selectedItem.id, { gradientAngle: val })
                         } else if (isImageStrokeTarget) {
                           updateItem(selectedItem.id, { imageStrokeGradientAngle: val }, true)
+                          broadcastItemUpdate(selectedItem.id, { imageStrokeGradientAngle: val })
                         } else {
                           updateItem(selectedItem.id, { strokeGradientAngle: val }, true)
+                          broadcastItemUpdate(selectedItem.id, { strokeGradientAngle: val })
                         }
                       }}
                       onPointerUp={(event) => {
@@ -11724,6 +11848,18 @@ const toggleMobileSheetSize = () => {
                       max="360"
                       value={currentAngle}
                       onChange={(event) => {
+                        if (isFillTarget) {
+                          updateItem(selectedItem.id, { gradientAngle: Number(event.target.value) }, true)
+                          broadcastItemUpdate(selectedItem.id, { gradientAngle: Number(event.target.value) })
+                        } else if (isImageStrokeTarget) {
+                          updateItem(selectedItem.id, { imageStrokeGradientAngle: Number(event.target.value) }, true)
+                          broadcastItemUpdate(selectedItem.id, { imageStrokeGradientAngle: Number(event.target.value) })
+                        } else {
+                          updateItem(selectedItem.id, { strokeGradientAngle: Number(event.target.value) }, true)
+                          broadcastItemUpdate(selectedItem.id, { strokeGradientAngle: Number(event.target.value) })
+                        }
+                      }}
+                      onBlur={(event) => {
                         if (isFillTarget) {
                           updateItem(selectedItem.id, { gradientAngle: Number(event.target.value) })
                         } else if (isImageStrokeTarget) {
@@ -11791,10 +11927,13 @@ const toggleMobileSheetSize = () => {
                           const sortedStops = stops.sort((a, b) => a.offset - b.offset)
                           if (isFillTarget) {
                             updateItem(selectedItem.id, { gradientStops: sortedStops }, true)
+                            broadcastItemUpdate(selectedItem.id, { gradientStops: sortedStops })
                           } else if (isImageStrokeTarget) {
                             updateItem(selectedItem.id, { imageStrokeGradientStops: sortedStops }, true)
+                            broadcastItemUpdate(selectedItem.id, { imageStrokeGradientStops: sortedStops })
                           } else {
                             updateItem(selectedItem.id, { strokeGradientStops: sortedStops }, true)
+                            broadcastItemUpdate(selectedItem.id, { strokeGradientStops: sortedStops })
                           }
                         }}
                         onPointerUp={(event) => {
@@ -12127,10 +12266,12 @@ const toggleMobileSheetSize = () => {
                   setIsFxPanelOpen(true)
                 }}
                 onToggleVisibility={(id) => {
+                  if (isViewerRef.current) return
                   const entry = layerEntries.find((candidate) => candidate.id === id)
                   if (entry?.kind === 'group') {
                     const nextVisible = entry.visible === false
                     const groupMembers = itemsRef.current.filter((c) => c.groupId === id || c.parentGroupId === id)
+                    groupMembers.forEach((m) => captureUndo(m.id, { visible: m.visible }))
                     setItems((current) => current.map((currentItem) => (
                       currentItem.groupId === id || currentItem.parentGroupId === id
                         ? { ...currentItem, visible: nextVisible }
@@ -12143,10 +12284,12 @@ const toggleMobileSheetSize = () => {
                   updateItem(id, { visible: targetItem.visible === false })
                 }}
                 onToggleLock={(id) => {
+                  if (isViewerRef.current) return
                   const entry = layerEntries.find((candidate) => candidate.id === id)
                   if (entry?.kind === 'group') {
                     const nextLocked = !entry.locked
                     const groupMembers = itemsRef.current.filter((c) => c.groupId === id || c.parentGroupId === id)
+                    groupMembers.forEach((m) => captureUndo(m.id, { locked: m.locked }))
                     setItems((current) => current.map((currentItem) => (
                       currentItem.groupId === id || currentItem.parentGroupId === id
                         ? { ...currentItem, locked: nextLocked }
@@ -12159,6 +12302,7 @@ const toggleMobileSheetSize = () => {
                   updateItem(id, { locked: !targetItem.locked })
                 }}
                 onDelete={(id) => {
+                  if (isViewerRef.current) return
                   const entry = layerEntries.find((candidate) => candidate.id === id)
                   if (entry?.kind === 'group') {
                     const ids = entry.members.map((member) => member.id)
@@ -12416,7 +12560,7 @@ const toggleMobileSheetSize = () => {
                                   type="range"
                                   min="0" max="100"
                                   value={Math.round((operatorItem.compositeOpacity ?? 1) * 100)}
-                                  onChange={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 }, true)}
+                                  onChange={(event) => { const v = Number(event.target.value) / 100; updateItem(operatorItem.id, { compositeOpacity: v }, true); broadcastItemUpdate(operatorItem.id, { compositeOpacity: v }) }}
                                   onPointerUp={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
                                   className="workspace-opacity-slider"
                                 />
@@ -12424,7 +12568,7 @@ const toggleMobileSheetSize = () => {
                                   type="number"
                                   min="0" max="100"
                                   value={Math.round((operatorItem.compositeOpacity ?? 1) * 100)}
-                                  onChange={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 }, true)}
+                                  onChange={(event) => { const v = Number(event.target.value) / 100; updateItem(operatorItem.id, { compositeOpacity: v }, true); broadcastItemUpdate(operatorItem.id, { compositeOpacity: v }) }}
                                   onBlur={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
                                   className="workspace-opacity-input"
                                 />
@@ -12490,7 +12634,7 @@ const toggleMobileSheetSize = () => {
                                   </div>
                                   <input type="range" min="1" max="40"
                                     value={operatorItem.compositeStrokeWidth ?? 3}
-                                    onChange={(event) => updateItem(operatorItem.id, { compositeStrokeEnabled: true, compositeStrokeWidth: Number(event.target.value) }, true)}
+                                    onChange={(event) => { const v = Number(event.target.value); updateItem(operatorItem.id, { compositeStrokeEnabled: true, compositeStrokeWidth: v }, true); broadcastItemUpdate(operatorItem.id, { compositeStrokeWidth: v }) }}
                                     onPointerUp={(event) => updateItem(operatorItem.id, { compositeStrokeEnabled: true, compositeStrokeWidth: Number(event.target.value) })}
                                   />
                                 </label>
@@ -12552,7 +12696,9 @@ const toggleMobileSheetSize = () => {
                                     <input type="range" min={ctrl.min} max={ctrl.max} value={ctrl.value}
                                       onChange={(e) => {
                                         const val = Number(e.target.value)
-                                        updateItem(operatorItem.id, { [ctrl.key]: ctrl.key === 'compositeShadowOpacity' ? val / 100 : val }, true)
+                                        const patchVal = ctrl.key === 'compositeShadowOpacity' ? val / 100 : val
+                                        updateItem(operatorItem.id, { [ctrl.key]: patchVal }, true)
+                                        broadcastItemUpdate(operatorItem.id, { [ctrl.key]: patchVal })
                                       }}
                                       onPointerUp={(e) => {
                                         const val = Number(e.target.value)
@@ -12814,8 +12960,12 @@ const toggleMobileSheetSize = () => {
                 step={1}
                 onChange={(event) => {
                   const patch = { [field]: Number(event.target.value) }
-                  updateItem(selectedItem.id, patch)
+                  updateItem(selectedItem.id, patch, true)
                   broadcastItemUpdate(selectedItem.id, patch)
+                }}
+                onBlur={(event) => {
+                  const patch = { [field]: Number(event.target.value) }
+                  updateItem(selectedItem.id, patch)
                 }}
               />
             </label>
@@ -12846,12 +12996,24 @@ const toggleMobileSheetSize = () => {
                     if (selectedItem.lockAspectRatio && selectedItem.h > 0) {
                       const ratio = selectedItem.w / selectedItem.h
                       patch = { w: newW, h: Math.round(newW / ratio) }
+                      updateItem(selectedItem.id, patch, true)
+                    } else {
+                      patch = { w: newW }
+                      updateItem(selectedItem.id, patch, true)
+                    }
+                    broadcastItemUpdate(selectedItem.id, patch)
+                  }}
+                  onBlur={(event) => {
+                    const newW = Number(event.target.value)
+                    let patch
+                    if (selectedItem.lockAspectRatio && selectedItem.h > 0) {
+                      const ratio = selectedItem.w / selectedItem.h
+                      patch = { w: newW, h: Math.round(newW / ratio) }
                       updateItem(selectedItem.id, patch)
                     } else {
                       patch = { w: newW }
                       updateItem(selectedItem.id, patch)
                     }
-                    broadcastItemUpdate(selectedItem.id, patch)
                   }}
                 />
               </label>
@@ -12867,12 +13029,24 @@ const toggleMobileSheetSize = () => {
                     if (selectedItem.lockAspectRatio && selectedItem.w > 0) {
                       const ratio = selectedItem.w / selectedItem.h
                       patch = { h: newH, w: Math.round(newH * ratio) }
+                      updateItem(selectedItem.id, patch, true)
+                    } else {
+                      patch = { h: newH }
+                      updateItem(selectedItem.id, patch, true)
+                    }
+                    broadcastItemUpdate(selectedItem.id, patch)
+                  }}
+                  onBlur={(event) => {
+                    const newH = Number(event.target.value)
+                    let patch
+                    if (selectedItem.lockAspectRatio && selectedItem.w > 0) {
+                      const ratio = selectedItem.w / selectedItem.h
+                      patch = { h: newH, w: Math.round(newH * ratio) }
                       updateItem(selectedItem.id, patch)
                     } else {
                       patch = { h: newH }
                       updateItem(selectedItem.id, patch)
                     }
-                    broadcastItemUpdate(selectedItem.id, patch)
                   }}
                 />
               </label>
@@ -12887,8 +13061,12 @@ const toggleMobileSheetSize = () => {
                   step={1}
                   onChange={(event) => {
                     const patch = { [field]: Number(event.target.value) }
-                    updateItem(selectedItem.id, patch)
+                    updateItem(selectedItem.id, patch, true)
                     broadcastItemUpdate(selectedItem.id, patch)
+                  }}
+                  onBlur={(event) => {
+                    const patch = { [field]: Number(event.target.value) }
+                    updateItem(selectedItem.id, patch)
                   }}
                 />
               </label>
@@ -12903,8 +13081,12 @@ const toggleMobileSheetSize = () => {
                 step={1}
                 onChange={(event) => {
                   const patch = { [field]: Number(event.target.value) }
-                  updateItem(selectedItem.id, patch)
+                  updateItem(selectedItem.id, patch, true)
                   broadcastItemUpdate(selectedItem.id, patch)
+                }}
+                onBlur={(event) => {
+                  const patch = { [field]: Number(event.target.value) }
+                  updateItem(selectedItem.id, patch)
                 }}
               />
             </label>
@@ -12997,7 +13179,7 @@ const toggleMobileSheetSize = () => {
             hsl(${control.value + 540}, 100%, 50%)
           )`,
         } : {}}
-        onChange={(event) => updateItem(selectedItem.id, { [control.key]: Number(event.target.value) }, true)}
+        onChange={(event) => { const v = Number(event.target.value); updateItem(selectedItem.id, { [control.key]: v }, true); broadcastItemUpdate(selectedItem.id, { [control.key]: v }) }}
         onPointerUp={(event) => updateItem(selectedItem.id, { [control.key]: Number(event.target.value) })}
       />
     </label>
@@ -13023,7 +13205,7 @@ const toggleMobileSheetSize = () => {
                 min="0"
                 max="80"
                 value={selectedItem.radius ?? 0}
-                onChange={(event) => updateItem(selectedItem.id, { radius: Number(event.target.value) }, true)}
+                onChange={(event) => { const v = Number(event.target.value); updateItem(selectedItem.id, { radius: v }, true); broadcastItemUpdate(selectedItem.id, { radius: v }) }}
                 onPointerUp={(event) => updateItem(selectedItem.id, { radius: Number(event.target.value) })}
               />
             </label>
@@ -13082,10 +13264,14 @@ const toggleMobileSheetSize = () => {
                     min="1"
                     max="40"
                     value={selectedItem.imageStrokeWidth ?? 3}
-                    onChange={(event) => updateItem(selectedItem.id, {
-                      imageStrokeEnabled: true,
-                      imageStrokeWidth: Number(event.target.value),
-                    }, true)}
+                    onChange={(event) => {
+                      const v = Number(event.target.value)
+                      updateItem(selectedItem.id, {
+                        imageStrokeEnabled: true,
+                        imageStrokeWidth: v,
+                      }, true)
+                      broadcastItemUpdate(selectedItem.id, { imageStrokeWidth: v })
+                    }}
                     onPointerUp={(event) => updateItem(selectedItem.id, {
                       imageStrokeEnabled: true,
                       imageStrokeWidth: Number(event.target.value),
@@ -13116,7 +13302,7 @@ const toggleMobileSheetSize = () => {
                   min="0"
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
+                  onChange={(event) => { const v = Number(event.target.value) / 100; updateItem(selectedItem.id, { opacity: v }, true); broadcastItemUpdate(selectedItem.id, { opacity: v }) }}
                   onPointerUp={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-slider"
                 />
@@ -13125,7 +13311,7 @@ const toggleMobileSheetSize = () => {
                   min="0"
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
+                  onChange={(event) => { const v = Number(event.target.value) / 100; updateItem(selectedItem.id, { opacity: v }, true); broadcastItemUpdate(selectedItem.id, { opacity: v }) }}
                   onBlur={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-input"
                 />
@@ -13236,7 +13422,9 @@ const toggleMobileSheetSize = () => {
                       value={ctrl.value}
                       onChange={(e) => {
                         const val = Number(e.target.value)
-                        updateItem(selectedItem.id, { [ctrl.key]: ctrl.key === 'shadowOpacity' ? val / 100 : val }, true)
+                        const patchVal = ctrl.key === 'shadowOpacity' ? val / 100 : val
+                        updateItem(selectedItem.id, { [ctrl.key]: patchVal }, true)
+                        broadcastItemUpdate(selectedItem.id, { [ctrl.key]: patchVal })
                       }}
 onPointerUp={(e) => {
                                         const val = Number(e.target.value)
@@ -13314,7 +13502,7 @@ onPointerUp={(e) => {
         </label>
 
         {isShapeAdjustmentLayer ? (
-          <AdjustmentSliders item={selectedItem} onChange={(id, patch) => updateItem(id, patch, true)} onCommit={(id, patch) => broadcastItemUpdate(id, patch)} onOpacityChange={(id, val) => updateItem(id, { opacity: val }, true)} onOpacityCommit={(id, val) => broadcastItemUpdate(id, { opacity: val })} />
+          <AdjustmentSliders item={selectedItem} onChange={(id, patch) => { updateItem(id, patch, true); broadcastItemUpdate(id, patch) }} onCommit={(id, patch) => updateItem(id, patch)} onOpacityChange={(id, val) => { updateItem(id, { opacity: val }, true); broadcastItemUpdate(id, { opacity: val }) }} onOpacityCommit={(id, val) => updateItem(id, { opacity: val })} />
         ) : (
           <>
             <div className="workspace-typography-grid">
@@ -13361,7 +13549,15 @@ onPointerUp={(e) => {
                 min="0"
                 max="40"
                 value={selectedItem.strokeWidth ?? 0}
-                onChange={(event) => updateItem(selectedItem.id, {
+                onChange={(event) => {
+                  const sw = Number(event.target.value)
+                  updateItem(selectedItem.id, {
+                    strokeWidth: sw,
+                    stroke: sw > 0 && selectedItem.stroke === null ? '#3f3a46' : selectedItem.stroke,
+                  }, true)
+                  broadcastItemUpdate(selectedItem.id, { strokeWidth: sw })
+                }}
+                onBlur={(event) => updateItem(selectedItem.id, {
                   strokeWidth: Number(event.target.value),
                   stroke: Number(event.target.value) > 0 && selectedItem.stroke === null ? '#3f3a46' : selectedItem.stroke,
                 })}
@@ -13377,7 +13573,8 @@ onPointerUp={(e) => {
                     min="3"
                     max="20"
                     value={selectedItem.numPoints || 5}
-                    onChange={(event) => updateItem(selectedItem.id, { numPoints: Math.max(3, Math.min(20, Number(event.target.value))) })}
+                    onChange={(event) => { const v = Math.max(3, Math.min(20, Number(event.target.value))); updateItem(selectedItem.id, { numPoints: v }, true); broadcastItemUpdate(selectedItem.id, { numPoints: v }) }}
+                    onBlur={(event) => updateItem(selectedItem.id, { numPoints: Math.max(3, Math.min(20, Number(event.target.value))) })}
                   />
                 </label>
                 <label className="workspace-typography-field workspace-typography-field-full">
@@ -13388,7 +13585,8 @@ onPointerUp={(e) => {
                       min="5"
                       max="48"
                       value={Math.round((selectedItem.starInnerRatio ?? 0.25) * 100)}
-                      onChange={(event) => updateItem(selectedItem.id, { starInnerRatio: Number(event.target.value) / 100 })}
+                      onChange={(event) => { const v = Number(event.target.value) / 100; updateItem(selectedItem.id, { starInnerRatio: v }, true); broadcastItemUpdate(selectedItem.id, { starInnerRatio: v }) }}
+                      onPointerUp={(event) => updateItem(selectedItem.id, { starInnerRatio: Number(event.target.value) / 100 })}
                       className="workspace-opacity-slider"
                     />
                     <input
@@ -13396,7 +13594,8 @@ onPointerUp={(e) => {
                       min="5"
                       max="48"
                       value={Math.round((selectedItem.starInnerRatio ?? 0.25) * 100)}
-                      onChange={(event) => updateItem(selectedItem.id, { starInnerRatio: Math.max(0.05, Math.min(0.48, Number(event.target.value) / 100)) })}
+                      onChange={(event) => { const v = Math.max(0.05, Math.min(0.48, Number(event.target.value) / 100)); updateItem(selectedItem.id, { starInnerRatio: v }, true); broadcastItemUpdate(selectedItem.id, { starInnerRatio: v }) }}
+                      onBlur={(event) => updateItem(selectedItem.id, { starInnerRatio: Math.max(0.05, Math.min(0.48, Number(event.target.value) / 100)) })}
                       className="workspace-opacity-input"
                     />
                     <span className="workspace-opacity-unit">%</span>
@@ -13413,7 +13612,7 @@ onPointerUp={(e) => {
                   min="0"
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
+                  onChange={(event) => { const v = Number(event.target.value) / 100; updateItem(selectedItem.id, { opacity: v }, true); broadcastItemUpdate(selectedItem.id, { opacity: v }) }}
                   onPointerUp={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-slider"
                 />
@@ -13422,14 +13621,13 @@ onPointerUp={(e) => {
                   min="0"
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                  onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
+                  onChange={(event) => { const v = Number(event.target.value) / 100; updateItem(selectedItem.id, { opacity: v }, true); broadcastItemUpdate(selectedItem.id, { opacity: v }) }}
                   onBlur={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-input"
                 />
                 <span className="workspace-opacity-unit">%</span>
               </div>
             </label>
-
             <label className="workspace-typography-field workspace-typography-field-full">
               Blend Mode
               <div style={{ position: 'relative' }}>
@@ -13496,6 +13694,19 @@ onPointerUp={(e) => {
               max="180"
               value={selectedItem.shapeTextFontSize || 16}
               onChange={(event) => {
+                const newFontSize = Number(event.target.value)
+                const { minW, minH } = getShapeMinSizeForText(
+                  selectedItem,
+                  selectedItem.shapeText || '',
+                  newFontSize
+                )
+                const patch = { shapeTextFontSize: newFontSize }
+                if (selectedItem.w < minW) patch.w = minW
+                if (selectedItem.h < minH) patch.h = minH
+                updateItem(selectedItem.id, patch, true)
+                broadcastItemUpdate(selectedItem.id, { shapeTextFontSize: newFontSize })
+              }}
+              onBlur={(event) => {
                 const newFontSize = Number(event.target.value)
                 const { minW, minH } = getShapeMinSizeForText(
                   selectedItem,
@@ -13624,7 +13835,8 @@ onPointerUp={(e) => {
                   min="8"
                   max="180"
                   value={selectedItem.fontSize || 48}
-                  onChange={(event) => updateItem(selectedItem.id, { fontSize: Number(event.target.value) })}
+                  onChange={(event) => { const v = Number(event.target.value); updateItem(selectedItem.id, { fontSize: v }, true); broadcastItemUpdate(selectedItem.id, { fontSize: v }) }}
+                  onBlur={(event) => updateItem(selectedItem.id, { fontSize: Number(event.target.value) })}
                 />
               </label>
 
@@ -13680,7 +13892,8 @@ onPointerUp={(e) => {
                   min="0"
                   max="20"
                   value={selectedItem.strokeWidth || 0}
-                  onChange={(event) => updateItem(selectedItem.id, { strokeWidth: Number(event.target.value) })}
+                  onChange={(event) => { const v = Number(event.target.value); updateItem(selectedItem.id, { strokeWidth: v }, true); broadcastItemUpdate(selectedItem.id, { strokeWidth: v }) }}
+                  onBlur={(event) => updateItem(selectedItem.id, { strokeWidth: Number(event.target.value) })}
                 />
               </label>
 
@@ -13691,18 +13904,18 @@ onPointerUp={(e) => {
                     type="range"
                     min="0"
                     max="100"
-                    value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                    onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
-                    onPointerUp={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
-                    className="workspace-opacity-slider"
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={Math.round((selectedItem.opacity ?? 1) * 100)}
-                    onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
-                    onBlur={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  value={Math.round((selectedItem.opacity ?? 1) * 100)}
+                  onChange={(event) => { const v = Number(event.target.value) / 100; updateItem(selectedItem.id, { opacity: v }, true); broadcastItemUpdate(selectedItem.id, { opacity: v }) }}
+                  onPointerUp={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  className="workspace-opacity-slider"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={Math.round((selectedItem.opacity ?? 1) * 100)}
+                  onChange={(event) => { const v = Number(event.target.value) / 100; updateItem(selectedItem.id, { opacity: v }, true); broadcastItemUpdate(selectedItem.id, { opacity: v }) }}
+                  onBlur={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                     className="workspace-opacity-input"
                   />
                   <span className="workspace-opacity-unit">%</span>
@@ -14823,7 +15036,7 @@ onPointerUp={(e) => {
             onCursor={handleItemCursor}
             setStageCursor={setStageCursor}
             onItemHover={setHoveredItemId}
-            disableDrag={isSpaceDown || isPanning || activePanel === 'brush'}
+            disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush'}
             isShiftDown={isShiftDown}
             getActiveTransformAnchor={() => transformerRef.current?.getActiveAnchor?.()}
             dropTargetFrameId={dropTargetFrameId}
@@ -14871,7 +15084,7 @@ onPointerUp={(e) => {
           isTextEditing={editingText?.id === item.id}
           onCursor={handleItemCursor}
           onItemHover={setHoveredItemId}
-          disableDrag={isSpaceDown || isPanning || activePanel === 'brush' || cropSession?.itemId === item.id}
+          disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush' || cropSession?.itemId === item.id}
           isShiftDown={isShiftDown}
           getActiveTransformAnchor={() => transformerRef.current?.getActiveAnchor?.()}
           dropTargetFrameId={dropTargetFrameId}
@@ -14928,7 +15141,7 @@ onPointerUp={(e) => {
         isTextEditing={editingText?.id === item.id}
         onCursor={handleItemCursor}
         onItemHover={setHoveredItemId}
-        disableDrag={isSpaceDown || isPanning || activePanel === 'brush' || cropSession?.itemId === item.id}
+        disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush' || cropSession?.itemId === item.id}
         isShiftDown={isShiftDown}
         getActiveTransformAnchor={() => transformerRef.current?.getActiveAnchor?.()}
         dropTargetFrameId={dropTargetFrameId}
@@ -14972,7 +15185,7 @@ onPointerUp={(e) => {
   return (
     <ToastProvider>
     <ToastRefCapture toastRef={toastRef} />
-    <CollaborationProvider workspaceId={workspaceId} user={user} itemUpdateHandlerRef={itemUpdateHandlerRef} itemAddHandlerRef={itemAddHandlerRef} itemRemoveHandlerRef={itemRemoveHandlerRef} reorderHandlerRef={reorderHandlerRef} workspaceUpdateHandlerRef={workspaceUpdateHandlerRef} collaboratorsGuardRef={collaboratorsGuardRef} bezierStateHandlerRef={bezierStateHandlerRef}>
+    <CollaborationProvider workspaceId={workspaceId} user={user} itemUpdateHandlerRef={itemUpdateHandlerRef} itemAddHandlerRef={itemAddHandlerRef} itemRemoveHandlerRef={itemRemoveHandlerRef} itemsReorderHandlerRef={itemsReorderHandlerRef} reorderHandlerRef={reorderHandlerRef} workspaceUpdateHandlerRef={workspaceUpdateHandlerRef} collaboratorsGuardRef={collaboratorsGuardRef} bezierStateHandlerRef={bezierStateHandlerRef}>
     <section
       className={`workspace-page ${isRightPanelOpen ? 'panel-open' : 'panel-collapsed'} sheet-${mobileSheetState}`}
       onPointerDown={handleOutsideWorkspacePointerDown}
@@ -15072,7 +15285,8 @@ onPointerUp={(e) => {
         <span>{workspaceTitle}</span>
       </div>
       <CollaborationPresence workspaceOwnerId={workspaceOwnerId} />
-      <button type="button" className={`workspace-save-status ${saveIndicator.state}`} title={saveIndicator.label} onClick={handleManualSave} disabled={!workspaceId}>
+      {isViewerRef.current && <span className="workspace-viewer-badge" title="Mode hanya lihat">Lihat</span>}
+      <button type="button" className={`workspace-save-status ${saveIndicator.state}`} title={saveIndicator.label} onClick={handleManualSave} disabled={!workspaceId || isViewerRef.current}>
         <span className="workspace-save-icon-wrap">
           <SaveStatusIcon size={15} />
           {saveIndicator.state === 'saving' && <LoaderCircle size={10} className="workspace-save-spinner" />}
@@ -15664,7 +15878,7 @@ onPointerUp={(e) => {
                   )
                 })()}
                 {renderCropOverlay()}
-                {!cropSession && !warpStateRef.current && activeToolCard !== 'meshWarp' && (
+                {!cropSession && !warpStateRef.current && activeToolCard !== 'meshWarp' && !isViewerRef.current && (
                              <Transformer
                 ref={transformerRef}
                 rotateEnabled={!areAllLocked}

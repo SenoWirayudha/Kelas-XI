@@ -373,5 +373,82 @@ Pattern: `updateItem(id, patch, true)` on `onChange` + `broadcastItemUpdate(id, 
 - `src/hooks/useCursorBroadcast.js` — throttle 50→200ms
 - `src/components/panels/AdjustmentSliders.jsx` — `onOpacityChange`/`onOpacityCommit` props
 
-Skills provide specialized instructions and workflows for specific tasks.
-Use the skill tool to load a skill when a task matches its description.
+## Session 2026-07-15: View-Only Collaborator Permission Fix
+
+### Problem
+View-only collaborators (`role: 'view'`) were able to drop items, edit properties, delete, reorder, and save changes. The backend `assertWorkspaceAccess` only checked if the user had ANY access — didn't differentiate between `view` and `edit` roles.
+
+### Backend Fix
+- **`assertWorkspaceAccess`**: Added `operation` parameter (`'read'`|`'write'`). For `'write'` operations, checks `collab.role !== 'edit'` → throws 403. Owner always passes.
+- **Callers updated**: `getWorkspace` → `'read'`, `saveWorkspace`/`updateWorkspace`/`setThumbnail`/`deleteWorkspace` → `'write'`
+- **`getWorkspace` returns `role`**: Fetches collaborator via `assertWorkspaceAccess`, returns `result.role = 'edit'|'view'` so frontend knows the user's permission level
+- Collaborator management endpoints (`inviteCollaborator`, `changeCollaboratorRole`, `removeCollaborator`, `listCollaborators`) unchanged — already use `assertOwner`
+
+### Frontend Fix — `isViewerRef`
+- Added `isViewerRef = useRef(false)` in Workspace
+- Set from `workspace.role` returned by `getWorkspace`: `isViewerRef.current = workspace.role === 'view'`
+
+### Frontend Fix — Guarded Entry Points
+All guarded with `if (isViewerRef.current) return`:
+- **`handleCanvasDrop`** — DnD onto canvas
+- **`addAssetToCanvas`**, `addNote`, `addShapeToCanvas`, `addFrameToCanvas`, `addText` — toolbar add buttons
+- **`handlePaste`**, `duplicateItems` — clipboard/duplicate
+- **`deleteObject`**, `deleteSelectedObject` — delete
+- **`handleGroupSelectionAction`**, `ungroupSelectedItems` — group/ungroup
+- **`moveLayerBlock`**, `handleDragEnd` (layer panel) — reorder
+- **`finishBezierPath`** — bezier path tool
+- **`finishConnectorDrag`** — connector tool
+- **`processRemoveBg`** — remove background
+- **`applyCompositeGroupMode`** — composite mode toggle
+- **`applyImageCrop`** — crop commit
+- **`editTextObject`** — double-click text edit
+- **`updateItem`** — BASE GUARD (all property edits)
+- **`persistWorkspaceSnapshot`** — auto/manual save
+- **Keyboard arrow nudge** — `handleSelectionKeyboard` arrow keys
+- **`handleObjectDragEnd`** — Konva drag end
+- **`disableDrag` prop** (3 rendering sites) — prevents drag entirely
+- **Transformer hidden** — `!isViewerRef.current` condition
+- **Save button disabled** — `disabled={... || isViewerRef.current}`
+- **Viewer badge** — "Lihat" badge in top bar (`.workspace-viewer-badge` CSS)
+
+## Session 2026-07-15 (lanjutan): Undo/Redo Broadcast ke Collaborator
+
+### Problem
+Undo/redo hanya lokal — perubahan undo (add/delete/reorder) tidak dikirim ke receiver via broadcast. Receiver tetap melihat item yang sudah di-undo.
+
+### Fix
+- **`handleUndo`**: Setelah `_type: 'add'` → broadcast `item_removed`; setelah `_type: 'delete'` → broadcast `item_added`; setelah `_type: 'reorder'` → broadcast `items_reorder` dengan `orderedIds` (urutan item yang benar setelah undo)
+- **`handleRedo`**: Sama — broadcast `item_added` untuk undo delete, `item_removed` untuk undo add, `items_reorder` untuk reorder
+- **`itemsReorderHandlerRef`** di Workspace: handler yang menerima `orderedIds` dan mengurutkan ulang `items` state sesuai dengan urutan ID
+- **CollaborationContext**: listener `items_reorder` baru + prop `itemsReorderHandlerRef`
+
+### Per-item undo coverage (Session 2026-07-15 continued)
+
+✅ **Sudah per-item undo:**
+- Transform (drag/resize/rotate) → `updateItem` → `captureUndo`
+- Add/drop (12 entry points) → `captureAddUndo`
+- Delete (4 entry points) → `captureDeleteUndo`
+- Layer reorder (6 entry points) → `captureReorderUndo`
+- Group/ungroup → `captureGroupUndo`
+- Semua property edits (opacity, efek, warna via slider onPointerUp/onBlur, color picker onBlur, presets, dll) → `updateItem` → `captureUndo`
+- **Composite member property edits** → `updateItem` → `captureGroupUndo` (sebelumnya snapshot-only karena `captureUndo` skip `item.groupId`)
+- Text edit commit → `updateItem`
+- Paste/duplicate → `captureAddUndo`
+- **Multi-object drag end** → `captureUndo`/`captureGroupUndo` per movingId
+- **Arrow key nudge** (keyboard + panel buttons) → `captureUndo`/`captureGroupUndo`
+- **Align items** → `captureUndo`/`captureGroupUndo`
+- **Lock toggle selected** → `captureUndo`/`captureGroupUndo`
+- **Group visibility/lock toggle** (layer panel) → `captureUndo` per member
+- **Bezier editing** (corner radius, anchor move) → `captureUndo`
+
+❌ **Masih snapshot-only fallback (diterima):**
+- Canvas resize (punya guard sendiri, ga perlu undo)
+- Brush strokes (punya undo sendiri via `brushUndoStackRef`)
+- Control point drags di bezier (data cuma di ref, ga commit ke item state — bug terpisah)
+
+### Key Files (View-Only + Undo Broadcast + Per-item Coverage)
+
+- `backend/src/modules/workspaces/workspaces.service.js` — `assertWorkspaceAccess` operation param, `getWorkspace` role
+- `src/pages/Workspace.jsx` — `isViewerRef`, all guarded entry points, `disableDrag`, transformer guard, viewer badge, undo/redo broadcast, `itemsReorderHandlerRef`, per-item undo for composite members/multi-drag/arrow/align/lock/group-visibility/bezier
+- `src/context/CollaborationContext.jsx` — `items_reorder` listener, `itemsReorderHandlerRef` prop
+- `src/App.css` — `.workspace-viewer-badge` styles

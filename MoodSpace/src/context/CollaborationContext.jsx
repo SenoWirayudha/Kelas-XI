@@ -13,7 +13,7 @@ const CHANNEL_PREFIX = 'workspace:'
 const leaveToastCooldowns = new Map()
 const recentJoinToastTimestamps = new Map()
 
-export function CollaborationProvider({ workspaceId, user, children, itemUpdateHandlerRef, itemAddHandlerRef, itemRemoveHandlerRef, reorderHandlerRef, workspaceUpdateHandlerRef, collaboratorsGuardRef, bezierStateHandlerRef }) {
+export function CollaborationProvider({ workspaceId, user, children, itemUpdateHandlerRef, itemAddHandlerRef, itemRemoveHandlerRef, itemsReorderHandlerRef, reorderHandlerRef, workspaceUpdateHandlerRef, collaboratorsGuardRef, bezierStateHandlerRef }) {
   const [collaborators, setCollaborators] = useState([])
   const [isConnected, setIsConnected] = useState(false)
   const [collaboratorSelections, setCollaboratorSelections] = useState({})
@@ -186,6 +186,11 @@ export function CollaborationProvider({ workspaceId, user, children, itemUpdateH
         const data = payload.payload || payload
         if (data.userId === user.id) return
         itemRemoveHandlerRef?.current?.(data.itemId)
+      })
+      .on('broadcast', { event: 'items_reorder' }, (payload) => {
+        const data = payload.payload || payload
+        if (data.userId === user.id) return
+        itemsReorderHandlerRef?.current?.(data.orderedIds)
       })
       .on('broadcast', { event: 'layer_reorder' }, (payload) => {
         const data = payload.payload || payload

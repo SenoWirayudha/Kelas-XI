@@ -142,14 +142,7 @@ export default function AdjustmentSliders({ item, onChange, onCommit, onOpacityC
               style={control.key === 'hue' ? hueGradientStyle(getValue('hue')) : {}}
               onChange={(event) => onChange(item.id, { [control.key]: Number(event.target.value) })}
               onMouseDown={() => { sliderStartRef.current[control.key] = getValue(control.key) }}
-              onMouseUp={(event) => {
-                const val = Number(event.target.value)
-                if (val !== sliderStartRef.current[control.key]) {
-                  onCommit?.(item.id, { [control.key]: val })
-                  sliderStartRef.current[control.key] = val
-                }
-              }}
-              onTouchEnd={(event) => {
+              onPointerUp={(event) => {
                 const val = Number(event.target.value)
                 if (val !== sliderStartRef.current[control.key]) {
                   onCommit?.(item.id, { [control.key]: val })

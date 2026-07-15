@@ -28,11 +28,15 @@ import {
 } from './workspaceCollaborators.repository.js'
 import { buildInitialSnapshot, hashSnapshot } from './snapshot.service.js'
 
-const assertWorkspaceAccess = async (workspace, userId) => {
+const assertWorkspaceAccess = async (workspace, userId, operation = 'read') => {
   if (!workspace) throw notFound('Workspace not found')
   if (workspace.ownerId === userId) return
   const collab = await findCollaborator(workspace.id, userId)
   if (!collab) throw forbidden('You do not have access to this workspace')
+  if (operation === 'write' && collab.role !== 'edit') {
+    throw forbidden('View-only collaborators cannot modify this workspace')
+  }
+  return collab
 }
 
 const serializeWorkspace = (workspace, version = null) => ({
@@ -110,21 +114,23 @@ export const listWorkspaces = async (userId) => {
 
 export const getWorkspace = async ({ userId, workspaceId }) => {
   const workspace = await findWorkspaceById(workspaceId)
-  await assertWorkspaceAccess(workspace, userId)
+  const collab = await assertWorkspaceAccess(workspace, userId, 'read')
   const version = await getLatestVersion(workspaceId)
-  return serializeWorkspace(workspace, version)
+  const result = serializeWorkspace(workspace, version)
+  result.role = workspace.ownerId === userId ? 'edit' : (collab?.role || 'view')
+  return result
 }
 
 export const updateWorkspace = async ({ userId, workspaceId, patch }) => {
   const workspace = await findWorkspaceById(workspaceId)
-  await assertWorkspaceAccess(workspace, userId)
+  await assertWorkspaceAccess(workspace, userId, 'write')
   const updated = await updateWorkspaceMetadata({ workspaceId, ownerId: userId, patch })
   return serializeWorkspace(updated, await getLatestVersion(workspaceId))
 }
 
 export const saveWorkspace = async ({ userId, workspaceId, body, saveType }) => {
   const workspace = await findWorkspaceById(workspaceId)
-  await assertWorkspaceAccess(workspace, userId)
+  await assertWorkspaceAccess(workspace, userId, 'write')
 
   const snapshotHash = hashSnapshot(body.snapshot)
   const result = await createWorkspaceVersion({
@@ -146,7 +152,7 @@ export const saveWorkspace = async ({ userId, workspaceId, body, saveType }) => 
 
 export const setThumbnail = async ({ userId, workspaceId, mediaId, dataUrl }) => {
   const workspace = await findWorkspaceById(workspaceId)
-  await assertWorkspaceAccess(workspace, userId)
+  await assertWorkspaceAccess(workspace, userId, 'write')
 
   const oldMediaId = workspace.thumbnailMediaId
   if (oldMediaId) {
@@ -194,7 +200,7 @@ export const setThumbnail = async ({ userId, workspaceId, mediaId, dataUrl }) =>
 
 export const deleteWorkspace = async ({ userId, workspaceId }) => {
   const workspace = await findWorkspaceById(workspaceId)
-  await assertWorkspaceAccess(workspace, userId)
+  await assertWorkspaceAccess(workspace, userId, 'write')
   const deleted = await softDeleteWorkspace({ workspaceId, ownerId: userId })
   if (!deleted) throw notFound('Workspace not found')
 }
