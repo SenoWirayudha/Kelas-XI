@@ -3,8 +3,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 
 const MAX_VISIBLE = 3
 
-export function CollaborationPresence() {
-  const { collaborators, collaboratorCount, isConnected } = useCollaboration()
+export function CollaborationPresence({ workspaceOwnerId }) {
+  const { collaborators, collaboratorCount, isConnected, currentUserId } = useCollaboration()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const dropdownRef = useRef(null)
@@ -34,8 +34,15 @@ export function CollaborationPresence() {
   }
 
   if (isMobile) {
-    const primary = collaborators[0]
-    const overflow = collaboratorCount - 1
+    const others = collaborators.filter((c) => c.userId !== currentUserId)
+    const sorted = [...others].sort((a, b) => new Date(b.onlineAt) - new Date(a.onlineAt))
+    const primary = sorted[0]
+    const overflow = sorted.length - 1
+
+    if (!primary) {
+      return <div className="workspace-avatars" />
+    }
+
     const initial = (primary.displayName || primary.username || '?').charAt(0).toUpperCase()
 
     return (
@@ -54,6 +61,7 @@ export function CollaborationPresence() {
           <div className="workspace-avatar-dropdown">
             {collaborators.map((c) => {
               const init = (c.displayName || c.username || '?').charAt(0).toUpperCase()
+              const isOwner = c.userId === workspaceOwnerId
               return (
                 <div key={c.userId} className="workspace-avatar-dropdown-item">
                   <span
@@ -63,6 +71,7 @@ export function CollaborationPresence() {
                     {!c.avatarUrl && <span className="workspace-avatar-initial">{init}</span>}
                   </span>
                   <span className="workspace-avatar-dropdown-name">{c.displayName || c.username}</span>
+                  {isOwner && <span className="workspace-avatar-dropdown-label">Pemilik</span>}
                 </div>
               )
             })}

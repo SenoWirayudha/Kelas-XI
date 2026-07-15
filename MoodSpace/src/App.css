@@ -6360,6 +6360,14 @@
   text-overflow: ellipsis;
 }
 
+.workspace-avatar-dropdown-label {
+  margin-left: auto;
+  font-size: 10px;
+  color: rgba(247, 240, 255, 0.5);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .workspace-remote-cursors-layer {
   position: absolute;
   inset: 0;
@@ -7892,7 +7900,7 @@
     justify-content: center;
   }
 
-  .workspace-topbar button:not(.workspace-save-status):not(.workspace-export) span {
+  .workspace-topbar button:not(.workspace-save-status) span {
     display: none;
   }
 

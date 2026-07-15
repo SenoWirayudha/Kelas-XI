@@ -3080,6 +3080,7 @@ function Workspace() {
     }
   }, [searchParams])
   const workspaceId = initialProject.id
+  const [workspaceOwnerId, setWorkspaceOwnerId] = useState(null)
   const uploadInputRef = useRef(null)
   const {
     canvasAssets: uploadedCanvasAssets,
@@ -5116,6 +5117,7 @@ function Workspace() {
     getWorkspace(workspaceId)
       .then(({ workspace }) => {
         if (cancelled) return
+        setWorkspaceOwnerId(workspace.ownerId || null)
         restoreWorkspaceSnapshot(workspace)
         hasRestoredWorkspaceRef.current = true
         skipNextAutosaveRef.current = true
@@ -14763,7 +14765,7 @@ const toggleMobileSheetSize = () => {
         </button>
         <span>{workspaceTitle}</span>
       </div>
-      <CollaborationPresence />
+      <CollaborationPresence workspaceOwnerId={workspaceOwnerId} />
       <button type="button" className={`workspace-save-status ${saveIndicator.state}`} title={saveIndicator.label} onClick={handleManualSave} disabled={!workspaceId}>
         <span className="workspace-save-icon-wrap">
           <SaveStatusIcon size={15} />
@@ -14788,7 +14790,7 @@ const toggleMobileSheetSize = () => {
           setIsExportModalOpen(true)
         }}
       >
-        <ArrowDownToLine size={15} />Export
+        <ArrowDownToLine size={15} /><span>Export</span>
       </button>
     </header>
 
