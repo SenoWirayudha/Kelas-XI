@@ -8659,6 +8659,7 @@ const attachTransformer = useCallback((idOrIds) => {
     })
     setCropSession(null)
     setStageCursor('default')
+    requestRecenterAfterWorkspaceLayoutChange()
     requestAnimationFrame(() => attachTransformer(item.id))
   }
 
