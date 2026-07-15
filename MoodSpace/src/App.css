@@ -7771,8 +7771,7 @@
     gap: 6px;
   }
 
-  .workspace-search,
-  .workspace-avatars {
+  .workspace-search {
     display: none;
   }
 

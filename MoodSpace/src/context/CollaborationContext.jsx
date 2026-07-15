@@ -145,6 +145,9 @@ export function CollaborationProvider({ workspaceId, user, children, itemUpdateH
         // supabase-js v2 broadcast callback may wrap payload in { payload: ... }
         const data = payload.payload || payload
         if (data.userId === user.id) return
+        // Stale cursor_move can arrive after user already left (Realtime
+        // message ordering race). Skip if user is no longer a collaborator.
+        if (!collaboratorsRef.current.some((c) => c.userId === data.userId)) return
         cursorPositionsRef.current[data.userId] = {
           x: data.x,
           y: data.y,

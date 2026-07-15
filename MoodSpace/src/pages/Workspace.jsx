@@ -341,7 +341,8 @@ const addRelightOverlayClones = ({ stage, items, exportLayer }) => {
 }
 
 const BROADCAST_KEYS = new Set([
-  'x', 'y', 'w', 'h', 'rotation', 'compositeGroupX',
+  'x', 'y', 'w', 'h', 'rotation', 'compositeGroupX', 'compositeGroupY', 'compositeGroupScaleX', 'compositeGroupScaleY', 'compositeGroupRotation',
+  'groupId', 'parentGroupId', 'maskSourceType',
   'frameImageSrc', 'frameImages', 'frameImagePosition', 'frameImageScale', 'frameImageFit',
   'runs', 'text', 'isBold', 'isItalic', 'isUnderline', 'fontSize', 'fontFamily', 'fill', 'align', 'shapeText',
   'opacity', 'blendMode',
@@ -6501,6 +6502,7 @@ const attachTransformer = useCallback((idOrIds) => {
         if (info) info.members.forEach((m) => compositeMemberLookup.add(m.id))
       })
       const groupId = activeGroupId || `group-${Date.now()}`
+      let capturedGroupMembers = null
       setItems((current) => {
         const selectedSet = new Set(activeIds)
         const rest = current.filter((item) => !selectedSet.has(item.id))
@@ -6514,12 +6516,21 @@ const attachTransformer = useCallback((idOrIds) => {
             }
             return { ...item, groupId }
           })
+        capturedGroupMembers = groupMembers
         return [
           ...rest.slice(0, insertIndex),
           ...groupMembers,
           ...rest.slice(insertIndex),
         ]
       })
+      if (collaboratorsGuardRef.current.length > 1 && capturedGroupMembers) {
+        capturedGroupMembers.forEach((member) => {
+          broadcastItemUpdate(member.id, {
+            groupId: member.groupId,
+            ...(member.parentGroupId ? { parentGroupId: member.parentGroupId } : {}),
+          })
+        })
+      }
       setIsGroupSelectMode(false)
       setSelectedId(activeIds[activeIds.length - 1])
       setSelectedIds(activeIds)
@@ -6548,6 +6559,8 @@ const attachTransformer = useCallback((idOrIds) => {
     const cgsy = operatorItem?.compositeGroupScaleY
     const cgr = operatorItem?.compositeGroupRotation
     const hasCompositeTransform = (cgx || cgy || (cgsx && cgsx !== 1) || (cgsy && cgsy !== 1) || cgr)
+    const membersToClear = itemsRef.current.filter((i) => i.groupId === groupId)
+    const parentMembersToClear = itemsRef.current.filter((i) => i.parentGroupId === groupId)
     setItems((current) => current.map((item) => {
       if (item.groupId === groupId) {
         let next = { ...item }
@@ -6567,6 +6580,19 @@ const attachTransformer = useCallback((idOrIds) => {
       }
       return item
     }))
+    if (collaboratorsGuardRef.current.length > 1) {
+      membersToClear.forEach((item) => {
+        broadcastItemUpdate(item.id, {
+          groupId: null, compositeMode: null,
+          compositeGroupX: null, compositeGroupY: null,
+          compositeGroupScaleX: null, compositeGroupScaleY: null,
+          compositeGroupRotation: null,
+        })
+      })
+      parentMembersToClear.forEach((item) => {
+        broadcastItemUpdate(item.id, { parentGroupId: null })
+      })
+    }
     setIsGroupSelectMode(false)
     setSelectedIds(groupIds)
     setSelectedId(groupIds[groupIds.length - 1] || null)
@@ -7862,6 +7888,16 @@ const attachTransformer = useCallback((idOrIds) => {
         effectsKeys: item.effects ? Object.keys(item.effects) : [],
       })),
     })
+
+    if (collaboratorsGuardRef.current.length > 1 && capturedGroupMembers) {
+      capturedGroupMembers.forEach((member) => {
+        broadcastItemUpdate(member.id, {
+          groupId: member.groupId,
+          compositeMode: member.compositeMode,
+          maskSourceType: member.maskSourceType,
+        })
+      })
+    }
 
     setIsGroupSelectMode(false)
     setSelectedIds(compositableIds)
