@@ -3354,6 +3354,7 @@ function Workspace() {
     if (collaboratorsGuardRef.current.length > 1) {
       broadcastItemAdd(newItem)
     }
+    captureAddUndo(id)
     activeBrushLayerIdRef.current = id
     brushUndoStackRef.current = []
     _brushImageNode = null
@@ -6254,6 +6255,7 @@ const attachTransformer = useCallback((idOrIds) => {
     const pastedIds = pasted.map((item) => item.id)
     setItems((current) => [...pasted, ...current])
     pasted.forEach((item) => broadcastItemAdd(item))
+    captureAddUndo(pastedIds)
     setSelectedId(pastedIds[pastedIds.length - 1])
     setSelectedIds(pastedIds)
     requestAnimationFrame(() => attachTransformer(pastedIds))
@@ -6632,6 +6634,17 @@ const attachTransformer = useCallback((idOrIds) => {
   const handleUndo = useCallback(() => {
     if (localUndoRef.current.length) {
       const entry = localUndoRef.current.pop()
+      if (entry._type === 'add') {
+        const removeSet = new Set(entry.itemIds)
+        const removedItems = itemsRef.current
+          .filter((item) => removeSet.has(item.id))
+          .map((item) => ({ item: JSON.parse(JSON.stringify(item)), index: itemsRef.current.findIndex((c) => c.id === item.id) }))
+        setItems((current) => current.filter((item) => !removeSet.has(item.id)))
+        isLocalUndoingRef.current = true
+        localRedoRef.current.push({ _type: 'add', items: removedItems })
+        isLocalUndoingRef.current = false
+        return
+      }
       const currentItem = itemsRef.current.find((i) => i.id === entry.itemId)
       if (currentItem) {
         const redoPatch = {}
@@ -6660,6 +6673,23 @@ const attachTransformer = useCallback((idOrIds) => {
   const handleRedo = useCallback(() => {
     if (localRedoRef.current.length) {
       const entry = localRedoRef.current.pop()
+      if (entry._type === 'add') {
+        const itemsToRestore = entry.items || []
+        if (itemsToRestore.length) {
+          isLocalUndoingRef.current = true
+          setItems((current) => {
+            const next = [...current]
+            const sorted = [...itemsToRestore].sort((a, b) => a.index - b.index)
+            sorted.forEach(({ item, index }) => {
+              next.splice(index, 0, item)
+            })
+            return next
+          })
+          isLocalUndoingRef.current = false
+          localUndoRef.current.push({ _type: 'add', itemIds: itemsToRestore.map((r) => r.item.id) })
+        }
+        return
+      }
       const currentItem = itemsRef.current.find((i) => i.id === entry.itemId)
       if (currentItem) {
         const prevForUndo = {}
@@ -6749,6 +6779,7 @@ const attachTransformer = useCallback((idOrIds) => {
     const pastedIds = pasted.map((item) => item.id)
     setItems((current) => [...pasted, ...current])
     pasted.forEach((item) => broadcastItemAdd(item))
+    captureAddUndo(pastedIds)
     setSelectedId(pastedIds[pastedIds.length - 1])
     setSelectedIds(pastedIds)
     requestAnimationFrame(() => attachTransformer(pastedIds))
@@ -7131,6 +7162,14 @@ const attachTransformer = useCallback((idOrIds) => {
     localRedoRef.current = []
   }
 
+  const captureAddUndo = (itemIds) => {
+    if (isLocalUndoingRef.current) return
+    const ids = Array.isArray(itemIds) ? itemIds : [itemIds]
+    localUndoRef.current.push({ _type: 'add', itemIds: ids })
+    if (localUndoRef.current.length > 50) localUndoRef.current.shift()
+    localRedoRef.current = []
+  }
+
   const updateItem = (id, patch, skipBroadcast = false) => {
     if (patch.src) {
       const oldItem = itemsRef.current.find((i) => i.id === id)
@@ -7292,6 +7331,7 @@ const attachTransformer = useCallback((idOrIds) => {
       effects: getDefaultEffects(),
     }
     setItems((items) => [newItem, ...items])
+    captureAddUndo(id)
     broadcastBezierState({ anchors: [] })
     broadcastItemAdd(newItem)
     setBezierAnchors([])
@@ -7926,6 +7966,7 @@ const attachTransformer = useCallback((idOrIds) => {
       if (removeBgCancelRef.current) throw CANCELED
       const newItem = { ...selectedItem, id: `image-${Date.now()}`, x: selectedItem.x + 30, y: selectedItem.y + 30, src: localUrl, _pendingUpload: resultBlob, imageCropRect: undefined, cropSourceWidth: undefined, cropSourceHeight: undefined, cropEnabled: undefined }
       setItems((items) => [newItem, ...items])
+      captureAddUndo(newItem.id)
       if (collaboratorsGuardRef.current.length > 1) {
         uploadForBroadcast(resultBlob, 'removebg').then((realUrl) => {
           if (realUrl) {
@@ -8926,6 +8967,7 @@ const attachTransformer = useCallback((idOrIds) => {
     // FIX: Prepend to array so new item appears at top layer (frontmost)
     setItems((current) => [nextItem, ...current])
     broadcastItemAdd(nextItem)
+    captureAddUndo(nextItem.id)
 
     if (nextItem.kind === 'image') {
       extractDominantColors(nextItem.src, 5).then((colors) => {
@@ -8946,6 +8988,7 @@ const attachTransformer = useCallback((idOrIds) => {
     const noteItem = { id, kind: 'note', text: 'New research note', x: position.x, y: position.y, w: 170, h: 120, fill: '#f4c2d7', rotation: -2, effects: getDefaultEffects() }
     setItems((current) => [noteItem, ...current])
     broadcastItemAdd(noteItem)
+    captureAddUndo(id)
   }
 
   const addShapeToCanvas = (shapeData) => {
@@ -9026,6 +9069,7 @@ const attachTransformer = useCallback((idOrIds) => {
     // FIX: Prepend to array so new shape appears at top layer (frontmost)
     setItems((current) => [newShape, ...current])
     broadcastItemAdd(newShape)
+    captureAddUndo(id)
   }
 
   const addFrameToCanvas = (frameData) => {
@@ -9076,6 +9120,7 @@ const attachTransformer = useCallback((idOrIds) => {
     // Prepend to array so new frame appears at top layer (frontmost)
     setItems((current) => [newFrame, ...current])
     broadcastItemAdd(newFrame)
+    captureAddUndo(id)
   }
 
   // Add image to frame
@@ -9223,6 +9268,7 @@ const attachTransformer = useCallback((idOrIds) => {
       ...current.map((item) => (item.id === frame.id ? { ...item, ...patch } : item)),
     ])
     detachedImages.forEach((image) => broadcastItemAdd(image))
+    captureAddUndo(detachedIds)
     broadcastItemUpdate(frame.id, patch)
     setEditingFrameId(null)
     setEditingFrameSlot(0)
@@ -9268,6 +9314,7 @@ const attachTransformer = useCallback((idOrIds) => {
     // FIX: Prepend to array so new text appears at top layer (frontmost)
     setItems((current) => [newText, ...current])
     broadcastItemAdd(newText)
+    captureAddUndo(id)
 
     requestAnimationFrame(() => {
       selectItem(id)
@@ -9444,6 +9491,7 @@ const attachTransformer = useCallback((idOrIds) => {
     justDroppedIdRef.current = id
     setItems((current) => [newConnector, ...current])
     broadcastItemAdd(newConnector)
+    captureAddUndo(id)
     setConnectorDraft(null)
     setConnectorTool(null)
     setStageCursor('default')
