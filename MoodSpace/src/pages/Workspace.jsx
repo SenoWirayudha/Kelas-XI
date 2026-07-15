@@ -6528,6 +6528,12 @@ const attachTransformer = useCallback((idOrIds) => {
       })
       const groupId = activeGroupId || `group-${Date.now()}`
       let capturedGroupMembers = null
+      activeIds.forEach((id) => {
+        const item = itemsRef.current.find((i) => i.id === id)
+        if (!item) return
+        const patch = compositeMemberLookup.has(id) ? { parentGroupId: groupId } : { groupId }
+        captureUndo(id, patch)
+      })
       setItems((current) => {
         const selectedSet = new Set(activeIds)
         const rest = current.filter((item) => !selectedSet.has(item.id))
@@ -6586,6 +6592,12 @@ const attachTransformer = useCallback((idOrIds) => {
     const hasCompositeTransform = (cgx || cgy || (cgsx && cgsx !== 1) || (cgsy && cgsy !== 1) || cgr)
     const membersToClear = itemsRef.current.filter((i) => i.groupId === groupId)
     const parentMembersToClear = itemsRef.current.filter((i) => i.parentGroupId === groupId)
+    membersToClear.forEach((item) => {
+      captureGroupUndo(item.id, { groupId: null, compositeMode: null, compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined })
+    })
+    parentMembersToClear.forEach((item) => {
+      captureGroupUndo(item.id, { parentGroupId: null })
+    })
     setItems((current) => current.map((item) => {
       if (item.groupId === groupId) {
         let next = { ...item }
@@ -7222,6 +7234,20 @@ const attachTransformer = useCallback((idOrIds) => {
     if (isLocalUndoingRef.current) return
     const item = itemsRef.current.find((i) => i.id === id)
     if (!item || item.groupId) return
+    const prevPatch = {}
+    for (const key of Object.keys(patch)) {
+      if (key in item && key !== 'undefined') prevPatch[key] = item[key]
+    }
+    if (!Object.keys(prevPatch).length) return
+    localUndoRef.current.push({ itemId: id, prevPatch })
+    if (localUndoRef.current.length > 50) localUndoRef.current.shift()
+    localRedoRef.current = []
+  }
+
+  const captureGroupUndo = (id, patch) => {
+    if (isLocalUndoingRef.current) return
+    const item = itemsRef.current.find((i) => i.id === id)
+    if (!item) return
     const prevPatch = {}
     for (const key of Object.keys(patch)) {
       if (key in item && key !== 'undefined') prevPatch[key] = item[key]
