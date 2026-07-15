@@ -5924,12 +5924,7 @@ function Workspace() {
       width: Math.max(1, Math.round(rect?.width || viewportSize.width || 1)),
       height: Math.max(1, Math.round(rect?.height || viewportSize.height || 1)),
     }
-    const scale = cameraRef.current?.scale || camera.scale
-    const centeredCamera = {
-      scale,
-      x: (actualViewport.width - canvasSettings.width * scale) / 2,
-      y: (actualViewport.height - canvasSettings.height * scale) / 2,
-    }
+    const centeredCamera = computeFitCamera(canvasSettings.width, canvasSettings.height, actualViewport, canvasSettings.ratio)
 
     if (zoomAnimationRef.current) {
       cancelAnimationFrame(zoomAnimationRef.current)
@@ -5974,7 +5969,7 @@ function Workspace() {
     }
 
     zoomAnimationRef.current = requestAnimationFrame(tick)
-  }, [camera.scale, canvasSettings.height, canvasSettings.width, viewportSize.height, viewportSize.width])
+  }, [canvasSettings.height, canvasSettings.width, viewportSize.height, viewportSize.width])
 
   useLayoutEffect(() => {
     if (hasCenteredCameraRef.current || isWorkspaceLoading || loadingPhase !== 'done' || (shouldLoadWorkspace && !hasRestoredWorkspaceRef.current)) return undefined
@@ -8092,6 +8087,16 @@ const attachTransformer = useCallback((idOrIds) => {
 
       return patch
     }))
+
+    const rect = viewportRef.current?.getBoundingClientRect()
+    const vp = {
+      width: Math.max(1, Math.round(rect?.width || viewportSize.width || 1)),
+      height: Math.max(1, Math.round(rect?.height || viewportSize.height || 1)),
+    }
+    const fit = computeFitCamera(roundedSize.width, roundedSize.height, vp, ratio)
+    cameraRef.current = fit
+    setCamera(fit)
+    requestRecenterAfterWorkspaceLayoutChange()
 
     requestAnimationFrame(() => attachTransformer(selectedIds.length ? selectedIds : selectedId))
   }
