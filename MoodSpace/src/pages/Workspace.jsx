@@ -11712,11 +11712,11 @@ const toggleMobileSheetSize = () => {
                       onPointerUp={(event) => {
                         const val = Number(event.target.value)
                         if (isFillTarget) {
-                          broadcastItemUpdate(selectedItem.id, { gradientAngle: val })
+                          updateItem(selectedItem.id, { gradientAngle: val })
                         } else if (isImageStrokeTarget) {
-                          broadcastItemUpdate(selectedItem.id, { imageStrokeGradientAngle: val })
+                          updateItem(selectedItem.id, { imageStrokeGradientAngle: val })
                         } else {
-                          broadcastItemUpdate(selectedItem.id, { strokeGradientAngle: val })
+                          updateItem(selectedItem.id, { strokeGradientAngle: val })
                         }
                       }}
                       className="workspace-gradient-angle-slider"
@@ -11805,11 +11805,11 @@ const toggleMobileSheetSize = () => {
                           stops[index] = { ...stops[index], offset: Number(event.target.value) / 100 }
                           const sortedStops = stops.sort((a, b) => a.offset - b.offset)
                           if (isFillTarget) {
-                            broadcastItemUpdate(selectedItem.id, { gradientStops: sortedStops })
+                            updateItem(selectedItem.id, { gradientStops: sortedStops })
                           } else if (isImageStrokeTarget) {
-                            broadcastItemUpdate(selectedItem.id, { imageStrokeGradientStops: sortedStops })
+                            updateItem(selectedItem.id, { imageStrokeGradientStops: sortedStops })
                           } else {
-                            broadcastItemUpdate(selectedItem.id, { strokeGradientStops: sortedStops })
+                            updateItem(selectedItem.id, { strokeGradientStops: sortedStops })
                           }
                         }}
                         className="workspace-gradient-stop-slider"
@@ -12420,7 +12420,7 @@ const toggleMobileSheetSize = () => {
                                   min="0" max="100"
                                   value={Math.round((operatorItem.compositeOpacity ?? 1) * 100)}
                                   onChange={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 }, true)}
-                                  onPointerUp={(event) => broadcastItemUpdate(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
+                                  onPointerUp={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
                                   className="workspace-opacity-slider"
                                 />
                                 <input
@@ -12428,7 +12428,7 @@ const toggleMobileSheetSize = () => {
                                   min="0" max="100"
                                   value={Math.round((operatorItem.compositeOpacity ?? 1) * 100)}
                                   onChange={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 }, true)}
-                                  onBlur={(event) => broadcastItemUpdate(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
+                                  onBlur={(event) => updateItem(operatorItem.id, { compositeOpacity: Number(event.target.value) / 100 })}
                                   className="workspace-opacity-input"
                                 />
                                 <span className="workspace-opacity-unit">%</span>
@@ -12494,7 +12494,7 @@ const toggleMobileSheetSize = () => {
                                   <input type="range" min="1" max="40"
                                     value={operatorItem.compositeStrokeWidth ?? 3}
                                     onChange={(event) => updateItem(operatorItem.id, { compositeStrokeEnabled: true, compositeStrokeWidth: Number(event.target.value) }, true)}
-                                    onPointerUp={(event) => broadcastItemUpdate(operatorItem.id, { compositeStrokeEnabled: true, compositeStrokeWidth: Number(event.target.value) })}
+                                    onPointerUp={(event) => updateItem(operatorItem.id, { compositeStrokeEnabled: true, compositeStrokeWidth: Number(event.target.value) })}
                                   />
                                 </label>
                               </div>
@@ -12559,7 +12559,7 @@ const toggleMobileSheetSize = () => {
                                       }}
                                       onPointerUp={(e) => {
                                         const val = Number(e.target.value)
-                                        broadcastItemUpdate(operatorItem.id, { [ctrl.key]: ctrl.key === 'compositeShadowOpacity' ? val / 100 : val })
+                                        updateItem(operatorItem.id, { [ctrl.key]: ctrl.key === 'compositeShadowOpacity' ? val / 100 : val })
                                       }}
                                     />
                                   </label>
@@ -13027,7 +13027,7 @@ const toggleMobileSheetSize = () => {
                 max="80"
                 value={selectedItem.radius ?? 0}
                 onChange={(event) => updateItem(selectedItem.id, { radius: Number(event.target.value) }, true)}
-                onPointerUp={(event) => broadcastItemUpdate(selectedItem.id, { radius: Number(event.target.value) })}
+                onPointerUp={(event) => updateItem(selectedItem.id, { radius: Number(event.target.value) })}
               />
             </label>
           </div>
@@ -13089,7 +13089,7 @@ const toggleMobileSheetSize = () => {
                       imageStrokeEnabled: true,
                       imageStrokeWidth: Number(event.target.value),
                     }, true)}
-                    onPointerUp={(event) => broadcastItemUpdate(selectedItem.id, {
+                    onPointerUp={(event) => updateItem(selectedItem.id, {
                       imageStrokeEnabled: true,
                       imageStrokeWidth: Number(event.target.value),
                     })}
@@ -13120,7 +13120,7 @@ const toggleMobileSheetSize = () => {
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
                   onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
-                  onPointerUp={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  onPointerUp={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-slider"
                 />
                 <input
@@ -13129,7 +13129,7 @@ const toggleMobileSheetSize = () => {
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
                   onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
-                  onBlur={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  onBlur={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-input"
                 />
                 <span className="workspace-opacity-unit">%</span>
@@ -13193,7 +13193,7 @@ const toggleMobileSheetSize = () => {
                     className="workspace-shadow-color"
                     value={selectedItem.shadowColor || '#050505'}
                     onChange={(e) => updateItem(selectedItem.id, { shadowColor: e.target.value }, true)}
-                    onBlur={(e) => broadcastItemUpdate(selectedItem.id, { shadowColor: e.target.value })}
+                    onBlur={(e) => updateItem(selectedItem.id, { shadowColor: e.target.value })}
                   />
                 </label>
                 {[
@@ -13241,10 +13241,10 @@ const toggleMobileSheetSize = () => {
                         const val = Number(e.target.value)
                         updateItem(selectedItem.id, { [ctrl.key]: ctrl.key === 'shadowOpacity' ? val / 100 : val }, true)
                       }}
-                      onPointerUp={(e) => {
-                        const val = Number(e.target.value)
-                        broadcastItemUpdate(selectedItem.id, { [ctrl.key]: ctrl.key === 'shadowOpacity' ? val / 100 : val })
-                      }}
+onPointerUp={(e) => {
+                                        const val = Number(e.target.value)
+                                        updateItem(selectedItem.id, { [ctrl.key]: ctrl.key === 'shadowOpacity' ? val / 100 : val })
+                                      }}
                     />
                   </label>
                 ))}
@@ -13417,7 +13417,7 @@ const toggleMobileSheetSize = () => {
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
                   onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
-                  onPointerUp={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  onPointerUp={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-slider"
                 />
                 <input
@@ -13426,7 +13426,7 @@ const toggleMobileSheetSize = () => {
                   max="100"
                   value={Math.round((selectedItem.opacity ?? 1) * 100)}
                   onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
-                  onBlur={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                  onBlur={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                   className="workspace-opacity-input"
                 />
                 <span className="workspace-opacity-unit">%</span>
@@ -13696,7 +13696,7 @@ const toggleMobileSheetSize = () => {
                     max="100"
                     value={Math.round((selectedItem.opacity ?? 1) * 100)}
                     onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
-                    onPointerUp={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                    onPointerUp={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                     className="workspace-opacity-slider"
                   />
                   <input
@@ -13705,7 +13705,7 @@ const toggleMobileSheetSize = () => {
                     max="100"
                     value={Math.round((selectedItem.opacity ?? 1) * 100)}
                     onChange={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 }, true)}
-                    onBlur={(event) => broadcastItemUpdate(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
+                    onBlur={(event) => updateItem(selectedItem.id, { opacity: Number(event.target.value) / 100 })}
                     className="workspace-opacity-input"
                   />
                   <span className="workspace-opacity-unit">%</span>
