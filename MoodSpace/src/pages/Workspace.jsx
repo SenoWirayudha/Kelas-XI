@@ -6664,6 +6664,22 @@ const attachTransformer = useCallback((idOrIds) => {
         }
         return
       }
+      if (entry._type === 'reorder') {
+        const prevIds = entry.prevItemIds
+        if (prevIds && prevIds.length === itemsRef.current.length) {
+          const idxMap = {}
+          prevIds.forEach((id, i) => { idxMap[id] = i })
+          const nextIds = itemsRef.current.map((item) => item.id)
+          setItems((current) => {
+            const sorted = [...current].sort((a, b) => (idxMap[a.id] || 0) - (idxMap[b.id] || 0))
+            return sorted
+          })
+          isLocalUndoingRef.current = true
+          localRedoRef.current.push({ _type: 'reorder', prevItemIds: nextIds })
+          isLocalUndoingRef.current = false
+        }
+        return
+      }
       const currentItem = itemsRef.current.find((i) => i.id === entry.itemId)
       if (currentItem) {
         const redoPatch = {}
@@ -6719,6 +6735,22 @@ const attachTransformer = useCallback((idOrIds) => {
           setItems((current) => current.filter((item) => !removeSet.has(item.id)))
           isLocalUndoingRef.current = true
           localUndoRef.current.push({ _type: 'delete', items: removedItems })
+          isLocalUndoingRef.current = false
+        }
+        return
+      }
+      if (entry._type === 'reorder') {
+        const prevIds = entry.prevItemIds
+        if (prevIds && prevIds.length === itemsRef.current.length) {
+          const idxMap = {}
+          prevIds.forEach((id, i) => { idxMap[id] = i })
+          const nextIds = itemsRef.current.map((item) => item.id)
+          setItems((current) => {
+            const sorted = [...current].sort((a, b) => (idxMap[a.id] || 0) - (idxMap[b.id] || 0))
+            return sorted
+          })
+          isLocalUndoingRef.current = true
+          localUndoRef.current.push({ _type: 'reorder', prevItemIds: nextIds })
           isLocalUndoingRef.current = false
         }
         return
@@ -6843,6 +6875,7 @@ const attachTransformer = useCallback((idOrIds) => {
       : (selectedIds.length ? selectedIds : (selectedId ? [selectedId] : []))
     if (!activeIds.length) return
 
+    captureReorderUndo()
     setItems((current) => {
       const activeSet = new Set(activeIds)
       const block = current.filter((item) => activeSet.has(item.id))
@@ -6875,6 +6908,7 @@ const attachTransformer = useCallback((idOrIds) => {
     }
     const id = selectedId
     if (!id) return
+    captureReorderUndo()
     setItems((current) => {
       const idx = current.findIndex((item) => item.id === id)
       if (idx <= 0) return current
@@ -6892,6 +6926,7 @@ const attachTransformer = useCallback((idOrIds) => {
     }
     const id = selectedId
     if (!id) return
+    captureReorderUndo()
     setItems((current) => {
       const idx = current.findIndex((item) => item.id === id)
       if (idx < 0 || idx >= current.length - 1) return current
@@ -6909,6 +6944,7 @@ const attachTransformer = useCallback((idOrIds) => {
     }
     const id = selectedId
     if (!id) return
+    captureReorderUndo()
     setItems((current) => {
       const idx = current.findIndex((item) => item.id === id)
       if (idx <= 0) return current
@@ -6925,6 +6961,7 @@ const attachTransformer = useCallback((idOrIds) => {
     }
     const id = selectedId
     if (!id) return
+    captureReorderUndo()
     setItems((current) => {
       const idx = current.findIndex((item) => item.id === id)
       if (idx < 0 || idx >= current.length - 1) return current
@@ -7215,6 +7252,14 @@ const attachTransformer = useCallback((idOrIds) => {
       .filter(Boolean)
     if (!items.length) return
     localUndoRef.current.push({ _type: 'delete', items })
+    if (localUndoRef.current.length > 50) localUndoRef.current.shift()
+    localRedoRef.current = []
+  }
+
+  const captureReorderUndo = () => {
+    if (isLocalUndoingRef.current) return
+    const prevItemIds = itemsRef.current.map((item) => item.id)
+    localUndoRef.current.push({ _type: 'reorder', prevItemIds })
     if (localUndoRef.current.length > 50) localUndoRef.current.shift()
     localRedoRef.current = []
   }
@@ -8311,6 +8356,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
     if (!over || active.id === over.id) return
 
+    captureReorderUndo()
     setItems((current) => {
       const oldIndex = layerEntries.findIndex((entry) => entry.id === active.id)
       const newIndex = layerEntries.findIndex((entry) => entry.id === over.id)
