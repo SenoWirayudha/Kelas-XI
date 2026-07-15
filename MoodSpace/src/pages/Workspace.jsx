@@ -3842,10 +3842,7 @@ function Workspace() {
     nativeCanvas.toBlob((blob) => {
       if (!blob) return
       const localUrl = URL.createObjectURL(blob)
-      setItems((current) => current.map((item) => {
-        if (item.id !== targetItem.id) return item
-        return { ...item, src: localUrl, _oldSrc: oldSrc, _pendingUpload: blob }
-      }))
+      updateItem(targetItem.id, { src: localUrl, _oldSrc: oldSrc, _pendingUpload: blob }, true)
       debouncedBrushUpload({ eraseBlob: blob, eraseItemId: targetItem.id })
     })
   }
