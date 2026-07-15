@@ -5247,7 +5247,7 @@ function Workspace() {
     }
   }, [exportFormat, isCanvasBackgroundNone])
 
-  const generateWorkspaceThumbnailDataUrl = useCallback(() => {
+  const generateWorkspaceThumbnailDataUrl = useCallback(async () => {
     const stage = stageRef.current
     if (!stage || !canvasSettings.width || !canvasSettings.height) return null
 
@@ -5269,20 +5269,6 @@ function Workspace() {
     try {
       transformer?.visible?.(false)
       stage.batchDraw()
-
-      console.log('[workspace thumbnail export]', {
-        canvasX: canvasBounds.x,
-        canvasY: canvasBounds.y,
-        cameraX: currentCamera.x,
-        cameraY: currentCamera.y,
-        cameraScale: currentCamera.scale,
-        exportX,
-        exportY,
-        exportWidth,
-        exportHeight,
-        canvasWidth: canvasSettings.width,
-        canvasHeight: canvasSettings.height,
-      })
 
       exportContainer = document.createElement('div')
       exportContainer.style.position = 'fixed'
@@ -5339,26 +5325,42 @@ function Workspace() {
 
       exportLayer.draw()
 
-      const dataUrl = exportStage.toDataURL({
+      const sourceCanvas = exportStage.toCanvas({
         x: exportX,
         y: exportY,
         width: exportWidth,
         height: exportHeight,
         pixelRatio,
-        mimeType: 'image/webp',
-        quality: 0.78,
       })
+      const img = await createImageBitmap(sourceCanvas)
+      const imgW = img.width
+      const imgH = img.height
+
+      const frameW = 400
+      const frameH = Math.max(1, Math.round(frameW * 9 / 16))
+      const outputCanvas = document.createElement('canvas')
+      outputCanvas.width = frameW
+      outputCanvas.height = frameH
+      const ctx = outputCanvas.getContext('2d')
+
+      const coverScale = Math.max(frameW / imgW, frameH / imgH) * 1.15
+      const coverX = (frameW - imgW * coverScale) / 2
+      const coverY = (frameH - imgH * coverScale) / 2
+      ctx.filter = 'blur(22px) brightness(0.7)'
+      ctx.drawImage(img, coverX, coverY, imgW * coverScale, imgH * coverScale)
+      ctx.filter = 'none'
+
+      const containScale = Math.min(frameW / imgW, frameH / imgH)
+      const fgX = (frameW - imgW * containScale) / 2
+      const fgY = (frameH - imgH * containScale) / 2
+      ctx.drawImage(img, fgX, fgY, imgW * containScale, imgH * containScale)
+
+      img.close()
+
+      const dataUrl = outputCanvas.toDataURL('image/webp', 0.78)
       if (dataUrl?.startsWith('data:image/webp')) return dataUrl
 
-      return exportStage.toDataURL({
-        x: exportX,
-        y: exportY,
-        width: exportWidth,
-        height: exportHeight,
-        pixelRatio,
-        mimeType: 'image/jpeg',
-        quality: 0.78,
-      })
+      return outputCanvas.toDataURL('image/jpeg', 0.78)
     } catch (error) {
       console.warn('Failed to generate workspace thumbnail', error)
       return null
@@ -5372,7 +5374,7 @@ function Workspace() {
 
   const uploadWorkspaceThumbnail = useCallback(async () => {
     if (!workspaceId) return
-    const dataUrl = generateWorkspaceThumbnailDataUrl()
+    const dataUrl = await generateWorkspaceThumbnailDataUrl()
     if (!dataUrl) return
 
     try {
