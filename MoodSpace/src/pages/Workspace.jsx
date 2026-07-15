@@ -7405,13 +7405,27 @@ const attachTransformer = useCallback((idOrIds) => {
   })
 
 
+  // If item has imageCropRect (visual-only crop via Konva), crop the loaded
+  // image to a temp canvas so naturalWidth/naturalHeight match item.w/item.h.
+  const getToolSource = (img, item) => {
+    if (!item.imageCropRect) return img
+    const { x, y, width, height } = item.imageCropRect
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(width)
+    canvas.height = Math.round(height)
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(img, x, y, width, height, 0, 0, width, height)
+    return canvas
+  }
+
   const initWarp = useCallback((mode, divX, divY) => {
     if (!selectedItem || selectedItem.kind !== 'image') return
     const item = selectedItem
     const img = new window.Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
-      warpImageRef.current = img
+      const source = getToolSource(img, item)
+      warpImageRef.current = source
       const gridDiv = mode === 'perspective' ? PERSPECTIVE_SUBDIVISIONS : divX
       const srcGrid = createGrid(0, 0, item.w, item.h, gridDiv, gridDiv)
       const dstGrid = cloneGrid(srcGrid)
@@ -7422,7 +7436,7 @@ const attachTransformer = useCallback((idOrIds) => {
       canvas.width = paddedW
       canvas.height = paddedH
       const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, WARP_PADDING, WARP_PADDING, item.w, item.h)
+      ctx.drawImage(source, WARP_PADDING, WARP_PADDING, item.w, item.h)
       warpStateRef.current = { itemId: item.id, mode, divX, divY, srcGrid, dstGrid, renderGrid, originalSrc: item.src, itemW: item.w, itemH: item.h, itemX: item.x, itemY: item.y, previewCanvas: canvas }
       warpedItemIdRef.current = item.id
       updateItem(item.id, { visible: false })
@@ -7441,8 +7455,8 @@ const attachTransformer = useCallback((idOrIds) => {
       const { previewCanvas, dstGrid, srcGrid, renderGrid, itemX, itemY, itemW, itemH } = ws
       if (!previewCanvas) return
 
-      const natW = img.naturalWidth
-      const natH = img.naturalHeight
+      const natW = img.naturalWidth || img.width
+      const natH = img.naturalHeight || img.height
       const scaleX = natW / itemW
       const scaleY = natH / itemH
 
@@ -7604,8 +7618,8 @@ const attachTransformer = useCallback((idOrIds) => {
     const ctx = ws.previewCanvas.getContext('2d')
     ctx.clearRect(0, 0, ws.previewCanvas.width, ws.previewCanvas.height)
     renderWarpedImage(ctx, img, ws.srcGrid, renderGrid, {
-      imgWidth: img.naturalWidth,
-      imgHeight: img.naturalHeight,
+      imgWidth: img.naturalWidth || img.width,
+      imgHeight: img.naturalHeight || img.height,
       srcWidth: ws.itemW,
       srcHeight: ws.itemH,
       offsetX: WARP_PADDING,
@@ -7692,7 +7706,7 @@ const attachTransformer = useCallback((idOrIds) => {
       img = await new Promise((resolve, reject) => {
         const el = new Image()
         el.crossOrigin = 'anonymous'
-        el.onload = () => resolve(el)
+        el.onload = () => resolve(getToolSource(el, item))
         el.onerror = reject
         el.src = item.src
       })
@@ -7700,8 +7714,8 @@ const attachTransformer = useCallback((idOrIds) => {
       return
     }
 
-    const natW = img.naturalWidth
-    const natH = img.naturalHeight
+    const natW = img.naturalWidth || img.width
+    const natH = img.naturalHeight || img.height
     const scaleX = natW / item.w
     const scaleY = natH / item.h
     const cx = natW / 2
@@ -7810,8 +7824,28 @@ const attachTransformer = useCallback((idOrIds) => {
       if (removeBgCancelRef.current) throw CANCELED
       const imgBlob = await imgRes.blob()
       if (removeBgCancelRef.current) throw CANCELED
+
+      // If cropped, crop the source blob to the visible area first so
+      // naturalWidth/naturalHeight of the processed image match item.w/item.h.
+      let processedBlob = imgBlob
+      if (selectedItem.imageCropRect) {
+        const tempUrl = URL.createObjectURL(imgBlob)
+        try {
+          const el = await new Promise((resolve, reject) => {
+            const img = new window.Image()
+            img.onload = () => resolve(img)
+            img.onerror = reject
+            img.src = tempUrl
+          })
+          const cropped = getToolSource(el, selectedItem)
+          processedBlob = await new Promise((resolve) => cropped.toBlob(resolve, 'image/png'))
+        } finally {
+          URL.revokeObjectURL(tempUrl)
+        }
+      }
+
       setRemoveBgProgress({ phase: 'processing', current: 0, total: 1 })
-      const resultBlob = await removeBackground(imgBlob, {
+      const resultBlob = await removeBackground(processedBlob, {
         progress: (key, current, total) => {
           if (removeBgCancelRef.current) return
           if (key === 'model') {
@@ -7826,7 +7860,7 @@ const attachTransformer = useCallback((idOrIds) => {
       if (removeBgCancelRef.current) throw CANCELED
       const localUrl = URL.createObjectURL(resultBlob)
       if (removeBgCancelRef.current) throw CANCELED
-      const newItem = { ...selectedItem, id: `image-${Date.now()}`, x: selectedItem.x + 30, y: selectedItem.y + 30, src: localUrl, _pendingUpload: resultBlob }
+      const newItem = { ...selectedItem, id: `image-${Date.now()}`, x: selectedItem.x + 30, y: selectedItem.y + 30, src: localUrl, _pendingUpload: resultBlob, imageCropRect: undefined, cropSourceWidth: undefined, cropSourceHeight: undefined, cropEnabled: undefined }
       setItems((items) => [newItem, ...items])
       if (collaboratorsGuardRef.current.length > 1) {
         uploadForBroadcast(resultBlob, 'removebg').then((realUrl) => {
