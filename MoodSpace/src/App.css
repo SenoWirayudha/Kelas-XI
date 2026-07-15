@@ -6276,6 +6276,90 @@
   background: rgba(255, 255, 255, 0.12);
 }
 
+/* Mobile avatar — 1 avatar + badge */
+.workspace-avatars-mobile {
+  position: relative;
+}
+
+.workspace-avatar-mobile-trigger {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.workspace-avatar-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #c78bff;
+  color: #22142c;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.workspace-avatar-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 200px;
+  background: rgba(20, 18, 30, 0.96);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 6px 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 1001;
+}
+
+.workspace-avatar-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  cursor: default;
+}
+
+.workspace-avatar-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.workspace-avatar-dropdown-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: rgba(255, 255, 255, 0.08);
+  background-image: linear-gradient(135deg, #5fd0de, #a06af6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.workspace-avatar-dropdown-avatar .workspace-avatar-initial {
+  font-size: 11px;
+}
+
+.workspace-avatar-dropdown-name {
+  font-size: 13px;
+  color: #e8e4f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .workspace-remote-cursors-layer {
   position: absolute;
   inset: 0;

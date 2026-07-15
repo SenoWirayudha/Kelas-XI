@@ -14778,7 +14778,7 @@ const toggleMobileSheetSize = () => {
         <Redo2 size={15} />
       </button>
       <button type="button" className="workspace-share" onClick={() => setIsShareModalOpen(true)}><Share2 size={15} /><span>Share</span></button>
-      <button type="button" className="workspace-publish" onClick={handlePublishWorkspace}><Upload size={15} /><span>Publish</span></button>
+      {false && <button type="button" className="workspace-publish" onClick={handlePublishWorkspace}><Upload size={15} /><span>Publish</span></button>}
       <button
         type="button"
         className="workspace-export"
