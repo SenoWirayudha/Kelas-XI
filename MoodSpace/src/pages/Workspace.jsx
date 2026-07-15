@@ -6461,6 +6461,7 @@ const attachTransformer = useCallback((idOrIds) => {
     const target = itemsRef.current.find((i) => i.id === id)
     if (target?.src?.startsWith('blob:')) URL.revokeObjectURL(target.src)
 
+    captureDeleteUndo(id)
     setItems((current) => current.filter((item) => item.id !== id))
     if (target?.mediaId) {
       setAssetContextSignals((current) => current.filter((s) => s.mediaId !== target.mediaId))
@@ -6481,6 +6482,7 @@ const attachTransformer = useCallback((idOrIds) => {
   const deleteSelectedObject = useCallback(() => {
     const idsToDelete = selectedIds.length ? selectedIds : [selectedId]
     const mediaIds = idsToDelete.map((id) => itemsRef.current.find((i) => i.id === id)?.mediaId).filter(Boolean)
+    captureDeleteUndo(idsToDelete)
     setItems((current) => current.filter((item) => !idsToDelete.includes(item.id)))
     if (mediaIds.length) {
       setAssetContextSignals((current) => current.filter((s) => !mediaIds.includes(s.mediaId)))
@@ -6645,6 +6647,23 @@ const attachTransformer = useCallback((idOrIds) => {
         isLocalUndoingRef.current = false
         return
       }
+      if (entry._type === 'delete') {
+        const itemsToRestore = entry.items || []
+        if (itemsToRestore.length) {
+          isLocalUndoingRef.current = true
+          setItems((current) => {
+            const next = [...current]
+            const sorted = [...itemsToRestore].sort((a, b) => a.index - b.index)
+            sorted.forEach(({ item, index }) => {
+              next.splice(index, 0, item)
+            })
+            return next
+          })
+          isLocalUndoingRef.current = false
+          localRedoRef.current.push({ _type: 'delete', itemIds: itemsToRestore.map((r) => r.item.id) })
+        }
+        return
+      }
       const currentItem = itemsRef.current.find((i) => i.id === entry.itemId)
       if (currentItem) {
         const redoPatch = {}
@@ -6687,6 +6706,20 @@ const attachTransformer = useCallback((idOrIds) => {
           })
           isLocalUndoingRef.current = false
           localUndoRef.current.push({ _type: 'add', itemIds: itemsToRestore.map((r) => r.item.id) })
+        }
+        return
+      }
+      if (entry._type === 'delete') {
+        const removeIds = entry.itemIds || []
+        if (removeIds.length) {
+          const removeSet = new Set(removeIds)
+          const removedItems = itemsRef.current
+            .filter((item) => removeSet.has(item.id))
+            .map((item) => ({ item: JSON.parse(JSON.stringify(item)), index: itemsRef.current.findIndex((c) => c.id === item.id) }))
+          setItems((current) => current.filter((item) => !removeSet.has(item.id)))
+          isLocalUndoingRef.current = true
+          localUndoRef.current.push({ _type: 'delete', items: removedItems })
+          isLocalUndoingRef.current = false
         }
         return
       }
@@ -7166,6 +7199,22 @@ const attachTransformer = useCallback((idOrIds) => {
     if (isLocalUndoingRef.current) return
     const ids = Array.isArray(itemIds) ? itemIds : [itemIds]
     localUndoRef.current.push({ _type: 'add', itemIds: ids })
+    if (localUndoRef.current.length > 50) localUndoRef.current.shift()
+    localRedoRef.current = []
+  }
+
+  const captureDeleteUndo = (ids) => {
+    if (isLocalUndoingRef.current) return
+    const idArr = Array.isArray(ids) ? ids : [ids]
+    const items = idArr
+      .map((id) => {
+        const idx = itemsRef.current.findIndex((i) => i.id === id)
+        if (idx === -1) return null
+        return { item: JSON.parse(JSON.stringify(itemsRef.current[idx])), index: idx }
+      })
+      .filter(Boolean)
+    if (!items.length) return
+    localUndoRef.current.push({ _type: 'delete', items })
     if (localUndoRef.current.length > 50) localUndoRef.current.shift()
     localRedoRef.current = []
   }
@@ -9180,6 +9229,7 @@ const attachTransformer = useCallback((idOrIds) => {
       const removedItem = itemsRef.current.find((i) => i.id === removeId)
       if (removedItem?.mediaId) removedMediaId = removedItem.mediaId
     }
+    if (removeId) captureDeleteUndo(removeId)
     setItems((current) => {
       let next = current.map((item) => (item.id === frameId ? { ...item, ...patch } : item))
       if (removeId) next = next.filter((i) => i.id !== removeId)
@@ -12036,6 +12086,7 @@ const toggleMobileSheetSize = () => {
                   if (entry?.kind === 'group') {
                     const ids = entry.members.map((member) => member.id)
                     const mediaIds = ids.map((mid) => itemsRef.current.find((i) => i.id === mid)?.mediaId).filter(Boolean)
+                    captureDeleteUndo(ids)
                     setItems((current) => current.filter((item) => !ids.includes(item.id)))
                     if (mediaIds.length) {
                       setAssetContextSignals((current) => current.filter((s) => !mediaIds.includes(s.mediaId)))
