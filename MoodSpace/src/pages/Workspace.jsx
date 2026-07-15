@@ -343,10 +343,10 @@ const addRelightOverlayClones = ({ stage, items, exportLayer }) => {
 }
 
 const BROADCAST_KEYS = new Set([
-  'x', 'y', 'w', 'h', 'rotation', 'compositeGroupX', 'compositeGroupY', 'compositeGroupScaleX', 'compositeGroupScaleY', 'compositeGroupRotation',
+  'x', 'y', 'w', 'h', 'rotation', 'scaleX', 'scaleY', 'compositeGroupX', 'compositeGroupY', 'compositeGroupScaleX', 'compositeGroupScaleY', 'compositeGroupRotation',
   'groupId', 'parentGroupId', 'maskSourceType',
   'frameImageSrc', 'frameImages', 'frameImagePosition', 'frameImageScale', 'frameImageFit',
-  'runs', 'text', 'isBold', 'isItalic', 'isUnderline', 'fontSize', 'fontFamily', 'fill', 'align', 'shapeText',
+  'runs', 'text', 'isBold', 'isItalic', 'isUnderline', 'fontSize', 'fontFamily', 'fill', 'align', 'shapeText', 'shapeTextAlign', 'shapeTextFill',
   'opacity', 'blendMode',
   'exposure', 'temperature', 'hue', 'highlights', 'shadows', 'whites', 'blacks',
   'brightness', 'contrast', 'saturation', 'sharpen', 'vignette', 'blur', 'radius',
@@ -362,7 +362,7 @@ const BROADCAST_KEYS = new Set([
   'imageStrokeEnabled', 'imageStrokeColor', 'imageStrokeWidth',
   'imageCropRect', 'cropSourceWidth', 'cropSourceHeight', 'cropEnabled',
   'bezierData', 'path',
-  'src', 'effects',
+  'src', 'effects', 'dominantColors',
   'isAdjustmentLayer', '_preAdjustmentState',
 ])
 
