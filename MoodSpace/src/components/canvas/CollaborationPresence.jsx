@@ -37,7 +37,7 @@ export function CollaborationPresence({ workspaceOwnerId }) {
     const others = collaborators.filter((c) => c.userId !== currentUserId)
     const sorted = [...others].sort((a, b) => new Date(b.onlineAt) - new Date(a.onlineAt))
     const primary = sorted[0]
-    const overflow = sorted.length - 1
+    const overflow = sorted.length
 
     if (!primary) {
       return <div className="workspace-avatars" />

@@ -6919,13 +6919,23 @@ const attachTransformer = useCallback((idOrIds) => {
       if (!box || !box.width) { setToolbarPos(null); return }
       const stageEl = stageRef.current.container()
       const stageRect = stageEl.getBoundingClientRect()
-      const viewportWidth = window.innerWidth || 1024
-      const viewportHeight = window.innerHeight || 768
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
       const isMobile = viewportWidth <= 860
       const rawX = stageRect.left + box.x + box.width / 2
       const rawY = stageRect.top + box.y
+
+      // Estimate toolbar maxWidth to clamp X axis properly.
+      // Desktop: max 520px; Mobile: viewport minus padding.
+      // This ensures toolbar edges stay within viewport (±12px).
+      const maxToolbarWidth = isMobile ? viewportWidth - 20 : Math.min(520, viewportWidth - 40)
+      const halfWidth = maxToolbarWidth / 2
+      const xPadding = 12
+      const minX = halfWidth + xPadding
+      const maxX = viewportWidth - halfWidth - xPadding
+
       setToolbarPos({
-        x: isMobile ? 10 : clamp(rawX, 180, viewportWidth - 180),
+        x: clamp(rawX, minX, maxX),
         y: clamp(rawY, isMobile ? 128 : 86, viewportHeight - 28),
         mobile: isMobile,
       })
@@ -6938,6 +6948,14 @@ const attachTransformer = useCallback((idOrIds) => {
     } else {
       setToolbarPos(null)
     }
+  }, [selectedId, selectedIds, updateToolbarPosition])
+
+  // Reposition toolbar on window resize
+  useEffect(() => {
+    if (!(selectedIds.length || selectedId)) return
+    const onResize = () => requestAnimationFrame(updateToolbarPosition)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
   }, [selectedId, selectedIds, updateToolbarPosition])
 
   const zoomCameraAtPoint = useCallback((nextScale, point, options = {}) => {
@@ -15756,7 +15774,7 @@ const toggleMobileSheetSize = () => {
         position: 'fixed',
         left: toolbarPos.x,
         top: toolbarPos.y - 8,
-        transform: toolbarPos.mobile ? 'translateY(-100%)' : 'translate(-50%, -100%)',
+        transform: 'translate(-50%, -100%)',
         display: 'flex',
         alignItems: 'center',
         gap: '2px',

@@ -7846,6 +7846,28 @@
   .workspace-title {
     min-width: 190px;
   }
+
+  /* Scale down fixed-size color swatches for narrower panel */
+  .workspace-fx-color-swatch-wrapper {
+    width: 28px;
+    height: 28px;
+  }
+
+  .workspace-color-palette-swatch,
+  .workspace-color-palette-thumb {
+    width: 26px;
+    height: 26px;
+  }
+
+  .workspace-gradient-stop-color,
+  .workspace-fx-gradient-swatch {
+    width: 24px;
+    height: 24px;
+  }
+
+  .workspace-fx-color-presets {
+    grid-template-columns: repeat(6, 1fr);
+  }
 }
 
 @media (max-width: 860px) {
