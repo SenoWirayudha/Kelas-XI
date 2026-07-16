@@ -4,6 +4,7 @@ import { recordInterestEvent } from '../interest/interest.service.js'
 import { clearSearchHistory, listSearchHistory, recordSearchHistory } from './search.repository.js'
 import { classifyMovieQuery, searchExternalImages } from '../externalImages/externalImages.service.js'
 import { cosineSimilarity, getTextEmbedding } from '../externalImages/clip.service.js'
+import { enrichForClipRerank, applySaturationBoost } from '../../shared/bwColorBoost.service.js'
 
 const SEARCH_SYNONYMS = {
   film: ['movie', 'cinema', 'movies', 'films'],
@@ -63,16 +64,19 @@ export const search = async ({ viewerId = null, query }) => {
   // Only use semantic path when keyword search returns too few results
   const shouldUseSemantic = query.semantic && q && items.length < 5
   if (shouldUseSemantic) {
-    const queryEmb = await getTextEmbedding(q).catch(() => null)
+    const queryEmb = await getTextEmbedding(enrichForClipRerank(q)).catch(() => null)
     if (queryEmb) {
       // Text-to-image only: query text → post image embedding (CLIP zero-shot visual match)
       const imagePool = await getPostsByEmbeddingSimilarity({ viewerId, limit: 500 })
-      const imageSim = imagePool
+      let imageSim = imagePool
         .filter(p => p.embedding)
         .map(p => ({ ...p, _semScore: cosineSimilarity(queryEmb, p.embedding) }))
         .filter(p => p._semScore >= SEMANTIC_SCORE_THRESHOLD)
         .sort((a, b) => b._semScore - a._semScore)
         .slice(0, 10)
+
+      // Saturation boost for B&W queries: prioritize low-saturation (grayscale) posts
+      imageSim = await applySaturationBoost(imageSim, q, '_semScore')
 
       // Merge: 4 keyword : 1 text-to-image
       const seenIds = new Set(items.map(i => i.id))
