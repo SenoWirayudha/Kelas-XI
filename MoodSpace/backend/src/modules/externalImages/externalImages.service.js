@@ -193,6 +193,19 @@ export const classifyMovieQuery = (value = '') => {
     }
   }
 
+  // Gate 3b: isGeneric AND all titleTokens are generic visual/connecting words.
+  // Query describes a VISUAL STYLE (color, country, vibe), not a movie entity title.
+  // Title tokens like "black", "and", "white", "korean", "vintage" are not specific
+  // enough to be movie titles — they describe the desired aesthetic.
+  // Exception: if there's a non-generic word in the original tokens (e.g. "parasite"
+  // in "korean parasite poster"), titleTokens contains it and this gate skips.
+  // Hybrid routing in getProviderSearchersForQuery will still include TMDB when
+  // movie intent words (like "film", "movie") are present in the query.
+  if (isGeneric && titleTokensAreGeneric) {
+    console.log('[TMDB-DEBUG] classifyMovieQuery REJECTED gate3b (visual-only title tokens):', { raw: value, normalized, titleCandidate })
+    return null
+  }
+
   if (!isGeneric) {
     const gate2 = !titleCandidate || (!hasMovieIntent && titleCandidate.split(' ').length >= 8)
     if (gate2) { console.log('[TMDB-DEBUG] classifyMovieQuery REJECTED gate2 (>=5 tokens no movie intent):', { raw: value, normalized, hasMovieIntent, titleCandidate, tokenCount: titleCandidate.split(' ').length }); return null }
@@ -1389,6 +1402,23 @@ const getProviderSearchersForQuery = ({ context = '', query = '' }) => {
   }
   // Non-movie query in home context — use design providers (Unsplash, Pexels, etc.)
   if (context === 'home') {
+    // Hybrid routing: jika query mengandung movie intent words (e.g. "korean poster film"
+    // di-reject Gate 3b karena titleTokens=["korean"] visual-only, tapi tetap valid untuk
+    // TMDB search karena ada kata "film"), include TMDB bersama design providers.
+    const hasMovieIntentWords = movieIntentWords.some((word) => {
+      if (word.includes(' ')) return query.includes(word)
+      return query.split(' ').includes(word)
+    })
+    if (hasMovieIntentWords) {
+      return [
+        ['tmdb', searchTmdb],
+        ['unsplash', searchUnsplash],
+        ['pexels', searchPexels],
+        ['pixabay', searchPixabay],
+        ['openverse', searchOpenverse],
+        ['wikimedia', searchWikimedia],
+      ]
+    }
     return [
       ['unsplash', searchUnsplash],
       ['pexels', searchPexels],
