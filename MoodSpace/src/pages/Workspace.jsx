@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams, useBlocker } from 'react-router-dom'
 import Konva from 'konva'
 import {
   ArrowDownToLine,
@@ -4316,6 +4316,7 @@ function Workspace() {
   const isPersistingRef = useRef(false)
   const skipNextAutosaveRef = useRef(shouldLoadWorkspace)
   const hasUnsavedChangesRef = useRef(false)
+  const blocker = useBlocker(() => hasUnsavedChangesRef.current)
   const shouldCenterAfterPanelCloseRef = useRef(false)
 
   const selectedItem = useMemo(() => items.find((item) => item.id === selectedId), [items, selectedId])
@@ -5825,6 +5826,16 @@ function Workspace() {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [isWorkspaceLoading, workspaceId])
+
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      if (!hasUnsavedChangesRef.current) {
+        blocker.reset?.()
+        return
+      }
+      setShowExitConfirm(true)
+    }
+  }, [blocker.state])
 
   useEffect(() => {
     if (!workspaceId || !hasRestoredWorkspaceRef.current || isWorkspaceLoading) return undefined
@@ -15291,12 +15302,8 @@ onPointerUp={(e) => {
           type="button"
           className="workspace-title-back"
           onClick={() => {
-            if (hasUnsavedChangesRef.current) {
-              setShowExitConfirm(true)
-            } else {
-              if (window.history.length > 1) navigate(-1)
-              else navigate('/projects')
-            }
+            if (window.history.length > 1) navigate(-1)
+            else navigate('/projects')
           }}
           aria-label="Back"
           title="Back"
@@ -16574,10 +16581,12 @@ onPointerUp={(e) => {
       isDanger={true}
       onConfirm={() => {
         setShowExitConfirm(false)
-        if (window.history.length > 1) navigate(-1)
-        else navigate('/projects')
+        blocker.proceed?.()
       }}
-      onCancel={() => setShowExitConfirm(false)}
+      onCancel={() => {
+        setShowExitConfirm(false)
+        blocker.reset?.()
+      }}
     />
 
     {isExportModalOpen && (
