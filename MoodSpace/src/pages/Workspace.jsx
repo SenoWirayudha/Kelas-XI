@@ -4019,6 +4019,7 @@ function Workspace() {
   const [hasClipboard, setHasClipboard] = useState(false)
   const [isMorePanelOpen, setIsMorePanelOpen] = useState(false)
   const [isFxPanelOpen, setIsFxPanelOpen] = useState(false)
+  const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [destFxTargetId, setDestFxTargetId] = useState(null)
   const [showDestPicker, setShowDestPicker] = useState(false)
   const [isGroupSelectMode, setIsGroupSelectMode] = useState(false)
@@ -15289,8 +15290,12 @@ onPointerUp={(e) => {
           type="button"
           className="workspace-title-back"
           onClick={() => {
-            if (window.history.length > 1) navigate(-1)
-            else navigate('/projects')
+            if (hasUnsavedChangesRef.current) {
+              setShowExitConfirm(true)
+            } else {
+              if (window.history.length > 1) navigate(-1)
+              else navigate('/projects')
+            }
           }}
           aria-label="Back"
           title="Back"
@@ -16558,6 +16563,21 @@ onPointerUp={(e) => {
     {isShareModalOpen && (
       <ShareModal workspaceId={workspaceId} onClose={() => setIsShareModalOpen(false)} />
     )}
+
+    <ConfirmationModal
+      isOpen={showExitConfirm}
+      title="Perubahan Belum Disimpan"
+      description="Kamu punya perubahan yang belum disimpan. Yakin mau keluar?"
+      confirmLabel="Keluar"
+      cancelLabel="Batal"
+      isDanger={true}
+      onConfirm={() => {
+        setShowExitConfirm(false)
+        if (window.history.length > 1) navigate(-1)
+        else navigate('/projects')
+      }}
+      onCancel={() => setShowExitConfirm(false)}
+    />
 
     {isExportModalOpen && (
       <div
