@@ -78,6 +78,17 @@ const genericVisualWords = [
   'japanese', 'korean', 'japan', 'korea',
 ]
 
+const BW_RERANK_WORDS = ['black and white', 'monochrome', 'grayscale', 'greyscale', 'black', 'white', 'b&w', 'b w']
+const enrichForClipRerank = (text) => {
+  if (!text) return text
+  const lower = text.toLowerCase()
+  const hasBW = BW_RERANK_WORDS.some((word) => lower.includes(word))
+  if (hasBW) {
+    return text + ' monochrome grayscale black and white no color'
+  }
+  return text
+}
+
 const designIntentWords = new Set([
   'texture', 'pattern', 'background', 'overlay', 'grunge', 'noise', 'grain', 'paper',
   'fabric', 'canvas', 'brush', 'stroke', 'splatter', 'watercolor', 'acrylic', 'oil',
@@ -1701,7 +1712,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     // Final CLIP rerank (attach stored embeddings first)
     console.time('[BROWSE-ASSET] CLIP rerank')
 
-  const rerankText = semanticText || queries.join(' ')
+  const rerankText = enrichForClipRerank(semanticText || queries.join(' '))
     const queryEmbedding = await getTextEmbedding(rerankText)
     if (queryEmbedding && items.length) {
       const itemIds = items.map((item) => item.id).filter(Boolean)
@@ -1867,7 +1878,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
 
   // Semantic text-to-image visual similarity
   if (semanticText) {
-    const textEmb = await getTextEmbedding(semanticText).catch(() => null)
+    const textEmb = await getTextEmbedding(enrichForClipRerank(semanticText)).catch(() => null)
     if (textEmb) {
       const dbResults = await findImagesByVisualSimilarity({ embedding: textEmb, limit: Math.min(limit * 2, 16), offset: 0 })
       if (dbResults.length) {
@@ -1922,7 +1933,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     }
   }
 
-  const rerankText = semanticText || queries.join(' ')
+  const rerankText = enrichForClipRerank(semanticText || queries.join(' '))
   const textEmb = await getTextEmbedding(rerankText).catch(() => null)
   let imageEmb = null
   if (visualSimilarTo) {
