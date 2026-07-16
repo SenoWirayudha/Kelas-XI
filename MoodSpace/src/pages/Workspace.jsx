@@ -5814,18 +5814,18 @@ function Workspace() {
   }, [isWorkspaceLoading, persistWorkspaceSnapshot, workspaceId])
 
   useEffect(() => {
-    if (!workspaceId || !hasRestoredWorkspaceRef.current || isWorkspaceLoading) return undefined
+    if (!workspaceId) return undefined
 
     const handleBeforeUnload = (event) => {
       if (hasUnsavedChangesRef.current) {
         event.preventDefault()
-        event.returnValue = ''
+        event.returnValue = 'unsaved'
       }
     }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [isWorkspaceLoading, workspaceId])
+  }, [workspaceId])
 
   useEffect(() => {
     if (blocker.state === 'blocked') {
