@@ -452,3 +452,23 @@ Undo/redo hanya lokal — perubahan undo (add/delete/reorder) tidak dikirim ke r
 - `src/pages/Workspace.jsx` — `isViewerRef`, all guarded entry points, `disableDrag`, transformer guard, viewer badge, undo/redo broadcast, `itemsReorderHandlerRef`, per-item undo for composite members/multi-drag/arrow/align/lock/group-visibility/bezier
 - `src/context/CollaborationContext.jsx` — `items_reorder` listener, `itemsReorderHandlerRef` prop
 - `src/App.css` — `.workspace-viewer-badge` styles
+
+## Session 2026-07-16: Slider tap broadcast + View-only guard gap fix + Realtime throttle
+
+### Slider tap broadcast + BROADCAST_KEYS
+- Added `starInnerRatio`, `numPoints` to BROADCAST_KEYS
+- All range/number slider/input `onChange` now call `updateItem(id, patch, true)` + `broadcastItemUpdate(id, patch)` (dual: skip internal broadcast but fire external broadcast for tap fix)
+- All `onPointerUp` (range) / `onBlur` (number) call `updateItem(id, patch)` (no true) to capture undo + broadcast final value
+- X/Y/W/H/Rotation number inputs: changed from `updateItem(id, patch)` + `broadcastItemUpdate(id, patch)` to `updateItem(id, patch, true)` + `broadcastItemUpdate(id, patch)` + `onBlur` commit — prevents undo flood per keystroke and double broadcast
+- AdjustmentSliders: `onCommit` now calls `updateItem(id, patch)` (was `broadcastItemUpdate` — missed undo capture); `onMouseUp`/`onTouchEnd` merged to `onPointerUp`
+- Color picker `onChange` stays `updateItem(..., true)` only with deferred `onBlur` broadcast (Session 2026-07-14 pattern)
+
+### View-only guard gaps
+- **Layer panel** group visibility/lock/delete: added `if (isViewerRef.current) return` — these used direct `setItems` + broadcast, bypassing `updateItem`/`deleteObject` guards
+- **`lockToggleSelected`**: added `if (isViewerRef.current) return` — 5 entry points (selection panel, group panel, floating toolbar, right-click, bottom context menu)
+- **`handleApplyWarp`**: added `if (isViewerRef.current) return` — direct `setItems` + broadcast bypassed `updateItem`
+- **All broadcast functions** (`broadcastItemUpdate`, `broadcastItemAdd`, `broadcastItemRemove`, `broadcastWorkspaceUpdate`): added early return for viewer — blanket guard preventing viewer broadcasts reaching Supabase
+
+### Realtime message usage optimization
+- `cursor_move` throttle: 500ms → 1000ms (`useCursorBroadcast.js:5`)
+- `CollaborationCursors` rAF loop: pauses when no cursors present or tab hidden — uses 500ms `setTimeout` polling instead of 60fps rAF when idle; resumes on `visibilitychange`

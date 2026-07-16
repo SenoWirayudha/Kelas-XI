@@ -14,8 +14,21 @@ export function CollaborationCursors({ cameraRef }) {
 
   useEffect(() => {
     const container = containerRef.current
+    let isPaused = false
+
+    const scheduleNext = () => {
+      const hasCursors = Object.keys(cursorPositionsRef.current).length > 0
+      const isVisible = document.visibilityState === 'visible'
+      if (hasCursors && isVisible) {
+        rafRef.current = requestAnimationFrame(loop)
+      } else {
+        isPaused = true
+        rafRef.current = setTimeout(() => { isPaused = false; rafRef.current = requestAnimationFrame(loop) }, 500)
+      }
+    }
 
     const loop = () => {
+      isPaused = false
       const positions = cursorPositionsRef.current
       const camera = cameraRef.current
       const now = Date.now()
@@ -74,12 +87,25 @@ export function CollaborationCursors({ cameraRef }) {
         el.style.transform = `translate(${screenX}px, ${screenY}px)`
       })
 
-      rafRef.current = requestAnimationFrame(loop)
+      scheduleNext()
     }
 
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isPaused) {
+        cancelAnimationFrame(rafRef.current)
+        clearTimeout(rafRef.current)
+        isPaused = false
+        rafRef.current = requestAnimationFrame(loop)
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
     rafRef.current = requestAnimationFrame(loop)
+
     return () => {
       cancelAnimationFrame(rafRef.current)
+      clearTimeout(rafRef.current)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       cursorElsRef.current = {}
       renderedPosRef.current = {}
     }
