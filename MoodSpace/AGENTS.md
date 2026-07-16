@@ -480,4 +480,5 @@ Undo/redo hanya lokal — perubahan undo (add/delete/reorder) tidak dikirim ke r
 - Publish handler now always uses `visibility: 'public'`
 - Added `hasUnsavedChangesRef` to track unsaved state via snapshot hash comparison
 - Added `beforeunload` event listener that triggers browser dialog when `hasUnsavedChangesRef.current` is true
+- Added exit confirmation modal using `ConfirmationModal` when back button clicked with unsaved changes
 - Auto-save (2500ms debounce) verified working: auto-save ON = periodic save; OFF = only manual Ctrl+S

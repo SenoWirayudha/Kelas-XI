@@ -5751,7 +5751,6 @@ function Workspace() {
 
   useEffect(() => {
     if (!workspaceId || !hasRestoredWorkspaceRef.current || isWorkspaceLoading) return undefined
-    if (!canvasSettings.autosave) return undefined
 
     const snapshot = buildWorkspaceSnapshot()
     const snapshotHash = getSnapshotHash(snapshot)
@@ -5767,6 +5766,8 @@ function Workspace() {
       return undefined
     }
     hasUnsavedChangesRef.current = true
+
+    if (!canvasSettings.autosave) return undefined
 
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
     autosaveTimerRef.current = setTimeout(async () => {
