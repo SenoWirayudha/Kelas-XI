@@ -4,7 +4,7 @@ import { recordInterestEvent } from '../interest/interest.service.js'
 import { clearSearchHistory, listSearchHistory, recordSearchHistory } from './search.repository.js'
 import { classifyMovieQuery, searchExternalImages } from '../externalImages/externalImages.service.js'
 import { cosineSimilarity, getTextEmbedding } from '../externalImages/clip.service.js'
-import { enrichForClipRerank, applySaturationBoost } from '../../shared/bwColorBoost.service.js'
+import { enrichForClipRerank, applySaturationBoost, detectBwQuery } from '../../shared/bwColorBoost.service.js'
 
 const SEARCH_SYNONYMS = {
   film: ['movie', 'cinema', 'movies', 'films'],
@@ -45,6 +45,14 @@ const parseTags = (value = '') => (
 
 const SEMANTIC_SCORE_THRESHOLD = 0.30
 
+const MOVIE_INTENT_WORDS = ['movie', 'film', 'cinema', 'cinematic', 'scene', 'still', 'backdrop']
+
+const hasMovieIntent = (q) => {
+  if (!q) return false
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  return words.some(w => MOVIE_INTENT_WORDS.includes(w))
+}
+
 export const search = async ({ viewerId = null, query }) => {
   const tags = parseTags(query.tags)
   const q = query.q?.trim() || ''
@@ -61,8 +69,10 @@ export const search = async ({ viewerId = null, query }) => {
     offset: query.offset,
   })
   let items = rows
-  // Only use semantic path when keyword search returns too few results
-  const shouldUseSemantic = query.semantic && q && items.length < 5
+  // Only use semantic path when keyword search returns too few results,
+  // or when query targets B&W movie content (e.g. "black and white poster film").
+  // For B&W queries without movie intent (e.g. "monochrome design"), FTS is sufficient.
+  const shouldUseSemantic = query.semantic && q && (items.length < 5 || (detectBwQuery(q) && hasMovieIntent(q)))
   if (shouldUseSemantic) {
     const queryEmb = await getTextEmbedding(enrichForClipRerank(q)).catch(() => null)
     if (queryEmb) {
@@ -71,12 +81,17 @@ export const search = async ({ viewerId = null, query }) => {
       let imageSim = imagePool
         .filter(p => p.embedding)
         .map(p => ({ ...p, _semScore: cosineSimilarity(queryEmb, p.embedding) }))
-        .filter(p => p._semScore >= SEMANTIC_SCORE_THRESHOLD)
         .sort((a, b) => b._semScore - a._semScore)
-        .slice(0, 10)
+        .slice(0, 50)
 
-      // Saturation boost for B&W queries: prioritize low-saturation (grayscale) posts
+      // Saturation boost for B&W queries: prioritize low-saturation (grayscale) posts.
+      // Applied BEFORE the threshold filter so B&W items with low CLIP semantic scores
+      // (e.g. "Interstellar (2014)" B&W poster for query "black and white poster film")
+      // still surface — their _semScore gets boosted above threshold.
       imageSim = await applySaturationBoost(imageSim, q, '_semScore')
+      imageSim = imageSim
+        .filter(p => p._semScore >= SEMANTIC_SCORE_THRESHOLD)
+        .slice(0, 10)
 
       // Merge: 4 keyword : 1 text-to-image
       const seenIds = new Set(items.map(i => i.id))
@@ -90,6 +105,12 @@ export const search = async ({ viewerId = null, query }) => {
       items = merged
     }
   }
+
+  // Saturation boost for B&W queries: applied to ALL results (FTS + semantic),
+  // not just the semantic path. Boosts low-saturation (grayscale) items so
+  // B&W content ranks higher for queries like "black and white poster film".
+  items = await applySaturationBoost(items, q, '_rankScore')
+
   const hasMore = items.length > query.limit
   const trimmed = hasMore ? items.slice(0, query.limit) : items
   return {

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ExternalLink, Key, LoaderCircle, LogOut, Save, X } from 'lucide-react'
+import { ExternalLink, FileText, Key, LoaderCircle, LogOut, Save, Shield, X } from 'lucide-react'
 import { useAuth } from '../context/authState'
 import { apiRequest } from '../lib/api/client'
+import InfoModal from './InfoModal'
 
 function SettingsModal({ isOpen, onClose }) {
   const navigate = useNavigate()
@@ -14,6 +15,7 @@ function SettingsModal({ isOpen, onClose }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [infoModalType, setInfoModalType] = useState(null)
 
   if (!isOpen) return null
 
@@ -46,6 +48,7 @@ function SettingsModal({ isOpen, onClose }) {
   }
 
   return (
+    <>
     <div className="mood-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="mood-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
         <button type="button" className="mood-modal-close" aria-label="Close" onClick={onClose}>
@@ -93,6 +96,24 @@ function SettingsModal({ isOpen, onClose }) {
             </form>
           )}
 
+          <span className="settings-section-label">Lainnya</span>
+
+          <button type="button" className="settings-item" onClick={() => setInfoModalType('privacy')}>
+            <div className="settings-item-left">
+              <Shield size={16} />
+              <span>Kebijakan Privasi</span>
+            </div>
+            <span className="settings-item-hint">Pelajari kebijakan privasi kami</span>
+          </button>
+
+          <button type="button" className="settings-item" onClick={() => setInfoModalType('terms')}>
+            <div className="settings-item-left">
+              <FileText size={16} />
+              <span>Syarat &amp; Ketentuan</span>
+            </div>
+            <span className="settings-item-hint">Pelajari syarat dan ketentuan</span>
+          </button>
+
           <div className="settings-user-info">
             <div className="settings-user-avatar">
               {user?.displayName?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || '?'}
@@ -108,6 +129,8 @@ function SettingsModal({ isOpen, onClose }) {
         </div>
       </section>
     </div>
+      <InfoModal type={infoModalType} onClose={() => setInfoModalType(null)} />
+    </>
   )
 }
 

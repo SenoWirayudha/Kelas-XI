@@ -828,7 +828,12 @@ const searchTmdb = async ({ query, limit, cursor }) => {
     visualType: cursor?.visualType === 'backdrop' ? 'backdrop' : 'poster',
     titleCandidate: '',
     normalizedQuery: '',
-  } : null)
+  } : (!entityId && movieIntentWords.some(w => w.includes(' ') ? query.includes(w) : query.split(' ').includes(w)) ? {
+    visualType: 'poster',
+    titleCandidate: '',
+    normalizedQuery: query,
+    isGeneric: true,
+  } : null))
   const gateSkipped = !classifier && !entityId
   console.log('[TMDB-DEBUG] searchTmdb gate:', { query, classifier: !!classifier, entityId, skipped: gateSkipped, isGeneric: classifier?.isGeneric })
   if (gateSkipped) return { provider: 'tmdb', items: [], cursor: null, skipped: true }
@@ -1745,10 +1750,13 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
       computeAndStoreEmbeddings(items).catch(() => {})
     }
     const rerankedItems = queryEmbedding ? rerankByQueryEmbedding(items, queryEmbedding) : items
+    // Saturation boost for B&W queries: prioritize low-saturation (grayscale) items
+    const bwRerankText = semanticText || queries.join(' ')
+    const boostedItems = await applySaturationBoost(rerankedItems, bwRerankText)
     console.timeEnd('[BROWSE-ASSET] CLIP rerank')
     console.timeEnd('[BROWSE-ASSET] Total')
 
-    const hasTmdbItems = items.some((i) => i.provider === 'tmdb')
+    const hasTmdbItems = boostedItems.some((i) => i.provider === 'tmdb')
     return {
       providers: hasTmdbItems ? ['tmdb'] : [],
       query: queries[0],
@@ -1757,7 +1765,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
       recentQueries: queryPlan.recentQueries,
       fallbackUsed: queryPlan.fallbackUsed,
       movieQuery: hasTmdbItems,
-      items: rerankedItems,
+      items: boostedItems,
       nextCursor: null,
     }
   }
@@ -2056,6 +2064,31 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
           const swapCount = Math.min(needed, candidates.length, replaceable.length)
           for (let i = 0; i < swapCount; i++) {
             finalItems[replaceable[i].idx] = candidates[i]
+          }
+        }
+      }
+    }
+  }
+
+  // TMDB floor for movie-related queries: ensure at least 1 TMDB item survives
+  // the saturation boost. TMDB trending items (popular movies) are colorful and
+  // get outranked by B&W design items after saturation boost, but we still want
+  // movie poster variety in the results.
+  if (context !== 'home' && context !== 'recommended' && context !== 'browse_asset') {
+    const hasMovieIntent = movieIntentWords.some(w => w.includes(' ') ? rerankText.includes(w) : rerankText.split(' ').includes(w))
+    if (hasMovieIntent) {
+      const tmdbInFinal = finalItems.filter(i => i.provider === 'tmdb' || i.provider === 'tmdbCredits')
+      if (tmdbInFinal.length === 0) {
+        const tmdbCandidates = entityCapped.filter(i => i.provider === 'tmdb' || i.provider === 'tmdbCredits')
+        if (tmdbCandidates.length > 0) {
+          const bestTmdb = tmdbCandidates[0]
+          const replaceable = finalItems
+            .map((item, idx) => ({ item, idx }))
+            .filter(({ item }) => item.provider !== 'tmdb' && item.provider !== 'tmdbCredits')
+            .sort((a, b) => (a.item.clipScore || 0) - (b.item.clipScore || 0))
+          if (replaceable.length > 0) {
+            finalItems[replaceable[0].idx] = bestTmdb
+            console.log('[TMDB-FLOOR] replaced item with TMDB:', { idx: replaceable[0].idx, tmdbTitle: bestTmdb.title, score: bestTmdb.clipScore, replacedTitle: replaceable[0].item.title })
           }
         }
       }

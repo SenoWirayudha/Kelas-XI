@@ -3182,7 +3182,6 @@ function Workspace() {
     showGrid: false,
     snapToGrid: false,
     autosave: true,
-    privateWorkspace: false,
   })
   const [camera, setCamera] = useState({ x: 0, y: 0, scale: 0.75 })
   const [viewportSize, setViewportSize] = useState({ width: canvasSize.width, height: canvasSize.height })
@@ -4315,6 +4314,7 @@ function Workspace() {
   const isAutosavingRef = useRef(false)
   const isPersistingRef = useRef(false)
   const skipNextAutosaveRef = useRef(shouldLoadWorkspace)
+  const hasUnsavedChangesRef = useRef(false)
   const shouldCenterAfterPanelCloseRef = useRef(false)
 
   const selectedItem = useMemo(() => items.find((item) => item.id === selectedId), [items, selectedId])
@@ -4574,7 +4574,6 @@ function Workspace() {
       showGrid: false,
       snapToGrid: false,
       autosave: true,
-      privateWorkspace: workspace.visibility === 'private',
       ...restoredSettings,
       ...(useWorkspaceMetadata ? workspaceSettings : {}),
       ratio: restoredRatio,
@@ -5681,6 +5680,7 @@ function Workspace() {
         ? await saveWorkspace(workspaceId, body, { keepalive: options.keepalive })
         : await autosaveWorkspace(workspaceId, body, { keepalive: options.keepalive })
       lastSavedSnapshotHashRef.current = snapshotHash
+      hasUnsavedChangesRef.current = false
       if (result && !result.skipped && !options.skipThumbnail) {
         await uploadWorkspaceThumbnail()
       }
@@ -5732,7 +5732,7 @@ function Workspace() {
       await publishWorkspace({
         workspaceId,
         title: workspaceTitle,
-        visibility: canvasSettings.privateWorkspace ? 'private' : 'public',
+        visibility: 'public',
         snapshot,
       })
       setSaveStatus('Published')
@@ -5741,7 +5741,6 @@ function Workspace() {
     }
   }, [
     buildWorkspaceSnapshot,
-    canvasSettings.privateWorkspace,
     persistWorkspaceSnapshot,
     requireAuth,
     uploadWorkspaceThumbnail,
@@ -5762,7 +5761,11 @@ function Workspace() {
       return undefined
     }
 
-    if (snapshotHash === lastSavedSnapshotHashRef.current) return undefined
+    if (snapshotHash === lastSavedSnapshotHashRef.current) {
+      hasUnsavedChangesRef.current = false
+      return undefined
+    }
+    hasUnsavedChangesRef.current = true
 
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
     autosaveTimerRef.current = setTimeout(async () => {
@@ -5771,7 +5774,10 @@ function Workspace() {
       setSaveStatus('Autosaving...')
       try {
         const result = await persistWorkspaceSnapshot('autosave')
-        if (result) setSaveStatus('Autosaved')
+        if (result) {
+          setSaveStatus('Autosaved')
+          hasUnsavedChangesRef.current = false
+        }
       } catch (error) {
         setSaveStatus(error.message || 'Autosave failed')
       } finally {
@@ -5803,6 +5809,20 @@ function Workspace() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [isWorkspaceLoading, persistWorkspaceSnapshot, workspaceId])
+
+  useEffect(() => {
+    if (!workspaceId || !hasRestoredWorkspaceRef.current || isWorkspaceLoading) return undefined
+
+    const handleBeforeUnload = (event) => {
+      if (hasUnsavedChangesRef.current) {
+        event.preventDefault()
+        event.returnValue = ''
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isWorkspaceLoading, workspaceId])
 
   useEffect(() => {
     if (!workspaceId || !hasRestoredWorkspaceRef.current || isWorkspaceLoading) return undefined
@@ -14985,11 +15005,6 @@ onPointerUp={(e) => {
               }} />
               <span className="toggle-track" />
               Simpan Otomatis
-            </label>
-            <label className="workspace-toggle-row">
-              <input type="checkbox" checked={canvasSettings.privateWorkspace} onChange={(event) => setCanvasSettings((current) => ({ ...current, privateWorkspace: event.target.checked }))} />
-              <span className="toggle-track" />
-              Workspace Privat
             </label>
           </div>
         </div>

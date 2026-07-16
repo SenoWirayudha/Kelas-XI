@@ -10,6 +10,9 @@
   --color-secondary: #22D3EE;
   --color-tertiary: #F472B6;
   --color-neutral: #111111;
+  --color-collect: #FACC15;
+  --color-compose: #22D3EE;
+  --color-present: #F472B6;
   
   /* Background Colors */
   --bg-main: rgb(18, 18, 18);

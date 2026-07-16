@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, X } from 'lucide-react'
 import { useAuth } from '../context/authState'
@@ -9,9 +9,11 @@ function AuthModal() {
     authModal,
     closeAuthModal,
     login,
+    loginPrefill,
     openLogin,
     openRegister,
     register,
+    setLoginPrefill,
   } = useAuth()
   const [values, setValues] = useState({
     email: '',
@@ -24,6 +26,14 @@ function AuthModal() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const mode = authModal === 'register' ? 'register' : authModal === 'login' ? 'login' : null
+
+  useEffect(() => {
+    if (mode === 'login' && typeof loginPrefill === 'string' && loginPrefill) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setValues((prev) => ({ ...prev, identifier: loginPrefill }))
+      setLoginPrefill(null)
+    }
+  }, [mode, loginPrefill, setLoginPrefill])
 
   const copy = useMemo(() => (
     mode === 'register'

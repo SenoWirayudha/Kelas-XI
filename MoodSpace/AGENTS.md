@@ -472,3 +472,12 @@ Undo/redo hanya lokal — perubahan undo (add/delete/reorder) tidak dikirim ke r
 ### Realtime message usage optimization
 - `cursor_move` throttle: 500ms → 1000ms (`useCursorBroadcast.js:5`)
 - `CollaborationCursors` rAF loop: pauses when no cursors present or tab hidden — uses 500ms `setTimeout` polling instead of 60fps rAF when idle; resumes on `visibilitychange`
+
+## Session 2026-07-16 (lanjutan): Remove Private toggle + beforeunload warning
+
+- Removed "Workspace Privat" toggle from settings panel (lines 14989-14993)
+- Removed `privateWorkspace` from `canvasSettings` initial state and restoration
+- Publish handler now always uses `visibility: 'public'`
+- Added `hasUnsavedChangesRef` to track unsaved state via snapshot hash comparison
+- Added `beforeunload` event listener that triggers browser dialog when `hasUnsavedChangesRef.current` is true
+- Auto-save (2500ms debounce) verified working: auto-save ON = periodic save; OFF = only manual Ctrl+S

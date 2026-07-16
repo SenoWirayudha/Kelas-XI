@@ -13,9 +13,16 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [authModal, setAuthModal] = useState(null)
+  const [loginPrefill, setLoginPrefill] = useState(null)
 
-  const closeAuthModal = useCallback(() => setAuthModal(null), [])
-  const openLogin = useCallback(() => setAuthModal('login'), [])
+  const closeAuthModal = useCallback(() => {
+    setAuthModal(null)
+    setLoginPrefill(null)
+  }, [])
+  const openLogin = useCallback((prefill) => {
+    if (prefill) setLoginPrefill(prefill)
+    setAuthModal('login')
+  }, [])
   const openRegister = useCallback(() => setAuthModal('register'), [])
 
   const loadCurrentUser = useCallback(async () => {
@@ -51,6 +58,7 @@ export function AuthProvider({ children }) {
     const payload = await loginUser(credentials)
     setUser(payload.user)
     closeAuthModal()
+    try { localStorage.removeItem('moodspace_last_user') } catch { /* ignore */ }
     return payload.user
   }, [closeAuthModal])
 
@@ -58,13 +66,23 @@ export function AuthProvider({ children }) {
     const payload = await registerUser(values)
     setUser(payload.user)
     closeAuthModal()
+    try { localStorage.removeItem('moodspace_last_user') } catch { /* ignore */ }
     return payload.user
   }, [closeAuthModal])
 
   const logout = useCallback(async () => {
+    if (user) {
+      try {
+        localStorage.setItem('moodspace_last_user', JSON.stringify({
+          displayName: user.displayName || user.username,
+          avatarUrl: user.profile?.avatarUrl || null,
+          identifier: user.email || user.username,
+        }))
+      } catch { /* ignore */ }
+    }
     await logoutUser()
     setUser(null)
-  }, [])
+  }, [user])
 
   const requireAuth = useCallback((reason = null) => {
     if (user) return true
@@ -77,9 +95,11 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!user,
     isLoading,
     authModal,
+    loginPrefill,
     openLogin,
     openRegister,
     closeAuthModal,
+    setLoginPrefill,
     login,
     register,
     logout,
@@ -91,6 +111,7 @@ export function AuthProvider({ children }) {
     isLoading,
     loadCurrentUser,
     login,
+    loginPrefill,
     logout,
     openLogin,
     openRegister,
