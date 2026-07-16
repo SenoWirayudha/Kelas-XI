@@ -600,6 +600,19 @@
   background-size: cover;
   background-position: center;
   flex-shrink: 0;
+  position: relative;
+}
+
+.avatar-initial {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1;
+  user-select: none;
 }
 
 .header-auth-username {
@@ -1034,6 +1047,7 @@
   background-position: center;
   flex-shrink: 0;
   background-color: rgba(255, 255, 255, 0.15);
+  position: relative;
 }
 
 .landing-nav-login-sep {
@@ -1297,21 +1311,20 @@
 
 @media (max-width: 480px) {
   .landing-hero-actions {
-    flex-direction: row;
-    gap: 8px;
+    flex-direction: column;
+    gap: 14px;
   }
 
   .landing-primary-btn,
   .landing-secondary-btn {
-    width: auto;
-    min-height: 40px;
-    font-size: 13px;
+    width: 100%;
+    min-height: 44px;
+    font-size: 14px;
     padding: 0 12px;
-    flex: 1;
   }
 
   .landing-secondary-btn {
-    border-color: rgba(255, 255, 255, 0.35);
+    border-color: rgba(255, 255, 255, 0.55);
   }
 
   .landing-hero-strip span {
@@ -13852,6 +13865,7 @@
   flex-shrink: 0;
   background-size: cover;
   background-position: center;
+  position: relative;
 }
 
 .share-modal-user-info {

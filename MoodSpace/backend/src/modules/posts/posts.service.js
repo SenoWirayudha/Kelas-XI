@@ -5,8 +5,8 @@ import { findWorkspaceById, getLatestVersion } from '../workspaces/workspaces.re
 import { hashSnapshot } from '../workspaces/snapshot.service.js'
 import { getTopRecentInterestTags, recordInterestEvent } from '../interest/interest.service.js'
 import { cosineSimilarity, getImageEmbedding, getTextEmbedding } from '../externalImages/clip.service.js'
-import { findAnyEmbedding, findEntityCandidates } from '../externalImages/externalImages.repository.js'
-import { enrichForClipRerank, applySaturationBoost } from '../../shared/bwColorBoost.service.js'
+import { findAnyEmbedding, findEntityCandidates, findExternalImageById } from '../externalImages/externalImages.repository.js'
+import { enrichForClipRerank, applySaturationBoost, applyStyleSimilarityBoost, computeStyleMetrics } from '../../shared/bwColorBoost.service.js'
 import { computeZeroShotTags } from '../../shared/clipZeroShot.service.js'
 import { matchKnownEntity } from '../../shared/entityMatch.service.js'
 import { matchOcrEntity } from '../../shared/ocr.service.js'
@@ -21,6 +21,7 @@ import {
   createMediaPostDraft,
   getMediaTagSources,
   getHomeFeed,
+  getRecentUserPosts,
   getRecommendedPosts,
   getPostsByEmbeddingSimilarity,
   getPostsByUsername,
@@ -673,6 +674,30 @@ export const homeFeed = async ({ viewerId = null, query }) => {
       }
     }
 
+    // Style similarity: average style vector dari 5 post terbaru user
+    if (viewerId && filtered.length >= 3) {
+      try {
+        const recentPosts = await getRecentUserPosts({ userId: viewerId, limit: 5 })
+        const urls = recentPosts.map(p => p.coverPublicUrl).filter(Boolean)
+        if (urls.length >= 2) {
+          const metricArrays = (await Promise.allSettled(
+            urls.map(url => computeStyleMetrics(url))
+          )).filter(r => r.status === 'fulfilled' && r.value)
+            .map(r => Object.values(r.value))
+
+          if (metricArrays.length >= 2) {
+            const dim = metricArrays[0].length
+            const avgVector = Array.from({ length: dim }, (_, i) =>
+              metricArrays.reduce((s, v) => s + v[i], 0) / metricArrays.length
+            )
+            filtered = await applyStyleSimilarityBoost(filtered, null, '_clipScore', 0.04, avgVector)
+          }
+        }
+      } catch {
+        void 0
+      }
+    }
+
     // In-memory pagination: skip ke sortPos, ambil limit item
     const start = Math.min(sortPos, filtered.length)
     const pageItems = filtered.slice(start, start + query.limit)
@@ -842,6 +867,15 @@ export const recommendedPosts = async ({ viewerId = null, postId, query: params 
   // Saturation boost for B&W queries: prioritize low-saturation (grayscale) visual items
   visItems = await applySaturationBoost(visItems, semanticText, '_visScore')
 
+  // Style similarity boost: compare pixel-level style (B&W, warm, dark, etc.)
+  // between the current post and candidate items. Items with similar visual
+  // style to the current post get a small score bump, making More Like This
+  // aware of stylistic affinity beyond CLIP semantic similarity.
+  if (currentPost.coverPublicUrl) {
+    const refUrl = buildPublicUrl({ publicUrl: currentPost.coverPublicUrl, bucket: currentPost.coverBucket, objectKey: currentPost.coverObjectKey })
+    visItems = await applyStyleSimilarityBoost(visItems, refUrl, '_visScore', 0.04)
+  }
+
   // Interleave: [vis1, txt1, vis2, txt2, ...]
   const runInterleave = (visThreshold, txtThreshold) => {
     const vis = visItems.filter(p => p._visScore >= visThreshold)
@@ -961,6 +995,23 @@ export const similarPostsByImage = async ({ viewerId = null, imageId, q, limit =
   const result = filtered
     .sort((a, b) => b._clipScore - a._clipScore)
     .slice(0, target)
+
+  // Style similarity boost: compare pixel-level style with reference image
+  const firstId = ids[0]
+  if (firstId) {
+    let refUrl = null
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firstId)) {
+      const media = await findMediaById(firstId).catch(() => null)
+      if (media?.publicUrl) refUrl = media.publicUrl
+    } else {
+      const extImage = await findExternalImageById({ id: firstId }).catch(() => null)
+      if (extImage?.url) refUrl = extImage.url
+    }
+    if (refUrl) {
+      const boosted = await applyStyleSimilarityBoost(result, refUrl, '_clipScore', 0.04)
+      return { items: boosted.map(serializePost) }
+    }
+  }
 
   return { items: result.map(serializePost) }
 }

@@ -307,7 +307,9 @@ function HeaderInner({ isSettingsOpen, setIsSettingsOpen, onToggleSidebar }) {
           {user ? (
             <div className="header-auth-user">
               <div className="header-user-profile" onClick={() => navigate('/profile')} role="button" tabIndex={0}>
-                <div className="header-user-avatar" style={user.profile?.avatarUrl ? { backgroundImage: `url("${user.profile.avatarUrl}")` } : undefined} />
+                <div className="header-user-avatar" style={user.profile?.avatarUrl ? { backgroundImage: `url("${user.profile.avatarUrl}")` } : undefined}>
+                {!user.profile?.avatarUrl && <span className="avatar-initial" style={{ fontSize: '12px' }}>{(user.displayName || user.username || '?')[0].toUpperCase()}</span>}
+              </div>
                 <span className="header-auth-username">@{user.username}</span>
               </div>
               <button type="button" className="header-logout-btn" onClick={logout}>

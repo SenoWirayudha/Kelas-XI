@@ -5637,7 +5637,7 @@ function Workspace() {
       const { updates, failed } = await uploadPendingItems()
       if (failed.length > 0) {
         console.warn(`[PERSIST] ${failed.length} item(s) gagal diupload — simpan dibatalkan. Coba simpan lagi.`, failed)
-        alert(`⚠️ ${failed.length} gambar gagal disimpan ke server. Coba simpan lagi.`)
+        toastRef.current?.(`⚠️ ${failed.length} gambar gagal disimpan ke server. Coba simpan lagi.`, { type: 'error', duration: 5000 })
         return null
       }
       if (updates.length > 0) {
@@ -6555,7 +6555,7 @@ const attachTransformer = useCallback((idOrIds) => {
         }
       })
       if (rejectPartial) {
-        alert('Tidak bisa mengelompokkan sebagian dari composite group — pilih seluruh anggota composite group atau tidak sama sekali.')
+        toastRef.current?.('Tidak bisa mengelompokkan sebagian dari composite group — pilih seluruh anggota composite group atau tidak sama sekali.', { type: 'error', duration: 5000 })
         return
       }
       // Build set of composite member IDs (yang akan dapat parentGroupId)

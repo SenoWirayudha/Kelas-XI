@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { FolderPlus, Globe, MapPin, User } from 'lucide-react'
+import { FolderPlus, Globe, MapPin } from 'lucide-react'
 import { detectPlatform, SocialLinkIcon, toAbsoluteUrl } from '../components/SocialLinkIcon'
 import BoardPickerModal from '../components/BoardPickerModal'
 import CommunityPostCard from '../components/CommunityPostCard'
@@ -250,7 +250,7 @@ function Profile() {
                 src={profile.avatarUrl}
                 crop={profile.metadata?.avatarCrop}
                 circle
-                fallback={<div className="profile-avatar-empty"><User size={40} /></div>}
+                fallback={<div className="profile-avatar-empty"><span className="avatar-initial" style={{ fontSize: '48px' }}>{(profile?.displayName || profile?.username || '?')[0].toUpperCase()}</span></div>}
               />
             </div>
             <div className="profile-info">

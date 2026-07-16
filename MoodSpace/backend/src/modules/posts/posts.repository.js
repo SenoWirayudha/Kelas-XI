@@ -492,6 +492,17 @@ export const getPostsByUsername = async ({ viewerId = null, username, cursor = n
   return rows
 }
 
+export const getRecentUserPosts = async ({ userId, limit = 5 }) => {
+  const { rows } = await query(
+    `${postSelect}
+     where p.author_id = $1 and p.status = 'published'
+     order by p.published_at desc
+     limit $2`,
+    [userId, limit],
+  )
+  return rows
+}
+
 export const getSavedPosts = async ({ viewerId, cursor = null, limit = 20 }) => {
   const values = [viewerId, limit + 1]
   let cursorClause = ''

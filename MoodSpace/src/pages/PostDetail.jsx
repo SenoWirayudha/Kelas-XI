@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Bookmark, ChevronLeft, ChevronRight, Download, Eye, Flag, FolderPlus, Heart, LoaderCircle, Lock, MoreVertical, Share2, Trash2, User, Users } from 'lucide-react'
+import { Bookmark, ChevronLeft, ChevronRight, Download, Eye, Flag, FolderPlus, Heart, LoaderCircle, Lock, MoreVertical, Share2, Trash2, Users } from 'lucide-react'
 import BoardPickerModal from '../components/BoardPickerModal'
 import CommunityPostCard from '../components/CommunityPostCard'
 import ConfirmationModal from '../components/ConfirmationModal'
@@ -69,7 +69,7 @@ function CommentItem({ comment, currentUser, onDelete, onReport }) {
         <div className="comment-avatar" style={{ backgroundImage: `url("${comment.avatarUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
       ) : (
         <div className="comment-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <User size={20} color="white" />
+          <span className="avatar-initial" style={{ fontSize: '16px' }}>{(comment.displayName || comment.username || '?')[0].toUpperCase()}</span>
         </div>
       )}
       <div className="comment-content">
@@ -528,7 +528,9 @@ function PostDetail() {
         <div className="post-detail-info-section">
           <div className="post-detail-author">
             <Link to={`/user/${post.author.username}`} className="post-detail-author-link">
-              <div className="author-avatar" style={post.author.avatarUrl ? { backgroundImage: `url("${post.author.avatarUrl}")` } : undefined} />
+              <div className="author-avatar" style={post.author.avatarUrl ? { backgroundImage: `url("${post.author.avatarUrl}")` } : undefined}>
+                {!post.author.avatarUrl && <span className="avatar-initial" style={{ fontSize: '9px' }}>{(post.author.displayName || post.author.username || '?')[0].toUpperCase()}</span>}
+              </div>
               <div className="author-info">
                 <h3>{post.author.displayName || post.author.username}</h3>
                 <p>@{post.author.username}</p>
@@ -630,7 +632,7 @@ function PostDetail() {
               <div className="comment-avatar current-user" style={{ backgroundImage: `url("${currentUser.profile.avatarUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
             ) : (
               <div className="comment-avatar current-user" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <User size={20} color="white" />
+                <span className="avatar-initial" style={{ fontSize: '16px' }}>{(currentUser.displayName || currentUser.username || '?')[0].toUpperCase()}</span>
               </div>
             ))}
             <div className="comment-input-wrapper">

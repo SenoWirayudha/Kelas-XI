@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { User, UserCheck, UserPlus, X } from 'lucide-react'
+import { UserCheck, UserPlus, X } from 'lucide-react'
 import { followUser, getFollowers, getFollowing, unfollowUser } from '../lib/api/follows'
 import { useAuth } from '../context/authState'
 import CroppedProfileImage from './CroppedProfileImage'
@@ -71,7 +71,7 @@ function FollowListModal({ isOpen, type, userId, onClose }) {
                     <CroppedProfileImage
                       src={item.avatarUrl}
                       circle
-                      fallback={<div className="profile-avatar-empty"><User size={20} /></div>}
+                      fallback={<div className="profile-avatar-empty"><span className="avatar-initial" style={{ fontSize: '14px' }}>{(item.displayName || item.username || '?')[0].toUpperCase()}</span></div>}
                     />
                   </div>
                   <div className="follow-list-info">

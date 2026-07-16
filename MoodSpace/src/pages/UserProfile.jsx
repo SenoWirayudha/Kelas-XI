@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Flag, Globe, MapPin, MoreVertical, User, UserPlus, UserCheck } from 'lucide-react'
+import { Flag, Globe, MapPin, MoreVertical, UserPlus, UserCheck } from 'lucide-react'
 import { detectPlatform, SocialLinkIcon, toAbsoluteUrl } from '../components/SocialLinkIcon'
 import CommunityPostCard from '../components/CommunityPostCard'
 import CroppedProfileImage from '../components/CroppedProfileImage'
@@ -140,7 +140,7 @@ function UserProfile() {
                 src={profile.avatarUrl}
                 crop={profile.metadata?.avatarCrop}
                 circle
-                fallback={<div className="profile-avatar-empty"><User size={40} /></div>}
+                fallback={<div className="profile-avatar-empty"><span className="avatar-initial" style={{ fontSize: '48px' }}>{(profile?.displayName || profile?.username || '?')[0].toUpperCase()}</span></div>}
               />
             </div>
             <div className="profile-info">

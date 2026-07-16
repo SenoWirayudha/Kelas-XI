@@ -205,10 +205,12 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
         <div className="metadata-left">
           <Link to={isExternalImage ? `/external/${encodeURIComponent(post.id)}` : `/user/${post.author.username}`} className={`metadata-author ${isExternalImage ? 'external-source' : ''}`} onClick={(e) => e.stopPropagation()}>
             {!isExternalImage && (
-              <div
-                className="author-avatar"
-                style={post.author.avatarUrl ? { backgroundImage: `url("${post.author.avatarUrl}")` } : undefined}
-              />
+    <div
+      className="author-avatar"
+      style={post.author.avatarUrl ? { backgroundImage: `url("${post.author.avatarUrl}")` } : undefined}
+    >
+      {!post.author.avatarUrl && <span className="avatar-initial" style={{ fontSize: '9px' }}>{(post.author.displayName || post.author.username || '?')[0].toUpperCase()}</span>}
+    </div>
             )}
             <span className="author-username">{isExternalImage ? post.author.username : `@${post.author.username}`}</span>
           </Link>

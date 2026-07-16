@@ -286,7 +286,9 @@ function Landing() {
                   <div
                     className="landing-nav-continue-avatar"
                     style={lastUser.avatarUrl ? { backgroundImage: `url("${lastUser.avatarUrl}")` } : undefined}
-                  />
+                  >
+                    {!lastUser.avatarUrl && <span className="avatar-initial" style={{ fontSize: '10px' }}>{(lastUser.displayName || '?')[0].toUpperCase()}</span>}
+                  </div>
                   Continue as {lastUser.displayName}
                 </div>
                 <span className="landing-nav-login-sep">|</span>

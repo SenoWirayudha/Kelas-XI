@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, ImagePlus, User, X } from 'lucide-react'
+import { Camera, ImagePlus, X } from 'lucide-react'
 import { uploadMediaFile } from '../lib/api/media'
 import CroppedProfileImage from './CroppedProfileImage'
 
@@ -319,7 +319,7 @@ function EditProfileModal({ isOpen, profile, bannerAspectRatio = 16 / 5, isSavin
                   src={avatarCleared ? null : avatarPreview}
                   crop={avatarCrop}
                   circle
-                  fallback={<div className="profile-avatar-empty"><User size={22} /></div>}
+                  fallback={<div className="profile-avatar-empty"><span className="avatar-initial" style={{ fontSize: '36px' }}>{(profile?.displayName || profile?.username || '?')[0].toUpperCase()}</span></div>}
                 />
                 <div className="edit-profile-avatar-hover">
                   <Camera size={18} />

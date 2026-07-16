@@ -143,7 +143,9 @@ export default function ShareModal({ workspaceId, onClose }) {
                       setHasSearched(false)
                     }}
                   >
-                    <span className="share-modal-avatar" style={user.profile?.avatarUrl ? { backgroundImage: `url("${user.profile.avatarUrl}")` } : undefined} />
+                    <span className="share-modal-avatar" style={user.profile?.avatarUrl ? { backgroundImage: `url("${user.profile.avatarUrl}")` } : undefined}>
+                      {!user.profile?.avatarUrl && <span className="avatar-initial" style={{ fontSize: '13px' }}>{(user.displayName || user.username || '?')[0].toUpperCase()}</span>}
+                    </span>
                     <span className="share-modal-user-info">
                       <strong>{user.displayName || user.username}</strong>
                       <small>{user.email}</small>
@@ -199,7 +201,9 @@ export default function ShareModal({ workspaceId, onClose }) {
           ) : (
             collaborators.map((c) => (
               <div className="share-modal-collab-item" key={c.userId}>
-                <span className="share-modal-avatar" style={c.user?.profile?.avatarUrl ? { backgroundImage: `url("${c.user.profile.avatarUrl}")` } : undefined} />
+                <span className="share-modal-avatar" style={c.user?.profile?.avatarUrl ? { backgroundImage: `url("${c.user.profile.avatarUrl}")` } : undefined}>
+                  {!c.user?.profile?.avatarUrl && <span className="avatar-initial" style={{ fontSize: '13px' }}>{(c.user.displayName || c.user.username || '?')[0].toUpperCase()}</span>}
+                </span>
                 <span className="share-modal-collab-info">
                   <strong>{c.user.displayName || c.user.username}</strong>
                   <small>{c.user.email}</small>

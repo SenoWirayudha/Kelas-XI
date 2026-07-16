@@ -16,7 +16,7 @@ import {
   upsertExternalImage,
 } from './externalImages.repository.js'
 import { getTextEmbedding, getImageEmbedding, rerankByQueryEmbedding, averageEmbeddings, cosineSimilarity } from './clip.service.js'
-import { enrichForClipRerank, applySaturationBoost } from '../../shared/bwColorBoost.service.js'
+import { enrichForClipRerank, applySaturationBoost, applyStyleSimilarityBoost } from '../../shared/bwColorBoost.service.js'
 import { computeZeroShotTags } from '../../shared/clipZeroShot.service.js'
 import { clearEntityCache } from '../../shared/entityMatch.service.js'
 
@@ -2000,15 +2000,29 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
       .map(({ item: { _embedding, ...rest }, score }) => ({ ...rest, clipScore: score }))
     : items.map(({ _embedding, ...rest }) => rest)
 
-  // Pixel-based saturation boost for B&W intent queries (e.g. "black and white poster film").
-  // CLIP text->image rerank is imprecise at distinguishing color attributes — items with similar
-  // semantic relevance but high saturation (colorful) often outrank grayscale items. This computes
-  // average pixel saturation from thumbnails and gives a small score boost (max +0.05) to items
-  // with low saturation, so B&W/grayscale content ranks higher for B&W-related queries.
-  // Only applies for non-recommended context (recommended uses visual similarity as primary).
-  if (context !== 'recommended') {
-    const bwRerankText = semanticText || queries.join(' ')
-    rerankedItems = await applySaturationBoost(rerankedItems, bwRerankText)
+  // Pixel-based style boost for all contexts (B&W, warm, dark, vibrant, pastel, high contrast).
+  // Computes pixel metrics from thumbnails and boosts items matching detected style keywords.
+  const bwRerankText = semanticText || queries.join(' ')
+  rerankedItems = await applySaturationBoost(rerankedItems, bwRerankText)
+
+  // Style similarity boost for recommended context: compare pixel-level style
+  // between the reference image (visualSimilarTo) and candidate items.
+  if (context === 'recommended' && visualSimilarTo) {
+    const ids = visualSimilarTo.split(',').filter(Boolean)
+    if (ids.length) {
+      let refUrl = null
+      const firstId = ids[0]
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firstId)) {
+        const media = await findMediaById(firstId).catch(() => null)
+        if (media?.publicUrl) refUrl = media.publicUrl
+      } else {
+        const extImage = await findExternalImageById({ id: firstId }).catch(() => null)
+        if (extImage?.url) refUrl = extImage.url
+      }
+      if (refUrl) {
+        rerankedItems = await applyStyleSimilarityBoost(rerankedItems, refUrl, 'clipScore', 0.04)
+      }
+    }
   }
 
   // Per-film entity cap for home feed: prevent a single TMDB entity from

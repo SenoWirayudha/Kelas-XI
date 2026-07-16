@@ -86,7 +86,7 @@ export const enrichForClipRerank = (text) => {
   return text + ' ' + extras
 }
 
-const computeStyleMetrics = async (imageUrl) => {
+export const computeStyleMetrics = async (imageUrl) => {
   try {
     const img = await RawImage.read(imageUrl)
     await img.resize(THUMB_SIZE, THUMB_SIZE)
@@ -194,4 +194,59 @@ export const applyStyleBoost = async (items, rerankText, scoreField = 'clipScore
 export const applySaturationBoost = async (items, rerankText, scoreField = 'clipScore') => {
   if (!items.length) return items
   return applyStyleBoost(items, rerankText, scoreField)
+}
+
+const cosineSimilarity = (a, b) => {
+  if (!a || !b || a.length !== b.length || a.length === 0) return 0
+  let dot = 0, na = 0, nb = 0
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i]
+    na += a[i] * a[i]
+    nb += b[i] * b[i]
+  }
+  const norm = Math.sqrt(na) * Math.sqrt(nb)
+  return norm === 0 ? 0 : dot / norm
+}
+
+export const applyStyleSimilarityBoost = async (items, referenceUrl, scoreField = 'clipScore', similarityWeight = 0.05, referenceVector = null) => {
+  if (!items.length) return items
+
+  let refVector
+  if (referenceVector) {
+    refVector = referenceVector
+  } else {
+    if (!referenceUrl) return items
+    const refMetrics = await computeStyleMetrics(referenceUrl)
+    if (!refMetrics) return items
+    refVector = Object.values(refMetrics)
+  }
+  const candidates = items.length > MAX_ITEMS ? items.slice(0, MAX_ITEMS) : items
+
+  // Compute metrics for candidates (1 thumbnail download per item)
+  const metricMap = {}
+  await Promise.allSettled(
+    candidates.map(async (item) => {
+      const url = item.thumbnailUrl || item.url || item.coverPublicUrl
+      if (!url) return
+      const metrics = await computeStyleMetrics(url)
+      if (metrics) metricMap[item.id] = metrics
+    })
+  )
+
+  const boostedIds = Object.keys(metricMap)
+  if (!boostedIds.length) return items
+
+  console.log('[STYLE-SIM] applying style similarity boost to', boostedIds.length, 'items, weight:', similarityWeight)
+
+  return items
+    .map((item) => {
+      const candidateMetrics = metricMap[item.id]
+      if (!candidateMetrics) return item
+      const sim = cosineSimilarity(refVector, Object.values(candidateMetrics))
+      return {
+        ...item,
+        [scoreField]: (item[scoreField] || 0) + similarityWeight * sim,
+      }
+    })
+    .sort((a, b) => b[scoreField] - a[scoreField])
 }
