@@ -31,6 +31,16 @@ export const createPendingMedia = async ({ ownerId, sourceType, storageProvider,
   return rows[0]
 }
 
+export const insertMediaAssetDirect = async ({ id, ownerId, sourceType, storageProvider, bucket, objectKey, publicUrl, mimeType, width, height, sizeBytes, metadata = {} }) => {
+  const { rows } = await query(
+    `insert into media_assets (id, owner_id, source_type, storage_provider, bucket, object_key, public_url, mime_type, width, height, size_bytes, upload_status, metadata)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'ready', $12::jsonb)
+     returning id`,
+    [id, ownerId, sourceType, storageProvider, bucket, objectKey, publicUrl, mimeType, width || null, height || null, sizeBytes || null, JSON.stringify(metadata)],
+  )
+  return rows[0] || null
+}
+
 export const updateMediaObjectKey = async ({ mediaId, objectKey, publicUrl }) => {
   const { rows } = await query(
     `update media_assets

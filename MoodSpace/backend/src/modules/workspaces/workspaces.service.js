@@ -1,10 +1,17 @@
+import crypto from 'crypto'
 import { AppError, forbidden, notFound } from '../../utils/errors.js'
 import {
   buildPublicUrl,
+  copyObject,
+  deleteObject,
   getStorageBucket,
   uploadBuffer,
 } from '../media/storage.service.js'
-import { softDeleteMedia } from '../media/media.repository.js'
+import { withTransaction } from '../../db/pool.js'
+import {
+  findMediaById,
+  softDeleteMedia,
+} from '../media/media.repository.js'
 import {
   createMediaFromDataUrl,
   getOwnedReadyMedia,
@@ -326,8 +333,254 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
   if (!sourceWorkspace.isTemplate) throw forbidden('This workspace is not available as a template')
 
   console.log('[deep-copy] Starting deep copy of workspace', workspaceId, 'for user', userId)
-  // Full implementation in Task 3 — for now return new workspace placeholder
-  throw new AppError('Deep copy not yet implemented — Task 3', { status: 501, code: 'NOT_IMPLEMENTED' })
+
+  // --- Step 1: Read snapshot ---
+  const latestVersion = await getLatestVersion(workspaceId)
+  if (!latestVersion?.snapshot) throw notFound('Workspace has no snapshot to copy')
+  const snapshot = latestVersion.snapshot
+  console.log('[deep-copy] Snapshot loaded, version', latestVersion.versionNo)
+
+  // --- Step 2: Collect media_ids from items + generate all UUIDs ---
+  const items = snapshot.items || []
+  const oldMediaIds = items
+    .map((item) => item.mediaId)
+    .filter(Boolean)
+    .filter((id, i, arr) => arr.indexOf(id) === i) // unique
+
+  console.log('[deep-copy] Found', oldMediaIds.length, 'unique media assets to copy')
+
+  // Fetch all original media_assets rows
+  const originalMedia = await Promise.all(
+    oldMediaIds.map((id) => findMediaById(id)),
+  )
+  const validMedia = originalMedia.filter(Boolean)
+  console.log('[deep-copy] Resolved', validMedia.length, 'media assets from DB')
+
+  // Generate ALL UUIDs upfront
+  const itemIdMap = new Map()  // oldItemId -> newItemId
+  const mediaIdMap = new Map() // oldMediaId -> { newId, objectKey, ... }
+
+  for (const item of items) {
+    if (!itemIdMap.has(item.id)) {
+      itemIdMap.set(item.id, crypto.randomUUID())
+    }
+  }
+
+  for (const media of validMedia) {
+    mediaIdMap.set(media.id, {
+      newId: crypto.randomUUID(),
+      objectKey: media.objectKey,
+      bucket: media.bucket,
+      mimeType: media.mimeType,
+      width: media.width,
+      height: media.height,
+      sizeBytes: media.sizeBytes,
+      metadata: media.metadata || {},
+      sourceType: media.sourceType,
+      publicUrl: media.publicUrl,
+    })
+  }
+
+  console.log('[deep-copy] Generated UUIDs:', {
+    items: itemIdMap.size,
+    media: mediaIdMap.size,
+  })
+
+  // --- Step 3: Patch snapshot ---
+  const patchedSnapshot = JSON.parse(JSON.stringify(snapshot))
+  const patchedItems = patchedSnapshot.items || []
+  const patchedLayers = patchedSnapshot.layers || []
+
+  for (const item of patchedItems) {
+    item.id = itemIdMap.get(item.id) || item.id
+    if (item.groupId && itemIdMap.has(item.groupId)) {
+      item.groupId = itemIdMap.get(item.groupId)
+    }
+    if (item.mediaId && mediaIdMap.has(item.mediaId)) {
+      const mapped = mediaIdMap.get(item.mediaId)
+      item.mediaId = mapped.newId
+    }
+    // Patch mediaId inside frameImages if present
+    if (item.frameImages && Array.isArray(item.frameImages)) {
+      for (const fi of item.frameImages) {
+        if (fi.mediaId && mediaIdMap.has(fi.mediaId)) {
+          fi.mediaId = mediaIdMap.get(fi.mediaId).newId
+        }
+      }
+    }
+    if (item.frameImageSrc && Array.isArray(item.frameImageSrc)) {
+      for (const fi of item.frameImageSrc) {
+        if (fi.mediaId && mediaIdMap.has(fi.mediaId)) {
+          fi.mediaId = mediaIdMap.get(fi.mediaId).newId
+        }
+      }
+    }
+  }
+
+  for (const layer of patchedLayers) {
+    if (layer.id && itemIdMap.has(layer.id)) {
+      layer.id = itemIdMap.get(layer.id)
+    }
+  }
+
+  // Patch assetsUsed if present
+  if (patchedSnapshot.assetsUsed && Array.isArray(patchedSnapshot.assetsUsed)) {
+    for (const au of patchedSnapshot.assetsUsed) {
+      if (au.mediaId && mediaIdMap.has(au.mediaId)) {
+        au.mediaId = mediaIdMap.get(au.mediaId).newId
+      }
+    }
+  }
+
+  console.log('[deep-copy] Snapshot patched with', itemIdMap.size, 'new item IDs')
+
+  // --- Step 4: Copy storage files (server-side Supabase copy) ---
+  const copiedKeys = [] // track for cleanup on failure
+
+  for (const [oldId, mapped] of mediaIdMap) {
+    if (!mapped.objectKey) {
+      console.log('[deep-copy] Skipping media', oldId, '- no objectKey')
+      continue
+    }
+    // Replace owner segment in object key: users/{oldOwner}/... -> users/{newOwner}/...
+    const newObjectKey = mapped.objectKey.replace(
+      /^users\/[^/]+\//,
+      `users/${userId}/`,
+    )
+    mapped.newObjectKey = newObjectKey
+
+    try {
+      console.log('[deep-copy] Copying storage:', mapped.objectKey, '->', newObjectKey)
+      await copyObject({ sourceKey: mapped.objectKey, destKey: newObjectKey })
+      copiedKeys.push(newObjectKey)
+      mapped.publicUrl = buildPublicUrl({ objectKey: newObjectKey })
+      console.log('[deep-copy] Storage copy OK:', newObjectKey)
+    } catch (error) {
+      console.error('[deep-copy] Storage copy FAILED:', mapped.objectKey, error.message)
+      // Cleanup any files already copied
+      console.log('[deep-copy] Cleaning up', copiedKeys.length, 'already-copied files')
+      await Promise.allSettled(
+        copiedKeys.map((key) => deleteObject({ objectKey: key }).catch(() => {})),
+      )
+      throw new AppError(`Failed to copy media asset: ${error.message}`, {
+        status: 502,
+        code: 'STORAGE_COPY_FAILED',
+      })
+    }
+  }
+
+  console.log('[deep-copy] All storage copies successful, proceeding to DB transaction')
+
+  // --- Step 5: Single DB transaction ---
+  const storageProvider = 'supabase'
+  const bucket = getStorageBucket()
+
+  let newWorkspaceId
+  try {
+    const result = await withTransaction(async (client) => {
+      // 5a. Insert media_assets rows
+      for (const [oldId, mapped] of mediaIdMap) {
+        if (!mapped.newObjectKey) continue
+        await client.query(
+          `insert into media_assets (id, owner_id, source_type, storage_provider, bucket, object_key, public_url, mime_type, width, height, size_bytes, upload_status, metadata)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'ready', $12::jsonb)`,
+          [
+            mapped.newId,
+            userId,
+            mapped.sourceType || 'upload',
+            storageProvider,
+            mapped.bucket || bucket,
+            mapped.newObjectKey,
+            mapped.publicUrl,
+            mapped.mimeType,
+            mapped.width || null,
+            mapped.height || null,
+            mapped.sizeBytes || null,
+            JSON.stringify(mapped.metadata || {}),
+          ],
+        )
+        console.log('[deep-copy] Inserted media_assets:', mapped.newId)
+      }
+
+      // 5b. Insert uploaded_assets rows
+      for (const [oldId, mapped] of mediaIdMap) {
+        if (!mapped.newObjectKey) continue
+        await client.query(
+          `insert into uploaded_assets (user_id, media_id)
+           values ($1, $2)
+           on conflict (user_id, media_id) do nothing`,
+          [userId, mapped.newId],
+        )
+        console.log('[deep-copy] Inserted uploaded_assets:', mapped.newId)
+      }
+
+      // 5c. Create workspace + version 1
+      const workspaceResult = await client.query(
+        `insert into workspaces (
+           owner_id, title, description, visibility, status,
+           canvas_width, canvas_height, canvas_ratio, background, settings,
+           is_published, is_template, source_template_id
+         )
+         values ($1, $2, $3, $4, 'draft', $5, $6, $7, $8::jsonb, $9::jsonb, false, false, $10)
+         returning id`,
+        [
+          userId,
+          `${sourceWorkspace.title} (copy)`,
+          sourceWorkspace.description || null,
+          'private',
+          sourceWorkspace.canvasWidth,
+          sourceWorkspace.canvasHeight,
+          sourceWorkspace.canvasRatio || null,
+          JSON.stringify(sourceWorkspace.background || {}),
+          JSON.stringify(sourceWorkspace.settings || {}),
+          workspaceId, // source_template_id
+        ],
+      )
+      newWorkspaceId = workspaceResult.rows[0].id
+      console.log('[deep-copy] Created workspace:', newWorkspaceId)
+
+      const snapshotHash = hashSnapshot(patchedSnapshot)
+
+      const versionResult = await client.query(
+        `insert into workspace_versions (workspace_id, version_no, save_type, snapshot, snapshot_hash, created_by)
+         values ($1, 1, 'manual', $2::jsonb, $3, $4)
+         returning id`,
+        [newWorkspaceId, JSON.stringify(patchedSnapshot), snapshotHash, userId],
+      )
+      const versionId = versionResult.rows[0].id
+      console.log('[deep-copy] Created version:', versionId)
+
+      await client.query(
+        `update workspaces
+         set current_version_id = $2,
+             updated_at = now()
+         where id = $1`,
+        [newWorkspaceId, versionId],
+      )
+    })
+
+    console.log('[deep-copy] DB transaction committed successfully')
+  } catch (error) {
+    console.error('[deep-copy] DB transaction FAILED, cleaning up storage files')
+    // Cleanup all storage files that were copied
+    const keysToCleanup = [...mediaIdMap.values()]
+      .filter((m) => m.newObjectKey)
+      .map((m) => m.newObjectKey)
+    await Promise.allSettled(
+      keysToCleanup.map((key) => deleteObject({ objectKey: key }).catch(() => {})),
+    )
+    console.log('[deep-copy] Cleaned up', keysToCleanup.length, 'storage files')
+    throw error
+  }
+
+  console.log('[deep-copy] Deep copy complete:', {
+    sourceWorkspaceId: workspaceId,
+    newWorkspaceId,
+    userId,
+    mediaCopied: [...mediaIdMap.values()].filter((m) => m.newObjectKey).length,
+  })
+
+  return { workspaceId: newWorkspaceId }
 }
 
 export const getWorkspaceByToken = async ({ token }) => {

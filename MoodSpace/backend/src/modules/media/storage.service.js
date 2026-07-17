@@ -80,3 +80,19 @@ export const deleteObject = async ({ bucket = env.SUPABASE_STORAGE_BUCKET, objec
 }
 
 export const getStorageBucket = () => env.SUPABASE_STORAGE_BUCKET
+
+export const copyObject = async ({ sourceKey, destKey }) => {
+  const client = getSupabaseClient()
+  const bucket = env.SUPABASE_STORAGE_BUCKET
+  const { error } = await client.storage
+    .from(bucket)
+    .copy(sourceKey, destKey)
+
+  if (error) {
+    throw new AppError('Failed to copy object in Supabase Storage', {
+      status: 502,
+      code: 'STORAGE_COPY_FAILED',
+      details: { sourceKey, destKey, message: error.message },
+    })
+  }
+}
