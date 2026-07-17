@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Bookmark, ChevronLeft, ChevronRight, Download, Eye, Flag, FolderPlus, Heart, LoaderCircle, Lock, MoreVertical, Share2, Trash2, Users } from 'lucide-react'
+import { Bookmark, ChevronLeft, ChevronRight, Copy, Download, Eye, Flag, FolderPlus, Heart, LoaderCircle, Lock, MoreVertical, Share2, Trash2, Users } from 'lucide-react'
 import BoardPickerModal from '../components/BoardPickerModal'
 import CommunityPostCard from '../components/CommunityPostCard'
 import ConfirmationModal from '../components/ConfirmationModal'
@@ -14,6 +14,7 @@ import { addBoardItem, listBoards, removeBoardItem } from '../lib/api/boards'
 import { createComment, deleteComment, listComments } from '../lib/api/comments'
 import { saveExternalImage, searchExternalImages, unsaveExternalImage } from '../lib/api/externalImages'
 import { getHomeFeed, getPost, getRecommendedPosts, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
+import { useAsTemplate } from '../lib/api/workspaces'
 import { externalImageToPost, postToExternalImagePayload } from '../utils/externalImagePost'
 
 const interleavePosts = (internal, external, excludeId) => {
@@ -116,6 +117,8 @@ function PostDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { requireAuth, user: currentUser } = useAuth()
+  const [showTemplateConfirm, setShowTemplateConfirm] = useState(false)
+  const [isForking, setIsForking] = useState(false)
   const [post, setPost] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -609,6 +612,12 @@ function PostDetail() {
                 Open Workspace
               </Link>
             )}
+            {post.isTemplate && post.workspaceId && (
+              <button type="button" className="action-btn secondary" onClick={() => setShowTemplateConfirm(true)}>
+                <Copy size={18} />
+                Use as Template
+              </button>
+            )}
             <button type="button" className="action-btn secondary" onClick={handleDownloadActiveMedia}>
               <Download size={18} />
               Download
@@ -726,6 +735,35 @@ function PostDetail() {
       />
       <ReportModal isOpen={!!reportPostId} targetType="post" targetId={reportPostId} onClose={() => setReportPostId(null)} />
       <ReportModal isOpen={!!reportCommentId} targetType="comment" targetId={reportCommentId} onClose={() => setReportCommentId(null)} />
+
+      <ConfirmationModal
+        isOpen={showTemplateConfirm}
+        title="Gunakan Template"
+        description={`Apakah kamu yakin ingin menggunakan "${post?.title || 'template ini'}" sebagai template? Workspace baru akan dibuat untukmu.`}
+        confirmLabel="Ya, Gunakan"
+        cancelLabel="Batal"
+        isDanger={false}
+        isConfirming={isForking}
+        onConfirm={async () => {
+          if (!currentUser) {
+            setShowTemplateConfirm(false)
+            requireAuth('login')
+            return
+          }
+          setIsForking(true)
+          try {
+            const result = await useAsTemplate(post.workspaceId)
+            console.log('[post-detail] Fork result:', result)
+            navigate(`/workspace/${result.workspaceId}`)
+          } catch (error) {
+            console.error('[post-detail] Fork error:', error)
+          } finally {
+            setIsForking(false)
+            setShowTemplateConfirm(false)
+          }
+        }}
+        onCancel={() => setShowTemplateConfirm(false)}
+      />
       {toastData && (
         <div className="post-detail-toast" role="status" aria-live="polite">
           <FolderPlus size={15} />

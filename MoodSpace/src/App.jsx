@@ -9,6 +9,7 @@ import BoardDetail from './pages/BoardDetail.jsx'
 import Projects from './pages/Projects.jsx'
 import Profile from './pages/Profile.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
+import TemplatePreview from './pages/TemplatePreview.jsx'
 import PostDetail from './pages/PostDetail.jsx'
 import ExternalImageDetail from './pages/ExternalImageDetail.jsx'
 import Workspace from './pages/Workspace.jsx'
@@ -56,6 +57,7 @@ const router = createBrowserRouter([
           { path: 'user/:username', element: <UserProfile /> },
         ],
       },
+      { path: 'template/:token', element: <TemplatePreview /> },
       { path: 'reset-password', element: <ResetPassword /> },
       { path: '/workspace', element: <Workspace /> },
       {

@@ -70,6 +70,7 @@ const postSelect = `
   left join user_profiles up on up.user_id = u.id
   left join media_assets cover on cover.id = p.cover_media_id
   left join media_assets avatar on avatar.id = up.avatar_media_id
+  left join workspaces w on w.id = p.workspace_id
 `
 
 export const findPostById = async ({ postId, viewerId = null }) => {
@@ -1017,7 +1018,8 @@ export const getPostsByEmbeddingSimilarity = async ({ viewerId = null, limit = 5
     `select
        p.id,
        p.author_id as "authorId",
-       p.workspace_id as "workspaceId",
+    p.workspace_id as "workspaceId",
+    w.is_template as "isTemplate",
        p.published_version_id as "publishedVersionId",
        p.post_type as "postType",
        p.title,

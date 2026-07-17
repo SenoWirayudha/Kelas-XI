@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bookmark, Download, Edit3, Eye, Flag, FolderPlus, Heart, Images, Lock, MoreHorizontal, Trash2, Users } from 'lucide-react'
+import { Bookmark, Copy, Download, Edit3, Eye, Flag, FolderPlus, Heart, Images, Lock, MoreHorizontal, Trash2, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/authState'
 import { ensureExternalImage } from '../lib/api/externalImages'
 import { postToExternalImagePayload } from '../utils/externalImagePost'
 import MasonryImage from './MasonryImage'
 import ReportModal from './ReportModal'
+import ConfirmationModal from './ConfirmationModal'
+import { useAsTemplate } from '../lib/api/workspaces'
 
 const formatCount = (value = 0) => (
   value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value
@@ -23,10 +25,12 @@ const safeFileName = (value = 'moodspace-post') => (
 
 function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToBoard, onDeleteClick }) {
   const navigate = useNavigate()
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, requireAuth } = useAuth()
   const [isSaving, setIsSaving] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [reportPostId, setReportPostId] = useState(null)
+  const [showTemplateConfirm, setShowTemplateConfirm] = useState(false)
+  const [isForking, setIsForking] = useState(false)
   const menuRef = useRef(null)
   const isDraft = post.status === 'draft'
   const isExternalImage = !!post.isExternalImage
@@ -190,6 +194,11 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
                     <Download size={18} />
                   </button>
                 )}
+                {!isDraft && !isExternalImage && post.isTemplate && post.workspaceId && (
+                  <button type="button" className="gallery-action-btn" title="Use as Template" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowTemplateConfirm(true) }}>
+                    <Copy size={18} />
+                  </button>
+                )}
               </div>
             </div>
           </MasonryImage>
@@ -237,6 +246,11 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
                       <FolderPlus size={13} /> Add to board
                     </button>
                   )}
+                  {!isExternalImage && post.isTemplate && post.workspaceId && (
+                    <button type="button" className="metadata-dropdown-item" onClick={() => { setShowMenu(false); setShowTemplateConfirm(true) }}>
+                      <Copy size={13} /> Use as Template
+                    </button>
+                  )}
                   <button type="button" className="metadata-dropdown-item" onClick={handleDownload}>
                     <Download size={13} /> Download
                   </button>
@@ -282,6 +296,35 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
       </div>
     </article>
       <ReportModal isOpen={!!reportPostId} targetType="post" targetId={reportPostId} onClose={() => setReportPostId(null)} />
+
+      <ConfirmationModal
+        isOpen={showTemplateConfirm}
+        title="Gunakan Template"
+        description={`Apakah kamu yakin ingin menggunakan "${post.title || 'template ini'}" sebagai template? Workspace baru akan dibuat untukmu.`}
+        confirmLabel="Ya, Gunakan"
+        cancelLabel="Batal"
+        isDanger={false}
+        isConfirming={isForking}
+        onConfirm={async () => {
+          if (!currentUser) {
+            setShowTemplateConfirm(false)
+            requireAuth('login')
+            return
+          }
+          setIsForking(true)
+          try {
+            const result = await useAsTemplate(post.workspaceId)
+            console.log('[post-card] Fork result:', result)
+            navigate(`/workspace/${result.workspaceId}`)
+          } catch (error) {
+            console.error('[post-card] Fork error:', error)
+          } finally {
+            setIsForking(false)
+            setShowTemplateConfirm(false)
+          }
+        }}
+        onCancel={() => setShowTemplateConfirm(false)}
+      />
     </>
   )
 }

@@ -164,6 +164,7 @@ import { useCursorBroadcast } from '../hooks/useCursorBroadcast'
 import { useCollaboration } from '../hooks/useCollaboration'
 import { getCursorColor } from '../utils/cursorColors'
 import ShareModal from '../components/workspace/ShareModal'
+import PublishModal from '../components/workspace/PublishModal'
 import { useMediaUpload } from '../hooks/useMediaUpload'
 import { useCanvasImage, useCanvasImages } from '../hooks/useCanvasImages'
 import { autosaveWorkspace, getWorkspace, saveWorkspace, setWorkspaceThumbnail, updateWorkspace } from '../lib/api/workspaces'
@@ -3272,6 +3273,7 @@ function Workspace() {
   const [cropSession, setCropSession] = useState(null)
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
   const [exportFormat, setExportFormat] = useState('png')
   const [exportScale, setExportScale] = useState(1)
   const [exportTransparent, setExportTransparent] = useState(false)
@@ -15328,7 +15330,7 @@ onPointerUp={(e) => {
         <Redo2 size={15} />
       </button>
       <button type="button" className="workspace-share" onClick={() => setIsShareModalOpen(true)}><Share2 size={15} /><span>Share</span></button>
-      {false && <button type="button" className="workspace-publish" onClick={handlePublishWorkspace}><Upload size={15} /><span>Publish</span></button>}
+      <button type="button" className="workspace-publish" onClick={() => setIsPublishModalOpen(true)}><Upload size={15} /><span>Publish</span></button>
       <button
         type="button"
         className="workspace-export"
@@ -16570,6 +16572,15 @@ onPointerUp={(e) => {
 
     {isShareModalOpen && (
       <ShareModal workspaceId={workspaceId} onClose={() => setIsShareModalOpen(false)} />
+    )}
+
+    {isPublishModalOpen && (
+      <PublishModal
+        isOpen={isPublishModalOpen}
+        workspaceId={workspaceId}
+        workspaceTitle={workspaceTitle}
+        onClose={() => setIsPublishModalOpen(false)}
+      />
     )}
 
     <ConfirmationModal
