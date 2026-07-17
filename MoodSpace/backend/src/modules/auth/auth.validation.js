@@ -32,7 +32,31 @@ export const changePasswordSchema = z.object({
   body: z.object({
     currentPassword: z.string().min(1).max(128),
     newPassword: z.string().min(8).max(128),
+    verificationCode: z.string().length(6).optional(),
   }),
+  params: z.object({}).optional(),
+  query: z.object({}).optional(),
+})
+
+export const forgotPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().email().max(320),
+  }),
+  params: z.object({}).optional(),
+  query: z.object({}).optional(),
+})
+
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    token: z.string().min(1).max(128),
+    newPassword: z.string().min(8).max(128),
+  }),
+  params: z.object({}).optional(),
+  query: z.object({}).optional(),
+})
+
+export const sendCodeSchema = z.object({
+  body: z.object({}).optional().default({}),
   params: z.object({}).optional(),
   query: z.object({}).optional(),
 })

@@ -93,7 +93,15 @@ export const searchUsersByEmail = async (searchTerm, excludeUserId) => {
 
 export const findPasswordAuthByUserId = async (userId) => {
   const { rows } = await query(
-    'select user_id as "userId", password_hash as "passwordHash", locked_until as "lockedUntil" from user_auth where user_id = $1',
+    `select
+       ua.user_id as "userId",
+       ua.password_hash as "passwordHash",
+       ua.locked_until as "lockedUntil",
+       u.email,
+       u.username
+     from user_auth ua
+     join users u on u.id = ua.user_id
+     where ua.user_id = $1`,
     [userId],
   )
   return rows[0] || null
@@ -241,4 +249,75 @@ export const updateProfile = async (userId, patch) => {
   }
 
   return findUserById(userId)
+}
+
+export const createPasswordReset = async ({ userId, purpose, tokenHash, expiresAt }) => {
+  const { rows } = await query(
+    `insert into password_resets (user_id, purpose, token_hash, expires_at)
+     values ($1, $2, $3, $4)
+     returning id`,
+    [userId, purpose, tokenHash, expiresAt],
+  )
+  return rows[0] || null
+}
+
+export const findValidResetToken = async ({ tokenHash, purpose }) => {
+  const { rows } = await query(
+    `select
+       id,
+       user_id as "userId",
+       purpose,
+       expires_at as "expiresAt",
+       attempts,
+       used
+     from password_resets
+     where token_hash = $1
+       and purpose = $2
+       and used = false
+       and expires_at > now()
+     limit 1`,
+    [tokenHash, purpose],
+  )
+  return rows[0] || null
+}
+
+export const incrementAttempt = async (id) => {
+  const { rows } = await query(
+    `update password_resets
+     set attempts = attempts + 1
+     where id = $1
+     returning attempts`,
+    [id],
+  )
+  return rows[0] || null
+}
+
+export const markTokenUsed = async (id) => {
+  await query(
+    `update password_resets set used = true where id = $1`,
+    [id],
+  )
+}
+
+export const invalidateUserTokens = async ({ userId, purpose }) => {
+  await query(
+    `update password_resets
+     set used = true
+     where user_id = $1
+       and purpose = $2
+       and used = false`,
+    [userId, purpose],
+  )
+}
+
+export const countRecentResetRequests = async ({ userId, purpose }) => {
+  const { rows } = await query(
+    `select count(*) as count
+     from password_resets
+     where user_id = $1
+       and purpose = $2
+       and created_at > now() - interval '1 hour'`,
+    [userId, purpose],
+  )
+  return parseInt(rows[0]?.count || '0', 10)
 }

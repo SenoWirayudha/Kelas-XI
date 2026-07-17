@@ -93,7 +93,39 @@ export const changePassword = async (req, res, next) => {
       req.auth.sub,
       req.validated.body.currentPassword,
       req.validated.body.newPassword,
+      req.validated.body.verificationCode,
+      req.ip,
     )
+    return res.json(result)
+  } catch (error) {
+    return next(error)
+  }
+}
+
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const result = await authService.forgotPassword({ email: req.validated.body.email })
+    return res.json(result)
+  } catch (error) {
+    return next(error)
+  }
+}
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const result = await authService.resetPassword({
+      token: req.validated.body.token,
+      newPassword: req.validated.body.newPassword,
+    })
+    return res.json(result)
+  } catch (error) {
+    return next(error)
+  }
+}
+
+export const sendVerificationCode = async (req, res, next) => {
+  try {
+    const result = await authService.sendVerificationCode(req.auth.sub)
     return res.json(result)
   } catch (error) {
     return next(error)

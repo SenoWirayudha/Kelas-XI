@@ -25,6 +25,8 @@ const envSchema = z.object({
   TMDB_API_KEY: z.string().optional().default(''),
   HF_TOKEN: z.string().optional().default(''),
   ENTITY_MATCH_THRESHOLD: z.coerce.number().min(0).max(1).default(0.85),
+  RESEND_API_KEY: z.string().optional().default(''),
+  EMAIL_FROM: z.string().default('onboarding@resend.dev'),
 })
 
 const parsed = envSchema.safeParse(process.env)

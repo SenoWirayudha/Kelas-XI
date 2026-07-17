@@ -35,7 +35,7 @@ export const createApp = () => {
       if (!res.headersSent) {
         res.status(503).json({ error: { message: 'Server timeout', code: 'TIMEOUT' } })
       }
-    }, 25_000)
+    }, 45_000)
     res.on('finish', () => clearTimeout(timer))
     next()
   })

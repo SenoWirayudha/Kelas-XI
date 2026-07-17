@@ -1,11 +1,15 @@
 import argon2 from 'argon2'
+import crypto from 'crypto'
 import { withTransaction } from '../../db/pool.js'
 import { signAccessToken } from '../../config/jwt.js'
 import { env } from '../../config/env.js'
 import { addDays, createRandomToken, hashToken } from '../../utils/crypto.js'
 import { AppError, conflict, unauthorized } from '../../utils/errors.js'
+import { sendPasswordChangeEmail, sendPasswordResetEmail, sendVerificationCodeEmail } from '../../shared/email.service.js'
 import { deleteMedia, getOwnedReadyMedia } from '../media/media.service.js'
 import {
+  countRecentResetRequests,
+  createPasswordReset,
   createSession,
   createUserWithPassword,
   findActiveSessionByRefreshHash,
@@ -13,6 +17,10 @@ import {
   findUserByEmailOrUsername,
   findUserById,
   findUserByUsername,
+  findValidResetToken,
+  incrementAttempt,
+  invalidateUserTokens,
+  markTokenUsed,
   recordSuccessfulLogin,
   revokeSessionByRefreshHash,
   rotateSessionRefreshToken,
@@ -189,9 +197,25 @@ export const patchProfile = async (userId, patch) => {
   return publicUser(user)
 }
 
-export const changePassword = async (userId, currentPassword, newPassword) => {
+export const changePassword = async (userId, currentPassword, newPassword, verificationCode, ip) => {
   const auth = await findPasswordAuthByUserId(userId)
   if (!auth) throw unauthorized('Password not set for this account')
+
+  // Verify 6-digit code jika RESEND_API_KEY terisi
+  if (env.RESEND_API_KEY) {
+    if (!verificationCode) throw new AppError('Kode verifikasi wajib diisi', 400)
+    const codeHash = hashToken(verificationCode)
+    const record = await findValidResetToken({ tokenHash: codeHash, purpose: 'change' })
+    if (!record || record.userId !== userId) {
+      throw new AppError('Kode verifikasi tidak valid atau sudah kedaluwarsa', 400)
+    }
+    if (record.attempts >= 5) {
+      await markTokenUsed(record.id)
+      throw new AppError('Kode verifikasi sudah terlalu banyak percobaan. Silakan kirim ulang', 400)
+    }
+    await incrementAttempt(record.id)
+    await markTokenUsed(record.id)
+  }
 
   const valid = await argon2.verify(auth.passwordHash, currentPassword)
   if (!valid) throw unauthorized('Current password is incorrect')
@@ -199,5 +223,84 @@ export const changePassword = async (userId, currentPassword, newPassword) => {
   const newHash = await argon2.hash(newPassword)
   const result = await updatePassword(userId, newHash)
   if (!result) throw new AppError('Failed to update password', 500)
+
+  // Kirim notifikasi email (non-blocking)
+  if (auth.email) {
+    sendPasswordChangeEmail({ to: auth.email, username: auth.username || 'pengguna', ip: ip || 'Tidak diketahui' }).catch(() => {})
+  }
+
+  return { ok: true }
+}
+
+export const forgotPassword = async ({ email }) => {
+  const genericMsg = 'Kalau email terdaftar, kami kirim link reset password'
+
+  const user = await findUserByEmailOrUsername(email)
+  if (!user || !user.email) return { message: genericMsg }
+  const hasPassword = await authServiceHasPassword(user.id)
+  if (!hasPassword) return { message: genericMsg }
+
+  const recent = await countRecentResetRequests({ userId: user.id, purpose: 'reset' })
+  if (recent >= 5) return { message: genericMsg }
+
+  await invalidateUserTokens({ userId: user.id, purpose: 'reset' })
+
+  const rawToken = crypto.randomBytes(32).toString('hex')
+  const tokenHash = hashToken(rawToken)
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
+  await createPasswordReset({ userId: user.id, purpose: 'reset', tokenHash, expiresAt })
+
+  if (env.RESEND_API_KEY) {
+    sendPasswordResetEmail({ to: user.email, username: user.username || 'pengguna', token: rawToken }).catch(() => {})
+  }
+
+  return { message: genericMsg }
+}
+
+const authServiceHasPassword = async (userId) => {
+  const auth = await findPasswordAuthByUserId(userId)
+  return !!auth
+}
+
+export const resetPassword = async ({ token, newPassword }) => {
+  const tokenHash = hashToken(token)
+  const record = await findValidResetToken({ tokenHash, purpose: 'reset' })
+  if (!record) throw new AppError('Token reset tidak valid atau sudah kedaluwarsa', 400)
+
+  const newHash = await argon2.hash(newPassword)
+  const result = await updatePassword(record.userId, newHash)
+  if (!result) throw new AppError('Gagal mereset password', 500)
+
+  // Mark token terpakai
+  await markTokenUsed(record.id)
+
+  // Invalidate semua token reset lain yang masih unused
+  await invalidateUserTokens({ userId: record.userId, purpose: 'reset' })
+
+  return { ok: true }
+}
+
+export const sendVerificationCode = async (userId) => {
+  const auth = await findPasswordAuthByUserId(userId)
+  if (!auth) throw unauthorized('Password not set for this account')
+
+  // Rate limit: max 3 kode per jam
+  const recent = await countRecentResetRequests({ userId, purpose: 'change' })
+  if (recent >= 3) throw new AppError('Terlalu banyak permintaan kode. Coba lagi nanti', 429)
+
+  // Invalidate kode lama
+  await invalidateUserTokens({ userId, purpose: 'change' })
+
+  // Generate 6-digit code → hash → DB (expiry: 10 menit)
+  const code = String(Math.floor(100000 + Math.random() * 900000))
+  const codeHash = hashToken(code)
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
+  await createPasswordReset({ userId, purpose: 'change', tokenHash: codeHash, expiresAt })
+
+  // Kirim email (non-blocking)
+  if (auth.email && env.RESEND_API_KEY) {
+    sendVerificationCodeEmail({ to: auth.email, code }).catch(() => {})
+  }
+
   return { ok: true }
 }

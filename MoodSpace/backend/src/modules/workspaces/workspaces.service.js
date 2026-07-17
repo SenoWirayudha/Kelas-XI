@@ -1,6 +1,8 @@
-import { forbidden, notFound } from '../../utils/errors.js'
+import { AppError, forbidden, notFound } from '../../utils/errors.js'
 import {
   buildPublicUrl,
+  getStorageBucket,
+  uploadBuffer,
 } from '../media/storage.service.js'
 import { softDeleteMedia } from '../media/media.repository.js'
 import {
@@ -12,11 +14,13 @@ import {
   createWorkspaceVersion,
   createWorkspaceWithVersion,
   findWorkspaceById,
+  findWorkspaceByShareToken,
   getLatestVersion,
   listWorkspacesByOwner,
   setWorkspaceThumbnail,
   softDeleteWorkspace,
   updateWorkspaceMetadata,
+  updateWorkspacePublishFlags,
 } from './workspaces.repository.js'
 import {
   deleteCollaborator,
@@ -52,11 +56,16 @@ const serializeWorkspace = (workspace, version = null) => ({
   background: workspace.background || {},
   settings: workspace.settings || {},
   thumbnailMediaId: workspace.thumbnailMediaId,
-  thumbnailUrl: buildPublicUrl({
+  thumbnailUrl: workspace.thumbnailUrl || buildPublicUrl({
     bucket: workspace.thumbnailBucket,
     objectKey: workspace.thumbnailObjectKey,
     publicUrl: workspace.thumbnailPublicUrl,
   }),
+  isPublished: workspace.isPublished,
+  isTemplate: workspace.isTemplate,
+  shareToken: workspace.shareToken,
+  sourceTemplateId: workspace.sourceTemplateId,
+  publishedAt: workspace.publishedAt,
   currentVersionId: workspace.currentVersionId,
   latestAutosaveVersionId: workspace.latestAutosaveVersionId,
   publishedVersionId: workspace.publishedVersionId,
@@ -203,6 +212,140 @@ export const deleteWorkspace = async ({ userId, workspaceId }) => {
   await assertWorkspaceAccess(workspace, userId, 'write')
   const deleted = await softDeleteWorkspace({ workspaceId, ownerId: userId })
   if (!deleted) throw notFound('Workspace not found')
+}
+
+// --- Publish & Template ---
+
+const uploadThumbnailFromDataUrl = async ({ userId, workspaceId, dataUrl }) => {
+  const match = /^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/i.exec(dataUrl || '')
+  if (!match) {
+    throw new AppError('Invalid thumbnail data URL', { status: 400, code: 'INVALID_DATA_URL' })
+  }
+  const mimeType = match[1].toLowerCase()
+  const buffer = Buffer.from(match[2], 'base64')
+  if (!buffer.length || buffer.length > 10 * 1024 * 1024) {
+    throw new AppError('Thumbnail image is too large', { status: 400, code: 'IMAGE_TOO_LARGE' })
+  }
+
+  const objectKey = `thumbnails/${workspaceId}.webp`
+  await uploadBuffer({ objectKey, mimeType, buffer, upsert: true })
+  return buildPublicUrl({ objectKey })
+}
+
+export const publishWorkspace = async ({ userId, workspaceId, thumbnailDataUrl }) => {
+  const workspace = await findWorkspaceById(workspaceId)
+  if (!workspace) throw notFound('Workspace not found')
+  if (workspace.ownerId !== userId) throw forbidden('Only the workspace owner can publish')
+
+  let thumbnailUrl = null
+  if (thumbnailDataUrl) {
+    console.log('[publish] Generating thumbnail for workspace', workspaceId)
+    thumbnailUrl = await uploadThumbnailFromDataUrl({ userId, workspaceId, dataUrl: thumbnailDataUrl })
+    console.log('[publish] Thumbnail uploaded:', thumbnailUrl)
+  }
+
+  await updateWorkspacePublishFlags({
+    workspaceId,
+    ownerId: userId,
+    flags: {
+      isPublished: true,
+      isTemplate: false,
+      thumbnailUrl: thumbnailUrl || undefined,
+      publishedAt: new Date().toISOString(),
+    },
+  })
+
+  console.log('[publish] Workspace published', { workspaceId, thumbnailUrl })
+  return { workspaceId, publishedAt: new Date().toISOString(), thumbnailUrl }
+}
+
+export const shareAsTemplate = async ({ userId, workspaceId }) => {
+  const workspace = await findWorkspaceById(workspaceId)
+  if (!workspace) throw notFound('Workspace not found')
+  if (workspace.ownerId !== userId) throw forbidden('Only the workspace owner can share as template')
+
+  await updateWorkspacePublishFlags({
+    workspaceId,
+    ownerId: userId,
+    flags: {
+      isPublished: false,
+      isTemplate: true,
+    },
+  })
+
+  const updated = await findWorkspaceById(workspaceId)
+  console.log('[share-as-template] Workspace shared as template', { workspaceId, shareToken: updated.shareToken })
+  return {
+    workspaceId,
+    shareToken: updated.shareToken,
+    shareUrl: `/workspace/by-template/${updated.shareToken}`,
+  }
+}
+
+export const publishAsTemplate = async ({ userId, workspaceId, thumbnailDataUrl }) => {
+  const workspace = await findWorkspaceById(workspaceId)
+  if (!workspace) throw notFound('Workspace not found')
+  if (workspace.ownerId !== userId) throw forbidden('Only the workspace owner can publish as template')
+
+  let thumbnailUrl = null
+  if (thumbnailDataUrl) {
+    console.log('[publish-as-template] Generating thumbnail for workspace', workspaceId)
+    thumbnailUrl = await uploadThumbnailFromDataUrl({ userId, workspaceId, dataUrl: thumbnailDataUrl })
+    console.log('[publish-as-template] Thumbnail uploaded:', thumbnailUrl)
+  }
+
+  await updateWorkspacePublishFlags({
+    workspaceId,
+    ownerId: userId,
+    flags: {
+      isPublished: true,
+      isTemplate: true,
+      thumbnailUrl: thumbnailUrl || undefined,
+      publishedAt: new Date().toISOString(),
+    },
+  })
+
+  const updated = await findWorkspaceById(workspaceId)
+  console.log('[publish-as-template] Workspace published as template', {
+    workspaceId,
+    thumbnailUrl,
+    shareToken: updated.shareToken,
+  })
+  return {
+    workspaceId,
+    publishedAt: new Date().toISOString(),
+    thumbnailUrl,
+    shareToken: updated.shareToken,
+    shareUrl: `/workspace/by-template/${updated.shareToken}`,
+  }
+}
+
+export const useAsTemplate = async ({ userId, workspaceId }) => {
+  const sourceWorkspace = await findWorkspaceById(workspaceId)
+  if (!sourceWorkspace) throw notFound('Workspace not found')
+  if (!sourceWorkspace.isTemplate) throw forbidden('This workspace is not available as a template')
+
+  console.log('[deep-copy] Starting deep copy of workspace', workspaceId, 'for user', userId)
+  // Full implementation in Task 3 — for now return new workspace placeholder
+  throw new AppError('Deep copy not yet implemented — Task 3', { status: 501, code: 'NOT_IMPLEMENTED' })
+}
+
+export const getWorkspaceByToken = async ({ token }) => {
+  const workspace = await findWorkspaceByShareToken(token)
+  if (!workspace) throw notFound('Template not found or share link is invalid')
+
+  return {
+    id: workspace.id,
+    title: workspace.title,
+    description: workspace.description,
+    thumbnailUrl: workspace.thumbnailUrl || buildPublicUrl({
+      bucket: workspace.thumbnailBucket,
+      objectKey: workspace.thumbnailObjectKey,
+      publicUrl: workspace.thumbnailPublicUrl,
+    }),
+    ownerId: workspace.ownerId,
+    isTemplate: workspace.isTemplate,
+  }
 }
 
 // --- Collaborator management ---

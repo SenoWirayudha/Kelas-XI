@@ -17,6 +17,11 @@ const workspaceSelect = `
     tm.bucket as "thumbnailBucket",
     tm.object_key as "thumbnailObjectKey",
     tm.public_url as "thumbnailPublicUrl",
+    w.is_published as "isPublished",
+    w.is_template as "isTemplate",
+    w.thumbnail_url as "thumbnailUrl",
+    w.share_token as "shareToken",
+    w.source_template_id as "sourceTemplateId",
     w.current_version_id as "currentVersionId",
     w.latest_autosave_version_id as "latestAutosaveVersionId",
     w.published_version_id as "publishedVersionId",
@@ -269,6 +274,52 @@ export const softDeleteWorkspace = async ({ workspaceId, ownerId }) => {
        and deleted_at is null
      returning id`,
     [workspaceId, ownerId],
+  )
+  return rows[0] || null
+}
+
+export const updateWorkspacePublishFlags = async ({ workspaceId, ownerId, flags }) => {
+  const fields = []
+  const values = [workspaceId, ownerId]
+  const colMap = {
+    isPublished: 'is_published',
+    isTemplate: 'is_template',
+    thumbnailUrl: 'thumbnail_url',
+    sourceTemplateId: 'source_template_id',
+    publishedAt: 'published_at',
+  }
+
+  for (const [inputKey, column] of Object.entries(colMap)) {
+    if (flags[inputKey] !== undefined) {
+      values.push(flags[inputKey])
+      fields.push(`${column} = $${values.length}`)
+    }
+  }
+
+  if (!fields.length) return null
+
+  fields.push('updated_at = now()')
+
+  const { rows } = await query(
+    `update workspaces
+     set ${fields.join(', ')}
+     where id = $1
+       and owner_id = $2
+       and deleted_at is null
+     returning id`,
+    values,
+  )
+  return rows[0] || null
+}
+
+export const findWorkspaceByShareToken = async (token) => {
+  const { rows } = await query(
+    `${workspaceSelect}
+     where w.share_token = $1
+       and w.is_template = true
+       and w.deleted_at is null
+     limit 1`,
+    [token],
   )
   return rows[0] || null
 }

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ExternalLink, FileText, Key, LoaderCircle, LogOut, Save, Shield, X } from 'lucide-react'
+import { ExternalLink, Eye, EyeOff, FileText, Key, LoaderCircle, LogOut, Mail, Save, Shield, X } from 'lucide-react'
 import { useAuth } from '../context/authState'
 import { apiRequest } from '../lib/api/client'
 import InfoModal from './InfoModal'
@@ -12,10 +12,30 @@ function SettingsModal({ isOpen, onClose }) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [verificationCode, setVerificationCode] = useState('')
+  const [codeSent, setCodeSent] = useState(false)
+  const [sendingCode, setSendingCode] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [infoModalType, setInfoModalType] = useState(null)
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  const handleSendCode = useCallback(async () => {
+    setError('')
+    setSendingCode(true)
+    try {
+      await apiRequest('/auth/me/send-code', { method: 'POST' })
+      setCodeSent(true)
+      setSuccess('Kode verifikasi telah dikirim ke email')
+    } catch (nextError) {
+      setError(nextError.message || 'Gagal mengirim kode')
+    } finally {
+      setSendingCode(false)
+    }
+  }, [])
 
   if (!isOpen) return null
 
@@ -33,13 +53,14 @@ function SettingsModal({ isOpen, onClose }) {
     try {
       await apiRequest('/auth/me/password', {
         method: 'PATCH',
-        body: { currentPassword, newPassword },
+        body: { currentPassword, newPassword, verificationCode: verificationCode || undefined },
       })
       setSuccess('Password berhasil diubah')
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      setShowPasswordForm(false)
+      setVerificationCode('')
+      setCodeSent(false)
     } catch (nextError) {
       setError(nextError.message || 'Gagal mengubah password')
     } finally {
@@ -77,16 +98,50 @@ function SettingsModal({ isOpen, onClose }) {
             <form className="settings-password-form" onSubmit={handleChangePassword}>
               <label>
                 <span>Password saat ini</span>
-                <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+                <div className="auth-password-wrapper">
+                  <input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+                  <button type="button" className="auth-password-toggle" onClick={() => setShowCurrentPassword((p) => !p)} tabIndex={-1}>
+                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </label>
               <label>
                 <span>Password baru</span>
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} />
+                <div className="auth-password-wrapper">
+                  <input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} />
+                  <button type="button" className="auth-password-toggle" onClick={() => setShowNewPassword((p) => !p)} tabIndex={-1}>
+                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </label>
               <label>
                 <span>Konfirmasi password baru</span>
-                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} />
+                <div className="auth-password-wrapper">
+                  <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} />
+                  <button type="button" className="auth-password-toggle" onClick={() => setShowConfirmPassword((p) => !p)} tabIndex={-1}>
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </label>
+
+              <div className="settings-code-row">
+                <label className="settings-code-label">
+                  <span>Kode verifikasi</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                  />
+                </label>
+                <button type="button" className="settings-send-code" onClick={handleSendCode} disabled={sendingCode}>
+                  {sendingCode ? <LoaderCircle size={14} className="spin" /> : <Mail size={14} />}
+                  {codeSent ? 'Kirim Ulang' : 'Kirim Kode'}
+                </button>
+              </div>
+
               {error && <p className="settings-password-error">{error}</p>}
               {success && <p className="settings-password-success">{success}</p>}
               <button type="submit" className="settings-password-submit" disabled={saving}>

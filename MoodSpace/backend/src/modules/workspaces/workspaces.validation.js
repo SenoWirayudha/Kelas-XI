@@ -93,3 +93,37 @@ export const changeRoleSchema = z.object({
   }),
   query: z.object({}).optional(),
 })
+
+const publishBody = z.object({
+  thumbnailDataUrl: z.string().startsWith('data:image/').optional(),
+})
+
+export const publishSchema = z.object({
+  params: z.object({ id: uuid }),
+  body: publishBody,
+  query: z.object({}).optional(),
+})
+
+export const shareAsTemplateSchema = z.object({
+  params: z.object({ id: uuid }),
+  body: z.object({}).optional(),
+  query: z.object({}).optional(),
+})
+
+export const publishAsTemplateSchema = z.object({
+  params: z.object({ id: uuid }),
+  body: publishBody,
+  query: z.object({}).optional(),
+})
+
+export const useAsTemplateSchema = z.object({
+  params: z.object({ id: uuid }),
+  body: z.object({}).optional(),
+  query: z.object({}).optional(),
+})
+
+export const byTokenSchema = z.object({
+  params: z.object({ token: uuid }),
+  body: z.object({}).optional(),
+  query: z.object({}).optional(),
+})

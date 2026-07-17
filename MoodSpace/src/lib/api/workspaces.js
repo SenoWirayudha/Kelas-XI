@@ -93,6 +93,38 @@ export const removeCollaborator = async (workspaceId, userId) => (
   })
 )
 
+// --- Publish & Template API ---
+
+export const publishWorkspace = async (workspaceId, body = {}) => (
+  apiRequest(`/workspaces/${workspaceId}/publish`, {
+    method: 'POST',
+    body,
+  })
+)
+
+export const shareAsTemplate = async (workspaceId) => (
+  apiRequest(`/workspaces/${workspaceId}/share-as-template`, {
+    method: 'POST',
+  })
+)
+
+export const publishAsTemplate = async (workspaceId, body = {}) => (
+  apiRequest(`/workspaces/${workspaceId}/publish-as-template`, {
+    method: 'POST',
+    body,
+  })
+)
+
+export const useAsTemplate = async (workspaceId) => (
+  apiRequest(`/workspaces/${workspaceId}/use-as-template`, {
+    method: 'POST',
+  })
+)
+
+export const getWorkspaceByToken = async (token) => (
+  apiRequest(`/workspaces/by-token/${token}`)
+)
+
 // --- User search for invite ---
 
 export const searchUsers = async (query) => (

@@ -6,8 +6,13 @@ export const search = async (req, res, next) => {
       ...req.validated.query,
       viewerId: req.auth?.sub || null,
     })
+    if (res.headersSent) return
     res.json(result)
   } catch (error) {
+    if (res.headersSent) {
+      console.error('[search] Error after headers sent:', error?.message)
+      return
+    }
     next(error)
   }
 }

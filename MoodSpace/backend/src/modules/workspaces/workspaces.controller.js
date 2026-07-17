@@ -155,6 +155,69 @@ export const removeCollaborator = async (req, res, next) => {
   }
 }
 
+// --- Publish & Template handlers ---
+
+export const publishWorkspace = async (req, res, next) => {
+  try {
+    const result = await service.publishWorkspace({
+      userId: req.auth.sub,
+      workspaceId: req.validated.params.id,
+      thumbnailDataUrl: req.validated.body.thumbnailDataUrl,
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const shareAsTemplate = async (req, res, next) => {
+  try {
+    const result = await service.shareAsTemplate({
+      userId: req.auth.sub,
+      workspaceId: req.validated.params.id,
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const publishAsTemplate = async (req, res, next) => {
+  try {
+    const result = await service.publishAsTemplate({
+      userId: req.auth.sub,
+      workspaceId: req.validated.params.id,
+      thumbnailDataUrl: req.validated.body.thumbnailDataUrl,
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const useAsTemplate = async (req, res, next) => {
+  try {
+    const result = await service.useAsTemplate({
+      userId: req.auth.sub,
+      workspaceId: req.validated.params.id,
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getWorkspaceByToken = async (req, res, next) => {
+  try {
+    const result = await service.getWorkspaceByToken({
+      token: req.validated.params.token,
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 // --- User search handler ---
 
 export const searchUsers = async (req, res, next) => {

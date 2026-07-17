@@ -10,6 +10,10 @@ export const notFoundHandler = (req, res, next) => {
 
 export const errorHandler = (error, req, res, _next) => {
   void _next
+  if (res.headersSent) {
+    console.error('[ERROR] Headers already sent — cannot send error response:', error?.message)
+    return
+  }
   if (error?.code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({
       error: {

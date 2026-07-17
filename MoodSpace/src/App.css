@@ -3970,6 +3970,55 @@
   border-color: #7c3aed;
 }
 
+.settings-code-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.settings-code-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.settings-code-label input {
+  letter-spacing: 3px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.settings-send-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 37px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f7f3ff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.settings-send-code:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.settings-send-code:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .settings-password-error {
   font-size: 12px;
   color: #ef4444;
@@ -4766,6 +4815,21 @@
   font-size: 24px;
 }
 
+.auth-modal-back {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f7f3ff;
+  cursor: pointer;
+}
+
 .auth-modal-close {
   position: absolute;
   top: 14px;
@@ -4843,6 +4907,23 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.auth-forgot-link {
+  border: 0;
+  background: transparent;
+  color: #bda9ff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+  margin-top: -4px;
+}
+
+.auth-forgot-link:hover {
+  text-decoration: underline;
+}
+
 .auth-submit {
   border: 0;
   border-radius: 8px;
@@ -4883,6 +4964,68 @@
   font: inherit;
   font-weight: 800;
   padding: 0;
+}
+
+.reset-password-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #0d0d12;
+}
+
+.reset-password-card {
+  width: min(400px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(32, 28, 38, 0.94), rgba(15, 15, 18, 0.97)),
+    rgba(18, 18, 18, 0.96);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
+  padding: 32px;
+  color: #f7f3ff;
+}
+
+.reset-password-card h1 {
+  margin: 0 0 20px;
+  font-size: 22px;
+  color: #fff;
+}
+
+.reset-password-card form {
+  display: grid;
+  gap: 14px;
+}
+
+.reset-password-card form label {
+  display: grid;
+  gap: 7px;
+  color: rgba(247, 243, 255, 0.72);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.reset-password-card form input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+  font: inherit;
+  padding: 11px 12px;
+  outline: none;
+}
+
+.reset-password-card form input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.22);
+}
+
+.reset-password-success {
+  text-align: center;
+  color: #7ddfa0;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .boards-controls {
