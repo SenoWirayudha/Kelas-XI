@@ -214,10 +214,11 @@ export const applyBevelEmboss = (imageData, params) => {
 
     // Scale by gradient magnitude so flat areas are unaffected
     const edgeWeight = Math.min(gradMag * 8, 1)
+    const blendWeight = weight * edgeWeight
 
-    d[idx]     = clamp(origR + (hlr - shr) * edgeWeight, 0, 255)
-    d[idx + 1] = clamp(origG + (hlg - shg) * edgeWeight, 0, 255)
-    d[idx + 2] = clamp(origB + (hlb - shb) * edgeWeight, 0, 255)
+    d[idx]     = clamp(origR + (hlr - shr) * blendWeight, 0, 255)
+    d[idx + 1] = clamp(origG + (hlg - shg) * blendWeight, 0, 255)
+    d[idx + 2] = clamp(origB + (hlb - shb) * blendWeight, 0, 255)
     // Alpha unchanged
   }
 }

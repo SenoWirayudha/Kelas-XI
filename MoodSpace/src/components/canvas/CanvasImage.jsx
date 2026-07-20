@@ -343,7 +343,9 @@ function CanvasImage({
         } else if (hasBevelFilter) {
           const filtered = existingFilters.filter(f => f !== Konva.Filters.BevelEmboss)
           node.filters(filtered)
-          node.clearCache()
+          if (filtered.length === 0) {
+            node.clearCache()
+          }
         }
       }
 

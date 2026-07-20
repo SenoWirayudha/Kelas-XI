@@ -76,15 +76,24 @@ export const applyBevelEmbossToNode = (node, item) => {
     const soft = item.bevelEmbossSoftness ?? 5
     const pad = Math.max(10, Math.ceil(depth * 3 + soft * 2))
     const pr = Math.min(window.devicePixelRatio || 1, 2)
-    const w = typeof node.width === 'function' ? (node.width() || 0) : (node.getAttr('width') || 0)
-    const h = typeof node.height === 'function' ? (node.height() || 0) : (node.getAttr('height') || 0)
+    let w = typeof node.width === 'function' ? (node.width() || 0) : (node.getAttr('width') || 0)
+    let h = typeof node.height === 'function' ? (node.height() || 0) : (node.getAttr('height') || 0)
+    if (w <= 0 || h <= 0) {
+      const cr = node.getClientRect({ skipTransform: true, skipShadow: true, skipStroke: true })
+      if (w <= 0) w = cr.width
+      if (h <= 0) h = cr.height
+    }
     if (w > 0 && h > 0) {
       node.cache({ x: -pad, y: -pad, width: w + pad * 2, height: h + pad * 2, pixelRatio: pr })
     }
   } else if (hasBevelFilter) {
     const filtered = existingFilters.filter(f => f !== Konva.Filters.BevelEmboss)
     node.filters(filtered)
-    node.clearCache()
+    // Keep existing cache intact so other effects (set by effectManager) still work.
+    // The next effectManager.applyAll() call will replace the cache with correct dimensions.
+    if (filtered.length === 0) {
+      node.clearCache()
+    }
   }
 }
 
