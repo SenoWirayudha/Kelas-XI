@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Check, Copy, Globe, Link, LoaderCircle, Lock, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { publishAsTemplate, publishWorkspace, shareAsTemplate } from '../../lib/api/workspaces'
+import { shareAsTemplate } from '../../lib/api/workspaces'
 import { useToast } from '../../context/ToastContext'
 
 const MODES = [
@@ -9,39 +8,36 @@ const MODES = [
     id: 'publish',
     icon: Globe,
     title: 'Publish Post',
-    description: 'Post akan tampil di feed publik. Orang lain bisa lihat dan menyimpan, tapi tidak bisa menduplikasi.',
+    description: 'Post akan tampil di feed publik. Orang lain bisa lihat dan menyimpan.',
     flags: { isPublished: true, isTemplate: false },
   },
   {
     id: 'share-template',
     icon: Link,
     title: 'Share as Template',
-    description: 'Dapatkan link privat. Siapa pun yang punya link bisa menduplikasi ke workspace mereka sendiri.',
+    description: 'Download file template. Siapa pun yang punya file bisa import ke workspace sendiri.',
     flags: { isPublished: false, isTemplate: true },
   },
   {
     id: 'publish-template',
     icon: Lock,
     title: 'Publish as Template',
-    description: 'Tampil di feed publik dan orang lain bisa langsung pakai sebagai template.',
+    description: 'Tampil di feed publik + download file template. Orang lain bisa lihat dan import.',
     flags: { isPublished: true, isTemplate: true },
   },
 ]
 
-export default function PublishModal({ isOpen, onClose, workspaceId, workspaceTitle }) {
-  const navigate = useNavigate()
+export default function PublishModal({ isOpen, onClose, workspaceId, workspaceTitle, onExportAndRedirect, onDownloadTemplate }) {
   const toast = useToast()
   const [selectedMode, setSelectedMode] = useState('publish')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [result, setResult] = useState(null) // null | { type: 'published', postId? } | { type: 'template', shareUrl, shareToken }
-  const [copied, setCopied] = useState(false)
+  const [result, setResult] = useState(null)
 
   useEffect(() => {
     if (!isOpen) {
       setSelectedMode('publish')
       setIsSubmitting(false)
       setResult(null)
-      setCopied(false)
     }
   }, [isOpen])
 
@@ -50,26 +46,19 @@ export default function PublishModal({ isOpen, onClose, workspaceId, workspaceTi
     try {
       const mode = MODES.find((m) => m.id === selectedMode)
       if (mode.id === 'publish') {
-        const res = await publishWorkspace(workspaceId)
-        toast?.addToast?.('Post berhasil dipublikasikan!', { type: 'success', duration: 4000 })
-        setResult({ type: 'published' })
+        onExportAndRedirect?.({ isTemplate: false })
+        onClose()
       } else if (mode.id === 'share-template') {
         const res = await shareAsTemplate(workspaceId)
-        console.log('[publish-modal] Share as template result:', res)
+        await onDownloadTemplate?.()
         setResult({
           type: 'template',
           shareToken: res.shareToken,
           shareUrl: `${window.location.origin}/template/${res.shareToken}`,
         })
       } else if (mode.id === 'publish-template') {
-        const res = await publishAsTemplate(workspaceId)
-        console.log('[publish-modal] Publish as template result:', res)
-        toast?.addToast?.('Template berhasil dipublikasikan!', { type: 'success', duration: 4000 })
-        setResult({
-          type: 'template',
-          shareToken: res.shareToken,
-          shareUrl: `${window.location.origin}/template/${res.shareToken}`,
-        })
+        onExportAndRedirect?.({ isTemplate: true })
+        onClose()
       }
     } catch (error) {
       console.error('[publish-modal] Error:', error)
@@ -77,7 +66,7 @@ export default function PublishModal({ isOpen, onClose, workspaceId, workspaceTi
     } finally {
       setIsSubmitting(false)
     }
-  }, [selectedMode, workspaceId, toast])
+  }, [selectedMode, workspaceId, onExportAndRedirect, onDownloadTemplate, onClose, toast])
 
   const handleCopyLink = useCallback(async () => {
     if (!result?.shareUrl) return
@@ -89,6 +78,12 @@ export default function PublishModal({ isOpen, onClose, workspaceId, workspaceTi
       toast?.addToast?.('Gagal menyalin link', { type: 'error', duration: 3000 })
     }
   }, [result, toast])
+
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (result?.type === 'template') setCopied(false)
+  }, [result])
 
   if (!isOpen) return null
 
@@ -144,11 +139,12 @@ export default function PublishModal({ isOpen, onClose, workspaceId, workspaceTi
           </>
         ) : (
           <>
-            <h2>{result.type === 'published' ? 'Berhasil Dipublikasikan!' : 'Berhasil Dibagikan sebagai Template!'}</h2>
+            <h2>Berhasil Dibagikan sebagai Template!</h2>
+            <p className="confirm-modal-desc">File template sudah di-download. Bagikan link ini atau kirim file .json-nya.</p>
 
-            {result.type === 'template' && result.shareUrl && (
+            {result.shareUrl && (
               <div className="publish-result-link">
-                <p className="confirm-modal-desc">Bagikan link ini untuk mengizinkan orang lain menggunakan template:</p>
+                <p className="confirm-modal-desc">Atau bagikan link berikut:</p>
                 <div className="publish-share-link-row">
                   <input type="text" readOnly value={result.shareUrl} className="publish-share-link-input" onClick={(e) => e.target.select()} />
                   <button type="button" className="publish-copy-btn" onClick={handleCopyLink}>

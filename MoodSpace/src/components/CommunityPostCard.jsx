@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bookmark, Copy, Download, Edit3, Eye, Flag, FolderPlus, Heart, Images, Lock, MoreHorizontal, Trash2, Users } from 'lucide-react'
+import { Bookmark, Download, Edit3, Eye, Flag, FolderPlus, GitFork, Heart, Images, Lock, MoreHorizontal, Trash2, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/authState'
 import { ensureExternalImage } from '../lib/api/externalImages'
@@ -194,9 +194,9 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
                     <Download size={18} />
                   </button>
                 )}
-                {!isDraft && !isExternalImage && post.isTemplate && post.workspaceId && (
-                  <button type="button" className="gallery-action-btn" title="Use as Template" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowTemplateConfirm(true) }}>
-                    <Copy size={18} />
+                {!isDraft && !isExternalImage && (post.workspaceId || post.metadata?.templateWorkspaceId) && (post.isTemplate || post.metadata?.source === 'workspace') && (
+                  <button type="button" className="gallery-action-btn" title="Gunakan sebagai template" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowTemplateConfirm(true) }}>
+                    <GitFork size={18} />
                   </button>
                 )}
               </div>
@@ -224,6 +224,7 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
             <span className="author-username">{isExternalImage ? post.author.username : `@${post.author.username}`}</span>
           </Link>
           <h3 className="metadata-title">{post.title || 'Untitled workspace'}</h3>
+          {post.metadata?.source === 'workspace' && <span className="gallery-template-badge">MoodSpace</span>}
         </div>
         <div className="metadata-right">
           {!isDraft && (
@@ -246,9 +247,9 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
                       <FolderPlus size={13} /> Add to board
                     </button>
                   )}
-                  {!isExternalImage && post.isTemplate && post.workspaceId && (
+                  {!isExternalImage && (post.workspaceId || post.metadata?.templateWorkspaceId) && (post.isTemplate || post.metadata?.source === 'workspace') && (
                     <button type="button" className="metadata-dropdown-item" onClick={() => { setShowMenu(false); setShowTemplateConfirm(true) }}>
-                      <Copy size={13} /> Use as Template
+                      <GitFork size={13} /> Sesuaikan
                     </button>
                   )}
                   <button type="button" className="metadata-dropdown-item" onClick={handleDownload}>
@@ -313,9 +314,10 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
           }
           setIsForking(true)
           try {
-            const result = await useAsTemplate(post.workspaceId)
+            const workspaceId = post.workspaceId || post.metadata?.templateWorkspaceId
+            const result = await useAsTemplate(workspaceId)
             console.log('[post-card] Fork result:', result)
-            navigate(`/workspace/${result.workspaceId}`)
+            navigate(`/workspace?projectId=${result.workspaceId}`)
           } catch (error) {
             console.error('[post-card] Fork error:', error)
           } finally {

@@ -35,6 +35,22 @@ export const getShadowProps = (item, fallback = {}) => {
   }
 }
 
+// ─── Bevel & Emboss ──────────────────────────────────────────────────────────
+
+export const getBevelEmbossProps = (item) => {
+  if (!item.bevelEmbossEnabled) return {}
+  return {
+    bevelEmbossStyle: item.bevelEmbossStyle || 'inner',
+    bevelEmbossDepth: item.bevelEmbossDepth ?? 5,
+    bevelEmbossAngle: item.bevelEmbossAngle ?? 120,
+    bevelEmbossSoftness: item.bevelEmbossSoftness ?? 5,
+    bevelEmbossHighlightColor: item.bevelEmbossHighlightColor || '#ffffff',
+    bevelEmbossHighlightOpacity: item.bevelEmbossHighlightOpacity ?? 1,
+    bevelEmbossShadowColor: item.bevelEmbossShadowColor || '#000000',
+    bevelEmbossShadowOpacity: item.bevelEmbossShadowOpacity ?? 1,
+  }
+}
+
 // ─── Canvas background fill props ────────────────────────────────────────────
 
 export const getCanvasBackgroundProps = (background, canvasSize) => {

@@ -447,6 +447,7 @@ export const serializePost = (post) => {
     id: p.id,
     postType: p.postType,
     workspaceId: p.workspaceId,
+    isTemplate: !!p.isTemplate,
     publishedVersionId: p.publishedVersionId,
     title: p.title,
     caption: p.caption,
@@ -610,6 +611,7 @@ export const publishWorkspace = async ({ userId, body }) => {
     visibility: body.visibility,
     coverMediaId: body.coverMediaId,
     metadata,
+    isTemplate: body.isTemplate ?? false,
   })
   if (!result) throw notFound('Workspace not found')
 
@@ -618,7 +620,13 @@ export const publishWorkspace = async ({ userId, body }) => {
   })
 
   const post = await findPostById({ postId: result.postId, viewerId: userId })
-  return serializePost(post)
+  const serialized = serializePost(post)
+  if (body.isTemplate) {
+    const ws = await findWorkspaceById(body.workspaceId)
+    serialized.shareToken = ws.shareToken
+    serialized.shareUrl = `/template/${ws.shareToken}`
+  }
+  return serialized
 }
 
 export const homeFeed = async ({ viewerId = null, query }) => {

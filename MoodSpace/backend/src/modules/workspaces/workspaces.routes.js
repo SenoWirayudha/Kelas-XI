@@ -6,9 +6,8 @@ import {
   changeRoleSchema,
   collaboratorIdParamSchema,
   createWorkspaceSchema,
+  importByTokenSchema,
   inviteCollaboratorSchema,
-  publishAsTemplateSchema,
-  publishSchema,
   saveWorkspaceSchema,
   shareAsTemplateSchema,
   thumbnailSchema,
@@ -35,10 +34,9 @@ workspacesRouter.post('/:id/thumbnail', validate(thumbnailSchema), controller.se
 workspacesRouter.delete('/:id', validate(workspaceIdParamSchema), controller.deleteWorkspace)
 
 // Publish & Template routes
-workspacesRouter.post('/:id/publish', validate(publishSchema), controller.publishWorkspace)
 workspacesRouter.post('/:id/share-as-template', validate(shareAsTemplateSchema), controller.shareAsTemplate)
-workspacesRouter.post('/:id/publish-as-template', validate(publishAsTemplateSchema), controller.publishAsTemplate)
 workspacesRouter.post('/:id/use-as-template', validate(useAsTemplateSchema), controller.useAsTemplate)
+workspacesRouter.post('/import-by-token', validate(importByTokenSchema), controller.importByToken)
 
 // Collaborator routes
 workspacesRouter.get('/:id/collaborators', validate(workspaceIdParamSchema), controller.listCollaborators)

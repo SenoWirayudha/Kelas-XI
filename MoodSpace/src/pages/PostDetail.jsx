@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Bookmark, ChevronLeft, ChevronRight, Copy, Download, Eye, Flag, FolderPlus, Heart, LoaderCircle, Lock, MoreVertical, Share2, Trash2, Users } from 'lucide-react'
+import { Bookmark, ChevronLeft, ChevronRight, Copy, Download, Eye, Flag, FolderPlus, GitFork, Heart, LoaderCircle, Lock, MoreVertical, Share2, Trash2, Users } from 'lucide-react'
 import BoardPickerModal from '../components/BoardPickerModal'
 import CommunityPostCard from '../components/CommunityPostCard'
 import ConfirmationModal from '../components/ConfirmationModal'
@@ -580,6 +580,11 @@ function PostDetail() {
                   <Users size={14} />
                 </span>
               )}
+              {post.metadata?.source === 'workspace' && (
+                <span className="visibility-badge" style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', padding: '4px 8px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  Dibuat dengan MoodSpace
+                </span>
+              )}
             </h1>
             {post.caption && <p className="post-description">{post.caption}</p>}
             {visibleTags.length > 0 && (
@@ -612,10 +617,10 @@ function PostDetail() {
                 Open Workspace
               </Link>
             )}
-            {post.isTemplate && post.workspaceId && (
+            {(post.workspaceId || post.metadata?.templateWorkspaceId) && (post.isTemplate || post.metadata?.source === 'workspace') && (
               <button type="button" className="action-btn secondary" onClick={() => setShowTemplateConfirm(true)}>
-                <Copy size={18} />
-                Use as Template
+                <GitFork size={18} />
+                Sesuaikan
               </button>
             )}
             <button type="button" className="action-btn secondary" onClick={handleDownloadActiveMedia}>
@@ -752,9 +757,10 @@ function PostDetail() {
           }
           setIsForking(true)
           try {
-            const result = await useAsTemplate(post.workspaceId)
+            const workspaceId = post.workspaceId || post.metadata?.templateWorkspaceId
+            const result = await useAsTemplate(workspaceId)
             console.log('[post-detail] Fork result:', result)
-            navigate(`/workspace/${result.workspaceId}`)
+            navigate(`/workspace?projectId=${result.workspaceId}`)
           } catch (error) {
             console.error('[post-detail] Fork error:', error)
           } finally {

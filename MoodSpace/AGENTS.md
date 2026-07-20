@@ -482,3 +482,95 @@ Undo/redo hanya lokal — perubahan undo (add/delete/reorder) tidak dikirim ke r
 - Added `beforeunload` event listener that triggers browser dialog when `hasUnsavedChangesRef.current` is true
 - Added exit confirmation modal using `ConfirmationModal` + `useBlocker` from React Router to intercept SPA navigation (browser back, in-app back, link clicks). Blocker resets automatically when `hasUnsavedChangesRef` becomes false.
 - Auto-save (2500ms debounce) verified working: auto-save ON = periodic save; OFF = only manual Ctrl+S
+
+## Session 2026-07-17: Publish Post as Media Post + Template JSON Export/Import + Font Warning
+
+### Flow Rewrite
+- **Publish Post**: Canvas export → redirect to `/posts/new` → user fills title/caption → `POST /posts` (createMediaPost). No longer uses workspace-level `POST /posts/publish-workspace` endpoint.
+- **Share as Template**: `shareAsTemplate` API sets `is_template=true` + generates share token → download JSON file (snapshot + metadata). Share URL: `/template/{token}`.
+- **Publish as Template**: Download JSON file + export canvas + redirect to NewPost with `#template` tag auto-added.
+
+### Backend Changes
+- Added `isTemplate` to `publishWorkspaceSchema`, `publishWorkspacePost` — sets `is_published=true` + `is_template=$5` in single workspace UPDATE transaction.
+- Removed workspace-level `POST /workspaces/:id/publish` and `POST /workspaces/:id/publish-as-template` endpoints.
+- `postSelect` includes `w.is_template as "isTemplate"`; `serializePost` includes `isTemplate`.
+- `shareAsTemplate` shareUrl fixed from `/workspace/by-template/{token}` to `/template/{token}`.
+
+### Frontend — PublishModal.jsx Rewrite
+- Accepts `onExportAndRedirect` + `onDownloadTemplate` callbacks.
+- "Publish Post" → calls `onExportAndRedirect`.
+- "Share as Template" → calls `shareAsTemplate` API + `onDownloadTemplate` + success state.
+- "Publish as Template" → calls `onExportAndRedirect` only (no JSON download).
+
+### Frontend — Workspace.jsx
+- Added `handleExportAndRedirect`: `generateWorkspaceExportDataUrl()` → `navigate('/posts/new', { state: { exportedImage, isTemplate, templateWorkspaceId } })`.
+- Added `handleDownloadTemplate`: builds JSON blob (snapshot + workspace metadata) → triggers browser download.
+- Fixed `toast` → `toastRef.current` (was causing `useToast must be used within <ToastProvider>` error).
+
+### Frontend — NewPost.jsx
+- Reads `location.state.exportedImage` (data URL → File → mediaItems).
+- Reads `location.state.isTemplate` → auto-adds `#template` tag.
+- Inlined logic to avoid stale closure with `addSelectedFiles`.
+- Captures `location.state.templateWorkspaceId` into ref, includes `templateWorkspaceId` + `source: 'workspace'` in metadata for both `submit` and `saveDraft`.
+
+### Frontend — Projects.jsx (Import Template)
+- **Import Template button** in header with hidden file input (`accept=".json"`).
+- `handleImportTemplate`: reads JSON → `createWorkspace` → adds to projects list.
+- **Fixed 404 error**: Changed `navigate('/workspace/${id}')` → `navigate('/workspace?projectId=${id}')` (Workspace component reads ID from `searchParams`, not path params).
+- **Font warning**: After import, calls `listFonts()` API + `findMissingFonts()` helper (scans items/runs for `fontFamily` values, excludes known system fonts). If missing custom fonts found, shows modal listing them with "Lanjutkan" button to navigate to workspace.
+
+### Import Template Modal + `POST /workspaces/import-by-token`
+
+**Problem**: "Share as Template" generates a share link (`/template/{shareToken}`), but Import Template only accepted `.json` files — no way to import via the share link.
+
+**Backend** — `POST /workspaces/import-by-token` accepts `{ token }`, resolves workspace via `findWorkspaceByShareToken`, then runs `deepCopyWorkspace` pipeline (snapshot copy, UUID remapping, storage copy, DB transaction). Refactored `useAsTemplate` → extracted shared `deepCopyWorkspace({ sourceWorkspace, sourceWorkspaceId, userId })`.
+
+**Frontend** — Import Template button opens a modal with 2 sections:
+1. **Link Template** — text input for `/template/xxx` URL + "Import" button. Extracts token via regex.
+2. **or** divider + **Pilih File .json** (existing file import).
+
+Both paths close modal on success + show font warning before navigating.
+
+**Key Files:** `workspaces.validation.js` (importByTokenSchema), `workspaces.service.js` (deepCopyWorkspace + importByToken), `workspaces.controller.js`, `workspaces.routes.js`, `src/lib/api/workspaces.js` (importByToken), `src/pages/Projects.jsx` (ImportTemplateModal)
+
+### Sesuaikan Button + Dibuat dengan MoodSpace Badge (Session 2026-07-17 continued)
+- **PostDetail.jsx**: Consolidated old `post.isTemplate` + new `post.metadata.templateWorkspaceId` into one "Sesuaikan" button. Modal forks via `useAsTemplate(workspaceId)` → navigate. Added "Dibuat dengan MoodSpace" badge next to title when `metadata.source === 'workspace'`. Fixed navigate URL from `/workspace/${id}` to `/workspace?projectId=${id}`.
+- **CommunityPostCard.jsx**: Same consolidation in hover overlay + dropdown menu → "Sesuaikan". Added small "MoodSpace" badge below title.
+- **Confirmation modal**: Single consolidated modal for both old/new flows. Shows "Gunakan [title] sebagai template?" with confirm/cancel → fork action.
+
+### Backend: Ownership Validation (Session 2026-07-17 continued)
+- **`posts.validation.js`**: Added `templateWorkspaceId: z.string().uuid().optional()` + `source: z.enum(['workspace']).optional()` to `postMetadata` (no passthrough — only these 2 extra fields allowed).
+- **`posts.repository.js` — `createMediaPost`**: After inserting post, if `metadata.templateWorkspaceId` exists, runs `UPDATE workspaces SET is_template = true WHERE id = $1 AND owner_id = $2`. If `rowCount === 0` → throws 403. All in same transaction.
+- **`posts.repository.js` — `publishMediaPostDraft`**: Rewritten with `withTransaction`. First reads post metadata, runs same workspace UPDATE with ownership check, then updates post status. Rollback on failure.
+- Draft save (`createMediaPostDraft`, `updateMediaPostDraft`) does NOT touch `is_template` — metadata-only.
+
+### Sesuaikan Button + Dibuat dengan MoodSpace Badge
+- **PostDetail.jsx**: Consolidated old `post.isTemplate` + new `post.metadata.templateWorkspaceId` into one "Sesuaikan" button with `GitFork` icon. Modal forks via `useAsTemplate(workspaceId)` → navigate. Added "Dibuat dengan MoodSpace" badge next to title when `metadata.source === 'workspace'`. Fixed navigate URL from `/workspace/{id}` to `?projectId={id}`.
+- **CommunityPostCard.jsx**: Same consolidation in hover overlay + dropdown → "Sesuaikan" with `GitFork` icon. Added "MoodSpace" badge below title.
+- **Confirmation modal**: Single consolidated modal for both old/new flows.
+
+### Backend: Ownership Validation
+- **`posts.validation.js`**: Added `templateWorkspaceId: z.string().uuid().optional()` + `source: z.enum(['workspace']).optional()` to `postMetadata` (no passthrough).
+- **`posts.repository.js`**: `createMediaPost` + `publishMediaPostDraft` set `is_template=true` with `owner_id` check. Rollback on `rowCount === 0`.
+- Draft saves do NOT touch `is_template`.
+
+### UI Polish
+- **Import Template button**: Changed from gradient solid to ghost/outline style (white border/text, transparent bg, `border-radius: 14px` matching New Project). Hover: subtle white fill.
+- **Sesuaikan icon**: Replaced `Copy` with `GitFork` in PostDetail and CommunityPostCard.
+- **Publish modal merged into Share modal**: One "Share" button in header, opens modal with "Kolaborator" and "Publiksi" tabs. Tab state remembered across opens.
+
+### Known Bug Fix
+- **Font warning modal fixed**: `listFonts()` response shape + `family` field name.
+- **Double image fixed**: `processedExportRef` guard for strict mode.
+
+### Key Files
+- `src/components/workspace/PublishModal.jsx` — Publish as Template no longer downloads JSON
+- `src/components/workspace/ShareModal.jsx` — tabs for Kolaborator + Publixi, contains publish logic
+- `src/pages/Workspace.jsx` — one Share button, merged modal, `handleExportAndRedirect` passes `templateWorkspaceId`
+- `src/pages/NewPost.jsx` — `templateWorkspaceIdRef`, `source: 'workspace'` in metadata
+- `src/pages/Projects.jsx` — Import Template (`.project-import-btn`) + font warning + 404 fix
+- `src/pages/PostDetail.jsx` — "Dibuat dengan MoodSpace" badge, "Sesuaikan" (`GitFork`), consolidated modal
+- `src/components/CommunityPostCard.jsx` — "Sesuaikan" (`GitFork`), "MoodSpace" badge, consolidated modal
+- `src/App.css` — `.gallery-template-badge`, `.project-import-btn`, `.share-modal-tabs`
+- `backend/src/modules/posts/posts.validation.js` — `templateWorkspaceId` + `source` in `postMetadata`
+- `backend/src/modules/posts/posts.repository.js` — `createMediaPost` + `publishMediaPostDraft` workspace ownership validation

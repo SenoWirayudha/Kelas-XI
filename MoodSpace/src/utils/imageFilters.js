@@ -1,4 +1,5 @@
 import Konva from 'konva'
+import { applyBevelEmboss } from './bevelEmboss'
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
@@ -439,6 +440,22 @@ Konva.Filters.MoodSpaceCombined = function (imageData) {
     blur: this.getAttr('blur') ?? 0,
   }
   applyMoodSpaceToImageData(imageData, vals)
+}
+
+// ─── Bevel & Emboss ────────────────────────────────────────────────────────────
+
+Konva.Filters.BevelEmboss = function (imageData) {
+  const vals = {
+    style: this.getAttr('bevelEmbossStyle') || 'inner',
+    depth: this.getAttr('bevelEmbossDepth') ?? 5,
+    angle: this.getAttr('bevelEmbossAngle') ?? 120,
+    softness: this.getAttr('bevelEmbossSoftness') ?? 5,
+    highlightColor: this.getAttr('bevelEmbossHighlightColor') || '#ffffff',
+    highlightOpacity: this.getAttr('bevelEmbossHighlightOpacity') ?? 1,
+    shadowColor: this.getAttr('bevelEmbossShadowColor') || '#000000',
+    shadowOpacity: this.getAttr('bevelEmbossShadowOpacity') ?? 1,
+  }
+  applyBevelEmboss(imageData, vals)
 }
 
 export const applyImageFilters = (node, item) => {

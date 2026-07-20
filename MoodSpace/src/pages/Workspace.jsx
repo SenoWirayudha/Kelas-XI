@@ -164,7 +164,7 @@ import { useCursorBroadcast } from '../hooks/useCursorBroadcast'
 import { useCollaboration } from '../hooks/useCollaboration'
 import { getCursorColor } from '../utils/cursorColors'
 import ShareModal from '../components/workspace/ShareModal'
-import PublishModal from '../components/workspace/PublishModal'
+
 import { useMediaUpload } from '../hooks/useMediaUpload'
 import { useCanvasImage, useCanvasImages } from '../hooks/useCanvasImages'
 import { autosaveWorkspace, getWorkspace, saveWorkspace, setWorkspaceThumbnail, updateWorkspace } from '../lib/api/workspaces'
@@ -3273,7 +3273,7 @@ function Workspace() {
   const [cropSession, setCropSession] = useState(null)
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
-  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
+  const shareModalTabRef = useRef('kolaborator')
   const [exportFormat, setExportFormat] = useState('png')
   const [exportScale, setExportScale] = useState(1)
   const [exportTransparent, setExportTransparent] = useState(false)
@@ -5554,6 +5554,49 @@ function Workspace() {
       setExportProgress(0)
     }
   }, [exportFormat, exportScale, exportTransparent, generateWorkspaceExportDataUrl, isCanvasBackgroundNone, workspaceTitle])
+
+  const handleExportAndRedirect = useCallback(async ({ isTemplate }) => {
+    const shouldExportTransparent = false
+    const dataUrl = generateWorkspaceExportDataUrl({
+      format: 'png',
+      scale: 1,
+      transparent: shouldExportTransparent,
+    })
+    if (!dataUrl) {
+      toastRef.current?.('Export gagal. Coba ulang.', { type: 'error', duration: 5000 })
+      return
+    }
+    navigate('/posts/new', {
+      state: {
+        exportedImage: { dataUrl, fileName: `${(workspaceTitle || 'workspace').replace(/[^a-z0-9-]+/gi, '-')}-export.png`, mimeType: 'image/png' },
+        isTemplate,
+        ...(isTemplate ? { templateWorkspaceId: workspaceId } : {}),
+      },
+    })
+  }, [generateWorkspaceExportDataUrl, navigate, workspaceTitle, toastRef, workspaceId])
+
+  const handleDownloadTemplate = useCallback(async () => {
+    const snapshot = buildWorkspaceSnapshot()
+    const template = {
+      title: workspaceTitle || 'Untitled Template',
+      description: '',
+      canvasWidth: canvasSettings.width,
+      canvasHeight: canvasSettings.height,
+      canvasRatio: canvasSettings.ratio || null,
+      background: canvasSettings.background || {},
+      settings: { ...canvasSettings },
+      snapshot,
+    }
+    const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${(workspaceTitle || 'workspace').replace(/[^a-z0-9-]+/gi, '-')}-template.json`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }, [buildWorkspaceSnapshot, workspaceTitle, canvasSettings])
 
   const deleteOldSrc = useCallback(async (oldSrc) => {
     if (!oldSrc || !oldSrc.includes('/storage/') && !oldSrc.includes('supabase.co')) return
@@ -15330,7 +15373,6 @@ onPointerUp={(e) => {
         <Redo2 size={15} />
       </button>
       <button type="button" className="workspace-share" onClick={() => setIsShareModalOpen(true)}><Share2 size={15} /><span>Share</span></button>
-      <button type="button" className="workspace-publish" onClick={() => setIsPublishModalOpen(true)}><Upload size={15} /><span>Publish</span></button>
       <button
         type="button"
         className="workspace-export"
@@ -16571,15 +16613,14 @@ onPointerUp={(e) => {
     )}
 
     {isShareModalOpen && (
-      <ShareModal workspaceId={workspaceId} onClose={() => setIsShareModalOpen(false)} />
-    )}
-
-    {isPublishModalOpen && (
-      <PublishModal
-        isOpen={isPublishModalOpen}
+      <ShareModal
         workspaceId={workspaceId}
         workspaceTitle={workspaceTitle}
-        onClose={() => setIsPublishModalOpen(false)}
+        defaultTab={shareModalTabRef.current}
+        onClose={() => setIsShareModalOpen(false)}
+        onTabChange={(tab) => { shareModalTabRef.current = tab }}
+        onExportAndRedirect={handleExportAndRedirect}
+        onDownloadTemplate={handleDownloadTemplate}
       />
     )}
 

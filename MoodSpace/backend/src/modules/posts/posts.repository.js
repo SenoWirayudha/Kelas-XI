@@ -12,8 +12,9 @@ const postSelect = `
     p.text_embedding as "textEmbedding",
     p.id,
     p.author_id as "authorId",
-    p.workspace_id as "workspaceId",
-    p.published_version_id as "publishedVersionId",
+     p.workspace_id as "workspaceId",
+     w.is_template as "isTemplate",
+     p.published_version_id as "publishedVersionId",
     p.post_type as "postType",
     p.title,
     p.caption,
@@ -155,6 +156,7 @@ export const publishWorkspacePost = async ({
   visibility,
   coverMediaId,
   metadata = {},
+  isTemplate = false,
 }) => withTransaction(async (client) => {
   const workspaceResult = await client.query(
     `select
@@ -224,10 +226,12 @@ export const publishWorkspacePost = async ({
          visibility = $3,
          published_version_id = $2,
          thumbnail_media_id = coalesce($4, thumbnail_media_id),
+         is_published = true,
+         is_template = $5,
          published_at = now(),
          updated_at = now()
      where id = $1`,
-    [workspaceId, version.id, visibility, resolvedCoverMediaId],
+    [workspaceId, version.id, visibility, resolvedCoverMediaId, isTemplate],
   )
 
   await client.query(
@@ -256,6 +260,17 @@ export const createMediaPost = async ({ ownerId, title, caption, visibility, med
        values ($1, $2, $3)`,
       [postId, mediaId, position],
     )
+  }
+
+  if (metadata?.templateWorkspaceId) {
+    const wsResult = await client.query(
+      `update workspaces set is_template = true
+       where id = $1 and owner_id = $2`,
+      [metadata.templateWorkspaceId, ownerId],
+    )
+    if (wsResult.rowCount === 0) {
+      throw Object.assign(new Error('Workspace tidak ditemukan atau bukan milik Anda'), { status: 403 })
+    }
   }
 
   return { postId }
@@ -313,8 +328,25 @@ export const updateMediaPostDraft = async ({ ownerId, postId, title, caption, vi
   return { postId }
 })
 
-export const publishMediaPostDraft = async ({ ownerId, postId }) => {
-  const { rows } = await query(
+export const publishMediaPostDraft = async ({ ownerId, postId }) => withTransaction(async (client) => {
+  const metaResult = await client.query(
+    `select metadata from posts
+     where id = $1 and author_id = $2 and post_type = 'media' and status = 'draft'`,
+    [postId, ownerId],
+  )
+  if (!metaResult.rows.length) return null
+  const metadata = metaResult.rows[0].metadata || {}
+  if (metadata?.templateWorkspaceId) {
+    const wsResult = await client.query(
+      `update workspaces set is_template = true
+       where id = $1 and owner_id = $2`,
+      [metadata.templateWorkspaceId, ownerId],
+    )
+    if (wsResult.rowCount === 0) {
+      throw Object.assign(new Error('Workspace tidak ditemukan atau bukan milik Anda'), { status: 403 })
+    }
+  }
+  const { rows } = await client.query(
     `update posts
      set status = 'published',
          published_at = now(),
@@ -327,7 +359,7 @@ export const publishMediaPostDraft = async ({ ownerId, postId }) => {
     [postId, ownerId],
   )
   return rows[0] || null
-}
+})
 
 export const getMediaTagSources = async ({ ownerId, mediaIds = [] }) => {
   if (!mediaIds.length) return []

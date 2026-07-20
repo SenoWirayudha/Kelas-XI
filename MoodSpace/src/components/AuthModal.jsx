@@ -112,16 +112,17 @@ function AuthModal() {
   return (
     <div className="auth-modal-backdrop" role="presentation" onMouseDown={closeAuthModal}>
       <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}>
-        {showForgotPassword && (
-          <button type="button" className="auth-modal-back" aria-label="Back to login" onClick={handleBackToLogin}>
-            <ArrowLeft size={18} />
+        <div className="auth-modal-header">
+          {showForgotPassword && (
+            <button type="button" className="auth-modal-back" aria-label="Back to login" onClick={handleBackToLogin}>
+              <ArrowLeft size={18} />
+            </button>
+          )}
+          <h2 id="auth-title">{copy.title}</h2>
+          <button type="button" className="auth-modal-close" aria-label="Close" onClick={closeAuthModal}>
+            <X size={18} />
           </button>
-        )}
-        <button type="button" className="auth-modal-close" aria-label="Close" onClick={closeAuthModal}>
-          <X size={18} />
-        </button>
-
-        <h2 id="auth-title">{copy.title}</h2>
+        </div>
 
         <form className="auth-form" onSubmit={submit}>
           {showForgotPassword ? (

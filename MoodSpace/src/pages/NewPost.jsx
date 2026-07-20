@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Globe2, GripVertical, ImagePlus, Lock, MessageCircle, Plus, Save, Trash2, Upload, Users, X } from 'lucide-react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/authState'
 import { uploadMediaFile } from '../lib/api/media'
 import { createMediaPost, createMediaPostDraft, getPost, publishMediaPostDraft, updateMediaPostDraft, updatePost } from '../lib/api/posts'
@@ -26,6 +26,8 @@ function NewPost() {
   const fileInputRef = useRef(null)
   const carouselInputRef = useRef(null)
   const mediaItemsRef = useRef([])
+  const processedExportRef = useRef(false)
+  const templateWorkspaceIdRef = useRef(null)
   const [mediaItems, setMediaItems] = useState([])
   const [title, setTitle] = useState('')
   const [caption, setCaption] = useState('')
@@ -113,6 +115,35 @@ function NewPost() {
     }).catch((nextError) => setError(nextError.message || 'Post gagal dimuat'))
     return () => { cancelled = true }
   }, [editPostId])
+
+  const location = useLocation()
+
+  useEffect(() => {
+    const state = location.state
+    if (!state?.exportedImage || processedExportRef.current) return
+    processedExportRef.current = true
+    if (state.templateWorkspaceId) {
+      templateWorkspaceIdRef.current = state.templateWorkspaceId
+    }
+    const { dataUrl, fileName, mimeType } = state.exportedImage
+    const meta = dataUrl.match(/^data:(.+?);/)?.[1] || mimeType || 'image/png'
+    const byteString = atob(dataUrl.split(',')[1])
+    const arrayBuffer = new ArrayBuffer(byteString.length)
+    const uint8Array = new Uint8Array(arrayBuffer)
+    for (let i = 0; i < byteString.length; i++) {
+      uint8Array[i] = byteString.charCodeAt(i)
+    }
+    const file = new File([uint8Array], fileName || 'export.png', { type: meta })
+    setMediaItems((current) => {
+      if (current.length >= 10) return current
+      const id = `${file.name}-${file.lastModified}-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`
+      return [...current, { id, file, url: URL.createObjectURL(file) }]
+    })
+    if (state.isTemplate) {
+      setTags((current) => current.includes('template') ? current : ['template', ...current])
+    }
+    window.history.replaceState({}, '')
+  }, [])
 
   const addSelectedFiles = (fileList) => {
     const selected = [...(fileList || [])].filter((file) => file.type.startsWith('image/'))
@@ -213,6 +244,8 @@ function NewPost() {
         metadata: {
           tags,
           allowComments,
+          source: 'workspace',
+          ...(templateWorkspaceIdRef.current ? { templateWorkspaceId: templateWorkspaceIdRef.current } : {}),
         },
       }
       if (editPostId) {
@@ -239,7 +272,7 @@ function NewPost() {
     setError('')
     try {
       const mediaIds = await uploadNewMedia()
-      const body = { title: title.trim(), caption: caption.trim() || null, visibility, mediaIds, metadata: { tags, allowComments } }
+      const body = { title: title.trim(), caption: caption.trim() || null, visibility, mediaIds, metadata: { tags, allowComments, source: 'workspace', ...(templateWorkspaceIdRef.current ? { templateWorkspaceId: templateWorkspaceIdRef.current } : {}) } }
       const postId = editPostId
         ? (await updatePost(editPostId, body)).post.id
         : activeDraftId

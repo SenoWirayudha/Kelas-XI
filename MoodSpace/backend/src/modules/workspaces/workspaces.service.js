@@ -239,33 +239,6 @@ const uploadThumbnailFromDataUrl = async ({ userId, workspaceId, dataUrl }) => {
   return buildPublicUrl({ objectKey })
 }
 
-export const publishWorkspace = async ({ userId, workspaceId, thumbnailDataUrl }) => {
-  const workspace = await findWorkspaceById(workspaceId)
-  if (!workspace) throw notFound('Workspace not found')
-  if (workspace.ownerId !== userId) throw forbidden('Only the workspace owner can publish')
-
-  let thumbnailUrl = null
-  if (thumbnailDataUrl) {
-    console.log('[publish] Generating thumbnail for workspace', workspaceId)
-    thumbnailUrl = await uploadThumbnailFromDataUrl({ userId, workspaceId, dataUrl: thumbnailDataUrl })
-    console.log('[publish] Thumbnail uploaded:', thumbnailUrl)
-  }
-
-  await updateWorkspacePublishFlags({
-    workspaceId,
-    ownerId: userId,
-    flags: {
-      isPublished: true,
-      isTemplate: false,
-      thumbnailUrl: thumbnailUrl || undefined,
-      publishedAt: new Date().toISOString(),
-    },
-  })
-
-  console.log('[publish] Workspace published', { workspaceId, thumbnailUrl })
-  return { workspaceId, publishedAt: new Date().toISOString(), thumbnailUrl }
-}
-
 export const shareAsTemplate = async ({ userId, workspaceId }) => {
   const workspace = await findWorkspaceById(workspaceId)
   if (!workspace) throw notFound('Workspace not found')
@@ -285,57 +258,15 @@ export const shareAsTemplate = async ({ userId, workspaceId }) => {
   return {
     workspaceId,
     shareToken: updated.shareToken,
-    shareUrl: `/workspace/by-template/${updated.shareToken}`,
+    shareUrl: `/template/${updated.shareToken}`,
   }
 }
 
-export const publishAsTemplate = async ({ userId, workspaceId, thumbnailDataUrl }) => {
-  const workspace = await findWorkspaceById(workspaceId)
-  if (!workspace) throw notFound('Workspace not found')
-  if (workspace.ownerId !== userId) throw forbidden('Only the workspace owner can publish as template')
-
-  let thumbnailUrl = null
-  if (thumbnailDataUrl) {
-    console.log('[publish-as-template] Generating thumbnail for workspace', workspaceId)
-    thumbnailUrl = await uploadThumbnailFromDataUrl({ userId, workspaceId, dataUrl: thumbnailDataUrl })
-    console.log('[publish-as-template] Thumbnail uploaded:', thumbnailUrl)
-  }
-
-  await updateWorkspacePublishFlags({
-    workspaceId,
-    ownerId: userId,
-    flags: {
-      isPublished: true,
-      isTemplate: true,
-      thumbnailUrl: thumbnailUrl || undefined,
-      publishedAt: new Date().toISOString(),
-    },
-  })
-
-  const updated = await findWorkspaceById(workspaceId)
-  console.log('[publish-as-template] Workspace published as template', {
-    workspaceId,
-    thumbnailUrl,
-    shareToken: updated.shareToken,
-  })
-  return {
-    workspaceId,
-    publishedAt: new Date().toISOString(),
-    thumbnailUrl,
-    shareToken: updated.shareToken,
-    shareUrl: `/workspace/by-template/${updated.shareToken}`,
-  }
-}
-
-export const useAsTemplate = async ({ userId, workspaceId }) => {
-  const sourceWorkspace = await findWorkspaceById(workspaceId)
-  if (!sourceWorkspace) throw notFound('Workspace not found')
-  if (!sourceWorkspace.isTemplate) throw forbidden('This workspace is not available as a template')
-
-  console.log('[deep-copy] Starting deep copy of workspace', workspaceId, 'for user', userId)
+const deepCopyWorkspace = async ({ sourceWorkspace, sourceWorkspaceId, userId }) => {
+  console.log('[deep-copy] Starting deep copy of workspace', sourceWorkspaceId, 'for user', userId)
 
   // --- Step 1: Read snapshot ---
-  const latestVersion = await getLatestVersion(workspaceId)
+  const latestVersion = await getLatestVersion(sourceWorkspaceId)
   if (!latestVersion?.snapshot) throw notFound('Workspace has no snapshot to copy')
   const snapshot = latestVersion.snapshot
   console.log('[deep-copy] Snapshot loaded, version', latestVersion.versionNo)
@@ -345,20 +276,18 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
   const oldMediaIds = items
     .map((item) => item.mediaId)
     .filter(Boolean)
-    .filter((id, i, arr) => arr.indexOf(id) === i) // unique
+    .filter((id, i, arr) => arr.indexOf(id) === i)
 
   console.log('[deep-copy] Found', oldMediaIds.length, 'unique media assets to copy')
 
-  // Fetch all original media_assets rows
   const originalMedia = await Promise.all(
     oldMediaIds.map((id) => findMediaById(id)),
   )
   const validMedia = originalMedia.filter(Boolean)
   console.log('[deep-copy] Resolved', validMedia.length, 'media assets from DB')
 
-  // Generate ALL UUIDs upfront
-  const itemIdMap = new Map()  // oldItemId -> newItemId
-  const mediaIdMap = new Map() // oldMediaId -> { newId, objectKey, ... }
+  const itemIdMap = new Map()
+  const mediaIdMap = new Map()
 
   for (const item of items) {
     if (!itemIdMap.has(item.id)) {
@@ -400,7 +329,6 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
       const mapped = mediaIdMap.get(item.mediaId)
       item.mediaId = mapped.newId
     }
-    // Patch mediaId inside frameImages if present
     if (item.frameImages && Array.isArray(item.frameImages)) {
       for (const fi of item.frameImages) {
         if (fi.mediaId && mediaIdMap.has(fi.mediaId)) {
@@ -423,7 +351,6 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
     }
   }
 
-  // Patch assetsUsed if present
   if (patchedSnapshot.assetsUsed && Array.isArray(patchedSnapshot.assetsUsed)) {
     for (const au of patchedSnapshot.assetsUsed) {
       if (au.mediaId && mediaIdMap.has(au.mediaId)) {
@@ -434,15 +361,14 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
 
   console.log('[deep-copy] Snapshot patched with', itemIdMap.size, 'new item IDs')
 
-  // --- Step 4: Copy storage files (server-side Supabase copy) ---
-  const copiedKeys = [] // track for cleanup on failure
+  // --- Step 4: Copy storage files ---
+  const copiedKeys = []
 
   for (const [oldId, mapped] of mediaIdMap) {
     if (!mapped.objectKey) {
       console.log('[deep-copy] Skipping media', oldId, '- no objectKey')
       continue
     }
-    // Replace owner segment in object key: users/{oldOwner}/... -> users/{newOwner}/...
     const newObjectKey = mapped.objectKey.replace(
       /^users\/[^/]+\//,
       `users/${userId}/`,
@@ -457,7 +383,6 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
       console.log('[deep-copy] Storage copy OK:', newObjectKey)
     } catch (error) {
       console.error('[deep-copy] Storage copy FAILED:', mapped.objectKey, error.message)
-      // Cleanup any files already copied
       console.log('[deep-copy] Cleaning up', copiedKeys.length, 'already-copied files')
       await Promise.allSettled(
         copiedKeys.map((key) => deleteObject({ objectKey: key }).catch(() => {})),
@@ -478,7 +403,6 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
   let newWorkspaceId
   try {
     const result = await withTransaction(async (client) => {
-      // 5a. Insert media_assets rows
       for (const [oldId, mapped] of mediaIdMap) {
         if (!mapped.newObjectKey) continue
         await client.query(
@@ -502,7 +426,6 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
         console.log('[deep-copy] Inserted media_assets:', mapped.newId)
       }
 
-      // 5b. Insert uploaded_assets rows
       for (const [oldId, mapped] of mediaIdMap) {
         if (!mapped.newObjectKey) continue
         await client.query(
@@ -514,7 +437,6 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
         console.log('[deep-copy] Inserted uploaded_assets:', mapped.newId)
       }
 
-      // 5c. Create workspace + version 1
       const workspaceResult = await client.query(
         `insert into workspaces (
            owner_id, title, description, visibility, status,
@@ -533,7 +455,7 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
           sourceWorkspace.canvasRatio || null,
           JSON.stringify(sourceWorkspace.background || {}),
           JSON.stringify(sourceWorkspace.settings || {}),
-          workspaceId, // source_template_id
+          sourceWorkspaceId,
         ],
       )
       newWorkspaceId = workspaceResult.rows[0].id
@@ -562,7 +484,6 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
     console.log('[deep-copy] DB transaction committed successfully')
   } catch (error) {
     console.error('[deep-copy] DB transaction FAILED, cleaning up storage files')
-    // Cleanup all storage files that were copied
     const keysToCleanup = [...mediaIdMap.values()]
       .filter((m) => m.newObjectKey)
       .map((m) => m.newObjectKey)
@@ -574,13 +495,28 @@ export const useAsTemplate = async ({ userId, workspaceId }) => {
   }
 
   console.log('[deep-copy] Deep copy complete:', {
-    sourceWorkspaceId: workspaceId,
+    sourceWorkspaceId,
     newWorkspaceId,
     userId,
     mediaCopied: [...mediaIdMap.values()].filter((m) => m.newObjectKey).length,
   })
 
   return { workspaceId: newWorkspaceId }
+}
+
+export const useAsTemplate = async ({ userId, workspaceId }) => {
+  const sourceWorkspace = await findWorkspaceById(workspaceId)
+  if (!sourceWorkspace) throw notFound('Workspace not found')
+  if (!sourceWorkspace.isTemplate) throw forbidden('This workspace is not available as a template')
+
+  return deepCopyWorkspace({ sourceWorkspace, sourceWorkspaceId: workspaceId, userId })
+}
+
+export const importByToken = async ({ userId, token }) => {
+  const sourceWorkspace = await findWorkspaceByShareToken(token)
+  if (!sourceWorkspace) throw notFound('Template not found or share link is invalid')
+
+  return deepCopyWorkspace({ sourceWorkspace, sourceWorkspaceId: sourceWorkspace.id, userId })
 }
 
 export const getWorkspaceByToken = async ({ token }) => {

@@ -1,14 +1,51 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Copy, Download, ExternalLink, FolderOpen, MoreHorizontal, Pen, Plus, Share2, Sparkles, Trash2, Upload, X } from 'lucide-react'
+import { Copy, Download, ExternalLink, FolderOpen, Link2, LoaderCircle, MoreHorizontal, Pen, Plus, Share2, Sparkles, Trash2, Upload, X } from 'lucide-react'
 import ConfirmationModal from '../components/ConfirmationModal'
 import { useAuth } from '../context/authState'
 import { uploadMediaFile } from '../lib/api/media'
-import { createWorkspace, deleteWorkspace, getWorkspace, listWorkspaces, updateWorkspace } from '../lib/api/workspaces'
+import { createWorkspace, deleteWorkspace, getWorkspace, importByToken, listWorkspaces, updateWorkspace } from '../lib/api/workspaces'
 import { publishWorkspace } from '../lib/api/posts'
+import { listFonts } from '../lib/api/fonts'
 
 const storageKey = 'moodspace.projects'
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+const SYSTEM_FONT_NAMES = new Set([
+  'inter', 'arial', 'helvetica', 'sans-serif', 'serif', 'monospace',
+  'georgia', 'times new roman', 'courier new', 'verdana', 'tahoma',
+  'trebuchet ms', 'impact', 'comic sans ms', 'system-ui', 'ui-sans-serif',
+  'ui-serif', 'ui-monospace', 'calibri', 'cambria', 'candara',
+  'franklin gothic medium', 'futura', 'geneva', 'gill sans',
+  'optima', 'rockwell', 'segoe ui', 'source sans pro', 'consolas',
+  'palatino', 'garamond', 'bookman', 'lucida', 'avenir', 'myriad',
+])
+
+function findMissingFonts(snapshot, availableFonts) {
+  const fontFamilies = new Set()
+  const items = snapshot?.items || []
+  for (const item of items) {
+    if (item.fontFamily) fontFamilies.add(item.fontFamily)
+    if (item.runs) {
+      for (const run of item.runs) {
+        if (run.fontFamily) fontFamilies.add(run.fontFamily)
+      }
+    }
+  }
+  const availableNames = new Set(
+    (availableFonts || []).map((f) => (f.family || f.fontFamily || '').toLowerCase()).filter(Boolean)
+  )
+  const missing = []
+  for (const ff of fontFamilies) {
+    const parts = ff.split(',').map((p) => p.trim().toLowerCase())
+    const allUnknown = parts.every((p) => {
+      const name = p.replace(/['"]/g, '')
+      return !SYSTEM_FONT_NAMES.has(name) && !availableNames.has(name)
+    })
+    if (allUnknown) missing.push(ff)
+  }
+  return missing
+}
 
 const ratioPresets = [
   { id: '1:1', label: '1:1', width: 1080, height: 1080 },
@@ -59,6 +96,10 @@ function Projects() {
   const [projects, setProjects] = useState(readProjects)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importLink, setImportLink] = useState('')
+  const [isImporting, setIsImporting] = useState(false)
+  const importInputRef = useRef(null)
   const [openProjectMenuId, setOpenProjectMenuId] = useState(null)
   const [renamingProjectId, setRenamingProjectId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
@@ -76,6 +117,8 @@ function Projects() {
   const [exportProgress, setExportProgress] = useState(0)
   const [exportBgType, setExportBgType] = useState('solid')
   const [createError, setCreateError] = useState('')
+const [fontWarning, setFontWarning] = useState(null)
+const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
   const [form, setForm] = useState({
     name: 'Untitled Project',
     preset: '16:9',
@@ -292,6 +335,97 @@ function Projects() {
       setIsCreating(false)
     }
   }
+
+  const handleImportByLink = useCallback(async () => {
+    if (!importLink.trim()) return
+    setCreateError('')
+    setIsImporting(true)
+    try {
+      const link = importLink.trim()
+      const match = link.match(/\/template\/(.+?)(?:\/|$)/)
+      const token = match?.[1] || link
+      const result = await importByToken(token)
+      const id = result.workspaceId
+      let allFonts = []
+      try {
+        const fontsResponse = await listFonts()
+        allFonts = fontsResponse.fonts || []
+      } catch {}
+      const workspace = await getWorkspace(id)
+      const snapshot = workspace.snapshot || {}
+      setShowImportModal(false)
+      const missingFonts = findMissingFonts(snapshot, allFonts)
+      if (missingFonts.length > 0) {
+        setImportedWorkspaceId(id)
+        setFontWarning(missingFonts)
+      } else {
+        navigate(`/workspace?projectId=${id}`)
+      }
+    } catch (error) {
+      setCreateError(error.message || 'Gagal mengimpor lewat link')
+    } finally {
+      setIsImporting(false)
+    }
+  }, [importLink, importByToken, listFonts, getWorkspace, navigate, setCreateError, setFontWarning, setImportedWorkspaceId, setShowImportModal])
+
+  const handleImportByFile = useCallback(async (file) => {
+    if (!file) return
+    if (!file.name.endsWith('.json')) {
+      setCreateError('Hanya file .json yang didukung')
+      return
+    }
+    setIsImporting(true)
+    setCreateError('')
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      if (!data.snapshot) throw new Error('File template tidak valid: tidak ada snapshot')
+      const payload = await createWorkspace({
+        title: data.title || 'Imported Template',
+        description: data.description || '',
+        canvasWidth: data.canvasWidth || 1280,
+        canvasHeight: data.canvasHeight || 720,
+        canvasRatio: data.canvasRatio || null,
+        background: data.background || { type: 'solid', color: '#f4f1e8' },
+        settings: data.settings || { autosave: true },
+        snapshot: data.snapshot,
+      })
+      const workspace = payload.workspace
+      const project = {
+        id: workspace.id,
+        name: workspace.title,
+        ratio: workspace.canvasRatio || 'custom',
+        width: workspace.canvasWidth,
+        height: workspace.canvasHeight,
+        updatedAt: workspace.updatedAt || new Date().toISOString(),
+        isNew: true,
+      }
+      const nextProjects = [project, ...projects.filter((item) => item.id !== project.id)]
+      setProjects(nextProjects)
+      localStorage.setItem(storageKey, JSON.stringify(nextProjects.map((projectItem) => {
+        const persistedProject = { ...projectItem }
+        delete persistedProject.isNew
+        return persistedProject
+      })))
+      let allFonts = []
+      try {
+        const fontsResponse = await listFonts()
+        allFonts = fontsResponse.fonts || []
+      } catch {}
+      setShowImportModal(false)
+      const missingFonts = findMissingFonts(data.snapshot, allFonts)
+      if (missingFonts.length > 0) {
+        setImportedWorkspaceId(workspace.id)
+        setFontWarning(missingFonts)
+      } else {
+        navigate(`/workspace?projectId=${workspace.id}`)
+      }
+    } catch (error) {
+      setCreateError(error.message || 'Gagal mengimpor template')
+    } finally {
+      setIsImporting(false)
+    }
+  }, [createWorkspace, listFonts, navigate, projects, setCreateError, setFontWarning, setImportedWorkspaceId, setShowImportModal])
 
   const handleDeleteProject = (project) => {
     setDeleteTarget(project)
@@ -552,8 +686,75 @@ function Projects() {
             <Plus size={18} strokeWidth={1.9} />
             New Project
           </button>
+          <button className="project-import-btn" type="button" onClick={() => { setCreateError(''); setImportLink(''); setShowImportModal(true) }}>
+            <Upload size={16} strokeWidth={1.9} />
+            Import Template
+          </button>
         </div>
       </header>
+
+      {showImportModal && (
+        <div className="workspace-export-modal-backdrop" role="presentation" onMouseDown={() => { setShowImportModal(false); setCreateError(''); setImportLink('') }}>
+          <section className="workspace-export-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="workspace-export-modal-header">
+              <div>
+                <p>IMPORT TEMPLATE</p>
+                <h2>Import project dari link atau file .json</h2>
+              </div>
+              <button type="button" style={{ width: 30, height: 30, border: 'none', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0 }} aria-label="Close" onClick={() => { setShowImportModal(false); setCreateError(''); setImportLink('') }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ padding: '8px 24px 4px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Link2 size={14} /> Link Template
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    placeholder="Paste link template di sini"
+                    value={importLink}
+                    onChange={(e) => setImportLink(e.target.value)}
+                    style={{
+                      flex: 1, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8,
+                      background: 'rgba(255,255,255,0.04)', color: '#f6f7fb', padding: '8px 12px',
+                      fontSize: 13, fontFamily: 'inherit', outline: 'none',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="workspace-export-confirm"
+                    onClick={handleImportByLink}
+                    disabled={isImporting || !importLink.trim()}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    {isImporting ? <LoaderCircle size={14} className="confirm-modal-spinner" /> : <Download size={14} />}
+                    {isImporting ? 'Loading...' : 'Import'}
+                  </button>
+                </div>
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'rgba(255,255,255,0.25)', fontSize: 11 }}>
+                <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+                atau
+                <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+              </div>
+              <input ref={importInputRef} type="file" accept=".json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleImportByFile(f); e.target.value = '' } }} />
+              <button
+                type="button"
+                className="project-import-btn"
+                onClick={() => importInputRef.current?.click()}
+                disabled={isImporting}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                {isImporting ? <LoaderCircle size={14} className="confirm-modal-spinner" /> : <Upload size={14} />}
+                {isImporting ? 'Loading...' : 'Pilih File .json'}
+              </button>
+            </div>
+            {createError && <p className="workspace-export-error" style={{ margin: '0 24px 16px' }}>{createError}</p>}
+          </section>
+        </div>
+      )}
 
       {projects.length === 0 ? (
         <div className="projects-empty">
@@ -894,6 +1095,31 @@ function Projects() {
               </button>
               <button type="button" className="workspace-export-confirm" onClick={handleConfirmExport} disabled={isExporting}>
                 {isExporting ? 'Exporting...' : 'Export'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {fontWarning && (
+        <div className="workspace-export-modal-backdrop" role="presentation" onMouseDown={() => { const id = importedWorkspaceId; setFontWarning(null); setImportedWorkspaceId(null); if (id) navigate(`/workspace?projectId=${id}`) }}>
+          <section className="workspace-export-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="workspace-export-modal-header">
+              <div>
+                <p>FONT WARNING</p>
+                <h2>Font Tidak Ditemukan</h2>
+              </div>
+            </div>
+            <div style={{ padding: '16px 24px', color: 'rgba(255,255,255,0.6)', fontSize: 13, lineHeight: 1.6 }}>
+              Template ini menggunakan font kustom yang tidak tersedia di sistem Anda:
+              <ul style={{ marginTop: 8, paddingLeft: 16 }}>
+                {fontWarning.map((ff) => <li key={ff}><strong style={{ color: '#fff' }}>{ff}</strong></li>)}
+              </ul>
+              <p style={{ marginTop: 12 }}>Font mungkin tidak tampil dengan benar. Anda dapat menggantinya nanti di editor.</p>
+            </div>
+            <div className="workspace-export-modal-footer">
+              <button type="button" className="workspace-export-confirm" onClick={() => { const id = importedWorkspaceId; setFontWarning(null); setImportedWorkspaceId(null); navigate(`/workspace?projectId=${id}`) }}>
+                Lanjutkan
               </button>
             </div>
           </section>

@@ -5,6 +5,8 @@ const jsonObject = z.record(z.string(), z.unknown())
 const postMetadata = z.object({
   tags: z.array(z.string().trim().min(1).max(40)).max(12).default([]),
   allowComments: z.boolean().default(true),
+  templateWorkspaceId: z.string().uuid().optional(),
+  source: z.enum(['workspace']).optional(),
 }).default({})
 
 export const publishWorkspaceSchema = z.object({
@@ -15,6 +17,7 @@ export const publishWorkspaceSchema = z.object({
     visibility: z.enum(['public', 'private', 'unlisted']).default('public'),
     coverMediaId: uuid.optional(),
     snapshot: jsonObject.optional(),
+    isTemplate: z.boolean().optional().default(false),
   }),
   params: z.object({}).optional(),
   query: z.object({}).optional(),
