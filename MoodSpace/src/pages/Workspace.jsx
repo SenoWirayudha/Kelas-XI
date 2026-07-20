@@ -356,6 +356,8 @@ const BROADCAST_KEYS = new Set([
   'imageStrokeGradientType', 'imageStrokeGradientStops', 'imageStrokeGradientAngle',
   'visible', 'locked',
   'shadowEnabled', 'shadow', 'shadowColor', 'shadowOpacity', 'shadowOffsetX', 'shadowOffsetY',
+  'bevelEmbossEnabled', 'bevelEmbossStyle', 'bevelEmbossDepth', 'bevelEmbossAngle', 'bevelEmbossSoftness',
+  'bevelEmbossHighlightColor', 'bevelEmbossHighlightOpacity', 'bevelEmbossShadowColor', 'bevelEmbossShadowOpacity',
   'compositeOpacity', 'compositeBlendMode', 'compositeMode',
   'compositeShadowEnabled', 'compositeShadow', 'compositeShadowColor', 'compositeShadowOpacity',
   'compositeShadowOffsetX', 'compositeShadowOffsetY',
@@ -13508,6 +13510,123 @@ onPointerUp={(e) => {
                                         const val = Number(e.target.value)
                                         updateItem(selectedItem.id, { [ctrl.key]: ctrl.key === 'shadowOpacity' ? val / 100 : val })
                                       }}
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {supportsShadow && (
+          <div className="workspace-section-card">
+            <div className="workspace-section-title">Bevel & Emboss</div>
+            <label className="workspace-shadow-toggle">
+              <input
+                type="checkbox"
+                checked={!!selectedItem.bevelEmbossEnabled}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    updateItem(selectedItem.id, { bevelEmbossEnabled: true, bevelEmbossStyle: 'inner', bevelEmbossDepth: 5, bevelEmbossAngle: 120, bevelEmbossSoftness: 5, bevelEmbossHighlightColor: '#ffffff', bevelEmbossHighlightOpacity: 1, bevelEmbossShadowColor: '#000000', bevelEmbossShadowOpacity: 1 })
+                  } else {
+                    updateItem(selectedItem.id, { bevelEmbossEnabled: false })
+                  }
+                }}
+              />
+              <span className="toggle-track" />
+              <span className="toggle-label">Enable Bevel</span>
+            </label>
+            {selectedItem.bevelEmbossEnabled && (
+              <div className="workspace-slider-list">
+                {/* Style dropdown */}
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Style</span>
+                  <select
+                    value={selectedItem.bevelEmbossStyle || 'inner'}
+                    onChange={(e) => updateItem(selectedItem.id, { bevelEmbossStyle: e.target.value })}
+                    style={{ background: '#1a1721', color: '#c4bfd4', border: '1px solid #38333e', borderRadius: '6px', padding: '4px 8px', fontSize: 12 }}
+                  >
+                    <option value="inner">Inner Bevel</option>
+                    <option value="outer">Outer Bevel</option>
+                    <option value="emboss">Emboss</option>
+                  </select>
+                </label>
+                {/* Highlight Color */}
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Highlight Color</span>
+                  <input
+                    type="color"
+                    value={selectedItem.bevelEmbossHighlightColor || '#ffffff'}
+                    onChange={(e) => updateItem(selectedItem.id, { bevelEmbossHighlightColor: e.target.value }, true)}
+                    onBlur={(e) => updateItem(selectedItem.id, { bevelEmbossHighlightColor: e.target.value })}
+                  />
+                </label>
+                {/* Shadow Color */}
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Shadow Color</span>
+                  <input
+                    type="color"
+                    value={selectedItem.bevelEmbossShadowColor || '#000000'}
+                    onChange={(e) => updateItem(selectedItem.id, { bevelEmbossShadowColor: e.target.value }, true)}
+                    onBlur={(e) => updateItem(selectedItem.id, { bevelEmbossShadowColor: e.target.value })}
+                  />
+                </label>
+                {/* Sliders */}
+                {[
+                  { key: 'bevelEmbossDepth', label: 'Depth', min: 0.5, max: 20, step: 0.5, value: selectedItem.bevelEmbossDepth ?? 5, unit: '' },
+                  { key: 'bevelEmbossAngle', label: 'Angle', min: 0, max: 360, step: 1, value: selectedItem.bevelEmbossAngle ?? 120, unit: '\u00b0' },
+                  { key: 'bevelEmbossSoftness', label: 'Softness', min: 0, max: 50, step: 1, value: selectedItem.bevelEmbossSoftness ?? 5, unit: '' },
+                  { key: 'bevelEmbossHighlightOpacity', label: 'Highlight Opacity', min: 0, max: 100, step: 1, value: Math.round((selectedItem.bevelEmbossHighlightOpacity ?? 1) * 100), unit: '%' },
+                  { key: 'bevelEmbossShadowOpacity', label: 'Shadow Opacity', min: 0, max: 100, step: 1, value: Math.round((selectedItem.bevelEmbossShadowOpacity ?? 1) * 100), unit: '%' },
+                ].map((ctrl) => (
+                  <label key={ctrl.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>{ctrl.label}</span>
+                      {editingSliderKey === ctrl.key ? (
+                        <input
+                          type="number"
+                          defaultValue={ctrl.value}
+                          min={ctrl.min}
+                          max={ctrl.max}
+                          step={ctrl.step}
+                          autoFocus
+                          style={{ width: '52px', fontSize: '11px', textAlign: 'right', padding: '1px 4px', border: '1px solid #7c6df2', borderRadius: '4px', background: '#1a1721', color: '#c4bfd4', outline: 'none' }}
+                          onBlur={(e) => {
+                            let val = Math.max(ctrl.min, Math.min(ctrl.max, Number(e.target.value)))
+                            if (ctrl.key === 'bevelEmbossHighlightOpacity' || ctrl.key === 'bevelEmbossShadowOpacity') val = val / 100
+                            updateItem(selectedItem.id, { [ctrl.key]: val })
+                            setEditingSliderKey(null)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur()
+                            if (e.key === 'Escape') setEditingSliderKey(null)
+                          }}
+                        />
+                      ) : (
+                        <span
+                          style={{ fontSize: '11px', color: '#c4bfd4', minWidth: '36px', textAlign: 'right', cursor: 'text' }}
+                          onDoubleClick={() => setEditingSliderKey(ctrl.key)}
+                        >
+                          {ctrl.value}{ctrl.unit}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="range"
+                      min={ctrl.min}
+                      max={ctrl.max}
+                      step={ctrl.step}
+                      value={ctrl.value}
+                      onChange={(e) => {
+                        const raw = Number(e.target.value)
+                        const patchVal = (ctrl.key === 'bevelEmbossHighlightOpacity' || ctrl.key === 'bevelEmbossShadowOpacity') ? raw / 100 : raw
+                        updateItem(selectedItem.id, { [ctrl.key]: patchVal }, true)
+                        broadcastItemUpdate(selectedItem.id, { [ctrl.key]: patchVal })
+                      }}
+                      onPointerUp={(e) => {
+                        const raw = Number(e.target.value)
+                        const patchVal = (ctrl.key === 'bevelEmbossHighlightOpacity' || ctrl.key === 'bevelEmbossShadowOpacity') ? raw / 100 : raw
+                        updateItem(selectedItem.id, { [ctrl.key]: patchVal })
+                      }}
                     />
                   </label>
                 ))}
