@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Group, Rect, Text, Ellipse, RegularPolygon, Star, Arrow, Line, Path } from 'react-konva'
 import { Image as KonvaImage } from 'react-konva'
 
-import { getShadowProps, preloadFont } from '../../../utils/konvaUtils'
+import { getShadowProps, preloadFont, applyBevelEmbossToNode } from '../../../utils/konvaUtils'
 import { getArrowShapePath, getShapeFillProps, getShapeTextBounds } from '../../../utils/shapeUtils'
 import { effectManager } from '../../../utils/konva-effects-engine'
 
@@ -204,11 +204,14 @@ export default function ShapeRenderer({
     if (!node) return
     if (hasRgbSplit && shapeChannels) return
     effectManager.applyAll(node, nonRgbEffects)
+    applyBevelEmbossToNode(node, item)
     node.getLayer()?.draw()
     return () => {
       effectManager._clearRepeater(node)
     }
-  }, [nonRgbEffects, item.x, item.y, item.rotation, item.w, item.h, hasRgbSplit, shapeChannels])
+  }, [nonRgbEffects, item.x, item.y, item.rotation, item.w, item.h, hasRgbSplit, shapeChannels,
+      item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
+      item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity])
 
   useEffect(() => {
     filterItemRef.current = item
@@ -223,11 +226,14 @@ export default function ShapeRenderer({
       if (Object.keys(rafFx).length > 0) {
         effectManager.applyAll(node, rafFx)
       }
+      applyBevelEmbossToNode(node, filterItemRef.current)
     })
     return () => {
       if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null }
     }
-  }, [item.effects, hasRgbSplit, shapeChannels])
+  }, [item.effects, hasRgbSplit, shapeChannels,
+      item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
+      item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity])
 
   useEffect(() => {
     if (item.fontFamily) preloadFont(item.fontFamily)

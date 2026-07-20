@@ -51,6 +51,43 @@ export const getBevelEmbossProps = (item) => {
   }
 }
 
+/**
+ * Apply bevel & emboss effect to a Konva node.
+ * Wires Konva.Filters.BevelEmboss into the node's filter chain and re-caches
+ * with appropriate padding so the height-map effect is not clipped.
+ * Call this AFTER effectManager.applyAll().
+ */
+export const applyBevelEmbossToNode = (node, item) => {
+  if (!node) return
+  if (item.isAdjustmentLayer) return
+
+  const existingFilters = node.filters() || []
+  const hasBevelFilter = existingFilters.includes(Konva.Filters.BevelEmboss)
+
+  if (item.bevelEmbossEnabled) {
+    if (!hasBevelFilter) {
+      node.filters([...existingFilters, Konva.Filters.BevelEmboss])
+    }
+    const bevelProps = getBevelEmbossProps(item)
+    for (const [k, v] of Object.entries(bevelProps)) {
+      node.setAttr(k, v)
+    }
+    const depth = item.bevelEmbossDepth ?? 5
+    const soft = item.bevelEmbossSoftness ?? 5
+    const pad = Math.max(10, Math.ceil(depth * 3 + soft * 2))
+    const pr = Math.min(window.devicePixelRatio || 1, 2)
+    const w = typeof node.width === 'function' ? (node.width() || 0) : (node.getAttr('width') || 0)
+    const h = typeof node.height === 'function' ? (node.height() || 0) : (node.getAttr('height') || 0)
+    if (w > 0 && h > 0) {
+      node.cache({ x: -pad, y: -pad, width: w + pad * 2, height: h + pad * 2, pixelRatio: pr })
+    }
+  } else if (hasBevelFilter) {
+    const filtered = existingFilters.filter(f => f !== Konva.Filters.BevelEmboss)
+    node.filters(filtered)
+    node.clearCache()
+  }
+}
+
 // ─── Canvas background fill props ────────────────────────────────────────────
 
 export const getCanvasBackgroundProps = (background, canvasSize) => {

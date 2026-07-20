@@ -7,7 +7,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Group, Rect, Image as KonvaImage, Shape } from 'react-konva'
 import { useCanvasImage } from '../../hooks/useCanvasImages'
-import { getShadowProps } from '../../utils/konvaUtils'
+import { getShadowProps, getBevelEmbossProps } from '../../utils/konvaUtils'
+import Konva from 'konva'
 import { effectManager } from '../../utils/konva-effects-engine'
 import { getClampedCanvasPosition, getCanvasContainedSize } from '../../utils/canvasPositionUtils'
 
@@ -321,6 +322,31 @@ function CanvasImage({
         effectManager.removeAll(shadowNode)
       }
 
+      // Bevel & Emboss — height-map filter via Konva cache
+      if (!item.isAdjustmentLayer) {
+        const existingFilters = node.filters() || []
+        const hasBevelFilter = existingFilters.includes(Konva.Filters.BevelEmboss)
+
+        if (item.bevelEmbossEnabled) {
+          if (!hasBevelFilter) {
+            node.filters([...existingFilters, Konva.Filters.BevelEmboss])
+          }
+          const bevelProps = getBevelEmbossProps(item)
+          for (const [k, v] of Object.entries(bevelProps)) {
+            node.setAttr(k, v)
+          }
+          const depth = item.bevelEmbossDepth ?? 5
+          const soft = item.bevelEmbossSoftness ?? 5
+          const pad = Math.max(10, Math.ceil(depth * 3 + soft * 2))
+          const pr = Math.min(window.devicePixelRatio || 1, 2)
+          node.cache({ x: -pad, y: -pad, width: item.w + pad * 2, height: item.h + pad * 2, pixelRatio: pr })
+        } else if (hasBevelFilter) {
+          const filtered = existingFilters.filter(f => f !== Konva.Filters.BevelEmboss)
+          node.filters(filtered)
+          node.clearCache()
+        }
+      }
+
       node.getLayer()?.batchDraw()
     })
     return () => cancelAnimationFrame(raf)
@@ -598,6 +624,15 @@ export default React.memo(CanvasImage, (prev, next) => {
     && prev.item.shadowOpacity === next.item.shadowOpacity
     && prev.item.shadowOffsetX === next.item.shadowOffsetX
     && prev.item.shadowOffsetY === next.item.shadowOffsetY
+    && prev.item.bevelEmbossEnabled === next.item.bevelEmbossEnabled
+    && prev.item.bevelEmbossStyle === next.item.bevelEmbossStyle
+    && prev.item.bevelEmbossDepth === next.item.bevelEmbossDepth
+    && prev.item.bevelEmbossAngle === next.item.bevelEmbossAngle
+    && prev.item.bevelEmbossSoftness === next.item.bevelEmbossSoftness
+    && prev.item.bevelEmbossHighlightColor === next.item.bevelEmbossHighlightColor
+    && prev.item.bevelEmbossHighlightOpacity === next.item.bevelEmbossHighlightOpacity
+    && prev.item.bevelEmbossShadowColor === next.item.bevelEmbossShadowColor
+    && prev.item.bevelEmbossShadowOpacity === next.item.bevelEmbossShadowOpacity
     && prev.item.imageStrokeEnabled === next.item.imageStrokeEnabled
     && prev.item.imageStrokeColor === next.item.imageStrokeColor
     && prev.item.imageStrokeWidth === next.item.imageStrokeWidth

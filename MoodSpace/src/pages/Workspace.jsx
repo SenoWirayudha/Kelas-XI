@@ -12963,6 +12963,7 @@ const toggleMobileSheetSize = () => {
 
     const supportsRadius = ['image', 'note', 'card', 'palette'].includes(selectedItem.kind)
     const supportsShadow = ['image', 'text', 'shape', 'frame'].includes(selectedItem.kind) && !selectedItem.isAdjustmentLayer
+    const supportsBevel = ['image', 'text', 'shape'].includes(selectedItem.kind) && !selectedItem.isAdjustmentLayer
 
     return (
       <>
@@ -13517,7 +13518,7 @@ onPointerUp={(e) => {
             )}
           </div>
         )}
-        {supportsShadow && (
+        {supportsBevel && (
           <div className="workspace-section-card">
             <div className="workspace-section-title">Bevel & Emboss</div>
             <label className="workspace-shadow-toggle">
