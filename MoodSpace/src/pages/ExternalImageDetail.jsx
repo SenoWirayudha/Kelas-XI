@@ -92,9 +92,6 @@ function ExternalImageDetail() {
         const relatedQuery = [...(image.tags || []), image.title].filter(Boolean).slice(0, 5).join(' ')
         recommendedQueryRef.current = relatedQuery || image.provider || 'design inspiration'
         const relatedParams = getExternalRelatedSearchParams(image, recommendedQueryRef.current)
-        if (image?.provider === 'tmdb') {
-          relatedParams.includeRecommendations = true
-        }
         relatedParams.visualSimilarTo = decodedId
         relatedParams.semanticText = [image.title, ...(image.tags || [])].filter(Boolean).slice(0, 10).join('. ')
         recommendedExternalParamsRef.current = relatedParams

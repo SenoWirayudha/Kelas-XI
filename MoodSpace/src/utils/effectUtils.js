@@ -157,6 +157,11 @@ export const EFFECTS = [
     { key: 'opacity', label: 'Opacity', type: 'slider', default: 1, min: 0, max: 1, step: 0.01 },
   ]},
 
+  // ── Solid (image only) ──
+  { id: 'solid', label: 'Solid', category: 'color', type: 'object', default: null, icon: 'Circle', params: [
+    { key: 'color', label: 'Color', type: 'color', default: '#000000' },
+  ]},
+
   // ── Bonus ──
   { id: 'jpegDamage', label: 'JPEG Damage', category: 'stylize', type: 'object', default: null, icon: 'FileWarning', params: [
     { key: 'damage', label: 'Damage', type: 'slider', default: 0.4, min: 0, max: 1, step: 0.01 },

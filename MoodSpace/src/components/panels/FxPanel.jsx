@@ -649,6 +649,7 @@ export default function FxPanel({ item, onBack, onUpdate }) {
           const categoryEffects = EFFECTS.filter((e) => e.category === cat.id)
             .filter((e) => !(item.isAdjustmentLayer && ADJUSTMENT_RESTRICTED_EFFECTS.has(e.id)))
             .filter((e) => !(item.kind !== 'text' && e.category === 'text'))
+            .filter((e) => !(item.kind !== 'image' && e.id === 'solid'))
           const CategoryIcon = CATEGORY_ICONS[cat.icon]
           return (
             <div key={cat.id} className="workspace-section-card" style={{ marginBottom: '10px' }}>

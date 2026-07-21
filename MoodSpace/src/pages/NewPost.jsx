@@ -28,6 +28,7 @@ function NewPost() {
   const mediaItemsRef = useRef([])
   const processedExportRef = useRef(false)
   const templateWorkspaceIdRef = useRef(null)
+  const fromWorkspaceRef = useRef(false)
   const [mediaItems, setMediaItems] = useState([])
   const [title, setTitle] = useState('')
   const [caption, setCaption] = useState('')
@@ -122,6 +123,7 @@ function NewPost() {
     const state = location.state
     if (!state?.exportedImage || processedExportRef.current) return
     processedExportRef.current = true
+    fromWorkspaceRef.current = true
     if (state.templateWorkspaceId) {
       templateWorkspaceIdRef.current = state.templateWorkspaceId
     }
@@ -244,7 +246,7 @@ function NewPost() {
         metadata: {
           tags,
           allowComments,
-          source: 'workspace',
+          ...(fromWorkspaceRef.current ? { source: 'workspace' } : {}),
           ...(templateWorkspaceIdRef.current ? { templateWorkspaceId: templateWorkspaceIdRef.current } : {}),
         },
       }
@@ -272,7 +274,7 @@ function NewPost() {
     setError('')
     try {
       const mediaIds = await uploadNewMedia()
-      const body = { title: title.trim(), caption: caption.trim() || null, visibility, mediaIds, metadata: { tags, allowComments, source: 'workspace', ...(templateWorkspaceIdRef.current ? { templateWorkspaceId: templateWorkspaceIdRef.current } : {}) } }
+      const body = { title: title.trim(), caption: caption.trim() || null, visibility, mediaIds, metadata: { tags, allowComments, ...(fromWorkspaceRef.current ? { source: 'workspace' } : {}), ...(templateWorkspaceIdRef.current ? { templateWorkspaceId: templateWorkspaceIdRef.current } : {}) } }
       const postId = editPostId
         ? (await updatePost(editPostId, body)).post.id
         : activeDraftId

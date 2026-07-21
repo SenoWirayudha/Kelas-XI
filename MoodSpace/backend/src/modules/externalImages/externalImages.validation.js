@@ -11,7 +11,6 @@ export const externalImageSearchSchema = z.object({
     tmdbId: z.coerce.number().int().positive().optional(),
     mediaType: z.enum(['movie', 'tv']).optional(),
     visualType: z.enum(['poster', 'backdrop']).optional(),
-    includeRecommendations: z.coerce.boolean().optional(),
     visualSimilarTo: z.string().trim().max(240).optional(),
     semanticText: z.string().trim().max(500).optional(),
   }),

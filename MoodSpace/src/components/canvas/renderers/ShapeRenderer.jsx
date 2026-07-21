@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Group, Rect, Text, Ellipse, RegularPolygon, Star, Arrow, Line, Path } from 'react-konva'
 import { Image as KonvaImage } from 'react-konva'
 
-import { getShadowProps, preloadFont, applyBevelEmbossToNode } from '../../../utils/konvaUtils'
+import { getShadowProps, preloadFont, applyBevelEmbossToNode, applyInnerShadowToNode } from '../../../utils/konvaUtils'
 import { getArrowShapePath, getShapeFillProps, getShapeTextBounds } from '../../../utils/shapeUtils'
 import { effectManager } from '../../../utils/konva-effects-engine'
 
@@ -205,13 +205,16 @@ export default function ShapeRenderer({
     if (hasRgbSplit && shapeChannels) return
     effectManager.applyAll(node, nonRgbEffects)
     applyBevelEmbossToNode(node, item)
+    applyInnerShadowToNode(node, item)
     node.getLayer()?.draw()
     return () => {
       effectManager._clearRepeater(node)
     }
   }, [nonRgbEffects, item.x, item.y, item.rotation, item.w, item.h, hasRgbSplit, shapeChannels,
+      item.fill, item.fillOpacity, item.stroke, item.strokeWidth, item.opacity,
       item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
-      item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity])
+      item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity, item.bevelEmbossHighlightBlendMode, item.bevelEmbossShadowBlendMode,
+      item.innerShadowEnabled, item.innerShadowColor, item.innerShadowOpacity, item.innerShadowBlur, item.innerShadowDistance, item.innerShadowAngle])
 
   useEffect(() => {
     filterItemRef.current = item
@@ -227,13 +230,16 @@ export default function ShapeRenderer({
         effectManager.applyAll(node, rafFx)
       }
       applyBevelEmbossToNode(node, filterItemRef.current)
+      applyInnerShadowToNode(node, filterItemRef.current)
     })
     return () => {
       if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null }
     }
   }, [item.effects, hasRgbSplit, shapeChannels,
+      item.fill, item.fillOpacity, item.stroke, item.strokeWidth, item.opacity,
       item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
-      item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity])
+      item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity, item.bevelEmbossHighlightBlendMode, item.bevelEmbossShadowBlendMode,
+      item.innerShadowEnabled, item.innerShadowColor, item.innerShadowOpacity, item.innerShadowBlur, item.innerShadowDistance, item.innerShadowAngle])
 
   useEffect(() => {
     if (item.fontFamily) preloadFont(item.fontFamily)

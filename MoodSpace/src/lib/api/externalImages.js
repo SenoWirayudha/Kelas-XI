@@ -9,8 +9,8 @@ const withQuery = (path, query = {}) => {
   return suffix ? `${path}?${suffix}` : path
 }
 
-export const searchExternalImages = async ({ q = '', limit = 12, cursor, context, mode, seed, tmdbId, mediaType, visualType, includeRecommendations, visualSimilarTo } = {}) => (
-  apiRequest(withQuery('/external-images/search', { q, limit, cursor, context, mode, seed, tmdbId, mediaType, visualType, includeRecommendations, visualSimilarTo }))
+export const searchExternalImages = async ({ q = '', limit = 12, cursor, context, mode, seed, tmdbId, mediaType, visualType, visualSimilarTo } = {}) => (
+  apiRequest(withQuery('/external-images/search', { q, limit, cursor, context, mode, seed, tmdbId, mediaType, visualType, visualSimilarTo }))
 )
 
 export const ensureExternalImage = async (image) => (

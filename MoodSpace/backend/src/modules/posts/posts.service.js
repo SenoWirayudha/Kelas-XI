@@ -442,7 +442,7 @@ const computePostEmbedding = async (postId) => {
 }
 
 export const serializePost = (post) => {
-  const { _clipScore, embedding: _, ...p } = post
+  const { _clipScore, _semScore, _styleMetrics, _designType, embedding: _, ...p } = post
   return {
     id: p.id,
     postType: p.postType,
@@ -465,6 +465,9 @@ export const serializePost = (post) => {
     status: p.status,
     updatedAt: p.updatedAt,
     ...(_clipScore !== undefined ? { clipScore: _clipScore } : {}),
+    ...(_semScore !== undefined ? { _semScore } : {}),
+    ...(_styleMetrics !== undefined ? { _styleMetrics } : {}),
+    ...(_designType !== undefined ? { _designType } : {}),
     cover: p.coverMediaId ? {
       mediaId: p.coverMediaId,
       url: buildPublicUrl({

@@ -1367,6 +1367,19 @@ export class EffectManager {
         continue
       }
 
+      // ── Solid (image-only fill replacement) ─────────────
+      if (id === 'solid' && val) {
+        const hex = val.color ?? '#000000'
+        const sr = parseInt(hex.slice(1,3),16), sg = parseInt(hex.slice(3,5),16), sb = parseInt(hex.slice(5,7),16)
+        filterList.push(function solidFilter(imgData) {
+          const dd = imgData.data
+          for (let i = 0; i < dd.length; i += 4) {
+            dd[i] = sr; dd[i+1] = sg; dd[i+2] = sb
+          }
+        })
+        continue
+      }
+
       // ── Geometry — diproses terpisah setelah filter ───
       if (id === 'repeater' && val) { this._applyRepeater(node, val); continue }
     }
@@ -1602,6 +1615,14 @@ export class EffectManager {
           d[i] = Math.min(255, r*0.393 + g*0.769 + b*0.189)
           d[i+1] = Math.min(255, r*0.349 + g*0.686 + b*0.168)
           d[i+2] = Math.min(255, r*0.272 + g*0.534 + b*0.131)
+        }
+        continue
+      }
+      if (id === 'solid' && val) {
+        const hex = typeof val === 'string' ? val : (val.color ?? '#000000')
+        const sr = parseInt(hex.slice(1,3),16), sg = parseInt(hex.slice(3,5),16), sb = parseInt(hex.slice(5,7),16)
+        for (let i = 0; i < d.length; i += 4) {
+          d[i] = sr; d[i+1] = sg; d[i+2] = sb
         }
         continue
       }

@@ -7,7 +7,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Group, Rect, Image as KonvaImage, Shape } from 'react-konva'
 import { useCanvasImage } from '../../hooks/useCanvasImages'
-import { getShadowProps, getBevelEmbossProps } from '../../utils/konvaUtils'
+import { getShadowProps, getBevelEmbossProps, getInnerShadowProps } from '../../utils/konvaUtils'
 import Konva from 'konva'
 import { effectManager } from '../../utils/konva-effects-engine'
 import { getClampedCanvasPosition, getCanvasContainedSize } from '../../utils/canvasPositionUtils'
@@ -322,26 +322,47 @@ function CanvasImage({
         effectManager.removeAll(shadowNode)
       }
 
-      // Bevel & Emboss — height-map filter via Konva cache
+      // Layer style filters: Bevel & Emboss + Inner Shadow
       if (!item.isAdjustmentLayer) {
         const existingFilters = node.filters() || []
-        const hasBevelFilter = existingFilters.includes(Konva.Filters.BevelEmboss)
+        const hasBevel = existingFilters.includes(Konva.Filters.BevelEmboss)
+        const hasInnerShadow = existingFilters.includes(Konva.Filters.InnerShadow)
+        const enableBevel = item.bevelEmbossEnabled
+        const enableInnerShadow = item.innerShadowEnabled
+        const needsAny = enableBevel || enableInnerShadow
 
-        if (item.bevelEmbossEnabled) {
-          if (!hasBevelFilter) {
-            node.filters([...existingFilters, Konva.Filters.BevelEmboss])
+        if (needsAny) {
+          // Add filters to chain
+          const newFilters = [...existingFilters]
+          if (enableBevel && !hasBevel) newFilters.push(Konva.Filters.BevelEmboss)
+          if (enableInnerShadow && !hasInnerShadow) newFilters.push(Konva.Filters.InnerShadow)
+          node.filters(newFilters)
+
+          // Set attrs
+          if (enableBevel) {
+            const bevelProps = getBevelEmbossProps(item)
+            for (const [k, v] of Object.entries(bevelProps)) node.setAttr(k, v)
           }
-          const bevelProps = getBevelEmbossProps(item)
-          for (const [k, v] of Object.entries(bevelProps)) {
-            node.setAttr(k, v)
+          if (enableInnerShadow) {
+            const innerProps = getInnerShadowProps(item)
+            for (const [k, v] of Object.entries(innerProps)) node.setAttr(k, v)
           }
-          const depth = item.bevelEmbossDepth ?? 5
-          const soft = item.bevelEmbossSoftness ?? 5
-          const pad = Math.max(10, Math.ceil(depth * 3 + soft * 2))
+
+          // Combined padding
+          const bevelPad = enableBevel
+            ? Math.max(10, Math.ceil((item.bevelEmbossSoftness ?? 5) * 2 + (item.bevelEmbossDepth ?? 5)))
+            : 0
+          const innerPad = enableInnerShadow
+            ? Math.max(5, Math.ceil((item.innerShadowDistance ?? 5) + (item.innerShadowBlur ?? 5) * 2))
+            : 0
+          const pad = Math.max(bevelPad, innerPad)
           const pr = Math.min(window.devicePixelRatio || 1, 2)
+          node.clearCache()
           node.cache({ x: -pad, y: -pad, width: item.w + pad * 2, height: item.h + pad * 2, pixelRatio: pr })
-        } else if (hasBevelFilter) {
-          const filtered = existingFilters.filter(f => f !== Konva.Filters.BevelEmboss)
+        } else if (hasBevel || hasInnerShadow) {
+          const filtered = existingFilters.filter(
+            f => f !== Konva.Filters.BevelEmboss && f !== Konva.Filters.InnerShadow
+          )
           node.filters(filtered)
           if (filtered.length === 0) {
             node.clearCache()
@@ -635,6 +656,8 @@ export default React.memo(CanvasImage, (prev, next) => {
     && prev.item.bevelEmbossHighlightOpacity === next.item.bevelEmbossHighlightOpacity
     && prev.item.bevelEmbossShadowColor === next.item.bevelEmbossShadowColor
     && prev.item.bevelEmbossShadowOpacity === next.item.bevelEmbossShadowOpacity
+    && prev.item.bevelEmbossHighlightBlendMode === next.item.bevelEmbossHighlightBlendMode
+    && prev.item.bevelEmbossShadowBlendMode === next.item.bevelEmbossShadowBlendMode
     && prev.item.imageStrokeEnabled === next.item.imageStrokeEnabled
     && prev.item.imageStrokeColor === next.item.imageStrokeColor
     && prev.item.imageStrokeWidth === next.item.imageStrokeWidth

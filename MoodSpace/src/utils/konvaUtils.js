@@ -48,6 +48,8 @@ export const getBevelEmbossProps = (item) => {
     bevelEmbossHighlightOpacity: item.bevelEmbossHighlightOpacity ?? 1,
     bevelEmbossShadowColor: item.bevelEmbossShadowColor || '#000000',
     bevelEmbossShadowOpacity: item.bevelEmbossShadowOpacity ?? 1,
+    bevelEmbossHighlightBlendMode: item.bevelEmbossHighlightBlendMode || 'linear-dodge',
+    bevelEmbossShadowBlendMode: item.bevelEmbossShadowBlendMode || 'linear-burn',
   }
 }
 
@@ -57,6 +59,8 @@ export const getBevelEmbossProps = (item) => {
  * with appropriate padding so the height-map effect is not clipped.
  * Call this AFTER effectManager.applyAll().
  */
+const DEBUG_BEVEL_CACHE = true
+
 export const applyBevelEmbossToNode = (node, item) => {
   if (!node) return
   if (item.isAdjustmentLayer) return
@@ -74,23 +78,144 @@ export const applyBevelEmbossToNode = (node, item) => {
     }
     const depth = item.bevelEmbossDepth ?? 5
     const soft = item.bevelEmbossSoftness ?? 5
-    const pad = Math.max(10, Math.ceil(depth * 3 + soft * 2))
-    const pr = Math.min(window.devicePixelRatio || 1, 2)
-    let w = typeof node.width === 'function' ? (node.width() || 0) : (node.getAttr('width') || 0)
-    let h = typeof node.height === 'function' ? (node.height() || 0) : (node.getAttr('height') || 0)
-    if (w <= 0 || h <= 0) {
+    const pad = Math.max(10, Math.ceil(soft * 2 + depth))
+    const pr = Math.min(window.devicePixelRatio || 1, 3)
+
+    // Detect transparent fill for non-image items — these need the
+    // dual-buffer approach (real-fill cache + solid-fill mask cache).
+    const hasTransparentFill = item.kind !== 'image' && (item.fill === undefined || item.fill === null || item.fill === '' || item.fill === 'transparent' || item.fill === 'none')
+    const visChild = typeof node.getChildren === 'function' ? node.getChildren()[0] : node
+    const canOverride = visChild && typeof visChild.fill === 'function'
+
+    // Get content bounding box.
+    // Priority: explicit node width/height (Image, Text) → item.w/item.h → getClientRect.
+    let cX = 0, cY = 0, cW = 0, cH = 0
+    const explicitW = typeof node.width === 'function' ? (node.width() || 0) : (node.getAttr('width') || 0)
+    const explicitH = typeof node.height === 'function' ? (node.height() || 0) : (node.getAttr('height') || 0)
+    if (explicitW > 0 && explicitH > 0) {
+      cX = 0; cY = 0
+      cW = explicitW; cH = explicitH
+    } else if ((item.w || 0) > 0 && (item.h || 0) > 0) {
+      cX = 0; cY = 0
+      cW = item.w; cH = item.h
+    } else {
       const cr = node.getClientRect({ skipTransform: true, skipShadow: true, skipStroke: true })
-      if (w <= 0) w = cr.width
-      if (h <= 0) h = cr.height
+      cX = cr.x || 0; cY = cr.y || 0
+      cW = cr.width;  cH = cr.height
     }
-    if (w > 0 && h > 0) {
-      node.cache({ x: -pad, y: -pad, width: w + pad * 2, height: h + pad * 2, pixelRatio: pr })
+
+    if (cW > 0 && cH > 0) {
+      // --- Dual-buffer setup for transparent-fill items ---
+      // Step 1: Cache with the actual fill (may be transparent). This
+      // becomes the "real" render used for base colour/alpha.
+      node.clearCache()
+      node.cache({ x: cX - pad, y: cY - pad, width: cW + pad * 2, height: cH + pad * 2, pixelRatio: pr })
+
+      if (hasTransparentFill && canOverride) {
+        // Read the real-fill cache's pixel data before we overwrite it.
+        const cacheCanvas = typeof node._getCacheCanvas === 'function' && node._getCacheCanvas()
+        if (cacheCanvas) {
+          const ctx = cacheCanvas.getContext('2d')
+          const realData = ctx.getImageData(0, 0, cacheCanvas.width, cacheCanvas.height)
+          node.setAttr('_bevelRealImageData', realData)
+        } else {
+          node.setAttr('_bevelRealImageData', null)
+        }
+
+        // Step 2: Override fill to opaque white and re-cache so the cache
+        // now holds a geometry-accurate alpha mask (glyph contours, shape
+        // outlines, etc.). The filter will use this cache as the height
+        // source and read the stored real data for the base image.
+        const origFill = visChild.fill()
+        const origOpacity = visChild.opacity()
+        visChild.fill('#ffffff')
+        visChild.opacity(1)
+        node.clearCache()
+        node.cache({ x: cX - pad, y: cY - pad, width: cW + pad * 2, height: cH + pad * 2, pixelRatio: pr })
+        visChild.fill(origFill)
+        visChild.opacity(origOpacity)
+      } else {
+        node.setAttr('_bevelRealImageData', null)
+      }
+
+      if (DEBUG_BEVEL_CACHE) {
+        console.log('[BEVEL CACHE]', {
+          pad, cX, cY, cW, cH,
+          cacheX: cX - pad, cacheY: cY - pad,
+          cacheW: cW + pad * 2, cacheH: cH + pad * 2,
+          nodeType: typeof node.width === 'function' ? (node.width() ? 'explicit' : 'group') : 'other',
+          nodeId: item.id,
+          hasBevelFilter,
+          style: item.bevelEmbossStyle,
+          dualBuffer: hasTransparentFill && canOverride,
+        })
+      }
     }
   } else if (hasBevelFilter) {
     const filtered = existingFilters.filter(f => f !== Konva.Filters.BevelEmboss)
     node.filters(filtered)
-    // Keep existing cache intact so other effects (set by effectManager) still work.
-    // The next effectManager.applyAll() call will replace the cache with correct dimensions.
+    if (filtered.length === 0) {
+      node.clearCache()
+    }
+  }
+}
+
+// ─── Inner Shadow ───────────────────────────────────────────────────────────
+
+export const getInnerShadowProps = (item) => {
+  if (!item.innerShadowEnabled) return {}
+  return {
+    innerShadowColor: item.innerShadowColor || '#000000',
+    innerShadowOpacity: item.innerShadowOpacity ?? 0.5,
+    innerShadowBlur: item.innerShadowBlur ?? 5,
+    innerShadowDistance: item.innerShadowDistance ?? 5,
+    innerShadowAngle: item.innerShadowAngle ?? 135,
+  }
+}
+
+export const applyInnerShadowToNode = (node, item) => {
+  if (!node) return
+  if (item.isAdjustmentLayer) return
+
+  const existingFilters = node.filters() || []
+  const hasFilter = existingFilters.includes(Konva.Filters.InnerShadow)
+  const bevelEnabled = item.bevelEmbossEnabled
+
+  if (item.innerShadowEnabled) {
+    if (!hasFilter) {
+      node.filters([...existingFilters, Konva.Filters.InnerShadow])
+    }
+    const props = getInnerShadowProps(item)
+    for (const [k, v] of Object.entries(props)) {
+      node.setAttr(k, v)
+    }
+    const blur = item.innerShadowBlur ?? 5
+    const distance = item.innerShadowDistance ?? 5
+    const innerPad = Math.max(5, Math.ceil(distance + blur * 2))
+    const bevelPad = bevelEnabled
+      ? Math.max(10, Math.ceil((item.bevelEmbossSoftness ?? 5) * 2 + (item.bevelEmbossDepth ?? 5)))
+      : 0
+    const pad = Math.max(innerPad, bevelPad)
+    const pr = Math.min(window.devicePixelRatio || 1, 3)
+    // Get content bounds (same pattern as bevel)
+    let cW = 0, cH = 0
+    const explicitW = typeof node.width === 'function' ? (node.width() || 0) : (node.getAttr('width') || 0)
+    const explicitH = typeof node.height === 'function' ? (node.height() || 0) : (node.getAttr('height') || 0)
+    if (explicitW > 0 && explicitH > 0) {
+      cW = explicitW; cH = explicitH
+    } else if ((item.w || 0) > 0 && (item.h || 0) > 0) {
+      cW = item.w; cH = item.h
+    } else {
+      const cr = node.getClientRect({ skipTransform: true, skipShadow: true, skipStroke: true })
+      cW = cr.width; cH = cr.height
+    }
+    if (cW > 0 && cH > 0) {
+      node.clearCache()
+      node.cache({ x: -pad, y: -pad, width: cW + pad * 2, height: cH + pad * 2, pixelRatio: pr })
+    }
+  } else if (hasFilter) {
+    const filtered = existingFilters.filter(f => f !== Konva.Filters.InnerShadow)
+    node.filters(filtered)
     if (filtered.length === 0) {
       node.clearCache()
     }

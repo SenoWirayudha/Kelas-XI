@@ -16,7 +16,7 @@ import {
   upsertExternalImage,
 } from './externalImages.repository.js'
 import { getTextEmbedding, getImageEmbedding, rerankByQueryEmbedding, averageEmbeddings, cosineSimilarity } from './clip.service.js'
-import { enrichForClipRerank, applySaturationBoost, applyStyleSimilarityBoost } from '../../shared/bwColorBoost.service.js'
+import { enrichForClipRerank, applySaturationBoost, applyStyleSimilarityBoost, detectStyle, computeStyleMetrics } from '../../shared/bwColorBoost.service.js'
 import { computeZeroShotTags } from '../../shared/clipZeroShot.service.js'
 import { clearEntityCache } from '../../shared/entityMatch.service.js'
 
@@ -283,11 +283,35 @@ const encodeCursor = (value) => (
 
 const getProviderLimit = (totalLimit, providerCount) => Math.max(1, Math.ceil(totalLimit / Math.max(1, providerCount)))
 
+const filterAdaptiveFreshness = (items = [], offset = 0, limit = 30, freshDays = 14, tierThreshold = 5) => {
+  if (!items.length) return []
+  const now = Date.now()
+  const DAY_MS = 86400000
+  const tier1 = items.filter(i => i.updatedAt && (new Date(i.updatedAt).getTime() > now - freshDays * DAY_MS))
+  const tier2 = items.filter(i => i.updatedAt && (new Date(i.updatedAt).getTime() > now - freshDays * 2 * DAY_MS))
+  let pool
+  if (tier1.length >= tierThreshold) {
+    pool = tier1
+    console.log('[ADAPTIVE-FRESHNESS] Using tier1 (' + freshDays + 'd):', tier1.length, 'items')
+  } else if (tier2.length >= tierThreshold) {
+    pool = tier2
+    console.log('[ADAPTIVE-FRESHNESS] Using tier2 (' + (freshDays * 2) + 'd):', tier2.length, 'items (tier1 only had ' + tier1.length + ')')
+  } else {
+    pool = items
+    console.log('[ADAPTIVE-FRESHNESS] Using unbounded:', items.length, 'items (tier1:', tier1.length, ', tier2:', tier2.length, ')')
+  }
+  return pool.slice(offset, offset + limit)
+}
+
 const homeFallbackQueries = {
   'for-you': ['design inspiration editorial poster moodboard'],
   recent: ['contemporary design photography inspiration'],
   popular: ['popular creative design poster photography'],
 }
+
+// Style floor: only activate for styles with low false-positive risk (calibrated via real image sampling)
+const RELIABLE_FLOOR_STYLES = ['bw', 'warm', 'vibrant']
+const STYLE_FLOOR_THRESHOLDS = { bw: 0.90, warm: 0.15, vibrant: 0.35 }
 
 const queryExpansionMap = [
   { match: ['film poster', 'movie poster', 'poster'], queries: ['editorial poster', 'minimal poster', 'cinematic poster'] },
@@ -757,12 +781,12 @@ const fetchTmdbTrendingMovies = async () => {
   const now = Date.now()
   if (!tmdbTrendingCache.trending || now > tmdbTrendingCache.trendingExpiry) {
     const payload = await safeFetchTmdb('/trending/movie/week', { page: '1' })
-    tmdbTrendingCache.trending = (payload.results || []).map((m) => ({ ...m, media_type: 'movie', _source: 'trending' }))
+    tmdbTrendingCache.trending = (payload.results || []).filter((r) => !r.adult).map((m) => ({ ...m, media_type: 'movie', _source: 'trending' }))
     tmdbTrendingCache.trendingExpiry = now + tmdbTrendingCache.ttl
   }
   if (!tmdbTrendingCache.popular || now > tmdbTrendingCache.popularExpiry) {
     const payload = await safeFetchTmdb('/movie/popular', { page: '1' })
-    tmdbTrendingCache.popular = (payload.results || []).map((m) => ({ ...m, media_type: 'movie', _source: 'popular' }))
+    tmdbTrendingCache.popular = (payload.results || []).filter((r) => !r.adult).map((m) => ({ ...m, media_type: 'movie', _source: 'popular' }))
     tmdbTrendingCache.popularExpiry = now + tmdbTrendingCache.ttl
   }
   return { trending: tmdbTrendingCache.trending, popular: tmdbTrendingCache.popular }
@@ -846,19 +870,47 @@ const searchTmdb = async ({ query, limit, cursor }) => {
   if (!entity) {
     let bestMatch = null
     const searchQueries = buildMovieSearchVariants(classifier)
-    console.log('[TMDB-DEBUG] searchTmdb searchQueries:', searchQueries)
+    const queryYear = searchQueries[0]?.match(/\b(19|20)\d{2}\b/)?.[0]
+    console.log('[TMDB-DEBUG] searchTmdb searchQueries:', searchQueries, { queryYear })
     for (const sq of searchQueries) {
       const multiPayload = await safeFetchTmdb('/search/multi', {
         query: sq,
         page: '1',
       })
-      const results = multiPayload.results || []
+      const results = (multiPayload.results || []).filter((r) => !r.adult)
       const movieCount = results.filter((r) => r.media_type === 'movie').length
       const tvCount = results.filter((r) => r.media_type === 'tv').length
       console.log('[TMDB-DEBUG] searchTmdb multi results:', { sq, total: results.length, movieCount, tvCount })
-      const entities = results
+      let entities = results
         .filter((r) => r.media_type === 'movie' || r.media_type === 'tv')
         .slice(0, 5)
+
+      // Hybrid: when year is detected in the query, also search /search/movie
+      // with primary_release_year to surface the year-precise movie that
+      // /search/multi's text-ranking might deprioritize (e.g. "Resurrection 2025"
+      // losing to the more popular "Resurrection (2014)").
+      // Non-blocking — if the extra call fails, fall back to /search/multi candidates.
+      if (queryYear && sq.includes(queryYear)) {
+        const moviePayload = await safeFetchTmdb('/search/movie', {
+          query: sq,
+          primary_release_year: queryYear,
+          page: '1',
+        }).catch(() => null)
+        if (moviePayload?.results?.length) {
+          const yearResults = moviePayload.results
+            .filter(r => !r.adult)
+            .filter(r => !r.media_type || r.media_type === 'movie')
+            .map(r => ({ ...r, media_type: 'movie' }))
+          const seenIds = new Set(entities.map(e => e.id))
+          for (const m of yearResults) {
+            if (!seenIds.has(m.id)) {
+              seenIds.add(m.id)
+              entities.push(m)
+            }
+          }
+        }
+      }
+
       console.log('[TMDB-DEBUG] searchTmdb entities for scoring:', entities.map((e) => ({ id: e.id, type: e.media_type, name: e.title || e.name, pop: e.popularity })))
       const enriched = await Promise.all(entities.map(enrichTmdbEntityForMatching))
       const scored = enriched.map((item) => ({ entity: item, score: scoreTmdbEntity(item, classifier) }))
@@ -935,34 +987,6 @@ const searchTmdbByEntity = async ({ tmdbId, mediaType = 'movie', visualType = 'p
   })
 )
 
-const searchTmdbRecommendations = async ({ tmdbId, mediaType = 'movie', visualType = 'poster', limit = 12 }) => {
-  if (!env.TMDB_API_KEY) return []
-  const type = mediaType === 'tv' ? 'tv' : 'movie'
-  const path = `/${type}/${tmdbId}/recommendations`
-  const payload = await safeFetchTmdb(path, { page: '1' }).catch(() => null)
-  if (!payload?.results?.length) return []
-  const recIds = payload.results.slice(0, 6).map((r) => r.id)
-  const perMovieLimit = Math.max(1, Math.ceil(limit / Math.max(1, recIds.length)))
-  const allItems = []
-  const seenIds = new Set()
-  for (const recId of recIds) {
-    const result = await searchTmdbByEntity({
-      tmdbId: recId,
-      mediaType: type,
-      visualType,
-      limit: perMovieLimit,
-    })
-    for (const item of result.items || []) {
-      if (!seenIds.has(item.id)) {
-        seenIds.add(item.id)
-        allItems.push(item)
-      }
-    }
-    if (allItems.length >= limit) break
-  }
-  return allItems.slice(0, limit)
-}
-
 const searchTmdbCompany = async ({ query, limit }) => {
   if (!env.TMDB_API_KEY) return { provider: 'tmdbCompany', items: [], cursor: null, disabled: true }
   const companyPayload = await safeFetchTmdb('/search/company', { query, page: '1' })
@@ -1002,7 +1026,7 @@ const searchTmdbCompany = async ({ query, limit }) => {
     })
   })
 
-  const movies = discoverPayload.results || []
+  const movies = (discoverPayload.results || []).filter((r) => !r.adult)
   if (movies.length) {
     const movieImages = await Promise.all(movies.map(async (movie) => {
       const imgPayload = await safeFetchTmdb(`/movie/${movie.id}/images`, { include_image_language: 'en,null' })
@@ -1034,7 +1058,7 @@ const searchTmdbCompany = async ({ query, limit }) => {
 const searchTmdbPerson = async ({ query, limit }) => {
   if (!env.TMDB_API_KEY) return { provider: 'tmdbPerson', items: [], cursor: null, disabled: true }
   const personPayload = await safeFetchTmdb('/search/person', { query, page: '1' })
-  const people = (personPayload.results || []).slice(0, 3)
+  const people = (personPayload.results || []).filter((r) => !r.adult).slice(0, 3)
   if (!people.length) return { provider: 'tmdbPerson', items: [], cursor: null }
   const queryNorm = normalizeTag(query)
   const scored = people.map((p) => ({ entity: p, score: scorePersonName(p.name, queryNorm, p.popularity) }))
@@ -1091,6 +1115,7 @@ const searchTmdbCredits = async ({ query, limit }) => {
   const searchQuery = classifier.titleCandidate || classifier.normalizedQuery || query
   const multiPayload = await safeFetchTmdb('/search/multi', { query: searchQuery, page: '1' })
   const entities = (multiPayload.results || [])
+    .filter((r) => !r.adult)
     .filter((r) => r.media_type === 'movie' || r.media_type === 'tv')
     .slice(0, 3)
   const enriched = await Promise.all(entities.map(enrichTmdbEntityForMatching))
@@ -1536,67 +1561,97 @@ const uniqueItemsById = (items = []) => {
   })
 }
 
-const recCache = new Map()
-const REC_CACHE_TTL = 10 * 60 * 1000
-
-export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, context = '', mode = 'for-you', seed = '', viewerId = null, tmdbId = null, mediaType = 'movie', visualType = 'poster', includeRecommendations = false, visualSimilarTo = '', semanticText = '' } = {}) => {
+export const searchExternalImages = async ({
+  q = '', limit = 12, cursor = null, context = '',
+  mode = 'for-you', seed = '', viewerId = null,
+  tmdbId = null, mediaType = 'movie', visualType = 'poster',
+  visualSimilarTo = '', semanticText = '',
+} = {}) => {
   if (tmdbId) {
     const decodedCursor = decodeCursor(cursor)
-    const tmdbCursor = decodedCursor?.queries?.[0]?.tmdb || decodedCursor?.tmdb || null
-    const tmdbResult = await searchTmdbByEntity({
-      tmdbId,
-      mediaType,
-      visualType,
-      limit,
-      cursor: tmdbCursor,
-    })
+    const tmdbCursor = decodedCursor?.queries?.[0]?.tmdb
+      || decodedCursor?.tmdb || null
 
-    let items = tmdbResult.items || []
-    let adjustedCursor = tmdbResult.cursor
+    // ─── Path 1: poster film yang sama (hanya page 1, max 2 item) ───
+    let path1Items = []
+    if (!tmdbCursor) {
+      const tmdbResult = await searchTmdbByEntity({
+        tmdbId, mediaType, visualType, limit: 2,
+      })
+      path1Items = (tmdbResult.items || []).slice(0, 2)
+    }
+    let items = [...path1Items]
 
-    if (includeRecommendations) {
-      const cacheKey = `${tmdbId}:${mediaType}:${visualType}`
-      let recItems = []
-      const cached = recCache.get(cacheKey)
-      if (cached && Date.now() - cached.ts < REC_CACHE_TTL) {
-        recItems = cached.data
-      } else if (!tmdbCursor) {
-        recItems = await searchTmdbRecommendations({
-          tmdbId,
-          mediaType,
-          visualType,
-          limit: Math.min(limit, 12),
-        })
-        recCache.set(cacheKey, { data: recItems, ts: Date.now() })
-      }
-      if (recItems.length) {
-        const mainIds = new Set(items.map(i => i.id))
-        const uniqueRecItems = recItems.filter(i => !mainIds.has(i.id))
-        const recOffset = Number(tmdbCursor?.recOffset || 0)
-        const currentMainOffset = Number(tmdbCursor?.offset || 0)
-        const mixed = []
-        let mi = 0, ri = recOffset
-        while (mi < items.length && mixed.length < limit) {
-          for (let c = 0; c < 2 && mi < items.length && mixed.length < limit; c++) {
-            mixed.push(items[mi++])
-          }
-          if (ri < uniqueRecItems.length && mixed.length < limit) {
-            mixed.push(uniqueRecItems[ri++])
+    // ─── Path 3: visual similarity (paginated, dominan) ───
+    let adjustedCursor = null
+    const VIS_BATCH = 8
+
+    if (context === 'recommended' && visualSimilarTo) {
+      const ids = visualSimilarTo.split(',').filter(Boolean)
+      if (ids.length) {
+        let emb = await findAnyEmbedding({ id: ids[0] }).catch(() => null)
+        if (!emb) {
+          const sourceItem = items.find(i => i.id === ids[0])
+          if (sourceItem?.url) {
+            emb = await getImageEmbedding(sourceItem.url).catch(() => null)
           }
         }
-        items = mixed
-        if (tmdbResult.cursor) {
-          adjustedCursor = {
-            ...tmdbResult.cursor,
-            offset: currentMainOffset + mi,
-            recOffset: ri,
+        if (emb) {
+          const visOffset = Number(tmdbCursor?.visualSimOffset || 0)
+          const excludeIds = visOffset === 0
+            ? [...new Set(items.map(i => i.id))]
+            : []
+          const visResults = await findImagesByVisualSimilarity({
+            embedding: emb,
+            limit: VIS_BATCH,
+            offset: visOffset,
+            excludeIds,
+          }).catch(() => [])
+          const seenIds = new Set(items.map(i => i.id))
+          const keep = []
+          for (const v of visResults) {
+            if (!seenIds.has(v.id)) {
+              const { _embedding, ...rest } = v
+              keep.push(rest)
+            }
           }
+          if (keep.length) {
+            items.splice(0, 0, ...keep)
+          }
+          const hasMoreVis = visResults.length >= VIS_BATCH
+          const nextVisOffset = visOffset + visResults.length
+
+          console.log('[RECOMMENDED] Komposisi page:', {
+            page: visOffset > 0 ? Math.floor(visOffset / VIS_BATCH) + 2 : 1,
+            path1Count: path1Items.length,
+            path3Requested: VIS_BATCH,
+            path3Returned: visResults.length,
+            path3AfterDedup: keep.length,
+            totalReturned: items.length,
+            hasMore: hasMoreVis,
+          })
+
+          if (hasMoreVis) {
+            adjustedCursor = {
+              mediaId: Number(tmdbId),
+              mediaType,
+              visualType,
+              visualSimOffset: nextVisOffset,
+            }
+          }
+        } else {
+          console.log('[RECOMMENDED] Visual similarity skipped: no embedding')
         }
       }
     }
 
     const nextCursor = adjustedCursor
-      ? encodeCursor({ queries: { 0: { __query: `tmdb:${mediaType}:${tmdbId}:${visualType}`, tmdb: adjustedCursor } } })
+      ? encodeCursor({
+          queries: { 0: {
+            __query: `tmdb:${mediaType}:${tmdbId}:${visualType}`,
+            tmdb: adjustedCursor,
+          }}
+        })
       : null
     return {
       providers: [{
@@ -1604,8 +1659,8 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
         query: `tmdb:${mediaType}:${tmdbId}:${visualType}`,
         requested: limit,
         count: items.length || 0,
-        disabled: !!tmdbResult.disabled,
-        error: tmdbResult.error || null,
+        disabled: false,
+        error: null,
       }],
       query: `tmdb:${mediaType}:${tmdbId}:${visualType}`,
       generatedQueries: [`tmdb:${mediaType}:${tmdbId}:${visualType}`],
@@ -1747,7 +1802,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
           item._embedding = storedEmbeddings[item.id]
         }
       }
-      computeAndStoreEmbeddings(items).catch(() => {})
+      computeAndStoreEmbeddings(items, semanticText || queries.join(' ') || q || 'browse_asset').catch(() => {})
     }
     const rerankedItems = queryEmbedding ? rerankByQueryEmbedding(items, queryEmbedding) : items
     // Saturation boost for B&W queries: prioritize low-saturation (grayscale) items
@@ -1768,6 +1823,58 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
       items: boostedItems,
       nextCursor: null,
     }
+  }
+
+  // Hoist text embedding — dipakai oleh DB text-mix (C2) dan CLIP rerank (Step F)
+  const rerankText = enrichForClipRerank(semanticText || queries.join(' '))
+  const textEmb = await getTextEmbedding(rerankText).catch(() => null)
+
+  // === HOME FEED: DB-first priority search ===
+  // Fetches items from external_images TABLE via CLIP text embedding,
+  // then supplements with profile-based serendipity pool.
+  // API calls only as fallback if DB items insufficient for limit*3.
+  let homeDbTextOffset = 0
+  let homeProfileOffset = 0
+  let homeDbItems = []
+  let homeProfilePoolItems = []
+  let skipApiForHome = false
+
+  if (context === 'home') {
+    homeDbTextOffset = Number(decodedCursor?.dbTextOffset) || 0
+    homeProfileOffset = Number(decodedCursor?.profileOffset) || 0
+
+    if (textEmb) {
+      console.time('[HOME-DB-FIRST] Text similarity search')
+      const rawTextItems = await findImagesByVisualSimilarity({ embedding: textEmb, limit: 500, offset: 0 })
+      console.timeEnd('[HOME-DB-FIRST] Text similarity search')
+      homeDbItems = filterAdaptiveFreshness(rawTextItems, homeDbTextOffset, limit * 3, 14, 5)
+      console.log('[HOME-DB-FIRST] DB text items:', homeDbItems.length, 'at offset', homeDbTextOffset)
+    }
+
+    if (viewerId && !visualSimilarTo && !semanticText) {
+      const profileEmb = await getUserProfileEmbedding(viewerId).catch(() => null)
+      if (profileEmb) {
+        console.time('[HOME-DB-FIRST] Profile pool')
+        const rawProfItems = await findImagesByVisualSimilarity({ embedding: profileEmb, limit: 500, offset: 0 })
+        console.timeEnd('[HOME-DB-FIRST] Profile pool')
+        homeProfilePoolItems = filterAdaptiveFreshness(rawProfItems, homeProfileOffset, 6, 30, 3)
+          .map((item) => {
+            const { _embedding, createdAt, updatedAt, ...rest } = item
+            return { ...rest, clipScore: item._clipScore }
+          })
+        if (!hasMusicQuery) {
+          homeProfilePoolItems = homeProfilePoolItems.filter((i) => i.provider !== 'itunes')
+        }
+        homeProfilePoolItems = homeProfilePoolItems.filter((i) => {
+          if (i.provider === 'tmdb' || i.provider === 'itunes') return true
+          return isDesignItem(i)
+        })
+        console.log('[HOME-DB-FIRST] Profile pool items:', homeProfilePoolItems.length, 'at offset', homeProfileOffset)
+      }
+    }
+
+    skipApiForHome = homeDbItems.length >= limit * 3
+    console.log('[HOME-DB-FIRST] skipApi:', skipApiForHome, '| dbItems:', homeDbItems.length, '| needed:', limit * 3)
   }
 
   const requests = querySlots.flatMap(({ query, slots }, queryIndex) => {
@@ -1809,35 +1916,85 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     return built
   })
 
-  const results = await Promise.allSettled(requests.map((request) => (
-    request.searcher({ query: request.query, limit: request.limit, cursor: request.cursor })
-  )))
+  let providerResults = []
+  let nextCursor = {}
+  let hasActiveCursor = false
+  let items = []
 
-  const providerResults = results.map((result, index) => {
-    const request = requests[index]
-    return result.status === 'fulfilled'
-      ? { ...result.value, query: request.query, queryIndex: request.queryIndex }
-      : { provider: request.provider, query: request.query, queryIndex: request.queryIndex, items: [], cursor: null, error: result.reason?.message || 'Provider failed' }
-  })
+  if (!skipApiForHome) {
+    const apiResults = await Promise.allSettled(requests.map((request) => (
+      request.searcher({ query: request.query, limit: request.limit, cursor: request.cursor })
+    )))
+    providerResults = apiResults.map((result, index) => {
+      const request = requests[index]
+      return result.status === 'fulfilled'
+        ? { ...result.value, query: request.query, queryIndex: request.queryIndex }
+        : { provider: request.provider, query: request.query, queryIndex: request.queryIndex, items: [], cursor: null, error: result.reason?.message || 'Provider failed' }
+    })
+    providerResults.forEach((result) => {
+      if (result.provider === 'tmdb' || result.provider === 'tmdbCredits' || result.provider === 'tmdbPerson' || result.provider === 'itunes') return
+      if (result.items?.length && context !== 'browse_asset') {
+        result.items = result.items.filter(isDesignItem)
+      }
+    })
+    nextCursor = providerResults.reduce((acc, result) => {
+      if (!acc.queries) acc.queries = {}
+      if (!acc.queries[result.queryIndex]) acc.queries[result.queryIndex] = {}
+      acc.queries[result.queryIndex].__query = result.query
+      acc.queries[result.queryIndex][result.provider] = result.cursor || { exhausted: true }
+      return acc
+    }, {})
+    hasActiveCursor = providerResults.some((result) => !!result.cursor)
+    items = uniqueItemsById(
+      interleaveProviderItems(providerResults, limit * 2, { preferTmdb: hasMovieQuery && !hasMusicQuery, preferCoverArt: hasMusicQuery, hasMusicQuery }),
+    ).slice(0, limit * 3)
+  }
 
-  providerResults.forEach((result) => {
-    if (result.provider === 'tmdb' || result.provider === 'tmdbCredits' || result.provider === 'tmdbPerson' || result.provider === 'itunes') return
-    if (result.items?.length && context !== 'browse_asset') {
-      result.items = result.items.filter(isDesignItem)
+  // Merge DB-first items into the mix for home feed.
+  // DB items come first (higher priority), API items supplement if needed.
+  if (context === 'home' && (homeDbItems.length || homeProfilePoolItems.length)) {
+    const existingIds = new Set(items.map(i => i.id))
+    const uniqueDb = homeDbItems.filter(i => !existingIds.has(i.id))
+    const uniqueProf = homeProfilePoolItems.filter(i => !existingIds.has(i.id) && !uniqueDb.some(d => d.id === i.id))
+    items = [...uniqueDb, ...uniqueProf, ...items].slice(0, limit * 3)
+  }
+
+  // [NEW] DB text similarity mix: only on first page (no cursor = initial search).
+  // Adds stored external_images whose CLIP embeddings match the query text.
+  // Skipped on paginated pages to avoid repetitive results — provider API
+  // variety handles subsequent pages naturally.
+  let dbMixIds = new Set()
+  if (context === 'home' && homeDbItems.length) {
+    // Style floor untuk home feed: lacak item dari DB text similarity yang survive ke pool.
+    // Ter-set tiap page (cursor-based offset), beda dengan search yang page-1-only.
+    const mergedIds = new Set(items.map(i => i.id))
+    dbMixIds = new Set(homeDbItems.filter(i => mergedIds.has(i.id)).map(i => i.id))
+    console.log('[STYLE-FLOOR-DEBUG] Home dbMixIds set:', dbMixIds.size, 'items')
+  }
+  if (textEmb && !(context === 'browse_asset') && context !== 'home' && queries.length && !decodedCursor?.queries) {
+    const dbTextItems = await findImagesByVisualSimilarity({
+      embedding: textEmb,
+      limit: Math.min(limit, 8),
+      offset: 0,
+      excludeIds: items.map(i => i.id).filter(Boolean),
+    })
+    if (dbTextItems.length) {
+      const existingIds = new Set(items.map(i => i.id))
+      const unique = dbTextItems.filter(i => !existingIds.has(i.id))
+      if (unique.length) {
+        dbMixIds = new Set(unique.map(i => i.id))
+        // Interleave 3 API : 1 DB (pola sama dengan Step C, line 1893-1901)
+        const mixed = []
+        let ai = 0, di = 0
+        while (ai < items.length || di < unique.length) {
+          for (let c = 0; c < 3 && ai < items.length; c++) mixed.push(items[ai++])
+          if (di < unique.length) mixed.push(unique[di++])
+        }
+        items.splice(0, items.length, ...mixed.slice(0, limit * 3))
+        console.log('[DB-TEXT-MIX] mixed', unique.length, 'DB items into', items.length, 'total items for query:', queries.join(', '))
+      }
     }
-  })
-
-  const nextCursor = providerResults.reduce((acc, result) => {
-    if (!acc.queries) acc.queries = {}
-    if (!acc.queries[result.queryIndex]) acc.queries[result.queryIndex] = {}
-    acc.queries[result.queryIndex].__query = result.query
-    acc.queries[result.queryIndex][result.provider] = result.cursor || { exhausted: true }
-    return acc
-  }, {})
-  const hasActiveCursor = providerResults.some((result) => !!result.cursor)
-  const items = uniqueItemsById(
-    interleaveProviderItems(providerResults, limit * 2, { preferTmdb: hasMovieQuery && !hasMusicQuery, preferCoverArt: hasMusicQuery, hasMusicQuery }),
-  ).slice(0, limit * 3)
+  }
 
   // For recommended context, skip text providers and use visual similarity as primary
   if (context === 'recommended' && !!visualSimilarTo) {
@@ -1930,7 +2087,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
   // Visual similarity pool — profile-based discovery for home feed
   // Uses stored user embedding (from EMA profile) to find visually similar
   // external images, independent of keyword/title search.
-  if (context === 'home' && viewerId && !visualSimilarTo && !semanticText) {
+  if (context === 'home' && viewerId && !visualSimilarTo && !semanticText && !homeProfilePoolItems.length) {
     const profileEmb = await getUserProfileEmbedding(viewerId).catch(() => null)
     if (profileEmb) {
       const POOL_LIMIT = 6
@@ -1961,8 +2118,6 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     }
   }
 
-  const rerankText = enrichForClipRerank(semanticText || queries.join(' '))
-  const textEmb = await getTextEmbedding(rerankText).catch(() => null)
   let imageEmb = null
   if (visualSimilarTo) {
     const ids = visualSimilarTo.split(',').filter(Boolean)
@@ -1979,7 +2134,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
     const pendingCount = items.filter((i) => !i._embedding).length
     console.log('[CLIP] Background embedding:',
       pendingCount ? `computing ${pendingCount} new items` : 'all ' + items.length + ' items already cached')
-    computeAndStoreEmbeddings(items).then((stored) => {
+    computeAndStoreEmbeddings(items, q || semanticText || rerankText || 'main_search').then((stored) => {
       if (stored?.length) console.log('[CLIP] Background embedding stored:', stored.length, 'new items')
     }).catch((error) => {
       console.error('[CLIP] Background embedding failed:', error.message)
@@ -2046,6 +2201,102 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
   }
   let finalItems = entityCapped.slice(0, limit)
 
+  // Conditional style floor: ensure at least 1 DB text-mix item with strong visual
+  // style evidence survives into the final result. Only activates when the query has
+  // an explicit style intent (e.g. "black and white poster film") and only for styles
+  // with low false-positive risk (bw/warm/vibrant). DB-mix items are the only source
+  // with real pixel-level style metrics; provider API results match by text/title only.
+  const detectedFloorStyles = detectStyle(bwRerankText).filter(s => RELIABLE_FLOOR_STYLES.includes(s))
+  console.log('[STYLE-FLOOR-DEBUG] entry gate:', {
+    detectedStyles: detectStyle(bwRerankText),
+    floorStyles: detectedFloorStyles,
+    dbMixIdsSize: dbMixIds.size,
+    dbMixIds: [...dbMixIds],
+  })
+  if (detectedFloorStyles.length && dbMixIds.size) {
+    const dbInFinal = finalItems.filter(i => dbMixIds.has(i.id))
+    const hasStyleDbInFinal = dbInFinal.some(item => {
+      const metrics = item._styleMetrics
+      if (!metrics) return false
+      return detectedFloorStyles.some(style => (metrics[style] || 0) >= (STYLE_FLOOR_THRESHOLDS[style] || 0))
+    })
+    console.log('[STYLE-FLOOR-DEBUG] hasStyleDbInFinal:', hasStyleDbInFinal, 'dbInFinal count:', dbInFinal.length, 'dbInFinal ids:', dbInFinal.map(i => i.id))
+    if (!hasStyleDbInFinal) {
+      // Debug: show every DB item's _styleMetrics status
+      const dbMetricsStatus = entityCapped
+        .filter(item => dbMixIds.has(item.id))
+        .map(item => ({
+          id: item.id,
+          title: item.title?.slice(0, 30),
+          hasMetrics: !!item._styleMetrics,
+          bw: item._styleMetrics?.bw?.toFixed(4),
+          warm: item._styleMetrics?.warm?.toFixed(4),
+          clipScore: item.clipScore?.toFixed(4),
+          inFinalItems: finalItems.some(fi => fi.id === item.id),
+        }))
+      console.log('[STYLE-FLOOR-DEBUG] DB items metrics status:', JSON.stringify(dbMetricsStatus))
+      let dbCandidates = entityCapped
+        .filter(item => dbMixIds.has(item.id) && item._styleMetrics)
+        .filter(item => detectedFloorStyles.some(style =>
+          (item._styleMetrics[style] || 0) >= (STYLE_FLOOR_THRESHOLDS[style] || 0)
+        ))
+        .sort((a, b) => (b.clipScore || 0) - (a.clipScore || 0))
+      console.log('[STYLE-FLOOR-DEBUG] dbCandidates after threshold filter:', dbCandidates.length, dbCandidates.map(i => ({ id: i.id, bw: i._styleMetrics?.bw?.toFixed(4), clipScore: i.clipScore?.toFixed(4) })))
+
+      // On-demand computeStyleMetrics for DB items that failed thumbnail fetch
+      // in applySaturationBoost's batch (only first 24 items processed; many hit
+      // the 4s timeout due to concurrent requests). Sequential per-item with 8s
+      // timeout to avoid CDN congestion.
+      if (dbCandidates.length === 0) {
+        const missingMetrics = entityCapped.filter(item => dbMixIds.has(item.id) && !item._styleMetrics)
+        if (missingMetrics.length > 0) {
+          console.log('[STYLE-FLOOR-DEBUG] on-demand compute starting for', missingMetrics.length, 'DB items:', missingMetrics.map(i => ({ id: i.id, title: i.title?.slice(0, 30), url: (i.thumbnailUrl || i.url || '').slice(0, 60) })))
+          for (const dbItem of missingMetrics) {
+            const thumbnailUrl = dbItem.thumbnailUrl || dbItem.url
+            if (thumbnailUrl) {
+              const metrics = await computeStyleMetrics(thumbnailUrl, 8000)
+              if (metrics) {
+                dbItem._styleMetrics = metrics
+                console.log('[STYLE-FLOOR-DEBUG] on-demand computed for', dbItem.id.slice(0, 30), ':', JSON.stringify(metrics))
+              }
+            }
+          }
+          dbCandidates = entityCapped
+            .filter(item => dbMixIds.has(item.id) && item._styleMetrics)
+            .filter(item => detectedFloorStyles.some(style =>
+              (item._styleMetrics[style] || 0) >= (STYLE_FLOOR_THRESHOLDS[style] || 0)
+            ))
+            .sort((a, b) => (b.clipScore || 0) - (a.clipScore || 0))
+          console.log('[STYLE-FLOOR-DEBUG] on-demand compute: tried', missingMetrics.length, 'items, got', dbCandidates.length, 'candidates after recheck')
+        }
+      }
+
+      if (dbCandidates.length > 0) {
+        const finalIds = new Set(finalItems.map(i => i.id))
+        const bestDb = dbCandidates.find(i => !finalIds.has(i.id))
+        if (bestDb) {
+          const replaceable = finalItems
+            .map((item, idx) => ({ item, idx }))
+            .filter(({ item }) => !dbMixIds.has(item.id))
+            .sort((a, b) => (a.item.clipScore || 0) - (b.item.clipScore || 0))
+          if (replaceable.length > 0) {
+            bestDb._styleFloorSwapped = true
+            finalItems[replaceable[0].idx] = bestDb
+            console.log('[STYLE-FLOOR-DEBUG] swap executed: replaceable[0].idx =', replaceable[0].idx, 'bestDb.id =', bestDb.id)
+            console.log('[STYLE-FLOOR] swapped item for style:', {
+              styles: detectedFloorStyles.join(','),
+              dbTitle: bestDb.title?.slice(0, 40),
+              dbScore: bestDb.clipScore?.toFixed(4),
+              dbMetrics: bestDb._styleMetrics,
+              replacedTitle: replaceable[0].item.title?.slice(0, 40),
+              replacedScore: replaceable[0].item.clipScore?.toFixed(4),
+            })
+          }
+        }
+      }
+    }
+  }
+
   // Design floor for home feed: ensure at least 2 non-TMDB items when
   // the user has design interest signals (non-movie queries from tags).
   // Without this, CLIP rerank centralizes all slots to film items and
@@ -2099,6 +2350,8 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
           const replaceable = finalItems
             .map((item, idx) => ({ item, idx }))
             .filter(({ item }) => item.provider !== 'tmdb' && item.provider !== 'tmdbCredits')
+            .filter(({ item }) => !item._styleFloorSwapped)
+            .filter(({ item }) => !dbMixIds.has(item.id))
             .sort((a, b) => (a.item.clipScore || 0) - (b.item.clipScore || 0))
           if (replaceable.length > 0) {
             finalItems[replaceable[0].idx] = bestTmdb
@@ -2111,7 +2364,19 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
 
   // Build hybrid cursor for recommended visual context
   let finalCursor = null
-  if (context === 'recommended' && visualSimilarTo) {
+  if (context === 'home') {
+    // DB-first cursor: track offsets for DB text and profile pool
+    const dbMorePages = homeDbItems.length >= limit * 3 || hasActiveCursor
+    if (dbMorePages) {
+      finalCursor = {
+        dbTextOffset: homeDbTextOffset + limit * 3,
+        profileOffset: homeProfileOffset + 6,
+      }
+      if (nextCursor?.queries) finalCursor.queries = nextCursor.queries
+    } else {
+      finalCursor = { exhausted: true }
+    }
+  } else if (context === 'recommended' && visualSimilarTo) {
     if (!visExhausted) {
       // Visual similarity has more pages — advance visOffset, carry provider cursors
       finalCursor = { visOffset: visOffset + limit }
@@ -2167,7 +2432,7 @@ export const searchExternalImages = async ({ q = '', limit = 12, cursor = null, 
   }
 }
 
-const computeAndStoreEmbeddings = async (items) => {
+const computeAndStoreEmbeddings = async (items, sourceQuery = '') => {
   const batch = items.filter((item) => !item._embedding)
   console.log('[CLIP] computeAndStoreEmbeddings called, batch:', batch.length, 'of', items.length)
   if (!batch.length) return []
@@ -2211,7 +2476,9 @@ const computeAndStoreEmbeddings = async (items) => {
           author: item.author || null,
           license: item.license || null,
           sourceUrl: item.sourceUrl || item.source_url || null,
-          metadata: item.metadata || {},
+          metadata: sourceQuery
+            ? { ...item.metadata, sourceQuery }
+            : item.metadata || {},
           _embedding: embedding,
         })
         stored.push(id)

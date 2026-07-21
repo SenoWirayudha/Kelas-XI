@@ -688,7 +688,7 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
           </button>
           <button className="project-import-btn" type="button" onClick={() => { setCreateError(''); setImportLink(''); setShowImportModal(true) }}>
             <Upload size={16} strokeWidth={1.9} />
-            Import Template
+            <span className="import-label">Import Template</span>
           </button>
         </div>
       </header>
@@ -710,7 +710,7 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Link2 size={14} /> Link Template
                 </span>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="import-link-row" style={{ display: 'flex', gap: 8 }}>
                   <input
                     type="text"
                     placeholder="Paste link template di sini"

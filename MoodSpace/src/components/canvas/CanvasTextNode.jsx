@@ -4,7 +4,7 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Group, Image, Rect, Shape, Text } from 'react-konva'
-import { preloadFont, getShadowProps, applyBevelEmbossToNode } from '../../utils/konvaUtils'
+import { preloadFont, getShadowProps, applyBevelEmbossToNode, applyInnerShadowToNode } from '../../utils/konvaUtils'
 import { getClampedCanvasPosition } from '../../utils/canvasPositionUtils'
 import { clamp } from '../../utils/mathUtils'
 import { effectManager } from '../../utils/konva-effects-engine'
@@ -223,6 +223,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     delete fx.rgbSplit
     try { effectManager.applyAll(node, fx) } catch {}
     applyBevelEmbossToNode(node, item)
+    applyInnerShadowToNode(node, item)
     node.getLayer()?.draw()
   }, [
     item.strokeWidth, item.stroke, item.fill,
@@ -234,7 +235,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     item.effects,
     item.shadowEnabled, item.shadow, item.shadowColor, item.shadowOpacity, item.shadowOffsetX, item.shadowOffsetY,
     item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
-    item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity,
+    item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity, item.bevelEmbossHighlightBlendMode, item.bevelEmbossShadowBlendMode,
+    item.innerShadowEnabled, item.innerShadowColor, item.innerShadowOpacity, item.innerShadowBlur, item.innerShadowDistance, item.innerShadowAngle,
     fontLoaded, item.w, hasCurve, onChange,
   ])
 
@@ -247,10 +249,12 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     delete fx.rgbSplit
     try { effectManager.applyAll(node, fx) } catch {}
     applyBevelEmbossToNode(node, item)
+    applyInnerShadowToNode(node, item)
     node.getLayer()?.draw()
   }, [item.effects, hasCurve, text, item.fontFamily, item.fontSize, runs, item.fill,
       item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
-      item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity])
+      item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity, item.bevelEmbossHighlightBlendMode, item.bevelEmbossShadowBlendMode,
+      item.innerShadowEnabled, item.innerShadowColor, item.innerShadowOpacity, item.innerShadowBlur, item.innerShadowDistance, item.innerShadowAngle])
 
   // Apply effects to multi-run group
   useLayoutEffect(() => {
@@ -261,10 +265,12 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     delete fx.rgbSplit
     try { effectManager.applyAll(node, fx) } catch {}
     applyBevelEmbossToNode(node, item)
+    applyInnerShadowToNode(node, item)
     node.getLayer()?.draw()
   }, [item.effects, isMultiRun, hasCurve, runs, item.fontSize, item.fontFamily, item.fill, letterSpacing,
       item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
-      item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity])
+      item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity, item.bevelEmbossHighlightBlendMode, item.bevelEmbossShadowBlendMode,
+      item.innerShadowEnabled, item.innerShadowColor, item.innerShadowOpacity, item.innerShadowBlur, item.innerShadowDistance, item.innerShadowAngle])
 
   // rgbSplit capture: build R/G/B channel canvases from clean text
   useLayoutEffect(() => {

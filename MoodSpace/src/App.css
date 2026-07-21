@@ -2948,6 +2948,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
+  flex-wrap: wrap;
 }
 
 .projects-hero h1 {
@@ -3991,6 +3992,7 @@
 
 .settings-code-label {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -4002,6 +4004,8 @@
   letter-spacing: 3px;
   font-weight: 700;
   text-align: center;
+  width: 100%;
+  min-width: 0;
 }
 
 .settings-send-code {
@@ -4814,6 +4818,11 @@
 
 .confirm-modal-spinner {
   animation: workspace-status-spin 0.7s linear infinite;
+}
+
+.import-link-row {
+  display: flex;
+  gap: 8px;
 }
 
 .workspace-export-modal-backdrop {
@@ -9563,6 +9572,7 @@
   .workspace-panel-scroll {
     height: calc(100% - 46px);
     overflow: auto;
+    overflow-x: hidden;
     padding: 10px;
     background: #111116;
   }
@@ -9589,9 +9599,14 @@
     gap: 10px;
   }
 
-  .workspace-manual-panel,
-  .workspace-layer-list {
+  .workspace-manual-panel {
     display: grid;
+    gap: 8px;
+  }
+
+  .workspace-layer-list {
+    display: flex;
+    flex-direction: column;
     gap: 8px;
   }
 
@@ -13112,6 +13127,17 @@
     width: min(360px, calc(100vw - 32px));
     right: 8px;
   }
+
+  /* Projects header stack */
+  .projects-hero {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .projects-actions {
+    width: 100%;
+  }
+
 }
 
 /* Small Mobile: < 480px */
@@ -13178,6 +13204,32 @@
   .action-btn {
     padding: 8px 12px;
     font-size: 13px;
+  }
+
+  /* Settings — code row compact */
+  .settings-code-label input {
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 6px 8px;
+  }
+
+  .settings-send-code {
+    height: 33px;
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  /* Import modal — tighter padding + link row stack */
+  .workspace-export-modal {
+    padding: 16px;
+  }
+
+  .import-link-row {
+    flex-direction: column;
+  }
+
+  .import-link-row button {
+    width: 100%;
   }
 }
 

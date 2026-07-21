@@ -1,5 +1,6 @@
 import Konva from 'konva'
 import { applyBevelEmboss } from './bevelEmboss'
+import { applyInnerShadow } from './innerShadow'
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
@@ -445,8 +446,13 @@ Konva.Filters.MoodSpaceCombined = function (imageData) {
 // ─── Bevel & Emboss ────────────────────────────────────────────────────────────
 
 Konva.Filters.BevelEmboss = function (imageData) {
+  const style = this.getAttr('bevelEmbossStyle') || 'inner'
+  // Map source is auto-derived from style — never user-configurable.
+  //   inner  → alpha (edge bevel from alpha channel / position mask)
+  //   emboss → luminance (texture emboss from RGB grayscale)
+  const mapSource = style === 'emboss' ? 'luminance' : 'alpha'
   const vals = {
-    style: this.getAttr('bevelEmbossStyle') || 'inner',
+    style,
     depth: this.getAttr('bevelEmbossDepth') ?? 5,
     angle: this.getAttr('bevelEmbossAngle') ?? 120,
     softness: this.getAttr('bevelEmbossSoftness') ?? 5,
@@ -454,8 +460,31 @@ Konva.Filters.BevelEmboss = function (imageData) {
     highlightOpacity: this.getAttr('bevelEmbossHighlightOpacity') ?? 1,
     shadowColor: this.getAttr('bevelEmbossShadowColor') || '#000000',
     shadowOpacity: this.getAttr('bevelEmbossShadowOpacity') ?? 1,
+    mapSource,
+    highlightBlendMode: this.getAttr('bevelEmbossHighlightBlendMode') || 'linear-dodge',
+    shadowBlendMode: this.getAttr('bevelEmbossShadowBlendMode') || 'linear-burn',
   }
-  applyBevelEmboss(imageData, vals)
+  // Dual-buffer support: if a real-fill capture was stored, use it as the
+  // base render (imageData) and the active cache as the mask (height source).
+  const realData = this.getAttr('_bevelRealImageData')
+  if (realData) {
+    applyBevelEmboss(realData, vals, imageData)
+  } else {
+    applyBevelEmboss(imageData, vals, null)
+  }
+}
+
+// ─── Inner Shadow ──────────────────────────────────────────────────────────────
+
+Konva.Filters.InnerShadow = function (imageData) {
+  const vals = {
+    color: this.getAttr('innerShadowColor') || '#000000',
+    opacity: this.getAttr('innerShadowOpacity') ?? 0.5,
+    blur: this.getAttr('innerShadowBlur') ?? 5,
+    distance: this.getAttr('innerShadowDistance') ?? 5,
+    angle: this.getAttr('innerShadowAngle') ?? 135,
+  }
+  applyInnerShadow(imageData, vals)
 }
 
 export const applyImageFilters = (node, item) => {

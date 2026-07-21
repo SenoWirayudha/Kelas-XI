@@ -164,6 +164,7 @@ import { useCursorBroadcast } from '../hooks/useCursorBroadcast'
 import { useCollaboration } from '../hooks/useCollaboration'
 import { getCursorColor } from '../utils/cursorColors'
 import ShareModal from '../components/workspace/ShareModal'
+import { externalImageToPost } from '../utils/externalImagePost'
 
 import { useMediaUpload } from '../hooks/useMediaUpload'
 import { useCanvasImage, useCanvasImages } from '../hooks/useCanvasImages'
@@ -171,7 +172,7 @@ import { autosaveWorkspace, getWorkspace, saveWorkspace, setWorkspaceThumbnail, 
 import { getHomeFeed, getSavedPosts, getSimilarPostsByImage, publishWorkspace } from '../lib/api/posts'
 import { getBoard, listBoards } from '../lib/api/boards'
 import { searchPosts as searchPublicPosts } from '../lib/api/search'
-import { ensureExternalImage, searchExternalImages } from '../lib/api/externalImages'
+import { ensureExternalImage, getSavedExternalImages, searchExternalImages } from '../lib/api/externalImages'
 import { recordInterestEvent } from '../lib/api/interest'
 import { deleteMediaByUrl, uploadMediaFile } from '../lib/api/media'
 import { listFonts as apiListFonts, uploadFont as apiUploadFont, deleteFont as apiDeleteFont, getFavorites as apiGetFavorites, addFavorite as apiAddFavorite, removeFavorite as apiRemoveFavorite } from '../lib/api/fonts'
@@ -344,6 +345,7 @@ const addRelightOverlayClones = ({ stage, items, exportLayer }) => {
 }
 
 const BROADCAST_KEYS = new Set([
+  'id',
   'x', 'y', 'w', 'h', 'rotation', 'scaleX', 'scaleY', 'compositeGroupX', 'compositeGroupY', 'compositeGroupScaleX', 'compositeGroupScaleY', 'compositeGroupRotation',
   'groupId', 'parentGroupId', 'maskSourceType',
   'frameImageSrc', 'frameImages', 'frameImagePosition', 'frameImageScale', 'frameImageFit',
@@ -354,10 +356,12 @@ const BROADCAST_KEYS = new Set([
   'stroke', 'strokeWidth', 'strokeGradientType', 'strokeGradientStops', 'strokeGradientAngle',
   'gradientType', 'gradientStops', 'gradientAngle',
   'imageStrokeGradientType', 'imageStrokeGradientStops', 'imageStrokeGradientAngle',
-  'visible', 'locked',
+  'visible', 'locked', 'lockAspectRatio',
   'shadowEnabled', 'shadow', 'shadowColor', 'shadowOpacity', 'shadowOffsetX', 'shadowOffsetY',
+  'innerShadowEnabled', 'innerShadowColor', 'innerShadowOpacity', 'innerShadowBlur', 'innerShadowDistance', 'innerShadowAngle',
   'bevelEmbossEnabled', 'bevelEmbossStyle', 'bevelEmbossDepth', 'bevelEmbossAngle', 'bevelEmbossSoftness',
   'bevelEmbossHighlightColor', 'bevelEmbossHighlightOpacity', 'bevelEmbossShadowColor', 'bevelEmbossShadowOpacity',
+  'bevelEmbossHighlightBlendMode', 'bevelEmbossShadowBlendMode',
   'compositeOpacity', 'compositeBlendMode', 'compositeMode',
   'compositeShadowEnabled', 'compositeShadow', 'compositeShadowColor', 'compositeShadowOpacity',
   'compositeShadowOffsetX', 'compositeShadowOffsetY',
@@ -366,7 +370,7 @@ const BROADCAST_KEYS = new Set([
   'imageCropRect', 'cropSourceWidth', 'cropSourceHeight', 'cropEnabled',
   'starInnerRatio', 'numPoints',
   'bezierData', 'path',
-  'src', 'effects', 'dominantColors',
+  'src', 'effects', 'relight', 'dominantColors',
   'isAdjustmentLayer', '_preAdjustmentState',
 ])
 
@@ -3211,6 +3215,9 @@ function Workspace() {
   const [isFontPickerOpen, setIsFontPickerOpen] = useState(false)
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false)
   const [isBlendModeOpen, setIsBlendModeOpen] = useState(false)
+  const [isBevelStyleOpen, setIsBevelStyleOpen] = useState(false)
+  const [isBevelHighlightBlendOpen, setIsBevelHighlightBlendOpen] = useState(false)
+  const [isBevelShadowBlendOpen, setIsBevelShadowBlendOpen] = useState(false)
   const [colorPickerTarget, setColorPickerTarget] = useState(null)
   const colorPickerActiveRef = useRef(false)
   const pendingColorPickerPatchRef = useRef(null)
@@ -4677,8 +4684,14 @@ function Workspace() {
     setIsSavedPostsLoading(true)
     setSavedPostsError('')
     try {
-      const payload = await getSavedPosts({ limit: 50 })
-      setSavedPosts(payload.items || [])
+      const [payload, savedExternalPayload] = await Promise.all([
+        getSavedPosts({ limit: 50 }),
+        getSavedExternalImages({ limit: 50 }),
+      ])
+      setSavedPosts([
+        ...(payload.items || []),
+        ...(savedExternalPayload.items || []).map(externalImageToPost),
+      ])
     } catch (error) {
       setSavedPostsError(error.message || 'Gagal memuat saved posts')
     } finally {
@@ -5960,8 +5973,7 @@ function Workspace() {
 
   useEffect(() => {
     const viewportNode = viewportRef.current
-
-    if (!viewportNode) return undefined
+    if (!viewportNode || loadingPhase !== 'done') return undefined
 
     const updateViewportSize = () => {
       const rect = viewportNode.getBoundingClientRect()
@@ -5976,7 +5988,7 @@ function Workspace() {
     observer.observe(viewportNode)
 
     return () => observer.disconnect()
-  }, [])
+  }, [loadingPhase])
 
   // (native canvas mousemove — removed, handled by Canvas onMouseMove)
 
@@ -6024,7 +6036,12 @@ function Workspace() {
       width: Math.max(1, Math.round(rect?.width || viewportSize.width || 1)),
       height: Math.max(1, Math.round(rect?.height || viewportSize.height || 1)),
     }
-    const centeredCamera = computeFitCamera(canvasSettings.width, canvasSettings.height, actualViewport, canvasSettings.ratio)
+    const scale = cameraRef.current?.scale || camera.scale
+    const centeredCamera = {
+      scale,
+      x: (actualViewport.width - canvasSettings.width * scale) / 2,
+      y: (actualViewport.height - canvasSettings.height * scale) / 2,
+    }
 
     if (zoomAnimationRef.current) {
       cancelAnimationFrame(zoomAnimationRef.current)
@@ -6142,30 +6159,36 @@ function Workspace() {
     )
   }, [canvasSettings.height, canvasSettings.width, viewportSize])
 
-  // FIX BUG 2: Viewport resize (sidebar open/close) must NOT reset the zoom scale.
-  // Old code called getCenteredCamera() on every viewport change, clobbering any zoom
-  // the user had applied. The correct behavior: keep the CURRENT scale, just re-clamp
-  // the x/y position so the canvas stays visible inside the new viewport dimensions.
-  // We store the previous viewport width so we can detect sidebar toggles vs true resizes
-  // and shift the camera x proportionally instead of re-centering from scratch.
+  // Viewport resize (sidebar open/close) must NOT reset the zoom scale.
+  // Instead of applying a relative delta (currentCamera.x + delta),
+  // compute the ABSOLUTE target: keep the same canvas content at the screen
+  // center, regardless of current camera position. This prevents drift
+  // across multiple open/close cycles.
+  // We read the actual DOM rect (bypassing React state timing) so the
+  // calculation always uses the freshest viewport dimensions.
   useEffect(() => {
     if (!hasCenteredCameraRef.current) return
-    if (shouldCenterAfterPanelCloseRef.current) {
-      prevViewportWidthRef.current = viewportSize.width
-      return
+    if (shouldCenterAfterPanelCloseRef.current) return
+
+    // Cancel any in-flight zoomAnimation from a previous close cycle.
+    // The close path schedules centerCanvasInCurrentViewport (240ms animation),
+    // but if the panel is now opening (E2 runs), that animation would fight
+    // E2's camera shift, overwriting the shift every rAF tick.
+    if (zoomAnimationRef.current) {
+      cancelAnimationFrame(zoomAnimationRef.current)
+      zoomAnimationRef.current = null
     }
 
-    const currentCamera = cameraRef.current
     const prevWidth = prevViewportWidthRef.current
+    const rect = viewportRef.current?.getBoundingClientRect()
+    const actualWidth = rect ? Math.max(1, Math.round(rect.width)) : viewportSize.width
 
-    if (prevWidth !== null && prevWidth !== viewportSize.width) {
-      // Viewport width changed (sidebar toggle or window resize).
-      // Shift camera.x by half the width delta so the canvas center stays stable,
-      // then clamp to new bounds. Do NOT change the scale.
-      const widthDelta = viewportSize.width - prevWidth
+    if (prevWidth !== null && prevWidth !== actualWidth) {
+      const currentCamera = cameraRef.current
+      const canvasAtCenter = (prevWidth / 2 - currentCamera.x) / currentCamera.scale
       const shifted = {
         scale: currentCamera.scale,
-        x: currentCamera.x + widthDelta / 2,
+        x: actualWidth / 2 - canvasAtCenter * currentCamera.scale,
         y: currentCamera.y,
       }
       const clamped = clampCameraToCanvas(shifted)
@@ -6174,8 +6197,10 @@ function Workspace() {
       setCamera(clamped)
     }
 
-    prevViewportWidthRef.current = viewportSize.width
+    prevViewportWidthRef.current = actualWidth
   }, [viewportSize, clampCameraToCanvas])
+
+
 
   const animateCameraTo = (nextCamera) => {
     if (zoomAnimationRef.current) {
@@ -6255,6 +6280,7 @@ const attachTransformer = useCallback((idOrIds) => {
     if (!item || item.kind === 'connector') return
 
     const currentCamera = cameraRef.current
+    const currentVp = viewportSizeRef.current
     const itemWidth = Math.max(1, item.w || 80)
     const itemHeight = Math.max(1, item.h || 80)
     const screenBounds = {
@@ -6267,18 +6293,18 @@ const attachTransformer = useCallback((idOrIds) => {
     const isVisible = (
       screenBounds.left >= padding &&
       screenBounds.top >= padding &&
-      screenBounds.right <= viewportSize.width - padding &&
-      screenBounds.bottom <= viewportSize.height - padding
+      screenBounds.right <= currentVp.width - padding &&
+      screenBounds.bottom <= currentVp.height - padding
     )
 
     if (!force && isVisible) return
 
     animateCameraTo({
       scale: currentCamera.scale,
-      x: viewportSize.width / 2 - (item.x + itemWidth / 2) * currentCamera.scale,
-      y: viewportSize.height / 2 - (item.y + itemHeight / 2) * currentCamera.scale,
+      x: currentVp.width / 2 - (item.x + itemWidth / 2) * currentCamera.scale,
+      y: currentVp.height / 2 - (item.y + itemHeight / 2) * currentCamera.scale,
     })
-  }, [viewportSize])
+  }, [])
 
   const openLayerObjectProperties = useCallback((id) => {
     const item = itemsRef.current.find((candidate) => candidate.id === id)
@@ -6462,7 +6488,7 @@ const attachTransformer = useCallback((idOrIds) => {
     setConnectorDraft(null)
     setActivePanel(panel)
     setMobileSheetState('half')
-    requestRecenterAfterWorkspaceLayoutChange()
+    shouldCenterAfterPanelCloseRef.current = false
     setIsRightPanelOpen(true)
     if (panel !== 'tools') {
       setActiveToolCard(null)
@@ -6520,6 +6546,7 @@ const attachTransformer = useCallback((idOrIds) => {
       warpStateRef.current = null
     }
     setIsBlendModeOpen(false)
+    shouldCenterAfterPanelCloseRef.current = false
     const item = itemsRef.current.find((candidate) => candidate.id === id)
     const resolvedIds = item && !options.ignoreGroup
       ? (() => {
@@ -6545,7 +6572,6 @@ const attachTransformer = useCallback((idOrIds) => {
       requestAnimationFrame(() => attachTransformer(resolvedIds))
       return resolvedIds
     })
-    requestRecenterAfterWorkspaceLayoutChange()
     setActivePanel('properties')
     setIsRightPanelOpen(true)
     if (window.innerWidth <= 860) {
@@ -7568,6 +7594,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const addBezierAnchor = (event) => {
+    console.log(`[BEZIER-ADD] BEFORE | anchors:${bezierAnchors.length} | editingBezierId:${editingBezierId} | bezierEditAnchors:${bezierEditAnchors?.length??'null'} | selectedIdx:${selectedBezierAnchorIdx} | mousePos:${!!bezierMousePos} | guides:${bezierGuides.length} | previewRef:${!!bezierPreviewPathRef.current} | cpRef:${!!bezierCpRef.current} | activePanel:${activePanel} | remoteDraws:${Object.keys(remoteBezierDraws).length}`)
     const pointer = stageRef.current?.getPointerPosition()
     if (!pointer) return
     const worldPoint = getWorldPointFromViewport(pointer, cameraRef.current)
@@ -7575,7 +7602,7 @@ const attachTransformer = useCallback((idOrIds) => {
     if (bezierAnchors.length >= 3) {
       const first = bezierAnchors[0]
       const dist = Math.sqrt((snapped.x - first.x) ** 2 + (snapped.y - first.y) ** 2)
-      if (dist < 12) { finishBezierPath(); return }
+      if (dist < 12) { finishBezierPath(); setActivePanel(null); setIsRightPanelOpen(false); return }
     }
     const nextAnchors = [...bezierAnchors, snapped]
     setBezierAnchors(nextAnchors)
@@ -7589,6 +7616,8 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const finishBezierPath = () => {
+    const finishCallCount = window._bezierFinishCount = (window._bezierFinishCount || 0) + 1
+    console.log(`[BEZIER-FINISH] #${finishCallCount} | anchors:${bezierAnchors.length} | time:${Date.now()} | itemsLen:${itemsRef.current.length} | stack:${new Error().stack?.split('\n').slice(2,5).join(' > ')}`)
     if (isViewerRef.current) return
     if (bezierAnchors.length < 2) return
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
@@ -7622,6 +7651,7 @@ const attachTransformer = useCallback((idOrIds) => {
     setBezierAnchors([])
     setBezierMousePos(null)
     setBezierGuides([])
+    console.log(`[BEZIER-FINISH-AFTER] anchors SET to [] | mousePos SET to null | guides SET to [] | editingBezierId:${editingBezierId} | bezierEditAnchors:${bezierEditAnchors?.length??'null'} | selectedIdx:${selectedBezierAnchorIdx} | previewRef.current:${!!bezierPreviewPathRef.current} | cpRef.current:${!!bezierCpRef.current} | activePanel WILL BE set to null by caller`)
   }
 
   const cancelBezierPath = () => {
@@ -12964,6 +12994,7 @@ const toggleMobileSheetSize = () => {
     const supportsRadius = ['image', 'note', 'card', 'palette'].includes(selectedItem.kind)
     const supportsShadow = ['image', 'text', 'shape', 'frame'].includes(selectedItem.kind) && !selectedItem.isAdjustmentLayer
     const supportsBevel = ['image', 'text', 'shape'].includes(selectedItem.kind) && !selectedItem.isAdjustmentLayer
+    const supportsInnerShadow = ['image', 'text', 'shape'].includes(selectedItem.kind) && !selectedItem.isAdjustmentLayer
 
     return (
       <>
@@ -13518,6 +13549,97 @@ onPointerUp={(e) => {
             )}
           </div>
         )}
+        {supportsInnerShadow && (
+          <div className="workspace-section-card">
+            <div className="workspace-section-title">Inner Shadow</div>
+            <label className="workspace-shadow-toggle">
+              <input
+                type="checkbox"
+                checked={!!selectedItem.innerShadowEnabled}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    updateItem(selectedItem.id, { innerShadowEnabled: true, innerShadowColor: '#000000', innerShadowOpacity: 0.5, innerShadowBlur: 5, innerShadowDistance: 5, innerShadowAngle: 135 })
+                  } else {
+                    updateItem(selectedItem.id, { innerShadowEnabled: false })
+                  }
+                }}
+              />
+              <span className="toggle-track" />
+              <span className="toggle-label">Enable Inner Shadow</span>
+            </label>
+            {selectedItem.innerShadowEnabled && (
+              <div className="workspace-slider-list">
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Color</span>
+                  <input
+                    type="color"
+                    value={selectedItem.innerShadowColor || '#000000'}
+                    onChange={(e) => updateItem(selectedItem.id, { innerShadowColor: e.target.value }, true)}
+                    onBlur={(e) => updateItem(selectedItem.id, { innerShadowColor: e.target.value })}
+                  />
+                </label>
+                {[
+                  { key: 'innerShadowBlur', label: 'Blur', min: 0, max: 50, step: 1, value: selectedItem.innerShadowBlur ?? 5, unit: '' },
+                  { key: 'innerShadowDistance', label: 'Distance', min: 0, max: 50, step: 1, value: selectedItem.innerShadowDistance ?? 5, unit: '' },
+                  { key: 'innerShadowAngle', label: 'Angle', min: 0, max: 360, step: 1, value: selectedItem.innerShadowAngle ?? 135, unit: '\u00b0' },
+                  { key: 'innerShadowOpacity', label: 'Opacity', min: 0, max: 100, step: 1, value: Math.round((selectedItem.innerShadowOpacity ?? 0.5) * 100), unit: '%' },
+                ].map((ctrl) => (
+                  <label key={ctrl.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>{ctrl.label}</span>
+                      {editingSliderKey === ctrl.key ? (
+                        <input
+                          type="number"
+                          defaultValue={ctrl.value}
+                          min={ctrl.min}
+                          max={ctrl.max}
+                          step={ctrl.step}
+                          autoFocus
+                          style={{ width: '52px', fontSize: '11px', textAlign: 'right', padding: '1px 4px', border: '1px solid #7c6df2', borderRadius: '4px', background: '#1a1721', color: '#c4bfd4', outline: 'none' }}
+                          onBlur={(e) => {
+                            let val = Math.max(ctrl.min, Math.min(ctrl.max, Number(e.target.value)))
+                            if (ctrl.key === 'innerShadowOpacity') val = val / 100
+                            updateItem(selectedItem.id, { [ctrl.key]: val })
+                            setEditingSliderKey(null)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur()
+                            if (e.key === 'Escape') setEditingSliderKey(null)
+                          }}
+                        />
+                      ) : (
+                        <span
+                          style={{ fontSize: '11px', color: '#c4bfd4', minWidth: '36px', textAlign: 'right', cursor: 'text' }}
+                          onDoubleClick={() => setEditingSliderKey(ctrl.key)}
+                        >
+                          {ctrl.value}{ctrl.unit}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="range"
+                      min={ctrl.min}
+                      max={ctrl.max}
+                      step={ctrl.step}
+                      value={ctrl.value}
+                      onChange={(e) => {
+                        const raw = Number(e.target.value)
+                        const patchVal = ctrl.key === 'innerShadowOpacity' ? raw / 100 : raw
+                        updateItem(selectedItem.id, { [ctrl.key]: patchVal }, true)
+                        broadcastItemUpdate(selectedItem.id, { [ctrl.key]: patchVal })
+                      }}
+                      onPointerUp={(e) => {
+                        const raw = Number(e.target.value)
+                        const patchVal = ctrl.key === 'innerShadowOpacity' ? raw / 100 : raw
+                        updateItem(selectedItem.id, { [ctrl.key]: patchVal })
+                      }}
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {supportsBevel && (
           <div className="workspace-section-card">
             <div className="workspace-section-title">Bevel & Emboss</div>
@@ -13539,17 +13661,28 @@ onPointerUp={(e) => {
             {selectedItem.bevelEmbossEnabled && (
               <div className="workspace-slider-list">
                 {/* Style dropdown */}
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Style</span>
-                  <select
-                    value={selectedItem.bevelEmbossStyle || 'inner'}
-                    onChange={(e) => updateItem(selectedItem.id, { bevelEmbossStyle: e.target.value })}
-                    style={{ background: '#1a1721', color: '#c4bfd4', border: '1px solid #38333e', borderRadius: '6px', padding: '4px 8px', fontSize: 12 }}
-                  >
-                    <option value="inner">Inner Bevel</option>
-                    <option value="outer">Outer Bevel</option>
-                    <option value="emboss">Emboss</option>
-                  </select>
+                <label className="workspace-typography-field workspace-typography-field-full">
+                  Style
+                  <div style={{ position: 'relative' }}>
+                    <button type="button" className="workspace-font-picker-trigger"
+                      onClick={() => setIsBevelStyleOpen(!isBevelStyleOpen)}>
+                      {selectedItem.bevelEmbossStyle === 'emboss' ? 'Emboss (Texture)' : 'Inner Bevel'}
+                    </button>
+                    {isBevelStyleOpen && (
+                      <div className="workspace-blend-mode-dropdown">
+                        {['inner', 'emboss'].map((val) => (
+                          <button key={val} type="button"
+                            className={`workspace-blend-mode-item ${(selectedItem.bevelEmbossStyle === val || (!selectedItem.bevelEmbossStyle && val === 'inner')) ? 'active' : ''}`}
+                            onClick={() => {
+                              updateItem(selectedItem.id, { bevelEmbossStyle: val })
+                              setIsBevelStyleOpen(false)
+                            }}>
+                            {val === 'inner' ? 'Inner Bevel' : 'Emboss (Texture)'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </label>
                 {/* Highlight Color */}
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -13561,6 +13694,30 @@ onPointerUp={(e) => {
                     onBlur={(e) => updateItem(selectedItem.id, { bevelEmbossHighlightColor: e.target.value })}
                   />
                 </label>
+                {/* Highlight Blend Mode */}
+                <label className="workspace-typography-field workspace-typography-field-full">
+                  Highlight Blend
+                  <div style={{ position: 'relative' }}>
+                    <button type="button" className="workspace-font-picker-trigger"
+                      onClick={() => setIsBevelHighlightBlendOpen(!isBevelHighlightBlendOpen)}>
+                      {BLEND_MODES.find((m) => m.value === (selectedItem.bevelEmbossHighlightBlendMode || 'linear-dodge'))?.label || 'Linear Dodge'}
+                    </button>
+                    {isBevelHighlightBlendOpen && (
+                      <div className="workspace-blend-mode-dropdown">
+                        {BLEND_MODES.map((mode) => (
+                          <button key={mode.value} type="button"
+                            className={`workspace-blend-mode-item ${(selectedItem.bevelEmbossHighlightBlendMode === mode.value || (!selectedItem.bevelEmbossHighlightBlendMode && mode.value === 'linear-dodge')) ? 'active' : ''}`}
+                            onClick={() => {
+                              updateItem(selectedItem.id, { bevelEmbossHighlightBlendMode: mode.value })
+                              setIsBevelHighlightBlendOpen(false)
+                            }}>
+                            {mode.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </label>
                 {/* Shadow Color */}
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Shadow Color</span>
@@ -13570,6 +13727,30 @@ onPointerUp={(e) => {
                     onChange={(e) => updateItem(selectedItem.id, { bevelEmbossShadowColor: e.target.value }, true)}
                     onBlur={(e) => updateItem(selectedItem.id, { bevelEmbossShadowColor: e.target.value })}
                   />
+                </label>
+                {/* Shadow Blend Mode */}
+                <label className="workspace-typography-field workspace-typography-field-full">
+                  Shadow Blend
+                  <div style={{ position: 'relative' }}>
+                    <button type="button" className="workspace-font-picker-trigger"
+                      onClick={() => setIsBevelShadowBlendOpen(!isBevelShadowBlendOpen)}>
+                      {BLEND_MODES.find((m) => m.value === (selectedItem.bevelEmbossShadowBlendMode || 'linear-burn'))?.label || 'Linear Burn'}
+                    </button>
+                    {isBevelShadowBlendOpen && (
+                      <div className="workspace-blend-mode-dropdown">
+                        {BLEND_MODES.map((mode) => (
+                          <button key={mode.value} type="button"
+                            className={`workspace-blend-mode-item ${(selectedItem.bevelEmbossShadowBlendMode === mode.value || (!selectedItem.bevelEmbossShadowBlendMode && mode.value === 'linear-burn')) ? 'active' : ''}`}
+                            onClick={() => {
+                              updateItem(selectedItem.id, { bevelEmbossShadowBlendMode: mode.value })
+                              setIsBevelShadowBlendOpen(false)
+                            }}>
+                            {mode.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </label>
                 {/* Sliders */}
                 {[
@@ -13831,12 +14012,10 @@ onPointerUp={(e) => {
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
-                  className="workspace-o-dropdown-btn"
-                  style={{ minWidth: 140 }}
+                  className="workspace-font-picker-trigger"
                   onClick={() => setIsBlendModeOpen((current) => !current)}
                 >
                   {BLEND_MODES.find((m) => m.value === (selectedItem.blendMode || 'source-over'))?.label || 'Normal'}
-                  <ChevronDown size={12} />
                 </button>
                 {isBlendModeOpen && (
                   <div className="workspace-blend-mode-dropdown">
@@ -15229,7 +15408,7 @@ onPointerUp={(e) => {
             onCursor={handleItemCursor}
             setStageCursor={setStageCursor}
             onItemHover={setHoveredItemId}
-            disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush'}
+            disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush' || activePanel === 'bezier'}
             isShiftDown={isShiftDown}
             getActiveTransformAnchor={() => transformerRef.current?.getActiveAnchor?.()}
             dropTargetFrameId={dropTargetFrameId}
@@ -15277,7 +15456,7 @@ onPointerUp={(e) => {
           isTextEditing={editingText?.id === item.id}
           onCursor={handleItemCursor}
           onItemHover={setHoveredItemId}
-          disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush' || cropSession?.itemId === item.id}
+          disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush' || activePanel === 'bezier' || cropSession?.itemId === item.id}
           isShiftDown={isShiftDown}
           getActiveTransformAnchor={() => transformerRef.current?.getActiveAnchor?.()}
           dropTargetFrameId={dropTargetFrameId}
@@ -15334,7 +15513,7 @@ onPointerUp={(e) => {
         isTextEditing={editingText?.id === item.id}
         onCursor={handleItemCursor}
         onItemHover={setHoveredItemId}
-        disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush' || cropSession?.itemId === item.id}
+        disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush' || activePanel === 'bezier' || cropSession?.itemId === item.id}
         isShiftDown={isShiftDown}
         getActiveTransformAnchor={() => transformerRef.current?.getActiveAnchor?.()}
         dropTargetFrameId={dropTargetFrameId}
