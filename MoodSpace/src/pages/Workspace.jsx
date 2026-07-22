@@ -13293,10 +13293,48 @@ const toggleMobileSheetSize = () => {
       />
     </label>
   ))}
+              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#7c6df2', margin: '16px 0 8px' }}>
+                HSL Adjustment
+              </div>
+              {(() => {
+                const hslMaster = selectedItem.hsl?.master ?? { hue: 0, saturation: 0, lightness: 0 }
+                const getHsl = (k) => k === 'hue' ? (hslMaster.hue ?? 0) : k === 'saturation' ? (hslMaster.saturation ?? 0) : (hslMaster.lightness ?? 0)
+                const hslPatch = (field, val) => {
+                  const cur = selectedItem.hsl?.master ?? { hue: 0, saturation: 0, lightness: 0 }
+                  return { hsl: { master: { hue: field === 'hue' ? val : cur.hue, saturation: field === 'saturation' ? val : cur.saturation, lightness: field === 'lightness' ? val : cur.lightness } } }
+                }
+                return [
+                  { key: 'hue', label: 'Hue', min: -180, max: 180, unit: '°' },
+                  { key: 'saturation', label: 'Saturation', min: -100, max: 100, unit: '%' },
+                  { key: 'lightness', label: 'Lightness', min: -100, max: 100, unit: '%' },
+                ].map((control) => {
+                  const hslVal = getHsl(control.key)
+                  return (
+                    <label key={'hsl-' + control.key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>
+                          {control.label}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#c4bfd4', minWidth: '36px', textAlign: 'right' }}>
+                          {hslVal}{control.unit}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={control.min}
+                        max={control.max}
+                        value={hslVal}
+                        onChange={(event) => { const v = Number(event.target.value); const patch = hslPatch(control.key, v); updateItem(selectedItem.id, patch, true); broadcastItemUpdate(selectedItem.id, patch) }}
+                        onPointerUp={(event) => { const v = Number(event.target.value); updateItem(selectedItem.id, hslPatch(control.key, v)) }}
+                      />
+                    </label>
+                  )
+                })
+              })()}
               <button
                 type="button"
                 className="workspace-reset-adjustments"
-                onClick={() => updateItem(selectedItem.id, { exposure: 0, temperature: 0, hue: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0, brightness: 0, contrast: 0, saturation: 0, sharpen: 0, vignette: 0, blur: 0, shadow: 0, radius: 0 })}
+                onClick={() => updateItem(selectedItem.id, { exposure: 0, temperature: 0, hue: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0, brightness: 0, contrast: 0, saturation: 0, sharpen: 0, vignette: 0, blur: 0, shadow: 0, radius: 0, hsl: null, curves: null })}
               >
                 Reset adjustments
               </button>
