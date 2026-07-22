@@ -372,6 +372,7 @@ const BROADCAST_KEYS = new Set([
   'bezierData', 'path',
   'src', 'effects', 'relight', 'dominantColors',
   'isAdjustmentLayer', '_preAdjustmentState',
+  'hsl', 'curves',
 ])
 
 const getRestoredItemCounter = (items) => (
@@ -7594,7 +7595,6 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const addBezierAnchor = (event) => {
-    console.log(`[BEZIER-ADD] BEFORE | anchors:${bezierAnchors.length} | editingBezierId:${editingBezierId} | bezierEditAnchors:${bezierEditAnchors?.length??'null'} | selectedIdx:${selectedBezierAnchorIdx} | mousePos:${!!bezierMousePos} | guides:${bezierGuides.length} | previewRef:${!!bezierPreviewPathRef.current} | cpRef:${!!bezierCpRef.current} | activePanel:${activePanel} | remoteDraws:${Object.keys(remoteBezierDraws).length}`)
     const pointer = stageRef.current?.getPointerPosition()
     if (!pointer) return
     const worldPoint = getWorldPointFromViewport(pointer, cameraRef.current)
@@ -7616,8 +7616,6 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const finishBezierPath = () => {
-    const finishCallCount = window._bezierFinishCount = (window._bezierFinishCount || 0) + 1
-    console.log(`[BEZIER-FINISH] #${finishCallCount} | anchors:${bezierAnchors.length} | time:${Date.now()} | itemsLen:${itemsRef.current.length} | stack:${new Error().stack?.split('\n').slice(2,5).join(' > ')}`)
     if (isViewerRef.current) return
     if (bezierAnchors.length < 2) return
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
@@ -7645,13 +7643,12 @@ const attachTransformer = useCallback((idOrIds) => {
       effects: getDefaultEffects(),
     }
     setItems((items) => [newItem, ...items])
-    captureAddUndo(id)
+    captureAddUndo(newItem.id)
     broadcastBezierState({ anchors: [] })
     broadcastItemAdd(newItem)
     setBezierAnchors([])
     setBezierMousePos(null)
     setBezierGuides([])
-    console.log(`[BEZIER-FINISH-AFTER] anchors SET to [] | mousePos SET to null | guides SET to [] | editingBezierId:${editingBezierId} | bezierEditAnchors:${bezierEditAnchors?.length??'null'} | selectedIdx:${selectedBezierAnchorIdx} | previewRef.current:${!!bezierPreviewPathRef.current} | cpRef.current:${!!bezierCpRef.current} | activePanel WILL BE set to null by caller`)
   }
 
   const cancelBezierPath = () => {

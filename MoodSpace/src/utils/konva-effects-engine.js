@@ -1388,8 +1388,13 @@ export class EffectManager {
     if (adjustments) {
       const ADJ_KEYS = ['exposure','temperature','hue','highlights','shadows','whites','blacks','brightness','contrast','saturation','sharpen','vignette','blur']
       const hasAny = ADJ_KEYS.some((k) => (adjustments[k] ?? 0) !== 0)
-      if (hasAny) {
+      const hsl = adjustments.hsl ?? null
+      const hasHsl = hsl && (hsl.master?.hue || hsl.master?.saturation || hsl.master?.lightness)
+      const hasCurves = !!(adjustments.curves)
+      if (hasAny || hasHsl || hasCurves) {
         for (const key of ADJ_KEYS) node.setAttr(key, adjustments[key] ?? 0)
+        node.setAttr('hsl', adjustments.hsl || null)
+        node.setAttr('curves', adjustments.curves || null)
         filterList.push(Konva.Filters.MoodSpaceCombined)
       }
     }

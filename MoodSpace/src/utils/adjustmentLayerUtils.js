@@ -22,15 +22,28 @@ export const ADJUSTMENT_PRESETS = [
   { label: 'Vibrant', values: { exposure: 0, temperature: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0, brightness: 4, contrast: 18, saturation: 28, sharpen: 0, vignette: 0, blur: 0 } },
 ]
 
+export const HSL_CONTROLS = [
+  { key: 'hue', label: 'HSL.Hue', min: -180, max: 180, unit: '°' },
+  { key: 'saturation', label: 'HSL.Saturation', min: -100, max: 100, unit: '%' },
+  { key: 'lightness', label: 'HSL.Lightness', min: -100, max: 100, unit: '%' },
+]
+
 export const RESET_VALUES = {
   exposure: 0, temperature: 0, highlights: 0, shadows: 0,
   whites: 0, blacks: 0, brightness: 0, contrast: 0,
   saturation: 0, sharpen: 0, vignette: 0, blur: 0,
   hue: 0, shadow: 0, radius: 0,
+  hsl: null,
+  curves: null,
 }
 
 export const getActiveAdjustmentLayers = (items) =>
   items.filter((item) => item.isAdjustmentLayer)
 
-export const hasAnyAdjustment = (item) =>
-  ADJUSTMENT_CONTROLS.some((c) => (item[c.key] ?? 0) !== 0)
+export const hasAnyAdjustment = (item) => {
+  if (ADJUSTMENT_CONTROLS.some((c) => (item[c.key] ?? 0) !== 0)) return true
+  const hsl = item.hsl ?? null
+  if (hsl && (hsl.master?.hue || hsl.master?.saturation || hsl.master?.lightness)) return true
+  if (item.curves) return true
+  return false
+}
