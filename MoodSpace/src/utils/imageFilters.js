@@ -1,6 +1,9 @@
 import Konva from 'konva'
 import { applyBevelEmboss } from './bevelEmboss'
 import { applyInnerShadow } from './innerShadow'
+import { buildCurveLut } from './curveUtils'
+
+const lutCache = new Map()
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
@@ -273,7 +276,7 @@ const pixelPipeline = (params) => {
   const {
     d, w, h, len,
     expFactor, tempAmount, hueRotation,
-    hslHue, hslSat, hslLgt,
+    hslHue, hslSat, hslLgt, curvesLuts,
     highAmount, shadowAmount,
     whiteAmount, blackAmount, brightAdj, contAdj, satAdj,
     vigStrength, cx, cy, maxDist, sharpenVal, blurVal,
@@ -384,6 +387,17 @@ if (hueRotation) {
       b = luma + (b - luma) * factor
     }
 
+    if (curvesLuts) {
+      if (curvesLuts.rgb) {
+        r = curvesLuts.rgb[r]
+        g = curvesLuts.rgb[g]
+        b = curvesLuts.rgb[b]
+      }
+      if (curvesLuts.red)   r = curvesLuts.red[r]
+      if (curvesLuts.green) g = curvesLuts.green[g]
+      if (curvesLuts.blue)  b = curvesLuts.blue[b]
+    }
+
     if (vigStrength) {
       const dist = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
       const falloff = Math.pow(dist / maxDist, 1.8)
@@ -438,6 +452,23 @@ const getParamSet = (vals) => {
   const hslSat = hsl?.master?.saturation ?? 0
   const hslLgt = hsl?.master?.lightness ?? 0
 
+  const curves = vals.curves ?? null
+  let curvesLuts = null
+  if (curves) {
+    const cacheKey = JSON.stringify(curves)
+    if (lutCache.has(cacheKey)) {
+      curvesLuts = lutCache.get(cacheKey)
+    } else {
+      curvesLuts = {
+        rgb:   buildCurveLut(curves.rgb),
+        red:   buildCurveLut(curves.red),
+        green: buildCurveLut(curves.green),
+        blue:  buildCurveLut(curves.blue),
+      }
+      lutCache.set(cacheKey, curvesLuts)
+    }
+  }
+
   return {
     expFactor: expVal !== 0 ? Math.pow(2, expVal / 100) : 0,
     tempAmount: tempVal !== 0 ? tempVal / 100 * 30 : 0,
@@ -445,6 +476,7 @@ const getParamSet = (vals) => {
     hslHue: hslHue || 0,
     hslSat: hslSat !== 0 ? hslSat / 100 : 0,
     hslLgt: hslLgt !== 0 ? hslLgt / 100 : 0,
+    curvesLuts,
     highAmount: highVal !== 0 ? highVal / 100 * 60 : 0,
     shadowAmount: shadowVal !== 0 ? shadowVal / 100 * 60 : 0,
     whiteAmount: whiteVal !== 0 ? whiteVal / 100 * 60 : 0,
@@ -462,6 +494,7 @@ export const applyMoodSpaceToImageData = (imageData, values) => {
   const params = getParamSet(values)
   const hasAdjustment = params.expFactor || params.tempAmount || params.hueRotation
     || params.hslHue || params.hslSat || params.hslLgt
+    || params.curvesLuts
     || params.highAmount || params.shadowAmount || params.whiteAmount || params.blackAmount
     || params.brightAdj || params.contAdj || params.satAdj
     || params.sharpenVal || params.vigStrength || params.blurVal
@@ -497,6 +530,7 @@ Konva.Filters.MoodSpaceCombined = function (imageData) {
     vignette: this.getAttr('vignette') ?? 0,
     blur: this.getAttr('blur') ?? 0,
     hsl: this.getAttr('hsl') || null,
+    curves: this.getAttr('curves') || null,
   }
   applyMoodSpaceToImageData(imageData, vals)
 }
@@ -578,8 +612,9 @@ export const applyImageFilters = (node, item) => {
   const hasAny = ADJUSTMENT_KEYS.some((k) => (item[k] ?? 0) !== 0)
   const hsl = item.hsl ?? null
   const hasHsl = hsl && (hsl.master?.hue || hsl.master?.saturation || hsl.master?.lightness)
+  const hasCurves = !!(item.curves)
 
-  if (!hasAny && !hasHsl) {
+  if (!hasAny && !hasHsl && !hasCurves) {
     node.filters([])
     node.clearCache()
     return
@@ -589,6 +624,7 @@ export const applyImageFilters = (node, item) => {
     node.setAttr(key, item[key] ?? 0)
   }
   node.setAttr('hsl', item.hsl || null)
+  node.setAttr('curves', item.curves || null)
 
   node.filters([Konva.Filters.MoodSpaceCombined])
   node.cache({ pixelRatio: Math.min(window.devicePixelRatio || 1, 2) })
