@@ -6,6 +6,43 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
 const luminance = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b
 
+const rgbToHsl = (r, g, b) => {
+  const rn = r / 255, gn = g / 255, bn = b / 255
+  const mx = Math.max(rn, gn, bn), mn = Math.min(rn, gn, bn)
+  const d = mx - mn
+  let h = 0, s = 0, l = (mx + mn) / 2
+  if (d !== 0) {
+    s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn)
+    if (mx === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60
+    else if (mx === gn) h = ((bn - rn) / d + 2) * 60
+    else h = ((rn - gn) / d + 4) * 60
+  }
+  return { h, s, l }
+}
+
+const hslToRgb = (h, s, l) => {
+  if (s === 0) {
+    const v = clamp(Math.round(l * 255), 0, 255)
+    return [v, v, v]
+  }
+  const hue = ((h % 360) + 360) % 360
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs((hue / 60) % 2 - 1))
+  const m = l - c / 2
+  let r1 = 0, g1 = 0, b1 = 0
+  if (hue < 60) { r1 = c; g1 = x; b1 = 0 }
+  else if (hue < 120) { r1 = x; g1 = c; b1 = 0 }
+  else if (hue < 180) { r1 = 0; g1 = c; b1 = x }
+  else if (hue < 240) { r1 = 0; g1 = x; b1 = c }
+  else if (hue < 300) { r1 = x; g1 = 0; b1 = c }
+  else { r1 = c; g1 = 0; b1 = x }
+  return [
+    clamp(Math.round((r1 + m) * 255), 0, 255),
+    clamp(Math.round((g1 + m) * 255), 0, 255),
+    clamp(Math.round((b1 + m) * 255), 0, 255),
+  ]
+}
+
 const processPixels = (imageData, fn) => {
   const d = imageData.data
   for (let i = 0; i < d.length; i += 4) {
@@ -235,7 +272,9 @@ Konva.Filters.Vignette = function (imageData) {
 const pixelPipeline = (params) => {
   const {
     d, w, h, len,
-    expFactor, tempAmount, hueRotation, highAmount, shadowAmount,
+    expFactor, tempAmount, hueRotation,
+    hslHue, hslSat, hslLgt,
+    highAmount, shadowAmount,
     whiteAmount, blackAmount, brightAdj, contAdj, satAdj,
     vigStrength, cx, cy, maxDist, sharpenVal, blurVal,
   } = params
@@ -265,6 +304,15 @@ if (hueRotation) {
   
   r = nr*255; g = ng*255; b = nb*255
 }
+
+    if (hslHue || hslSat || hslLgt) {
+      const { h, s, l } = rgbToHsl(r, g, b)
+      let nh = hslHue ? ((h + hslHue) % 360 + 360) % 360 : h
+      let ns = hslSat ? clamp(s + hslSat, 0, 1) : s
+      let nl = hslLgt ? clamp(l + hslLgt, 0, 1) : l
+      const rgb = hslToRgb(nh, ns, nl)
+      r = rgb[0]; g = rgb[1]; b = rgb[2]
+    }
     if (highAmount) {
       const luma = 0.299 * r + 0.587 * g + 0.114 * b
       if (luma > 128) {
@@ -385,10 +433,18 @@ const getParamSet = (vals) => {
   const vignetteVal = vals.vignette ?? 0
   const blurVal = vals.blur ?? 0
 
+  const hsl = vals.hsl ?? null
+  const hslHue = hsl?.master?.hue ?? 0
+  const hslSat = hsl?.master?.saturation ?? 0
+  const hslLgt = hsl?.master?.lightness ?? 0
+
   return {
     expFactor: expVal !== 0 ? Math.pow(2, expVal / 100) : 0,
     tempAmount: tempVal !== 0 ? tempVal / 100 * 30 : 0,
     hueRotation: hueVal !== 0 ? hueVal * Math.PI / 180 : 0,
+    hslHue: hslHue || 0,
+    hslSat: hslSat !== 0 ? hslSat / 100 : 0,
+    hslLgt: hslLgt !== 0 ? hslLgt / 100 : 0,
     highAmount: highVal !== 0 ? highVal / 100 * 60 : 0,
     shadowAmount: shadowVal !== 0 ? shadowVal / 100 * 60 : 0,
     whiteAmount: whiteVal !== 0 ? whiteVal / 100 * 60 : 0,
@@ -405,6 +461,7 @@ const getParamSet = (vals) => {
 export const applyMoodSpaceToImageData = (imageData, values) => {
   const params = getParamSet(values)
   const hasAdjustment = params.expFactor || params.tempAmount || params.hueRotation
+    || params.hslHue || params.hslSat || params.hslLgt
     || params.highAmount || params.shadowAmount || params.whiteAmount || params.blackAmount
     || params.brightAdj || params.contAdj || params.satAdj
     || params.sharpenVal || params.vigStrength || params.blurVal
@@ -439,6 +496,7 @@ Konva.Filters.MoodSpaceCombined = function (imageData) {
     sharpen: this.getAttr('sharpen') ?? 0,
     vignette: this.getAttr('vignette') ?? 0,
     blur: this.getAttr('blur') ?? 0,
+    hsl: this.getAttr('hsl') || null,
   }
   applyMoodSpaceToImageData(imageData, vals)
 }
@@ -464,11 +522,23 @@ Konva.Filters.BevelEmboss = function (imageData) {
     highlightBlendMode: this.getAttr('bevelEmbossHighlightBlendMode') || 'linear-dodge',
     shadowBlendMode: this.getAttr('bevelEmbossShadowBlendMode') || 'linear-burn',
   }
-  // Dual-buffer support: if a real-fill capture was stored, use it as the
-  // base render (imageData) and the active cache as the mask (height source).
+  // Dual-buffer support: if a real-fill capture was stored, use the stored
+  // mask for height and overwrite the display buffer with the real (transparent)
+  // render. The mask was saved during setup (applyBevelEmbossToNode /
+  // applyInnerShadowToNode) and is shared between both filters.
   const realData = this.getAttr('_bevelRealImageData')
+  let maskImageData = this.getAttr('_maskImageData')
   if (realData) {
-    applyBevelEmboss(realData, vals, imageData)
+    // If mask was not stored during setup (shouldn't happen with current code),
+    // fall back to saving it at runtime from the cache's current pixels.
+    if (!maskImageData) {
+      const maskPixels = new Uint8ClampedArray(imageData.data)
+      maskImageData = new ImageData(maskPixels, imageData.width, imageData.height)
+    }
+    // Replace cache pixels with the transparent render so Konva displays
+    // the correct base (transparent interior) with bevel edge modifications.
+    imageData.data.set(realData.data)
+    applyBevelEmboss(imageData, vals, maskImageData)
   } else {
     applyBevelEmboss(imageData, vals, null)
   }
@@ -484,13 +554,32 @@ Konva.Filters.InnerShadow = function (imageData) {
     distance: this.getAttr('innerShadowDistance') ?? 5,
     angle: this.getAttr('innerShadowAngle') ?? 135,
   }
-  applyInnerShadow(imageData, vals)
+  const realData = this.getAttr('_innerShadowRealImageData')
+  let maskImageData = this.getAttr('_maskImageData')
+  if (realData) {
+    if (!maskImageData) {
+      const maskPixels = new Uint8ClampedArray(imageData.data)
+      maskImageData = new ImageData(maskPixels, imageData.width, imageData.height)
+    }
+    // Only overwrite cache with realData when BevelEmboss is NOT also
+    // active. In the combined case, BevelEmboss already ran first and
+    // overwrote imageData with realData + applied bevel; overwriting
+    // again would lose the bevel modifications.
+    if (!this.getAttr('_bevelRealImageData')) {
+      imageData.data.set(realData.data)
+    }
+    applyInnerShadow(imageData, vals, maskImageData)
+  } else {
+    applyInnerShadow(imageData, vals, null)
+  }
 }
 
 export const applyImageFilters = (node, item) => {
   const hasAny = ADJUSTMENT_KEYS.some((k) => (item[k] ?? 0) !== 0)
+  const hsl = item.hsl ?? null
+  const hasHsl = hsl && (hsl.master?.hue || hsl.master?.saturation || hsl.master?.lightness)
 
-  if (!hasAny) {
+  if (!hasAny && !hasHsl) {
     node.filters([])
     node.clearCache()
     return
@@ -499,6 +588,7 @@ export const applyImageFilters = (node, item) => {
   for (const key of ADJUSTMENT_KEYS) {
     node.setAttr(key, item[key] ?? 0)
   }
+  node.setAttr('hsl', item.hsl || null)
 
   node.filters([Konva.Filters.MoodSpaceCombined])
   node.cache({ pixelRatio: Math.min(window.devicePixelRatio || 1, 2) })
