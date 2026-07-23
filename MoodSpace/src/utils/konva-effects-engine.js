@@ -910,7 +910,21 @@ export class EffectManager {
     let cachePad = 0
     const addPad = (v) => { if (v > cachePad) cachePad = v }
 
-    for (const [id, val] of Object.entries(effects)) {
+    // Iterate in canonical order (not Object.entries) so effect application
+    // is deterministic regardless of how the effects object was constructed
+    // (e.g. JSON.parse may produce different key order than Object.entries).
+    // Chroma Key must always run before Solid, otherwise Solid overwrites RGB
+    // and Chroma Key cannot detect original pixel colors.
+    const EFFECT_CANONICAL_ORDER = [
+      'invert', 'threshold', 'grayscale', 'sepia', 'solarize', 'noise', 'pixelate',
+      'gaussianBlur', 'feather', 'maskFade', 'mirror',
+      'directionalBlur', 'zoomBlur', 'spinBlur', 'spotColor', 'replaceColor',
+      'gradientOverlay', 'rgbSplit', 'duotone', 'risograph', 'spectralMap',
+      'halftone', 'dotMatrix', 'chromaKey', 'lumaKey', 'roughenEdge', 'edgeGlow',
+      'repeater', 'solid',
+    ]
+    for (const id of EFFECT_CANONICAL_ORDER) {
+      const val = effects[id]
       if (!val && val !== 0) continue
       if (val === false || val === 'none' || val === '') continue
 
@@ -1389,7 +1403,9 @@ export class EffectManager {
       const ADJ_KEYS = ['exposure','temperature','hue','highlights','shadows','whites','blacks','brightness','contrast','saturation','sharpen','vignette','blur']
       const hasAny = ADJ_KEYS.some((k) => (adjustments[k] ?? 0) !== 0)
       const hsl = adjustments.hsl ?? null
-      const hasHsl = hsl && (hsl.master?.hue || hsl.master?.saturation || hsl.master?.lightness)
+      const hasHsl = hsl && (
+        hsl.reds || hsl.yellows || hsl.greens || hsl.cyans || hsl.blues || hsl.magentas
+      )
       const hasCurves = !!(adjustments.curves)
       if (hasAny || hasHsl || hasCurves) {
         for (const key of ADJ_KEYS) node.setAttr(key, adjustments[key] ?? 0)
@@ -1501,8 +1517,9 @@ export class EffectManager {
           }
         } catch (_) {}
       }
+      const nodeId = (typeof node.id === 'function' ? node.id() : null) || (typeof node._id !== 'undefined' ? node._id : '?')
       console.log('[EFFECT CACHE PAD]', {
-        id: (typeof node.id === 'function' ? node.id() : null) || (typeof node._id !== 'undefined' ? node._id : '?'),
+        id: nodeId,
         textPadL, textPadT, textPadR, textPadB,
         cacheX: -textPadL, cacheY: -textPadT,
         cacheW: Math.ceil(w + textPadL + textPadR + pad * 2),
@@ -1600,8 +1617,16 @@ export class EffectManager {
   applyEffectsToImageData(imageData, effects = {}) {
     const w = imageData.width, h = imageData.height
     const d = imageData.data
-
-    for (const [id, val] of Object.entries(effects)) {
+    const EFFECT_CANONICAL_ORDER = [
+      'invert', 'threshold', 'grayscale', 'sepia', 'solarize', 'noise', 'pixelate',
+      'gaussianBlur', 'feather', 'maskFade', 'mirror',
+      'directionalBlur', 'zoomBlur', 'spinBlur', 'spotColor', 'replaceColor',
+      'gradientOverlay', 'rgbSplit', 'duotone', 'risograph', 'spectralMap',
+      'halftone', 'dotMatrix', 'chromaKey', 'lumaKey', 'roughenEdge', 'edgeGlow',
+      'solid',
+    ]
+    for (const id of EFFECT_CANONICAL_ORDER) {
+      const val = effects[id]
       if (!val && val !== 0) continue
       if (val === false || val === 'none' || val === '') continue
 

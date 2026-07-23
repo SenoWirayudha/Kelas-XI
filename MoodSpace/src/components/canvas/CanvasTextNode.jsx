@@ -9,6 +9,7 @@ import { getClampedCanvasPosition } from '../../utils/canvasPositionUtils'
 import { clamp } from '../../utils/mathUtils'
 import { effectManager } from '../../utils/konva-effects-engine'
 import { getRuns, runsToText, addListPrefix } from '../../utils/textRuns'
+import { generateTextGeometryShadowCanvas, isEffectivelyFillNone } from '../../utils/geometryShadow'
 
 function renderCurvedText(text, fontFamily, fontSize, fontStyle, curveAmount, letterSpacing, fillColor, runs) {
   const chars = Array.from(text || ' ')
@@ -146,6 +147,76 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   const textRgbCenterRef = useRef(null)
   const textContentKeyRef = useRef('')
   const capturePadRef = useRef({ y: 0 })
+  const shadowCanvasRef = useRef(null)
+  const textRectRef = useRef(null)
+  const onChangeRef = useRef(onChange)
+  const filterItemRef = useRef(item)
+  const [, forceShadowRender] = useState(0)
+
+  // Measure the actual rendered text width using canvas 2D context.
+  // This is tighter than item.w (the text box width) — for non-wrapping,
+  // non-full-width text, item.w leaves empty space to the right. Using
+  // the actual glyph width prevents the shadow canvas from being oversized.
+  const actualTextWidth = useMemo(() => {
+    if (!item.text) return 0
+    const ctx = document.createElement('canvas').getContext('2d')
+    if (!ctx) return 0
+    if (item.runs && item.runs.length > 1) {
+      let totalW = 0
+      for (const run of item.runs) {
+        const runText = item.text.substring(run.start, run.end)
+        ctx.font = `${run.fontStyle || 'normal'} ${run.fontSize || item.fontSize || 48}px ${run.fontFamily || item.fontFamily || 'Inter, Arial'}`
+        totalW += Math.ceil(ctx.measureText(runText).width)
+      }
+      return totalW
+    }
+    ctx.font = `${item.fontStyle || 'normal'} ${item.fontSize || 48}px ${item.fontFamily || 'Inter, Arial'}`
+    return Math.ceil(ctx.measureText(item.text).width)
+  }, [item.text, item.fontFamily, item.fontSize, item.fontStyle, item.runs])
+
+  onChangeRef.current = onChange
+  filterItemRef.current = item
+  const useGeometryShadow = isEffectivelyFillNone(item) && item.shadowEnabled && (item.shadow ?? 0) > 0
+
+  // Geometry shadow for fill=none text
+  useEffect(() => {
+    if (!useGeometryShadow) {
+      if (shadowCanvasRef.current) {
+        shadowCanvasRef.current = null
+        textRectRef.current = null
+        forceShadowRender(n => n + 1)
+      }
+      return
+    }
+    // Read the actual bounding box from the rendered Konva text node.
+    // getClientRect() includes stroke extension, so the shadow overlay
+    // precisely follows the visual text bounds including stroke.
+    let textRect = null
+    if (item.runs && item.runs.length > 1) {
+      textRect = multiRunGroupRef.current?.getClientRect({ skipTransform: true, skipShadow: true }) ?? null
+    } else {
+      textRect = textNodeRef.current?.getClientRect({ skipTransform: true, skipShadow: true }) ?? null
+    }
+    if (textRect) {
+      textRectRef.current = textRect
+    } else if (!textRectRef.current) {
+      // Fallback: use item dimensions if no Konva node available yet.
+      const fallbackH = Math.max(item.h || 1, (item.fontSize || 48) * 2)
+      textRectRef.current = { x: 0, y: 0, width: Math.ceil(item.w || 1), height: Math.ceil(fallbackH) }
+    }
+
+    // contentH for the measurement canvas — generous to avoid clipping
+    // multi-run text whose runsLayoutRef may not yet be populated.
+    const shadowContentH = Math.max(item.h || 1, (item.fontSize || 48) * 2)
+    const canvas = generateTextGeometryShadowCanvas(item, shadowContentH, actualTextWidth)
+    if (canvas !== shadowCanvasRef.current) {
+      shadowCanvasRef.current = canvas
+      forceShadowRender(n => n + 1)
+    }
+  }, [useGeometryShadow, item.text, item.shadow, item.shadowColor, item.shadowOpacity,
+      item.shadowOffsetX, item.shadowOffsetY, item.w, item.h, item.fontFamily,
+      item.fontSize, item.fontStyle, item.align, item.strokeWidth, item.stroke,
+      item.strokeEnabled, item.runs, actualTextWidth])
 
   const hasEffects = item.effects && Object.keys(item.effects).some(k => !['letterSpacing', 'curve'].includes(k))
   const hasRgbSplit = !!item.effects?.rgbSplit
@@ -195,7 +266,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       if (neededWidth > (item.w || 0)) {
         hasAutoExpandedRef.current = true
         node.width(neededWidth)
-        onChange({ w: neededWidth })
+        onChangeRef.current({ w: neededWidth })
       } else {
         hasAutoExpandedRef.current = true
       }
@@ -205,7 +276,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     if (!isMultiRun && fontLoaded && text && text.includes('\n')) {
       const h = Math.ceil(node.height() || (item.fontSize || 48))
       if (h > (item.h || 0)) {
-        onChange({ h })
+        onChangeRef.current({ h })
       }
     }
 
@@ -213,7 +284,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     if (isMultiRun && fontLoaded) {
       const rh = runsLayoutRef.current.height
       if (rh && Math.abs(rh - (item.h || 0)) > 2) {
-        onChange({ h: rh })
+        onChangeRef.current({ h: rh })
       }
     }
 
@@ -237,7 +308,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
     item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity, item.bevelEmbossHighlightBlendMode, item.bevelEmbossShadowBlendMode,
     item.innerShadowEnabled, item.innerShadowColor, item.innerShadowOpacity, item.innerShadowBlur, item.innerShadowDistance, item.innerShadowAngle,
-    fontLoaded, item.w, hasCurve, onChange,
+    fontLoaded, item.w, hasCurve,
   ])
 
   // Synchronous effect application for curved text (separate from the non-curve layout effect above)
@@ -375,11 +446,9 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     img.getLayer()?.batchDraw()
   }, [item.effects, textRgbSplitVer])
 
-  const filterItemRef = useRef(item)
   const rAFRef = useRef(null)
 
   useEffect(() => {
-    filterItemRef.current = item
     if (rAFRef.current) return
     rAFRef.current = requestAnimationFrame(() => {
       rAFRef.current = null
@@ -392,16 +461,21 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         node = textNodeRef.current
       }
       if (!node) return
-      const rafFx = { ...filterItemRef.current.effects }
+      const rafFx = { ...(filterItemRef.current.effects || {}) }
       delete rafFx.rgbSplit
-      try { effectManager.applyAll(node, rafFx) } catch {}
+      const hasMeaningfulFx = Object.values(rafFx).some(v => (v || v === 0) && v !== false && v !== 'none' && v !== '')
+      if (hasMeaningfulFx) {
+        try { effectManager.applyAll(node, rafFx) } catch {}
+        applyBevelEmbossToNode(node, filterItemRef.current)
+        applyInnerShadowToNode(node, filterItemRef.current)
+      }
     })
     return () => {
       if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null }
     }
-  }, [item, fontLoaded, hasCurve, isMultiRun])
+  }, [item.effects, fontLoaded, hasCurve, isMultiRun])
 
-  const hasTextFill = item.fill !== null && item.fill !== 'transparent'
+  const hasTextFill = item.fill !== null && item.fill !== 'transparent' && item.fill !== 'none'
   const hasFillGradient = hasTextFill && item.gradientType !== 'solid' && item.gradientStops?.length >= 2
   const gradientProps = {}
   if (item.gradientType === 'linear' && hasFillGradient) {
@@ -418,7 +492,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     gradientProps.fillRadialGradientColorStops = item.gradientStops.flatMap((s) => [s.offset, s.color])
     gradientProps.fill = undefined
   } else {
-    gradientProps.fill = hasTextFill ? item.fill : 'rgba(0,0,0,0)'
+    gradientProps.fill = hasTextFill ? item.fill : 'transparent'
   }
 
   const strokeGradientProps = {}
@@ -441,7 +515,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
 
   const hasStroke = (item.strokeWidth || 0) > 0 && (item.stroke || item.strokeGradientType)
   const shadowProps = getShadowProps(item)
-  const hasShadow = Object.keys(shadowProps).length > 0
+  const hasNativeShadow = !useGeometryShadow && Object.keys(shadowProps).length > 0
 
   const textProps = {
     text,
@@ -608,7 +682,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           fontSize={fs} fontFamily={s.fontFamily} fontStyle={s.fontStyle}
           textDecoration={s.decoration} fill={s.fill}
           stroke={strokeGradientProps.stroke || item.stroke || null} strokeWidth={hasStroke ? (item.strokeWidth || 0) : 0}
-          {...(hasShadow ? shadowProps : {})}
+          {...(hasNativeShadow ? shadowProps : {})}
           wrap="none"
           lineJoin={hasStroke ? 'round' : 'miter'} miterLimit={hasStroke ? 2 : 10} perfectDrawEnabled={false} listening={false} />
       )
@@ -790,6 +864,43 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         fill="rgba(0,0,0,0)"
         strokeWidth={0}
       />
+      {useGeometryShadow && shadowCanvasRef.current && (() => {
+        const sc = shadowCanvasRef.current
+        // Use getClientRect() from the rendered Konva text node for
+        // pixel-accurate overlay positioning. The shadow canvas has the
+        // glyph's visual top-left corner at canvas pixel (sc.width - tw) / 2,
+        // (after Phase 3 tight-crop in generateTextGeometryShadowCanvas).
+        // Aligning the overlay at (ox + rect.x - pw, oy + rect.y - ph)
+        // places it exactly over the Konva text (including stroke).
+        const tr = textRectRef.current
+        if (!tr) {
+          // Fallback: no Konva node rect available yet — position with
+          // legacy centering approach.
+          const p = (sc.width - (actualTextWidth || Math.ceil(item.w))) / 2
+          return (
+            <Image
+              image={sc}
+              x={(item.shadowOffsetX ?? 0) - p}
+              y={(item.shadowOffsetY ?? 0) - (sc.height - Math.ceil(textHeight)) / 2}
+              width={sc.width} height={sc.height}
+              listening={false} perfectDrawEnabled={false}
+            />
+          )
+        }
+        const pw = (sc.width - tr.width) / 2
+        const ph = (sc.height - tr.height) / 2
+        return (
+          <Image
+            image={sc}
+            x={(item.shadowOffsetX ?? 0) + tr.x - pw}
+            y={(item.shadowOffsetY ?? 0) + tr.y - ph}
+            width={sc.width}
+            height={sc.height}
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+        )
+      })()}
       {hasRgbSplit ? (
         <>
           {/* Hidden source for capture */}
@@ -802,7 +913,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
               {hasStroke && (
                 <Text {...textProps} {...strokeGradientProps} fillEnabled={false} strokeWidth={item.strokeWidth || 0} listening={false} visible={false} />
               )}
-              <Text ref={textNodeRef} {...textProps} {...gradientProps} {...(hasShadow ? shadowProps : {})} fillEnabled={hasTextFill} strokeEnabled={false} listening={false} visible={false} />
+              <Text ref={textNodeRef} {...textProps} {...gradientProps} {...(hasNativeShadow ? shadowProps : {})} fillEnabled={true} strokeEnabled={false} listening={false} visible={false} />
             </>
           )}
           {/* Channel rendering */}
@@ -852,8 +963,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
             ref={textNodeRef}
             {...textProps}
             {...gradientProps}
-            {...(hasShadow ? shadowProps : {})}
-            fillEnabled={hasTextFill}
+            {...(hasNativeShadow ? shadowProps : {})}
+            fillEnabled={true}
             strokeEnabled={false}
             listening={false}
           />

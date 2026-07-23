@@ -1184,3 +1184,32 @@ export const unlikePost = async ({ userId, postId }) => withTransaction(async (c
 
   return { deleted }
 })
+
+export const getRecentViewedPosts = async ({ userId, limit = 3 }) => {
+  const { rows } = await query(
+    `select p.id, p.title, p.metadata, p.embedding
+     from post_views pv
+     join posts p on p.id = pv.post_id
+     where pv.viewer_id = $1
+       and pv.viewed_at > now() - interval '60 days'
+       and p.embedding is not null
+     order by pv.viewed_at desc
+     limit $2`,
+    [userId, limit],
+  )
+  return rows
+}
+
+export const getRecentSavedPosts = async ({ userId, limit = 3 }) => {
+  const { rows } = await query(
+    `select p.id, p.title, p.metadata, p.embedding
+     from post_saves ps
+     join posts p on p.id = ps.post_id
+     where ps.user_id = $1
+       and p.embedding is not null
+     order by ps.created_at desc
+     limit $2`,
+    [userId, limit],
+  )
+  return rows
+}

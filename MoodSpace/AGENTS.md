@@ -3,7 +3,9 @@
 ## Status
 Done: CLIP embeddings (external_images, posts, user_embeddings, media_assets), L2 normalization, profile momentum-based EMA, CLIP reranking with threshold 0.05 + 3-level safety net, cold-start from signals, in-memory pagination with snapshot anchor + frozen seed (zero duplicates verified), TMDB recommendations in "More Like This" (2:1 interleaving, 10min cache), visibility badges (Lock/Users), `findAnyEmbedding` for uploaded images (3-level: external_images → posts → media_assets), `findMutualFollow` for unlisted visibility, Refresh → RotateCw icons, eraser native resolution fix, lazy CLIP for uploaded images in `searchExternalImages`, canvas item metadata (mediaId/sourceType/title/tags), signal regeneration from items on workspace load, browseRefreshKey for re-fetch.
 
-Fixed: UUID filename tokens skipped from signals, browse effect guarded by `hasRestoredWorkspaceRef`, load-more cursor preserved on rejection, `similarPostsByImage` now has lazy CLIP for uploaded images (with `findAnyEmbedding` + `findMediaById` + `getImageEmbedding` + in-memory cache), initial browse effect no longer reads stale cursor from closure (removed `!hasCursor` check) and retries external search without `visualSimilarTo` on failure, empty `getSimilarPostsByImage` results fall back to home feed, external search in browse now uses `context: 'browse_asset'` which disables the `isDesignItem` filter (was filtering out movie-related images with tags like "character"), retries with fallback queries if results are empty, `runExternalSearch` wrapped in try/catch, `CLIP_SCORE_THRESHOLD` raised from 0.10 → 0.20 with `similarPostsByImage` capped at 12 items, re-mixing on Load More replaced with append-only stable mixing via `mixedBrowseAssets` state + `computeMixedBrowseAssets` useCallback, eraser preview strokeWidth and image eraser lineWidth now divide by camera.scale (was not accounting for zoom, causing preview/erasure mismatch at non-1x zoom).
+Done: CLIP embeddings (external_images, posts, user_embeddings, media_assets), L2 normalization, profile momentum-based EMA, CLIP reranking with threshold 0.05 + 3-level safety net, cold-start from signals, in-memory pagination with snapshot anchor + frozen seed (zero duplicates verified), TMDB recommendations in "More Like This" (2:1 interleaving, 10min cache), visibility badges (Lock/Users), `findAnyEmbedding` for uploaded images (3-level: external_images → posts → media_assets), `findMutualFollow` for unlisted visibility, Refresh → RotateCw icons, eraser native resolution fix, lazy CLIP for uploaded images in `searchExternalImages`, canvas item metadata (mediaId/sourceType/title/tags), signal regeneration from items on workspace load, browseRefreshKey for re-fetch.
+
+Fixed: UUID filename tokens skipped from signals, browse effect guarded by `hasRestoredWorkspaceRef`, load-more cursor preserved on rejection, `similarPostsByImage` now has lazy CLIP for uploaded images (with `findAnyEmbedding` + `findMediaById` + `getImageEmbedding` + in-memory cache), initial browse effect no longer reads stale cursor from closure (removed `!hasCursor` check) and retries external search without `visualSimilarTo` on failure, empty `getSimilarPostsByImage` results fall back to home feed, external search in browse now uses `context: 'browse_asset'` which disables the `isDesignItem` filter (was filtering out movie-related images with tags like "character"), retries with fallback queries if results are empty, `runExternalSearch` wrapped in try/catch, `CLIP_SCORE_THRESHOLD` raised from 0.10 → 0.20 with `similarPostsByImage` capped at 12 items, re-mixing on Load More replaced with append-only stable mixing via `mixedBrowseAssets` state + `computeMixedBrowseAssets` useCallback, eraser preview strokeWidth and image eraser lineWidth now divide by camera.scale (was not accounting for zoom, causing preview/erasure mismatch at non-1x zoom), cursor increment di home feed pake raw count (bukan fixed `limit*3`).
 
 ## Session 2026-06-19: Relight + Loading Phase
 Done:
@@ -24,6 +26,7 @@ Done:
 - **Profile**: EMA momentum (0.7/<50 events, 0.95/>=50). `buildProfileFromSignals` — single UNION ALL, weighted avg + recency decay (30-day half-life). Text-only fallback from interest tags.
 - **Pagination**: Overfetch `limit*3+50`, CLIP rerank, `sortPos` slice. Snapshot anchor `publishedAt <= $snapshot`. Frozen `seed` in cursor. No duplicates.
 - **"More Like This"**: `searchTmdbRecommendations` — `/movie/{id}/recommendations`, max 6 movies × 2 images, interleave 2:1. Cursor tracks `recOffset`.
+- **Anchor Post Visual Mix (Step A2)**: Fetches visually similar external images from recently viewed/saved posts (3 anchors, 6 results each, page 1 only). **Survival to finalItems is 0%** because CLIP rerank sorts by cosine to textEmb, which consistently favors Step A items (gap ~0.03). Indirect contribution: pool enrichment for entity cap and style floor. True visual chaining needs dual-path scoring (deferred to post-pgvector).
 - **Unlisted**: Mutual follow via `followerVisibilitySql` in repository queries. Author always sees own. `findMutualFollow` in follows repository.
 - **Browse asset**: 7 internal : 3 external interleave. Visual similarity via `visualSimilarTo`. Lazy CLIP for uploaded images via `findMediaById` + `getImageEmbedding`, in-memory cache per process.
 - **Workspace loading**: 3-phase: loading (data fetch) → analyzing (pre-warm CLIP via browse API) → preparing (200ms canvas setup) → done (canvas renders). Pre-warm (tanpa timeout) eliminates CLIP cold-start freeze on first browse effect.
@@ -574,3 +577,340 @@ Both paths close modal on success + show font warning before navigating.
 - `src/App.css` — `.gallery-template-badge`, `.project-import-btn`, `.share-modal-tabs`
 - `backend/src/modules/posts/posts.validation.js` — `templateWorkspaceId` + `source` in `postMetadata`
 - `backend/src/modules/posts/posts.repository.js` — `createMediaPost` + `publishMediaPostDraft` workspace ownership validation
+
+## Session 2026-07-22: DB-First Home Feed — Strategi External Images
+
+### 1. Flow End-to-End (searchExternalImages, context='home')
+
+```
+interest_tags (8 latest, decay-weighted)
+  → isHomeGarbageTag filter → effectiveTags (3-6)
+  → interleaveTagExpansions → max 6 unique queries
+  → getTextEmbedding(combined queries)   ← satu textEmb untuk semua queries
+     ↓
+[STEP A] DB TEXT SIMILARITY (line 1846-1852)
+   findImagesByVisualSimilarity({
+     embedding: textEmb,
+     limit: 500, offset: 0,
+   })
+   → filterAdaptiveFreshness(items, offset, limit*3, 14d, threshold=5)
+   → homeDbItems ← PRIORITAS PERTAMA
+   ⚡ Skip jika textEmb null. Jalan tiap page (cursor offset).
+
+[STEP B] PROFILE POOL (line 1854-1874)
+   getUserProfileEmbedding(viewerId) → profileEmb
+   findImagesByVisualSimilarity({
+     embedding: profileEmb, limit: 500, offset: 0,
+   })
+   → filterAdaptiveFreshness(items, offset, 6, 30d, threshold=3)
+   → filter(provider !== 'itunes' jika !hasMusicQuery)
+   → filter(isDesignItem untuk non-TMDB/itunes)
+   → homeProfilePoolItems ← SERENDIPITY
+   ⚡ Skip jika viewerId null, profile null, visualSimilarTo set, atau semanticText set.
+
+[STEP C] API FALLBACK (line 1924-1951, guarded by !skipApiForHome)
+   Hanya jalan jika homeDbItems.length < limit*3
+   Provider routing via getProviderSearchersForQuery (TMDB/Unsplash/dll)
+   ⚡ skipApiForHome = homeDbItems.length >= limit*3
+
+[MERGE] (line 1955-1960)
+   items = [...uniqueDbItems, ...uniqueProfItems, ...items].slice(0, limit*3)
+   DB items DI DEPAN (prioritas), API items di belakang (supplement).
+
+[STEP D] CLIP RERANK (line 2136-2148)
+   cosineSimilarity(textEmb, item._embedding) untuk tiap item
+   Sort descending by score, no threshold filter (beda dengan recommended)
+
+[STEP E] APPLY SATURATION BOOST (line 2153-2154)
+   applySaturationBoost(rerankedItems, bwRerankText)
+   Pixel-level: thumbnail → metric B&W/warm/vibrant → boost score
+   Jalan untuk SEMUA context, termasuk home.
+
+[STEP F] STYLE FLOOR (line 2209-2287)
+   detectStyle(bwRerankText) → filter RELIABLE_FLOOR_STYLES (bw/warm/vibrant)
+   Jika detectedStyles.length && dbMixIds.size:
+     Cari DB item di finalItems dengan _styleMetrics >= threshold
+     Jika tidak ada, cari best candidate di entityCapped
+     Swap masuk finalItems, remove lowest-scoring non-DB item
+   ⚡ Jalan untuk home karena dbMixIds diisi dari homeDbItems (line 1967-1974)
+   ⚡ Jalan tiap page karena dbMixIds di-reset tiap page.
+
+[OUTPUT] (line 2395-2432)
+   Entity cap: max 4 TMDB items per entity (line 2179-2194)
+   Design floor: minimal 2 non-TMDB jika ada non-movie query (line 2387)
+   Cursor: { dbTextOffset, profileOffset, queries? }
+```
+
+### 2. Freshness Filter — Adaptive Tiers
+
+**`filterAdaptiveFreshness`** (`externalImages.service.js:286-304`):
+
+DB text mix (`freshDays=14, tierThreshold=5`):
+```
+Tier 1: updated_at > NOW() - 14 days — if >= 5 items → use these
+Tier 2: updated_at > NOW() - 30 days — if >= 5 items → use these
+Tier 3: no filter (semua items)        — fallback
+```
+
+Profile pool (`freshDays=30, tierThreshold=3`):
+```
+Tier 1: updated_at > NOW() - 30 days — if >= 3 items → use these
+Tier 2: updated_at > NOW() - 60 days — if >= 3 items → use these
+Tier 3: no filter
+```
+
+**Alasan beda**: DB text mix untuk relevance (harus fresh supaya feed tidak stale). Profile pool untuk discovery/serendipity — item lama pun berharga untuk memperkenalkan konten baru. Threshold lebih rendah (3 vs 5) karena pool profile lebih niche (hanya 6 items per page).
+
+**Niche tag safety**: tier adaptif memastikan tag niche seperti "lanthimos" (hanya 3 items di DB, 0 dalam 14d) tetap dapat hasil dari tier 2 atau 3, daripada langsung API fallback. Data real: 28 items untuk "chungking express" dengan 0 items dalam 14d — tier 2 (30d) mengembalikan 28 items.
+
+### 3. Pagination/Cursor — Perbedaan dengan Search Box
+
+| Aspek | Search Box | Home Feed |
+|-------|-----------|-----------|
+| DB text mix scope | **Page 1 only** (`!decodedCursor?.queries`) | **Semua page** (cursor offset) |
+| Cursor fields | `queries` (provider cursors) | `dbTextOffset`, `profileOffset`, `queries` |
+| Alasan | Search hasilnya berubah tiap query; page 1 relevance paling penting | Home feed perlu DB PRIORITAS konsisten; tanpanya page 2+ balik ke API-first → adult content risk kembali |
+
+**Cursor assembly** (`externalImages.service.js:2365-2378`):
+```js
+if (context === 'home') {
+  const dbMorePages = homeDbItems.length > 0 || hasActiveCursor
+  if (dbMorePages) {
+    finalCursor = {
+      dbTextOffset: homeDbTextOffset + Math.max(homeDbItems.length, 1),
+      profileOffset: homeProfileOffset + Math.max(homeProfilePoolItems.length, 1),
+    }
+    if (nextCursor?.queries) finalCursor.queries = nextCursor.queries
+  } else {
+    finalCursor = { exhausted: true }
+  }
+}
+```
+
+Offset maju BERSASARKAN RAW COUNT dari `filterAdaptiveFreshness` — bukan angka tetap. `Math.max(..., 1)` mencegah infinite loop. Guard `dbMorePages: homeDbItems.length > 0` — karena raw count bisa < `limit*3` (masih ada page berikutnya). Path 3 (`visOffset + limit`) masih fixed karena pake SQL offset, bukan slice-based.
+
+**Frontend seed** (`Home.jsx:116`): `feedSeedRef` di-random tiap session (`Date.now() + Math.random()`). Tidak ada rotasi harian — lihat STATUS TERBUKA point 6.
+
+### 4. Style Floor — dbMixIds per Page
+
+**Search box**: `dbMixIds` di-set dari `findImagesByVisualSimilarity` hanya page 1 (`!decodedCursor?.queries`). Style floor hanya aktif page 1.
+
+**Home feed**: `dbMixIds` di-set dari `homeDbItems` tiap page (`externalImages.service.js:1967-1974`):
+```js
+if (context === 'home' && homeDbItems.length) {
+  const mergedIds = new Set(items.map(i => i.id))
+  dbMixIds = new Set(homeDbItems.filter(i => mergedIds.has(i.id)).map(i => i.id))
+}
+```
+Karena `homeDbItems` diisi tiap page (cursor `dbTextOffset` maju), `dbMixIds` juga berisi item page saat ini. Style floor aktif di SEMUA page home feed.
+
+**Floor logic** (line 2209) tidak punya guard context — gate cuma `detectedFloorStyles.length && dbMixIds.size`. Mekanisme swap: cari `finalItems.filter(i => !dbMixIds.has(i.id))` → ganti lowest-scoring dengan DB item yang punya style evidence ≥ threshold (`bw: 0.90`, `warm: 0.15`, `vibrant: 0.35`). TMDB items dari API (tidak ada di `dbMixIds`) bisa di-swap — sama seperti search box.
+
+### 5. Defensive Adult Filter — Jalur Home Feed
+
+Home feed melewati **3 titik** defensive adult filter:
+
+| # | Titik | File:Baris | Mekanisme |
+|---|-------|-----------|-----------|
+| 1 | `fetchTmdbTrendingMovies` | service.js:764-769 | `.filter(r => !r.adult)` di `/trending/movie/week` + `/movie/popular` |
+| 2 | `searchTmdb` `/search/multi` | service.js:860 | `.filter((r) => !r.adult)` di multi-payload |
+| 3 | `classifyMovieQuery` gate3b | service.js:204-207 | Reject visual-only query (e.g., "black white poster film") sebelum TMDB search |
+
+Titik 1 dan 2 adalah **pipeline filter** — jalan untuk semua TMDB response, termasuk home feed. Titik 3 adalah **routing guard** — mencegah query visual murni masuk ke TMDB.
+
+**Catatan**: Dengan DB-first, API fallback (termasuk TMDB) jarang terpakai untuk home feed (hanya jika `homeDbItems.length < limit*3`). TAPI defensive filter tetap wajib sebagai safety net untuk path API fallback dan non-home contexts (search box, browse_asset). API fallback routing untuk home feed cuma 3 titik adult filter (`fetchTmdbTrendingMovies`, `searchTmdb`, `classifyMovieQuery` gate3b) — `searchTmdbPerson`/`searchTmdbCredits`/`searchTmdbCompany` TIDAK reachable dari `getProviderSearchersForQuery({ context: 'home', ... })`.
+
+6 titik full list (termasuk yang tidak dilewati home feed): lihat Session 2026-07-22 "Priority 1" di atas.
+
+### 6. STATUS TERBUKA — Rotasi Feed Antar Hari
+
+**Kondisi sekarang**: Seed deterministic per session. `feedSeedRef` di-random sekali saat Home component mount (`Home.jsx:116`). User membuka app → seed tetap → feed sama selama session → refresh browser → seed baru. Tidak ada rotasi harian otomatis.
+
+**Apa yang terjadi dalam practice**:
+- User buka Home → seed X → feed items dari DB text similarity = items dengan cosine tertinggi ke combined query embedding
+- User scroll page 2 → offset naik → items rank 19-36 (cosine lebih rendah)
+- User refresh → seed baru → `interleaveTagExpansions` weighted sampling pilih subset tags berbeda → queries berbeda → items berbeda
+- Tapi dalam SATU session tanpa refresh: page 1 selalu menampilkan items yang sama (deterministic: embedding + offset deterministik)
+- Profile pool juga deterministic (profile embedding tetap, offset deterministik)
+
+**Limitations**:
+- **Belum ada rotasi harian**: Tidak ada mekanisme yang memastikan user melihat konten berbeda setiap hari. Seed di-reset hanya via session baru (refresh/tutup buka).
+- **Belum ada exploration pressure**: Weighted sampling cuma di query generation (tag level), bukan di item level. Items selalu berasal dari cosine similarity yang deterministik.
+- **Belum ada dedup history**: Tidak ada tracking item mana yang sudah pernah ditampilkan ke user. Cursor offset hanya mencegah duplikasi dalam 1 session, bukan antar session.
+
+**Potential fixes (belum dikerjakan)**:
+1. **Harian seed rotation**: Gunakan tanggal sebagai komponen seed — `feedSeedRef.current = date-fns format YYYY-MM-DD + userID`. Rotasi tiap hari, tanpa perlu refresh.
+2. **Random offset dalam pool**: Alih-alih selalu ambil top-N cosine, gunakan `OFFSET floor(random() * (poolSize - limit))` dalam batas tertentu (misal top 200) untuk variasi.
+3. **History tracking**: Simpan ID items yang sudah ditampilkan dalam localStorage/DB, exclude dari query berikutnya.
+4. **Exploration injection**: Sisipkan item dari provider random (bukan cosine terbaik) dengan probabilitas rendah (e.g., 10% slot untuk random).
+
+**Key files for seed**: `Home.jsx:116` (feedSeedRef), `externalImages.service.js:602-603` (timeBucket + effectiveSeed), `externalImages.service.js:373-384` (seededRandom + weightedSampleByScore).
+
+### 7. Audit 2026-07-22 — 3 Checkpoints
+
+#### Checkpoint 1: Offset literal 0 di findImagesByVisualSimilarity
+```js
+findImagesByVisualSimilarity({ embedding: textEmb, limit: 500, offset: 0 })
+findImagesByVisualSimilarity({ embedding: profileEmb, limit: 500, offset: 0 })
+```
+**Bukan bug.** Offset literal `0` karena fungsi ini fetch FULL pool (500 items). Offset aktual diaplikasikan LEWAT `filterAdaptiveFreshness(pool, homeDbTextOffset, ...)` yang melakukan `pool.slice(homeDbTextOffset, ...)`. SQL offset tidak digunakan untuk pagination home feed.
+
+#### Checkpoint 2: Cursor increment — raw count, bukan fixed number
+Sebelumnya: `dbTextOffset: homeDbTextOffset + limit * 3`, `profileOffset: homeProfileOffset + 6` (angka tetap).
+Sekarang: `dbTextOffset: homeDbTextOffset + Math.max(homeDbItems.length, 1)`, `profileOffset: homeProfileOffset + Math.max(homeProfilePoolItems.length, 1)` (raw count).
+- Mencegah row ter-skip kalau `filterAdaptiveFreshness` return lebih sedikit dari `limit*3`
+- `Math.max(..., 1)` mencegah infinite loop kalau 0 item
+- Guard `dbMorePages: homeDbItems.length > 0 || hasActiveCursor` — karena raw count bisa < `limit*3` (valid, masih ada page berikutnya)
+- Path 3 (`visOffset + limit`, line 2382) masih fixed — beda karena Path 3 pake SQL offset (`findImagesByVisualSimilarity offset` parameter terpisah), bukan slice-based.
+
+#### Checkpoint 3: API fallback routing — cuma 3 titik adult filter untuk home feed
+API fallback home feed pake `getProviderSearchersForQuery({ context: 'home', query })`:
+- **Movie query**: `['tmdb', searchTmdb]`, `['wikimedia', searchWikimedia]` — TIDAK ada `searchTmdbPerson`/`searchTmdbCredits`/`searchTmdbCompany`
+- **Non-movie with movie intent words**: TMDB + Unsplash/Pexels/Pixabay/Openverse/Wikimedia
+- **Non-movie without movie intent**: design providers only
+3 titik adult filter (`fetchTmdbTrendingMovies`, `searchTmdb` filter, `classifyMovieQuery` gate3b) sudah cukup. 3 titik lain (credits/person/company) tidak reachable dari home feed.
+
+## Session 2026-07-22: Embedding Monitor + Rate Limit Tracking
+
+### Embedding Count Monitor
+- **File**: `backend/src/shared/embeddingMonitor.js`
+- Startup check + daily `setInterval` (24h) query `SELECT COUNT(*) FROM external_images WHERE embedding IS NOT NULL`
+- Thresholds: `WARN=4000`, `CRITICAL=5000`
+- Logs current count + 7-day average growth rate + projected days to threshold
+- Wired into `server.js:14` — starts after server listen + CLIP warm-up
+- Growth projection (data 2026-07-22): 2128 rows, ~50-60/day avg, ~30-40d to 4000 at current rate
+
+## Session 2026-07-22: Anchor Post Visual Mix (Step A2) — Indirect Benefit Only
+
+### Implementasi
+- `getRecentViewedPosts` / `getRecentSavedPosts` di `posts.repository.js` — fetch 3 posts terakhir yang user lihat/simpan (60d window, embedding IS NOT NULL)
+- Step A2 di `searchExternalImages` (`externalImages.service.js`): setelah Step A/B merge, fetch visual similar untuk tiap anchor post (limit 6 per anchor, excludeIds dari Step A+B), merge ke items pool
+
+### Test Survival Rate (3 user, confirmed via instrumentation)
+```
+User       | Pool | In Reranked | Entity Capped | Final | Rate
+newacc5    | 18   | 18          | 17            | 0     | 0%
+accuser    | 18   | 18          | 17            | 0     | 0%
+seno       | 18   | 18          | 16            | 0     | 0%
+```
+- Anchor clipScore ke textEmb: 0.16–0.25 (gap rata-rata -0.032 ke item ke-12)
+- Non-anchor clipScore top-12 ke textEmb: 0.28–0.32
+- **0% anchor items survive ke finalItems**
+
+### Root Cause
+Step A (DB text similarity) sudah ambil 500 items paling relevan ke textEmb. Step A2 ambil items yang serupa VISUAL ke recent posts → tapi CLIP rerank sorting berdasarkan textEmb (query hari ini). Anchor items dengan cosine yang lebih rendah ke textEmb kalah di semua rank.
+
+### Status Akurat
+- **Step A2 memberikan kontribusi TIDAK LANGSUNG**: pool bertambah 54→36 items → entity cap dan style floor punya lebih banyak pilihan. Anchor items tidak tampil di UI.
+- **Direct visual chaining (tujuan awal) belum tercapai** — perlu dual-path scoring (anchor items di-score oleh profileEmb, bukan textEmb) atau pgvector untuk similarity search independen dari text rerank. Ditunda.
+
+### Key Files
+- `backend/src/modules/posts/posts.repository.js` — getRecentViewedPosts, getRecentSavedPosts
+- `backend/src/modules/externalImages/externalImages.service.js` — Step A2 inline code (searchExternalImages, ~line 1974)
+
+### Rate Limit (429) Logging
+- **File**: `externalImages.service.js:629-643` — `safeFetchJson`
+- Detects `response.status === 429`, logs `[RATE-LIMIT] {hostname} returned 429 (retry-after: {s})`
+- Extracts hostname from URL + reads `retry-after` response header
+- Covers ALL external image providers: TMDB, Unsplash, Pexels, Pixabay, Openverse, Wikimedia, iTunes
+
+## Session 2026-07-22: Internal Posts Home Feed — Text Semantic Supplement (Opsi A)
+
+### Gap Investigation — 3 Findings
+
+**1. SQL keyword overlap = scoring-only, NOT hard filter**
+`getHomeFeed` SQL CTE: tag overlap = 32% of score (14% viewer_tags + 18% recent_tags), but `where true` means no hard exclusion. Post with 0 tag overlap can still rank via recency (33%) + engagement (25%) + small factors (10%). **Tidak ada gap kategori "Farewell My Concubine"** (search box bug dulu adalah hard WHERE filter).
+
+**2. CLIP rerank only uses profileEmb — missing textEmb from interest tags**
+`rankPostsByProfile(rows, profile)` computes `_clipScore = max(cosine(profileEmb, imgEmb), cosine(profileEmb, textEmb))`. Profile embedding is EMA momentum (0.7/<50 events) — long-term taste, not current interest. External home feed has BOTH: Step A (textEmb from interest tags → similarity) + Step B (profileEmb). Internal home feed had textEmb step entirely.
+
+**3. Threshold 0.20 confirmed with actual data (3 users, 72 posts)**
+
+| User | Tags | Filtered | >= 0.20 raw | >= 0.20 filtered |
+|------|------|----------|-------------|------------------|
+| newacc5 | 24 (6 garbage) | 18 | 1 (1.4%) | **72 (100%)** |
+| seno | 24 (2 garbage) | 22 | 63 (87.5%) | **60 (83%)** |
+
+- Tag filtering (`isHomeGarbageTag` equivalent) critical: removed `unggahan`, `null`, `untitled`, `download` from textEmb input
+- `enrichForClipRerank` adds style words (black and white, warm, vibrant, colors)
+- Without filtering, newacc5 only 1/72 matches at 0.20; with filtering, **all 72 pass**
+- Threshold 0.20 confirmed safe with filtered tags
+
+### Implementation (Opsi A)
+Inserted at `posts.service.js:670-704` between `getHomeFeed` fetch and `rankPostsByProfile`:
+
+```js
+// Text semantic supplement
+// interest_tags → textEmb → cosine similarity to post embeddings → append unique
+if (viewerId && hasProfile && recentInterestTags.length) {
+  const meaningfulTags = recentInterestTags.filter(tag => /* isHomeGarbageTag logic */)
+  if (meaningfulTags.length) {
+    const combinedText = enrichForClipRerank(meaningfulTags.join(', '))
+    const textEmb = getTextEmbedding(combinedText)
+    const pool = getPostsByEmbeddingSimilarity({ viewerId, limit: 200 })
+    const scored = pool.filter(p.embedding)
+      .map(p => ({ _semScore: cosineSimilarity(textEmb, p.embedding) }))
+      .filter(p._semScore >= 0.20).sort().slice(0, 10)
+    // Dedup by id, append to rows for profile rerank
+  }
+}
+```
+
+Key properties:
+- Items **appended to rows** (not mixed into scoring) — `rankPostsByProfile` re-ranks ALL by profileEmb
+- **No scoring contamination**: `_semScore` is temporary, not merged into `_clipScore`
+- Threshold **0.20**, cap **10**, dedup by Set
+- **Threshold behavior note**: Pada skala saat ini (~72 posts homogen film/design), threshold 0.20 bukan filter signifikan — 69/72 lolos (random probe 'xyz zyx yzx' pun menghasilkan 38/72 lolos). Seleksi nyata dilakukan oleh **cap 10 + sort descending**. Threshold berfungsi sebagai floor safety net. Saat posts table tumbuh >200 row dengan domain lebih heterogen, threshold akan mulai berfungsi sebagai filter nyata.
+- Garbage tag filter inline (`isHomeGarbageTag` logic) — 6 functions (EXT_WORD_RE, UUID check, HOME_GARBAGE_WORDS)
+- `enrichForClipRerank` menambah style words (monochrome, black and white, warm) ke input textEmb
+
+### Test Result — Future-proofing, not immediate fix
+
+**Current state**: All 10 semantic items are already in the SQL pool for both test users (seno, newacc5). Reason: posts table has only ~75 published rows, and `limit*3+50` (≈86 for default limit=12) fetches ALL posts. TextEmb step adds 0 new items.
+
+**Impact**: Zero net effect on current ranking. Infrastructure for when posts table grows beyond single fetch limit. At ~200+ posts, textEmb will start surfacing posts that SQL tag-overlap misses.
+
+**Cost validated**: ~20ms per call (10ms textEmb + 5ms SQL fetch + <1ms cosine 72 iterations). No regressions.
+
+### Key Files
+- `backend/src/modules/posts/posts.service.js:670-704` — text semantic supplement in `homeFeed`
+- `backend/src/modules/posts/posts.repository.js:1047-1120` — `getPostsByEmbeddingSimilarity` (reused, unchanged)
+- `backend/src/modules/externalImages/externalImages.service.js:40-51, 338-362` — `normalizeTag`, `isHomeGarbageTag`, `expandHomeTagToQueries` (reference, not exported)
+
+## Session 2026-07-22: DesignType Backfill — Hybrid CLIP Zero-Shot + TMDB Metadata
+
+### Problem
+`external_images` table (2128 rows with embedding) lacked `designType` classification (poster/photography/illustration/artwork/screenshot). CLIP zero-shot alone had 55% accuracy (74% for posters, 36% for backdrops). Refined label descriptions did NOT improve accuracy (dropped to 45%).
+
+### Root Cause
+CLIP zero-shot matches **visual appearance**, not conceptual "poster-ness." Posters that visually resemble photographs (e.g., La Haine's b&w poster → photography, Portrait of a Lady on Fire → photography) consistently misclassify. Adding layout-specific text (actor names, billing block, studio logo) does not help because CLIP's image embedding captures visual composition, not text presence.
+
+### Solution — Hybrid Approach
+`classifyDesignType` now accepts optional `context` param:
+
+```js
+// 1. TMDB items: imageType mapping (100% accurate)
+if (context.provider === 'tmdb' && context.metadata?.imageType) {
+  if (type === 'poster') return 'poster'
+  if (type === 'backdrop' || type === 'profile') return 'photography'
+}
+// 2. Non-TMDB: CLIP zero-shot fallback (OLD labels, 55% accurate)
+```
+
+### DesignType = BOOST, NOT floor
+`search.service.js:97-101` uses `DESIGN_TYPE_BOOST = 0.05` as additive score increment only when search query intent matches item designType. No forcing into results. Consistent with the rejection of additive scoring from earlier sessions.
+
+### Backfill Result (2128 rows)
+```
+poster:       1197 (56.3%)  — includes 765 TMDB posters + 432 non-TMDB
+photography:  675 (31.7%)  — includes 286 TMDB backdrops + 42 TMDB profiles + 347 non-TMDB
+screenshot:   120 (5.6%)
+artwork:       69 (3.2%)
+illustration:  67 (3.1%)
+```
+TMDB mapping verified 100% accurate. Non-TMDB CLIP fallback verified via sample review.
+
+### Key Files
+- `backend/src/shared/designType.service.js` — hybrid `classifyDesignType` with context param
+- `backend/src/shared/designType.service.js` — OLD labels retained (best accuracy: 55%)
+- `backend/src/modules/search/search.service.js` — `DESIGN_TYPE_BOOST = 0.05` additive

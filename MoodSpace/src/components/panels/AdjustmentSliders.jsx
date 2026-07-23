@@ -1,5 +1,8 @@
 import { useState, useRef } from 'react'
-import { ADJUSTMENT_CONTROLS, ADJUSTMENT_PRESETS, HSL_CONTROLS, RESET_VALUES } from '../../utils/adjustmentLayerUtils'
+import { ADJUSTMENT_CONTROLS, ADJUSTMENT_PRESETS, RESET_VALUES } from '../../utils/adjustmentLayerUtils'
+import { hasActiveHsl } from '../../utils/hslChannels'
+import { hasActiveCurves } from '../../utils/curveUtils'
+import AdjustmentTriggerButton from './AdjustmentTriggerButton'
 import { BLEND_MODES } from '../../constants/uiConstants'
 
 const hueGradientStyle = (value) => ({
@@ -12,31 +15,12 @@ const hueGradientStyle = (value) => ({
   )`,
 })
 
-export default function AdjustmentSliders({ item, onChange, onCommit, onOpacityChange, onOpacityCommit }) {
+export default function AdjustmentSliders({ item, onChange, onCommit, onOpacityChange, onOpacityCommit, onOpenHsl, onOpenCurves, hideBlendMode }) {
   const [editingSliderKey, setEditingSliderKey] = useState(null)
   const [isBlendModeOpen, setIsBlendModeOpen] = useState(false)
   const sliderStartRef = useRef({})
-  const hslStartRef = useRef({})
 
   const getValue = (key) => item[key] ?? 0
-  const hslMaster = item.hsl?.master ?? { hue: 0, saturation: 0, lightness: 0 }
-  const getHslField = (key) => {
-    if (key === 'hue') return hslMaster.hue ?? 0
-    if (key === 'saturation') return hslMaster.saturation ?? 0
-    return hslMaster.lightness ?? 0
-  }
-  const buildHslPatch = (field, val) => {
-    const cur = item.hsl?.master ?? { hue: 0, saturation: 0, lightness: 0 }
-    return {
-      hsl: {
-        master: {
-          hue: field === 'hue' ? val : cur.hue,
-          saturation: field === 'saturation' ? val : cur.saturation,
-          lightness: field === 'lightness' ? val : cur.lightness,
-        },
-      },
-    }
-  }
   const activeBlendMode = item.blendMode || 'source-over'
   const activeBlendModeLabel = BLEND_MODES.find((mode) => mode.value === activeBlendMode)?.label || 'Normal'
   const opacityValue = Math.round((item.opacity ?? 1) * 100)
@@ -57,6 +41,7 @@ export default function AdjustmentSliders({ item, onChange, onCommit, onOpacityC
           </button>
         ))}
       </div>
+      {!hideBlendMode && (
       <label className="workspace-typography-field workspace-typography-field-full workspace-adjustment-blend-control">
         Blend Mode
         <div style={{ position: 'relative' }}>
@@ -88,6 +73,7 @@ export default function AdjustmentSliders({ item, onChange, onCommit, onOpacityC
           )}
         </div>
       </label>
+      )}
       <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>
@@ -178,49 +164,24 @@ export default function AdjustmentSliders({ item, onChange, onCommit, onOpacityC
             />
           </label>
         ))}
-        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#7c6df2', margin: '16px 0 8px' }}>
-          HSL Adjustment
-        </div>
-        {HSL_CONTROLS.map((control) => {
-          const hslVal = getHslField(control.key)
-          return (
-            <label key={'hsl-' + control.key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>
-                  {control.label.replace('HSL.', '')}
-                </span>
-                <span style={{ fontSize: '11px', color: '#c4bfd4', minWidth: '36px', textAlign: 'right' }}>
-                  {hslVal}{control.unit}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={control.min}
-                max={control.max}
-                value={hslVal}
-                onChange={(event) => {
-                  const val = Number(event.target.value)
-                  onChange(item.id, buildHslPatch(control.key, val))
-                }}
-                onMouseDown={() => { hslStartRef.current[control.key] = hslVal }}
-                onPointerUp={(event) => {
-                  const val = Number(event.target.value)
-                  if (val !== hslStartRef.current[control.key]) {
-                    onCommit?.(item.id, buildHslPatch(control.key, val))
-                    hslStartRef.current[control.key] = val
-                  }
-                }}
-                onKeyUp={(event) => {
-                  const val = Number(event.target.value)
-                  if (val !== hslStartRef.current[control.key]) {
-                    onCommit?.(item.id, buildHslPatch(control.key, val))
-                    hslStartRef.current[control.key] = val
-                  }
-                }}
+        {(onOpenHsl || onOpenCurves) && (
+          <div style={{ display: 'flex', gap: '8px', margin: '8px 0' }}>
+            {onOpenHsl && (
+              <AdjustmentTriggerButton
+                type="hsl"
+                active={hasActiveHsl(item.hsl)}
+                onClick={onOpenHsl}
               />
-            </label>
-          )
-        })}
+            )}
+            {onOpenCurves && (
+              <AdjustmentTriggerButton
+                type="curves"
+                active={hasActiveCurves(item.curves)}
+                onClick={onOpenCurves}
+              />
+            )}
+          </div>
+        )}
         <button
           type="button"
           className="workspace-reset-adjustments"

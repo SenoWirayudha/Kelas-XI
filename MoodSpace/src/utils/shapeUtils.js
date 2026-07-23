@@ -86,7 +86,7 @@ export const getArrowShapePath = ({ w, h, arrowVariant = 'right' }) => {
 // ─── Fill props (solid / gradient) ───────────────────────────────────────────
 
 export const getShapeFillProps = (item) => {
-  if (item.fill === null || item.fill === 'transparent') return { fillEnabled: false }
+  if (item.fill === null || item.fill === 'transparent' || item.fill === 'none') return { fillEnabled: true }
 
   if (item.gradientType === 'linear' && item.gradientStops?.length >= 2) {
     const angle = (item.gradientAngle || 90) * (Math.PI / 180)

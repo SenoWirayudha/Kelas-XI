@@ -3,6 +3,7 @@ import { notFound } from '../../utils/errors.js'
 import { getTopRecentInterestQuerySignals, getTopRecentInterestTagsWithScores, normalizeInterestTag, recordInterestEvent } from '../interest/interest.service.js'
 import { updateProfile, getUserProfileEmbedding } from '../profile/profile.service.js'
 import { findMediaById } from '../media/media.repository.js'
+import { getRecentViewedPosts, getRecentSavedPosts } from '../posts/posts.repository.js'
 import {
   findAnyEmbedding,
   findEmbeddingsByItemIds,
@@ -628,7 +629,18 @@ const resolveExternalQueries = async ({ q = '', context = '', mode = 'for-you', 
 
 const safeFetchJson = async (url, options = {}) => {
   const response = await fetch(url, options)
-  if (!response.ok) throw new Error(`External image provider failed (${response.status})`)
+  if (!response.ok) {
+    const status = response.status
+    const provider = (() => {
+      try { return new URL(url).hostname } catch { return 'unknown' }
+    })()
+    if (status === 429) {
+      const retryAfter = response.headers.get('retry-after') || 'unknown'
+      console.warn(`[RATE-LIMIT] ${provider} returned 429 (retry-after: ${retryAfter}s)` +
+        (retryAfter !== 'unknown' ? ` — will be blocked for ${retryAfter}s` : ''))
+    }
+    throw new Error(`External image provider failed (${status})`)
+  }
   return response.json()
 }
 
@@ -1959,6 +1971,70 @@ export const searchExternalImages = async ({
     items = [...uniqueDb, ...uniqueProf, ...items].slice(0, limit * 3)
   }
 
+  // === STEP A2: Anchor Post Visual Pool Enrichment (home feed, page 1 only) ===
+  // Fetches visually similar external images from recently viewed/saved posts,
+  // then merges them into the pool BEFORE CLIP rerank.
+  //
+  // LIMITATION: Anchor items reranked by textEmb (combined query embedding)
+  // consistently score below Step A items (gap ~0.03). Survival rate to
+  // finalItems is effectively 0%. Anchor items enrich the pool (54 vs 36 items)
+  // for entity cap and style floor decisions — they do NOT produce visible
+  // direct visual chaining to the user's recent posts.
+  //
+  // Category presence gate (step 4) is NO-OP: internal posts → 'general' → always allowed.
+  // Gate activates if external images are added as anchor sources in the future.
+  // For true visual chaining (original goal), dual-path scoring (anchor items
+  // scored by profileEmb instead of textEmb) is needed — deferred to post-pgvector.
+  let homeAnchorPoolItems = []
+  if (context === 'home' && viewerId && !decodedCursor?.dbTextOffset && !decodedCursor?.profileOffset) {
+    console.time('[HOME-ANCHOR] Pool fetch')
+    const [viewedPosts, savedPosts] = await Promise.all([
+      getRecentViewedPosts({ userId: viewerId, limit: 3 }).catch(() => []),
+      getRecentSavedPosts({ userId: viewerId, limit: 3 }).catch(() => []),
+    ])
+    const anchors = []
+    const seenIds = new Set()
+    for (const post of [...viewedPosts, ...savedPosts]) {
+      if (!seenIds.has(post.id) && post.embedding) {
+        seenIds.add(post.id)
+        anchors.push(post)
+      }
+      if (anchors.length >= 3) break
+    }
+    console.log('[HOME-ANCHOR] Candidates:', anchors.length, '(viewed:', viewedPosts.length, 'saved:', savedPosts.length, ')')
+    if (anchors.length) {
+      const anchorExcludeIds = new Set([
+        ...(items || []).map(i => i.id).filter(Boolean),
+        ...homeDbItems.map(i => i.id).filter(Boolean),
+        ...homeProfilePoolItems.map(i => i.id).filter(Boolean),
+      ])
+      for (const anchor of anchors) {
+        const similar = await findImagesByVisualSimilarity({
+          embedding: anchor.embedding,
+          limit: 6,
+          offset: 0,
+          excludeIds: [...anchorExcludeIds],
+        }).catch(() => [])
+        console.log('[HOME-ANCHOR] "' + (anchor.title || '').slice(0, 40) + '" →', similar.length, 'items')
+        for (const item of similar) {
+          const { _embedding, ...rest } = item
+          anchorExcludeIds.add(item.id)
+          homeAnchorPoolItems.push(rest)
+        }
+      }
+    }
+    console.timeEnd('[HOME-ANCHOR] Pool fetch')
+    console.log('[HOME-ANCHOR] Total pool:', homeAnchorPoolItems.length, 'items')
+  }
+
+  if (homeAnchorPoolItems.length) {
+    const existingIds = new Set(items.map(i => i.id))
+    const uniqueAnchor = homeAnchorPoolItems.filter(i => !existingIds.has(i.id))
+    if (uniqueAnchor.length) {
+      items = [...uniqueAnchor, ...items]
+    }
+  }
+
   // [NEW] DB text similarity mix: only on first page (no cursor = initial search).
   // Adds stored external_images whose CLIP embeddings match the query text.
   // Skipped on paginated pages to avoid repetitive results — provider API
@@ -2366,11 +2442,11 @@ export const searchExternalImages = async ({
   let finalCursor = null
   if (context === 'home') {
     // DB-first cursor: track offsets for DB text and profile pool
-    const dbMorePages = homeDbItems.length >= limit * 3 || hasActiveCursor
+    const dbMorePages = homeDbItems.length > 0 || hasActiveCursor
     if (dbMorePages) {
       finalCursor = {
-        dbTextOffset: homeDbTextOffset + limit * 3,
-        profileOffset: homeProfileOffset + 6,
+        dbTextOffset: homeDbTextOffset + Math.max(homeDbItems.length, 1),
+        profileOffset: homeProfileOffset + Math.max(homeProfilePoolItems.length, 1),
       }
       if (nextCursor?.queries) finalCursor.queries = nextCursor.queries
     } else {

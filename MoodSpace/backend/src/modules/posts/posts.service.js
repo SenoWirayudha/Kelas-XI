@@ -6,7 +6,7 @@ import { hashSnapshot } from '../workspaces/snapshot.service.js'
 import { getTopRecentInterestTags, recordInterestEvent } from '../interest/interest.service.js'
 import { cosineSimilarity, getImageEmbedding, getTextEmbedding } from '../externalImages/clip.service.js'
 import { findAnyEmbedding, findEntityCandidates, findExternalImageById } from '../externalImages/externalImages.repository.js'
-import { enrichForClipRerank, applySaturationBoost, applyStyleSimilarityBoost, computeStyleMetrics } from '../../shared/bwColorBoost.service.js'
+import { enrichForClipRerank, applySaturationBoost, applyStyleSimilarityBoost, computeStyleMetrics, applyEngagementTiebreak } from '../../shared/bwColorBoost.service.js'
 import { computeZeroShotTags } from '../../shared/clipZeroShot.service.js'
 import { matchKnownEntity } from '../../shared/entityMatch.service.js'
 import { matchOcrEntity } from '../../shared/ocr.service.js'
@@ -665,6 +665,52 @@ export const homeFeed = async ({ viewerId = null, query }) => {
     recentInterestTags,
   })
 
+  // === Text semantic supplement (Opsi A) ===
+  // interest_tags → textEmb → cosine similarity to post embeddings → append unique to pool
+  // Captures current short-term interest that profileEmb (long-term EMA) hasn't absorbed yet.
+  // Reuses getPostsByEmbeddingSimilarity (same query as search.service.js semantic path).
+  // Threshold 0.20 note: pada skala saat ini (~72 posts, domain homogen), threshold ini
+  // BUKAN filter signifikan — 69/72 lolos. Seleksi nyata dilakukan oleh cap 10 + sort by
+  // score descending. Threshold berfungsi sebagai floor safety net (dibuktikan via probe
+  // test: random string 'xyz zyx yzx' menghasilkan 38/72 lolos threshold). Saat posts table
+  // tumbuh >200 row dengan domain lebih heterogen, threshold akan mulai berfungsi sebagai
+  // filter nyata.
+  if (viewerId && hasProfile && recentInterestTags.length) {
+    const meaningfulTags = recentInterestTags.filter(tag => {
+      if (!tag || !tag.trim()) return false
+      const s = tag.trim().toLowerCase()
+      if (/\.(webp|jpe?g|png|gif|bmp|svg|tiff?|avif|heic?)/i.test(s.replace(/\s+/g, ''))) return false
+      if (!s.includes(' ') && s.length > 12) return false
+      if (['unggahan', 'saved', 'download', 'untitled', 'screenshot', 'file', 'null'].includes(s.split(' ')[0])) return false
+      return true
+    })
+    if (meaningfulTags.length) {
+      const combinedText = enrichForClipRerank(meaningfulTags.join(', '))
+      const textEmb = combinedText.length > 3 ? await getTextEmbedding(combinedText).catch(() => null) : null
+      if (textEmb) {
+        const pool = await getPostsByEmbeddingSimilarity({ viewerId, limit: 200 })
+        const scored = pool
+          .filter(p => p.embedding)
+          .map(p => ({ ...p, _semScore: cosineSimilarity(textEmb, p.embedding) }))
+          .filter(p => p._semScore >= 0.20)
+          .sort((a, b) => b._semScore - a._semScore)
+          .slice(0, 10)
+
+        // Dedup by id, append unique items to pool for subsequent profile rerank
+        const seen = new Set(rows.map(r => r.id))
+        for (const item of scored) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id)
+            rows.push(item)
+          }
+        }
+        if (scored.length) {
+          console.log('[FEED] Text semantic:', scored.length, 'items appended (pool', rows.length, ')')
+        }
+      }
+    }
+  }
+
   if (hasProfile && rows.length) {
     const reranked = rankPostsByProfile(rows, profile)
 
@@ -708,6 +754,8 @@ export const homeFeed = async ({ viewerId = null, query }) => {
         void 0
       }
     }
+
+    filtered = applyEngagementTiebreak(filtered, '_clipScore', 0.008)
 
     // In-memory pagination: skip ke sortPos, ambil limit item
     const start = Math.min(sortPos, filtered.length)
@@ -887,11 +935,16 @@ export const recommendedPosts = async ({ viewerId = null, postId, query: params 
     visItems = await applyStyleSimilarityBoost(visItems, refUrl, '_visScore', 0.04)
   }
 
+  visItems = applyEngagementTiebreak(visItems, '_visScore', 0.008)
+
   // Interleave: [vis1, txt1, vis2, txt2, ...]
   const runInterleave = (visThreshold, txtThreshold) => {
     const vis = visItems.filter(p => p._visScore >= visThreshold)
     const txt = textEmb
-      ? scored.filter(p => p._txtScore >= txtThreshold).sort((a, b) => b._txtScore - a._txtScore)
+      ? applyEngagementTiebreak(
+          scored.filter(p => p._txtScore >= txtThreshold),
+          '_txtScore', 0.008
+        )
       : []
     const result = []
     const seen = new Set()
@@ -1020,11 +1073,11 @@ export const similarPostsByImage = async ({ viewerId = null, imageId, q, limit =
     }
     if (refUrl) {
       const boosted = await applyStyleSimilarityBoost(result, refUrl, '_clipScore', 0.04)
-      return { items: boosted.map(serializePost) }
+      return { items: applyEngagementTiebreak(boosted, '_clipScore', 0.008).map(serializePost) }
     }
   }
 
-  return { items: result.map(serializePost) }
+  return { items: applyEngagementTiebreak(result, '_clipScore', 0.008).map(serializePost) }
 }
 
 export const save = async ({ userId, postId }) => {

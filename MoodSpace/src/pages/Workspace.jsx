@@ -119,8 +119,13 @@ import { getArrowShapePath, getShapeTextBounds, getShapeMinSizeForText, getShape
 import { fetchGoogleFonts, getGoogleFontsApiKey } from '../utils/googleFontsApi'
 import { isGridFrame, getResolvedFrameSlot, getResolvedFrameSlots, clampFrameImagePosition, getMinFrameImageZoom } from '../utils/frameUtils'
 import { getItemAnchorPoint, getClosestAnchorToPoint, getBestConnectorAnchors, resolveConnectorEndpointPoint, getConnectorLinePoints, getConnectorCurvePath, getConnectorArrowTail } from '../utils/connectorUtils'
-import { getShadowProps, getCanvasBackgroundProps, loadImageMetadata, preloadFont, clearFontCache } from '../utils/konvaUtils'
-import { applyImageFilters } from '../utils/imageFilters'
+import { getShadowProps, getCanvasBackgroundProps, loadImageMetadata, preloadFont, clearFontCache, applyBevelEmbossToNode, applyInnerShadowToNode } from '../utils/konvaUtils'
+import { applyImageFilters, applyMoodSpaceToImageData } from '../utils/imageFilters'
+import { applyBevelEmboss } from '../utils/bevelEmboss'
+import { applyInnerShadow } from '../utils/innerShadow'
+import { hasActiveHsl } from '../utils/hslChannels'
+import { hasAnyAdjustment } from '../utils/adjustmentLayerUtils'
+import { hasActiveCurves } from '../utils/curveUtils'
 import { getDefaultEffects } from '../utils/effectUtils'
 import { effectManager } from '../utils/konva-effects-engine'
 import { createGrid, cloneGrid, renderWarpedImage, buildSubdividedGrid, gridCorners, updateGridCorners, subdivideMeshGrid, PERSPECTIVE_SUBDIVISIONS, APPLY_SUBDIVISIONS, WARP_PADDING } from '../utils/mesh-warp'
@@ -137,7 +142,10 @@ import ShapeRenderer from '../components/canvas/renderers/ShapeRenderer'
 import FrameRenderer from '../components/canvas/renderers/FrameRenderer'
 import GlobalAdjustmentLayer from '../components/canvas/GlobalAdjustmentLayer'
 import AdjustmentSliders from '../components/panels/AdjustmentSliders'
+import AdjustmentTriggerButton from '../components/panels/AdjustmentTriggerButton'
 import FxPanel from '../components/panels/FxPanel'
+import HslPanel from '../components/panels/HslPanel'
+import CurvesPanel from '../components/panels/CurvesPanel'
 import ToolBrushPanel from '../components/panels/ToolBrushPanel'
 import ToolBezierPanel from '../components/panels/ToolBezierPanel'
 import ToolRemoveBgPanel from '../components/panels/ToolRemoveBgPanel'
@@ -232,14 +240,33 @@ const addWorkspaceItemClones = ({ stage, exportLayer, items, filterItem }) => {
     itemClone.draggable?.(false)
     exportLayer.add(itemClone)
 
-    // Apply effects + adjustments via unified pipeline
-    // Apply ke image/text child node (bukan group) agar shadow tetap independen
+    // Apply effects + adjustments via unified pipeline.
+    // Target node selection must match the live canvas for each item kind:
+    //   text  → child Text (single-run) or inner Group (multi-run)
+    //   image → <Image> child with .canvas-image-main
+    //   other → root group (same as ShapeRenderer's groupRef)
     try {
-      const targetNode = itemClone.findOne('.canvas-image-main') || itemClone.findOne('Image') || itemClone.findOne('Text') || itemClone
+      let targetNode
+      if (item.kind === 'text') {
+        if (item.runs?.length > 1) {
+          const groups = itemClone.find('Group')
+          targetNode = groups.length > 0 ? groups[0] : itemClone
+        } else {
+          const allText = itemClone.find('Text')
+          targetNode = allText.length > 0 ? allText[allText.length - 1] : itemClone
+        }
+      } else if (item.kind === 'image') {
+        targetNode = itemClone.findOne('.canvas-image-main') || itemClone.findOne('Image') || itemClone
+      } else {
+        targetNode = itemClone
+      }
       effectManager.applyAll(targetNode, item.effects || {}, item)
-    } catch {
-      // fallback — effects mungkin gagal di offscreen stage
-    }
+      console.log('[EXPORT-BEVEL] after applyAll — fill:', targetNode.fill?.(), 'filters:', targetNode.filters?.()?.map?.(f => f.name || 'fn'), 'cache:', !!targetNode._getCanvasCache?.(), 'kind:', item.kind, 'id:', item.id)
+      applyBevelEmbossToNode(targetNode, item)
+      console.log('[EXPORT-BEVEL] after bevel — bevelData:', !!targetNode.getAttr('_bevelRealImageData'), 'maskData:', !!targetNode.getAttr('_maskImageData'), 'filters:', targetNode.filters?.()?.map?.(f => f.name || 'fn'))
+      applyInnerShadowToNode(targetNode, item)
+      console.log('[EXPORT-BEVEL] after innerShadow — bevelData:', !!targetNode.getAttr('_bevelRealImageData'), 'maskData:', !!targetNode.getAttr('_maskImageData'), 'filters:', targetNode.filters?.()?.map?.(f => f.name || 'fn'))
+    } catch (e) { console.warn('[EXPORT-BEVEL] error:', e) }
   })
 }
 
@@ -365,6 +392,10 @@ const BROADCAST_KEYS = new Set([
   'compositeOpacity', 'compositeBlendMode', 'compositeMode',
   'compositeShadowEnabled', 'compositeShadow', 'compositeShadowColor', 'compositeShadowOpacity',
   'compositeShadowOffsetX', 'compositeShadowOffsetY',
+  'compositeBevelEmbossEnabled', 'compositeBevelEmbossStyle', 'compositeBevelEmbossDepth', 'compositeBevelEmbossAngle', 'compositeBevelEmbossSoftness',
+  'compositeBevelEmbossHighlightColor', 'compositeBevelEmbossHighlightOpacity', 'compositeBevelEmbossShadowColor', 'compositeBevelEmbossShadowOpacity',
+  'compositeBevelEmbossHighlightBlendMode', 'compositeBevelEmbossShadowBlendMode',
+  'compositeInnerShadowEnabled', 'compositeInnerShadowColor', 'compositeInnerShadowOpacity', 'compositeInnerShadowBlur', 'compositeInnerShadowDistance', 'compositeInnerShadowAngle',
   'compositeStrokeEnabled', 'compositeStrokeWidth', 'compositeStrokeColor',
   'imageStrokeEnabled', 'imageStrokeColor', 'imageStrokeWidth',
   'imageCropRect', 'cropSourceWidth', 'cropSourceHeight', 'cropEnabled',
@@ -1650,14 +1681,69 @@ const createCompositeStrokeCanvas = (sourceCanvas, strokeWidth, strokeColor) => 
   return canvas
 }
 
+const renderCompositeBevelEmboss = (contentCanvas, sourceItem) => {
+  if (!sourceItem?.compositeBevelEmbossEnabled) return null
+  const W = contentCanvas.width
+  const H = contentCanvas.height
+  if (!W || !H) return null
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.drawImage(contentCanvas, 0, 0)
+  const imageData = ctx.getImageData(0, 0, W, H)
+  const bevelStyle = sourceItem.compositeBevelEmbossStyle || 'inner'
+  const params = {
+    style: bevelStyle,
+    mapSource: bevelStyle === 'emboss' ? 'luminance' : 'alpha',
+    depth: sourceItem.compositeBevelEmbossDepth ?? 5,
+    angle: sourceItem.compositeBevelEmbossAngle ?? 120,
+    softness: sourceItem.compositeBevelEmbossSoftness ?? 5,
+    highlightColor: sourceItem.compositeBevelEmbossHighlightColor || '#ffffff',
+    highlightOpacity: sourceItem.compositeBevelEmbossHighlightOpacity ?? 1,
+    shadowColor: sourceItem.compositeBevelEmbossShadowColor || '#000000',
+    shadowOpacity: sourceItem.compositeBevelEmbossShadowOpacity ?? 1,
+  }
+  applyBevelEmboss(imageData, params, null)
+  ctx.putImageData(imageData, 0, 0)
+  return { canvas, offsetX: 0, offsetY: 0 }
+}
+
+const renderCompositeInnerShadow = (contentCanvas, sourceItem) => {
+  if (!sourceItem?.compositeInnerShadowEnabled) return null
+  const W = contentCanvas.width
+  const H = contentCanvas.height
+  if (!W || !H) return null
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.drawImage(contentCanvas, 0, 0)
+  const imageData = ctx.getImageData(0, 0, W, H)
+  const params = {
+    color: sourceItem.compositeInnerShadowColor || '#000000',
+    opacity: sourceItem.compositeInnerShadowOpacity ?? 0.5,
+    blur: sourceItem.compositeInnerShadowBlur ?? 5,
+    distance: sourceItem.compositeInnerShadowDistance ?? 5,
+    angle: sourceItem.compositeInnerShadowAngle ?? 135,
+  }
+  applyInnerShadow(imageData, params, null)
+  ctx.putImageData(imageData, 0, 0)
+  return { canvas, offsetX: 0, offsetY: 0 }
+}
+
 const _destFxCache = new Map()
 const _DESTFX_CACHE_MAX = 32
 
-const getDestFxKey = (item) =>
-  `${item.src}|${item.w}|${item.h}|${item.scaleX}|${item.scaleY}|${item.rotation}|${item.opacity}|${JSON.stringify(item.imageCropRect)}|${JSON.stringify(item.effects)}`
+const getDestFxKey = (item) => {
+  return `${item.src}|${item.w}|${item.h}|${item.scaleX}|${item.scaleY}|${item.rotation}|${item.opacity}|${JSON.stringify(item.imageCropRect)}|${JSON.stringify(item.effects)}`
+}
 
 const drawDestinationWithEffects = (contentCtx, item, image, groupMinX, groupMinY) => {
-  if (!item.effects || Object.keys(item.effects).length === 0) {
+  const needsSlowPath = item.effects && Object.keys(item.effects).length > 0
+  if (!needsSlowPath) {
     drawImageItemToCanvas(contentCtx, item, image, groupMinX, groupMinY)
     return
   }
@@ -1677,7 +1763,9 @@ const drawDestinationWithEffects = (contentCtx, item, image, groupMinX, groupMin
   try {
     drawImageItemToCanvas(tempCtx, item, image, b.left, b.top)
     const imageData = tempCtx.getImageData(0, 0, itemW, itemH)
-    effectManager.applyEffectsToImageData(imageData, item.effects)
+    if (item.effects && Object.keys(item.effects).length > 0) {
+      effectManager.applyEffectsToImageData(imageData, item.effects)
+    }
     tempCtx.putImageData(imageData, 0, 0)
     contentCtx.drawImage(tempCanvas, b.left - groupMinX, b.top - groupMinY)
     if (_destFxCache.size >= _DESTFX_CACHE_MAX) {
@@ -1689,6 +1777,32 @@ const drawDestinationWithEffects = (contentCtx, item, image, groupMinX, groupMin
     console.warn('[drawDestinationWithEffects] fallback to raw draw:', e)
     drawImageItemToCanvas(contentCtx, item, image, groupMinX, groupMinY)
   }
+}
+
+const applyAdjustmentPostProcess = (canvas, item) => {
+  const hasAdj = item ? hasAnyAdjustment(item) : false
+  console.log('[BUG3-ADJ-POST] called: item?.id:', item?.id, 'canvas:', !!canvas, 'hasAdj:', hasAdj, 'hue:', item?.hue, 'temp:', item?.temperature)
+  if (!canvas || !item || !hasAdj) {
+    console.log('[BUG3-ADJ-POST] SKIP: canvas=', !!canvas, 'item=', !!item, 'hasAdj=', hasAdj)
+    return canvas
+  }
+  const w = canvas.width; const h = canvas.height
+  if (!w || !h) return canvas
+  const c = document.createElement('canvas')
+  c.width = w; c.height = h
+  const ctx = c.getContext('2d')
+  ctx.drawImage(canvas, 0, 0)
+  try {
+    const data = ctx.getImageData(0, 0, w, h)
+    console.log('[BUG3-ADJ-POST] applying adjustment to', w, 'x', h, 'imageData')
+    applyMoodSpaceToImageData(data, item)
+    ctx.putImageData(data, 0, 0)
+    console.log('[BUG3-ADJ-POST] done')
+  } catch (e) {
+    console.warn('[applyAdjustmentPostProcess] failed:', e)
+    return canvas
+  }
+  return c
 }
 
 const drawAnyItemToCanvas = (ctx, item, imageMap, offsetX, offsetY) => {
@@ -1703,7 +1817,7 @@ const drawAnyItemToCanvas = (ctx, item, imageMap, offsetX, offsetY) => {
   }
 }
 
-function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef }) {
+function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef, adjustSourceItem }) {
   const allItems = useMemo(() => destinationItems, [destinationItems])
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
@@ -1732,6 +1846,7 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
   const strokeRef = useRef(null)
 
   useLayoutEffect(() => {
+    console.log('[BUG3-BITMAP-EFFECT] CompositeTextBitmap useLayoutEffect RUNNING at', Date.now(), 'mode:', mode, 'sourceItem.id:', sourceItem?.id, 'destCount:', destinationItems?.length, 'adjustSrc:', adjustSourceItem?.id, 'adjSrcHue:', adjustSourceItem?.hue)
     const updateBitmap = (newCanvas, newX, newY, w, h) => {
       const node = imageRef.current
       if (!node) return
@@ -1836,12 +1951,19 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
         ctx.globalCompositeOperation = 'source-over'
       }
 
-      const shadowResult = renderCompositeShadow(canvas, sourceItem)
-      const finalCanvas = shadowResult?.canvas || canvas
+      const bevelResult = renderCompositeBevelEmboss(canvas, sourceItem)
+      const innerSrc = bevelResult?.canvas || canvas
+      const innerResult = renderCompositeInnerShadow(innerSrc, sourceItem)
+      const finalContent = innerResult?.canvas || bevelResult?.canvas || canvas
+
+      const shadowResult = renderCompositeShadow(finalContent, sourceItem)
+      const shadowCanvas = shadowResult?.canvas || finalContent
+      const adjCanvas = applyAdjustmentPostProcess(shadowCanvas, adjustSourceItem)
+      const finalCanvas = adjCanvas || shadowCanvas
       const finalX = shadowResult ? groupRect.x + (shadowResult.offsetX || 0) : groupRect.x
       const finalY = shadowResult ? groupRect.y + (shadowResult.offsetY || 0) : groupRect.y
-      const finalW = shadowResult ? finalCanvas.width : width
-      const finalH = shadowResult ? finalCanvas.height : height
+      const finalW = shadowResult ? finalCanvas.width : finalContent.width
+      const finalH = shadowResult ? finalCanvas.height : finalContent.height
 
       updateBitmap(finalCanvas, finalX, finalY, finalW, finalH)
       const compositeStrokeEnabled = !!(sourceItem?.compositeStrokeEnabled && (sourceItem?.compositeStrokeWidth ?? 0) > 0)
@@ -1853,7 +1975,7 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
       }
     })
     return () => cancelAnimationFrame(rafId)
-  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem])
+  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, adjustSourceItem])
 
   return (
     <>
@@ -1872,7 +1994,7 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
 }
 
 
-function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef }) {
+function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef, adjustSourceItem }) {
   const allItems = useMemo(() => destinationItems, [destinationItems])
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
@@ -1890,6 +2012,7 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
   const prevModeRef = useRef()
 
   useLayoutEffect(() => {
+    console.log('[BUG3-BITMAP-EFFECT] CompositeImageBitmap useLayoutEffect RUNNING at', Date.now(), 'mode:', mode, 'sourceItem.id:', sourceItem?.id, 'destCount:', destinationItems?.length, 'adjustSrc:', adjustSourceItem?.id, 'adjSrcHue:', adjustSourceItem?.hue)
     const updateBitmap = (newCanvas, newX, newY, w, h) => {
       const node = imageRef.current
       if (!node) return
@@ -1984,12 +2107,19 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       }
       ctx.globalCompositeOperation = 'source-over'
 
-      const shadowResult = renderCompositeShadow(canvas, sourceItem)
-      const finalCanvas = shadowResult?.canvas || canvas
+      const bevelResult = renderCompositeBevelEmboss(canvas, sourceItem)
+      const innerSrc = bevelResult?.canvas || canvas
+      const innerResult = renderCompositeInnerShadow(innerSrc, sourceItem)
+      const finalContent = innerResult?.canvas || bevelResult?.canvas || canvas
+
+      const shadowResult = renderCompositeShadow(finalContent, sourceItem)
+      const shadowCanvas = shadowResult?.canvas || finalContent
+      const adjCanvas = applyAdjustmentPostProcess(shadowCanvas, adjustSourceItem)
+      const finalCanvas = adjCanvas || shadowCanvas
       const finalX = shadowResult ? groupMinX + (shadowResult.offsetX || 0) : groupMinX
       const finalY = shadowResult ? groupMinY + (shadowResult.offsetY || 0) : groupMinY
-      const finalW = shadowResult ? finalCanvas.width : width
-      const finalH = shadowResult ? finalCanvas.height : height
+      const finalW = shadowResult ? finalCanvas.width : finalContent.width
+      const finalH = shadowResult ? finalCanvas.height : finalContent.height
 
       updateBitmap(finalCanvas, finalX, finalY, finalW, finalH)
       const compositeStrokeEnabled = !!(sourceItem?.compositeStrokeEnabled && (sourceItem?.compositeStrokeWidth ?? 0) > 0)
@@ -2001,7 +2131,7 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       }
     })
     return () => cancelAnimationFrame(rafId)
-  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, sourceImage])
+  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, sourceImage, adjustSourceItem])
 
   return (
     <>
@@ -2308,7 +2438,7 @@ const getShapeMaskCanvas = (sourceItem) => {
   return { canvas, originOffsetX: canvasMinX, originOffsetY: canvasMinY }
 }
 
-function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef }) {
+function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef, adjustSourceItem }) {
   const allItems = useMemo(() => destinationItems, [destinationItems])
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
@@ -2328,6 +2458,7 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
   const prevModeRef = useRef()
 
   useLayoutEffect(() => {
+    console.log('[BUG3-BITMAP-EFFECT] CompositeAlphaBitmap useLayoutEffect RUNNING at', Date.now(), 'mode:', mode, 'sourceItem.id:', sourceItem?.id, 'destCount:', destinationItems?.length, 'adjustSrc:', adjustSourceItem?.id, 'adjSrcHue:', adjustSourceItem?.hue)
     const updateBitmap = (newCanvas, newX, newY, w, h) => {
       const node = imageRef.current
       if (!node) return
@@ -2475,12 +2606,19 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       }
       ctx.globalCompositeOperation = 'source-over'
 
-      const shadowResult = renderCompositeShadow(canvas, sourceItem)
-      const finalCanvas = shadowResult?.canvas || canvas
+      const bevelResult = renderCompositeBevelEmboss(canvas, sourceItem)
+      const innerSrc = bevelResult?.canvas || canvas
+      const innerResult = renderCompositeInnerShadow(innerSrc, sourceItem)
+      const finalContent = innerResult?.canvas || bevelResult?.canvas || canvas
+
+      const shadowResult = renderCompositeShadow(finalContent, sourceItem)
+      const shadowCanvas = shadowResult?.canvas || finalContent
+      const adjCanvas = applyAdjustmentPostProcess(shadowCanvas, adjustSourceItem)
+      const finalCanvas = adjCanvas || shadowCanvas
       const finalX = shadowResult ? groupMinX + (shadowResult.offsetX || 0) : groupMinX
       const finalY = shadowResult ? groupMinY + (shadowResult.offsetY || 0) : groupMinY
-      const finalW = shadowResult ? finalCanvas.width : width
-      const finalH = shadowResult ? finalCanvas.height : height
+      const finalW = shadowResult ? finalCanvas.width : finalContent.width
+      const finalH = shadowResult ? finalCanvas.height : finalContent.height
 
       updateBitmap(finalCanvas, finalX, finalY, finalW, finalH)
       const compositeStrokeEnabled = !!(sourceItem?.compositeStrokeEnabled && (sourceItem?.compositeStrokeWidth ?? 0) > 0)
@@ -2492,7 +2630,7 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       }
     })
     return () => cancelAnimationFrame(rafId)
-  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, sourceImage])
+  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, sourceImage, adjustSourceItem])
 
   return (
     <>
@@ -2511,18 +2649,32 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
 }
 
 const CompositeCanvasGroupMemoComparitor = (prev, next) => {
-  if (prev.entry !== next.entry) return false
-  if (prev.selectedId !== next.selectedId) return false
-  if (prev.selectedIds !== next.selectedIds) return false
-  if (prev.isTextEditing !== next.isTextEditing) return false
-  if (prev.disableDrag !== next.disableDrag) return false
-  if (prev.isShiftDown !== next.isShiftDown) return false
-  if (prev.cropSession !== next.cropSession) return false
-  if (prev.canvasSize !== next.canvasSize) return false
-  if (prev.fontInjectVersion !== next.fontInjectVersion) return false
-  return true
+  const hasChange = (
+    prev.entry !== next.entry ||
+    prev.selectedId !== next.selectedId ||
+    prev.selectedIds !== next.selectedIds ||
+    prev.isTextEditing !== next.isTextEditing ||
+    prev.disableDrag !== next.disableDrag ||
+    prev.isShiftDown !== next.isShiftDown ||
+    prev.cropSession !== next.cropSession ||
+    prev.canvasSize !== next.canvasSize ||
+    prev.fontInjectVersion !== next.fontInjectVersion ||
+    prev.adjustSourceTargetId !== next.adjustSourceTargetId
+  )
+  if (hasChange) {
+    const changed = []
+    if (prev.entry !== next.entry) changed.push('entry')
+    if (prev.selectedId !== next.selectedId) changed.push('selectedId')
+    if (prev.adjustSourceTargetId !== next.adjustSourceTargetId) changed.push('adjustSourceTargetId')
+    if (prev.canvasSize !== next.canvasSize) changed.push('canvasSize')
+    if (prev.fontInjectVersion !== next.fontInjectVersion) changed.push('fontInjectVersion')
+    console.log('[BUG3-COMPARITOR] RE-RENDER (changed:', changed.join(','), ') prev.adjSrc:', prev.adjustSourceTargetId, 'next.adjSrc:', next.adjustSourceTargetId)
+  } else {
+    console.log('[BUG3-COMPARITOR] SKIP (no change)')
+  }
+  return !hasChange
 }
-const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion, getItemsVisualBounds, getCompositeSnapBounds, getSnappedDelta, setAlignmentGuides, setRotationSnapGuide, skipGroupDragEndRef, selectedIdsRef, itemsRef, multiDragRef, multiDragActiveRef, stageRef, setStageCursor, getInteractionNode }) {
+const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion, getItemsVisualBounds, getCompositeSnapBounds, getSnappedDelta, setAlignmentGuides, setRotationSnapGuide, skipGroupDragEndRef, selectedIdsRef, itemsRef, multiDragRef, multiDragActiveRef, stageRef, setStageCursor, getInteractionNode, adjustSourceTargetId }) {
   const groupRef = useRef(null)
   const dragStartRef = useRef(null)
   const snapResultRef = useRef(null)
@@ -2530,6 +2682,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
   const alignmentGuidesFrameRef = useRef(null)
   const sourceItem = entry.members.find((item) => item.id === entry.operatorId)
   const destinationItems = entry.members.filter((item) => item.id !== entry.operatorId)
+  const adjustSourceItem = adjustSourceTargetId ? (entry.members.find((m) => m.id === adjustSourceTargetId) || items.find((i) => i.id === adjustSourceTargetId) || null) : null
   const orderedDestinationItems = [...destinationItems].reverse()
   const sourceMode = sourceItem?.compositeMode
   const isGroupLocked = entry.members.every((item) => item.locked)
@@ -2946,7 +3099,8 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           bounds={groupBounds}
           mode={sourceMode}
           stageRef={stageRef}
-          isDraggingRef={isDraggingRef}
+            isDraggingRef={isDraggingRef}
+            adjustSourceItem={adjustSourceItem}
         />
       ) : sourceItem?.kind === 'text' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
         <>
@@ -2956,6 +3110,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
             bounds={groupBounds}
             mode={sourceMode}
             isDraggingRef={isDraggingRef}
+            adjustSourceItem={adjustSourceItem}
           />
         </>
       ) : sourceItem?.kind === 'image' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
@@ -2965,6 +3120,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           bounds={groupBounds}
           mode={sourceMode}
           isDraggingRef={isDraggingRef}
+          adjustSourceItem={adjustSourceItem}
         />
       ) : sourceItem?.kind === 'shape' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
         <CompositeAlphaBitmap
@@ -2974,6 +3130,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           mode={sourceMode}
           stageRef={stageRef}
           isDraggingRef={isDraggingRef}
+          adjustSourceItem={adjustSourceItem}
         />
       ) : sourceMode === 'mask' ? (
         <Group
@@ -2999,7 +3156,8 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
               disableDrag={true}
               isShiftDown={isShiftDown}
               getActiveTransformAnchor={getActiveTransformAnchor}
-              dropTargetFrameId={dropTargetFrameId}
+            adjustSourceTargetId={adjustSourceTargetId}
+            dropTargetFrameId={dropTargetFrameId}
               dropTargetSlotIndex={dropTargetSlotIndex}
               editingFrameId={editingFrameId}
               editingFrameSlot={editingFrameSlot}
@@ -3219,6 +3377,9 @@ function Workspace() {
   const [isBevelStyleOpen, setIsBevelStyleOpen] = useState(false)
   const [isBevelHighlightBlendOpen, setIsBevelHighlightBlendOpen] = useState(false)
   const [isBevelShadowBlendOpen, setIsBevelShadowBlendOpen] = useState(false)
+  const [isCompositeBevelStyleOpen, setIsCompositeBevelStyleOpen] = useState(false)
+  const [isCompositeBevelHighlightBlendOpen, setIsCompositeBevelHighlightBlendOpen] = useState(false)
+  const [isCompositeBevelShadowBlendOpen, setIsCompositeBevelShadowBlendOpen] = useState(false)
   const [colorPickerTarget, setColorPickerTarget] = useState(null)
   const colorPickerActiveRef = useRef(false)
   const pendingColorPickerPatchRef = useRef(null)
@@ -4031,9 +4192,13 @@ function Workspace() {
   const [hasClipboard, setHasClipboard] = useState(false)
   const [isMorePanelOpen, setIsMorePanelOpen] = useState(false)
   const [isFxPanelOpen, setIsFxPanelOpen] = useState(false)
+  const [isHslPanelOpen, setIsHslPanelOpen] = useState(false)
+  const [isCurvesPanelOpen, setIsCurvesPanelOpen] = useState(false)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [destFxTargetId, setDestFxTargetId] = useState(null)
   const [showDestPicker, setShowDestPicker] = useState(false)
+  const [adjustSourceTargetId, setAdjustSourceTargetId] = useState(null)
+  const [showAdjSourcePicker, setShowAdjSourcePicker] = useState(false)
   const [isGroupSelectMode, setIsGroupSelectMode] = useState(false)
   const stageRef = useRef(null)
   const viewportRef = useRef(null)
@@ -6541,6 +6706,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const selectItem = (id, options = {}) => {
+    setAdjustSourceTargetId(null)
     if (warpStateRef.current && warpStateRef.current.itemId !== id) {
       restoreHiddenWarpItem()
       warpImageRef.current = null
@@ -8312,6 +8478,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const applyCompositeGroupMode = useCallback((mode) => {
     if (isViewerRef.current) return
+    if (selectedIds.length > 2) return
     const activeIds = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
     const compositableIds = activeIds.filter((id) => {
       const item = itemsRef.current.find((candidate) => candidate.id === id)
@@ -12522,6 +12689,36 @@ const toggleMobileSheetSize = () => {
     )
   }
 
+  if (isHslPanelOpen) {
+    const handleBack = () => setIsHslPanelOpen(false)
+    const adjustDestItem = adjustSourceTargetId ? items.find((i) => i.id === adjustSourceTargetId) : null
+    const hslItem = adjustDestItem || selectedItem
+    if (!hslItem) { handleBack(); return null }
+    return (
+      <HslPanel
+        item={hslItem}
+        onChange={(id, patch) => { updateItem(hslItem.id, patch, true); broadcastItemUpdate(hslItem.id, patch) }}
+        onCommit={(id, patch) => updateItem(hslItem.id, patch)}
+        onBack={handleBack}
+      />
+    )
+  }
+
+  if (isCurvesPanelOpen) {
+    const handleBack = () => setIsCurvesPanelOpen(false)
+    const adjustDestItem = adjustSourceTargetId ? items.find((i) => i.id === adjustSourceTargetId) : null
+    const curvesItem = adjustDestItem || selectedItem
+    if (!curvesItem) { handleBack(); return null }
+    return (
+      <CurvesPanel
+        item={curvesItem}
+        onChange={(id, patch) => { updateItem(curvesItem.id, patch, true); broadcastItemUpdate(curvesItem.id, patch) }}
+        onCommit={(id, patch) => updateItem(curvesItem.id, patch)}
+        onBack={handleBack}
+      />
+    )
+  }
+
   if (destFxTargetId) {
     const destItem = items.find((i) => i.id === destFxTargetId)
     const handleBack = () => setDestFxTargetId(null)
@@ -12582,8 +12779,8 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-align-btn-modern ${activeCompositeMode === 'mask' ? 'active' : ''}`}
-                  disabled={hasCompositeInSelection}
-                  title={hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : 'Layer paling atas menjadi mask untuk object terpilih di bawahnya'}
+                  disabled={hasCompositeInSelection || selectedItems.length > 2}
+                  title={selectedItems.length > 2 ? 'Maks 2 item' : (hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : 'Layer paling atas menjadi mask untuk object terpilih di bawahnya')}
                   onClick={() => applyCompositeGroupMode('mask')}
                 >
                   <Box size={18} />
@@ -12592,8 +12789,8 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-align-btn-modern ${activeCompositeMode === 'exclude' ? 'active' : ''}`}
-                  disabled={hasCompositeInSelection}
-                  title={hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : 'Layer paling atas melubangi object terpilih di bawahnya'}
+                  disabled={hasCompositeInSelection || selectedItems.length > 2}
+                  title={selectedItems.length > 2 ? 'Maks 2 item' : (hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : 'Layer paling atas melubangi object terpilih di bawahnya')}
                   onClick={() => applyCompositeGroupMode('exclude')}
                 >
                   <MinusIcon size={18} />
@@ -12653,6 +12850,60 @@ const toggleMobileSheetSize = () => {
                         ))}
                       </div>
                     )}
+                    <button
+                      type="button"
+                      className={`workspace-adjustment-card${adjustSourceTargetId ? ' active' : ''}`}
+                      onClick={() => {
+                        if (adjustSourceTargetId) {
+                          setAdjustSourceTargetId(null)
+                        } else if (singleDest) {
+                          setAdjustSourceTargetId(singleDest.id)
+                        } else {
+                          setShowAdjSourcePicker((v) => !v)
+                        }
+                      }}
+                    >
+                      <span className="workspace-adjustment-card-icon"><SlidersHorizontal size={16} /></span>
+                      <span>
+                        <strong>Sumber Adjustment</strong>
+                        <small>{adjustSourceTargetId ? 'Klik untuk ganti sumber' : 'Saturasi, exposure, kurva — untuk gambar'}</small>
+                      </span>
+                      {adjustSourceTargetId ? <X size={16} className="workspace-adjustment-card-chevron" /> : <ChevronRight size={16} className="workspace-adjustment-card-chevron" />}
+                    </button>
+                    {showAdjSourcePicker && dests.length > 1 && (
+                      <div className="workspace-dest-picker">
+                        {dests.map((d, i) => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            className="workspace-dest-picker-item"
+                            onClick={() => { setAdjustSourceTargetId(d.id); setShowAdjSourcePicker(false) }}
+                          >
+                            <Image size={14} />
+                            <span>Foto {i + 1}</span>
+                            <small>{d.title || d.kind}</small>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {adjustSourceTargetId && (() => {
+                      const adjDestItem = items.find((i) => i.id === adjustSourceTargetId)
+                      if (!adjDestItem) return null
+                      return (
+                        <div className="workspace-section-card">
+                          <AdjustmentSliders
+                            item={adjDestItem}
+                            hideBlendMode={true}
+                            onChange={(id, patch) => { updateItem(id, patch, true); broadcastItemUpdate(id, patch) }}
+                            onCommit={(id, patch) => updateItem(id, patch)}
+                            onOpacityChange={(id, val) => { updateItem(id, { opacity: val }, true); broadcastItemUpdate(id, { opacity: val }) }}
+                            onOpacityCommit={(id, val) => updateItem(id, { opacity: val })}
+                            onOpenHsl={() => { setIsCurvesPanelOpen(false); setIsHslPanelOpen(true) }}
+                            onOpenCurves={() => { setIsHslPanelOpen(false); setIsCurvesPanelOpen(true) }}
+                          />
+                        </div>
+                      )
+                    })()}
                     {(() => {
                       const operatorItem = items.find((i) => i.id === operatorId)
                       if (!operatorItem) return null
@@ -12814,6 +13065,228 @@ const toggleMobileSheetSize = () => {
                                     />
                                   </label>
                                 ))}
+                            </div>
+                          )}
+                        </div>
+                          {/* Bevel/Emboss */}
+                          <div className="workspace-section-card">
+                            <div className="workspace-section-title">Bevel & Emboss</div>
+                            <label className="workspace-shadow-toggle">
+                              <input type="checkbox"
+                                checked={!!operatorItem.compositeBevelEmbossEnabled}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    updateItem(operatorItem.id, { compositeBevelEmbossEnabled: true, compositeBevelEmbossStyle: 'inner', compositeBevelEmbossDepth: 5, compositeBevelEmbossAngle: 120, compositeBevelEmbossSoftness: 5, compositeBevelEmbossHighlightColor: '#ffffff', compositeBevelEmbossHighlightOpacity: 1, compositeBevelEmbossShadowColor: '#000000', compositeBevelEmbossShadowOpacity: 1 })
+                                  } else {
+                                    updateItem(operatorItem.id, { compositeBevelEmbossEnabled: false })
+                                  }
+                                }}
+                              />
+                              <span className="toggle-track" />
+                              <span className="toggle-label">Enable Bevel</span>
+                            </label>
+                            {operatorItem.compositeBevelEmbossEnabled && (
+                              <div className="workspace-slider-list">
+                                <label className="workspace-typography-field workspace-typography-field-full">
+                                  Style
+                                  <div style={{ position: 'relative' }}>
+                                    <button type="button" className="workspace-font-picker-trigger"
+                                      onClick={() => setIsCompositeBevelStyleOpen(!isCompositeBevelStyleOpen)}>
+                                      {operatorItem.compositeBevelEmbossStyle === 'emboss' ? 'Emboss (Texture)' : 'Inner Bevel'}
+                                    </button>
+                                    {isCompositeBevelStyleOpen && (
+                                      <div className="workspace-blend-mode-dropdown">
+                                        {['inner', 'emboss'].map((val) => (
+                                          <button key={val} type="button"
+                                            className={`workspace-blend-mode-item ${(operatorItem.compositeBevelEmbossStyle === val || (!operatorItem.compositeBevelEmbossStyle && val === 'inner')) ? 'active' : ''}`}
+                                            onClick={() => {
+                                              updateItem(operatorItem.id, { compositeBevelEmbossStyle: val })
+                                              setIsCompositeBevelStyleOpen(false)
+                                            }}>
+                                            {val === 'inner' ? 'Inner Bevel' : 'Emboss (Texture)'}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </label>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Highlight Color</span>
+                                  <input type="color"
+                                    value={operatorItem.compositeBevelEmbossHighlightColor || '#ffffff'}
+                                    onChange={(e) => updateItem(operatorItem.id, { compositeBevelEmbossHighlightColor: e.target.value }, true)}
+                                    onBlur={(e) => updateItem(operatorItem.id, { compositeBevelEmbossHighlightColor: e.target.value })}
+                                  />
+                                </label>
+                                <label className="workspace-typography-field workspace-typography-field-full">
+                                  Highlight Blend
+                                  <div style={{ position: 'relative' }}>
+                                    <button type="button" className="workspace-font-picker-trigger"
+                                      onClick={() => setIsCompositeBevelHighlightBlendOpen(!isCompositeBevelHighlightBlendOpen)}>
+                                      {BLEND_MODES.find((m) => m.value === (operatorItem.compositeBevelEmbossHighlightBlendMode || 'linear-dodge'))?.label || 'Linear Dodge'}
+                                    </button>
+                                    {isCompositeBevelHighlightBlendOpen && (
+                                      <div className="workspace-blend-mode-dropdown">
+                                        {BLEND_MODES.map((mode) => (
+                                          <button key={mode.value} type="button"
+                                            className={`workspace-blend-mode-item ${(operatorItem.compositeBevelEmbossHighlightBlendMode === mode.value || (!operatorItem.compositeBevelEmbossHighlightBlendMode && mode.value === 'linear-dodge')) ? 'active' : ''}`}
+                                            onClick={() => {
+                                              updateItem(operatorItem.id, { compositeBevelEmbossHighlightBlendMode: mode.value })
+                                              setIsCompositeBevelHighlightBlendOpen(false)
+                                            }}>
+                                            {mode.label}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </label>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Shadow Color</span>
+                                  <input type="color"
+                                    value={operatorItem.compositeBevelEmbossShadowColor || '#000000'}
+                                    onChange={(e) => updateItem(operatorItem.id, { compositeBevelEmbossShadowColor: e.target.value }, true)}
+                                    onBlur={(e) => updateItem(operatorItem.id, { compositeBevelEmbossShadowColor: e.target.value })}
+                                  />
+                                </label>
+                                <label className="workspace-typography-field workspace-typography-field-full">
+                                  Shadow Blend
+                                  <div style={{ position: 'relative' }}>
+                                    <button type="button" className="workspace-font-picker-trigger"
+                                      onClick={() => setIsCompositeBevelShadowBlendOpen(!isCompositeBevelShadowBlendOpen)}>
+                                      {BLEND_MODES.find((m) => m.value === (operatorItem.compositeBevelEmbossShadowBlendMode || 'linear-burn'))?.label || 'Linear Burn'}
+                                    </button>
+                                    {isCompositeBevelShadowBlendOpen && (
+                                      <div className="workspace-blend-mode-dropdown">
+                                        {BLEND_MODES.map((mode) => (
+                                          <button key={mode.value} type="button"
+                                            className={`workspace-blend-mode-item ${(operatorItem.compositeBevelEmbossShadowBlendMode === mode.value || (!operatorItem.compositeBevelEmbossShadowBlendMode && mode.value === 'linear-burn')) ? 'active' : ''}`}
+                                            onClick={() => {
+                                              updateItem(operatorItem.id, { compositeBevelEmbossShadowBlendMode: mode.value })
+                                              setIsCompositeBevelShadowBlendOpen(false)
+                                            }}>
+                                            {mode.label}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </label>
+                                {[
+                                  { key: 'compositeBevelEmbossDepth', label: 'Depth', min: 0.5, max: 20, step: 0.5, value: operatorItem.compositeBevelEmbossDepth ?? 5, unit: '' },
+                                  { key: 'compositeBevelEmbossAngle', label: 'Angle', min: 0, max: 360, step: 1, value: operatorItem.compositeBevelEmbossAngle ?? 120, unit: '\u00b0' },
+                                  { key: 'compositeBevelEmbossSoftness', label: 'Softness', min: 0, max: 50, step: 1, value: operatorItem.compositeBevelEmbossSoftness ?? 5, unit: '' },
+                                  { key: 'compositeBevelEmbossHighlightOpacity', label: 'Highlight Opacity', min: 0, max: 100, step: 1, value: Math.round((operatorItem.compositeBevelEmbossHighlightOpacity ?? 1) * 100), unit: '%' },
+                                  { key: 'compositeBevelEmbossShadowOpacity', label: 'Shadow Opacity', min: 0, max: 100, step: 1, value: Math.round((operatorItem.compositeBevelEmbossShadowOpacity ?? 1) * 100), unit: '%' },
+                                ].map((ctrl) => (
+                                  <label key={ctrl.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>{ctrl.label}</span>
+                                      {editingSliderKey === ctrl.key ? (
+                                        <input type="number" defaultValue={ctrl.value} min={ctrl.min} max={ctrl.max} step={ctrl.step} autoFocus
+                                          style={{ width: '52px', fontSize: '11px', textAlign: 'right', padding: '1px 4px', border: '1px solid #7c6df2', borderRadius: '4px', background: '#1a1721', color: '#c4bfd4', outline: 'none' }}
+                                          onBlur={(e) => {
+                                            let val = Math.max(ctrl.min, Math.min(ctrl.max, Number(e.target.value)))
+                                            if (ctrl.key === 'compositeBevelEmbossHighlightOpacity' || ctrl.key === 'compositeBevelEmbossShadowOpacity') val = val / 100
+                                            updateItem(operatorItem.id, { [ctrl.key]: val })
+                                            setEditingSliderKey(null)
+                                          }}
+                                          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingSliderKey(null) }}
+                                        />
+                                      ) : (
+                                        <span style={{ fontSize: '11px', color: '#c4bfd4', minWidth: '36px', textAlign: 'right', cursor: 'text' }}
+                                          onDoubleClick={() => setEditingSliderKey(ctrl.key)}>
+                                          {ctrl.value}{ctrl.unit}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <input type="range" min={ctrl.min} max={ctrl.max} step={ctrl.step} value={ctrl.value}
+                                      onChange={(e) => {
+                                        const raw = Number(e.target.value)
+                                        const patchVal = (ctrl.key === 'compositeBevelEmbossHighlightOpacity' || ctrl.key === 'compositeBevelEmbossShadowOpacity') ? raw / 100 : raw
+                                        updateItem(operatorItem.id, { [ctrl.key]: patchVal }, true)
+                                        broadcastItemUpdate(operatorItem.id, { [ctrl.key]: patchVal })
+                                      }}
+                                      onPointerUp={(e) => {
+                                        const raw = Number(e.target.value)
+                                        const patchVal = (ctrl.key === 'compositeBevelEmbossHighlightOpacity' || ctrl.key === 'compositeBevelEmbossShadowOpacity') ? raw / 100 : raw
+                                        updateItem(operatorItem.id, { [ctrl.key]: patchVal })
+                                      }}
+                                    />
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {/* Inner Shadow */}
+                          <div className="workspace-section-card">
+                            <div className="workspace-section-title">Inner Shadow</div>
+                            <label className="workspace-shadow-toggle">
+                              <input type="checkbox"
+                                checked={!!operatorItem.compositeInnerShadowEnabled}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    updateItem(operatorItem.id, { compositeInnerShadowEnabled: true, compositeInnerShadowColor: '#000000', compositeInnerShadowOpacity: 0.5, compositeInnerShadowBlur: 5, compositeInnerShadowDistance: 5, compositeInnerShadowAngle: 135 })
+                                  } else {
+                                    updateItem(operatorItem.id, { compositeInnerShadowEnabled: false })
+                                  }
+                                }}
+                              />
+                              <span className="toggle-track" />
+                              <span className="toggle-label">Enable Inner Shadow</span>
+                            </label>
+                            {operatorItem.compositeInnerShadowEnabled && (
+                              <div className="workspace-slider-list">
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>Color</span>
+                                  <input type="color"
+                                    value={operatorItem.compositeInnerShadowColor || '#000000'}
+                                    onChange={(e) => updateItem(operatorItem.id, { compositeInnerShadowColor: e.target.value }, true)}
+                                    onBlur={(e) => updateItem(operatorItem.id, { compositeInnerShadowColor: e.target.value })}
+                                  />
+                                </label>
+                                {[
+                                  { key: 'compositeInnerShadowBlur', label: 'Blur', min: 0, max: 50, step: 1, value: operatorItem.compositeInnerShadowBlur ?? 5, unit: '' },
+                                  { key: 'compositeInnerShadowDistance', label: 'Distance', min: 0, max: 50, step: 1, value: operatorItem.compositeInnerShadowDistance ?? 5, unit: '' },
+                                  { key: 'compositeInnerShadowAngle', label: 'Angle', min: 0, max: 360, step: 1, value: operatorItem.compositeInnerShadowAngle ?? 135, unit: '\u00b0' },
+                                  { key: 'compositeInnerShadowOpacity', label: 'Opacity', min: 0, max: 100, step: 1, value: Math.round((operatorItem.compositeInnerShadowOpacity ?? 0.5) * 100), unit: '%' },
+                                ].map((ctrl) => (
+                                  <label key={ctrl.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>{ctrl.label}</span>
+                                      {editingSliderKey === ctrl.key ? (
+                                        <input type="number" defaultValue={ctrl.value} min={ctrl.min} max={ctrl.max} step={ctrl.step} autoFocus
+                                          style={{ width: '52px', fontSize: '11px', textAlign: 'right', padding: '1px 4px', border: '1px solid #7c6df2', borderRadius: '4px', background: '#1a1721', color: '#c4bfd4', outline: 'none' }}
+                                          onBlur={(e) => {
+                                            let val = Math.max(ctrl.min, Math.min(ctrl.max, Number(e.target.value)))
+                                            if (ctrl.key === 'compositeInnerShadowOpacity') val = val / 100
+                                            updateItem(operatorItem.id, { [ctrl.key]: val })
+                                            setEditingSliderKey(null)
+                                          }}
+                                          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingSliderKey(null) }}
+                                        />
+                                      ) : (
+                                        <span style={{ fontSize: '11px', color: '#c4bfd4', minWidth: '36px', textAlign: 'right', cursor: 'text' }}
+                                          onDoubleClick={() => setEditingSliderKey(ctrl.key)}>
+                                          {ctrl.value}{ctrl.unit}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <input type="range" min={ctrl.min} max={ctrl.max} step={ctrl.step} value={ctrl.value}
+                                      onChange={(e) => {
+                                        const raw = Number(e.target.value)
+                                        const patchVal = ctrl.key === 'compositeInnerShadowOpacity' ? raw / 100 : raw
+                                        updateItem(operatorItem.id, { [ctrl.key]: patchVal }, true)
+                                        broadcastItemUpdate(operatorItem.id, { [ctrl.key]: patchVal })
+                                      }}
+                                      onPointerUp={(e) => {
+                                        const raw = Number(e.target.value)
+                                        const patchVal = ctrl.key === 'compositeInnerShadowOpacity' ? raw / 100 : raw
+                                        updateItem(operatorItem.id, { [ctrl.key]: patchVal })
+                                      }}
+                                    />
+                                  </label>
+                                ))}
                               </div>
                             )}
                           </div>
@@ -12912,8 +13385,8 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-align-btn-modern ${activeCompositeMode === 'mask' ? 'active' : ''}`}
-                  disabled={hasCompositeInSelection}
-                  title={hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : (activeSelectionCount > 1 ? 'Layer paling atas menjadi mask untuk object terpilih di bawahnya' : 'Layer ini menjadi mask untuk layer di bawahnya')}
+                  disabled={hasCompositeInSelection || selectedItems.length > 2}
+                  title={selectedItems.length > 2 ? 'Maks 2 item' : (hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : (activeSelectionCount > 1 ? 'Layer paling atas menjadi mask untuk object terpilih di bawahnya' : 'Layer ini menjadi mask untuk layer di bawahnya'))}
                   onClick={() => applyCompositeGroupMode('mask')}
                 >
                   <Box size={18} />
@@ -12922,8 +13395,8 @@ const toggleMobileSheetSize = () => {
                 <button
                   type="button"
                   className={`workspace-align-btn-modern ${activeCompositeMode === 'exclude' ? 'active' : ''}`}
-                  disabled={hasCompositeInSelection}
-                  title={hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : (activeSelectionCount > 1 ? 'Layer paling atas melubangi object terpilih di bawahnya' : 'Layer ini melubangi layer di bawahnya')}
+                  disabled={hasCompositeInSelection || selectedItems.length > 2}
+                  title={selectedItems.length > 2 ? 'Maks 2 item' : (hasCompositeInSelection ? 'Nested masking belum didukung — pisahkan composite group terlebih dahulu' : (activeSelectionCount > 1 ? 'Layer paling atas melubangi object terpilih di bawahnya' : 'Layer ini melubangi layer di bawahnya'))}
                   onClick={() => applyCompositeGroupMode('exclude')}
                 >
                   <MinusIcon size={18} />
@@ -13293,44 +13766,18 @@ const toggleMobileSheetSize = () => {
       />
     </label>
   ))}
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#7c6df2', margin: '16px 0 8px' }}>
-                HSL Adjustment
+              <div style={{ display: 'flex', gap: '8px', margin: '8px 0' }}>
+                <AdjustmentTriggerButton
+                  type="hsl"
+                  active={hasActiveHsl(selectedItem?.hsl)}
+                  onClick={() => { setIsCurvesPanelOpen(false); setIsHslPanelOpen(true) }}
+                />
+                <AdjustmentTriggerButton
+                  type="curves"
+                  active={hasActiveCurves(selectedItem?.curves)}
+                  onClick={() => { setIsHslPanelOpen(false); setIsCurvesPanelOpen(true) }}
+                />
               </div>
-              {(() => {
-                const hslMaster = selectedItem.hsl?.master ?? { hue: 0, saturation: 0, lightness: 0 }
-                const getHsl = (k) => k === 'hue' ? (hslMaster.hue ?? 0) : k === 'saturation' ? (hslMaster.saturation ?? 0) : (hslMaster.lightness ?? 0)
-                const hslPatch = (field, val) => {
-                  const cur = selectedItem.hsl?.master ?? { hue: 0, saturation: 0, lightness: 0 }
-                  return { hsl: { master: { hue: field === 'hue' ? val : cur.hue, saturation: field === 'saturation' ? val : cur.saturation, lightness: field === 'lightness' ? val : cur.lightness } } }
-                }
-                return [
-                  { key: 'hue', label: 'Hue', min: -180, max: 180, unit: '°' },
-                  { key: 'saturation', label: 'Saturation', min: -100, max: 100, unit: '%' },
-                  { key: 'lightness', label: 'Lightness', min: -100, max: 100, unit: '%' },
-                ].map((control) => {
-                  const hslVal = getHsl(control.key)
-                  return (
-                    <label key={'hsl-' + control.key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a09ca6' }}>
-                          {control.label}
-                        </span>
-                        <span style={{ fontSize: '11px', color: '#c4bfd4', minWidth: '36px', textAlign: 'right' }}>
-                          {hslVal}{control.unit}
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={control.min}
-                        max={control.max}
-                        value={hslVal}
-                        onChange={(event) => { const v = Number(event.target.value); const patch = hslPatch(control.key, v); updateItem(selectedItem.id, patch, true); broadcastItemUpdate(selectedItem.id, patch) }}
-                        onPointerUp={(event) => { const v = Number(event.target.value); updateItem(selectedItem.id, hslPatch(control.key, v)) }}
-                      />
-                    </label>
-                  )
-                })
-              })()}
               <button
                 type="button"
                 className="workspace-reset-adjustments"
@@ -13916,7 +14363,7 @@ onPointerUp={(e) => {
         </label>
 
         {isShapeAdjustmentLayer ? (
-          <AdjustmentSliders item={selectedItem} onChange={(id, patch) => { updateItem(id, patch, true); broadcastItemUpdate(id, patch) }} onCommit={(id, patch) => updateItem(id, patch)} onOpacityChange={(id, val) => { updateItem(id, { opacity: val }, true); broadcastItemUpdate(id, { opacity: val }) }} onOpacityCommit={(id, val) => updateItem(id, { opacity: val })} />
+          <AdjustmentSliders item={selectedItem} onChange={(id, patch) => { updateItem(id, patch, true); broadcastItemUpdate(id, patch) }} onCommit={(id, patch) => updateItem(id, patch)} onOpacityChange={(id, val) => { updateItem(id, { opacity: val }, true); broadcastItemUpdate(id, { opacity: val }) }} onOpacityCommit={(id, val) => updateItem(id, { opacity: val })} onOpenHsl={() => { setIsCurvesPanelOpen(false); setIsHslPanelOpen(true) }} onOpenCurves={() => { setIsHslPanelOpen(false); setIsCurvesPanelOpen(true) }} />
         ) : (
           <>
             <div className="workspace-typography-grid">
@@ -15472,6 +15919,7 @@ onPointerUp={(e) => {
             multiDragActiveRef={multiDragActiveRef}
             stageRef={stageRef}
             getInteractionNode={getInteractionNode}
+            adjustSourceTargetId={adjustSourceTargetId}
           />
         )
       }
@@ -16794,8 +17242,8 @@ onPointerUp={(e) => {
                 { label: 'Hapus (Delete)', action: deleteSelectedObject, Icon: Trash2 },
                 ...(selectedItem?.kind === 'image' && selectedIds.length <= 1 ? [{ label: 'Pangkas', action: () => beginImageCrop(selectedItem.id), Icon: Crop }] : []),
                 ...((canUseCompositeGroupMode || hasCompositeInSelection) ? [
-                  { label: activeCompositeMode === 'mask' ? 'Matikan Masking' : activeSelectionCount > 1 ? `Masking (${activeSelectionCount})` : 'Masking', action: hasCompositeInSelection ? null : () => applyCompositeGroupMode('mask'), Icon: Box, disabled: hasCompositeInSelection },
-                  { label: activeCompositeMode === 'exclude' ? 'Matikan Exclude' : activeSelectionCount > 1 ? `Exclude (${activeSelectionCount})` : 'Exclude', action: hasCompositeInSelection ? null : () => applyCompositeGroupMode('exclude'), Icon: MinusIcon, disabled: hasCompositeInSelection },
+                  { label: activeCompositeMode === 'mask' ? 'Matikan Masking' : activeSelectionCount > 1 ? `Masking (${activeSelectionCount})` : 'Masking', action: hasCompositeInSelection || selectedItems.length > 2 ? null : () => applyCompositeGroupMode('mask'), Icon: Box, disabled: hasCompositeInSelection || selectedItems.length > 2 },
+                  { label: activeCompositeMode === 'exclude' ? 'Matikan Exclude' : activeSelectionCount > 1 ? `Exclude (${activeSelectionCount})` : 'Exclude', action: hasCompositeInSelection || selectedItems.length > 2 ? null : () => applyCompositeGroupMode('exclude'), Icon: MinusIcon, disabled: hasCompositeInSelection || selectedItems.length > 2 },
                 ] : []),
                 { label: '---' },
                 { label: 'Canvas Align', action: 'submenu', Icon: AlignCenter },
@@ -16882,8 +17330,8 @@ onPointerUp={(e) => {
           { label: 'Duplikat', shortcut: '', action: () => duplicateItems(selectedIds.length ? selectedIds : [selectedId]), Icon: CopyPlus },
           ...(selectedItem?.kind === 'image' && selectedIds.length <= 1 ? [{ label: 'Pangkas', shortcut: '', action: () => beginImageCrop(selectedItem.id), Icon: Crop }] : []),
           ...((canUseCompositeGroupMode || hasCompositeInSelection) ? [
-            { label: activeCompositeMode === 'mask' ? 'Matikan Masking' : activeSelectionCount > 1 ? `Masking (${activeSelectionCount})` : 'Masking', shortcut: '', action: hasCompositeInSelection ? null : () => applyCompositeGroupMode('mask'), Icon: Box, disabled: hasCompositeInSelection },
-            { label: activeCompositeMode === 'exclude' ? 'Matikan Exclude' : activeSelectionCount > 1 ? `Exclude (${activeSelectionCount})` : 'Exclude', shortcut: '', action: hasCompositeInSelection ? null : () => applyCompositeGroupMode('exclude'), Icon: MinusIcon, disabled: hasCompositeInSelection },
+            { label: activeCompositeMode === 'mask' ? 'Matikan Masking' : activeSelectionCount > 1 ? `Masking (${activeSelectionCount})` : 'Masking', shortcut: '', action: hasCompositeInSelection || selectedItems.length > 2 ? null : () => applyCompositeGroupMode('mask'), Icon: Box, disabled: hasCompositeInSelection || selectedItems.length > 2 },
+            { label: activeCompositeMode === 'exclude' ? 'Matikan Exclude' : activeSelectionCount > 1 ? `Exclude (${activeSelectionCount})` : 'Exclude', shortcut: '', action: hasCompositeInSelection || selectedItems.length > 2 ? null : () => applyCompositeGroupMode('exclude'), Icon: MinusIcon, disabled: hasCompositeInSelection || selectedItems.length > 2 },
           ] : []),
           { label: '---' },
           { label: 'Canvas Align', shortcut: '', action: 'submenu', Icon: AlignCenter },

@@ -373,3 +373,16 @@ export const applyStyleSimilarityBoost = async (items, referenceUrl, scoreField 
     })
     .sort((a, b) => b[scoreField] - a[scoreField])
 }
+
+export const applyEngagementTiebreak = (items, scoreField = '_clipScore', tieThreshold = 0.008) => {
+  if (!items || !items.length) return items
+  const withEngagement = items.map(p => ({
+    ...p,
+    _engagementRaw: (p.likeCount || 0) * 2 + (p.saveCount || 0) * 3 + (p.viewCount || 0) * 0.15,
+  }))
+  return withEngagement.sort((a, b) => {
+    const scoreDiff = (b[scoreField] || 0) - (a[scoreField] || 0)
+    if (Math.abs(scoreDiff) > tieThreshold) return scoreDiff
+    return b._engagementRaw - a._engagementRaw
+  })
+}

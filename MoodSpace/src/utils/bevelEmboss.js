@@ -21,7 +21,7 @@
  */
 
 // Set true to log height-map metrics to console for debugging.
-const DEBUG_BEVEL = true
+const DEBUG_BEVEL = false
 
 const { clamp } = (() => {
   const c = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
@@ -208,25 +208,14 @@ export const applyBevelEmboss = (imageData, params, maskImageData = null) => {
     }
   }
 
-  // When using a mask buffer, the alpha in the mask is guaranteed to
-  // have geometry variation (the mask was rendered with opaque fill),
-  // so there is no need for the transparent-fill fallback below.
-  // However, when maskImageData is null (the normal case), alpha from
-  // the base render may still be flat for transparent-fill items that
-  // were NOT routed through the dual-cache path — handle that here.
-  if (!maskImageData && mapSource === 'alpha') {
-    let hasAlpha = false
-    for (let i = 0; i < n; i++) {
-      if (raw[i] > 1 / 255) { hasAlpha = true; break }
-    }
-    if (!hasAlpha) {
-      if (DEBUG_BEVEL) console.log('[BEVEL] alpha flat, fallback to luminance')
-      for (let i = 0; i < n; i++) {
-        const idx = i * 4
-        raw[i] = (0.299 * d[idx] + 0.587 * d[idx + 1] + 0.114 * d[idx + 2]) / 255
-      }
-    }
-  }
+  // NOTE: The alpha-flat fallback (switch to luminance when mask is null and
+  // alpha is flat) was removed because the dual-buffer path now guarantees
+  // maskImageData is always provided for transparent-fill items. When no mask
+  // is present (solid-fill path), the base render always has proper alpha
+  // geometry (inside=255 / outside=0) so the fallback would never trigger.
+  // The old fallback logic was erroneously triggered after the fill fix
+  // (fillEnabled: true + fillOpacity: 0) produced legitimate α=0 pixels,
+  // causing solid-white opaque renders. See AGENTS.md Session 2026-07-22.
 
   // --- Step 2: Blur (3-pass, Gaussian-approx) → height field ---
   const height = boxBlurChannel(raw, w, h, softness)

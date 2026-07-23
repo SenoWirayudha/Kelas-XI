@@ -55,8 +55,18 @@ export const detectDesignType = (text) => {
   return null
 }
 
-export const classifyDesignType = async (imageEmbedding) => {
+export const classifyDesignType = async (imageEmbedding, context = {}) => {
   if (!imageEmbedding) return null
+
+  // Hybrid approach:
+  // 1. TMDB items: provider metadata imageType is 100% accurate
+  if (context.provider === 'tmdb' && context.metadata?.imageType) {
+    const type = context.metadata.imageType
+    if (type === 'poster') return 'poster'
+    if (type === 'backdrop' || type === 'profile') return 'photography'
+  }
+
+  // 2. CLIP zero-shot fallback for non-TMDB items
   const labels = await getLabelEmbeddings()
   let best = { key: null, score: -1 }
   for (const { key, embedding } of labels) {

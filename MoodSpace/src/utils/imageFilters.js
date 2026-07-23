@@ -2,49 +2,14 @@ import Konva from 'konva'
 import { applyBevelEmboss } from './bevelEmboss'
 import { applyInnerShadow } from './innerShadow'
 import { buildCurveLut } from './curveUtils'
+import { applyHslChannels, buildHueWeightLut } from './hslChannels'
 
 const lutCache = new Map()
+const hslLutCache = new Map()
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
 const luminance = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b
-
-const rgbToHsl = (r, g, b) => {
-  const rn = r / 255, gn = g / 255, bn = b / 255
-  const mx = Math.max(rn, gn, bn), mn = Math.min(rn, gn, bn)
-  const d = mx - mn
-  let h = 0, s = 0, l = (mx + mn) / 2
-  if (d !== 0) {
-    s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn)
-    if (mx === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60
-    else if (mx === gn) h = ((bn - rn) / d + 2) * 60
-    else h = ((rn - gn) / d + 4) * 60
-  }
-  return { h, s, l }
-}
-
-const hslToRgb = (h, s, l) => {
-  if (s === 0) {
-    const v = clamp(Math.round(l * 255), 0, 255)
-    return [v, v, v]
-  }
-  const hue = ((h % 360) + 360) % 360
-  const c = (1 - Math.abs(2 * l - 1)) * s
-  const x = c * (1 - Math.abs((hue / 60) % 2 - 1))
-  const m = l - c / 2
-  let r1 = 0, g1 = 0, b1 = 0
-  if (hue < 60) { r1 = c; g1 = x; b1 = 0 }
-  else if (hue < 120) { r1 = x; g1 = c; b1 = 0 }
-  else if (hue < 180) { r1 = 0; g1 = c; b1 = x }
-  else if (hue < 240) { r1 = 0; g1 = x; b1 = c }
-  else if (hue < 300) { r1 = x; g1 = 0; b1 = c }
-  else { r1 = c; g1 = 0; b1 = x }
-  return [
-    clamp(Math.round((r1 + m) * 255), 0, 255),
-    clamp(Math.round((g1 + m) * 255), 0, 255),
-    clamp(Math.round((b1 + m) * 255), 0, 255),
-  ]
-}
 
 const processPixels = (imageData, fn) => {
   const d = imageData.data
@@ -276,7 +241,7 @@ const pixelPipeline = (params) => {
   const {
     d, w, h, len,
     expFactor, tempAmount, hueRotation,
-    hslHue, hslSat, hslLgt, curvesLuts,
+    hslConfig, hslLuts, curvesLuts,
     highAmount, shadowAmount,
     whiteAmount, blackAmount, brightAdj, contAdj, satAdj,
     vigStrength, cx, cy, maxDist, sharpenVal, blurVal,
@@ -305,16 +270,16 @@ if (hueRotation) {
   const ng = rn*(0.213-cos*0.213+sin*0.143) + gn*(0.715+cos*0.285+sin*0.140) + bn*(0.072-cos*0.072-sin*0.283)
   const nb = rn*(0.213-cos*0.213-sin*0.787) + gn*(0.715-cos*0.715+sin*0.715) + bn*(0.072+cos*0.928+sin*0.072)
   
-  r = nr*255; g = ng*255; b = nb*255
+  r = clamp(Math.round(nr*255), 0, 255)
+  g = clamp(Math.round(ng*255), 0, 255)
+  b = clamp(Math.round(nb*255), 0, 255)
 }
 
-    if (hslHue || hslSat || hslLgt) {
-      const { h, s, l } = rgbToHsl(r, g, b)
-      let nh = hslHue ? ((h + hslHue) % 360 + 360) % 360 : h
-      let ns = hslSat ? clamp(s + hslSat, 0, 1) : s
-      let nl = hslLgt ? clamp(l + hslLgt, 0, 1) : l
-      const rgb = hslToRgb(nh, ns, nl)
-      r = rgb[0]; g = rgb[1]; b = rgb[2]
+    if (hslConfig) {
+      const rgb = applyHslChannels(r, g, b, hslConfig, hslLuts)
+      r = clamp(rgb[0], 0, 255)
+      g = clamp(rgb[1], 0, 255)
+      b = clamp(rgb[2], 0, 255)
     }
     if (highAmount) {
       const luma = 0.299 * r + 0.587 * g + 0.114 * b
@@ -389,13 +354,13 @@ if (hueRotation) {
 
     if (curvesLuts) {
       if (curvesLuts.rgb) {
-        r = curvesLuts.rgb[r]
-        g = curvesLuts.rgb[g]
-        b = curvesLuts.rgb[b]
+        r = curvesLuts.rgb[clamp(Math.round(r), 0, 255)]
+        g = curvesLuts.rgb[clamp(Math.round(g), 0, 255)]
+        b = curvesLuts.rgb[clamp(Math.round(b), 0, 255)]
       }
-      if (curvesLuts.red)   r = curvesLuts.red[r]
-      if (curvesLuts.green) g = curvesLuts.green[g]
-      if (curvesLuts.blue)  b = curvesLuts.blue[b]
+      if (curvesLuts.red)   r = curvesLuts.red[clamp(Math.round(r), 0, 255)]
+      if (curvesLuts.green) g = curvesLuts.green[clamp(Math.round(g), 0, 255)]
+      if (curvesLuts.blue)  b = curvesLuts.blue[clamp(Math.round(b), 0, 255)]
     }
 
     if (vigStrength) {
@@ -447,10 +412,25 @@ const getParamSet = (vals) => {
   const vignetteVal = vals.vignette ?? 0
   const blurVal = vals.blur ?? 0
 
-  const hsl = vals.hsl ?? null
-  const hslHue = hsl?.master?.hue ?? 0
-  const hslSat = hsl?.master?.saturation ?? 0
-  const hslLgt = hsl?.master?.lightness ?? 0
+  const hslConfig = vals.hsl ?? null
+  let hslLuts = null
+  if (hslConfig) {
+    const rfChannels = ['reds', 'yellows', 'greens', 'cyans', 'blues', 'magentas']
+    const rfKey = JSON.stringify(rfChannels.map((ch) => {
+      const c = hslConfig[ch]
+      return c ? { rs: c.rangeStart, re: c.rangeEnd, f: c.feather } : null
+    }))
+    if (hslLutCache.has(rfKey)) {
+      hslLuts = hslLutCache.get(rfKey)
+    } else {
+      const chCfg = {}
+      for (const ch of rfChannels) {
+        if (hslConfig[ch]) chCfg[ch] = hslConfig[ch]
+      }
+      hslLuts = buildHueWeightLut(chCfg)
+      hslLutCache.set(rfKey, hslLuts)
+    }
+  }
 
   const curves = vals.curves ?? null
   let curvesLuts = null
@@ -473,9 +453,8 @@ const getParamSet = (vals) => {
     expFactor: expVal !== 0 ? Math.pow(2, expVal / 100) : 0,
     tempAmount: tempVal !== 0 ? tempVal / 100 * 30 : 0,
     hueRotation: hueVal !== 0 ? hueVal * Math.PI / 180 : 0,
-    hslHue: hslHue || 0,
-    hslSat: hslSat !== 0 ? hslSat / 100 : 0,
-    hslLgt: hslLgt !== 0 ? hslLgt / 100 : 0,
+    hslConfig,
+    hslLuts,
     curvesLuts,
     highAmount: highVal !== 0 ? highVal / 100 * 60 : 0,
     shadowAmount: shadowVal !== 0 ? shadowVal / 100 * 60 : 0,
@@ -493,7 +472,7 @@ const getParamSet = (vals) => {
 export const applyMoodSpaceToImageData = (imageData, values) => {
   const params = getParamSet(values)
   const hasAdjustment = params.expFactor || params.tempAmount || params.hueRotation
-    || params.hslHue || params.hslSat || params.hslLgt
+    || params.hslConfig
     || params.curvesLuts
     || params.highAmount || params.shadowAmount || params.whiteAmount || params.blackAmount
     || params.brightAdj || params.contAdj || params.satAdj
@@ -611,7 +590,9 @@ Konva.Filters.InnerShadow = function (imageData) {
 export const applyImageFilters = (node, item) => {
   const hasAny = ADJUSTMENT_KEYS.some((k) => (item[k] ?? 0) !== 0)
   const hsl = item.hsl ?? null
-  const hasHsl = hsl && (hsl.master?.hue || hsl.master?.saturation || hsl.master?.lightness)
+  const hasHsl = hsl && (
+    hsl.reds || hsl.yellows || hsl.greens || hsl.cyans || hsl.blues || hsl.magentas
+  )
   const hasCurves = !!(item.curves)
 
   if (!hasAny && !hasHsl && !hasCurves) {

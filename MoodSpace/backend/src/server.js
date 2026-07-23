@@ -2,6 +2,7 @@ import { createApp } from './app.js'
 import { env } from './config/env.js'
 import { pool } from './db/pool.js'
 import { warmUpClip } from './modules/externalImages/clip.service.js'
+import { startEmbeddingMonitor } from './shared/embeddingMonitor.js'
 
 const app = createApp()
 
@@ -10,6 +11,7 @@ const port = env.PORT || 4000
 const server = app.listen(port, () => {
   console.log(`Backend running on http://localhost:${port}`)
   warmUpClip()
+  startEmbeddingMonitor()
 })
 
 server.keepAliveTimeout = 65_000

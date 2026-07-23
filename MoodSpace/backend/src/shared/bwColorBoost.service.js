@@ -13,4 +13,5 @@ export {
   BW_SAT_KEYWORDS,
   SATURATION_BOOST_MAX,
   STYLES,
+  applyEngagementTiebreak,
 } from './styleBoost.service.js'

@@ -5,6 +5,7 @@ import { Image as KonvaImage } from 'react-konva'
 import { getShadowProps, preloadFont, applyBevelEmbossToNode, applyInnerShadowToNode } from '../../../utils/konvaUtils'
 import { getArrowShapePath, getShapeFillProps, getShapeTextBounds } from '../../../utils/shapeUtils'
 import { effectManager } from '../../../utils/konva-effects-engine'
+import { generateGeometryShadowCanvas, isEffectivelyFillNone } from '../../../utils/geometryShadow'
 
 const isolateChannel = (data, ch, nw, nh) => {
   const buf = new Uint8ClampedArray(data.length)
@@ -141,6 +142,12 @@ export default function ShapeRenderer({
 }) {
   const isSelected = selectedIds?.includes(item.id) || selectedId === item.id
   const shadowProps = getShadowProps(item)
+
+  // Geometry shadow untuk fill=none+shadow: native Konva shadow skip (tidak
+  // ada alpha = tidak ada shadow), generate shadow dari geometry mask.
+  const isFillNone = isEffectivelyFillNone(item)
+  const useGeometryShadow = isFillNone && item.shadowEnabled && (item.shadow ?? 0) > 0
+  const nativeShadowProps = useGeometryShadow ? {} : shadowProps
   const shapeTextFontSize = item.shapeTextFontSize || 16
   const shapeTextValue = item.shapeText || ''
   const shapePaintProps = {
@@ -155,6 +162,28 @@ export default function ShapeRenderer({
   const groupRef = useRef(null)
   const filterItemRef = useRef(item)
   const rAFRef = useRef(null)
+  const shadowCanvasRef = useRef(null)
+  const [, forceRender] = useState(0)
+
+  // Regenerate geometry shadow canvas when fill=none + shadow props change
+  useEffect(() => {
+    if (!useGeometryShadow) {
+      if (shadowCanvasRef.current) {
+        shadowCanvasRef.current = null
+        forceRender(n => n + 1)
+      }
+      return
+    }
+    const canvas = generateGeometryShadowCanvas(item)
+    if (canvas !== shadowCanvasRef.current) {
+      shadowCanvasRef.current = canvas
+      forceRender(n => n + 1)
+    }
+  }, [useGeometryShadow, item.shadow, item.shadowColor, item.shadowOpacity,
+      item.shadowOffsetX, item.shadowOffsetY, item.w, item.h, item.stroke,
+      item.strokeWidth, item.strokeEnabled, item.shapeType, item.cornerRadius,
+      item.sides, item.numPoints, item.starInnerRatio, item.arrowVariant,
+      item.points, item.path, item.strokes])
 
   const hasRgbSplit = !!item.effects?.rgbSplit
   const [shapeCapture, setShapeCapture] = useState(null)
@@ -229,17 +258,17 @@ export default function ShapeRenderer({
       if (Object.keys(rafFx).length > 0) {
         effectManager.applyAll(node, rafFx)
       }
-      applyBevelEmbossToNode(node, filterItemRef.current)
-      applyInnerShadowToNode(node, filterItemRef.current)
+      // applyBevelEmbossToNode and applyInnerShadowToNode are handled by the
+      // useLayoutEffect above (line 207-208). This useEffect (via rAF) only
+      // manages `item.effects` through the effectManager — calling the bevel
+      // and innerShadow setup again here would cause redundant clearCache +
+      // cache operations per slider tick, creating delay and potential flicker.
     })
     return () => {
       if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null }
     }
   }, [item.effects, hasRgbSplit, shapeChannels,
-      item.fill, item.fillOpacity, item.stroke, item.strokeWidth, item.opacity,
-      item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
-      item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity, item.bevelEmbossHighlightBlendMode, item.bevelEmbossShadowBlendMode,
-      item.innerShadowEnabled, item.innerShadowColor, item.innerShadowOpacity, item.innerShadowBlur, item.innerShadowDistance, item.innerShadowAngle])
+      item.fill, item.fillOpacity, item.stroke, item.strokeWidth, item.opacity])
 
   useEffect(() => {
     if (item.fontFamily) preloadFont(item.fontFamily)
@@ -321,6 +350,24 @@ export default function ShapeRenderer({
     >
       {renderAdjustmentHitArea(item)}
 
+      {/* Geometry shadow untuk fill=none items — native Konva shadow tidak
+          berfungsi karena alpha = 0. Render shadow dari geometry mask sebagai
+          KonvaImage overlay di bawah shape. */}
+      {useGeometryShadow && shadowCanvasRef.current && (() => {
+        const sc = shadowCanvasRef.current
+        return (
+          <KonvaImage
+            image={sc}
+            x={(item.shadowOffsetX ?? 0) - (sc.width - Math.ceil(item.w)) / 2}
+            y={(item.shadowOffsetY ?? 0) - (sc.height - Math.ceil(item.h)) / 2}
+            width={sc.width}
+            height={sc.height}
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+        )
+      })()}
+
       {/* Shape visual — hidden when rgbSplit channels are active */}
       <Group opacity={hasRgbSplit && shapeChannels ? 0 : 1} listening={false}>
 
@@ -330,7 +377,7 @@ export default function ShapeRenderer({
           height={item.h}
           cornerRadius={item.cornerRadius || 0}
           {...shapePaintProps}
-          {...shadowProps}
+          {...nativeShadowProps}
         />
       )}
 
@@ -341,7 +388,7 @@ export default function ShapeRenderer({
           radiusX={item.w / 2}
           radiusY={item.h / 2}
           {...shapePaintProps}
-          {...shadowProps}
+          {...nativeShadowProps}
         />
       )}
 
@@ -352,7 +399,7 @@ export default function ShapeRenderer({
           radiusX={item.w / 2}
           radiusY={item.h / 2}
           {...shapePaintProps}
-          {...shadowProps}
+          {...nativeShadowProps}
         />
       )}
 
@@ -363,7 +410,7 @@ export default function ShapeRenderer({
           sides={item.sides || 3}
           radius={Math.min(item.w, item.h) / 2}
           {...shapePaintProps}
-          {...shadowProps}
+          {...nativeShadowProps}
         />
       )}
 
@@ -375,7 +422,7 @@ export default function ShapeRenderer({
           innerRadius={Math.min(item.w, item.h) * (item.starInnerRatio ?? 0.25)}
           outerRadius={Math.min(item.w, item.h) / 2}
           {...shapePaintProps}
-          {...shadowProps}
+          {...nativeShadowProps}
         />
       )}
 
@@ -383,7 +430,7 @@ export default function ShapeRenderer({
         <Path
           data={getArrowShapePath({ w: item.w, h: item.h, arrowVariant: item.arrowVariant })}
           {...shapePaintProps}
-          {...shadowProps}
+          {...nativeShadowProps}
         />
       )}
 
@@ -395,7 +442,7 @@ export default function ShapeRenderer({
           fill={item.fill}
           stroke={item.stroke || item.fill}
           strokeWidth={item.strokeWidth || 3}
-          {...shadowProps}
+          {...nativeShadowProps}
         />
       )}
 
@@ -405,13 +452,13 @@ export default function ShapeRenderer({
           stroke={item.stroke || item.fill}
           strokeWidth={item.strokeWidth || 3}
           lineCap="round"
-          {...shadowProps}
+          {...nativeShadowProps}
         />
       )}
 
       {item.shapeType === 'freehand' && (
         item.strokes ? (
-          <Group listening={false} {...shadowProps}>
+          <Group listening={false} {...nativeShadowProps}>
             {item.strokes.map((strokePoints, si) => (
               <Line
                 key={si}
@@ -436,7 +483,7 @@ export default function ShapeRenderer({
             lineJoin="round"
             tension={0.3}
             listening={false}
-            {...shadowProps}
+            {...nativeShadowProps}
           />
         )
       )}
@@ -448,7 +495,7 @@ export default function ShapeRenderer({
           strokeWidth={item.strokeWidth || 3}
           fill={item.fill || 'transparent'}
           listening={true}
-          {...shadowProps}
+          {...nativeShadowProps}
         />
       )}
 

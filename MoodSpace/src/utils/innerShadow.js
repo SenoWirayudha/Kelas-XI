@@ -85,7 +85,7 @@ const boxBlurChannel = (src, w, h, radius) => {
  * @param {ImageData} imageData — in-place RGBA pixel data
  * @param {object} params
  */
-export const applyInnerShadow = (imageData, params) => {
+export const applyInnerShadow = (imageData, params, maskImageData = null) => {
   const {
     color = '#000000',
     opacity = 0.5,
@@ -107,9 +107,13 @@ export const applyInnerShadow = (imageData, params) => {
   const dy = Math.sin(angleRad) * distance
 
   // --- Step 1: Extract alpha channel ---
+  // When maskImageData is provided (dual-buffer), read alpha from the
+  // solid-forced render which has correct geometry alpha even when the
+  // actual fill is fully transparent.
+  const hd = maskImageData ? maskImageData.data : d
   const alpha = new Float32Array(n)
   for (let i = 0; i < n; i++) {
-    alpha[i] = d[i * 4 + 3] / 255
+    alpha[i] = hd[i * 4 + 3] / 255
   }
 
   // --- Step 2: Offset alpha mask ---
@@ -137,15 +141,33 @@ export const applyInnerShadow = (imageData, params) => {
   // --- Step 4: Blur shadow mask for soft edges ---
   const blurred = boxBlurChannel(shadowMask, w, h, blur)
 
-  // --- Step 5: Darken RGB with shadow color ---
+  // --- Step 5: Apply shadow color + boost alpha ---
+  // When maskImageData is present (dual-buffer), use additive blending so
+  // the shadow color is visible even when the base RGB is 0 (transparent
+  // fill). In standard mode, use multiplicative blending that preserves
+  // the base color proportion (original behavior for solid fills).
   let maxFactor = 0
   for (let i = 0; i < n; i++) {
     const factor = blurred[i] * opacity
     if (factor > 0) {
       const idx = i * 4
-      d[idx]     = clamp(d[idx]     * (1 - factor) + (d[idx]     * col.r / 255) * factor, 0, 255)
-      d[idx + 1] = clamp(d[idx + 1] * (1 - factor) + (d[idx + 1] * col.g / 255) * factor, 0, 255)
-      d[idx + 2] = clamp(d[idx + 2] * (1 - factor) + (d[idx + 2] * col.b / 255) * factor, 0, 255)
+      if (maskImageData) {
+        // Dual-buffer mode: additive blend — shadow color is added on top
+        // of whatever base is there (transparent black for fill none, or
+        // the result of a preceding filter like BevelEmboss).
+        d[idx]     = clamp(d[idx]     * (1 - factor) + col.r * factor, 0, 255)
+        d[idx + 1] = clamp(d[idx + 1] * (1 - factor) + col.g * factor, 0, 255)
+        d[idx + 2] = clamp(d[idx + 2] * (1 - factor) + col.b * factor, 0, 255)
+      } else {
+        // Standard mode: multiplicative — darkens base proportionally
+        d[idx]     = clamp(d[idx]     * (1 - factor) + (d[idx]     * col.r / 255) * factor, 0, 255)
+        d[idx + 1] = clamp(d[idx + 1] * (1 - factor) + (d[idx + 1] * col.g / 255) * factor, 0, 255)
+        d[idx + 2] = clamp(d[idx + 2] * (1 - factor) + (d[idx + 2] * col.b / 255) * factor, 0, 255)
+      }
+      // Boost alpha proportional to shadow strength so the inner shadow
+      // remains visible on transparent-fill shapes (fill none / 0%).
+      const newAlpha = Math.max(d[idx + 3], factor * 255)
+      d[idx + 3] = clamp(newAlpha, 0, 255)
       if (factor > maxFactor) maxFactor = factor
     }
   }
