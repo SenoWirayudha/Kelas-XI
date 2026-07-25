@@ -6,7 +6,6 @@ export default function TextRenderer({
   isTextEditing,
   onTextEdit,
   onChange,
-  canvasBounds,
   getActiveTransformAnchor,
   fontInjectVersion,
 }) {
@@ -17,7 +16,6 @@ export default function TextRenderer({
       isTextEditing={isTextEditing}
       onTextEdit={onTextEdit}
       onChange={onChange}
-      canvasBounds={canvasBounds}
       getActiveTransformAnchor={getActiveTransformAnchor}
       fontInjectVersion={fontInjectVersion}
     />

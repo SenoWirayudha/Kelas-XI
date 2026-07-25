@@ -5,7 +5,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Group, Image, Rect, Shape, Text } from 'react-konva'
 import { preloadFont, getShadowProps, applyBevelEmbossToNode, applyInnerShadowToNode } from '../../utils/konvaUtils'
-import { getClampedCanvasPosition } from '../../utils/canvasPositionUtils'
+
 import { clamp } from '../../utils/mathUtils'
 import { effectManager } from '../../utils/konva-effects-engine'
 import { getRuns, runsToText, addListPrefix } from '../../utils/textRuns'
@@ -128,7 +128,7 @@ function processTextRgbSplit(cleanCanvas, item, textHeight, pad = { y: 0 }, alig
   return { center, left, right, dxDisp, dyDisp, padY: pad.y || 0 }
 }
 
-export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, canvasBounds, getActiveTransformAnchor, fontInjectVersion }) {
+export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, getActiveTransformAnchor, fontInjectVersion }) {
   const textNodeRef = useRef(null)
   const curveImageRef = useRef(null)
   const multiRunGroupRef = useRef(null)
@@ -266,7 +266,9 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       if (neededWidth > (item.w || 0)) {
         hasAutoExpandedRef.current = true
         node.width(neededWidth)
-        onChangeRef.current({ w: neededWidth })
+        if (!item.w || Math.abs(neededWidth - item.w) / item.w > 0.01) {
+          onChangeRef.current({ w: neededWidth })
+        }
       } else {
         hasAutoExpandedRef.current = true
       }
@@ -292,7 +294,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     if (typeof node._clearTextCache === 'function') node._clearTextCache()
     const fx = { ...item.effects }
     delete fx.rgbSplit
-    try { effectManager.applyAll(node, fx) } catch {}
+    try { effectManager.applyAll(node, fx, null, item.effectOrder) } catch {}
     applyBevelEmbossToNode(node, item)
     applyInnerShadowToNode(node, item)
     node.getLayer()?.draw()
@@ -318,7 +320,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     if (!node) return
     const fx = { ...item.effects }
     delete fx.rgbSplit
-    try { effectManager.applyAll(node, fx) } catch {}
+    try { effectManager.applyAll(node, fx, null, item.effectOrder) } catch {}
     applyBevelEmbossToNode(node, item)
     applyInnerShadowToNode(node, item)
     node.getLayer()?.draw()
@@ -334,7 +336,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     node.clearCache()
     const fx = { ...item.effects }
     delete fx.rgbSplit
-    try { effectManager.applyAll(node, fx) } catch {}
+    try { effectManager.applyAll(node, fx, null, item.effectOrder) } catch {}
     applyBevelEmbossToNode(node, item)
     applyInnerShadowToNode(node, item)
     node.getLayer()?.draw()
@@ -442,7 +444,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     img.clearCache()
     const fx = { ...item.effects }
     delete fx.rgbSplit
-    try { effectManager.applyAll(img, fx) } catch {}
+    try { effectManager.applyAll(img, fx, null, item.effectOrder) } catch {}
     img.getLayer()?.batchDraw()
   }, [item.effects, textRgbSplitVer])
 
@@ -462,10 +464,11 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       }
       if (!node) return
       const rafFx = { ...(filterItemRef.current.effects || {}) }
+      const rafOrder = filterItemRef.current.effectOrder
       delete rafFx.rgbSplit
       const hasMeaningfulFx = Object.values(rafFx).some(v => (v || v === 0) && v !== false && v !== 'none' && v !== '')
       if (hasMeaningfulFx) {
-        try { effectManager.applyAll(node, rafFx) } catch {}
+        try { effectManager.applyAll(node, rafFx, null, rafOrder) } catch {}
         applyBevelEmbossToNode(node, filterItemRef.current)
         applyInnerShadowToNode(node, filterItemRef.current)
       }
@@ -779,84 +782,13 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           node.clearCache()
           if (typeof node._clearTextCache === 'function') node._clearTextCache()
           const transformFx = { ...filterItemRef.current.effects }
+          const transformOrder = filterItemRef.current.effectOrder
           delete transformFx.rgbSplit
-          try { effectManager.applyAll(node, transformFx) } catch {}
+          try { effectManager.applyAll(node, transformFx, null, transformOrder) } catch {}
           node.getLayer()?.batchDraw()
         }
       }}
-      onTransformEnd={(event) => {
-        const groupNode = event.target
-        const activeAnchor = transformAnchorRef.current
-        const isSideResize = activeAnchor === 'middle-left' || activeAnchor === 'middle-right'
-        const scaleX = Math.abs(groupNode.scaleX() || 1)
-        const scaleY = Math.abs(groupNode.scaleY() || 1)
 
-        if (isMultiRun) {
-          const start = transformStartRef.current || { width: item.w || 8, fontSize: item.fontSize || 48 }
-          const nextFontSize = isSideResize ? start.fontSize : clamp(start.fontSize * Math.max(scaleX, scaleY), 8, 1000)
-          const nextWidth = isSideResize && multiRunLastWidthRef.current
-            ? multiRunLastWidthRef.current
-            : Math.max(24, start.width * Math.max(scaleX, scaleY))
-          multiRunLastWidthRef.current = null
-          groupNode.scaleX(1)
-          groupNode.scaleY(1)
-          onChange({
-            w: nextWidth,
-            h: runsLayoutRef.current.height || item.h || Math.max(32, nextFontSize * 1.5),
-            fontSize: nextFontSize,
-            rotation: groupNode.rotation(),
-          })
-          setDragWidth(null)
-          transformStartRef.current = null
-          transformAnchorRef.current = null
-          requestAnimationFrame(() => {
-            const newH = runsLayoutRef.current.height
-            if (newH && Math.abs(newH - (item.h || 0)) > 4) {
-              onChange({ h: newH })
-            }
-          })
-          return
-        }
-
-        const node = textNodeRef.current
-        if (!node || hasCurve) return
-        const start = transformStartRef.current || {
-          width: Math.max(getTextMinWidth(node, text, item.fontSize || node.fontSize() || 48), item.w || node.width() || 8),
-          fontSize: clamp(item.fontSize || node.fontSize() || 48, 8, 1000),
-        }
-        const nextFontSize = isSideResize
-          ? start.fontSize
-          : clamp(start.fontSize * Math.max(scaleX, scaleY), 8, 1000)
-        const nextWidth = isSideResize
-          ? Math.max(getTextMinWidth(node, text, nextFontSize), node.width() || item.w || 8)
-          : Math.max(getTextMinWidth(node, text, nextFontSize), start.width * scaleX)
-
-        groupNode.scaleX(1)
-        groupNode.scaleY(1)
-        node.width(nextWidth)
-        node.fontSize(nextFontSize)
-        node.clearCache()
-        if (typeof node._clearTextCache === 'function') node._clearTextCache()
-        const endFx = { ...filterItemRef.current.effects }
-        delete endFx.rgbSplit
-        try { effectManager.applyAll(node, endFx) } catch {}
-
-        const textRect = node.getClientRect({ skipTransform: true, skipShadow: true })
-        const nextHeight = Math.max(8, Math.ceil(textRect.height || node.height() || nextFontSize))
-        const nextPos = getClampedCanvasPosition(nextWidth, nextHeight, { x: groupNode.x(), y: groupNode.y() }, canvasBounds)
-
-        groupNode.position(nextPos)
-        onChange({
-          x: nextPos.x,
-          y: nextPos.y,
-          w: nextWidth,
-          h: nextHeight,
-          fontSize: nextFontSize,
-          rotation: groupNode.rotation(),
-        })
-        transformStartRef.current = null
-        transformAnchorRef.current = null
-      }}
     >
       <Rect
         width={hasCurve ? curveW : item.w}

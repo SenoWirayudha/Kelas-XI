@@ -223,7 +223,7 @@ export default function ShapeRenderer({
     const img = centerRef.current
     if (!img || !shapeChannels) return
     img.clearCache()
-    try { effectManager.applyAll(img, nonRgbEffects) } catch {}
+    try { effectManager.applyAll(img, nonRgbEffects, null, item.effectOrder) } catch {}
     img.getLayer()?.batchDraw()
   }, [nonRgbEffects, shapeChannels])
 
@@ -232,7 +232,7 @@ export default function ShapeRenderer({
     const node = groupRef.current
     if (!node) return
     if (hasRgbSplit && shapeChannels) return
-    effectManager.applyAll(node, nonRgbEffects)
+    effectManager.applyAll(node, nonRgbEffects, null, item.effectOrder)
     applyBevelEmbossToNode(node, item)
     applyInnerShadowToNode(node, item)
     node.getLayer()?.draw()
@@ -254,15 +254,13 @@ export default function ShapeRenderer({
       if (!node) return
       if (hasRgbSplit && shapeChannels) return
       const rafFx = { ...(filterItemRef.current.effects || {}) }
+      const rafOrder = filterItemRef.current.effectOrder
       if (hasRgbSplit) delete rafFx.rgbSplit
       if (Object.keys(rafFx).length > 0) {
-        effectManager.applyAll(node, rafFx)
+        effectManager.applyAll(node, rafFx, null, rafOrder)
+        applyBevelEmbossToNode(node, filterItemRef.current)
+        applyInnerShadowToNode(node, filterItemRef.current)
       }
-      // applyBevelEmbossToNode and applyInnerShadowToNode are handled by the
-      // useLayoutEffect above (line 207-208). This useEffect (via rAF) only
-      // manages `item.effects` through the effectManager — calling the bevel
-      // and innerShadow setup again here would cause redundant clearCache +
-      // cache operations per slider tick, creating delay and potential flicker.
     })
     return () => {
       if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null }

@@ -10,7 +10,7 @@ import { useCanvasImage } from '../../hooks/useCanvasImages'
 import { getShadowProps, getBevelEmbossProps, getInnerShadowProps } from '../../utils/konvaUtils'
 import Konva from 'konva'
 import { effectManager } from '../../utils/konva-effects-engine'
-import { getClampedCanvasPosition, getCanvasContainedSize } from '../../utils/canvasPositionUtils'
+import { getClampedCanvasPosition } from '../../utils/canvasPositionUtils'
 
 const getCropFit = (item, image) => {
   const naturalWidth = image?.naturalWidth || image?.width || item.w || 1
@@ -183,7 +183,6 @@ function CanvasImage({
   disableDrag,
   onCropStart,
   isCropTarget,
-  getActiveTransformAnchor,
 }) {
   const image          = useCanvasImage(item.src)
   const imageNodeRef   = useRef(null)
@@ -293,12 +292,13 @@ function CanvasImage({
 
       const imageIsReady = image.complete && image.naturalWidth > 0 && image.naturalHeight > 0
       if (!imageIsReady) return
+      console.log('[FX-IMAGE-DECODE] image', { complete: image.complete, naturalW: image.naturalWidth, naturalH: image.naturalHeight, hasDecode: typeof image.decode === 'function', fromCache: image._moodspaceSrc === item.src })
 
       try {
         if (!item.isAdjustmentLayer) {
           const fx = { ...item.effects }
           delete fx.rgbSplit
-          effectManager.applyAll(node, fx, item)
+          effectManager.applyAll(node, fx, item, item.effectOrder)
         }
       } catch (error) {
         console.warn('[canvas image] failed to apply effects', {
@@ -453,43 +453,7 @@ function CanvasImage({
       onDragStart={(e)  => onDragStart(e, item.id)}
       onDragMove={(e)   => onDragMove?.(e, item.id)}
       onDragEnd={(e)    => onDragEnd(e, item.id)}
-      onTransformEnd={(e) => {
-        const node     = e.target
-        const scaleX   = node.scaleX()
-        const scaleY   = node.scaleY()
-        const anchor   = getActiveTransformAnchor?.()
-        let reqW, reqH
-        if (item.lockAspectRatio) {
-          const ratio   = item.w / item.h || 1
-          const maxScale = Math.max(Math.abs(scaleX), Math.abs(scaleY))
-          reqW = Math.max(80, item.w * maxScale)
-          reqH = Math.max(80, reqW / ratio)
-        } else {
-          reqW = Math.max(80, item.w * Math.abs(scaleX))
-          reqH = Math.max(80, item.h * Math.abs(scaleY))
-        }
-        const next   = getCanvasContainedSize(reqW, reqH)
-        node.scaleX(1); node.scaleY(1)
-        const oldCenterX = node.x() + reqW / 2
-        const oldCenterY = node.y() + reqH / 2
-        let newX, newY
-        if (anchor?.includes('left')) {
-          newX = node.x() + reqW - next.w
-        } else if (anchor?.includes('right')) {
-          newX = node.x()
-        } else {
-          newX = oldCenterX - next.w / 2
-        }
-        if (anchor?.includes('top')) {
-          newY = node.y() + reqH - next.h
-        } else if (anchor?.includes('bottom')) {
-          newY = node.y()
-        } else {
-          newY = oldCenterY - next.h / 2
-        }
-        const nextPos = getClampedCanvasPosition(next.w, next.h, { x: newX, y: newY }, canvasBounds)
-        onChange({ x: nextPos.x, y: nextPos.y, w: next.w, h: next.h, rotation: node.rotation() })
-      }}
+
     >
       <Rect
         width={item.w} height={item.h}

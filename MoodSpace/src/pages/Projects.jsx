@@ -7,6 +7,8 @@ import { uploadMediaFile } from '../lib/api/media'
 import { createWorkspace, deleteWorkspace, getWorkspace, importByToken, listWorkspaces, updateWorkspace } from '../lib/api/workspaces'
 import { publishWorkspace } from '../lib/api/posts'
 import { listFonts } from '../lib/api/fonts'
+import { generateSvgString } from '../utils/svgExport'
+import { getActiveEffects } from '../utils/effectUtils'
 
 const storageKey = 'moodspace.projects'
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -116,6 +118,7 @@ function Projects() {
   const [exportError, setExportError] = useState('')
   const [exportProgress, setExportProgress] = useState(0)
   const [exportBgType, setExportBgType] = useState('solid')
+  const [exportSvgSafe, setExportSvgSafe] = useState(false)
   const [createError, setCreateError] = useState('')
 const [fontWarning, setFontWarning] = useState(null)
 const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
@@ -543,6 +546,26 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
       const canvasH = w.canvasHeight || 720
       const bg = w.background || snapshot.background || { type: 'solid', color: '#ffffff' }
       const scale = exportScale
+
+      if (exportFormat === 'svg') {
+        const svgStr = generateSvgString(items, { width: canvasW, height: canvasH, background: bg })
+        const blob = new Blob([svgStr], { type: 'image/svg+xml' })
+        const url = URL.createObjectURL(blob)
+        const safeTitle = (project.name || 'workspace').trim().replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '') || 'workspace'
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `${safeTitle}.svg`
+        document.body.appendChild(link)
+        setExportProgress(92)
+        link.click()
+        link.remove()
+        URL.revokeObjectURL(url)
+        setExportProgress(100)
+        await new Promise((resolve) => setTimeout(resolve, 200))
+        setExportTarget(null)
+        return
+      }
+
       const mimeType = exportFormat === 'jpg' ? 'image/jpeg' : 'image/png'
       const outW = Math.round(canvasW * scale)
       const outH = Math.round(canvasH * scale)
@@ -612,15 +635,28 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
       const blob = await new Promise((resolve) => offscreen.toBlob(resolve, mimeType, exportFormat === 'jpg' ? 0.92 : 1))
       if (!blob) throw new Error('Gagal generate gambar')
 
-      const url = URL.createObjectURL(blob)
       const safeTitle = (project.name || 'workspace').trim().replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '') || 'workspace'
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${safeTitle}-${exportScale}x.${exportFormat}`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
+
+      if (exportFormat === 'pdf') {
+        const dataUrl = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.readAsDataURL(blob)
+        })
+        const { jsPDF } = await import('jspdf')
+        const doc = new jsPDF({ orientation: outW > outH ? 'l' : 'p', unit: 'pt', format: [outW, outH] })
+        doc.addImage(dataUrl, 'PNG', 0, 0, outW, outH)
+        doc.save(`${safeTitle}-${exportScale}x.pdf`)
+      } else {
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `${safeTitle}-${exportScale}x.${exportFormat}`
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        URL.revokeObjectURL(url)
+      }
       setExportProgress(100)
       await new Promise((resolve) => setTimeout(resolve, 200))
       setExportTarget(null)
@@ -656,11 +692,25 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
     setExportError('')
     setExportProgress(0)
     setExportTarget(project)
+    setExportSvgSafe(false)
     if (uuidPattern.test(project.id)) {
       try {
         const payload = await getWorkspace(project.id)
-        const bg = payload.workspace.background || { type: 'solid' }
+        const w = payload.workspace
+        const bg = w.background || { type: 'solid' }
         setExportBgType(bg.type || 'solid')
+        const snapshot = w.latestVersion?.snapshot || {}
+        const snapshotItems = Array.isArray(snapshot.items) ? snapshot.items : []
+        const safe = snapshotItems.every((item) => {
+          if (item.visible === false) return true
+          if (item.isAdjustmentLayer) return true
+          if (item.kind !== 'shape' && item.kind !== 'text') return false
+          if (item.compositeMode) return false
+          if (item.maskSourceType !== undefined) return false
+          if (item.effects && getActiveEffects(item).length > 0) return false
+          return true
+        })
+        setExportSvgSafe(safe)
       } catch {
         setExportBgType('solid')
       }
@@ -1011,18 +1061,22 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
             </div>
 
             <div className="workspace-export-options">
-              {['png', 'jpg'].map((fmt) => (
-                <label key={fmt} className={`workspace-export-option ${exportFormat === fmt ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="project-export-format"
-                    value={fmt}
-                    checked={exportFormat === fmt}
-                    onChange={() => { setExportFormat(fmt); if (fmt === 'jpg') setExportTransparent(false) }}
-                  />
-                  <span>{fmt.toUpperCase()}</span>
-                </label>
-              ))}
+              {['png', 'jpg', 'pdf', 'svg'].map((fmt) => {
+                const isDisabled = fmt === 'svg' && !exportSvgSafe
+                return (
+                  <label key={fmt} className={`workspace-export-option ${exportFormat === fmt ? 'active' : ''}${isDisabled ? ' workspace-export-option-disabled' : ''}`}>
+                    <input
+                      type="radio"
+                      name="project-export-format"
+                      value={fmt}
+                      checked={exportFormat === fmt}
+                      disabled={isDisabled}
+                      onChange={() => { setExportFormat(fmt); if (fmt === 'jpg' || fmt === 'pdf' || fmt === 'svg') setExportTransparent(false) }}
+                    />
+                    <span>{fmt.toUpperCase()}</span>
+                  </label>
+                )
+              })}
             </div>
 
             <div className="workspace-export-section">
@@ -1049,14 +1103,14 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
                 {exportBgType !== 'transparent' && exportBgType !== 'none' && (
                   <small>Background harus None untuk export transparan</small>
                 )}
-                {exportFormat === 'jpg' && (exportBgType === 'transparent' || exportBgType === 'none') && (
-                  <small>JPG tidak mendukung transparansi</small>
+                {(exportFormat === 'jpg' || exportFormat === 'pdf' || exportFormat === 'svg') && (exportBgType === 'transparent' || exportBgType === 'none') && (
+                  <small>{exportFormat.toUpperCase()} tidak mendukung transparansi</small>
                 )}
               </div>
               <button
                 type="button"
                 className={`workspace-export-toggle ${exportTransparent ? 'active' : ''}`}
-                disabled={(exportBgType !== 'transparent' && exportBgType !== 'none') || exportFormat === 'jpg'}
+                disabled={(exportBgType !== 'transparent' && exportBgType !== 'none') || exportFormat === 'jpg' || exportFormat === 'pdf' || exportFormat === 'svg'}
                 aria-pressed={exportTransparent}
                 onClick={() => setExportTransparent((value) => !value)}
               >

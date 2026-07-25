@@ -27,6 +27,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "jspdf": "^4.2.1",
     "konva": "^10.3.0",
     "lucide-react": "^0.539.0",
     "multer": "^2.1.1",

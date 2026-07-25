@@ -115,7 +115,8 @@ import {
 // Utils
 import { clamp, getDynamicGridLines, buildWorkspaceGridLines, rectsIntersect } from '../utils/mathUtils'
 import { getClampedCanvasPosition, getCanvasContainedSize, getWorldPointFromViewport, getItemsBounds } from '../utils/canvasPositionUtils'
-import { getArrowShapePath, getShapeTextBounds, getShapeMinSizeForText, getShapeMinHeightForTextWidth } from '../utils/shapeUtils'
+import { getArrowShapePath, getShapeTextBounds, getShapeMinSizeForText, getShapeMinHeightForTextWidth, getShapeResizeSize, getArrowResizeSize } from '../utils/shapeUtils'
+import { generateSvgString } from '../utils/svgExport'
 import { fetchGoogleFonts, getGoogleFontsApiKey } from '../utils/googleFontsApi'
 import { isGridFrame, getResolvedFrameSlot, getResolvedFrameSlots, clampFrameImagePosition, getMinFrameImageZoom } from '../utils/frameUtils'
 import { getItemAnchorPoint, getClosestAnchorToPoint, getBestConnectorAnchors, resolveConnectorEndpointPoint, getConnectorLinePoints, getConnectorCurvePath, getConnectorArrowTail } from '../utils/connectorUtils'
@@ -126,12 +127,23 @@ import { applyInnerShadow } from '../utils/innerShadow'
 import { hasActiveHsl } from '../utils/hslChannels'
 import { hasAnyAdjustment } from '../utils/adjustmentLayerUtils'
 import { hasActiveCurves } from '../utils/curveUtils'
-import { getDefaultEffects } from '../utils/effectUtils'
+import { getDefaultEffects, getActiveEffects } from '../utils/effectUtils'
 import { effectManager } from '../utils/konva-effects-engine'
 import { createGrid, cloneGrid, renderWarpedImage, buildSubdividedGrid, gridCorners, updateGridCorners, subdivideMeshGrid, PERSPECTIVE_SUBDIVISIONS, APPLY_SUBDIVISIONS, WARP_PADDING } from '../utils/mesh-warp'
 
 const PREVIEW_PADDING = 2000
 import { extractDominantColors, clearDominantColorCache } from '../utils/dominantColors'
+
+// Handlers
+import {
+  bakeCompositeGroup,
+  computeCompositeFinalPositions,
+  applyCompositeFinalPositions,
+  handleCompositeDragStart,
+  handleCompositeDragEnd,
+  handleCompositeTransformEnd,
+  handleCompositeUngroup,
+} from '../handlers/compositeGroupHandler'
 
 // Components
 import { ObjectAnchors, ConnectorEndpointAnchors } from './canvas/ConnectorAnchors'
@@ -143,7 +155,7 @@ import FrameRenderer from '../components/canvas/renderers/FrameRenderer'
 import GlobalAdjustmentLayer from '../components/canvas/GlobalAdjustmentLayer'
 import AdjustmentSliders from '../components/panels/AdjustmentSliders'
 import AdjustmentTriggerButton from '../components/panels/AdjustmentTriggerButton'
-import FxPanel from '../components/panels/FxPanel'
+import ActiveEffectsPanel from '../components/panels/ActiveEffectsPanel'
 import HslPanel from '../components/panels/HslPanel'
 import CurvesPanel from '../components/panels/CurvesPanel'
 import ToolBrushPanel from '../components/panels/ToolBrushPanel'
@@ -156,7 +168,6 @@ import WarpHandles from '../components/canvas/WarpHandles'
 import RichTextEditor from '../components/RichTextEditor'
 import { getRuns, runsToHtml, runsToText, stripListPrefix } from '../utils/textRuns'
 
-import { getCanvasItemTransformPatch } from '../engines/transformEngine'
 import RelightBalls, { LightOverlay } from '../components/canvas/RelightBalls'
 import RemoveBgOverlay from '../components/canvas/RemoveBgOverlay'
 import { useAuth } from '../context/authState'
@@ -260,7 +271,7 @@ const addWorkspaceItemClones = ({ stage, exportLayer, items, filterItem }) => {
       } else {
         targetNode = itemClone
       }
-      effectManager.applyAll(targetNode, item.effects || {}, item)
+      effectManager.applyAll(targetNode, item.effects || {}, item, item.effectOrder)
       console.log('[EXPORT-BEVEL] after applyAll — fill:', targetNode.fill?.(), 'filters:', targetNode.filters?.()?.map?.(f => f.name || 'fn'), 'cache:', !!targetNode._getCanvasCache?.(), 'kind:', item.kind, 'id:', item.id)
       applyBevelEmbossToNode(targetNode, item)
       console.log('[EXPORT-BEVEL] after bevel — bevelData:', !!targetNode.getAttr('_bevelRealImageData'), 'maskData:', !!targetNode.getAttr('_maskImageData'), 'filters:', targetNode.filters?.()?.map?.(f => f.name || 'fn'))
@@ -912,7 +923,7 @@ function DefaultItemRenderer({ item, commonProps }) {
     const raf = requestAnimationFrame(() => {
       const node = groupRef.current
       if (!node) return
-      effectManager.applyAll(node, item.effects, item)
+      effectManager.applyAll(node, item.effects, item, item.effectOrder)
     })
     return () => cancelAnimationFrame(raf)
   }, [item.effects, item])
@@ -977,7 +988,7 @@ const CanvasItemComparitor = (prev, next) => {
   if (prev.fontInjectVersion !== next.fontInjectVersion) return false
   return true
 }
-const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false, fontInjectVersion }) {
+const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false, fontInjectVersion, suspendGeometryRef }) {
   const sizeRef = useRef({ w: item.w, h: item.h })
   const compositeOperation = allowComposite
     ? getItemCompositeOperation(item)
@@ -989,9 +1000,7 @@ const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, sele
 
   const commonProps = {
     id: item.id,
-    x: item.x,
-    y: item.y,
-    rotation: item.rotation || 0,
+    ...(!suspendGeometryRef?.current ? { x: item.x, y: item.y, rotation: item.rotation || 0 } : {}),
     draggable: !item.locked && !disableDrag,
     opacity: item.opacity ?? 1,
     visible: item.visible !== false,
@@ -1011,17 +1020,7 @@ const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, sele
     onDragMove: (event) => onDragMove?.(event, item.id),
     onDragEnd: (event) => onDragEnd(event, item.id),
     onTextEdit,
-    onTransformEnd: (event) => {
-      if (item.kind === 'shape' && item.shapeType === 'freehand') return
-      const patch = getCanvasItemTransformPatch({
-        item,
-        node: event.target,
-        isShiftDown,
-        activeAnchor: getActiveTransformAnchor?.(),
-        canvasBounds,
-      })
-      onChange(patch)
-    },
+
   }
 
   const Renderer = canvasItemRenderers[item.kind] || DefaultItemRenderer
@@ -1817,7 +1816,7 @@ const drawAnyItemToCanvas = (ctx, item, imageMap, offsetX, offsetY) => {
   }
 }
 
-function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef, adjustSourceItem }) {
+function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef, isDraggingTrigger, adjustSourceItem, redrawKey }) {
   const allItems = useMemo(() => destinationItems, [destinationItems])
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
@@ -1830,7 +1829,6 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
   const [fontReady, setFontReady] = useState(false)
   const prevImageIdsRef = useRef()
   const prevModeRef = useRef()
-
   useEffect(() => {
     let cancelled = false
     setFontReady(false)
@@ -1844,6 +1842,7 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
   }, [sourceItem?.fontFamily, sourceItem?.runs])
 
   const strokeRef = useRef(null)
+  const bevelCacheRef = useRef(null)
 
   useLayoutEffect(() => {
     console.log('[BUG3-BITMAP-EFFECT] CompositeTextBitmap useLayoutEffect RUNNING at', Date.now(), 'mode:', mode, 'sourceItem.id:', sourceItem?.id, 'destCount:', destinationItems?.length, 'adjustSrc:', adjustSourceItem?.id, 'adjSrcHue:', adjustSourceItem?.hue)
@@ -1873,21 +1872,23 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
       sNode.getLayer()?.batchDraw()
     }
 
-    if (isDraggingRef?.current) return () => {}
+    const isDragging = !!isDraggingRef?.current
 
-    if (!fontReady || !sourceItem || !bounds || !allItems.length) {
-      updateBitmap(null, 0, 0, 0, 0)
-      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
-      return
-    }
-    const imagesReady = !imageItems.length || imageItems.every((_, index) => {
-      const image = loadedImages[index]
-      return image && image.complete && (image.naturalWidth || image.width)
-    })
-    if (!imagesReady) {
-      updateBitmap(null, 0, 0, 0, 0)
-      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
-      return
+    if (!isDragging) {
+      if (!fontReady || !sourceItem || !bounds || !allItems.length) {
+        updateBitmap(null, 0, 0, 0, 0)
+        updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
+        return
+      }
+      const imagesReady = !imageItems.length || imageItems.every((_, index) => {
+        const image = loadedImages[index]
+        return image && image.complete && (image.naturalWidth || image.width)
+      })
+      if (!imagesReady) {
+        updateBitmap(null, 0, 0, 0, 0)
+        updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
+        return
+      }
     }
 
     const currentItemIds = allItems.map(i => i.id).join(',')
@@ -1908,9 +1909,22 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
       const textLeft = sourceItem.x || 0
       const textTop = sourceItem.y || 0
       const textRenderItem = { ...sourceItem, x: textLeft, y: textTop, w: sourceWidth, h: sourceHeight }
+      const getEffectiveBounds = (item) => {
+        if (isDragging && item.compositeMode && (item.compositeGroupScaleX || item.compositeGroupScaleY)) {
+          return getCompositeItemBounds({
+            ...item,
+            w: (item.w || 1) * (item.compositeGroupScaleX || 1),
+            h: (item.h || 1) * (item.compositeGroupScaleY || 1),
+          })
+        }
+        return getCompositeItemBounds(item)
+      }
+      const textRenderItemScaled = isDragging && (sourceItem?.compositeGroupScaleX || sourceItem?.compositeGroupScaleY)
+        ? { ...textRenderItem, w: (textRenderItem.w || 1) * (sourceItem.compositeGroupScaleX || 1), h: (textRenderItem.h || 1) * (sourceItem.compositeGroupScaleY || 1) }
+        : textRenderItem
       const itemBounds = [
-        ...allItems.map((item) => getCompositeItemBounds(item)),
-        getCompositeItemBounds(textRenderItem),
+        ...allItems.map((item) => getEffectiveBounds(item)),
+        getCompositeItemBounds(textRenderItemScaled),
       ]
       const groupMinX = Math.min(...itemBounds.map((item) => item.left))
       const groupMinY = Math.min(...itemBounds.map((item) => item.top))
@@ -1924,6 +1938,29 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
       }
       const width = Math.max(1, Math.ceil(groupRect.width))
       const height = Math.max(1, Math.ceil(groupRect.height))
+
+      const bevelKey = sourceItem?.compositeBevelEmbossEnabled || sourceItem?.compositeInnerShadowEnabled ? JSON.stringify({
+        w: width, h: height, contentIds: currentItemIds, mode, srcId: sourceItem?.id,
+        bevelStyle: sourceItem?.compositeBevelEmbossStyle,
+        bevelDepth: sourceItem?.compositeBevelEmbossDepth,
+        bevelAngle: sourceItem?.compositeBevelEmbossAngle,
+        bevelSoftness: sourceItem?.compositeBevelEmbossSoftness,
+        bevelHighlightColor: sourceItem?.compositeBevelEmbossHighlightColor,
+        bevelHighlightOpacity: sourceItem?.compositeBevelEmbossHighlightOpacity,
+        bevelShadowColor: sourceItem?.compositeBevelEmbossShadowColor,
+        bevelShadowOpacity: sourceItem?.compositeBevelEmbossShadowOpacity,
+        innerColor: sourceItem?.compositeInnerShadowColor,
+        innerOpacity: sourceItem?.compositeInnerShadowOpacity,
+        innerBlur: sourceItem?.compositeInnerShadowBlur,
+        innerDistance: sourceItem?.compositeInnerShadowDistance,
+        innerAngle: sourceItem?.compositeInnerShadowAngle,
+      }) : null
+
+      if (bevelKey && bevelKey === bevelCacheRef.current?.key) {
+        const c = bevelCacheRef.current
+        updateBitmap(c.finalCanvas, c.finalX, c.finalY, c.finalW, c.finalH)
+        return
+      }
 
       const contentCanvas = document.createElement('canvas')
       contentCanvas.width = width
@@ -1965,6 +2002,11 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
       const finalW = shadowResult ? finalCanvas.width : finalContent.width
       const finalH = shadowResult ? finalCanvas.height : finalContent.height
 
+      bevelCacheRef.current = {
+        key: bevelKey,
+        finalCanvas, finalX, finalY, finalW, finalH,
+      }
+
       updateBitmap(finalCanvas, finalX, finalY, finalW, finalH)
       const compositeStrokeEnabled = !!(sourceItem?.compositeStrokeEnabled && (sourceItem?.compositeStrokeWidth ?? 0) > 0)
       if (compositeStrokeEnabled) {
@@ -1975,7 +2017,7 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
       }
     })
     return () => cancelAnimationFrame(rafId)
-  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, adjustSourceItem])
+  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, adjustSourceItem, redrawKey, isDraggingTrigger])
 
   return (
     <>
@@ -1994,7 +2036,7 @@ function CompositeTextBitmap({ sourceItem, destinationItems, bounds, mode, isDra
 }
 
 
-function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef, adjustSourceItem }) {
+function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef, isDraggingTrigger, adjustSourceItem, redrawKey }) {
   const allItems = useMemo(() => destinationItems, [destinationItems])
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
@@ -2010,6 +2052,9 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
   const prevSourceSrcRef = useRef()
   const prevImageIdsRef = useRef()
   const prevModeRef = useRef()
+  const maskKeyRef = useRef(null)
+  const maskCacheRef = useRef(null)
+  const bevelCacheRef = useRef(null)
 
   useLayoutEffect(() => {
     console.log('[BUG3-BITMAP-EFFECT] CompositeImageBitmap useLayoutEffect RUNNING at', Date.now(), 'mode:', mode, 'sourceItem.id:', sourceItem?.id, 'destCount:', destinationItems?.length, 'adjustSrc:', adjustSourceItem?.id, 'adjSrcHue:', adjustSourceItem?.hue)
@@ -2039,21 +2084,23 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       sNode.getLayer()?.batchDraw()
     }
 
-    if (isDraggingRef?.current) return () => {}
+    const isDragging = !!isDraggingRef?.current
 
-    if (!sourceItem || !bounds || !allItems.length || !sourceImage) {
-      updateBitmap(null, 0, 0, 0, 0)
-      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
-      return
-    }
-    const imagesReady = !imageItems.length || imageItems.every((_, index) => {
-      const img = loadedImages[index]
-      return img && img.complete && (img.naturalWidth || img.width)
-    })
-    if (!imagesReady || !sourceImage.complete) {
-      updateBitmap(null, 0, 0, 0, 0)
-      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
-      return
+    if (!isDragging) {
+      if (!sourceItem || !bounds || !allItems.length) {
+        updateBitmap(null, 0, 0, 0, 0)
+        updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
+        return
+      }
+      const imagesReady = !imageItems.length || imageItems.every((_, index) => {
+        const img = loadedImages[index]
+        return img && img.complete && (img.naturalWidth || img.width)
+      })
+      if (!imagesReady || !sourceImage.complete) {
+        updateBitmap(null, 0, 0, 0, 0)
+        updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
+        return
+      }
     }
 
     const currentItemIds = allItems.map(i => i.id).join(',')
@@ -2071,10 +2118,21 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
     }
 
+    const getEffectiveBounds = (item) => {
+      if (isDragging && item.compositeMode && (item.compositeGroupScaleX || item.compositeGroupScaleY)) {
+        return getCompositeItemBounds({
+          ...item,
+          w: (item.w || 1) * (item.compositeGroupScaleX || 1),
+          h: (item.h || 1) * (item.compositeGroupScaleY || 1),
+        })
+      }
+      return getCompositeItemBounds(item)
+    }
+
     const rafId = requestAnimationFrame(() => {
       const itemBounds = [
-        ...allItems.map((item) => getCompositeItemBounds(item)),
-        getCompositeItemBounds(sourceItem),
+        ...allItems.map((item) => getEffectiveBounds(item)),
+        getEffectiveBounds(sourceItem),
       ]
       const groupMinX = Math.min(...itemBounds.map((b) => b.left))
       const groupMinY = Math.min(...itemBounds.map((b) => b.top))
@@ -2082,6 +2140,29 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       const groupMaxY = Math.max(...itemBounds.map((b) => b.bottom))
       const width = Math.max(1, Math.ceil(groupMaxX - groupMinX))
       const height = Math.max(1, Math.ceil(groupMaxY - groupMinY))
+
+      const bevelKey = sourceItem?.compositeBevelEmbossEnabled || sourceItem?.compositeInnerShadowEnabled ? JSON.stringify({
+        w: width, h: height, contentIds: currentItemIds, mode, srcId: sourceItem?.id,
+        bevelStyle: sourceItem?.compositeBevelEmbossStyle,
+        bevelDepth: sourceItem?.compositeBevelEmbossDepth,
+        bevelAngle: sourceItem?.compositeBevelEmbossAngle,
+        bevelSoftness: sourceItem?.compositeBevelEmbossSoftness,
+        bevelHighlightColor: sourceItem?.compositeBevelEmbossHighlightColor,
+        bevelHighlightOpacity: sourceItem?.compositeBevelEmbossHighlightOpacity,
+        bevelShadowColor: sourceItem?.compositeBevelEmbossShadowColor,
+        bevelShadowOpacity: sourceItem?.compositeBevelEmbossShadowOpacity,
+        innerColor: sourceItem?.compositeInnerShadowColor,
+        innerOpacity: sourceItem?.compositeInnerShadowOpacity,
+        innerBlur: sourceItem?.compositeInnerShadowBlur,
+        innerDistance: sourceItem?.compositeInnerShadowDistance,
+        innerAngle: sourceItem?.compositeInnerShadowAngle,
+      }) : null
+
+      if (bevelKey && bevelKey === bevelCacheRef.current?.key) {
+        const c = bevelCacheRef.current
+        updateBitmap(c.finalCanvas, c.finalX, c.finalY, c.finalW, c.finalH)
+        return
+      }
 
       const contentCanvas = document.createElement('canvas')
       contentCanvas.width = width
@@ -2121,6 +2202,11 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       const finalW = shadowResult ? finalCanvas.width : finalContent.width
       const finalH = shadowResult ? finalCanvas.height : finalContent.height
 
+      bevelCacheRef.current = {
+        key: bevelKey,
+        finalCanvas, finalX, finalY, finalW, finalH,
+      }
+
       updateBitmap(finalCanvas, finalX, finalY, finalW, finalH)
       const compositeStrokeEnabled = !!(sourceItem?.compositeStrokeEnabled && (sourceItem?.compositeStrokeWidth ?? 0) > 0)
       if (compositeStrokeEnabled) {
@@ -2131,7 +2217,7 @@ function CompositeImageBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       }
     })
     return () => cancelAnimationFrame(rafId)
-  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, sourceImage, adjustSourceItem])
+  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, sourceImage, adjustSourceItem, isDraggingTrigger])
 
   return (
     <>
@@ -2438,7 +2524,7 @@ const getShapeMaskCanvas = (sourceItem) => {
   return { canvas, originOffsetX: canvasMinX, originOffsetY: canvasMinY }
 }
 
-function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef, adjustSourceItem }) {
+function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef, isDraggingTrigger, adjustSourceItem, redrawKey }) {
   const allItems = useMemo(() => destinationItems, [destinationItems])
   const imageItems = useMemo(() => destinationItems.filter((item) => item.kind === 'image' && item.src), [destinationItems])
   const loadedImages = useCanvasImages(imageItems.map((item) => item.src))
@@ -2450,12 +2536,13 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
   const sourceImage = useCanvasImage(sourceItem?.src)
   const imageRef = useRef(null)
   const strokeRef = useRef(null)
-  const maskCacheRef = useRef(null)
-  const maskKeyRef = useRef(null)
   const prevSourceIdRef = useRef()
   const prevSourceSrcRef = useRef()
   const prevImageIdsRef = useRef()
   const prevModeRef = useRef()
+  const maskKeyRef = useRef(null)
+  const maskCacheRef = useRef(null)
+  const bevelCacheRef = useRef(null)
 
   useLayoutEffect(() => {
     console.log('[BUG3-BITMAP-EFFECT] CompositeAlphaBitmap useLayoutEffect RUNNING at', Date.now(), 'mode:', mode, 'sourceItem.id:', sourceItem?.id, 'destCount:', destinationItems?.length, 'adjustSrc:', adjustSourceItem?.id, 'adjSrcHue:', adjustSourceItem?.hue)
@@ -2485,28 +2572,32 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       sNode.getLayer()?.batchDraw()
     }
 
-    if (isDraggingRef?.current) return () => {}
+    const isDragging = !!isDraggingRef?.current
 
-    if (!sourceItem || !bounds || !allItems.length) {
-      updateBitmap(null, 0, 0, 0, 0)
-      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
-      return
-    }
-    const isBezier = sourceItem.kind === 'shape' && sourceItem.shapeType === 'bezier-path'
-    const isShape = sourceItem.kind === 'shape'
-    if (!isBezier && !isShape && !sourceImage) {
-      updateBitmap(null, 0, 0, 0, 0)
-      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
-      return
-    }
-    const imagesReady = !imageItems.length || imageItems.every((_, index) => {
-      const img = loadedImages[index]
-      return img && img.complete && (img.naturalWidth || img.width)
-    })
-    if (!imagesReady || (!isBezier && !isShape && !sourceImage?.complete)) {
-      updateBitmap(null, 0, 0, 0, 0)
-      updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
-      return
+    let isBezier = false
+    let isShape = false
+    if (!isDragging) {
+      if (!sourceItem || !bounds || !allItems.length) {
+        updateBitmap(null, 0, 0, 0, 0)
+        updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
+        return
+      }
+      isBezier = sourceItem.kind === 'shape' && sourceItem.shapeType === 'bezier-path'
+      isShape = sourceItem.kind === 'shape'
+      if (!isBezier && !isShape && !sourceImage) {
+        updateBitmap(null, 0, 0, 0, 0)
+        updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
+        return
+      }
+      const imagesReady = !imageItems.length || imageItems.every((_, index) => {
+        const img = loadedImages[index]
+        return img && img.complete && (img.naturalWidth || img.width)
+      })
+      if (!imagesReady || (!isBezier && !isShape && !sourceImage?.complete)) {
+        updateBitmap(null, 0, 0, 0, 0)
+        updateStrokeBitmap(null, 0, '#ffffff', 0, 0)
+        return
+      }
     }
 
     const currentItemIds = allItems.map(i => i.id).join(',')
@@ -2567,9 +2658,19 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       const originOffsetX = maskCanvasResult.originOffsetX
       const originOffsetY = maskCanvasResult.originOffsetY
 
+      const getEffectiveBounds = (item) => {
+        if (isDragging && item.compositeMode && (item.compositeGroupScaleX || item.compositeGroupScaleY)) {
+          return getCompositeItemBounds({
+            ...item,
+            w: (item.w || 1) * (item.compositeGroupScaleX || 1),
+            h: (item.h || 1) * (item.compositeGroupScaleY || 1),
+          })
+        }
+        return getCompositeItemBounds(item)
+      }
       const itemBounds = [
-        ...allItems.map((item) => getCompositeItemBounds(item)),
-        getCompositeItemBounds(sourceItem),
+        ...allItems.map((item) => getEffectiveBounds(item)),
+        getEffectiveBounds(sourceItem),
       ]
       const groupMinX = Math.min(...itemBounds.map((b) => b.left))
       const groupMinY = Math.min(...itemBounds.map((b) => b.top))
@@ -2577,6 +2678,29 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       const groupMaxY = Math.max(...itemBounds.map((b) => b.bottom))
       const width = Math.max(1, Math.ceil(groupMaxX - groupMinX))
       const height = Math.max(1, Math.ceil(groupMaxY - groupMinY))
+
+      const bevelKey = sourceItem?.compositeBevelEmbossEnabled || sourceItem?.compositeInnerShadowEnabled ? JSON.stringify({
+        w: width, h: height, contentIds: currentItemIds, mode, srcId: sourceItem?.id,
+        bevelStyle: sourceItem?.compositeBevelEmbossStyle,
+        bevelDepth: sourceItem?.compositeBevelEmbossDepth,
+        bevelAngle: sourceItem?.compositeBevelEmbossAngle,
+        bevelSoftness: sourceItem?.compositeBevelEmbossSoftness,
+        bevelHighlightColor: sourceItem?.compositeBevelEmbossHighlightColor,
+        bevelHighlightOpacity: sourceItem?.compositeBevelEmbossHighlightOpacity,
+        bevelShadowColor: sourceItem?.compositeBevelEmbossShadowColor,
+        bevelShadowOpacity: sourceItem?.compositeBevelEmbossShadowOpacity,
+        innerColor: sourceItem?.compositeInnerShadowColor,
+        innerOpacity: sourceItem?.compositeInnerShadowOpacity,
+        innerBlur: sourceItem?.compositeInnerShadowBlur,
+        innerDistance: sourceItem?.compositeInnerShadowDistance,
+        innerAngle: sourceItem?.compositeInnerShadowAngle,
+      }) : null
+
+      if (bevelKey && bevelKey === bevelCacheRef.current?.key) {
+        const c = bevelCacheRef.current
+        updateBitmap(c.finalCanvas, c.finalX, c.finalY, c.finalW, c.finalH)
+        return
+      }
 
       const contentCanvas = document.createElement('canvas')
       contentCanvas.width = width
@@ -2620,6 +2744,11 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       const finalW = shadowResult ? finalCanvas.width : finalContent.width
       const finalH = shadowResult ? finalCanvas.height : finalContent.height
 
+      bevelCacheRef.current = {
+        key: bevelKey,
+        finalCanvas, finalX, finalY, finalW, finalH,
+      }
+
       updateBitmap(finalCanvas, finalX, finalY, finalW, finalH)
       const compositeStrokeEnabled = !!(sourceItem?.compositeStrokeEnabled && (sourceItem?.compositeStrokeWidth ?? 0) > 0)
       if (compositeStrokeEnabled) {
@@ -2630,7 +2759,9 @@ function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDr
       }
     })
     return () => cancelAnimationFrame(rafId)
-  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, sourceImage, adjustSourceItem])
+  }, [bounds, destinationItems, allItems, imageItems, imageMap, loadedImages, mode, sourceItem, sourceImage, adjustSourceItem, redrawKey, isDraggingTrigger])
+  // LOG TRACE: log sourceItem.w at end of CompositeAlphaBitmap effect
+  console.log('[TRACE] CompositeAlphaBitmap effect END', { sourceId: sourceItem?.id, sourceW: sourceItem?.w, sourceH: sourceItem?.h })
 
   return (
     <>
@@ -2679,7 +2810,9 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
   const dragStartRef = useRef(null)
   const snapResultRef = useRef(null)
   const isDraggingRef = useRef(false)
+  const [isDraggingState, setIsDraggingState] = useState(false)
   const alignmentGuidesFrameRef = useRef(null)
+  const redrawKeyRef = useRef(0)
   const sourceItem = entry.members.find((item) => item.id === entry.operatorId)
   const destinationItems = entry.members.filter((item) => item.id !== entry.operatorId)
   const adjustSourceItem = adjustSourceTargetId ? (entry.members.find((m) => m.id === adjustSourceTargetId) || items.find((i) => i.id === adjustSourceTargetId) || null) : null
@@ -2739,6 +2872,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
   }
 
   const handleGroupDragStart = (event) => {
+    console.log('[ENTRY] handleGroupDragStart', { groupId: entry?.groupId, multiDrag: !!multiDragRef?.current, hasEntry: !!entry, targetId: event?.target?.id() })
     event.cancelBubble = true
     // Jika multi-drag session aktif (drag dari item non-composite), skip — handleObjectDragStart/Move/End yg handle
     if (multiDragRef?.current) {
@@ -2773,98 +2907,86 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     }
     // Cari external items dari selection (multi-select case)
     const externalIds = (selectedIdsRef?.current || selectedIds || []).filter((sid) => !entry.members.some((m) => m.id === sid))
-    console.log('[GroupDragStart]', {
-      groupId: entry.groupId,
-      currentSelectedIds,
+    // DEBUG: trace Group node state BEFORE bake for rotate→drag diagnosis
+    const preBakeTargetX = event.target.x()
+    const preBakeTargetY = event.target.y()
+    const preBakeTargetRot = event.target.rotation()
+
+    handleCompositeDragStart({
+      entry,
+      event,
+      itemsRef,
+      stageRef,
+      dragStartRef,
+      isDraggingRef,
       externalIds,
-      hasMultiDrag: !!multiDragRef?.current,
-      isCompositeSelected,
-      sourceItemId: sourceItem?.id,
-      groupNodeX: event.target.x(),
-      groupNodeY: event.target.y(),
     })
-    // BAKE: compositeGroup* → member positions at drag start (non-identity only)
-    const cgx = sourceItem?.compositeGroupX
-    const cgy = sourceItem?.compositeGroupY
-    const cgsx = sourceItem?.compositeGroupScaleX
-    const cgsy = sourceItem?.compositeGroupScaleY
-    const cgr = sourceItem?.compositeGroupRotation
-    const hasCompositeBake = (cgx || cgy || (cgsx && cgsx !== 1) || (cgsy && cgsy !== 1) || cgr)
-    let bakeMemberPositions
-    if (hasCompositeBake) {
-      const bakedMembers = entry.members.map((member) => ({
-        id: member.id,
-        x: (cgx || 0) + (member.x || 0) * (cgsx || 1),
-        y: (cgy || 0) + (member.y || 0) * (cgsy || 1),
-        w: (cgsx && cgsx !== 1) ? (member.w || 1) * cgsx : member.w,
-        h: (cgsy && cgsy !== 1) ? (member.h || 1) * cgsy : member.h,
-        rotation: cgr ? (member.rotation || 0) + cgr : member.rotation,
-      }))
-      bakeMemberPositions = bakedMembers
-      // Update itemsRef synchronously (React state di-update di drag-end via onChange)
-      const updatedItems = itemsRef.current.map((item) => {
-        if (item.groupId !== entry.groupId) return item
-        if (item.compositeMode) {
-          return { ...item, x: (cgx || 0) + (item.x || 0) * (cgsx || 1), y: (cgy || 0) + (item.y || 0) * (cgsy || 1), w: (cgsx && cgsx !== 1) ? (item.w || 1) * cgsx : item.w, h: (cgsy && cgsy !== 1) ? (item.h || 1) * cgsy : item.h, rotation: cgr ? (item.rotation || 0) + cgr : item.rotation, compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined }
-        }
-        const baked = bakedMembers.find((b) => b.id === item.id)
-        return baked ? { ...item, x: baked.x, y: baked.y, w: baked.w ?? item.w, h: baked.h ?? item.h, rotation: baked.rotation ?? item.rotation } : item
-      })
-      itemsRef.current = updatedItems
-      // Update Konva nodes synchronously so drag delta is 0
-      const groupNode = event.target
-      groupNode.position({ x: 0, y: 0 })
-      groupNode.scale({ x: 1, y: 1 })
-      groupNode.rotation(0)
-      bakedMembers.forEach((member) => {
-        const node = stageRef.current.findOne(`#${member.id}`)
-        if (node) {
-          node.x(member.x)
-          node.y(member.y)
-          if (member.w !== undefined) node.width(member.w)
-          if (member.h !== undefined) node.height(member.h)
-          if (member.rotation !== undefined) node.rotation(member.rotation)
-        }
-      })
-    }
-    // Ambil posisi ALL selected items (composite members + external items)
-    const memberPositions = Object.fromEntries((bakeMemberPositions || entry.members).map((item) => [item.id, { x: item.x || 0, y: item.y || 0 }]))
-    const externalPositions = externalIds.length > 0
-      ? Object.fromEntries(
-          externalIds.map((sid) => {
-            const item = itemsRef.current.find((i) => i.id === sid)
-            return [sid, { x: item?.x || 0, y: item?.y || 0 }]
-          })
-        )
-      : {}
-    dragStartRef.current = {
-      x: event.target.x(),
-      y: event.target.y(),
-      startTime: Date.now(),
-      moveCount: 0,
-      positions: { ...memberPositions, ...externalPositions },
-      posCount: Object.keys({ ...memberPositions, ...externalPositions }).length,
-    }
-    isDraggingRef.current = true
+    setIsDraggingState(true)
+
+    // DEBUG: trace Group node state AFTER bake
+    const groupOp = entry.members.find(m => m.compositeMode)
+    console.log('[DRAG-TRACE] dragStart:', {
+      groupId: entry.groupId,
+      preBake: { x: preBakeTargetX, y: preBakeTargetY, rot: preBakeTargetRot },
+      postBake: { x: event.target.x(), y: event.target.y(), rot: event.target.rotation() },
+      dragStartRefX: dragStartRef.current?.x,
+      dragStartRefY: dragStartRef.current?.y,
+      opCGR: groupOp?.compositeGroupRotation,
+      opCGX: groupOp?.compositeGroupX,
+      opCGY: groupOp?.compositeGroupY,
+      opCGSX: groupOp?.compositeGroupScaleX,
+      opCGSY: groupOp?.compositeGroupScaleY,
+    })
+
     snapResultRef.current = null
     onCursor('move')
   }
 
   const handleGroupDragMove = (event) => {
+    console.log('[ENTRY] handleGroupDragMove', { groupId: entry?.groupId, multiDrag: !!multiDragRef?.current, hasDragStart: !!dragStartRef?.current, targetX: event?.target?.x(), targetY: event?.target?.y() })
     event.cancelBubble = true
     if (multiDragRef?.current) return
     if (!dragStartRef.current) return
+
+    // Imperative correction setiap tick: paksa ulang w/h member dari itemsRef.current
+    // ke Konva node — mengatasi React re-render yang menimpa baked size dengan stale state
+    // pada drag pertama pasca-resize (lihat Session 2026-07-27).
+    if (stageRef?.current) {
+      entry.members.forEach((m) => {
+        const node = stageRef.current.findOne(`#${m.id}`)
+        const bakedItem = itemsRef.current.find((i) => i.id === m.id)
+        if (node && bakedItem) {
+          if (bakedItem.w !== undefined && node.width() !== bakedItem.w) node.width(bakedItem.w)
+          if (bakedItem.h !== undefined && node.height() !== bakedItem.h) node.height(bakedItem.h)
+        }
+      })
+      entry.members.forEach((m) => {
+        const node = stageRef.current.findOne(`#${m.id}`)
+        if (node) node.getLayer()?.batchDraw()
+      })
+    }
+
     const start = dragStartRef.current
     if (start) {
       start.moveCount = (start.moveCount || 0) + 1
       const rawDx = event.target.x() - start.x
       const rawDy = event.target.y() - start.y
       const result = computeGroupSnap(rawDx, rawDy)
-      console.log('[SnapDebug] composite handleGroupDragMove:', {
-        rawDx, rawDy, hasResult: !!result, guideCount: result?.guides?.length, snapped: result?.snapped,
-        startX: start.x, startY: start.y,
-        baseBounds: result?._baseBounds || '(null)',
-      })
+      // DEBUG: Rotate→drag trace
+      if (entry.members.some(m => m.compositeMode)) {
+        const target = event.target
+        console.log('[DRAG-TRACE] move tick:', {
+          moveCount: start.moveCount,
+          targetX: target.x(), targetY: target.y(),
+          targetScaleX: target.scaleX(), targetScaleY: target.scaleY(),
+          targetRotation: target.rotation(),
+          startX: start.x, startY: start.y,
+          rawDx, rawDy,
+          groupId: entry.groupId,
+          startPositions: Object.fromEntries(Object.entries(start.positions).map(([id, p]) => [id, { x: p.x.toFixed(1), y: p.y.toFixed(1) }])),
+          startBaked: Object.fromEntries(Object.entries(start.bakedValues || {}).map(([id, v]) => [id, { w: v.w?.toFixed(1), h: v.h?.toFixed(1), rot: v.rotation?.toFixed(1) }])),
+        })
+      }
       if (result) {
         snapResultRef.current = result
         setAlignmentGuides(result.guides)
@@ -2890,13 +3012,14 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
   }
 
   const handleGroupDragEnd = (event) => {
+    console.log('[ENTRY] handleGroupDragEnd', { groupId: entry?.groupId, hasDragStart: !!dragStartRef?.current, multiDragActive: !!multiDragActiveRef?.current, skipGroupEnd: !!skipGroupDragEndRef?.current, targetX: event?.target?.x(), targetY: event?.target?.y(), targetId: event?.target?.id() })
     event.cancelBubble = true
-    console.log('[DRAG_END_DEBUG] GROUP_DRAG_END FIRED', { hasDragStart: !!dragStartRef.current, skip: multiDragActiveRef?.current || skipGroupDragEndRef?.current, groupX: event.target.x(), groupY: event.target.y() })
+    console.log('[DRAG_END_DEBUG] GROUP_DRAG_END FIRED', { hasDragStart: !!dragStartRef.current, skipMulti: multiDragActiveRef?.current, skipGroupEnd: skipGroupDragEndRef?.current, groupX: event.target.x(), groupY: event.target.y() })
     if (!dragStartRef.current) return
     // Skip jika handleObjectDragStart sedang aktif (multi-drag session)
-    if (multiDragActiveRef?.current) return
+    if (multiDragActiveRef?.current) { console.log('[FIX_DEBUG] GROUP_DRAG_END skipped by multiDragActiveRef'); return }
     // Skip jika handleObjectDragEnd sudah handle semua (multi-drag source bukan composite)
-    if (skipGroupDragEndRef?.current) return
+    if (skipGroupDragEndRef?.current) { console.log('[FIX_DEBUG] GROUP_DRAG_END skipped by skipGroupDragEndRef'); return }
     const start = dragStartRef.current
     // Log metrics di handleGroupDragEnd
     if (start) {
@@ -2934,92 +3057,83 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     const dy = result?.dy ?? rawDy
     setAlignmentGuides([])
     setRotationSnapGuide(null)
-    dragStartRef.current = null
     snapResultRef.current = null
     isDraggingRef.current = false
+    setIsDraggingState(false)
     cancelAnimationFrame(alignmentGuidesFrameRef.current)
     alignmentGuidesFrameRef.current = null
     if (!start || (!dx && !dy)) {
+      dragStartRef.current = null
       event.target.position({ x: 0, y: 0 })
       groupRef.current?.getLayer()?.batchDraw()
       setStageCursor('default')
       return
     }
     const isMultiDragActive = !!multiDragRef?.current
-    console.log('[GroupDragEnd]', {
-      groupId: entry.groupId,
-      isMultiDragActive,
-      rawDx,
-      rawDy,
-      dx,
-      dy,
-      posCount: start.posCount,
-      entriesCount: Object.keys(start.positions).length,
-      entriesToWriteCount: isMultiDragActive
-        ? Object.entries(start.positions).filter(([id]) => entry.members.some((m) => m.id === id)).length
-        : Object.entries(start.positions).length,
+    // Compute final positions via centralized handler
+    const finalPositions = computeCompositeFinalPositions({
+      entry,
+      event,
+      dragStartRef,
+      itemsRef,
+      canvasBounds: { x: 0, y: 0, width: canvasSize.width, height: canvasSize.height },
+      getClampedCanvasPosition,
+      compositeOnlyIds: isMultiDragActive
+        ? entry.members.map((m) => m.id)
+        : undefined,
     })
-    // Jika multiDragRef aktif (drag via child), handleObjectDragEnd handle external items
-    // Jika tidak aktif (drag via Group Rect), kita handle ALL items
-    const entriesToWrite = isMultiDragActive
-      ? Object.entries(start.positions).filter(([id]) => entry.members.some((m) => m.id === id))
-      : Object.entries(start.positions)
-    const itemUpdates = []
-    entriesToWrite.forEach(([itemId, pos]) => {
-      const item = entry.members.find((m) => m.id === itemId) || itemsRef.current.find((i) => i.id === itemId) || items.find((i) => i.id === itemId)
-      if (!item || item.locked) return
-      const newX = pos.x + dx
-      const newY = pos.y + dy
-      // Clamp external items (bukan composite member) ke canvas bounds
-      const isCompositeMember = entry.members.some((m) => m.id === itemId)
-      const clamped = isCompositeMember
-        ? { x: newX, y: newY }
-        : getClampedCanvasPosition(item.w || 1, item.h || 1, { x: newX, y: newY }, { x: 0, y: 0, width: canvasSize.width, height: canvasSize.height })
-      console.log('[DragEndDebug]', {
-        location: 'handleGroupDragEnd',
-        groupId: entry.groupId,
-        memberId: itemId,
-        oldX: item.x,
-        oldY: item.y,
-        startX: pos.x,
-        startY: pos.y,
-        dx,
-        dy,
-        newX,
-        newY,
-        clamped,
-        source: multiDragRef?.current ? 'compositeOnly (multiDragRef active)' : 'allItems (no multiDragRef)',
-      })
-      itemUpdates.push({ itemId, patch: { x: clamped.x, y: clamped.y } })
-    })
-    console.log('[GROUP_DRAG_DEBUG] itemUpdates:', itemUpdates.map((u) => ({ itemId: u.itemId, x: u.patch.x, y: u.patch.y, isComposite: entry.members.some((m) => m.id === u.itemId) })))
-    // Directly set Konva node positions BEFORE group reset (sync, no react-konva delay)
-    itemUpdates.forEach(({ itemId, patch }) => {
-      const node = stageRef.current?.findOne(`#${itemId}`)
-      const found = !!node
-      console.log('[GROUP_DRAG_DEBUG] findOne:', { itemId, found, oldX: node?.x(), oldY: node?.y(), newX: patch.x, newY: patch.y, isComposite: entry.members.some((m) => m.id === itemId) })
-      if (node) {
-        node.position({ x: patch.x, y: patch.y })
-      }
-    })
-    // Update React state (persistence — no visual glitch since Konva already correct)
-    itemUpdates.forEach(({ itemId, patch }) => onChange(itemId, patch))
-    // Clear compositeGroup* pada operator setelah member positions final (React batch)
-    if (sourceItem?.compositeGroupX !== undefined || sourceItem?.compositeGroupScaleX !== undefined) {
-      onChange(sourceItem.id, {
-        compositeGroupX: undefined,
-        compositeGroupY: undefined,
-        compositeGroupScaleX: undefined,
-        compositeGroupScaleY: undefined,
-        compositeGroupRotation: undefined,
+    console.log('[GroupDragEnd] finalPositions:', finalPositions)
+    if (finalPositions) {
+      applyCompositeFinalPositions({
+        finalPositions,
+        itemsRef,
+        applyPatches: (patches) => {
+          Object.entries(patches).forEach(([itemId, patch]) => {
+            const item = itemsRef.current.find((i) => i.id === itemId)
+            if (item?.compositeMode) {
+              if (patch.__keepGroupRotation) {
+                // keepGroupRotation: update compositeGroupX/Y on operator, NOT member x/y
+                // Also propagate w/h/rotation so operator React state stays in sync with members
+                const { __keepGroupRotation, ...gp } = patch
+                const update = {
+                  compositeGroupX: gp.x,
+                  compositeGroupY: gp.y,
+                  compositeGroupScaleX: undefined,
+                  compositeGroupScaleY: undefined,
+                }
+                if (gp.w !== undefined) update.w = gp.w
+                if (gp.h !== undefined) update.h = gp.h
+                if (gp.rotation !== undefined) update.rotation = gp.rotation
+                onChange(itemId, update)
+              } else {
+                // Standard bake: clear all compositeGroup* (baked into member positions)
+                const clearPatch = { ...patch,
+                  compositeGroupX: undefined,
+                  compositeGroupY: undefined,
+                  compositeGroupScaleX: undefined,
+                  compositeGroupScaleY: undefined,
+                }
+                onChange(itemId, clearPatch)
+              }
+            } else {
+              onChange(itemId, patch)
+            }
+          })
+        },
+        broadcastItemUpdate: null,
       })
     }
     // Reset Group position AFTER all items are at their final absolute positions
-    event.target.position({ x: 0, y: 0 })
-    console.log('[GROUP_DRAG_DEBUG] groupPos after reset:', { x: event.target.x(), y: event.target.y() })
-    // Force immediate redraw
+    dragStartRef.current = null
+    // keepGroupRotation: set Group position to new compositeGroupX/Y
+    // !keepGroupRotation: reset to (0,0) — members are in stage space
+    const opAfter = itemsRef.current.find((i) => i.compositeMode && i.groupId === entry.groupId)
+    if (opAfter?.compositeGroupRotation) {
+      event.target.position({ x: opAfter.compositeGroupX ?? 0, y: opAfter.compositeGroupY ?? 0 })
+    } else {
+      event.target.position({ x: 0, y: 0 })
+    }
     groupRef.current?.getLayer()?.batchDraw()
-    console.log('[GROUP_DRAG_DEBUG] dragEnd complete')
     setStageCursor('default')
   }
 
@@ -3033,8 +3147,8 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       id={`composite-${entry.groupId}`}
       x={sourceItem?.compositeGroupX ?? 0}
       y={sourceItem?.compositeGroupY ?? 0}
-      scaleX={sourceItem?.compositeGroupScaleX ?? 1}
-      scaleY={sourceItem?.compositeGroupScaleY ?? 1}
+      scaleX={!isDraggingRef.current ? sourceItem?.compositeGroupScaleX ?? 1 : undefined}
+      scaleY={!isDraggingRef.current ? sourceItem?.compositeGroupScaleY ?? 1 : undefined}
       rotation={sourceItem?.compositeGroupRotation ?? 0}
       ref={groupRef}
       name="composite-group"
@@ -3099,8 +3213,10 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           bounds={groupBounds}
           mode={sourceMode}
           stageRef={stageRef}
-            isDraggingRef={isDraggingRef}
-            adjustSourceItem={adjustSourceItem}
+          isDraggingRef={isDraggingRef}
+          isDraggingTrigger={isDraggingState}
+          adjustSourceItem={adjustSourceItem}
+          redrawKey={redrawKeyRef.current}
         />
       ) : sourceItem?.kind === 'text' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
         <>
@@ -3110,7 +3226,9 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
             bounds={groupBounds}
             mode={sourceMode}
             isDraggingRef={isDraggingRef}
+            isDraggingTrigger={isDraggingState}
             adjustSourceItem={adjustSourceItem}
+            redrawKey={redrawKeyRef.current}
           />
         </>
       ) : sourceItem?.kind === 'image' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
@@ -3120,7 +3238,9 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           bounds={groupBounds}
           mode={sourceMode}
           isDraggingRef={isDraggingRef}
+          isDraggingTrigger={isDraggingState}
           adjustSourceItem={adjustSourceItem}
+          redrawKey={redrawKeyRef.current}
         />
       ) : sourceItem?.kind === 'shape' && (sourceMode === 'mask' || sourceMode === 'exclude') ? (
         <CompositeAlphaBitmap
@@ -3130,14 +3250,19 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           mode={sourceMode}
           stageRef={stageRef}
           isDraggingRef={isDraggingRef}
+          isDraggingTrigger={isDraggingState}
           adjustSourceItem={adjustSourceItem}
+          redrawKey={redrawKeyRef.current}
         />
       ) : sourceMode === 'mask' ? (
         <Group
           name="composite-mask-content"
           clipFunc={(ctx) => drawCompositeMaskPath(ctx, sourceItem)}
         >
-          {orderedDestinationItems.map((item) => (
+          {orderedDestinationItems.map((it) => {
+            const item = isDraggingRef.current ? (itemsRef.current.find(i => i.id === it.id) || it) : it
+            if (isDraggingRef.current && item) console.log('[DRAG_GUARD_CLIP]', { id: it.id.substring(0,8), refW: item.w, refH: item.h, stateW: it.w, stateH: it.h })
+            return (
             <CanvasItem
               key={item.id}
               item={item}
@@ -3165,11 +3290,16 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
               onCropStart={onCropStart}
               isCropTarget={cropSession?.itemId === item.id}
               fontInjectVersion={fontInjectVersion}
+              suspendGeometryRef={isDraggingRef}
             />
-          ))}
+            )
+          })}
         </Group>
       ) : (
-        orderedDestinationItems.concat(sourceItem ? [sourceItem] : []).map((item) => (
+        orderedDestinationItems.concat(sourceItem ? [sourceItem] : []).map((it) => {
+          const item = isDraggingRef.current ? (itemsRef.current.find(i => i.id === it.id) || it) : it
+          if (isDraggingRef.current && item) console.log('[DRAG_GUARD_NOCLIP]', { id: it.id.substring(0,8), refW: item.w, refH: item.h, stateW: it.w, stateH: it.h })
+          return (
         <CanvasItem
           key={item.id}
           item={item}
@@ -3197,8 +3327,10 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           isCropTarget={cropSession?.itemId === item.id}
           fontInjectVersion={fontInjectVersion}
           allowComposite={item.id === entry.operatorId}
+          suspendGeometryRef={isDraggingRef}
         />
-        ))
+          )
+        })
       )}
     </Group>
   )
@@ -3325,6 +3457,7 @@ function Workspace() {
     }
     return initialProject.id ? [] : initialItems
   })
+
   const [selectedId, setSelectedId] = useState(() => {
     if (initialProject.imageSrc) return 'image-1'
     return initialProject.id ? null : 'image-1'
@@ -4641,6 +4774,17 @@ function Workspace() {
     width: Math.round(canvasSettings.width * exportScale),
     height: Math.round(canvasSettings.height * exportScale),
   }), [canvasSettings.height, canvasSettings.width, exportScale])
+  const isCanvasSvgSafe = useMemo(() => {
+    for (const item of items) {
+      if (item.visible === false) continue
+      if (item.isAdjustmentLayer) continue
+      if (item.kind !== 'shape' && item.kind !== 'text') return false
+      if (item.compositeMode) return false
+      if (item.maskSourceType !== undefined) return false
+      if (item.effects && getActiveEffects(item).length > 0) return false
+    }
+    return true
+  }, [items])
 
   const frontAdjIndex = useMemo(() => items.findIndex((item) => item.isAdjustmentLayer), [items])
 
@@ -5443,10 +5587,16 @@ function Workspace() {
   }, [items])
 
   useEffect(() => {
-    if (exportFormat === 'jpg' || !isCanvasBackgroundNone) {
+    if (exportFormat === 'jpg' || exportFormat === 'pdf' || exportFormat === 'svg' || !isCanvasBackgroundNone) {
       setExportTransparent(false)
     }
   }, [exportFormat, isCanvasBackgroundNone])
+
+  useEffect(() => {
+    if (!isCanvasSvgSafe && exportFormat === 'svg') {
+      setExportFormat('png')
+    }
+  }, [isCanvasSvgSafe, exportFormat])
 
   const generateWorkspaceThumbnailDataUrl = useCallback(async () => {
     const stage = stageRef.current
@@ -5705,28 +5855,57 @@ function Workspace() {
       await new Promise((resolve) => window.setTimeout(resolve, 30))
       const shouldExportTransparent = exportFormat === 'png' && exportTransparent && isCanvasBackgroundNone
       setExportProgress(46)
-      const dataUrl = generateWorkspaceExportDataUrl({
-        format: exportFormat,
-        scale: exportScale,
-        transparent: shouldExportTransparent,
-      })
-      setExportProgress(76)
-
-      if (!dataUrl) {
-        setExportError('Export gagal. Coba ulang setelah semua gambar selesai dimuat.')
-        return
-      }
-
-      await new Promise((resolve) => requestAnimationFrame(resolve))
-      const extension = exportFormat === 'jpg' ? 'jpg' : 'png'
       const safeTitle = (workspaceTitle || 'workspace').trim().replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '') || 'workspace'
-      const link = document.createElement('a')
-      link.href = dataUrl
-      link.download = `${safeTitle}-${exportScale}x.${extension}`
-      document.body.appendChild(link)
-      setExportProgress(92)
-      link.click()
-      link.remove()
+
+      if (exportFormat === 'svg') {
+        const cw = canvasSettings.width
+        const ch = canvasSettings.height
+        const bg = canvasSettings.background
+        const svgStr = generateSvgString(items, { width: cw, height: ch, background: bg })
+        const blob = new Blob([svgStr], { type: 'image/svg+xml' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `${safeTitle}.svg`
+        document.body.appendChild(link)
+        setExportProgress(92)
+        link.click()
+        link.remove()
+        URL.revokeObjectURL(url)
+      } else {
+        const exportImgFormat = exportFormat === 'pdf' ? 'png' : exportFormat
+        const dataUrl = generateWorkspaceExportDataUrl({
+          format: exportImgFormat,
+          scale: exportScale,
+          transparent: exportFormat === 'pdf' ? false : shouldExportTransparent,
+        })
+        setExportProgress(76)
+
+        if (!dataUrl) {
+          setExportError('Export gagal. Coba ulang setelah semua gambar selesai dimuat.')
+          return
+        }
+
+        await new Promise((resolve) => requestAnimationFrame(resolve))
+
+        if (exportFormat === 'pdf') {
+          const { jsPDF } = await import('jspdf')
+          const cw = canvasSettings.width * exportScale
+          const ch = canvasSettings.height * exportScale
+          const doc = new jsPDF({ orientation: cw > ch ? 'l' : 'p', unit: 'pt', format: [cw, ch] })
+          doc.addImage(dataUrl, 'PNG', 0, 0, cw, ch)
+          doc.save(`${safeTitle}-${exportScale}x.pdf`)
+        } else {
+          const extension = exportFormat === 'jpg' ? 'jpg' : 'png'
+          const link = document.createElement('a')
+          link.href = dataUrl
+          link.download = `${safeTitle}-${exportScale}x.${extension}`
+          document.body.appendChild(link)
+          setExportProgress(92)
+          link.click()
+          link.remove()
+        }
+      }
       setExportProgress(100)
       await new Promise((resolve) => window.setTimeout(resolve, 240))
       setIsExportModalOpen(false)
@@ -5734,7 +5913,7 @@ function Workspace() {
       setIsExporting(false)
       setExportProgress(0)
     }
-  }, [exportFormat, exportScale, exportTransparent, generateWorkspaceExportDataUrl, isCanvasBackgroundNone, workspaceTitle])
+  }, [exportFormat, exportScale, exportTransparent, generateWorkspaceExportDataUrl, isCanvasBackgroundNone, workspaceTitle, canvasSettings.width, canvasSettings.height, canvasSettings.background, items])
 
   const handleExportAndRedirect = useCallback(async ({ isTemplate }) => {
     const shouldExportTransparent = false
@@ -6876,54 +7055,38 @@ const attachTransformer = useCallback((idOrIds) => {
     const groupIds = itemsRef.current
       .filter((item) => item.groupId === groupId || item.parentGroupId === groupId)
       .map((item) => item.id)
-    // Cari operator composite untuk bake compositeGroup* ke member positions
-    const operatorItem = itemsRef.current.find((item) =>
-      item.groupId === groupId && (item.compositeMode === 'mask' || item.compositeMode === 'exclude'))
-    const cgx = operatorItem?.compositeGroupX
-    const cgy = operatorItem?.compositeGroupY
-    const cgsx = operatorItem?.compositeGroupScaleX
-    const cgsy = operatorItem?.compositeGroupScaleY
-    const cgr = operatorItem?.compositeGroupRotation
-    const hasCompositeTransform = (cgx || cgy || (cgsx && cgsx !== 1) || (cgsy && cgsy !== 1) || cgr)
+    // Handle composite group ungroup via centralized handler
     const membersToClear = itemsRef.current.filter((i) => i.groupId === groupId)
+    const isComposite = membersToClear.some((m) => m.compositeMode)
+    if (isComposite) {
+      handleCompositeUngroup({
+        groupId,
+        itemsRef,
+        stageRef,
+        setItems,
+        captureGroupUndo,
+        broadcastItemUpdate: collaboratorsGuardRef.current.length > 1 ? broadcastItemUpdate : null,
+      })
+    }
+    // Handle parentGroupId members (for both composite and regular groups)
     const parentMembersToClear = itemsRef.current.filter((i) => i.parentGroupId === groupId)
-    membersToClear.forEach((item) => {
-      captureGroupUndo(item.id, { groupId: null, compositeMode: null, compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined })
-    })
-    parentMembersToClear.forEach((item) => {
-      captureGroupUndo(item.id, { parentGroupId: null })
-    })
-    setItems((current) => current.map((item) => {
-      if (item.groupId === groupId) {
-        let next = { ...item }
-        if (hasCompositeTransform) {
-          // TODO(rotate): bake rotation when composite rotation is active
-          // newX = cgx + (m.x*cos(cgr) - m.y*sin(cgr)) * cgsx
-          next.x = (cgx || 0) + (item.x || 0) * (cgsx || 1)
-          next.y = (cgy || 0) + (item.y || 0) * (cgsy || 1)
-          if (cgsx && cgsx !== 1) { next.w = (item.w || 1) * cgsx; next.h = (item.h || 1) * cgsy }
-          if (cgr) next.rotation = (item.rotation || 0) + cgr
-        }
-        return { ...next, groupId: null, compositeMode: null, compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined }
-      }
-      if (item.parentGroupId === groupId) {
-        // Composite member di parent group — lepas parentGroup saja, composite tetap utuh
-        return { ...item, parentGroupId: null }
-      }
-      return item
-    }))
-    if (collaboratorsGuardRef.current.length > 1) {
-      membersToClear.forEach((item) => {
-        broadcastItemUpdate(item.id, {
-          groupId: null, compositeMode: null,
-          compositeGroupX: null, compositeGroupY: null,
-          compositeGroupScaleX: null, compositeGroupScaleY: null,
-          compositeGroupRotation: null,
+    if (parentMembersToClear.length > 0) {
+      if (!isComposite) {
+        parentMembersToClear.forEach((item) => {
+          captureGroupUndo(item.id, { parentGroupId: null })
         })
-      })
-      parentMembersToClear.forEach((item) => {
-        broadcastItemUpdate(item.id, { parentGroupId: null })
-      })
+      }
+      setItems((current) => current.map((item) => {
+        if (item.parentGroupId === groupId) {
+          return { ...item, parentGroupId: null }
+        }
+        return item
+      }))
+      if (collaboratorsGuardRef.current.length > 1) {
+        parentMembersToClear.forEach((item) => {
+          broadcastItemUpdate(item.id, { parentGroupId: null })
+        })
+      }
     }
     setIsGroupSelectMode(false)
     setSelectedIds(groupIds)
@@ -7350,11 +7513,21 @@ const attachTransformer = useCallback((idOrIds) => {
       moveBroadcastTimerRef.current = null
       const movedItems = itemsRef.current.filter((item) => activeIds.includes(item.id) && !item.locked)
       for (const item of movedItems) {
-        const patch = { x: item.x, y: item.y }
-        if (item.compositeMode) {
-          Object.assign(patch, { compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined })
+        if (item.compositeMode && item.compositeGroupRotation) {
+          // keepGroupRotation: broadcast compositeGroupX/Y, not x/y
+          broadcastItemUpdate(item.id, {
+            compositeGroupX: item.compositeGroupX ?? 0,
+            compositeGroupY: item.compositeGroupY ?? 0,
+            compositeGroupScaleX: undefined,
+            compositeGroupScaleY: undefined,
+          })
+        } else {
+          const patch = { x: item.x, y: item.y }
+          if (item.compositeMode) {
+            Object.assign(patch, { compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined })
+          }
+          broadcastItemUpdate(item.id, patch)
         }
-        broadcastItemUpdate(item.id, patch)
       }
     }, 200)
     requestAnimationFrame(() => {
@@ -7496,11 +7669,20 @@ const attachTransformer = useCallback((idOrIds) => {
         moveBroadcastTimerRef.current = null
         const movedItems = itemsRef.current.filter((item) => ids.includes(item.id) && !item.locked)
         for (const item of movedItems) {
-          const patch = { x: item.x, y: item.y }
-          if (item.compositeMode) {
-            Object.assign(patch, { compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined })
+          if (item.compositeMode && item.compositeGroupRotation) {
+            broadcastItemUpdate(item.id, {
+              compositeGroupX: item.compositeGroupX ?? 0,
+              compositeGroupY: item.compositeGroupY ?? 0,
+              compositeGroupScaleX: undefined,
+              compositeGroupScaleY: undefined,
+            })
+          } else {
+            const patch = { x: item.x, y: item.y }
+            if (item.compositeMode) {
+              Object.assign(patch, { compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined })
+            }
+            broadcastItemUpdate(item.id, patch)
           }
-          broadcastItemUpdate(item.id, patch)
         }
       }, 200)
     }
@@ -7541,7 +7723,8 @@ const attachTransformer = useCallback((idOrIds) => {
         const mi = itemsRef.current.find((c) => c.id === aid)
         if (!mi || mi.locked) return
         if (getCompositeInfoForItemId(aid)) {
-          captureGroupUndo(aid, { x: mi.x, y: mi.y })
+          const isKeepRot = mi.compositeMode && mi.compositeGroupRotation
+          captureGroupUndo(aid, isKeepRot ? { compositeGroupX: mi.compositeGroupX, compositeGroupY: mi.compositeGroupY } : { x: mi.x, y: mi.y })
         } else {
           captureUndo(aid, { x: mi.x, y: mi.y })
         }
@@ -7557,6 +7740,14 @@ const attachTransformer = useCallback((idOrIds) => {
             y: (item.y || 0) + dy,
             fromPoint: item.fromPoint ? { x: item.fromPoint.x + dx, y: item.fromPoint.y + dy } : item.fromPoint,
             toPoint: item.toPoint ? { x: item.toPoint.x + dx, y: item.toPoint.y + dy } : item.toPoint,
+          }
+        }
+
+        if (item.compositeMode && item.compositeGroupRotation) {
+          return {
+            ...item,
+            compositeGroupX: (item.compositeGroupX ?? 0) + dx,
+            compositeGroupY: (item.compositeGroupY ?? 0) + dy,
           }
         }
 
@@ -7652,22 +7843,6 @@ const attachTransformer = useCallback((idOrIds) => {
       }
     }
     const currentItem = itemsRef.current.find((i) => i.id === id)
-    if (patch.x !== undefined || patch.y !== undefined) {
-      const compositeInfo = getCompositeInfoForItemId(id)
-      if (compositeInfo) {
-        console.log('[DragEndDebug]', {
-          location: 'updateItem (final write)',
-          groupId: compositeInfo.groupId,
-          memberId: id,
-          oldX: currentItem?.x,
-          oldY: currentItem?.y,
-          patchX: patch.x,
-          patchY: patch.y,
-          source: 'updateItem → onChange dari mana pun',
-        })
-      }
-    }
-
     // Reactive maskSourceType: when effects change on composite operator, auto-update
     if ('effects' in patch && (currentItem?.compositeMode === 'mask' || currentItem?.compositeMode === 'exclude')) {
       const newEffects = patch.effects
@@ -7700,15 +7875,21 @@ const attachTransformer = useCallback((idOrIds) => {
       broadcastItemUpdate(id, patch)
     }
 
-    setItems((current) => current.map((item) => {
-      if (item.id !== id) return item
-      const next = { ...item, ...patch }
-      if (patch.src && patch.src !== item.src) {
-        clearDominantColorCache(item.src)
-        delete next.dominantColors
+    setItems((current) => {
+      const currentItem = current.find(i => i.id === id)
+      if (currentItem && ('w' in patch || 'h' in patch || 'compositeGroupX' in patch)) {
+        console.log('[TRACE] setItems callback', { id, prevW: currentItem.w, prevH: currentItem.h, patchW: patch.w, patchH: patch.h, patchCX: patch.compositeGroupX, inCX: 'compositeGroupX' in patch })
       }
-      return next
-    }))
+      return current.map((item) => {
+        if (item.id !== id) return item
+        const next = { ...item, ...patch }
+        if (patch.src && patch.src !== item.src) {
+          clearDominantColorCache(item.src)
+          delete next.dominantColors
+        }
+        return next
+      })
+    })
 
     // FIX STROKE RENDER BUG: Force immediate Konva layer redraw for ALL visual property
     // changes. Previously only certain properties triggered this, causing delayed updates.
@@ -8703,6 +8884,8 @@ const attachTransformer = useCallback((idOrIds) => {
     const right = Math.max(...bounds.map((item) => item.right))
     const top = Math.min(...bounds.map((item) => item.top))
     const bottom = Math.max(...bounds.map((item) => item.bottom))
+    console.log('[BOUNDS] getItemsVisualBounds items:', boundsItems.map((item, i) => ({ id: item.id?.substring(0, 8), x: item.x, y: item.y, w: item.w, h: item.h, rot: item.rotation, cgx: item.compositeGroupX, cgsx: item.compositeGroupScaleX, left: bounds[i].left, right: bounds[i].right })))
+    console.log('[BOUNDS] merged:', { left, right, width: right - left, height: bottom - top })
     return {
       x: left,
       y: top,
@@ -10171,6 +10354,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const handleObjectDragStart = (event, id) => {
+    console.log('[ENTRY] handleObjectDragStart', { id, multiDrag: !!multiDragRef?.current })
     event.cancelBubble = true
     activeObjectDragRef.current = id
     if (justDroppedIdRef.current === id) {
@@ -10181,59 +10365,15 @@ const attachTransformer = useCallback((idOrIds) => {
     setSelectedIds(activeSelection)
 
     // BAKE: compositeGroup* → member positions for selected unbaked composites
-    // commitTransformerChanges leaves composites in unbaked state where member
-    // positions are local. We need world-space for multi-drag position capture.
+    // (single source of truth: bakeCompositeGroup in compositeGroupHandler)
     const bakedGroupIds = new Set()
     itemsRef.current.forEach((item) => {
       if (!activeSelection.includes(item.id)) return
       if (!item.groupId || bakedGroupIds.has(item.groupId)) return
       const groupInfo = getCompositeGroupInfo(item.groupId)
       if (!groupInfo) return
-      const operatorItem = groupInfo.members.find((m) => m.compositeMode === 'mask' || m.compositeMode === 'exclude')
-      if (!operatorItem) return
-      const cgx = operatorItem.compositeGroupX
-      const cgy = operatorItem.compositeGroupY
-      const cgsx = operatorItem.compositeGroupScaleX
-      const cgsy = operatorItem.compositeGroupScaleY
-      const cgr = operatorItem.compositeGroupRotation
-      const hasBake = (cgx || cgy || (cgsx && cgsx !== 1) || (cgsy && cgsy !== 1) || cgr)
-      if (!hasBake) return
       bakedGroupIds.add(item.groupId)
-
-      const bakedMembers = groupInfo.members.map((member) => ({
-        id: member.id,
-        x: (cgx || 0) + (member.x || 0) * (cgsx || 1),
-        y: (cgy || 0) + (member.y || 0) * (cgsy || 1),
-        w: (cgsx && cgsx !== 1) ? (member.w || 1) * cgsx : member.w,
-        h: (cgsy && cgsy !== 1) ? (member.h || 1) * cgsy : member.h,
-        rotation: cgr ? (member.rotation || 0) + cgr : member.rotation,
-      }))
-
-      itemsRef.current = itemsRef.current.map((it) => {
-        if (it.groupId !== item.groupId) return it
-        if (it.compositeMode) {
-          return { ...it, x: (cgx || 0) + (it.x || 0) * (cgsx || 1), y: (cgy || 0) + (it.y || 0) * (cgsy || 1), w: (cgsx && cgsx !== 1) ? (it.w || 1) * cgsx : it.w, h: (cgsy && cgsy !== 1) ? (it.h || 1) * cgsy : it.h, rotation: cgr ? (it.rotation || 0) + cgr : it.rotation, compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined }
-        }
-        const baked = bakedMembers.find((b) => b.id === it.id)
-        return baked ? { ...it, x: baked.x, y: baked.y, w: baked.w ?? it.w, h: baked.h ?? it.h, rotation: baked.rotation ?? it.rotation } : it
-      })
-
-      const groupNode = stageRef.current?.findOne(`#composite-${item.groupId}`)
-      if (groupNode) {
-        groupNode.position({ x: 0, y: 0 })
-        groupNode.scale({ x: 1, y: 1 })
-        groupNode.rotation(0)
-      }
-      bakedMembers.forEach((member) => {
-        const node = stageRef.current?.findOne(`#${member.id}`)
-        if (node) {
-          node.x(member.x)
-          node.y(member.y)
-          if (member.w !== undefined) node.width(member.w)
-          if (member.h !== undefined) node.height(member.h)
-          if (member.rotation !== undefined) node.rotation(member.rotation)
-        }
-      })
+      bakeCompositeGroup({ groupId: item.groupId, itemsRef, stageRef })
     })
 
     multiDragRef.current = {
@@ -10331,6 +10471,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const handleObjectDragEnd = async (event, id) => {
+    console.log('[ENTRY] handleObjectDragEnd', { id, isViewer: isViewerRef.current, activeDragId: activeObjectDragRef.current, multiDragActive: multiDragActiveRef?.current, skipGroupEnd: skipGroupDragEndRef?.current })
     if (isViewerRef.current) return
     event.cancelBubble = true
 
@@ -10432,40 +10573,32 @@ const attachTransformer = useCallback((idOrIds) => {
             const groupNode = getInteractionNode(movingId)
             if (groupNode) {
               const delta = { x: groupNode.x(), y: groupNode.y() }
-              console.log('[DRAG_END_DEBUG] STEP 1 - group delta before reset:', { groupId: info.groupId, delta, infoGroupIdType: typeof info.groupId, infoGroupId: info.groupId })
+              const opItem = itemsRef.current.find((i) => i.compositeMode && i.groupId === info.groupId)
+              const groupRotDeg = opItem?.compositeGroupRotation || 0
+              const isKeepGroupRotation = !!groupRotDeg
+              // keepGroupRotation: delta is stage-space (applied to cgx/cgy), no rotation needed.
+              // !keepGroupRotation: delta is stage-space (member positions are also stage-space).
+              console.log('[DRAG_END_DEBUG] STEP 1 - group delta before reset:', { groupId: info.groupId, delta, groupRotDeg, isKeepGroupRotation })
               pendingGroupDeltasRef.current[info.groupId] = delta
-              // DEBUG: print all entries and their composite info before inner forEach
-              const posEntries = Object.entries(dragSession.positions)
-              const infoGroupId = info.groupId
-              console.log('[DRAG_END_DEBUG] INNER_FOREACH_PREP:', {
-                infoGroupId,
-                infoGroupIdType: typeof infoGroupId,
-                posEntriesCount: posEntries.length,
-                posEntriesKeys: posEntries.map(([k]) => k),
-                posEntries: posEntries.map(([k, v]) => ({ mid: k, pos: v })),
-                memberLookups: posEntries.map(([mid]) => {
-                  const mi = getCompositeInfoForItemId(mid)
-                  return { mid, hasMemberInfo: !!mi, memberGroupId: mi?.groupId, memberGroupIdType: typeof mi?.groupId, groupIdMatch: mi?.groupId === infoGroupId }
-                }),
-              })
-              // Update member Konva nodes to final relative position BEFORE Group reset
-              // (same pattern as handleGroupDragEnd Step A → Step C)
-              posEntries.forEach(([mid, pos]) => {
-                const memberInfo = getCompositeInfoForItemId(mid)
-                const cond1 = !!memberInfo
-                const cond2 = memberInfo?.groupId === infoGroupId
-                console.log('[DRAG_END_DEBUG] INNER_FOREACH_CHECK:', { mid, hasMemberInfo: cond1, groupIdMatch: cond2, memberGroupId: memberInfo?.groupId, targetGroupId: infoGroupId })
-                if (cond1 && cond2) {
-                  const memberNode = stageRef.current?.findOne(`#${mid}`)
-                  console.log('[DRAG_END_DEBUG] INNER_FOREACH_NODE:', { mid, nodeFound: !!memberNode })
-                  if (memberNode) {
-                    memberNode.position({ x: pos.x + delta.x, y: pos.y + delta.y })
-                    console.log('[DRAG_END_DEBUG] STEP 2 - member pos after fix update:', { memberId: mid, x: memberNode.x(), y: memberNode.y(), groupId: info.groupId })
+              if (isKeepGroupRotation) {
+                // keepGroupRotation: members stay in local space via Group node.
+                // Skip member position update + Group reset — Group keeps cgx+delta.
+                console.log('[DRAG_END_DEBUG] STEP SKIP - keepGroupRotation: Group stays at', { x: delta.x, y: delta.y })
+              } else {
+                // !keepGroupRotation: bake member positions into stage space.
+                const posEntries = Object.entries(dragSession.positions)
+                posEntries.forEach(([mid, pos]) => {
+                  const memberInfo = getCompositeInfoForItemId(mid)
+                  if (memberInfo?.groupId === info.groupId) {
+                    const memberNode = stageRef.current?.findOne(`#${mid}`)
+                    if (memberNode) {
+                      memberNode.position({ x: pos.x + delta.x, y: pos.y + delta.y })
+                    }
                   }
-                }
-              })
-              groupNode.position({ x: 0, y: 0 })
-              console.log('[DRAG_END_DEBUG] STEP 3 - group pos after reset:', { groupId: info.groupId, x: groupNode.x(), y: groupNode.y() })
+                })
+                groupNode.position({ x: 0, y: 0 })
+              }
+              console.log('[DRAG_END_DEBUG] STEP 2/3 - done:', { groupId: info.groupId, groupX: groupNode.x(), groupY: groupNode.y(), isKeepGroupRotation })
             }
           }
         })
@@ -10499,10 +10632,23 @@ const attachTransformer = useCallback((idOrIds) => {
             console.log('[DRAG_END_DEBUG] SETITEMS_CHECK:', { cid, hasComp, deltaCheck, startPosStr: `${startPos?.x ?? 'undef'},${startPos?.y ?? 'undef'}`, groupId: compositeInfo.groupId, cbType: typeof delta })
             if (!delta) return currentItem
             if (!startPos) return currentItem
+            // keepGroupRotation: update operator compositeGroupX/Y, skip member x/y
+            const op = itemsRef.current.find((i) => i.compositeMode && i.groupId === compositeInfo.groupId)
+            const isKeepRot = op?.compositeGroupRotation
+            if (isKeepRot) {
+              if (currentItem.compositeMode) {
+                return {
+                  ...currentItem,
+                  compositeGroupX: (currentItem.compositeGroupX ?? 0) + delta.x,
+                  compositeGroupY: (currentItem.compositeGroupY ?? 0) + delta.y,
+                  compositeGroupScaleX: undefined,
+                  compositeGroupScaleY: undefined,
+                }
+              }
+              return currentItem
+            }
             const newX = startPos.x + delta.x
             const newY = startPos.y + delta.y
-            // Composite members skip clamping (sama seperti handleGroupDragEnd line 2698-2702)
-            // supaya tidak ada jump antara visual preview (unclamped, Group position) dan final (clamped member position)
             const newPos = { x: newX, y: newY }
             console.log('[DragEndDebug]', {
               location: 'handleObjectDragEnd.multiSelect.noCompositeSource',
@@ -10519,6 +10665,12 @@ const attachTransformer = useCallback((idOrIds) => {
               source: 'startPos + groupNodePosition(dari dragMove, no clamp)',
             })
             const r = { ...currentItem, ...newPos }
+            const bakedItem = itemsRef.current.find((i) => i.id === cid)
+            if (bakedItem) {
+              if (bakedItem.w !== currentItem.w) r.w = bakedItem.w
+              if (bakedItem.h !== currentItem.h) r.h = bakedItem.h
+              if (bakedItem.rotation !== currentItem.rotation) r.rotation = bakedItem.rotation
+            }
             if (currentItem.compositeMode) {
               r.compositeGroupX = undefined; r.compositeGroupY = undefined
               r.compositeGroupScaleX = undefined; r.compositeGroupScaleY = undefined
@@ -10541,6 +10693,20 @@ const attachTransformer = useCallback((idOrIds) => {
             const delta = pendingGroupDeltasRef.current[compositeInfo.groupId]
             const startPos = dragSession.positions[item.id]
             if (!delta || !startPos) return item
+            const op = itemsRef.current.find((i) => i.compositeMode && i.groupId === compositeInfo.groupId)
+            const isKeepRot = op?.compositeGroupRotation
+            if (isKeepRot) {
+              if (item.compositeMode) {
+                return {
+                  ...item,
+                  compositeGroupX: (item.compositeGroupX ?? 0) + delta.x,
+                  compositeGroupY: (item.compositeGroupY ?? 0) + delta.y,
+                  compositeGroupScaleX: undefined,
+                  compositeGroupScaleY: undefined,
+                }
+              }
+              return item
+            }
             const result = { ...item, x: startPos.x + delta.x, y: startPos.y + delta.y }
             if (item.compositeMode) {
               result.compositeGroupX = undefined; result.compositeGroupY = undefined
@@ -10562,10 +10728,20 @@ const attachTransformer = useCallback((idOrIds) => {
             const delta = pendingGroupDeltasRef.current[compositeInfo.groupId]
             const startPos = dragSession.positions[movingId]
             if (delta && startPos) {
-              const patch = { x: startPos.x + delta.x, y: startPos.y + delta.y }
               const it = itemsRef.current.find((i) => i.id === movingId)
-              if (it?.compositeMode) Object.assign(patch, { compositeGroupX: undefined, compositeGroupY: undefined, compositeGroupScaleX: undefined, compositeGroupScaleY: undefined, compositeGroupRotation: undefined })
-              broadcastItemUpdate(movingId, patch)
+              const isKeepRot = it?.compositeGroupRotation
+              if (isKeepRot) {
+                broadcastItemUpdate(movingId, {
+                  compositeGroupX: (it.compositeGroupX ?? 0) + delta.x,
+                  compositeGroupY: (it.compositeGroupY ?? 0) + delta.y,
+                  compositeGroupScaleX: null,
+                  compositeGroupScaleY: null,
+                })
+              } else {
+                const patch = { x: startPos.x + delta.x, y: startPos.y + delta.y }
+                if (it?.compositeMode) Object.assign(patch, { compositeGroupX: null, compositeGroupY: null, compositeGroupScaleX: null, compositeGroupScaleY: null, compositeGroupRotation: null })
+                broadcastItemUpdate(movingId, patch)
+              }
             }
           } else {
             const movedNode = getInteractionNode(movingId)
@@ -11333,10 +11509,11 @@ const commitTransformerChanges = () => {
   const ids = nodes.map((node) => node.id()).filter(Boolean)
   setAlignmentGuides([])
   setRotationSnapGuide(null)
-  setItems((current) => current.map((item) => {
+  const currentItems = itemsRef.current
+  let didChange = false
+  const nextItems = currentItems.map((item) => {
     if (!ids.includes(item.id)) return item
     if (item.locked) return item
-    if (item.kind === 'text' || item.kind === 'image') return item
     if (item.kind === 'shape' && item.shapeType === 'freehand') return item
     const node = nodes.find((candidate) => candidate.id() === item.id)
     if (!node) return item
@@ -11347,19 +11524,30 @@ const commitTransformerChanges = () => {
     if (item.kind === 'text') {
       const activeAnchor = transformerRef.current?.getActiveAnchor?.()
       const isCornerResize = !!activeAnchor && !activeAnchor.startsWith('middle')
-      const nextW = Math.max(8, (item.w || node.width() || 1) * Math.abs(scaleX || 1))
-      const nextFontSize = isCornerResize
-        ? clamp((item.fontSize || 48) * Math.max(Math.abs(scaleX || 1), Math.abs(scaleY || 1)), 8, 1000)
-        : (item.fontSize || 48)
+      const scaleApplied = Math.abs(scaleX - 1) >= 0.001 || Math.abs(scaleY - 1) >= 0.001
+
+      let nextW, nextFontSize
+      if (scaleApplied) {
+        nextW = Math.max(8, (item.w || node.width() || 1) * Math.abs(scaleX || 1))
+        nextFontSize = isCornerResize
+          ? clamp((item.fontSize || 48) * Math.max(Math.abs(scaleX || 1), Math.abs(scaleY || 1)), 8, 1000)
+          : (item.fontSize || 48)
+      } else {
+        const innerText = node.findOne('Text')
+        nextW = Math.max(8, innerText?.width() || node.width() || item.w || 8)
+        nextFontSize = item.fontSize || 48
+      }
+
+      didChange = true
 
       node.scaleX(1)
       node.scaleY(1)
-      node.width(nextW)
-      node.fontSize(nextFontSize)
+      node.width?.(nextW)
+      node.fontSize?.(nextFontSize)
       node.setAttr('height', undefined)
       node.clearCache()
       if (typeof node._clearTextCache === 'function') node._clearTextCache()
-      try { effectManager.applyAll(node, item.effects) } catch {}
+      try { effectManager.applyAll(node, item.effects, null, item.effectOrder) } catch {}
 
       const textRect = node.getClientRect({ skipTransform: true, skipShadow: true })
       const nextH = Math.max(8, Math.ceil(textRect.height || node.height() || nextFontSize))
@@ -11377,10 +11565,30 @@ const commitTransformerChanges = () => {
       }
     }
 
-    const nextW = Math.max(40, (item.w || node.width() || 1) * Math.abs(scaleX || 1))
-    const nextH = Math.max(40, (item.h || node.height() || 1) * Math.abs(scaleY || 1))
-    const nextSize = getCanvasContainedSize(nextW, nextH)
-    const nextPosition = getClampedCanvasPosition(nextSize.w, nextSize.h, { x: node.x(), y: node.y() }, canvasBounds)
+    const rotationChanged = Math.abs(node.rotation() - (item.rotation || 0)) >= 0.001
+    if (Math.abs(scaleX - 1) < 0.001 && Math.abs(scaleY - 1) < 0.001 && !rotationChanged) {
+      return item
+    }
+
+    didChange = true
+
+    const rawW = Math.max(40, (item.w || node.width() || 1) * Math.abs(scaleX || 1))
+    const rawH = Math.max(40, (item.h || node.height() || 1) * Math.abs(scaleY || 1))
+    let shapeW = rawW, shapeH = rawH
+    if (item.kind === 'shape') {
+      const activeAnchor = transformerRef.current?.getActiveAnchor?.()
+      if (item.shapeType === 'arrow-shape') {
+        const resized = getArrowResizeSize(item, rawW, rawH, activeAnchor)
+        shapeW = resized.w; shapeH = resized.h
+      } else if (['ellipse', 'polygon', 'star', 'circle'].includes(item.shapeType)) {
+        const resized = getShapeResizeSize(item, rawW, rawH, isShiftDown)
+        shapeW = resized.w; shapeH = resized.h
+      }
+    }
+    const nextSize = getCanvasContainedSize(shapeW, shapeH)
+    const rawX = item.kind === 'shape' ? node.x() + rawW / 2 - nextSize.w / 2 : node.x()
+    const rawY = item.kind === 'shape' ? node.y() + rawH / 2 - nextSize.h / 2 : node.y()
+    const nextPosition = getClampedCanvasPosition(nextSize.w, nextSize.h, { x: rawX, y: rawY }, canvasBounds)
     const patch = {
       x: nextPosition.x,
       y: nextPosition.y,
@@ -11388,7 +11596,11 @@ const commitTransformerChanges = () => {
       h: nextSize.h,
       rotation: node.rotation(),
     }
-
+    if (item.kind === 'shape') {
+      patch.shapeAspectRatio = item.shapeType === 'circle' ? 1 : nextSize.w / nextSize.h
+      patch.scaleX = 1
+      patch.scaleY = 1
+    }
     if (item.kind === 'shape' && (item.shapeType === 'freehand' || item.shapeType === 'bezier-path')) {
       const absScaleX = Math.abs(scaleX || 1)
       const absScaleY = Math.abs(scaleY || 1)
@@ -11450,24 +11662,15 @@ const commitTransformerChanges = () => {
     node.width?.(nextSize.w)
     node.height?.(nextSize.h)
     return { ...item, ...patch }
-  }))
+  })
+  if (didChange) {
+    itemsRef.current = nextItems
+    setItems(nextItems)
+  }
 
   // Handle composite group transform: accumulate compositeGroup* on operator item
   nodes.forEach((node) => {
-    const nid = node.id()
-    if (!nid || !nid.startsWith('composite-')) return
-    const groupId = nid.slice('composite-'.length)
-    if (!groupId) return
-    const operatorItem = itemsRef.current.find((item) =>
-      item.groupId === groupId && (item.compositeMode === 'mask' || item.compositeMode === 'exclude'))
-    if (!operatorItem) return
-    updateItem(operatorItem.id, {
-      compositeGroupX: node.x(),
-      compositeGroupY: node.y(),
-      compositeGroupScaleX: node.scaleX(),
-      compositeGroupScaleY: node.scaleY(),
-      compositeGroupRotation: node.rotation(),
-    })
+    handleCompositeTransformEnd({ node, itemsRef, updateItem })
   })
 
   requestAnimationFrame(() => {
@@ -12681,7 +12884,7 @@ const toggleMobileSheetSize = () => {
     const fxOperatorId = compositeGroupMap.get(selectedItem.id)?.operatorId
     const fxTargetItem = fxOperatorId ? items.find(i => i.id === fxOperatorId) : selectedItem
     return (
-      <FxPanel
+      <ActiveEffectsPanel
         item={fxTargetItem || selectedItem}
         onBack={handleBack}
         onUpdate={updateItem}
@@ -12724,7 +12927,7 @@ const toggleMobileSheetSize = () => {
     const handleBack = () => setDestFxTargetId(null)
     if (destItem) {
       return (
-        <FxPanel
+        <ActiveEffectsPanel
           item={destItem}
           onBack={handleBack}
           onUpdate={updateItem}
@@ -17469,6 +17672,33 @@ onPointerUp={(e) => {
               />
               <span>JPG</span>
             </label>
+            <label className={`workspace-export-option ${exportFormat === 'pdf' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="export-format"
+                value="pdf"
+                checked={exportFormat === 'pdf'}
+                onChange={() => {
+                  setExportFormat('pdf')
+                  setExportTransparent(false)
+                }}
+              />
+              <span>PDF</span>
+            </label>
+            <label className={`workspace-export-option ${exportFormat === 'svg' ? 'active' : ''}${!isCanvasSvgSafe ? ' workspace-export-option-disabled' : ''}`}>
+              <input
+                type="radio"
+                name="export-format"
+                value="svg"
+                checked={exportFormat === 'svg'}
+                disabled={!isCanvasSvgSafe}
+                onChange={() => {
+                  setExportFormat('svg')
+                  setExportTransparent(false)
+                }}
+              />
+              <span>SVG</span>
+            </label>
           </div>
 
           <div className="workspace-export-section">
@@ -17495,14 +17725,14 @@ onPointerUp={(e) => {
               {!isCanvasBackgroundNone && (
                 <small>Background harus None untuk export transparan</small>
               )}
-              {exportFormat === 'jpg' && isCanvasBackgroundNone && (
-                <small>JPG tidak mendukung transparansi</small>
+              {(exportFormat === 'jpg' || exportFormat === 'pdf' || exportFormat === 'svg') && isCanvasBackgroundNone && (
+                <small>{exportFormat.toUpperCase()} tidak mendukung transparansi</small>
               )}
             </div>
             <button
               type="button"
               className={`workspace-export-toggle ${exportTransparent ? 'active' : ''}`}
-              disabled={!isCanvasBackgroundNone || exportFormat === 'jpg'}
+              disabled={!isCanvasBackgroundNone || exportFormat === 'jpg' || exportFormat === 'pdf' || exportFormat === 'svg'}
               aria-pressed={exportTransparent}
               onClick={() => setExportTransparent((value) => !value)}
             >

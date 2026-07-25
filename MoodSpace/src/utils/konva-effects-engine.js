@@ -41,13 +41,13 @@ class WebGLEngine {
     this._quad = buf
   }
 
-  _compileShader(type, src) {
+  _compileShader(type, src, shaderName) {
     const gl = this._gl
     const s = gl.createShader(type)
     gl.shaderSource(s, src)
     gl.compileShader(s)
     if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
-      console.error('[WebGL] Shader error:', gl.getShaderInfoLog(s))
+      console.error('[WebGL] Shader compile error [' + (shaderName || '?') + ']:', gl.getShaderInfoLog(s))
     return s
   }
 
@@ -57,9 +57,11 @@ class WebGLEngine {
     const vert = `attribute vec2 aPos,aUV; varying vec2 vUV;
       void main(){ vUV=aUV; gl_Position=vec4(aPos,0,1); }`
     const prog = gl.createProgram()
-    gl.attachShader(prog, this._compileShader(gl.VERTEX_SHADER, vert))
-    gl.attachShader(prog, this._compileShader(gl.FRAGMENT_SHADER, fragSrc))
+    gl.attachShader(prog, this._compileShader(gl.VERTEX_SHADER, vert, name))
+    gl.attachShader(prog, this._compileShader(gl.FRAGMENT_SHADER, fragSrc, name))
     gl.linkProgram(prog)
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
+      console.error('[WebGL] Program link error [' + name + ']:', gl.getProgramInfoLog(prog))
     this._programs[name] = prog
   }
 
@@ -228,23 +230,51 @@ const SHADERS = {
       gl_FragColor=vec4(mix(uColor2,uColor1,d),src.a);
     }`,
 
-  roughenEdge: `${HIGH_P}
-    uniform sampler2D uTexture; uniform float uScale,uStrength,uBorder,uTime,uSpeed;
-    varying vec2 vUV;
-    float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-    float ns(vec2 p){vec2 i=floor(p),f=fract(p),u=f*f*(3.-2.*f);
-      return mix(mix(h(i),h(i+vec2(1,0)),u.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),u.x),u.y);}
-    float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*ns(p);p*=2.;a*=.5;}return v;}
-    void main(){
-      vec4 orig=texture2D(uTexture,vUV);
-      float e=min(min(vUV.x,1.-vUV.x),min(vUV.y,1.-vUV.y));
-      float edgeWeight=uBorder>0.?1.-step(uBorder,e):1.;
-      float n=fbm(vUV*uScale+vec2(uTime*uSpeed*.1,uTime*uSpeed*.07));
-      vec2 d=vUV+(n-.5)*uStrength*.05*edgeWeight;
-      vec4 c=texture2D(uTexture,clamp(d,0.,1.));
-      gl_FragColor=mix(c,orig,1.-edgeWeight);
-      gl_FragColor.a=mix(step(n*uStrength*.08,e),orig.a,1.-edgeWeight);
-    }`,
+roughenEdge: `${HIGH_P}
+  uniform sampler2D uTexture; uniform vec2 uResolution;
+  uniform float uScale,uStrength,uTime,uSpeed,uOctaves;
+  varying vec2 vUV;
+  float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+  float ns(vec2 p){vec2 i=floor(p),f=fract(p),u=f*f*(3.-2.*f);
+    return mix(mix(h(i),h(i+vec2(1,0)),u.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),u.x),u.y);}
+  float fbm(vec2 p){
+    float v=0.,a=.5;int oct=int(uOctaves);
+    for(int i=0;i<8;i++){if(i>=oct)break;v+=a*ns(p);p*=2.;a*=.5;}
+    return v;}
+  void main(){
+    vec2 px=vec2(1.)/uResolution;
+    vec2 er=px*max(1.,uScale*2.);
+    float aL=texture2D(uTexture,vUV+vec2(-er.x,0.)).a;
+    float aR=texture2D(uTexture,vUV+vec2(er.x,0.)).a;
+    float aT=texture2D(uTexture,vUV+vec2(0.,-er.y)).a;
+    float aB=texture2D(uTexture,vUV+vec2(0.,er.y)).a;
+    float gradX=aR-aL,gradY=aB-aT;
+    float wideMag=length(vec2(gradX,gradY));
+    float aLn=texture2D(uTexture,vUV+vec2(-er.x*.5,0.)).a;
+    float aRn=texture2D(uTexture,vUV+vec2(er.x*.5,0.)).a;
+    float aTn=texture2D(uTexture,vUV+vec2(0.,-er.y*.5)).a;
+    float aBn=texture2D(uTexture,vUV+vec2(0.,er.y*.5)).a;
+    float narrowMag=length(vec2(aRn-aLn,aBn-aTn));
+    float edgeMag=(narrowMag+wideMag)*.5;
+
+    // FIX 1: lebar transisi jauh lebih landai + double-smoothstep biar kurva makin soft
+    float raw=smoothstep(0.,.9,edgeMag);
+    float edgeMask=raw*raw*(3.-2.*raw); // smootherstep pass kedua
+    edgeMask=pow(edgeMask,1.4); // sedikit tunda "onset" biar ga langsung nyala penuh
+
+    // FIX 2: stabilkan arah displacement — jangan snap ke arah gradient
+    // tiba-tiba begitu wideMag baru sedikit di atas 0
+    float dirConfidence=smoothstep(0.,.08,wideMag);
+    vec2 rawDir=wideMag>.0001?vec2(gradX,gradY)/wideMag:vec2(0.);
+    vec2 edgeDir=rawDir*dirConfidence; // arah "melemah" halus mendekati zona flat,
+                                        // bukan lompat on/off
+
+    float t=uTime*uSpeed;
+    float n=fbm(vUV*uScale*.15+vec2(t*.05,t*.07));
+    float dispMag=(n-.5)*uStrength*uScale*.8*edgeMask;
+    vec2 offsetUV=vUV+edgeDir*px*dispMag;
+    gl_FragColor=texture2D(uTexture,clamp(offsetUV,0.,1.));
+  }`,
 
   jpegDamage: `${HIGH_P}
   uniform sampler2D uTexture;
@@ -897,7 +927,7 @@ export class EffectManager {
 
   // Panggil ini setiap kali item.effects berubah
   // adjustments opsional — objek item (exposure, brightness, dll) untuk MoodSpaceCombined
-  applyAll(node, effects = {}, adjustments) {
+  applyAll(node, effects = {}, adjustments, effectOrder) {
     // Don't clear filters/cache here — let the final node.filters()+cache() at the end
     // replace them atomically. This prevents an intermediate un-filtered frame when the
     // previously-scheduled batchDraw fires mid-applyAll.
@@ -922,8 +952,10 @@ export class EffectManager {
       'gradientOverlay', 'rgbSplit', 'duotone', 'risograph', 'spectralMap',
       'halftone', 'dotMatrix', 'chromaKey', 'lumaKey', 'roughenEdge', 'edgeGlow',
       'repeater', 'solid',
+      'jpegDamage', 'filmDamage', 'vhs', 'stretch', 'waveWarp', 'bubble',
     ]
-    for (const id of EFFECT_CANONICAL_ORDER) {
+    const order = effectOrder && effectOrder.length ? effectOrder : EFFECT_CANONICAL_ORDER
+    for (const id of order) {
       const val = effects[id]
       if (!val && val !== 0) continue
       if (val === false || val === 'none' || val === '') continue
@@ -1055,13 +1087,12 @@ export class EffectManager {
       }
       if (id === 'roughenEdge' && val) {
         const p = val
+        const uStrength = p.strength ?? 0.5
+        const uScale = p.scale ?? 10
+        const uOctaves = p.octaves ?? 6
+        const uSpeed = p.speed ?? 1
         filterList.push(function roughenEdgeFilter(imgData) {
-          webglEngine.processSync(imgData, 'roughenEdge', {
-            uScale: p.scale ?? 10,
-            uStrength: p.strength ?? 0.5,
-            uBorder: p.border ?? 0.1,
-            uSpeed: p.speed ?? 1,
-          })
+          webglEngine.processSync(imgData, 'roughenEdge', { uScale, uStrength, uSpeed, uOctaves })
         })
         continue
       }
@@ -1416,13 +1447,13 @@ export class EffectManager {
     }
 
     // Terapkan semua filter sekaligus
+    console.time('[FX-APPLY-TOTAL]')
     node.filters(filterList)
     if (filterList.length > 0) {
       const fontSize = typeof node.fontSize === 'function' ? (node.fontSize() || 0) : 0
       const pr = Math.min(window.devicePixelRatio || 1, 3)
-      const pad = Math.max(cachePad, 2)
-      const nw = typeof node.width === 'function' ? node.width() : (node.getAttr('width') || 0)
-      const nh = typeof node.height === 'function' ? node.height() : (node.getAttr('height') || 0)
+      const nw = typeof node.width === 'function' ? (node.width() || 0) : (node.getAttr('width') || 0)
+      const nh = typeof node.height === 'function' ? (node.height() || 0) : (node.getAttr('height') || 0)
       let w = nw > 0 ? nw : 0
       let h = nh > 0 ? nh : 0
       if (w <= 0 || h <= 0) {
@@ -1430,6 +1461,11 @@ export class EffectManager {
         if (w <= 0) w = cr.width > 0 ? cr.width : 100
         if (h <= 0) h = cr.height > 0 ? cr.height : 100
       }
+      const scaleX = Math.abs(node.scaleX() || 1)
+      const scaleY = Math.abs(node.scaleY() || 1)
+      const strokeW = typeof node.strokeWidth === 'function' ? (node.strokeWidth() || 0) : 0
+      const strokePad = Math.ceil(strokeW / 2)
+      const pad = Math.max(cachePad, 2) + strokePad
       // ── Text overflow padding ─────────────────────────────────
       // Measure actual visual bounds via measureText and add padding so script/cursive
       // swashes (ascenders, descenders, left/right flourishes) are not clipped by cache.
@@ -1518,23 +1554,42 @@ export class EffectManager {
         } catch (_) {}
       }
       const nodeId = (typeof node.id === 'function' ? node.id() : null) || (typeof node._id !== 'undefined' ? node._id : '?')
+      const physW = Math.ceil(w + textPadL + textPadR + pad * 2) * pr
+      const physH = Math.ceil(h + textPadT + textPadB + pad * 2) * pr
+      console.log('[EFFECT CACHE SIZE]', {
+        nodeW: typeof node.width === 'function' ? node.width() : node.getAttr('width'),
+        nodeH: typeof node.height === 'function' ? node.height() : node.getAttr('height'),
+        cacheW: Math.ceil(w + textPadL + textPadR + pad * 2),
+        cacheH: Math.ceil(h + textPadT + textPadB + pad * 2),
+        pr, physW, physH,
+        totalPixels: physW * physH,
+        imageSrc: (typeof node.image === 'function' ? node.image()?._moodspaceSrc : null) || (typeof node.getAttr === 'function' ? node.getAttr('src') : null),
+        imageNatural: (typeof node.image === 'function' ? node.image() : null) ? { nw: node.image()?.naturalWidth, nh: node.image()?.naturalHeight } : null,
+      })
+      console.time('[FX-CACHE-CREATE]')
       console.log('[EFFECT CACHE PAD]', {
         id: nodeId,
         textPadL, textPadT, textPadR, textPadB,
-        cacheX: -textPadL, cacheY: -textPadT,
+        cacheX: -(textPadL + pad), cacheY: -(textPadT + pad),
         cacheW: Math.ceil(w + textPadL + textPadR + pad * 2),
         cacheH: Math.ceil(h + textPadT + textPadB + pad * 2),
         isText: typeof node.measureSize === 'function',
         isGroup: typeof node.getChildren === 'function',
+        scaleX, scaleY,
+        strokeW, strokePad,
+        pad,
         fontSize,
         raw: _mea,
       })
-      node.cache({ x: -textPadL, y: -textPadT, width: w + textPadL + textPadR + pad * 2, height: h + textPadT + textPadB + pad * 2, pixelRatio: pr })
+      node.clearCache()
+      node.cache({ x: -(textPadL + pad), y: -(textPadT + pad), width: w + textPadL + textPadR + pad * 2, height: h + textPadT + textPadB + pad * 2, pixelRatio: pr })
+      console.timeEnd('[FX-CACHE-CREATE]')
     } else {
       node.clearCache()
     }
 
     node.getLayer()?.batchDraw()
+    console.timeEnd('[FX-APPLY-TOTAL]')
   }
 
   removeAll(node) {
@@ -1614,7 +1669,7 @@ export class EffectManager {
   }
 
   // ── Apply effects to raw ImageData (for adjustment layers & export) ──
-  applyEffectsToImageData(imageData, effects = {}) {
+  applyEffectsToImageData(imageData, effects = {}, effectOrder) {
     const w = imageData.width, h = imageData.height
     const d = imageData.data
     const EFFECT_CANONICAL_ORDER = [
@@ -1624,8 +1679,10 @@ export class EffectManager {
       'gradientOverlay', 'rgbSplit', 'duotone', 'risograph', 'spectralMap',
       'halftone', 'dotMatrix', 'chromaKey', 'lumaKey', 'roughenEdge', 'edgeGlow',
       'solid',
+      'jpegDamage', 'filmDamage', 'vhs', 'waveWarp',
     ]
-    for (const id of EFFECT_CANONICAL_ORDER) {
+    const order = effectOrder && effectOrder.length ? effectOrder : EFFECT_CANONICAL_ORDER
+    for (const id of order) {
       const val = effects[id]
       if (!val && val !== 0) continue
       if (val === false || val === 'none' || val === '') continue
@@ -1715,7 +1772,7 @@ export class EffectManager {
         continue
       }
       if (id === 'roughenEdge' && val) {
-        const p = val; webglEngine.processSync(imageData, 'roughenEdge', { uScale: p.scale ?? 10, uStrength: p.strength ?? 0.5, uBorder: p.border ?? 0.1, uSpeed: p.speed ?? 1 })
+        const p = val; webglEngine.processSync(imageData, 'roughenEdge', { uScale: p.scale ?? 10, uStrength: p.strength ?? 0.5, uSpeed: p.speed ?? 1, uOctaves: p.octaves ?? 6 })
         continue
       }
       if (id === 'waveWarp' && val) {

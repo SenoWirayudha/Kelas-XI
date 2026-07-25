@@ -14,6 +14,9 @@ export const ADJUSTMENT_RESTRICTED_EFFECTS = new Set([
 
 export const EFFECTS = [
   // ── Phase 1: Simple (Konva built-in / Canvas 2D) ──
+  // previewImagePath (opsional): path di Supabase Storage bucket "moodspace/effect-previews/"
+  //   Contoh: effect-previews/invert.png
+  //   URL final: ${SUPABASE_URL}/storage/v1/object/public/moodspace/effect-previews/invert.png
   { id: 'invert', label: 'Invert', category: 'color', type: 'toggle', default: false, icon: 'CircleOff' },
   { id: 'threshold', label: 'Threshold', category: 'color', type: 'object', default: null, icon: 'Contrast', params: [
     { key: 'threshold', label: 'Threshold', type: 'slider', default: 128, min: 0, max: 255 },
@@ -136,7 +139,7 @@ export const EFFECTS = [
   { id: 'roughenEdge', label: 'Roughen Edge', category: 'stylize', type: 'object', default: null, icon: 'Triangle', params: [
     { key: 'scale', label: 'Scale', type: 'slider', default: 10, min: 1, max: 50 },
     { key: 'strength', label: 'Strength', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
-    { key: 'border', label: 'Border', type: 'slider', default: 0.1, min: 0, max: 0.5, step: 0.01 },
+    { key: 'octaves', label: 'Detail', type: 'slider', default: 6, min: 1, max: 8 },
     { key: 'speed', label: 'Speed', type: 'slider', default: 1, min: 0, max: 5, step: 0.1 },
   ]},
 
@@ -208,6 +211,112 @@ export const EFFECTS = [
     { key: 'rotation', label: 'Rotation', type: 'slider', default: 0, min: 0, max: 360, unit: '°' },
   ]},
 ]
+
+export const ALL_EFFECT_IDS = EFFECTS.map(e => e.id)
+
+export function findEffect(id) {
+  return EFFECTS.find(e => e.id === id)
+}
+
+export function getDefaultEnabledValue(effect) {
+  if (effect.type === 'slider') {
+    const mid = effect.min + (effect.max - effect.min) * 0.3
+    return Math.round(mid / (effect.step || 1)) * (effect.step || 1)
+  }
+  if (effect.type === 'select') return effect.options?.[1]?.value || 'h'
+  if (effect.type === 'object') {
+    if (effect.id === 'spectralMap') {
+      return {
+        shadowColor: '#ff0000',
+        midColor: '#00ff00',
+        highlightColor: '#0000ff',
+        tahap: 0,
+        repeat: 1,
+        saturation: 1.0,
+        alpha: 1,
+      }
+    }
+    const defaults = {}
+    if (effect.params) {
+      for (const p of effect.params) defaults[p.key] = p.default
+    }
+    return defaults
+  }
+  return true
+}
+
+export function getDefaultDisabledValue(effect) {
+  if (effect.type === 'toggle') return false
+  if (effect.type === 'slider') return effect.default ?? 0
+  if (effect.type === 'select') return 'none'
+  if (effect.type === 'object') return null
+  return false
+}
+
+export function getEffectOrder(item) {
+  return item.effectOrder?.length ? item.effectOrder : getActiveEffects(item).map(e => e.id)
+}
+
+export function addEffectToStack(item, effectId, value) {
+  const currentOrder = item.effectOrder
+  const finalValue = value ?? getDefaultEnabledValue(findEffect(effectId))
+  if (currentOrder?.includes(effectId)) {
+    return { effects: { ...item.effects, [effectId]: finalValue } }
+  }
+  return {
+    effectOrder: [...(currentOrder || getActiveEffects(item).map(e => e.id)), effectId],
+    effects: { ...item.effects, [effectId]: finalValue },
+  }
+}
+
+export function removeEffectFromStack(item, effectId) {
+  const currentOrder = item.effectOrder
+  if (!currentOrder?.includes(effectId)) return null
+  const effect = findEffect(effectId)
+  return {
+    effectOrder: currentOrder.filter(id => id !== effectId),
+    effects: { ...item.effects, [effectId]: effect ? getDefaultDisabledValue(effect) : null },
+  }
+}
+
+// Backup store for toggle: key = `${item.id}-${effectId}`
+const toggleBackup = new Map()
+
+export function toggleEffectInStack(item, effectId) {
+  const effect = findEffect(effectId)
+  if (!effect) return null
+  const currentValue = item.effects?.[effectId]
+  const isActive = (() => {
+    if (currentValue == null) return false
+    if (typeof currentValue === 'boolean') return currentValue
+    if (typeof currentValue === 'number') return currentValue !== 0
+    if (typeof currentValue === 'object') return currentValue !== null
+    if (typeof currentValue === 'string') return currentValue !== 'none' && currentValue !== ''
+    return false
+  })()
+
+  const key = `${item.id}-${effectId}`
+
+  if (isActive) {
+    toggleBackup.set(key, currentValue)
+    return {
+      effects: { ...item.effects, [effectId]: false },
+    }
+  }
+
+  const restored = toggleBackup.get(key)
+  return {
+    effects: { ...item.effects, [effectId]: restored ?? getDefaultEnabledValue(effect) },
+  }
+}
+
+export function reorderEffectStack(item, fromIndex, toIndex) {
+  const order = [...(item.effectOrder || getActiveEffects(item).map(e => e.id))]
+  if (order.length === 0) return null
+  const [moved] = order.splice(fromIndex, 1)
+  order.splice(toIndex, 0, moved)
+  return { effectOrder: order }
+}
 
 export const getDefaultEffects = () => {
   const defaults = {}

@@ -63,7 +63,7 @@ const applyItemFiltersToClone = (clone, item) => {
         console.log('[BUG1-ENTRY] item.id:', item.id, 'kind:', item.kind, 'hue:', item.hue, 'effects keys:', Object.keys(item.effects || {}), 'filters BEFORE:', node.filters()?.map(f => f.name || 'fn'))
         console.log('[BUG1-ENTRY] image node width:', node.width(), 'height:', node.height(), 'src:', node.getAttr?.('src')?.slice?.(0, 50))
         if (item.effects && Object.keys(item.effects).length > 0) {
-          effectManager.applyAll(node, item.effects, item)
+          effectManager.applyAll(node, item.effects, item, item.effectOrder)
         }
         console.log('[BUG1-AFTER-APPLYALL] filters:', node.filters()?.map(f => f.name || 'fn'), 'cache:', !!node._getCanvasCache?.())
         // APPEND MoodSpaceCombined to existing filters (instead of replacing
@@ -82,7 +82,7 @@ const applyItemFiltersToClone = (clone, item) => {
         clone.setAttr('width', item.w)
         clone.setAttr('height', item.h)
       }
-      effectManager.applyAll(clone, item.effects, item)
+      effectManager.applyAll(clone, item.effects, item, item.effectOrder)
     } catch {
       clone.clearCache?.()
       clone.filters?.([])
