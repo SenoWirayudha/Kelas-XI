@@ -276,12 +276,16 @@ export function computeCompositeFinalPositions({
   canvasBounds,
   getClampedCanvasPosition,
   compositeOnlyIds,
+  rawDx: externalDx,
+  rawDy: externalDy,
 }) {
   const start = dragStartRef.current
   if (!start) return null
 
-  const rawDx = event.target.x() - start.x
-  const rawDy = event.target.y() - start.y
+  // Pakai pre-computed delta dari caller (lebih aman — dihitung sekali di awal handler
+  // sebelum reorder apapun). Fallback ke event.target.x/y jika tidak dikirim.
+  const rawDx = externalDx !== undefined ? externalDx : (event.target.x() - start.x)
+  const rawDy = externalDy !== undefined ? externalDy : (event.target.y() - start.y)
 
   const targetIds = compositeOnlyIds
     ? compositeOnlyIds
@@ -414,6 +418,7 @@ export function applyCompositeFinalPositions({
   console.log('[APPLY] itemsRef AFTER:', itemsRef.current.map(i => ({ id: i.id.substring(0, 8), x: i.x, y: i.y, w: i.w, h: i.h, rot: i.rotation, cgx: i.compositeGroupX, cgsx: i.compositeGroupScaleX, cgr: i.compositeGroupRotation })))
 
   // Broadcast ke collaborators
+  console.log('[BROADCAST] typeof broadcastItemUpdate:', typeof broadcastItemUpdate, 'finalPositions keys:', Object.keys(finalPositions || {}).length)
   if (broadcastItemUpdate && finalPositions) {
     Object.keys(finalPositions).forEach((itemId) => {
       const fp = finalPositions[itemId]
@@ -428,6 +433,7 @@ export function applyCompositeFinalPositions({
         if (fp.w !== undefined) bc.w = fp.w
         if (fp.h !== undefined) bc.h = fp.h
         if (fp.rotation !== undefined) bc.rotation = fp.rotation
+        console.log('[BROADCAST] SENDING (keepGroupRot):', { itemId: itemId.substring(0, 8), patch: bc })
         broadcastItemUpdate(itemId, bc)
         return
       }
@@ -442,6 +448,7 @@ export function applyCompositeFinalPositions({
         patch.compositeGroupScaleX = null
         patch.compositeGroupScaleY = null
       }
+      console.log('[BROADCAST] SENDING:', { itemId: itemId.substring(0, 8), patch, hasCompositeMode: !!item?.compositeMode })
       broadcastItemUpdate(itemId, patch)
     })
   }
@@ -468,8 +475,12 @@ export function handleCompositeDragEnd(opts) {
   const start = dragStartRef.current
   if (!start) return
 
+  // Pre-compute delta sebelum reorder apapun
+  const rawDx = event.target.x() - (start?.x || 0)
+  const rawDy = event.target.y() - (start?.y || 0)
   const finalPositions = computeCompositeFinalPositions({
     entry, event, dragStartRef, itemsRef, canvasBounds, getClampedCanvasPosition, compositeOnlyIds,
+    rawDx, rawDy,
   })
   if (!finalPositions) return
 

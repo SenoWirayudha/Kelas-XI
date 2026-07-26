@@ -17,60 +17,60 @@ export const EFFECTS = [
   // previewImagePath (opsional): path di Supabase Storage bucket "moodspace/effect-previews/"
   //   Contoh: effect-previews/invert.png
   //   URL final: ${SUPABASE_URL}/storage/v1/object/public/moodspace/effect-previews/invert.png
-  { id: 'invert', label: 'Invert', category: 'color', type: 'toggle', default: false, icon: 'CircleOff' },
-  { id: 'threshold', label: 'Threshold', category: 'color', type: 'object', default: null, icon: 'Contrast', params: [
+  { id: 'invert', label: 'Invert', category: 'color', type: 'toggle', default: false, icon: 'CircleOff', previewImagePath: 'effect-previews/invert.png' },
+  { id: 'threshold', label: 'Threshold', category: 'color', type: 'object', default: null, icon: 'Contrast', previewImagePath: 'effect-previews/threshold.png', params: [
     { key: 'threshold', label: 'Threshold', type: 'slider', default: 128, min: 0, max: 255 },
     { key: 'invert', label: 'Invert', type: 'toggle', default: false },
   ]},
-  { id: 'grayscale', label: 'Grayscale', category: 'color', type: 'toggle', default: false, icon: 'Contrast' },
-  { id: 'sepia', label: 'Sepia', category: 'color', type: 'toggle', default: false, icon: 'Palette' },
-  { id: 'solarize', label: 'Solarize', category: 'color', type: 'toggle', default: false, icon: 'Sun' },
-  { id: 'noise', label: 'Noise', category: 'stylize', type: 'object', default: null, icon: 'Grip', params: [
+  { id: 'grayscale', label: 'Grayscale', category: 'color', type: 'toggle', default: false, icon: 'Contrast', previewImagePath: 'effect-previews/grayscale.png' },
+  { id: 'sepia', label: 'Sepia', category: 'color', type: 'toggle', default: false, icon: 'Palette', previewImagePath: 'effect-previews/sepia.png' },
+  { id: 'solarize', label: 'Solarize', category: 'color', type: 'toggle', default: false, icon: 'Sun', previewImagePath: 'effect-previews/solarize.png' },
+  { id: 'noise', label: 'Noise', category: 'stylize', type: 'object', default: null, icon: 'Grip', previewImagePath: 'effect-previews/noise.png', params: [
     { key: 'amount', label: 'Amount', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
     { key: 'monochrome', label: 'Monochrome', type: 'toggle', default: false },
   ]},
-  { id: 'pixelate', label: 'Pixelate', category: 'stylize', type: 'slider', default: 0, icon: 'Grid', min: 0, max: 20 },
-  { id: 'gaussianBlur', label: 'Gaussian Blur', category: 'blur', type: 'slider', default: 0, icon: 'Droplets', min: 0, max: 20, unit: 'px' },
-  { id: 'feather', label: 'Feather', category: 'blur', type: 'slider', default: 0, icon: 'Feather', min: 0, max: 1, step: 0.01 },
-  { id: 'maskFade', label: 'Mask Fade', category: 'stylize', type: 'object', default: null, icon: 'Circle', params: [
+  { id: 'pixelate', label: 'Pixelate', category: 'stylize', type: 'slider', default: 0, icon: 'Grid', min: 0, max: 20, previewImagePath: 'effect-previews/pixelate.png' },
+  { id: 'gaussianBlur', label: 'Gaussian Blur', category: 'blur', type: 'slider', default: 0, icon: 'Droplets', min: 0, max: 20, unit: 'px', previewImagePath: 'effect-previews/gaussianBlur.png' },
+  { id: 'feather', label: 'Feather', category: 'blur', type: 'slider', default: 0, icon: 'Feather', min: 0, max: 1, step: 0.01, previewImagePath: 'effect-previews/feather.png' },
+  { id: 'maskFade', label: 'Mask Fade', category: 'stylize', type: 'object', default: null, icon: 'Circle', previewImagePath: 'effect-previews/maskFade.png', params: [
     { key: 'size', label: 'Size', type: 'slider', default: 1, min: 0.1, max: 1, step: 0.01 },
     { key: 'feather', label: 'Feather', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
     { key: 'offsetX', label: 'Offset X', type: 'slider', default: 0, min: -1, max: 1, step: 0.01 },
     { key: 'offsetY', label: 'Offset Y', type: 'slider', default: -0.85, min: -1, max: 1, step: 0.01 },
     { key: 'rotation', label: 'Rotation', type: 'slider', default: 0, min: 0, max: 360, unit: '°' },
   ]},
-  { id: 'mirror', label: 'Mirror', category: 'transform', type: 'select', default: 'none', icon: 'FlipHorizontal', options: [
+  { id: 'mirror', label: 'Mirror', category: 'transform', type: 'select', default: 'none', icon: 'FlipHorizontal', previewImagePath: 'effect-previews/mirror.png', options: [
     { value: 'none', label: 'None' }, { value: 'h', label: 'Horizontal' }, { value: 'v', label: 'Vertical' }, { value: 'both', label: 'Both' },
   ]},
 
   // ── Phase 2: Medium (Canvas 2D / WebGL) ──
-  { id: 'directionalBlur', label: 'Directional Blur', category: 'blur', type: 'object', default: null, icon: 'Move', params: [
+  { id: 'directionalBlur', label: 'Directional Blur', category: 'blur', type: 'object', default: null, icon: 'Move', previewImagePath: 'effect-previews/directionalBlur.png', params: [
     { key: 'angle', label: 'Angle', type: 'slider', default: 0, min: 0, max: 360, unit: '°' },
     { key: 'strength', label: 'Strength', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
     { key: 'samples', label: 'Samples', type: 'slider', default: 16, min: 4, max: 64 },
   ]},
-  { id: 'zoomBlur', label: 'Zoom Blur', category: 'blur', type: 'object', default: null, icon: 'Maximize', params: [
+  { id: 'zoomBlur', label: 'Zoom Blur', category: 'blur', type: 'object', default: null, icon: 'Maximize', previewImagePath: 'effect-previews/zoomBlur.png', params: [
     { key: 'strength', label: 'Strength', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
     { key: 'centerX', label: 'Center X', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
     { key: 'centerY', label: 'Center Y', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
   ]},
-  { id: 'spinBlur', label: 'Spin Blur', category: 'blur', type: 'object', default: null, icon: 'RotateCw', params: [
+  { id: 'spinBlur', label: 'Spin Blur', category: 'blur', type: 'object', default: null, icon: 'RotateCw', previewImagePath: 'effect-previews/spinBlur.png', params: [
     { key: 'angle', label: 'Angle', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
     { key: 'centerX', label: 'Center X', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
     { key: 'centerY', label: 'Center Y', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
   ]},
-  { id: 'spotColor', label: 'Spot Color', category: 'color', type: 'object', default: null, icon: 'Target', params: [
+  { id: 'spotColor', label: 'Spot Color', category: 'color', type: 'object', default: null, icon: 'Target', previewImagePath: 'effect-previews/spotColor.png', params: [
     { key: 'color', label: 'Color', type: 'color', default: '#ff0000' },
     { key: 'threshold', label: 'Threshold', type: 'slider', default: 30, min: 0, max: 255 },
     { key: 'feather', label: 'Feather', type: 'slider', default: 0.2, min: 0, max: 1, step: 0.01 },
   ]},
-  { id: 'replaceColor', label: 'Replace Color', category: 'color', type: 'object', default: null, icon: 'Palette', params: [
+  { id: 'replaceColor', label: 'Replace Color', category: 'color', type: 'object', default: null, icon: 'Palette', previewImagePath: 'effect-previews/replaceColor.png', params: [
     { key: 'fromColor', label: 'From', type: 'color', default: '#ff0000' },
     { key: 'toColor', label: 'To', type: 'color', default: '#00ff00' },
     { key: 'threshold', label: 'Threshold', type: 'slider', default: 30, min: 0, max: 255 },
     { key: 'feather', label: 'Feather', type: 'slider', default: 0.2, min: 0, max: 1, step: 0.01 },
   ]},
-  { id: 'gradientOverlay', label: 'Gradient Overlay', category: 'color', type: 'object', default: null, icon: 'Layers', params: [
+  { id: 'gradientOverlay', label: 'Gradient Overlay', category: 'color', type: 'object', default: null, icon: 'Layers', previewImagePath: 'effect-previews/gradientOverlay.png', params: [
     { key: 'colors', label: 'Colors', type: 'gradient', default: ['#000000', '#ffffff'] },
     { key: 'stops', label: 'Stops', type: 'stops', default: [0, 1] },
     { key: 'angle', label: 'Angle', type: 'slider', default: 0, min: 0, max: 360, unit: '°' },
@@ -80,7 +80,7 @@ export const EFFECTS = [
     ]},
     { key: 'opacity', label: 'Opacity', type: 'slider', default: 0.8, min: 0, max: 1, step: 0.01 },
   ]},
-  { id: 'rgbSplit', label: 'RGB Split', category: 'color', type: 'object', default: null, icon: 'Split', params: [
+  { id: 'rgbSplit', label: 'RGB Split', category: 'color', type: 'object', default: null, icon: 'Split', previewImagePath: 'effect-previews/rgbSplit.png', params: [
     { key: 'mode', label: 'Mode', type: 'select', default: 'g', options: [
       { value: 'r', label: 'R' }, { value: 'g', label: 'G' }, { value: 'b', label: 'B' },
     ]},
@@ -89,11 +89,11 @@ export const EFFECTS = [
   ]},
 
   // ── Phase 3: Complex ──
-  { id: 'duotone', label: 'Duotone', category: 'color', type: 'object', default: null, icon: 'Palette', params: [
+  { id: 'duotone', label: 'Duotone', category: 'color', type: 'object', default: null, icon: 'Palette', previewImagePath: 'effect-previews/duotone.png', params: [
     { key: 'colorA', label: 'Shadow Color', type: 'color', default: '#000000' },
     { key: 'colorB', label: 'Highlight Color', type: 'color', default: '#ffffff' },
   ]},
-  { id: 'risograph', label: 'Risograph', category: 'stylize', type: 'object', default: null, icon: 'Palette', params: [
+  { id: 'risograph', label: 'Risograph', category: 'stylize', type: 'object', default: null, icon: 'Palette', previewImagePath: 'effect-previews/risograph.png', params: [
     { key: 'color1', label: 'Color', type: 'color', default: '#2d5a27' },
     { key: 'paper', label: 'Paper', type: 'color', default: '#f4cfc6' },
     { key: 'threshold', label: 'Threshold', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
@@ -101,7 +101,7 @@ export const EFFECTS = [
     { key: 'density', label: 'Density', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
     { key: 'misalignment', label: 'Misalignment', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
   ]},
-  { id: 'spectralMap', label: 'Spectral Map', category: 'color', type: 'object', default: null, icon: 'Palette', params: [
+  { id: 'spectralMap', label: 'Spectral Map', category: 'color', type: 'object', default: null, icon: 'Palette', previewImagePath: 'effect-previews/spectralMap.png', params: [
     { key: 'shadowColor', label: 'Shadow', type: 'color', default: '#ff0000' },
     { key: 'midColor', label: 'Midtone', type: 'color', default: '#00ff00' },
     { key: 'highlightColor', label: 'Highlight', type: 'color', default: '#0000ff' },
@@ -110,7 +110,7 @@ export const EFFECTS = [
     { key: 'saturation', label: 'Saturation', type: 'slider', default: 1, min: 0, max: 1, step: 0.05 },
     { key: 'alpha', label: 'Opacity', type: 'slider', default: 1, min: 0, max: 1, step: 0.05 },
   ]},
-  { id: 'halftone', label: 'Halftone', category: 'stylize', type: 'object', default: null, icon: 'Grid', params: [
+  { id: 'halftone', label: 'Halftone', category: 'stylize', type: 'object', default: null, icon: 'Grid', previewImagePath: 'effect-previews/halftone.png', params: [
     { key: 'dotSize', label: 'Dot Size', type: 'slider', default: 8, min: 2, max: 50 },
     { key: 'angle', label: 'Angle', type: 'slider', default: 0, min: 0, max: 360, unit: '°' },
     { key: 'softness', label: 'Softness', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
@@ -118,7 +118,7 @@ export const EFFECTS = [
     { key: 'color1', label: 'Color 1', type: 'color', default: '#000000' },
     { key: 'color2', label: 'Color 2', type: 'color', default: '#ffffff' },
   ]},
-  { id: 'dotMatrix', label: 'Dot Matrix', category: 'stylize', type: 'object', default: null, icon: 'Grid', params: [
+  { id: 'dotMatrix', label: 'Dot Matrix', category: 'stylize', type: 'object', default: null, icon: 'Grid', previewImagePath: 'effect-previews/dotMatrix.png', params: [
     { key: 'tileSize', label: 'Tile Size', type: 'slider', default: 10, min: 2, max: 100 },
     { key: 'useOriginalColor', label: 'Warna Asli', type: 'toggle', default: true },
     { key: 'dotColor', label: 'Warna Dot', type: 'color', default: '#00ff00' },
@@ -126,24 +126,24 @@ export const EFFECTS = [
       { value: 'circle', label: 'Bulat' }, { value: 'square', label: 'Persegi' },
     ]},
   ]},
-  { id: 'chromaKey', label: 'Chroma Key', category: 'keying', type: 'object', default: null, icon: 'Layers', params: [
+  { id: 'chromaKey', label: 'Chroma Key', category: 'keying', type: 'object', default: null, icon: 'Layers', previewImagePath: 'effect-previews/chromaKey.png', params: [
     { key: 'keyColor', label: 'Key Color', type: 'color', default: '#00ff00' },
     { key: 'threshold', label: 'Threshold', type: 'slider', default: 80, min: 0, max: 255 },
     { key: 'feather', label: 'Feather', type: 'slider', default: 0.1, min: 0, max: 1, step: 0.01 },
   ]},
-  { id: 'lumaKey', label: 'Luma Key', category: 'keying', type: 'object', default: null, icon: 'Contrast', params: [
+  { id: 'lumaKey', label: 'Luma Key', category: 'keying', type: 'object', default: null, icon: 'Contrast', previewImagePath: 'effect-previews/lumaKey.png', params: [
     { key: 'threshold', label: 'Threshold', type: 'slider', default: 128, min: 0, max: 255 },
     { key: 'feather', label: 'Feather', type: 'slider', default: 0.1, min: 0, max: 1, step: 0.01 },
     { key: 'invertKey', label: 'Invert', type: 'toggle', default: false },
   ]},
-  { id: 'roughenEdge', label: 'Roughen Edge', category: 'stylize', type: 'object', default: null, icon: 'Triangle', params: [
+  { id: 'roughenEdge', label: 'Roughen Edge', category: 'stylize', type: 'object', default: null, icon: 'Triangle', previewImagePath: 'effect-previews/roughenEdge.png', params: [
     { key: 'scale', label: 'Scale', type: 'slider', default: 10, min: 1, max: 50 },
     { key: 'strength', label: 'Strength', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
     { key: 'octaves', label: 'Detail', type: 'slider', default: 6, min: 1, max: 8 },
     { key: 'speed', label: 'Speed', type: 'slider', default: 1, min: 0, max: 5, step: 0.1 },
   ]},
 
-  { id: 'edgeGlow', label: 'Edge Glow', category: 'stylize', type: 'object', default: null, icon: 'ScanLine', params: [
+  { id: 'edgeGlow', label: 'Edge Glow', category: 'stylize', type: 'object', default: null, icon: 'ScanLine', previewImagePath: 'effect-previews/edgeGlow.png', params: [
     { key: 'color', label: 'Glow Color', type: 'color', default: '#00ffff' },
     { key: 'intensity', label: 'Intensity', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
     { key: 'width', label: 'Glow Width', type: 'slider', default: 5, min: 1, max: 30 },
@@ -151,7 +151,7 @@ export const EFFECTS = [
   ]},
 
   // ── Phase 4: Geometry ──
-  { id: 'repeater', label: 'Repeater', category: 'transform', type: 'object', default: null, icon: 'Copy', params: [
+  { id: 'repeater', label: 'Repeater', category: 'transform', type: 'object', default: null, icon: 'Copy', previewImagePath: 'effect-previews/repeater.png', params: [
     { key: 'count', label: 'Count', type: 'slider', default: 3, min: 1, max: 20 },
     { key: 'offsetX', label: 'Offset X', type: 'slider', default: 20, min: -500, max: 500 },
     { key: 'offsetY', label: 'Offset Y', type: 'slider', default: 20, min: -500, max: 500 },
@@ -161,19 +161,19 @@ export const EFFECTS = [
   ]},
 
   // ── Solid (image only) ──
-  { id: 'solid', label: 'Solid', category: 'color', type: 'object', default: null, icon: 'Circle', params: [
+  { id: 'solid', label: 'Solid', category: 'color', type: 'object', default: null, icon: 'Circle', previewImagePath: 'effect-previews/solid.png', params: [
     { key: 'color', label: 'Color', type: 'color', default: '#000000' },
   ]},
 
   // ── Bonus ──
-  { id: 'jpegDamage', label: 'JPEG Damage', category: 'stylize', type: 'object', default: null, icon: 'FileWarning', params: [
+  { id: 'jpegDamage', label: 'JPEG Damage', category: 'stylize', type: 'object', default: null, icon: 'FileWarning', previewImagePath: 'effect-previews/jpegDamage.png', params: [
     { key: 'damage', label: 'Damage', type: 'slider', default: 0.4, min: 0, max: 1, step: 0.01 },
     { key: 'blockSize', label: 'Block Size', type: 'slider', default: 16, min: 4, max: 64 },
     { key: 'colorBleed', label: 'Color Bleed', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
     { key: 'quantize', label: 'Quantize', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
     { key: 'ringing', label: 'Ringing', type: 'slider', default: 0.2, min: 0, max: 1, step: 0.01 },
   ]},
-  { id: 'filmDamage', label: 'Film Damage', category: 'stylize', type: 'object', default: null, icon: 'Film', params: [
+  { id: 'filmDamage', label: 'Film Damage', category: 'stylize', type: 'object', default: null, icon: 'Film', previewImagePath: 'effect-previews/filmDamage.png', params: [
     { key: 'grain', label: 'Grain', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
     { key: 'scratches', label: 'Scratches', type: 'slider', default: 0.4, min: 0, max: 1, step: 0.01 },
     { key: 'dust', label: 'Dust', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
@@ -181,7 +181,7 @@ export const EFFECTS = [
     { key: 'vignette', label: 'Vignette', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
     { key: 'colorAge', label: 'Color Age', type: 'slider', default: 0.4, min: 0, max: 1, step: 0.01 },
   ]},
-  { id: 'vhs', label: 'VHS Effect', category: 'stylize', type: 'object', default: null, icon: 'Tv', params: [
+  { id: 'vhs', label: 'VHS Effect', category: 'stylize', type: 'object', default: null, icon: 'Tv', previewImagePath: 'effect-previews/vhs.png', params: [
     { key: 'chromaOffset', label: 'Chroma Offset', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
     { key: 'jitter', label: 'Line Jitter', type: 'slider', default: 0.4, min: 0, max: 1, step: 0.01 },
     { key: 'syncLoss', label: 'Sync Loss', type: 'slider', default: 0.2, min: 0, max: 1, step: 0.01 },
@@ -204,7 +204,7 @@ export const EFFECTS = [
     { key: 'skewX', label: 'Skew X', type: 'slider', default: 0, min: -1, max: 1, step: 0.05 },
     { key: 'skewY', label: 'Skew Y', type: 'slider', default: 0, min: -1, max: 1, step: 0.05 },
   ]},
-  { id: 'waveWarp', label: 'Wave Warp', category: 'transform', type: 'object', default: null, icon: 'Wave', params: [
+  { id: 'waveWarp', label: 'Wave Warp', category: 'transform', type: 'object', default: null, icon: 'Wave', previewImagePath: 'effect-previews/waveWarp.png', params: [
     { key: 'amplitude', label: 'Amplitude', type: 'slider', default: 20, min: 0, max: 100, unit: 'px' },
     { key: 'frequency', label: 'Frequency', type: 'slider', default: 5, min: 1, max: 50 },
     { key: 'speed', label: 'Speed', type: 'slider', default: 1, min: 0, max: 5, step: 0.1 },

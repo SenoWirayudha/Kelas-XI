@@ -13319,6 +13319,18 @@
   object-fit: cover;
 }
 
+.effect-library-grid .workspace-fx-card.has-preview .workspace-fx-card-preview {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  border-radius: 10px 10px 0 0;
+  flex-shrink: 0;
+}
+
 .workspace-fx-card-check {
   flex-shrink: 0;
   width: 20px;
@@ -13604,7 +13616,7 @@
 }
 
 .effect-library-search {
-  padding: 10px 20px;
+  padding: 10px 20px 0;
   flex-shrink: 0;
 }
 
@@ -13629,6 +13641,43 @@
   color: #6b6572;
 }
 
+.effect-library-categories {
+  display: flex;
+  gap: 6px;
+  padding: 10px 20px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+
+.effect-library-categories::-webkit-scrollbar {
+  display: none;
+}
+
+.effect-library-cat-tab {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.effect-library-cat-tab:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.8);
+}
+
+.effect-library-cat-tab.is-active {
+  background: rgba(169,112,255,0.15);
+  border-color: rgba(169,112,255,0.35);
+  color: #c8a5ff;
+}
+
 .effect-library-content {
   padding: 8px 20px 20px;
   overflow-y: auto;
@@ -13646,7 +13695,7 @@
 }
 
 .effect-library-section {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .effect-library-section:last-child {
@@ -13666,42 +13715,48 @@
 
 .effect-library-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
 @media (min-width: 600px) {
-  .effect-library-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 900px) {
   .effect-library-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 }
 
+@media (min-width: 900px) {
+  .effect-library-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (min-width: 1100px) {
+  .effect-library-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
 .effect-library-grid .workspace-fx-card {
-  min-height: 70px;
+  min-height: 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 6px;
+  padding: 8px 6px;
   border-radius: 10px;
   text-align: center;
 }
 
 .effect-library-grid .workspace-fx-card.has-preview {
-  min-height: 100px;
-  padding: 8px;
-  gap: 8px;
+  min-height: 84px;
+  padding: 6px;
+  gap: 6px;
 }
 
 .effect-library-grid .workspace-fx-card.has-preview .workspace-fx-card-label {
-  font-size: 12px;
+  font-size: 10px;
 }
 
 /* ── Fx Detail ── */

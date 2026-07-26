@@ -8,6 +8,10 @@ const CATEGORY_ICONS = {
   Palette, Sparkles, Droplets, Move, Layers, Type: TypeIcon,
 }
 
+const ALL_TAB = { id: null, label: 'All', icon: null }
+
+const CATEGORY_TABS = [ALL_TAB, ...EFFECT_CATEGORIES]
+
 function getFilteredEffects(item) {
   return EFFECTS.filter((e) => {
     if (item?.isAdjustmentLayer && ADJUSTMENT_RESTRICTED_EFFECTS.has(e.id)) return false
@@ -20,14 +24,20 @@ function getFilteredEffects(item) {
 export default function EffectLibraryModal({ item, effects, effectOrder, onAdd, onClose }) {
   const inStack = new Set(effectOrder || [])
   const [search, setSearch] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState(null)
   const q = search.trim().toLowerCase()
 
   const availableEffects = useMemo(() => getFilteredEffects(item), [item])
 
-  const filtered = useMemo(() => {
+  const searchedEffects = useMemo(() => {
     if (!q) return null
     return availableEffects.filter((e) => e.label.toLowerCase().includes(q))
   }, [q, availableEffects])
+
+  const filteredByCategory = useMemo(() => {
+    if (!selectedCategory) return null
+    return availableEffects.filter((e) => e.category === selectedCategory)
+  }, [selectedCategory, availableEffects])
 
   return createPortal(
     <div className="effect-library-backdrop" onClick={onClose}>
@@ -48,16 +58,41 @@ export default function EffectLibraryModal({ item, effects, effectOrder, onAdd, 
             autoFocus
           />
         </div>
+        <div className="effect-library-categories">
+          {CATEGORY_TABS.map((tab) => (
+            <button
+              key={tab.id ?? '__all__'}
+              type="button"
+              className={`effect-library-cat-tab${selectedCategory === tab.id ? ' is-active' : ''}`}
+              onClick={() => setSelectedCategory(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
         <div className="effect-library-content">
-          {filtered !== null ? (
-            filtered.length === 0 ? (
+          {q || selectedCategory ? (
+            (() => {
+              const items = q ? (searchedEffects || []) : (filteredByCategory || [])
+              if (q && selectedCategory) {
+                return availableEffects.filter((e) =>
+                  e.label.toLowerCase().includes(q) && e.category === selectedCategory
+                )
+              }
+              return items
+            })().length === 0 ? (
               <div className="effect-library-empty">
                 <Search size={24} />
                 <span>Efek tidak ditemukan</span>
               </div>
             ) : (
               <div className="effect-library-grid">
-                {filtered.map((effect) => (
+                {(q && selectedCategory
+                  ? availableEffects.filter((e) => e.label.toLowerCase().includes(q) && e.category === selectedCategory)
+                  : q
+                  ? searchedEffects
+                  : filteredByCategory
+                ).map((effect) => (
                   <FxEffectCard
                     key={effect.id}
                     effect={effect}

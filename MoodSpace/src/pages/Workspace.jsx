@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Link, useNavigate, useSearchParams, useBlocker } from 'react-router-dom'
 import Konva from 'konva'
 import {
@@ -412,7 +413,7 @@ const BROADCAST_KEYS = new Set([
   'imageCropRect', 'cropSourceWidth', 'cropSourceHeight', 'cropEnabled',
   'starInnerRatio', 'numPoints',
   'bezierData', 'path',
-  'src', 'effects', 'relight', 'dominantColors',
+  'src', 'effects', 'effectOrder', 'relight', 'dominantColors',
   'isAdjustmentLayer', '_preAdjustmentState',
   'hsl', 'curves',
 ])
@@ -2805,11 +2806,12 @@ const CompositeCanvasGroupMemoComparitor = (prev, next) => {
   }
   return !hasChange
 }
-const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, fontInjectVersion, getItemsVisualBounds, getCompositeSnapBounds, getSnappedDelta, setAlignmentGuides, setRotationSnapGuide, skipGroupDragEndRef, selectedIdsRef, itemsRef, multiDragRef, multiDragActiveRef, stageRef, setStageCursor, getInteractionNode, adjustSourceTargetId }) {
+const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, onRefreshTransform, fontInjectVersion, getItemsVisualBounds, getCompositeSnapBounds, getSnappedDelta, setAlignmentGuides, setRotationSnapGuide, skipGroupDragEndRef, selectedIdsRef, itemsRef, multiDragRef, multiDragActiveRef, stageRef, setStageCursor, getInteractionNode, adjustSourceTargetId, broadcastItemUpdate }) {
   const groupRef = useRef(null)
   const dragStartRef = useRef(null)
   const snapResultRef = useRef(null)
   const isDraggingRef = useRef(false)
+  const bakedGroupBoundsRef = useRef(null)
   const [isDraggingState, setIsDraggingState] = useState(false)
   const alignmentGuidesFrameRef = useRef(null)
   const redrawKeyRef = useRef(0)
@@ -2822,17 +2824,23 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
   const isCompositeSelected = entry.members.some((item) => selectedIds?.includes(item.id) || selectedId === item.id)
   const externalSel = selectedIdsRef?.current || selectedIds
   const hasExternalSelection = externalSel?.length > 0 && externalSel.some((sid) => !entry.members.some((m) => m.id === sid))
-  const groupBounds = entry.members.reduce((bounds, item) => {
-    const itemBounds = getCompositeItemBounds(item)
-    const { left, top, right, bottom } = itemBounds
-    if (!bounds) return { left, top, right, bottom }
-    return {
-      left: Math.min(bounds.left, left),
-      top: Math.min(bounds.top, top),
-      right: Math.max(bounds.right, right),
-      bottom: Math.max(bounds.bottom, bottom),
-    }
-  }, null)
+  // groupBounds selama drag pake snapshot bakedBounds (dari itemsRef, post-bake/resize),
+  // supaya selection rect konsisten dengan ukuran aktual item — tidak stale/terlalu besar
+  // untuk shrink atau terlalu kecil untuk enlarge. Snapshot dihitung SEKALI di drag-start
+  // dan hanya valid selama drag berlangsung. Non-drag fallback ke entry.members (React state).
+  const groupBounds = isDraggingRef?.current && dragStartRef?.current?.bakedBounds
+    ? dragStartRef.current.bakedBounds
+    : entry.members.reduce((bounds, item) => {
+        const itemBounds = getCompositeItemBounds(item)
+        const { left, top, right, bottom } = itemBounds
+        if (!bounds) return { left, top, right, bottom }
+        return {
+          left: Math.min(bounds.left, left),
+          top: Math.min(bounds.top, top),
+          right: Math.max(bounds.right, right),
+          bottom: Math.max(bounds.bottom, bottom),
+        }
+      }, null)
 
   useLayoutEffect(() => {
     const node = groupRef.current
@@ -2872,6 +2880,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
   }
 
   const handleGroupDragStart = (event) => {
+    console.log('[DRAG_START_ENTRY] handleGroupDragStart CALLED', { groupId: entry?.groupId, ts: Date.now(), hasGroupRef: !!groupRef?.current })
     console.log('[ENTRY] handleGroupDragStart', { groupId: entry?.groupId, multiDrag: !!multiDragRef?.current, hasEntry: !!entry, targetId: event?.target?.id() })
     event.cancelBubble = true
     // Jika multi-drag session aktif (drag dari item non-composite), skip — handleObjectDragStart/Move/End yg handle
@@ -2923,6 +2932,85 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     })
     setIsDraggingState(true)
 
+    // Scale bitmap imageRef agar pas dengan ukuran efektif hasil bake.
+    // BITMAP TIDAK DIREGENERATE — cukup scale node visual supaya tidak ada snap
+    // ke ukuran lama saat Group scaleX/Y di-clear oleh guard isDraggingRef.
+    const groupNode = groupRef?.current
+    if (groupNode && sourceItem?.compositeMode) {
+      const isBitmapPath = sourceItem?.maskSourceType === 'alpha'
+        || sourceItem?.kind === 'image'
+        || sourceItem?.kind === 'text'
+        || sourceItem?.kind === 'shape'
+      if (isBitmapPath) {
+        const imageNodes = groupNode.find('Image')
+        const mainImage = imageNodes?.[1]
+        if (mainImage) {
+          const currW = mainImage.width()
+          const currH = mainImage.height()
+          if (currW > 0 && currH > 0) {
+            // Ambil semua item (members + operator) dari itemsRef (baked state).
+            // Jangan double-include operator: bakedMembers dari entry.members mapping
+            // SUDAH mencakup operator karena operator ada di entry.members.
+            const bakedAll = entry.members.map(m => itemsRef.current.find(i => i.id === m.id) || m)
+            const allBaked = bakedAll
+            const itemBounds = allBaked.map(item => getCompositeItemBounds(item))
+            const groupMinX = Math.min(...itemBounds.map(b => b.left))
+            const groupMinY = Math.min(...itemBounds.map(b => b.top))
+            const groupMaxX = Math.max(...itemBounds.map(b => b.right))
+            const groupMaxY = Math.max(...itemBounds.map(b => b.bottom))
+            const bakeW = Math.max(1, Math.ceil(groupMaxX - groupMinX))
+            const bakeH = Math.max(1, Math.ceil(groupMaxY - groupMinY))
+            // Simpan baked bounds untuk groupBounds selama drag (selection rect + bitmap)
+            bakedGroupBoundsRef.current = { left: groupMinX, top: groupMinY, right: groupMaxX, bottom: groupMaxY }
+            // Juga simpan di dragStartRef untuk groupBounds di render (Efek A fix)
+            if (dragStartRef.current) {
+              dragStartRef.current.bakedBounds = bakedGroupBoundsRef.current
+            }
+            const sizeChanged = Math.abs(bakeW - currW) > 1 || Math.abs(bakeH - currH) > 1
+            if (sizeChanged) {
+              mainImage.scaleX(bakeW / currW)
+              mainImage.scaleY(bakeH / currH)
+            }
+            // Selalu update posisi bitmap — posisi bisa berubah antar drag meski
+            // ukuran sama (setelah drag pertama tanpa resize). Tanpa ini bitmap
+            // tetap di posisi drag sebelumnya → gap dengan selection box.
+            mainImage.x(groupMinX)
+            mainImage.y(groupMinY)
+            groupNode.getLayer()?.batchDraw()
+            console.log('[BOUNDS_CHECK] dragStart', {
+              bakedBounds: dragStartRef.current?.bakedBounds,
+              currBakedAll: allBaked.map(m => ({
+                id: m.id?.substring(0, 8),
+                x: Math.round(m.x || 0),
+                y: Math.round(m.y || 0),
+                w: Math.round(m.w || 0),
+                h: Math.round(m.h || 0),
+              })),
+              entryMembersRaw: entry.members.map(m => ({
+                id: m.id?.substring(0, 8),
+                x: Math.round(m.x || 0),
+                y: Math.round(m.y || 0),
+                w: Math.round(m.w || 0),
+                h: Math.round(m.h || 0),
+              })),
+              itemsRefMembers: entry.members.map(m => {
+                const cur = itemsRef.current.find(i => i.id === m.id)
+                return {
+                  id: m.id?.substring(0, 8),
+                  x: Math.round(cur?.x ?? m.x ?? 0),
+                  y: Math.round(cur?.y ?? m.y ?? 0),
+                  w: Math.round(cur?.w ?? m.w ?? 0),
+                  h: Math.round(cur?.h ?? m.h ?? 0),
+                }
+              }),
+              bakeW: Math.round(bakeW),
+              bakeH: Math.round(bakeH),
+            })
+          }
+        }
+      }
+    }
+
     // DEBUG: trace Group node state AFTER bake
     const groupOp = entry.members.find(m => m.compositeMode)
     console.log('[DRAG-TRACE] dragStart:', {
@@ -2947,24 +3035,6 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     event.cancelBubble = true
     if (multiDragRef?.current) return
     if (!dragStartRef.current) return
-
-    // Imperative correction setiap tick: paksa ulang w/h member dari itemsRef.current
-    // ke Konva node — mengatasi React re-render yang menimpa baked size dengan stale state
-    // pada drag pertama pasca-resize (lihat Session 2026-07-27).
-    if (stageRef?.current) {
-      entry.members.forEach((m) => {
-        const node = stageRef.current.findOne(`#${m.id}`)
-        const bakedItem = itemsRef.current.find((i) => i.id === m.id)
-        if (node && bakedItem) {
-          if (bakedItem.w !== undefined && node.width() !== bakedItem.w) node.width(bakedItem.w)
-          if (bakedItem.h !== undefined && node.height() !== bakedItem.h) node.height(bakedItem.h)
-        }
-      })
-      entry.members.forEach((m) => {
-        const node = stageRef.current.findOne(`#${m.id}`)
-        if (node) node.getLayer()?.batchDraw()
-      })
-    }
 
     const start = dragStartRef.current
     if (start) {
@@ -3058,6 +3128,20 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     setAlignmentGuides([])
     setRotationSnapGuide(null)
     snapResultRef.current = null
+    // Reset bitmap imageRef scale dari drag-start supaya tidak double-scale
+    // saat useLayoutEffect meregenerate bitmap presisi.
+    {
+      const gn = groupRef?.current
+      if (gn) {
+        const imgs = gn.find('Image')
+        const mainImg = imgs?.[1]
+        if (mainImg && (mainImg.scaleX() !== 1 || mainImg.scaleY() !== 1)) {
+          mainImg.scaleX(1)
+          mainImg.scaleY(1)
+        }
+      }
+    }
+    bakedGroupBoundsRef.current = null
     isDraggingRef.current = false
     setIsDraggingState(false)
     cancelAnimationFrame(alignmentGuidesFrameRef.current)
@@ -3071,6 +3155,9 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     }
     const isMultiDragActive = !!multiDragRef?.current
     // Compute final positions via centralized handler
+    // Delta pre-computed di awal handler (line 3079-3080), sebelum reorder apapun.
+    // Passing eksplisit supaya computeCompositeFinalPositions tidak perlu re-read
+    // event.target.x() yang mungkin sudah ter-reset oleh reorder di masa depan.
     const finalPositions = computeCompositeFinalPositions({
       entry,
       event,
@@ -3081,59 +3168,83 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
       compositeOnlyIds: isMultiDragActive
         ? entry.members.map((m) => m.id)
         : undefined,
+      rawDx,
+      rawDy,
     })
     console.log('[GroupDragEnd] finalPositions:', finalPositions)
-    if (finalPositions) {
-      applyCompositeFinalPositions({
-        finalPositions,
-        itemsRef,
-        applyPatches: (patches) => {
-          Object.entries(patches).forEach(([itemId, patch]) => {
-            const item = itemsRef.current.find((i) => i.id === itemId)
-            if (item?.compositeMode) {
-              if (patch.__keepGroupRotation) {
-                // keepGroupRotation: update compositeGroupX/Y on operator, NOT member x/y
-                // Also propagate w/h/rotation so operator React state stays in sync with members
-                const { __keepGroupRotation, ...gp } = patch
-                const update = {
-                  compositeGroupX: gp.x,
-                  compositeGroupY: gp.y,
-                  compositeGroupScaleX: undefined,
-                  compositeGroupScaleY: undefined,
-                }
-                if (gp.w !== undefined) update.w = gp.w
-                if (gp.h !== undefined) update.h = gp.h
-                if (gp.rotation !== undefined) update.rotation = gp.rotation
-                onChange(itemId, update)
-              } else {
-                // Standard bake: clear all compositeGroup* (baked into member positions)
-                const clearPatch = { ...patch,
-                  compositeGroupX: undefined,
-                  compositeGroupY: undefined,
-                  compositeGroupScaleX: undefined,
-                  compositeGroupScaleY: undefined,
-                }
-                onChange(itemId, clearPatch)
-              }
-            } else {
-              onChange(itemId, patch)
-            }
-          })
-        },
-        broadcastItemUpdate: null,
-      })
-    }
-    // Reset Group position AFTER all items are at their final absolute positions
-    dragStartRef.current = null
-    // keepGroupRotation: set Group position to new compositeGroupX/Y
-    // !keepGroupRotation: reset to (0,0) — members are in stage space
-    const opAfter = itemsRef.current.find((i) => i.compositeMode && i.groupId === entry.groupId)
-    if (opAfter?.compositeGroupRotation) {
-      event.target.position({ x: opAfter.compositeGroupX ?? 0, y: opAfter.compositeGroupY ?? 0 })
+    // Baca operator BEFORE reset — setelah flushSync, compositeGroupRotation mungkin
+    // sudah cleared oleh applyCompositeFinalPositions.
+    const opBefore = itemsRef.current.find((i) => i.compositeMode && i.groupId === entry.groupId)
+    const hasRotation = !!opBefore?.compositeGroupRotation
+
+    // Reset Group position KE {0,0} SEKARANG — SEBELUM flushSync — supaya saat
+    // React commit + Transformer sync, Group sudah di {0,0} bukan di drag-end
+    // position. Kalau tidak, Transformer bounds dikalkulasi dengan Group di
+    // drag-end position → setelah Group direset ke {0,0}, Transformer bounds
+    // tetap stale (offset drag-end) → bounds melebar.
+    if (hasRotation) {
+      event.target.position({ x: opBefore.compositeGroupX ?? 0, y: opBefore.compositeGroupY ?? 0 })
     } else {
       event.target.position({ x: 0, y: 0 })
     }
+
+    if (finalPositions) {
+      flushSync(() => {
+        applyCompositeFinalPositions({
+          finalPositions,
+          itemsRef,
+          applyPatches: (patches) => {
+            Object.entries(patches).forEach(([itemId, patch]) => {
+              const item = itemsRef.current.find((i) => i.id === itemId)
+              if (item?.compositeMode) {
+                if (patch.__keepGroupRotation) {
+                  const { __keepGroupRotation, ...gp } = patch
+                  const update = {
+                    compositeGroupX: gp.x,
+                    compositeGroupY: gp.y,
+                    compositeGroupScaleX: undefined,
+                    compositeGroupScaleY: undefined,
+                  }
+                  if (gp.w !== undefined) update.w = gp.w
+                  if (gp.h !== undefined) update.h = gp.h
+                  if (gp.rotation !== undefined) update.rotation = gp.rotation
+                  onChange(itemId, update)
+                } else {
+                  const clearPatch = { ...patch,
+                    compositeGroupX: undefined,
+                    compositeGroupY: undefined,
+                    compositeGroupScaleX: undefined,
+                    compositeGroupScaleY: undefined,
+                  }
+                  onChange(itemId, clearPatch)
+                }
+              } else {
+                onChange(itemId, patch)
+              }
+            })
+          },
+          broadcastItemUpdate,
+        })
+      })
+    }
+    dragStartRef.current = null
     groupRef.current?.getLayer()?.batchDraw()
+    // Refresh Transformer bounds — call attachTransformer via RAF di akhir
+    // drag-end, persis sama seperti jalur klik manual (selectItem → setSelectedIds
+    // → useEffect → attachTransformer). Langsung panggil attachTransformer via
+    // prop onRefreshTransform (yang wraps dalam RAF) karena:
+    // 1. attachTransformer dipanggil via RAF → setelah drag-end event selesai → AMAN
+    // 2. Click chain juga panggil attachTransformer via RAF (dari dalam selectItem)
+    // 3. Percobaan sebelumnya gagal karena panggil attachTransformer SINKRON
+    //    di tengah drag-end handler (masih dalam event processing → nyangkut)
+    // 4. RAF menjamin tidak ada drag event aktif saat nodes() re-bind listener
+    requestAnimationFrame(() => {
+      if (onRefreshTransform) {
+        const cid = entry?.operatorId || entry?.members?.[0]?.id
+        if (cid) onRefreshTransform([cid])
+      }
+    })
+    console.log('[BOUNDS_CHECK] dragEnd — flushSync complete, Group already reset before it')
     setStageCursor('default')
   }
 
@@ -4375,6 +4486,7 @@ function Workspace() {
   const itemUpdateThrottleRef = useRef({})
   const broadcastItemUpdate = useCallback((itemId, patch) => {
     if (isViewerRef.current) return
+    console.log('[SEND] broadcastItemUpdate called:', { itemId: itemId?.substring?.(0, 8) || itemId, patchKeys: Object.keys(patch || {}), hasX: 'x' in (patch || {}), hasCGX: 'compositeGroupX' in (patch || {}) })
     const now = Date.now()
     const throttle = itemUpdateThrottleRef.current
     if (!throttle[itemId] || now - throttle[itemId] > 200) {
@@ -4406,6 +4518,7 @@ function Workspace() {
   }, [user?.id])
   const itemUpdateHandlerRef = useRef(null)
   itemUpdateHandlerRef.current = (itemId, patch) => {
+    console.log('[RECV] item_update received:', { itemId: itemId?.substring?.(0, 8) || itemId, patchKeys: Object.keys(patch || {}), hasX: 'x' in (patch || {}), hasCGX: 'compositeGroupX' in (patch || {}), hasCGNull: patch?.compositeGroupX === null })
     setItems((prev) => {
       skipUndoCaptureRef.current = true
       return prev.map((item) => {
@@ -4554,8 +4667,9 @@ function Workspace() {
     })
   }
   const broadcastLayerReorder = useCallback((itemId, direction, activeIds) => {
+    if (isViewerRef.current) return
     broadcastRef.current?.('layer_reorder', { userId: user?.id, itemId, direction, activeIds })
-  }, [user?.id])
+  }, [user?.id, isViewerRef])
 
   const workspaceUpdateHandlerRef = useRef(null)
   workspaceUpdateHandlerRef.current = (patch) => {
@@ -6670,9 +6784,10 @@ const attachTransformer = useCallback((idOrIds) => {
 
     requestAnimationFrame(() => {
       attachTransformer(id)
-      requestAnimationFrame(() => focusCanvasItem(id))
+      // NOTE: focusCanvasItem TIDAK dipanggil — double-click layer hanya
+      // untuk buka properties panel, bukan navigasi viewport (Bug #2 fix)
     })
-  }, [attachTransformer, focusCanvasItem])
+  }, [attachTransformer])
 
   useEffect(() => {
     if (!transformerRef.current || !stageRef.current) return
@@ -11666,6 +11781,26 @@ const commitTransformerChanges = () => {
   if (didChange) {
     itemsRef.current = nextItems
     setItems(nextItems)
+    // Broadcast transform changes to collaborators
+    ids.forEach((id) => {
+      const item = itemsRef.current.find((i) => i.id === id)
+      if (!item) return
+      const patch = { x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation }
+      if (item.kind === 'text') patch.fontSize = item.fontSize
+      if (item.kind === 'shape') {
+        if (item.shapeAspectRatio !== undefined) patch.shapeAspectRatio = item.shapeAspectRatio
+        if (item.scaleX !== undefined) patch.scaleX = item.scaleX
+        if (item.scaleY !== undefined) patch.scaleY = item.scaleY
+        if (item.shapeType === 'freehand' && item.strokes) patch.strokes = item.strokes
+        if (item.shapeType === 'bezier-path') { if (item.points) patch.points = item.points; if (item.bezierData) patch.bezierData = item.bezierData }
+      }
+      if (item.kind === 'frame') {
+        if (item.frameImages) patch.frameImages = item.frameImages
+        if (item.frameImagePosition) patch.frameImagePosition = item.frameImagePosition
+        if (item.frameImageScale !== undefined) patch.frameImageScale = item.frameImageScale
+      }
+      broadcastItemUpdate(id, patch)
+    })
   }
 
   // Handle composite group transform: accumulate compositeGroup* on operator item
@@ -16088,6 +16223,7 @@ onPointerUp={(e) => {
             onDragStart={handleObjectDragStart}
             onDragMove={handleObjectDragMove}
             onDragEnd={handleObjectDragEnd}
+            broadcastItemUpdate={broadcastItemUpdate}
             onTextEdit={editTextObject}
             isTextEditing={editingText}
             onCursor={handleItemCursor}
@@ -16109,6 +16245,9 @@ onPointerUp={(e) => {
               transformerRef.current?.forceUpdate?.()
               transformerRef.current?.getLayer()?.batchDraw()
               requestAnimationFrame(updateToolbarPosition)
+            }}
+            onRefreshTransform={(ids) => {
+              requestAnimationFrame(() => attachTransformer(ids))
             }}
             getItemsVisualBounds={getItemsVisualBounds}
             getCompositeSnapBounds={getCompositeSnapBounds}
