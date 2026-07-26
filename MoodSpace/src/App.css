@@ -13346,6 +13346,21 @@
   background: rgba(169,112,255,0.2);
 }
 
+.workspace-fx-card-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #a970ff;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 8px;
+  line-height: 1.4;
+  z-index: 2;
+  pointer-events: none;
+}
+
 .workspace-fx-clear-btn {
   margin-left: auto;
   background: transparent;
@@ -13747,6 +13762,7 @@
   padding: 8px 6px;
   border-radius: 10px;
   text-align: center;
+  position: relative;
 }
 
 .effect-library-grid .workspace-fx-card.has-preview {

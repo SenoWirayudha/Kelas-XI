@@ -594,7 +594,7 @@ export default function GlobalAdjustmentLayer({ stageRef, items, canvasWidth, ca
           }
 
           if (hasAnyEffect(layer)) {
-            effectManager.applyEffectsToImageData(imageData, layer.effects)
+            effectManager.applyEffectsToImageData(imageData, layer.effects, layer.effectOrder)
           }
 
           // Write adjusted pixels to a FRESH canvas at offscreen size

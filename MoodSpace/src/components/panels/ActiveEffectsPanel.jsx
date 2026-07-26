@@ -2,16 +2,17 @@ import { useState, useMemo, useCallback } from 'react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ArrowLeft, Plus, Sparkles } from 'lucide-react'
-import { getEffectOrder, reorderEffectStack, findEffect, getDefaultEnabledValue, addEffectToStack, toggleEffectInStack } from '../../utils/effectUtils'
+import { getEffectOrder, reorderEffectStack, findEffect, getDefaultEnabledValue, addEffectToStack, toggleEffectInStack, getEffectInstances } from '../../utils/effectUtils'
 import { FxEffectDetail } from './FxPanel'
 import EffectLibraryModal from './EffectLibraryModal'
 import ActiveEffectRow from './ActiveEffectRow'
 
 export default function ActiveEffectsPanel({ item, onBack, onUpdate }) {
   const [libraryOpen, setLibraryOpen] = useState(false)
-  const [selectedEffectId, setSelectedEffectId] = useState(null)
+  const [selectedInstanceId, setSelectedInstanceId] = useState(null)
   const effects = item.effects || {}
   const effectOrder = useMemo(() => getEffectOrder(item), [item.effectOrder, item.effects])
+  console.log('[PANEL] item.id:', item?.id?.substring?.(0, 8), 'effectOrder:', item?.effectOrder, 'effects keys:', Object.keys(item?.effects || {}), 'getEffectOrder:', getEffectOrder(item), 'getEffectInstances:', getEffectInstances(item))
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -32,8 +33,10 @@ export default function ActiveEffectsPanel({ item, onBack, onUpdate }) {
     if (patch) onUpdate(item.id, patch)
   }
 
-  const handleChange = useCallback((id, val, skipBroadcast) => {
-    onUpdate(item.id, { effects: { ...item.effects, [id]: val } }, skipBroadcast)
+  const handleChange = useCallback((instanceId, val, skipBroadcast) => {
+    const entry = item.effects?.[instanceId]
+    if (!entry) return
+    onUpdate(item.id, { effects: { ...item.effects, [instanceId]: { ...entry, value: val } } }, skipBroadcast)
   }, [item.id, item.effects, onUpdate])
 
   const handleToggle = useCallback((id) => {
@@ -42,11 +45,12 @@ export default function ActiveEffectsPanel({ item, onBack, onUpdate }) {
   }, [item, onUpdate])
 
   // Detail panel when an effect is selected
-  if (selectedEffectId) {
-    const effect = findEffect(selectedEffectId)
-    const value = effects[selectedEffectId]
-    if (!effect) {
-      setSelectedEffectId(null)
+  if (selectedInstanceId) {
+    const entry = effects[selectedInstanceId]
+    const effect = entry ? findEffect(entry.effectId) : null
+    const value = entry?.value
+    if (!effect || !entry) {
+      setSelectedInstanceId(null)
       return null
     }
     return (
@@ -54,9 +58,23 @@ export default function ActiveEffectsPanel({ item, onBack, onUpdate }) {
         <FxEffectDetail
           effect={effect}
           value={value}
-          onBack={() => setSelectedEffectId(null)}
-          onChange={handleChange}
-          onToggle={handleToggle}
+          onBack={() => setSelectedInstanceId(null)}
+          onChange={(effectId, val, skipBroadcast) => {
+            const entry = item.effects?.[selectedInstanceId]
+            if (entry?.effectId !== effectId) {
+              console.warn('[EFFECT BRIDGE] effectId mismatch — expected', entry?.effectId, 'got', effectId, 'selectedInstanceId:', selectedInstanceId)
+              return
+            }
+            handleChange(selectedInstanceId, val, skipBroadcast)
+          }}
+          onToggle={(effectId) => {
+            const entry = item.effects?.[selectedInstanceId]
+            if (entry?.effectId !== effectId) {
+              console.warn('[EFFECT BRIDGE] toggle effectId mismatch — expected', entry?.effectId, 'got', effectId)
+              return
+            }
+            handleToggle(selectedInstanceId)
+          }}
           imageDominantColors={item?.dominantColors}
           imageSrc={item?.src}
         />
@@ -86,8 +104,8 @@ export default function ActiveEffectsPanel({ item, onBack, onUpdate }) {
           <>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={effectOrder} strategy={verticalListSortingStrategy}>
-                {effectOrder.map((effectId) => (
-                  <ActiveEffectRow key={effectId} effectId={effectId} item={item} onUpdate={onUpdate} onSelect={setSelectedEffectId} />
+                {effectOrder.map((instanceId) => (
+                  <ActiveEffectRow key={instanceId} instanceId={instanceId} item={item} onUpdate={onUpdate} onSelect={setSelectedInstanceId} />
                 ))}
               </SortableContext>
             </DndContext>

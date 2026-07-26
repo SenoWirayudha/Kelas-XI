@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
 import { useState, useMemo } from 'react'
 import { Palette, Sparkles, Droplets, Move, Layers, Type as TypeIcon, X, Search } from 'lucide-react'
-import { EFFECT_CATEGORIES, EFFECTS, ADJUSTMENT_RESTRICTED_EFFECTS } from '../../utils/effectUtils'
+import { EFFECT_CATEGORIES, EFFECTS, ADJUSTMENT_RESTRICTED_EFFECTS, getEffectInstances } from '../../utils/effectUtils'
 import FxEffectCard from './FxEffectCard'
 
 const CATEGORY_ICONS = {
@@ -22,10 +22,18 @@ function getFilteredEffects(item) {
 }
 
 export default function EffectLibraryModal({ item, effects, effectOrder, onAdd, onClose }) {
-  const inStack = new Set(effectOrder || [])
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
   const q = search.trim().toLowerCase()
+
+  const instanceCounts = useMemo(() => {
+    const counts = {}
+    const instances = getEffectInstances(item)
+    for (const inst of instances) {
+      counts[inst.effectId] = (counts[inst.effectId] || 0) + 1
+    }
+    return counts
+  }, [item])
 
   const availableEffects = useMemo(() => getFilteredEffects(item), [item])
 
@@ -96,9 +104,9 @@ export default function EffectLibraryModal({ item, effects, effectOrder, onAdd, 
                   <FxEffectCard
                     key={effect.id}
                     effect={effect}
-                    value={inStack.has(effect.id) ? (effects?.[effect.id] ?? null) : undefined}
                     onClick={() => onAdd(effect.id)}
                     showPreview
+                    count={instanceCounts[effect.id] || 0}
                   />
                 ))}
               </div>
@@ -119,9 +127,9 @@ export default function EffectLibraryModal({ item, effects, effectOrder, onAdd, 
                       <FxEffectCard
                         key={effect.id}
                         effect={effect}
-                        value={inStack.has(effect.id) ? (effects?.[effect.id] ?? null) : undefined}
                         onClick={() => onAdd(effect.id)}
                         showPreview
+                        count={instanceCounts[effect.id] || 0}
                       />
                     ))}
                   </div>

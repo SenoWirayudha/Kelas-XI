@@ -254,38 +254,67 @@ export function getDefaultDisabledValue(effect) {
 }
 
 export function getEffectOrder(item) {
-  return item.effectOrder?.length ? item.effectOrder : getActiveEffects(item).map(e => e.id)
+  return item.effectOrder || []
+}
+
+/**
+ * Migrate legacy effect format (effectOrder=effectId[], effects={effectId: value})
+ * to instance-based format (effectOrder=instanceId[], effects={instanceId: {effectId, value}}).
+ * Idempotent — detects already-migrated items and returns as-is.
+ */
+export function migrateLegacyEffects(item) {
+  const order = item.effectOrder
+  if (!order?.length) return item
+  if (typeof item.effects?.[order[0]]?.effectId === 'string') return item
+  console.log('[MIGRATE] Running migration for item', item.id?.substring?.(0, 8), 'old order:', order, 'old effects keys:', Object.keys(item.effects || {}))
+  const newEffects = {}
+  const newOrder = []
+  for (const effectId of order) {
+    if (!(effectId in (item.effects || {}))) continue
+    const val = item.effects[effectId]
+    if (val === undefined) continue
+    const instanceId = crypto.randomUUID()
+    newEffects[instanceId] = { effectId, value: val }
+    newOrder.push(instanceId)
+  }
+  if (!newOrder.length) return item
+  const result = { ...item, effectOrder: newOrder, effects: newEffects }
+  console.log('[MIGRATE] Result for item', item.id?.substring?.(0, 8), 'new order:', newOrder, 'new effects keys:', Object.keys(newEffects))
+  return result
 }
 
 export function addEffectToStack(item, effectId, value) {
-  const currentOrder = item.effectOrder
+  const instanceId = crypto.randomUUID()
   const finalValue = value ?? getDefaultEnabledValue(findEffect(effectId))
-  if (currentOrder?.includes(effectId)) {
-    return { effects: { ...item.effects, [effectId]: finalValue } }
-  }
+  const currentOrder = item.effectOrder || []
+  const currentEffects = item.effects || {}
   return {
-    effectOrder: [...(currentOrder || getActiveEffects(item).map(e => e.id)), effectId],
-    effects: { ...item.effects, [effectId]: finalValue },
+    effectOrder: [...currentOrder, instanceId],
+    effects: { ...currentEffects, [instanceId]: { effectId, value: finalValue } },
   }
 }
 
-export function removeEffectFromStack(item, effectId) {
+export function removeEffectFromStack(item, instanceId) {
+  const entry = item.effects?.[instanceId]
+  if (!entry) return null
   const currentOrder = item.effectOrder
-  if (!currentOrder?.includes(effectId)) return null
-  const effect = findEffect(effectId)
+  if (!currentOrder?.includes(instanceId)) return null
+  const { [instanceId]: _, ...rest } = item.effects
   return {
-    effectOrder: currentOrder.filter(id => id !== effectId),
-    effects: { ...item.effects, [effectId]: effect ? getDefaultDisabledValue(effect) : null },
+    effectOrder: currentOrder.filter(id => id !== instanceId),
+    effects: rest,
   }
 }
 
-// Backup store for toggle: key = `${item.id}-${effectId}`
+// Backup store for toggle: key = `${item.id}-${instanceId}`
 const toggleBackup = new Map()
 
-export function toggleEffectInStack(item, effectId) {
-  const effect = findEffect(effectId)
+export function toggleEffectInStack(item, instanceId) {
+  const entry = item.effects?.[instanceId]
+  if (!entry) return null
+  const effect = findEffect(entry.effectId)
   if (!effect) return null
-  const currentValue = item.effects?.[effectId]
+  const currentValue = entry.value
   const isActive = (() => {
     if (currentValue == null) return false
     if (typeof currentValue === 'boolean') return currentValue
@@ -295,39 +324,36 @@ export function toggleEffectInStack(item, effectId) {
     return false
   })()
 
-  const key = `${item.id}-${effectId}`
+  const key = `${item.id}-${instanceId}`
 
   if (isActive) {
     toggleBackup.set(key, currentValue)
     return {
-      effects: { ...item.effects, [effectId]: false },
+      effects: { ...item.effects, [instanceId]: { ...entry, value: false } },
     }
   }
 
   const restored = toggleBackup.get(key)
   return {
-    effects: { ...item.effects, [effectId]: restored ?? getDefaultEnabledValue(effect) },
+    effects: { ...item.effects, [instanceId]: { ...entry, value: restored ?? getDefaultEnabledValue(effect) } },
   }
 }
 
 export function reorderEffectStack(item, fromIndex, toIndex) {
-  const order = [...(item.effectOrder || getActiveEffects(item).map(e => e.id))]
+  const order = [...(item.effectOrder || [])]
   if (order.length === 0) return null
   const [moved] = order.splice(fromIndex, 1)
   order.splice(toIndex, 0, moved)
   return { effectOrder: order }
 }
 
-export const getDefaultEffects = () => {
-  const defaults = {}
-  for (const effect of EFFECTS) defaults[effect.id] = effect.default
-  return defaults
-}
+export const getDefaultEffects = () => ({})
 
 export const hasAnyEffect = (item) => {
   const effects = item.effects || {}
-  for (const effect of EFFECTS) {
-    const val = effects[effect.id]
+  for (const entry of Object.values(effects)) {
+    if (!entry || !entry.effectId) continue
+    const val = entry.value
     if (val === null || val === undefined) continue
     if (typeof val === 'boolean' && val) return true
     if (typeof val === 'number' && val !== 0) return true
@@ -339,9 +365,14 @@ export const hasAnyEffect = (item) => {
 
 export const getActiveEffects = (item) => {
   const effects = item.effects || {}
+  const order = item.effectOrder || []
   const active = []
-  for (const effect of EFFECTS) {
-    const val = effects[effect.id]
+  for (const instanceId of order) {
+    const entry = effects[instanceId]
+    if (!entry) continue
+    const effect = findEffect(entry.effectId)
+    if (!effect) continue
+    const val = entry.value
     const isActive =
       typeof val === 'boolean' ? val
       : typeof val === 'number' ? val !== 0
@@ -351,6 +382,23 @@ export const getActiveEffects = (item) => {
     if (isActive) active.push({ ...effect, value: val })
   }
   return active
+}
+
+/**
+ * Get all effect instances in stack order with resolved metadata.
+ * Returns [{ instanceId, effectId, effect, value }, ...]
+ */
+export const getEffectInstances = (item) => {
+  const order = item.effectOrder || []
+  const effects = item.effects || {}
+  return order
+    .map(instanceId => {
+      const entry = effects[instanceId]
+      if (!entry) return null
+      const effect = findEffect(entry.effectId)
+      return { instanceId, effectId: entry.effectId, effect, value: entry.value }
+    })
+    .filter(Boolean)
 }
 
 export const EFFECT_PARAM_DEFAULTS = {}

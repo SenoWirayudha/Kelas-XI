@@ -39,7 +39,7 @@ function getPreviewUrl(previewImagePath) {
   return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${previewImagePath}`
 }
 
-export default function FxEffectCard({ effect, value, onClick, showPreview }) {
+export default function FxEffectCard({ effect, value, onClick, showPreview, count }) {
   const Icon = ICONS[effect.icon]
   const isActive = value != null && value !== false && value !== 0 && value !== 'none' && value !== ''
   const [imgError, setImgError] = useState(false)
@@ -51,6 +51,9 @@ export default function FxEffectCard({ effect, value, onClick, showPreview }) {
       className={`workspace-fx-card ${isActive ? 'is-active' : ''}${showPreview ? ' has-preview' : ''}`}
       onClick={() => onClick(effect.id)}
     >
+      {count > 0 && (
+        <span className="workspace-fx-card-badge">{count}x</span>
+      )}
       {showPreview && (
         previewUrl ? (
           <img

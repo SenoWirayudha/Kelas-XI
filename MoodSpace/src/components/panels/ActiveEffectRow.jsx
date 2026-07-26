@@ -10,14 +10,15 @@ const ICONS = {
   FileWarning, Film, Type, ScanLine, Tv, Wave: Waves, Circle, Feather: Droplets,
 }
 
-export default function ActiveEffectRow({ effectId, item, onUpdate, onSelect }) {
-  const effect = findEffect(effectId)
-  const value = item.effects?.[effectId]
+export default function ActiveEffectRow({ instanceId, item, onUpdate, onSelect }) {
+  const entry = item.effects?.[instanceId]
+  const effect = entry ? findEffect(entry.effectId) : null
+  const value = entry?.value
   const isActive = value != null && value !== false && value !== 0 && value !== 'none' && value !== ''
 
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging,
-  } = useSortable({ id: effectId })
+  } = useSortable({ id: instanceId })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -25,23 +26,23 @@ export default function ActiveEffectRow({ effectId, item, onUpdate, onSelect }) 
     opacity: isDragging ? 0.4 : 1,
   }
 
-  if (!effect) return null
+  if (!effect || !entry) return null
 
   const Icon = ICONS[effect.icon]
 
   const handleToggle = () => {
-    const patch = toggleEffectInStack(item, effectId)
+    const patch = toggleEffectInStack(item, instanceId)
     if (patch) onUpdate(item.id, patch)
   }
 
   const handleDelete = () => {
-    const patch = removeEffectFromStack(item, effectId)
+    const patch = removeEffectFromStack(item, instanceId)
     if (patch) onUpdate(item.id, patch)
   }
 
   const handleRowClick = (e) => {
     if (e.defaultPrevented) return
-    onSelect(effectId)
+    onSelect(instanceId)
   }
 
   return (

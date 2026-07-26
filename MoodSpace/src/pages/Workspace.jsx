@@ -128,7 +128,7 @@ import { applyInnerShadow } from '../utils/innerShadow'
 import { hasActiveHsl } from '../utils/hslChannels'
 import { hasAnyAdjustment } from '../utils/adjustmentLayerUtils'
 import { hasActiveCurves } from '../utils/curveUtils'
-import { getDefaultEffects, getActiveEffects } from '../utils/effectUtils'
+import { getDefaultEffects, getActiveEffects, migrateLegacyEffects } from '../utils/effectUtils'
 import { effectManager } from '../utils/konva-effects-engine'
 import { createGrid, cloneGrid, renderWarpedImage, buildSubdividedGrid, gridCorners, updateGridCorners, subdivideMeshGrid, PERSPECTIVE_SUBDIVISIONS, APPLY_SUBDIVISIONS, WARP_PADDING } from '../utils/mesh-warp'
 
@@ -1764,7 +1764,7 @@ const drawDestinationWithEffects = (contentCtx, item, image, groupMinX, groupMin
     drawImageItemToCanvas(tempCtx, item, image, b.left, b.top)
     const imageData = tempCtx.getImageData(0, 0, itemW, itemH)
     if (item.effects && Object.keys(item.effects).length > 0) {
-      effectManager.applyEffectsToImageData(imageData, item.effects)
+      effectManager.applyEffectsToImageData(imageData, item.effects, item.effectOrder)
     }
     tempCtx.putImageData(imageData, 0, 0)
     contentCtx.drawImage(tempCanvas, b.left - groupMinX, b.top - groupMinY)
@@ -2294,7 +2294,7 @@ const getEffectedAlphaMask = (sourceItem, sourceImage) => {
   if (sourceItem.effects && Object.keys(sourceItem.effects).length > 0) {
     try {
       const imageData = ctx.getImageData(0, 0, canvasW, canvasH)
-      effectManager.applyEffectsToImageData(imageData, sourceItem.effects)
+      effectManager.applyEffectsToImageData(imageData, sourceItem.effects, sourceItem.effectOrder)
       ctx.putImageData(imageData, 0, 0)
     } catch (e) {
       console.warn('[getEffectedAlphaMask] effect apply failed:', e)
@@ -2403,7 +2403,7 @@ const getBezierMaskCanvas = (sourceItem) => {
   if (sourceItem.effects && Object.keys(sourceItem.effects).length > 0) {
     try {
       const imageData = ctx.getImageData(0, 0, canvasW, canvasH)
-      effectManager.applyEffectsToImageData(imageData, sourceItem.effects)
+      effectManager.applyEffectsToImageData(imageData, sourceItem.effects, sourceItem.effectOrder)
       ctx.putImageData(imageData, 0, 0)
     } catch (e) {
       console.warn('[getBezierMaskCanvas] effect apply failed:', e)
@@ -2500,7 +2500,7 @@ const getShapeMaskCanvas = (sourceItem) => {
   if (sourceItem.effects && Object.keys(sourceItem.effects).length > 0) {
     try {
       const imageData = ctx.getImageData(0, 0, canvasW, canvasH)
-      effectManager.applyEffectsToImageData(imageData, sourceItem.effects)
+      effectManager.applyEffectsToImageData(imageData, sourceItem.effects, sourceItem.effectOrder)
       ctx.putImageData(imageData, 0, 0)
     } catch (e) {
       console.warn('[getShapeMaskCanvas] effect apply failed:', e)
@@ -4496,21 +4496,29 @@ function Workspace() {
         if (k === 'src' && typeof v === 'string' && v.startsWith('blob:')) continue
         safePatch[k] = v === undefined ? null : v
       }
-      // effectPatch: only send entries that differ from defaults (active effects)
-      // plus entries that were active but are now being cleared (toggle-off)
+      // effectPatch: send diff of instance-based effects (new/changed/removed)
       if (safePatch.effects && typeof safePatch.effects === 'object') {
-        const defaults = getDefaultEffects()
         const currentItem = itemsRef.current.find((i) => i.id === itemId)
-        const currentEffects = currentItem?.effects || defaults
-        const nonDefaults = {}
-        for (const [k, v] of Object.entries(safePatch.effects)) {
-          const diffFromDefault = JSON.stringify(v) !== JSON.stringify(defaults[k])
-          const wasActive = currentEffects[k] != null && JSON.stringify(currentEffects[k]) !== JSON.stringify(defaults[k])
-          if (diffFromDefault || wasActive) {
-            nonDefaults[k] = v === undefined ? null : v
+        const currentEffects = currentItem?.effects || {}
+        const newEffects = safePatch.effects
+        const diff = {}
+        // New/changed entries
+        for (const [k, v] of Object.entries(newEffects)) {
+          if (k in currentEffects) {
+            if (JSON.stringify(v) !== JSON.stringify(currentEffects[k])) {
+              diff[k] = v
+            }
+          } else {
+            diff[k] = v
           }
         }
-        safePatch.effectPatch = nonDefaults
+        // Removed entries
+        for (const k of Object.keys(currentEffects)) {
+          if (!(k in newEffects)) {
+            diff[k] = null
+          }
+        }
+        safePatch.effectPatch = diff
         delete safePatch.effects
       }
       broadcastRef.current?.('item_update', { userId: user?.id, itemId, patch: safePatch })
@@ -4528,12 +4536,12 @@ function Workspace() {
           if (v === null) {
             delete updated[k]
           } else if (k === 'effectPatch' && typeof v === 'object' && !Array.isArray(v)) {
-            updated.effects = { ...(item.effects || getDefaultEffects()) }
-            for (const [effectId, effectVal] of Object.entries(v)) {
-              if (effectVal === null || effectVal === undefined) {
-                delete updated.effects[effectId]
+            updated.effects = { ...(item.effects || {}) }
+            for (const [instId, instVal] of Object.entries(v)) {
+              if (instVal === null || instVal === undefined) {
+                delete updated.effects[instId]
               } else {
-                updated.effects[effectId] = effectVal
+                updated.effects[instId] = instVal
               }
             }
           } else {
@@ -4958,10 +4966,10 @@ function Workspace() {
           effectsKeys: item.effects ? Object.keys(item.effects).filter(k => item.effects[k]) : [],
         })
       }
-      return {
+      return migrateLegacyEffects({
         ...item,
-        effects: item.effects || getDefaultEffects(),
-      }
+        effects: item.effects || {},
+      })
     }) : []
     const restoredAssetContextSignals = Array.isArray(snapshot.browseAssetContext) && snapshot.browseAssetContext.length > 0
       ? normalizeAssetContextSignals(snapshot.browseAssetContext)

@@ -954,9 +954,12 @@ export class EffectManager {
       'repeater', 'solid',
       'jpegDamage', 'filmDamage', 'vhs', 'stretch', 'waveWarp', 'bubble',
     ]
-    const order = effectOrder && effectOrder.length ? effectOrder : EFFECT_CANONICAL_ORDER
-    for (const id of order) {
-      const val = effects[id]
+    const order = effectOrder && effectOrder.length ? effectOrder : []
+    for (const instanceId of order) {
+      const entry = effects[instanceId]
+      if (!entry) continue
+      const id = entry.effectId
+      const val = entry.value
       if (!val && val !== 0) continue
       if (val === false || val === 'none' || val === '') continue
 
@@ -1091,6 +1094,7 @@ export class EffectManager {
         const uScale = p.scale ?? 10
         const uOctaves = p.octaves ?? 6
         const uSpeed = p.speed ?? 1
+        addPad(Math.ceil(0.4 * uStrength * uScale * 2))
         filterList.push(function roughenEdgeFilter(imgData) {
           webglEngine.processSync(imgData, 'roughenEdge', { uScale, uStrength, uSpeed, uOctaves })
         })
@@ -1681,9 +1685,12 @@ export class EffectManager {
       'solid',
       'jpegDamage', 'filmDamage', 'vhs', 'waveWarp',
     ]
-    const order = effectOrder && effectOrder.length ? effectOrder : EFFECT_CANONICAL_ORDER
-    for (const id of order) {
-      const val = effects[id]
+    const order = effectOrder && effectOrder.length ? effectOrder : []
+    for (const instanceId of order) {
+      const entry = effects[instanceId]
+      if (!entry) continue
+      const id = entry.effectId
+      const val = entry.value
       if (!val && val !== 0) continue
       if (val === false || val === 'none' || val === '') continue
 
