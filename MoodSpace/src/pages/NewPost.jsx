@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Globe2, GripVertical, ImagePlus, Lock, MessageCircle, Plus, Save, Trash2, Upload, Users, X } from 'lucide-react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/authState'
+import { generateId } from '../utils/generateId'
 import { uploadMediaFile } from '../lib/api/media'
 import { createMediaPost, createMediaPostDraft, getPost, publishMediaPostDraft, updateMediaPostDraft, updatePost } from '../lib/api/posts'
 
@@ -138,7 +139,7 @@ function NewPost() {
     const file = new File([uint8Array], fileName || 'export.png', { type: meta })
     setMediaItems((current) => {
       if (current.length >= 10) return current
-      const id = `${file.name}-${file.lastModified}-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`
+      const id = `${file.name}-${file.lastModified}-${generateId()}`
       return [...current, { id, file, url: URL.createObjectURL(file) }]
     })
     if (state.isTemplate) {
@@ -153,7 +154,7 @@ function NewPost() {
     setMediaItems((current) => {
       const remainingSlots = Math.max(0, 10 - current.length)
       const nextItems = selected.slice(0, remainingSlots).map((file) => ({
-        id: `${file.name}-${file.lastModified}-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`,
+        id: `${file.name}-${file.lastModified}-${generateId()}`,
         file,
         url: URL.createObjectURL(file),
       }))

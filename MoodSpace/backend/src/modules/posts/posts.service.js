@@ -639,7 +639,8 @@ export const homeFeed = async ({ viewerId = null, query }) => {
   // Cek profile dulu sebelum fetch — menentukan skip SQL cursor atau tidak
   let profile = null
   if (viewerId) {
-    profile = await getUserProfileEmbedding(viewerId)
+    const profileData = await getUserProfileEmbedding(viewerId)
+    profile = profileData?.embedding || null
     if (!profile) {
       profile = await buildProfileFromSignals(viewerId)
     }
@@ -712,7 +713,17 @@ export const homeFeed = async ({ viewerId = null, query }) => {
   }
 
   if (hasProfile && rows.length) {
-    const reranked = rankPostsByProfile(rows, profile)
+    let reranked = rankPostsByProfile(rows, profile)
+
+    // Pixel-level style boost: B&W/warm/vibrant detection from thumbnails.
+    // Boosts items whose actual visual style matches the user's interest keywords
+    // (e.g. "black and white poster film" → boost B&W posters like La Haine).
+    if (recentInterestTags.length) {
+      const bwRerankText = enrichForClipRerank(recentInterestTags.filter(Boolean).join(' '))
+      if (bwRerankText) {
+        reranked = await applySaturationBoost(reranked, bwRerankText, '_clipScore')
+      }
+    }
 
     let filtered = reranked.filter(p => p._clipScore >= CLIP_SCORE_THRESHOLD)
     console.log('[FEED] CLIP filtered:', filtered.length, '/', reranked.length, '(threshold:', CLIP_SCORE_THRESHOLD, ')')
@@ -818,8 +829,10 @@ export const getPost = async ({ viewerId = null, postId }) => {
       updateProfile({
         userId: viewerId,
         embedding: nextPost.embedding,
-        weight: 0.2,
-      }).catch(() => {})
+        weight: 0.35,
+      })
+        .then((result) => console.log('[PROFILE_UPDATE_OK]', { userId: viewerId, source: 'getPost', ...result }))
+        .catch((err) => console.log('[PROFILE_UPDATE_FAIL]', { userId: viewerId, source: 'getPost', error: err.message }))
     }
   }
   return serializePost(nextPost)

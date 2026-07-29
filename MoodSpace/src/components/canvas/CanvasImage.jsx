@@ -183,6 +183,8 @@ function CanvasImage({
   disableDrag,
   onCropStart,
   isCropTarget,
+  eraserPreviewCanvas,
+  eraserTargetId,
 }) {
   const image          = useCanvasImage(item.src)
   const imageNodeRef   = useRef(null)
@@ -286,7 +288,9 @@ function CanvasImage({
 
   // Terapkan efek — via RAF agar Konva sempat render node dulu sebelum cache
   useEffect(() => {
+    if (typeof window.__fxMarkers !== 'undefined') window.__fxMarkers.push({ t: performance.now(), msg: 'IMAGE_USEFFECT' })
     const raf = requestAnimationFrame(() => {
+      if (typeof window.__fxMarkers !== 'undefined') window.__fxMarkers.push({ t: performance.now(), msg: 'IMAGE_RAF_CB effects=' + Object.keys(item.effects || {}).length })
       const node = imageNodeRef.current
       if (!node || !image) return
 
@@ -583,6 +587,15 @@ function CanvasImage({
               />
             )}
             {renderBoxImageStroke()}
+            {eraserPreviewCanvas && eraserTargetId === item.id && (
+              <KonvaImage
+                image={eraserPreviewCanvas}
+                width={item.w}
+                height={item.h}
+                listening={false}
+                perfectDrawEnabled={false}
+              />
+            )}
           </>
         )
       )}
@@ -591,7 +604,7 @@ function CanvasImage({
 }
 
 export default React.memo(CanvasImage, (prev, next) => {
-  return prev.item.id === next.item.id
+  const result = prev.item.id === next.item.id
     && prev.item.x === next.item.x && prev.item.y === next.item.y
     && prev.item.w === next.item.w && prev.item.h === next.item.h
     && prev.item.rotation === next.item.rotation
@@ -641,6 +654,7 @@ export default React.memo(CanvasImage, (prev, next) => {
     && prev.item.cropEnabled === next.item.cropEnabled
     && prev.item.imageCropZoom === next.item.imageCropZoom
     && JSON.stringify(prev.item.effects) === JSON.stringify(next.item.effects)
+    && JSON.stringify(prev.item.effectOrder) === JSON.stringify(next.item.effectOrder)
     && prev.item.imageCrop?.x === next.item.imageCrop?.x
     && prev.item.imageCrop?.y === next.item.imageCrop?.y
     && prev.item.imageCropRect?.x === next.item.imageCropRect?.x
@@ -653,4 +667,12 @@ export default React.memo(CanvasImage, (prev, next) => {
     && prev.disableDrag === next.disableDrag
     && prev.onCropStart === next.onCropStart
     && prev.isCropTarget === next.isCropTarget
+    && prev.eraserPreviewCanvas === next.eraserPreviewCanvas
+    && prev.eraserTargetId === next.eraserTargetId
+  if (!result && typeof window.__fxMarkers !== 'undefined') {
+    const fxEq = JSON.stringify(prev.item.effects) === JSON.stringify(next.item.effects)
+    const idEq = prev.item.id === next.item.id
+    window.__fxMarkers.push({ t: performance.now(), msg: 'IMAGE_MEMO:REJECT idEq=' + idEq + ' fxEq=' + fxEq })
+  }
+  return result
 })

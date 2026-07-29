@@ -65,8 +65,6 @@ export const applyBevelEmbossToNode = (node, item) => {
   if (!node) return
   if (item.isAdjustmentLayer) return
 
-  console.log('[BUG2-BEVEL] item.id:', item.id, 'kind:', item.kind, 'fill:', item.fill, 'bevelEnabled:', item.bevelEmbossEnabled, 'node.isCached:', !!node._getCanvasCache?.(), 'node.filters:', node.filters()?.map(f => f.name || 'fn'), 'node.width:', typeof node.width === 'function' ? node.width() : 'N/A')
-
   const existingFilters = node.filters() || []
   const hasBevelFilter = existingFilters.includes(Konva.Filters.BevelEmboss)
 
@@ -80,7 +78,14 @@ export const applyBevelEmbossToNode = (node, item) => {
     }
     const depth = item.bevelEmbossDepth ?? 5
     const soft = item.bevelEmbossSoftness ?? 5
-    const pad = Math.max(10, Math.ceil(soft * 2 + depth))
+    let pad = Math.max(10, Math.ceil(soft * 2 + depth))
+    if (item.shadowEnabled && ((item.shadow ?? 0) > 0 || (item.shadowOffsetX ?? 0) !== 0 || (item.shadowOffsetY ?? 0) !== 0)) {
+      const shadowBlur = item.shadow ?? 0
+      const offX = Math.abs(item.shadowOffsetX ?? 0)
+      const offY = Math.abs(item.shadowOffsetY ?? 0)
+      const shadowPad = Math.ceil(shadowBlur + Math.max(offX, offY))
+      if (shadowPad > pad) pad = shadowPad
+    }
     const pr = Math.min(window.devicePixelRatio || 1, 3)
 
     // Detect transparent fill for non-image items — these need the
@@ -116,12 +121,10 @@ export const applyBevelEmbossToNode = (node, item) => {
     }
 
     if (cW > 0 && cH > 0) {
-      console.log('[BEVEL-DEBUG] hasTransparentFill:', hasTransparentFill, 'canOverride:', canOverride, 'cW:', cW, 'cH:', cH, 'pad:', pad)
       // --- Dual-buffer setup for transparent-fill items ---
       // To avoid running the filter on the transparent-fill cache (step 1),
       // temporarily clear filters. Restore before step 2 (white-mask cache).
       const savedFilters = (hasTransparentFill && canOverride) ? node.filters() : null
-      console.log('[BEVEL-DEBUG] savedFilters:', savedFilters ? savedFilters.map(f => f.name || 'fn') : null)
       if (savedFilters) node.filters([])
 
       // Step 1: Cache with the actual fill (may be transparent). Filter-free
@@ -130,14 +133,12 @@ export const applyBevelEmbossToNode = (node, item) => {
       node.cache({ x: cX - pad, y: cY - pad, width: cW + pad * 2, height: cH + pad * 2, pixelRatio: pr })
 
       if (savedFilters) node.filters(savedFilters)
-      console.log('[BEVEL-DEBUG] after cache1 — _getCanvasCache:', !!node._getCanvasCache?.(), 'filters:', node.filters()?.map(f => f.name || 'fn'))
 
       if (hasTransparentFill && canOverride) {
         // Read the real-fill cache's pixel data before we overwrite it.
         const cacheEntry = typeof node._getCanvasCache === 'function' && node._getCanvasCache()
         const sceneCanvas = cacheEntry && cacheEntry.scene
         const cacheCanvasEl = sceneCanvas && sceneCanvas._canvas
-        console.log('[BEVEL-DEBUG] cacheEntry:', !!cacheEntry, 'scene:', !!sceneCanvas, '_canvas:', !!cacheCanvasEl, 'entryKeys:', cacheEntry ? Object.keys(cacheEntry).join(',') : 'none', 'sceneKeys:', sceneCanvas ? Object.keys(sceneCanvas).join(',') : 'none')
         if (cacheCanvasEl) {
           const ctx = cacheCanvasEl.getContext('2d')
           const realData = ctx.getImageData(0, 0, sceneCanvas.width, sceneCanvas.height)
@@ -163,7 +164,6 @@ export const applyBevelEmbossToNode = (node, item) => {
         const maskCacheEntry = typeof node._getCanvasCache === 'function' && node._getCanvasCache()
         const maskSceneCanvas = maskCacheEntry && maskCacheEntry.scene
         const maskCanvasEl2 = maskSceneCanvas && maskSceneCanvas._canvas
-        console.log('[BEVEL-DEBUG] maskCacheEntry:', !!maskCacheEntry, 'scene:', !!maskSceneCanvas, '_canvas:', !!maskCanvasEl2, 'entryKeys:', maskCacheEntry ? Object.keys(maskCacheEntry).join(',') : 'none', 'maskSceneKeys:', maskSceneCanvas ? Object.keys(maskSceneCanvas).join(',') : 'none')
         if (maskCanvasEl2) {
           const maskCtx = maskCanvasEl2.getContext('2d')
           node.setAttr('_maskImageData', maskCtx.getImageData(0, 0, maskSceneCanvas.width, maskSceneCanvas.height))
@@ -243,7 +243,14 @@ export const applyInnerShadowToNode = (node, item) => {
     const bevelPad = bevelEnabled
       ? Math.max(10, Math.ceil((item.bevelEmbossSoftness ?? 5) * 2 + (item.bevelEmbossDepth ?? 5)))
       : 0
-    const pad = Math.max(innerPad, bevelPad)
+    let pad = Math.max(innerPad, bevelPad)
+    if (item.shadowEnabled && ((item.shadow ?? 0) > 0 || (item.shadowOffsetX ?? 0) !== 0 || (item.shadowOffsetY ?? 0) !== 0)) {
+      const shadowBlur = item.shadow ?? 0
+      const offX = Math.abs(item.shadowOffsetX ?? 0)
+      const offY = Math.abs(item.shadowOffsetY ?? 0)
+      const shadowPad = Math.ceil(shadowBlur + Math.max(offX, offY))
+      if (shadowPad > pad) pad = shadowPad
+    }
     const pr = Math.min(window.devicePixelRatio || 1, 3)
     // Get content bounds (same pattern as bevel)
     const scaleX = Math.abs(node.scaleX() || 1)

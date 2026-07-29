@@ -914,3 +914,86 @@ TMDB mapping verified 100% accurate. Non-TMDB CLIP fallback verified via sample 
 - `backend/src/shared/designType.service.js` — hybrid `classifyDesignType` with context param
 - `backend/src/shared/designType.service.js` — OLD labels retained (best accuracy: 55%)
 - `backend/src/modules/search/search.service.js` — `DESIGN_TYPE_BOOST = 0.05` additive
+
+## Session 2026-07-22 (lanjutan): searchTmdb Slice Fix + Force TMDB di Home Feed + Internal Post Style Boost
+
+### searchTmdb Slice Unconditional 15
+- `externalImages.service.js:901`: `slice(0, queryYear ? 15 : 5)` → `slice(0, 15)`
+- Query "Yi Yi" (2000 Edward Yang film): `/search/multi` ranks id=25538 (wrong, pop=4.5) di top 5, id=13207 (correct, pop=20.9) di rank 6+ → dulu ke-cut, sekarang masuk scoring dan menang via popularity
+- Year-specific search tetap jalan terpisah (line 903-927: hybrid `/search/movie?primary_release_year=`)
+- **No regression untuk Long Day's Journey Into Night (2018)** — query year variant masih pake 15 (sama), tanpa year variant juga pake 15 (lebih banyak dari 5 sebelumnya)
+
+### Force TMDB di Home Feed (skipApiForHome bypass)
+- `externalImages.service.js:2078-2114`: saat `context=home + hasMovieQuery + !cursor + skipApiForHome`, panggil `searchTmdb` untuk movie query pertama. 2 item pertama di-embed sinkron supaya ikut CLIP rerank di page ini; sisanya diupsert tanpa embed → `computeAndStoreEmbeddings` async handle sisanya.
+- Fix untuk kasus user punya movie intent (misal interest tags termasuk "Yi Yi") tapi DB-first (`skipApiForHome=true`) mencegah TMDB API call → movie posters tidak pernah masuk DB.
+
+### Internal Posts Style Boost
+- `posts.service.js:717-725`: setelah `rankPostsByProfile`, jalan `applySaturationBoost(reranked, bwRerankText, '_clipScore')` — pixel-level B&W/warm/vibrant detection.
+- `bwRerankText` dari `recentInterestTags` (sama kaya external flow pake `queries.join(' ')`)
+- User dengan interest "black and white poster film" → La Haine (hitam putih asli) dapet boost, muncul di home feed internal.
+
+### Known Issues
+- `applySaturationBoost` hanya proses 24 item pertama (MAX_ITEMS). Untuk internal posts (~86 items), sisanya tidak kena boost — acceptable karena 24 item pertama sudah highest-scored.
+- `searchTmdb` slice fix bisa meningkatkan false-positive untuk query yang secara kebetulan menghasilkan banyak candidate mirip (risk rendah karena scoring tetap pilih best match).
+
+## Session 2026-07-29: Multi-Run Text Transformer Bypass — Custom Selection Box
+
+### Problem
+Transformer `transformStart` ghost events on multi-run text nodes could not be caught reliably after 6+ attempted fixes (stale closures, `phantomTransformGuard`, `isUserDraggingRef`, `ghostGuardRef`, `setTimeout(0)` racing Konva rAF). Ghost events caused: (a) phantom resizes after drag-end, (b) infinite resize loops on collaborator broadcast updates, (c) drift accumulated via compounded scale→width conversion in multi-run mode.
+
+### Solution
+**Complete bypass**: Konva Transformer NEVER touches multi-run text nodes.
+- `attachTransformer` in `Workspace.jsx:7151-7154` skips items with `kind === 'text' && runs?.length > 1` → Transformer is never assigned → zero ghost events from Konva Transformer source. Single-run text, images, shapes, frames remain on standard Transformer.
+
+### Implementation
+- **Custom selection box**: Rendered inside `CanvasTextNode.jsx` `showSelectionBox` block (`isMultiRun && isSelected`):
+  - Border Rect (`#a970ff`, `strokeWidth=1`, `listening={false}`)
+  - 6 anchor handles (9×9 squares, `fill="#f4e8ff"`, `stroke="#a970ff"`) — 4 corners + middle-left + middle-right
+  - Rotation handle (top-center)
+  - Styling matches Transformer defaults exactly
+- **Resize handlers** (`doResizePointerDown`): Pointer-based, no Transformer involvement.
+  - Corner drag → proportional `displayWidth` + `displayFontSize` scaling (same as single-run behavior)
+  - Middle-left/middle-right → width-only, zero drift (left-edge / right-edge mode)
+  - Rotation → `atan2` snap to nearest 45° (6° tolerance)
+  - All handlers use stage-level `pointermove`/`pointerup` listeners, ref-stored origin to avoid stale closures
+- **Move handler** (`handleMovePointerDown`): When custom box is active, Group `draggable={false}` prevents Konva drag. Body transparent Rect catches `pointerdown` → stage-level listeners move via `dragX`/`dragY` state → commits `{ x, y }` via `onChangeRef`.
+- **State variables**: `dragWidth`, `dragX`, `dragY`, `dragFontSize`, `dragRotation` — override Group's `x`/`y`/`rotation` and text width/fontSize during drag. Reset to null on pointer-up + on external item prop change (useEffect).
+- **TextRenderer**: passes `selectedId` prop to CanvasTextNode for selection detection.
+
+### Bug Fix — Handles Didn't Work
+**Root cause**: Resize handles were inside a `draggable={true}` Group. Konva's internal drag check walks ancestor tree regardless of `e.cancelBubble` — clicking a handle started Group move instead of resize.
+- Fix: Group `draggable={false}` when `showSelectionBox=true`.
+- Separate custom move handler on body transparent Rect with stage-level listeners, same pattern as resize handlers.
+- `dragY` state added for Y-axis movement mirroring existing `dragX`.
+
+### Cleanup
+- All drag states reset on `pointerup` (both resize and move handlers) + on external prop change via `useEffect([item.x, item.y, item.w, item.fontSize, item.rotation])`.
+- Stage listeners cleaned up in `useEffect` return (covers both `resizeStateRef` and `moveStateRef`).
+- Old ghost guard artifacts (`ghostGuardRef`, `isUserDraggingRef`, `phantomTransformGuard`) retained as safety net for non-multi-run Transformer usage.
+
+### Key Files
+- `src/components/canvas/CanvasTextNode.jsx` — all custom selection/handler logic
+- `src/pages/Workspace.jsx` — `attachTransformer` skip filter (L7151-7154)
+- `src/components/canvas/renderers/TextRenderer.jsx` — `selectedId` prop passthrough
+
+## Session 2026-07-29: Custom Selection Box Zoom Compensation + CameraScaleContext
+
+### Background
+Transformer is OUTSIDE the world-layer Group (Workspace.jsx — `</Group>` closes at line ~17551, `<Transformer>` renders after it at ~17887). So Transformer anchors are at Layer scale (1:1 screen pixels, unaffected by zoom). Our custom selection box handles are INSIDE the item Group → inside world-layer Group → scaled by camera.scale. At 43% zoom, a 14px handle appears as 14 × 0.43 = 6px; Transformer's 10px appears as 10px.
+
+### Fix — CameraScaleContext
+- `CanvasTextNode.jsx`: Created and exported `CameraScaleContext = createContext(1)`
+- `CanvasTextNode.jsx`: `useContext(CameraScaleContext)` returns camera.scale, computes `adjustedSize = Math.max(ANCHOR_SIZE, Math.round(ANCHOR_SIZE / cameraScale))` and `adjustedHalf = adjustedSize / 2`
+- `Workspace.jsx`: Imported `CameraScaleContext`, wrapped `renderedBelowCanvasContent` and `renderedAboveCanvasContent` + `renderedAdjustmentLayerItems` with `<CameraScaleContext.Provider value={camera.scale}>`
+- Context propagation bypasses `useMemo` memoization barriers → handles resize on zoom without forcing full re-render of the memoized content.
+
+### Fix — Indentation Bug
+`const cameraScale = useContext(CameraScaleContext)` was at column 0 (outside component function body). `const isSelected = selectedId === item.id` also at column 0. Fixed both to proper 2-space indent.
+
+### Cleanup
+- Removed stale `const adjustedHalf = ANCHOR_SIZE / 2` (non-zoom-adjusted version).
+- `ANCHOR_SIZE = 14` kept as base, adjusted via zoom.
+
+### Key Files
+- `src/components/canvas/CanvasTextNode.jsx` — `CameraScaleContext`, `adjustedSize`/`adjustedHalf` computed from `cameraScale`, all handle sizes use adjusted values
+- `src/pages/Workspace.jsx` — `CameraScaleContext.Provider` wrapping rendered canvas content

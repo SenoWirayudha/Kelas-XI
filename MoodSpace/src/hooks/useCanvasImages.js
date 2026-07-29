@@ -79,6 +79,11 @@ export function useCanvasImage(src) {
  * @param {string[]} srcArray  array of image src strings (may contain null/undefined)
  * @returns {Object} map of { [index]: HTMLImageElement | null }
  */
+export function clearImageCache() {
+  imageCache.clear()
+  subscribers.clear()
+}
+
 export function useCanvasImages(srcArray) {
   const [images, setImages] = useState({})
   const srcKey = srcArray?.join('|') || ''

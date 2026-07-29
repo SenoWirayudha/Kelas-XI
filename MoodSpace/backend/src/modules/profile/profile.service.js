@@ -66,19 +66,26 @@ export const updateProfile = async ({ userId, embedding, weight }) => {
      where user_id = $1`,
     [userId, JSON.stringify(normalized), momentum, newTotal],
   )
+
+  return {
+    totalWeightBefore: profile.total_weight || 0,
+    totalWeightAfter: newTotal,
+    weight,
+    momentum,
+  }
 }
 
 export const getUserProfileEmbedding = async (userId) => {
   if (!userId) return null
   const { rows } = await query(
-    `select embedding from user_embeddings where user_id = $1`,
+    `select embedding, total_weight from user_embeddings where user_id = $1`,
     [userId],
   )
   const emb = rows[0]?.embedding
   if (!emb) return null
   const sum = emb.reduce((s, x) => s + x * x, 0)
   if (sum === 0) return null
-  return emb
+  return { embedding: emb, totalWeight: rows[0]?.total_weight || 0 }
 }
 
 export const rankPostsByProfile = (posts, profileEmbedding) => {

@@ -26,3 +26,7 @@ export function extractDominantColors(imageSrc, count = 5) {
 export function clearDominantColorCache(src) {
   cache.delete(src)
 }
+
+export function clearAllDominantColorsCache() {
+  cache.clear()
+}

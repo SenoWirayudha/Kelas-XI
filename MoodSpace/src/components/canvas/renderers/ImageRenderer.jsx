@@ -15,6 +15,8 @@ export default function ImageRenderer({
   canvasBounds,
   onCropStart,
   isCropTarget,
+  eraserPreviewCanvas,
+  eraserTargetId,
 }) {
   return (
     <CanvasImage
@@ -31,6 +33,8 @@ export default function ImageRenderer({
       canvasBounds={canvasBounds}
       onCropStart={onCropStart}
       isCropTarget={isCropTarget}
+      eraserPreviewCanvas={eraserPreviewCanvas}
+      eraserTargetId={eraserTargetId}
     />
   )
 }

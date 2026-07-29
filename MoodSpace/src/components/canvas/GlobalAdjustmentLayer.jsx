@@ -89,7 +89,6 @@ const applyItemFiltersToClone = (clone, item) => {
     }
   }
 
-  console.log('[BUG2-BEVEL-CHECK] item.id:', item.id, 'kind:', item.kind, 'bevelEmbossEnabled:', item.bevelEmbossEnabled, 'innerShadowEnabled:', item.innerShadowEnabled, 'fill:', item.fill)
   if (item.bevelEmbossEnabled) {
     try { applyBevelEmbossToNode(clone, item) } catch { /* skip */ }
   }
@@ -611,6 +610,18 @@ export default function GlobalAdjustmentLayer({ stageRef, items, canvasWidth, ca
           const dCtx = displayCanvas.getContext('2d')
           dCtx.drawImage(freshCanvas, 0, 0, w, h)
 
+          // Clip to shape: 'destination-in' keeps only pixels inside the shape path
+          const shapeClipType = layer?.shapeType
+          console.log('[AdjShape] layer', layer.id, 'shapeType:', shapeClipType, 'kind:', layer.kind, 'hasClip:', !!(shapeClipType && (shapeClipType !== 'rect' || (layer.cornerRadius ?? 0) > 0)))
+          if (shapeClipType && (shapeClipType !== 'rect' || (layer.cornerRadius ?? 0) > 0)) {
+            const clipFn = createAdjustmentClipFunc(layer)
+            dCtx.save()
+            dCtx.globalCompositeOperation = 'destination-in'
+            clipFn(dCtx)
+            dCtx.fill()
+            dCtx.restore()
+          }
+
           // Convert to PNG data URL and load as Image for clean GPU texture
           const dataUrl = displayCanvas.toDataURL('image/png')
           const img = await new Promise((resolve, reject) => {
@@ -683,6 +694,9 @@ export default function GlobalAdjustmentLayer({ stageRef, items, canvasWidth, ca
         const ly = liveLayer.y ?? data.y
         const lw = liveLayer.w ?? data.w
         const lh = liveLayer.h ?? data.h
+        const shapeType = liveLayer?.shapeType
+        const hasShape = shapeType && (shapeType !== 'rect' || (liveLayer.cornerRadius ?? 0) > 0)
+        const adjClipFunc = hasShape ? createAdjustmentClipFunc(liveLayer) : null
         return (
           <Group
             key={id}
@@ -693,20 +707,39 @@ export default function GlobalAdjustmentLayer({ stageRef, items, canvasWidth, ca
             height={canvasHeight}
             listening={false}
           >
-            <KonvaImage
-              key={`img-${data.renderKey ?? 0}`}
-              image={data.canvas}
-              x={lx}
-              y={ly}
-              width={lw}
-              height={lh}
-              opacity={liveLayer?.opacity ?? 1}
-              listening={false}
-              {...(liveLayer?.blendMode && liveLayer.blendMode !== 'source-over' ? { globalCompositeOperation: liveLayer.blendMode } : {})}
-              ref={(node) => {
-                if (node) node.getLayer()?.batchDraw()
-              }}
-            />
+            {adjClipFunc ? (
+              <Group clipFunc={adjClipFunc} x={lx} y={ly} width={lw} height={lh}>
+                <KonvaImage
+                  key={`img-${data.renderKey ?? 0}`}
+                  image={data.canvas}
+                  x={0}
+                  y={0}
+                  width={lw}
+                  height={lh}
+                  opacity={liveLayer?.opacity ?? 1}
+                  listening={false}
+                  {...(liveLayer?.blendMode && liveLayer.blendMode !== 'source-over' ? { globalCompositeOperation: liveLayer.blendMode } : {})}
+                  ref={(node) => {
+                    if (node) node.getLayer()?.batchDraw()
+                  }}
+                />
+              </Group>
+            ) : (
+              <KonvaImage
+                key={`img-${data.renderKey ?? 0}`}
+                image={data.canvas}
+                x={lx}
+                y={ly}
+                width={lw}
+                height={lh}
+                opacity={liveLayer?.opacity ?? 1}
+                listening={false}
+                {...(liveLayer?.blendMode && liveLayer.blendMode !== 'source-over' ? { globalCompositeOperation: liveLayer.blendMode } : {})}
+                ref={(node) => {
+                  if (node) node.getLayer()?.batchDraw()
+                }}
+              />
+            )}
           </Group>
         )
       })}

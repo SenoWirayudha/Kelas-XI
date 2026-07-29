@@ -469,6 +469,11 @@ const getParamSet = (vals) => {
   }
 }
 
+export function clearFilterCaches() {
+  lutCache.clear()
+  hslLutCache.clear()
+}
+
 export const applyMoodSpaceToImageData = (imageData, values) => {
   const params = getParamSet(values)
   const hasAdjustment = params.expFactor || params.tempAmount || params.hueRotation

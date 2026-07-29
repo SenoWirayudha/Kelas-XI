@@ -265,7 +265,8 @@ export function generateTextGeometryShadowCanvas(item, contentH, textWidth) {
   const measCX = measCanvas.width / 2
   const measCY = measCanvas.height / 2
 
-  const ls = item.effects?.letterSpacing
+  const lsEntry = item.effects && Object.values(item.effects).find(e => e?.effectId === 'letterSpacing')
+  const ls = lsEntry?.value?.value
   if (ls && typeof measCtx.letterSpacing !== 'undefined') {
     measCtx.letterSpacing = `${ls}px`
   }

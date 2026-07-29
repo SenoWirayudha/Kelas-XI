@@ -1,4 +1,5 @@
 import Konva from 'konva'
+
 import { applyRepeater } from './transform-effects.js'
 
 // ─────────────────────────────────────────────
@@ -939,6 +940,48 @@ export class EffectManager {
     const filterList = []
     let cachePad = 0
     const addPad = (v) => { if (v > cachePad) cachePad = v }
+    let _prevFilterLen = 0
+
+    // Opacity stacking for duplicate same-effect-type instances.
+    // First instance: captures pixel data state BEFORE it processes.
+    // Subsequent instances: apply the effect to a CLONE of the captured original,
+    // then alpha-blend the clone onto the current processed output.
+    // This produces cumulative visual intensity for stacked effects.
+    if (!this._stackOrig) this._stackOrig = new WeakMap()
+    this._stackOrig.delete(node)  // clear stale captures from prior run (reorder/remove)
+    const _this = this
+    const STACKED_EFFECTS = new Set(['risograph', 'duotone', 'halftone', 'noise', 'vhs', 'filmDamage', 'jpegDamage', 'replaceColor', 'spotColor', 'bubble', 'dotMatrix', 'solid', 'chromaKey', 'lumaKey', 'spectralMap', 'roughenEdge', 'waveWarp', 'mirror', 'feather', 'gaussianBlur', 'directionalBlur', 'zoomBlur', 'spinBlur', 'rgbSplit', 'threshold', 'maskFade', 'edgeGlow'])
+    const afterPush = (effectId) => {
+      const cntBefore = (effectInstanceCount[effectId] || 0) - 1
+      if (!STACKED_EFFECTS.has(effectId) || cntBefore < 0) { _prevFilterLen = filterList.length; return }
+      if (filterList.length === _prevFilterLen) return
+      _prevFilterLen = filterList.length
+      const lastIdx = filterList.length - 1
+      if (lastIdx < 0) return
+      const origFn = filterList[lastIdx]
+      if (typeof origFn !== 'function') return
+      const map = _this._stackOrig.get(node) || new Map()
+      if (!_this._stackOrig.has(node)) _this._stackOrig.set(node, map)
+      if (cntBefore === 0) {
+        filterList[lastIdx] = function stackCapture(imgData) {
+          if (!map.has(effectId)) map.set(effectId, new Uint8ClampedArray(imgData.data))
+          origFn(imgData)
+        }
+      } else {
+        const opacity = 1 / (cntBefore + 1)
+        filterList[lastIdx] = function stackBlend(imgData) {
+          const origData = map.get(effectId)
+          if (!origData) { origFn(imgData); return }
+          const clone = new Uint8ClampedArray(origData)
+          origFn({ data: clone, width: imgData.width, height: imgData.height })
+          for (let i = 0; i < imgData.data.length; i += 4) {
+            imgData.data[i] = imgData.data[i] * (1 - opacity) + clone[i] * opacity
+            imgData.data[i+1] = imgData.data[i+1] * (1 - opacity) + clone[i+1] * opacity
+            imgData.data[i+2] = imgData.data[i+2] * (1 - opacity) + clone[i+2] * opacity
+          }
+        }
+      }
+    }
 
     // Iterate in canonical order (not Object.entries) so effect application
     // is deterministic regardless of how the effects object was constructed
@@ -955,6 +998,7 @@ export class EffectManager {
       'jpegDamage', 'filmDamage', 'vhs', 'stretch', 'waveWarp', 'bubble',
     ]
     const order = effectOrder && effectOrder.length ? effectOrder : []
+    const effectInstanceCount = {}
     for (const instanceId of order) {
       const entry = effects[instanceId]
       if (!entry) continue
@@ -962,12 +1006,13 @@ export class EffectManager {
       const val = entry.value
       if (!val && val !== 0) continue
       if (val === false || val === 'none' || val === '') continue
+      effectInstanceCount[id] = (effectInstanceCount[id] || 0) + 1
 
       // ── Built-in Konva ────────────────────────────────
-      if (id === 'invert'    && val) { filterList.push(Konva.Filters.Invert); continue }
-      if (id === 'grayscale' && val) { filterList.push(Konva.Filters.Grayscale); continue }
-      if (id === 'sepia'     && val) { filterList.push(Konva.Filters.Sepia); continue }
-      if (id === 'solarize'  && val) { filterList.push(Konva.Filters.Solarize); continue }
+      if (id === 'invert'    && val) { filterList.push(Konva.Filters.Invert); afterPush(id); continue }
+      if (id === 'grayscale' && val) { filterList.push(Konva.Filters.Grayscale); afterPush(id); continue }
+      if (id === 'sepia'     && val) { filterList.push(Konva.Filters.Sepia); afterPush(id); continue }
+      if (id === 'solarize'  && val) { filterList.push(Konva.Filters.Solarize); afterPush(id); continue }
       if (id === 'threshold' && val) {
         const p = val
         filterList.push(function thresholdFilter(imgData) {
@@ -976,7 +1021,7 @@ export class EffectManager {
             uInvert: p.invert ? 1 : 0,
           })
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'gaussianBlur' && val > 0) {
         const radius = val
@@ -993,7 +1038,7 @@ export class EffectManager {
           const out = ctx.getImageData(0, 0, dst.width, dst.height)
           imgData.data.set(out.data)
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'noise' && val) {
         const amount = typeof val === 'number' ? val : (val.amount ?? 0.3)
@@ -1007,10 +1052,10 @@ export class EffectManager {
             node.noise(amount); filterList.push(Konva.Filters.Noise)
           }
         }
-        continue
+        afterPush(id); continue
       }
       if (id === 'pixelate' && val > 0) {
-        node.pixelSize(Math.max(1, Math.round(val))); filterList.push(Konva.Filters.Pixelate); continue
+        node.pixelSize(Math.max(1, Math.round(val))); filterList.push(Konva.Filters.Pixelate); afterPush(id); continue
       }
 
       // ── Mirror (Canvas 2D pixel) ───────────────────────
@@ -1019,7 +1064,7 @@ export class EffectManager {
         filterList.push(function mirrorFilter(imgData) {
           mirrorPixels(imgData.data, imgData.width, imgData.height, axis)
         })
-        continue
+        afterPush(id); continue
       }
 
       // ── WebGL filters ──────────────────────────────────
@@ -1032,7 +1077,7 @@ export class EffectManager {
             uSamples: p.samples ?? 16,
           })
         })
-        addPad(Math.ceil((p.strength ?? 0.5) * 20)); continue
+        addPad(Math.ceil((p.strength ?? 0.5) * 20)); afterPush(id); continue
       }
       if (id === 'rgbSplit' && val) {
         const p = val
@@ -1050,21 +1095,21 @@ export class EffectManager {
             uImgUV: [1, 1],
           })
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'zoomBlur' && val) {
         const p = typeof val === 'number' ? { strength: val, centerX: 0.5, centerY: 0.5 } : val
         filterList.push(function zoomBlurFilter(imgData) {
           webglEngine.processSync(imgData, 'zoomBlur', { uStrength: p.strength ?? 0.3, uCenterX: p.centerX ?? 0.5, uCenterY: p.centerY ?? 0.5, uSamples: 16 })
         })
-        addPad(Math.ceil((p.strength ?? 0.3) * 100)); continue
+        addPad(Math.ceil((p.strength ?? 0.3) * 100)); afterPush(id); continue
       }
       if (id === 'spinBlur' && val) {
         const p = typeof val === 'number' ? { angle: val, centerX: 0.5, centerY: 0.5 } : val
         filterList.push(function spinBlurFilter(imgData) {
           webglEngine.processSync(imgData, 'spinBlur', { uAngle: p.angle ?? 0.3, uCenterX: p.centerX ?? 0.5, uCenterY: p.centerY ?? 0.5, uSamples: 16 })
         })
-        addPad(Math.ceil((p.angle ?? 0.3) * 100)); continue
+        addPad(Math.ceil((p.angle ?? 0.3) * 100)); afterPush(id); continue
       }
       if (id === 'halftone' && val) {
         const p = val
@@ -1086,7 +1131,7 @@ export class EffectManager {
             uColor2: [c2r, c2g, c2b],
           })
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'roughenEdge' && val) {
         const p = val
@@ -1098,7 +1143,7 @@ export class EffectManager {
         filterList.push(function roughenEdgeFilter(imgData) {
           webglEngine.processSync(imgData, 'roughenEdge', { uScale, uStrength, uSpeed, uOctaves })
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'waveWarp' && val) {
         const p = val
@@ -1111,7 +1156,7 @@ export class EffectManager {
             uAngle: (p.rotation ?? 0) * Math.PI / 180,
           })
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'risograph' && val) {
         const p = val
@@ -1119,12 +1164,15 @@ export class EffectManager {
         const c1r = parseInt(hex1.slice(1,3),16), c1g = parseInt(hex1.slice(3,5),16), c1b = parseInt(hex1.slice(5,7),16)
         const pr = parseInt(hexP.slice(1,3),16), pg = parseInt(hexP.slice(3,5),16), pb = parseInt(hexP.slice(5,7),16)
         const thr = p.threshold ?? 0.5, grain = p.grain ?? 0.15
+        const repeatIdx = (effectInstanceCount[id] || 1) - 1
+        const stackMul = 1 + repeatIdx * 0.4
         if (p.mode === 'texture') {
-          const density = p.density ?? 0.5, misalignment = p.misalignment ?? 0.3
+          const density = (p.density ?? 0.5) * stackMul, misalignment = (p.misalignment ?? 0.3) * stackMul
           filterList.push(function risographTextureFilter(imgData) {
             applyRisographTextureFullColor(imgData, { pr, pg, pb, density, misalignment })
           })
         } else {
+          const adjThr = Math.min(thr + repeatIdx * 0.12, 0.95), adjGrain = grain * stackMul
           filterList.push(function risographFilter(imgData) {
             const w = imgData.width, h = imgData.height, d = imgData.data
             for (let y = 0; y < h; y++) {
@@ -1133,8 +1181,8 @@ export class EffectManager {
                 const noise = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1
                 const n = noise < 0 ? noise + 1 : noise
                 let L = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114) / 255
-                L = Math.max(0, Math.min(1, L + (n - 0.5) * grain * 2))
-                if (L < thr) {
+                L = Math.max(0, Math.min(1, L + (n - 0.5) * adjGrain * 2))
+                if (L < adjThr) {
                   d[i] = c1r; d[i+1] = c1g; d[i+2] = c1b
                 } else {
                   d[i] = pr; d[i+1] = pg; d[i+2] = pb
@@ -1143,7 +1191,7 @@ export class EffectManager {
             }
           })
         }
-        continue
+        afterPush(id); continue
       }
       if (id === 'dotMatrix' && val) {
         const p = val
@@ -1159,7 +1207,7 @@ export class EffectManager {
             uShape: (p.shape ?? 'circle') === 'square' ? 1 : 0,
           })
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'feather' && val > 0) {
         const amount = val
@@ -1178,7 +1226,7 @@ export class EffectManager {
             }
           }
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'edgeGlow' && val) {
         const p = val
@@ -1214,7 +1262,7 @@ export class EffectManager {
             d[i+3] = orig[i+3]
           }
         })
-        addPad(Math.ceil((p.width ?? 5) * 2)); continue
+        addPad(Math.ceil((p.width ?? 5) * 2)); afterPush(id); continue
       }
       if (id === 'jpegDamage' && val) {
         const p = val
@@ -1227,7 +1275,7 @@ export class EffectManager {
             uRinging: p.ringing ?? 0.2,
           })
         })
-        addPad(10); continue
+        addPad(10); afterPush(id); continue
       }
       if (id === 'filmDamage' && val) {
         const p = val
@@ -1241,7 +1289,7 @@ export class EffectManager {
             uColorAge: p.colorAge ?? 0.4,
           })
         })
-        addPad(10); continue
+        addPad(10); afterPush(id); continue
       }
       if (id === 'vhs' && val) {
         const p = val
@@ -1257,7 +1305,7 @@ export class EffectManager {
             uFade: p.fade ?? 0.2,
           })
         })
-        continue
+        afterPush(id); continue
       }
 
       // ── Canvas 2D custom filters ───────────────────────
@@ -1266,14 +1314,14 @@ export class EffectManager {
         filterList.push(function spotColorFilter(imgData) {
           spotColorPixels(imgData.data, imgData.width, imgData.height, p.color ?? '#ff0000', p.threshold ?? 30, p.feather ?? 0.2)
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'duotone' && val) {
         const p = val
         filterList.push(function duotoneFilter(imgData) {
           duotonePixels(imgData.data, imgData.width, imgData.height, p.colorA ?? '#000000', p.colorB ?? '#ffffff')
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'spectralMap' && val) {
         const p = val
@@ -1297,28 +1345,28 @@ export class EffectManager {
             uAlpha: p.alpha ?? 1,
           })
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'chromaKey' && val) {
         const p = val
         filterList.push(function chromaKeyFilter(imgData) {
           chromaKeyPixels(imgData.data, imgData.width, imgData.height, p.keyColor ?? '#00ff00', p.threshold ?? 80, p.feather ?? 0.1)
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'lumaKey' && val) {
         const p = val
         filterList.push(function lumaKeyFilter(imgData) {
           lumaKeyPixels(imgData.data, imgData.width, imgData.height, p.threshold ?? 128, p.feather ?? 0.1, p.invertKey ?? false)
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'replaceColor' && val) {
         const p = val
         filterList.push(function replaceColorFilter(imgData) {
           replaceColorPixels(imgData.data, imgData.width, imgData.height, p.fromColor ?? '#ff0000', p.toColor ?? '#00ff00', p.threshold ?? 30, p.feather ?? 0.2)
         })
-        continue
+        afterPush(id); continue
       }
 
       // ── Text Effects (Canvas 2D pixel distortion) ─────
@@ -1346,30 +1394,24 @@ export class EffectManager {
             }
           }
         })
-        continue
+        afterPush(id); continue
       }
       if (id === 'stretch' && val) {
+        const tn = this._getStretchTarget(node)
         const p = val
-        filterList.push(function stretchFilter(imgData) {
-          const sw = imgData.width, sh = imgData.height
-          const d = imgData.data
-          const src = new Uint8ClampedArray(d)
-          const scx = sw / 2, scy = sh / 2
-          for (let y = 0; y < sh; y++) {
-            for (let x = 0; x < sw; x++) {
-              const nx = (x - scx) / scx, ny = (y - scy) / scy
-              const taper = Math.max(0.01, 1 - (ny + 1) / 2 * (p.taperTop ?? 0) - (1 - (ny + 1) / 2) * (p.taperBottom ?? 0))
-              let srcNx = nx / ((p.scaleX ?? 1) * taper) - (p.skewX ?? 0) * ny
-              let srcNy = ny / (p.scaleY ?? 1) - (p.skewY ?? 0) * nx
-              const sx = srcNx * scx + scx, sy = srcNy * scy + scy
-              const si = (Math.round(sy) * sw + Math.round(sx)) * 4
-              if (si < 0 || si >= d.length) continue
-              const di = (y * sw + x) * 4
-              d[di] = src[si]; d[di+1] = src[si+1]; d[di+2] = src[si+2]; d[di+3] = src[si+3]
-            }
-          }
+        if (!tn.getAttr('_stretchBaseScaleX')) {
+          tn.setAttrs({ _stretchBaseScaleX: tn.scaleX(), _stretchBaseScaleY: tn.scaleY() })
+        }
+        const baseX = tn.getAttr('_stretchBaseScaleX') || 1
+        const baseY = tn.getAttr('_stretchBaseScaleY') || 1
+        const sx = p.scaleX ?? 1, sy = p.scaleY ?? 1
+        tn.setAttrs({
+          _stretchScaleX: sx, _stretchScaleY: sy,
+          _stretchSkewX: p.skewX ?? 0, _stretchSkewY: p.skewY ?? 0,
+          scaleX: baseX * sx, scaleY: baseY * sy,
+          skewX: p.skewX ?? 0, skewY: p.skewY ?? 0,
         })
-        addPad(20); continue
+        continue
       }
 
       // ── Gradient Overlay — Konva Rect di atas node ────
@@ -1413,7 +1455,7 @@ export class EffectManager {
             }
           }
         })
-        continue
+        afterPush(id); continue
       }
 
       // ── Solid (image-only fill replacement) ─────────────
@@ -1426,7 +1468,7 @@ export class EffectManager {
             dd[i] = sr; dd[i+1] = sg; dd[i+2] = sb
           }
         })
-        continue
+        afterPush(id); continue
       }
 
       // ── Geometry — diproses terpisah setelah filter ───
@@ -1450,8 +1492,6 @@ export class EffectManager {
       }
     }
 
-    // Terapkan semua filter sekaligus
-    console.time('[FX-APPLY-TOTAL]')
     node.filters(filterList)
     if (filterList.length > 0) {
       const fontSize = typeof node.fontSize === 'function' ? (node.fontSize() || 0) : 0
@@ -1461,7 +1501,7 @@ export class EffectManager {
       let w = nw > 0 ? nw : 0
       let h = nh > 0 ? nh : 0
       if (w <= 0 || h <= 0) {
-        const cr = node.getClientRect({ skipTransform: true, skipShadow: true, skipStroke: true })
+        const cr = node.getClientRect({ skipTransform: true, skipShadow: false, skipStroke: true })
         if (w <= 0) w = cr.width > 0 ? cr.width : 100
         if (h <= 0) h = cr.height > 0 ? cr.height : 100
       }
@@ -1516,8 +1556,7 @@ export class EffectManager {
             const cvs2 = document.createElement('canvas')
             const cctx2 = cvs2.getContext('2d')
             children.forEach((child) => {
-              if (typeof child.text !== 'function' || typeof child.fontFamily !== 'function') return
-              const ct = child.text() || ''
+              const ct = typeof child.text === 'function' ? (child.text() || '') : ''
               if (!ct) return
               const cx = typeof child.x === 'function' ? child.x() : 0
               const cy = typeof child.y === 'function' ? child.y() : 0
@@ -1557,43 +1596,13 @@ export class EffectManager {
           }
         } catch (_) {}
       }
-      const nodeId = (typeof node.id === 'function' ? node.id() : null) || (typeof node._id !== 'undefined' ? node._id : '?')
-      const physW = Math.ceil(w + textPadL + textPadR + pad * 2) * pr
-      const physH = Math.ceil(h + textPadT + textPadB + pad * 2) * pr
-      console.log('[EFFECT CACHE SIZE]', {
-        nodeW: typeof node.width === 'function' ? node.width() : node.getAttr('width'),
-        nodeH: typeof node.height === 'function' ? node.height() : node.getAttr('height'),
-        cacheW: Math.ceil(w + textPadL + textPadR + pad * 2),
-        cacheH: Math.ceil(h + textPadT + textPadB + pad * 2),
-        pr, physW, physH,
-        totalPixels: physW * physH,
-        imageSrc: (typeof node.image === 'function' ? node.image()?._moodspaceSrc : null) || (typeof node.getAttr === 'function' ? node.getAttr('src') : null),
-        imageNatural: (typeof node.image === 'function' ? node.image() : null) ? { nw: node.image()?.naturalWidth, nh: node.image()?.naturalHeight } : null,
-      })
-      console.time('[FX-CACHE-CREATE]')
-      console.log('[EFFECT CACHE PAD]', {
-        id: nodeId,
-        textPadL, textPadT, textPadR, textPadB,
-        cacheX: -(textPadL + pad), cacheY: -(textPadT + pad),
-        cacheW: Math.ceil(w + textPadL + textPadR + pad * 2),
-        cacheH: Math.ceil(h + textPadT + textPadB + pad * 2),
-        isText: typeof node.measureSize === 'function',
-        isGroup: typeof node.getChildren === 'function',
-        scaleX, scaleY,
-        strokeW, strokePad,
-        pad,
-        fontSize,
-        raw: _mea,
-      })
       node.clearCache()
       node.cache({ x: -(textPadL + pad), y: -(textPadT + pad), width: w + textPadL + textPadR + pad * 2, height: h + textPadT + textPadB + pad * 2, pixelRatio: pr })
-      console.timeEnd('[FX-CACHE-CREATE]')
     } else {
       node.clearCache()
     }
 
     node.getLayer()?.batchDraw()
-    console.timeEnd('[FX-APPLY-TOTAL]')
   }
 
   removeAll(node) {
@@ -1629,8 +1638,32 @@ export class EffectManager {
     if (copies) { copies.forEach(c => c.destroy()); this._repeaters.delete(node) }
   }
 
+  _getStretchTarget(node) {
+    // When node is a Group (e.g. item root Group from commitTransformerChanges),
+    // return it directly — climbing to parent would reach the shared canvas-content Group
+    // which would pollute ALL items' scale with the stretch value.
+    if (node.getClassName() === 'Group') return node
+    const parent = node.getParent()
+    if (parent && parent.getClassName() === 'Group') {
+      return parent
+    }
+    return node
+  }
+
   _clearBounds(node) {
-    // Reserved for future bounds-based effects
+    const tn = this._getStretchTarget(node)
+    const baseX = tn.getAttr('_stretchBaseScaleX')
+    if (baseX) {
+      tn.scaleX(baseX)
+      tn.scaleY(tn.getAttr('_stretchBaseScaleY') || 1)
+      tn.skewX(0)
+      tn.skewY(0)
+    }
+    tn.setAttrs({
+      _stretchBaseScaleX: undefined, _stretchBaseScaleY: undefined,
+      _stretchScaleX: undefined, _stretchScaleY: undefined,
+      _stretchSkewX: undefined, _stretchSkewY: undefined,
+    })
   }
 
   // Spectral map is a pure WebGL shader — no animation loop needed.
@@ -1686,6 +1719,7 @@ export class EffectManager {
       'jpegDamage', 'filmDamage', 'vhs', 'waveWarp',
     ]
     const order = effectOrder && effectOrder.length ? effectOrder : []
+    const effectInstanceCount = {}
     for (const instanceId of order) {
       const entry = effects[instanceId]
       if (!entry) continue
@@ -1693,6 +1727,7 @@ export class EffectManager {
       const val = entry.value
       if (!val && val !== 0) continue
       if (val === false || val === 'none' || val === '') continue
+      effectInstanceCount[id] = (effectInstanceCount[id] || 0) + 1
 
       // ── Built-in Konva (no node attrs needed) ──
       if (id === 'invert' && val) {
@@ -1792,18 +1827,21 @@ export class EffectManager {
         const c1r = parseInt(hex1.slice(1,3),16), c1g = parseInt(hex1.slice(3,5),16), c1b = parseInt(hex1.slice(5,7),16)
         const pr = parseInt(hexP.slice(1,3),16), pg = parseInt(hexP.slice(3,5),16), pb = parseInt(hexP.slice(5,7),16)
         const thr = p.threshold ?? 0.5, grain = p.grain ?? 0.15
+        const repeatIdx = (effectInstanceCount[id] || 1) - 1
+        const stackMul = 1 + repeatIdx * 0.4
         if (p.mode === 'texture') {
-          const density = p.density ?? 0.5, misalignment = p.misalignment ?? 0.3
+          const density = (p.density ?? 0.5) * stackMul, misalignment = (p.misalignment ?? 0.3) * stackMul
           applyRisographTextureFullColor(imageData, { pr, pg, pb, density, misalignment })
         } else {
+          const adjThr = Math.min(thr + repeatIdx * 0.12, 0.95), adjGrain = grain * stackMul
           for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
               const i = (y * w + x) * 4
               const noise = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1
               const n = noise < 0 ? noise + 1 : noise
               let L = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114) / 255
-              L = Math.max(0, Math.min(1, L + (n - 0.5) * grain * 2))
-              if (L < thr) {
+              L = Math.max(0, Math.min(1, L + (n - 0.5) * adjGrain * 2))
+              if (L < adjThr) {
                 d[i] = c1r; d[i+1] = c1g; d[i+2] = c1b
               } else {
                 d[i] = pr; d[i+1] = pg; d[i+2] = pb

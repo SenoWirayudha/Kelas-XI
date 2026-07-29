@@ -624,6 +624,7 @@ export default function FrameWithImage({
   commonProps,
   isDropTarget = false,
   dropSlotIndex = null,
+  dropPreviewState,
   isEditing = false,
   initialEditSlot = 0,      // ← TAMBAH INI
   onImageDragEnd,
@@ -649,6 +650,9 @@ export default function FrameWithImage({
     : [item.frameImageSrc || null]
  
   const loadedImages = useCanvasImages(srcArray)
+  const isPreviewTarget = dropPreviewState?.active && dropPreviewState.targetFrameId === item.id && dropPreviewState.previewSrc
+  const previewImages = useCanvasImages(isPreviewTarget ? [dropPreviewState.previewSrc] : [null])
+  const previewLoadedImage = previewImages[0]
  
   const shadowProps = isDropTarget
     ? { shadowColor: '#b88cff', shadowBlur: 30, shadowOpacity: 0.36, shadowOffsetY: 8 }
@@ -823,6 +827,18 @@ export default function FrameWithImage({
                   />
                 : renderFramePlaceholder(slot, isSlotDropTarget)
               }
+              {isPreviewTarget && dropPreviewState.targetSlotIndex === slotIdx && previewLoadedImage && (() => {
+                const pf = calculateCoverFit({
+                  imageWidth: previewLoadedImage.width,
+                  imageHeight: previewLoadedImage.height,
+                  slot,
+                  fit: 'cover',
+                  crop: { x: 0, y: 0 },
+                  zoom: 1,
+                })
+                if (!pf) return null
+                return <KonvaImage image={previewLoadedImage} x={pf.x} y={pf.y} width={pf.width} height={pf.height} opacity={0.65} listening={false} />
+              })()}
             </Group>
           )
         })
@@ -951,6 +967,18 @@ export default function FrameWithImage({
               onMouseUp={(e) => { if (isEditing) e.target.getStage().container().style.cursor = 'grab' }}
             />
           ) : !singleImage && renderFramePlaceholder(singleSlot, isDropTarget)}
+          {isPreviewTarget && previewLoadedImage && (() => {
+            const pf = calculateCoverFit({
+              imageWidth: previewLoadedImage.width,
+              imageHeight: previewLoadedImage.height,
+              slot: singleSlot,
+              fit: 'cover',
+              crop: { x: 0, y: 0 },
+              zoom: 1,
+            })
+            if (!pf) return null
+            return <KonvaImage image={previewLoadedImage} x={pf.x} y={pf.y} width={pf.width} height={pf.height} opacity={0.65} listening={false} />
+          })()}
         </Group>
       )}
  

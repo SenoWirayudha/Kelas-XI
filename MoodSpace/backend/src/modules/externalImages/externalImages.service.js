@@ -213,9 +213,12 @@ export const classifyMovieQuery = (value = '') => {
   }
 
   // Gate 4: single-word titleCandidate without movie intent → too generic for TMDB title search.
-  // Single common nouns like "films", "movie", "cinema" are not specific entity titles.
+  // Single common nouns like "films", "haine" (standalone) are not specific entity titles.
   // Multi-word candidates (e.g. "past lives", "la haine") are specific enough.
-  if (titleCandidate && !titleCandidate.includes(' ') && !hasMovieIntent) {
+  // Use ORIGINAL token count (tokens.length) before noise word stripping — "the handmaiden"
+  // has 2 raw tokens but titleCandidate="handmaiden" (1 word) because "the" is in titleNoiseWords.
+  // These are still entity searches, not generic nouns.
+  if (titleCandidate && !titleCandidate.includes(' ') && !hasMovieIntent && tokens.length < 2) {
     console.log('[TMDB-DEBUG] classifyMovieQuery REJECTED gate4 (single word, no movie intent):', { raw: value, titleCandidate })
     return null
   }
@@ -895,7 +898,7 @@ const searchTmdb = async ({ query, limit, cursor }) => {
       console.log('[TMDB-DEBUG] searchTmdb multi results:', { sq, total: results.length, movieCount, tvCount })
       let entities = results
         .filter((r) => r.media_type === 'movie' || r.media_type === 'tv')
-        .slice(0, 5)
+        .slice(0, 15)
 
       // Hybrid: when year is detected in the query, also search /search/movie
       // with primary_release_year to surface the year-precise movie that
@@ -1841,52 +1844,76 @@ export const searchExternalImages = async ({
   const rerankText = enrichForClipRerank(semanticText || queries.join(' '))
   const textEmb = await getTextEmbedding(rerankText).catch(() => null)
 
-  // === HOME FEED: DB-first priority search ===
-  // Fetches items from external_images TABLE via CLIP text embedding,
-  // then supplements with profile-based serendipity pool.
+  // === HOME FEED: Profile-first priority search ===
+  // Uses stored user embedding (EMA profile) as PRIMARY source,
+  // then supplements with text-based (interest tag) similarity.
   // API calls only as fallback if DB items insufficient for limit*3.
-  let homeDbTextOffset = 0
-  let homeProfileOffset = 0
-  let homeDbItems = []
-  let homeProfilePoolItems = []
+  // When profile is immature (< MIN_WEIGHT_FOR_PROFILE_FEED), falls back
+  // to text-based primary (old behavior) until profile matures.
+  let textOffset = 0
+  let profileOffset = 0
+  let homeProfileItems = []
+  let homeTextItems = []
   let skipApiForHome = false
+  const MIN_WEIGHT_FOR_PROFILE_FEED = 5
 
   if (context === 'home') {
-    homeDbTextOffset = Number(decodedCursor?.dbTextOffset) || 0
-    homeProfileOffset = Number(decodedCursor?.profileOffset) || 0
-
-    if (textEmb) {
-      console.time('[HOME-DB-FIRST] Text similarity search')
-      const rawTextItems = await findImagesByVisualSimilarity({ embedding: textEmb, limit: 500, offset: 0 })
-      console.timeEnd('[HOME-DB-FIRST] Text similarity search')
-      homeDbItems = filterAdaptiveFreshness(rawTextItems, homeDbTextOffset, limit * 3, 14, 5)
-      console.log('[HOME-DB-FIRST] DB text items:', homeDbItems.length, 'at offset', homeDbTextOffset)
-    }
+    textOffset = Number(decodedCursor?.textOffset) || 0
+    profileOffset = Number(decodedCursor?.profileOffset) || 0
 
     if (viewerId && !visualSimilarTo && !semanticText) {
-      const profileEmb = await getUserProfileEmbedding(viewerId).catch(() => null)
-      if (profileEmb) {
-        console.time('[HOME-DB-FIRST] Profile pool')
+      const profileData = await getUserProfileEmbedding(viewerId).catch(() => null)
+      const profileEmb = profileData?.embedding || null
+      const isProfileMature = profileEmb && (profileData?.totalWeight ?? 0) >= MIN_WEIGHT_FOR_PROFILE_FEED
+
+      if (isProfileMature) {
+        // PRIMARY: profileEmb — long-term taste
+        console.time('[HOME-SWAP] Profile similarity search')
         const rawProfItems = await findImagesByVisualSimilarity({ embedding: profileEmb, limit: 500, offset: 0 })
-        console.timeEnd('[HOME-DB-FIRST] Profile pool')
-        homeProfilePoolItems = filterAdaptiveFreshness(rawProfItems, homeProfileOffset, 6, 30, 3)
-          .map((item) => {
-            const { _embedding, createdAt, updatedAt, ...rest } = item
-            return { ...rest, clipScore: item._clipScore }
+        console.timeEnd('[HOME-SWAP] Profile similarity search')
+        homeProfileItems = filterAdaptiveFreshness(rawProfItems, profileOffset, limit * 3, 30, 3)
+        console.log('[HOME-SWAP] Profile items:', homeProfileItems.length, 'at offset', profileOffset)
+
+        // SUPPLEMENT: textEmb — current interest
+        if (textEmb) {
+          console.time('[HOME-SWAP] Text supplement search')
+          const rawTextItems = await findImagesByVisualSimilarity({ embedding: textEmb, limit: 500, offset: 0 })
+          console.timeEnd('[HOME-SWAP] Text supplement search')
+          homeTextItems = filterAdaptiveFreshness(rawTextItems, textOffset, 8, 14, 5)
+            .map((item) => {
+              const { _embedding, createdAt, updatedAt, ...rest } = item
+              return { ...rest, clipScore: item._clipScore }
+            })
+          if (!hasMusicQuery) {
+            homeTextItems = homeTextItems.filter((i) => i.provider !== 'itunes')
+          }
+          homeTextItems = homeTextItems.filter((i) => {
+            if (i.provider === 'tmdb' || i.provider === 'itunes') return true
+            return isDesignItem(i)
           })
-        if (!hasMusicQuery) {
-          homeProfilePoolItems = homeProfilePoolItems.filter((i) => i.provider !== 'itunes')
+          console.log('[HOME-SWAP] Text supplement items:', homeTextItems.length, 'at offset', textOffset)
         }
-        homeProfilePoolItems = homeProfilePoolItems.filter((i) => {
-          if (i.provider === 'tmdb' || i.provider === 'itunes') return true
-          return isDesignItem(i)
-        })
-        console.log('[HOME-DB-FIRST] Profile pool items:', homeProfilePoolItems.length, 'at offset', homeProfileOffset)
+      } else {
+        // FALLBACK: profileEmb belum matang — textEmb sebagai primary (behavior lama)
+        if (textEmb) {
+          console.time('[HOME-SWAP] Text primary (fallback)')
+          const rawTextItems = await findImagesByVisualSimilarity({ embedding: textEmb, limit: 500, offset: 0 })
+          console.timeEnd('[HOME-SWAP] Text primary (fallback)')
+          homeTextItems = filterAdaptiveFreshness(rawTextItems, textOffset, limit * 3, 14, 5)
+          console.log('[HOME-SWAP] Text items (fallback):', homeTextItems.length, 'at offset', textOffset)
+        }
       }
+    } else if (textEmb) {
+      // viewerId null, atau visualSimilarTo/semanticText — text primary (behavior lama)
+      console.time('[HOME-SWAP] Text primary (no profile)')
+      const rawTextItems = await findImagesByVisualSimilarity({ embedding: textEmb, limit: 500, offset: 0 })
+      console.timeEnd('[HOME-SWAP] Text primary (no profile)')
+      homeTextItems = filterAdaptiveFreshness(rawTextItems, textOffset, limit * 3, 14, 5)
+      console.log('[HOME-SWAP] Text items (no profile):', homeTextItems.length, 'at offset', textOffset)
     }
 
-    skipApiForHome = homeDbItems.length >= limit * 3
-    console.log('[HOME-DB-FIRST] skipApi:', skipApiForHome, '| dbItems:', homeDbItems.length, '| needed:', limit * 3)
+    skipApiForHome = (homeProfileItems.length + homeTextItems.length) >= limit * 3
+    console.log('[HOME-SWAP] skipApi:', skipApiForHome, '| profile:', homeProfileItems.length, '| text:', homeTextItems.length, '| needed:', limit * 3)
   }
 
   const requests = querySlots.flatMap(({ query, slots }, queryIndex) => {
@@ -1963,12 +1990,12 @@ export const searchExternalImages = async ({
   }
 
   // Merge DB-first items into the mix for home feed.
-  // DB items come first (higher priority), API items supplement if needed.
-  if (context === 'home' && (homeDbItems.length || homeProfilePoolItems.length)) {
+  // Profile items come first (higher priority), text items supplement if needed.
+  if (context === 'home' && (homeProfileItems.length || homeTextItems.length)) {
     const existingIds = new Set(items.map(i => i.id))
-    const uniqueDb = homeDbItems.filter(i => !existingIds.has(i.id))
-    const uniqueProf = homeProfilePoolItems.filter(i => !existingIds.has(i.id) && !uniqueDb.some(d => d.id === i.id))
-    items = [...uniqueDb, ...uniqueProf, ...items].slice(0, limit * 3)
+    const uniqueProfile = homeProfileItems.filter(i => !existingIds.has(i.id))
+    const uniqueText = homeTextItems.filter(i => !existingIds.has(i.id) && !uniqueProfile.some(d => d.id === i.id))
+    items = [...uniqueProfile, ...uniqueText, ...items].slice(0, limit * 3)
   }
 
   // === STEP A2: Anchor Post Visual Pool Enrichment (home feed, page 1 only) ===
@@ -1986,7 +2013,7 @@ export const searchExternalImages = async ({
   // For true visual chaining (original goal), dual-path scoring (anchor items
   // scored by profileEmb instead of textEmb) is needed — deferred to post-pgvector.
   let homeAnchorPoolItems = []
-  if (context === 'home' && viewerId && !decodedCursor?.dbTextOffset && !decodedCursor?.profileOffset) {
+  if (context === 'home' && viewerId && !decodedCursor?.textOffset && !decodedCursor?.profileOffset) {
     console.time('[HOME-ANCHOR] Pool fetch')
     const [viewedPosts, savedPosts] = await Promise.all([
       getRecentViewedPosts({ userId: viewerId, limit: 3 }).catch(() => []),
@@ -2005,8 +2032,8 @@ export const searchExternalImages = async ({
     if (anchors.length) {
       const anchorExcludeIds = new Set([
         ...(items || []).map(i => i.id).filter(Boolean),
-        ...homeDbItems.map(i => i.id).filter(Boolean),
-        ...homeProfilePoolItems.map(i => i.id).filter(Boolean),
+        ...homeProfileItems.map(i => i.id).filter(Boolean),
+        ...homeTextItems.map(i => i.id).filter(Boolean),
       ])
       for (const anchor of anchors) {
         const similar = await findImagesByVisualSimilarity({
@@ -2068,6 +2095,44 @@ export const searchExternalImages = async ({
         }
         items.splice(0, items.length, ...mixed.slice(0, limit * 3))
         console.log('[DB-TEXT-MIX] mixed', unique.length, 'DB items into', items.length, 'total items for query:', queries.join(', '))
+      }
+    }
+  }
+
+  // ─── Force TMDB API for movie queries in home feed ───
+  // DB-first approach (skipApiForHome) skips ALL API calls including TMDB.
+  // For movie-classified queries, we must still fetch TMDB items so they
+  // enter the DB and appear in future (and current) home page loads.
+  // Only runs on page 1 (!cursor) when API was skipped (skipApiForHome).
+  if (context === 'home' && hasMovieQuery && !cursor && skipApiForHome) {
+    const movieQuery = queries.find(q => !!classifyMovieQuery(q))
+    if (movieQuery) {
+      const tmdb = await searchTmdb({ query: movieQuery, limit: 6, cursor: null }).catch(() => ({ items: [] }))
+      if (tmdb.items?.length) {
+        // Compute embeddings synchronously for first 2 items so they score in CLIP rerank
+        const toEmbed = tmdb.items.slice(0, 2)
+        for (const item of toEmbed) {
+          try {
+            const emb = await getImageEmbedding(item.thumbnailUrl || item.url)
+            if (emb) {
+              item._embedding = emb
+              await upsertExternalImage({ ...item, _embedding: emb, metadata: { ...item.metadata, sourceQuery: queries.join(' ') } })
+            }
+          } catch (e) {
+            console.log('[HOME-FORCE-TMDB] Embed failed for', item.id, e.message)
+          }
+        }
+        for (const item of tmdb.items.slice(2)) {
+          try {
+            await upsertExternalImage({ ...item, metadata: { ...item.metadata, sourceQuery: queries.join(' ') } })
+          } catch {}
+        }
+        const existingIds = new Set(items.map(i => i.id))
+        const newItems = tmdb.items.filter(i => !existingIds.has(i.id))
+        if (newItems.length) {
+          items = [...newItems, ...items].slice(0, limit * 3)
+          console.log('[HOME-FORCE-TMDB] Added', newItems.length, 'TMDB items,', newItems.filter(i => i._embedding).length, 'with embeddings')
+        }
       }
     }
   }
@@ -2164,7 +2229,8 @@ export const searchExternalImages = async ({
   // Uses stored user embedding (from EMA profile) to find visually similar
   // external images, independent of keyword/title search.
   if (context === 'home' && viewerId && !visualSimilarTo && !semanticText && !homeProfilePoolItems.length) {
-    const profileEmb = await getUserProfileEmbedding(viewerId).catch(() => null)
+    const profileData = await getUserProfileEmbedding(viewerId).catch(() => null)
+    const profileEmb = profileData?.embedding || null
     if (profileEmb) {
       const POOL_LIMIT = 6
       const dbResults = await findImagesByVisualSimilarity({ embedding: profileEmb, limit: POOL_LIMIT, offset: 0 })
@@ -2442,11 +2508,11 @@ export const searchExternalImages = async ({
   let finalCursor = null
   if (context === 'home') {
     // DB-first cursor: track offsets for DB text and profile pool
-    const dbMorePages = homeDbItems.length > 0 || hasActiveCursor
+    const dbMorePages = homeProfileItems.length > 0 || homeTextItems.length > 0 || hasActiveCursor
     if (dbMorePages) {
       finalCursor = {
-        dbTextOffset: homeDbTextOffset + Math.max(homeDbItems.length, 1),
-        profileOffset: homeProfileOffset + Math.max(homeProfilePoolItems.length, 1),
+        textOffset: textOffset + Math.max(homeTextItems.length, 1),
+        profileOffset: profileOffset + Math.max(homeProfileItems.length, 1),
       }
       if (nextCursor?.queries) finalCursor.queries = nextCursor.queries
     } else {
@@ -2612,7 +2678,9 @@ export const getExternalImage = async ({ id, userId = null }) => {
     })
     const extEmb = await findExternalImageEmbedding({ id })
     if (extEmb) {
-      updateProfile({ userId, embedding: extEmb, weight: 0.2 }).catch(() => {})
+      updateProfile({ userId, embedding: extEmb, weight: 0.35 })
+        .then((result) => console.log('[PROFILE_UPDATE_OK]', { userId, source: 'getExternalImage', ...result }))
+        .catch((err) => console.log('[PROFILE_UPDATE_FAIL]', { userId, source: 'getExternalImage', error: err.message }))
     }
   }
   return image

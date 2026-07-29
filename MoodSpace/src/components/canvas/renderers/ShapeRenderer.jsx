@@ -225,7 +225,7 @@ export default function ShapeRenderer({
     img.clearCache()
     try { effectManager.applyAll(img, nonRgbEffects, null, item.effectOrder) } catch {}
     img.getLayer()?.batchDraw()
-  }, [nonRgbEffects, shapeChannels])
+  }, [nonRgbEffects, shapeChannels, item.visible, item.effectOrder])
 
   // Synchronous effect application for when rgbSplit is NOT active
   useLayoutEffect(() => {
@@ -240,10 +240,12 @@ export default function ShapeRenderer({
       effectManager._clearRepeater(node)
     }
   }, [nonRgbEffects, item.x, item.y, item.rotation, item.w, item.h, hasRgbSplit, shapeChannels,
-      item.fill, item.fillOpacity, item.stroke, item.strokeWidth, item.opacity,
+      item.fill, item.fillOpacity, item.stroke, item.strokeWidth, item.opacity, item.visible, item.effectOrder,
       item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
       item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity, item.bevelEmbossHighlightBlendMode, item.bevelEmbossShadowBlendMode,
-      item.innerShadowEnabled, item.innerShadowColor, item.innerShadowOpacity, item.innerShadowBlur, item.innerShadowDistance, item.innerShadowAngle])
+      item.innerShadowEnabled, item.innerShadowColor, item.innerShadowOpacity, item.innerShadowBlur, item.innerShadowDistance, item.innerShadowAngle,
+      item.shapeText, item.shapeTextFill, item.shapeTextFontSize, item.fontFamily, item.isBold, item.shapeTextAlign,
+      item.shadowEnabled, item.shadow, item.shadowColor, item.shadowOpacity, item.shadowOffsetX, item.shadowOffsetY])
 
   useEffect(() => {
     filterItemRef.current = item
@@ -266,7 +268,9 @@ export default function ShapeRenderer({
       if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null }
     }
   }, [item.effects, hasRgbSplit, shapeChannels,
-      item.fill, item.fillOpacity, item.stroke, item.strokeWidth, item.opacity])
+      item.fill, item.fillOpacity, item.stroke, item.strokeWidth, item.opacity, item.visible, item.effectOrder,
+      item.shapeText, item.shapeTextFill, item.shapeTextFontSize, item.fontFamily, item.isBold, item.shapeTextAlign,
+      item.shadowEnabled, item.shadow, item.shadowColor, item.shadowOpacity, item.shadowOffsetX, item.shadowOffsetY])
 
   useEffect(() => {
     if (item.fontFamily) preloadFont(item.fontFamily)

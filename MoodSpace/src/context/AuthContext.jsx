@@ -7,6 +7,7 @@ import {
   registerUser,
 } from '../lib/api/auth'
 import { getAccessToken, setAccessToken } from '../lib/api/client'
+import { clearAllUserData } from '../utils/clearUserData'
 import { AuthContext } from './authState'
 
 export function AuthProvider({ children }) {
@@ -80,8 +81,17 @@ export function AuthProvider({ children }) {
         }))
       } catch { /* ignore */ }
     }
-    await logoutUser()
-    setUser(null)
+    // (a+b+c) Client-side clear — synchronous, tidak ada API call
+    clearAllUserData()
+    // Revoke server session (best-effort)
+    try {
+      await logoutUser()
+    } catch { /* best-effort */ }
+    // (d) Hapus access token
+    setAccessToken(null)
+    // (e) Full page reload = zero stale state. Tidak ada race condition
+    // karena eksekusi JS synchronously selesai sebelum navigasi dimulai.
+    window.location.href = '/'
   }, [user])
 
   const requireAuth = useCallback((reason = null) => {

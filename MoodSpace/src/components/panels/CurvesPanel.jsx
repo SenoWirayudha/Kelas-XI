@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { sampleCurveForDisplay } from '../../utils/curveUtils'
 
@@ -12,12 +12,71 @@ const CURVE_CHANNELS = [
 const GRID_W = 200
 const GRID_H = 200
 const GRID_PAD = 20
+const HIT_RADIUS = 22
+
+function drawCurveCanvas(canvas, activePts, curveChannel, referenceCurves, toCanvas) {
+  const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  ctx.strokeStyle = '#2b2830'
+  ctx.lineWidth = 1
+  for (let i = 0; i <= 4; i++) {
+    const x = GRID_PAD + (i / 4) * GRID_W
+    const y = GRID_PAD + (i / 4) * GRID_H
+    ctx.beginPath(); ctx.moveTo(x, GRID_PAD); ctx.lineTo(x, GRID_PAD + GRID_H); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(GRID_PAD, y); ctx.lineTo(GRID_PAD + GRID_W, y); ctx.stroke()
+  }
+
+  ctx.strokeStyle = '#3b3843'
+  ctx.lineWidth = 1
+  ctx.beginPath(); ctx.moveTo(GRID_PAD, GRID_PAD + GRID_H); ctx.lineTo(GRID_PAD + GRID_W, GRID_PAD); ctx.stroke()
+
+  if (referenceCurves && referenceCurves.length > 0) {
+    ctx.save()
+    ctx.globalAlpha = 0.3
+    ctx.lineWidth = 1.5
+    for (const ref of referenceCurves) {
+      const samples = sampleCurveForDisplay(ref.points, 256)
+      ctx.strokeStyle = ref.color
+      ctx.beginPath()
+      for (let j = 0; j < samples.length; j++) {
+        const [cx, cy] = toCanvas(samples[j].x, samples[j].y)
+        if (j === 0) ctx.moveTo(cx, cy)
+        else ctx.lineTo(cx, cy)
+      }
+      ctx.stroke()
+    }
+    ctx.restore()
+  }
+
+  const samples = sampleCurveForDisplay(activePts, 256)
+  const curveColor = CURVE_CHANNELS.find(c => c.key === curveChannel)?.color || '#7c6df2'
+  ctx.strokeStyle = curveColor
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  for (let j = 0; j < samples.length; j++) {
+    const [cx, cy] = toCanvas(samples[j].x, samples[j].y)
+    if (j === 0) ctx.moveTo(cx, cy)
+    else ctx.lineTo(cx, cy)
+  }
+  ctx.stroke()
+
+  for (const p of activePts) {
+    const [cx, cy] = toCanvas(p.x, p.y)
+    ctx.fillStyle = '#7c6df2'
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = '#e6e1ed'
+    ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill()
+  }
+}
 
 function CurveEditor({ curves, curveChannel, referenceCurves, onChange, onCommit, itemId }) {
   const canvasRef = useRef(null)
   const dragIdxRef = useRef(null)
   const dragDataRef = useRef(null)
   const nextIdRef = useRef(100)
+  const rafRef = useRef(null)
+  const pendingTapRef = useRef(null)
 
   const pts = useMemo(() => {
     const raw = curves?.[curveChannel]
@@ -30,128 +89,129 @@ function CurveEditor({ curves, curveChannel, referenceCurves, onChange, onCommit
     return raw
   }, [curves, curveChannel])
 
-  const toCanvas = (x, y) => [
+  const toCanvas = useCallback((x, y) => [
     GRID_PAD + (x / 255) * GRID_W,
     GRID_PAD + (1 - y / 255) * GRID_H,
-  ]
+  ], [])
 
-  const toValue = (cx, cy) => [
+  const toValue = useCallback((cx, cy) => [
     Math.round(((cx - GRID_PAD) / GRID_W) * 255),
     Math.round(255 - ((cy - GRID_PAD) / GRID_H) * 255),
-  ]
+  ], [])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext('2d')
+    drawCurveCanvas(canvas, dragDataRef.current || pts, curveChannel, referenceCurves, toCanvas)
+  }, [curves, curveChannel, referenceCurves, pts, toCanvas])
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+  const scheduleDraw = useCallback((nextPts) => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null
+      const canvas = canvasRef.current
+      if (!canvas) return
+      drawCurveCanvas(canvas, nextPts, curveChannel, referenceCurves, toCanvas)
+    })
+  }, [curveChannel, referenceCurves, toCanvas])
 
-    ctx.strokeStyle = '#2b2830'
-    ctx.lineWidth = 1
-    for (let i = 0; i <= 4; i++) {
-      const x = GRID_PAD + (i / 4) * GRID_W
-      const y = GRID_PAD + (i / 4) * GRID_H
-      ctx.beginPath(); ctx.moveTo(x, GRID_PAD); ctx.lineTo(x, GRID_PAD + GRID_H); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(GRID_PAD, y); ctx.lineTo(GRID_PAD + GRID_W, y); ctx.stroke()
-    }
+  const clamp = useCallback((v) => Math.max(GRID_PAD, Math.min(GRID_PAD + GRID_W, v)), [])
 
-    ctx.strokeStyle = '#3b3843'
-    ctx.lineWidth = 1
-    ctx.beginPath(); ctx.moveTo(GRID_PAD, GRID_PAD + GRID_H); ctx.lineTo(GRID_PAD + GRID_W, GRID_PAD); ctx.stroke()
-
-    if (referenceCurves && referenceCurves.length > 0) {
-      ctx.save()
-      ctx.globalAlpha = 0.3
-      ctx.lineWidth = 1.5
-      for (const ref of referenceCurves) {
-        const samples = sampleCurveForDisplay(ref.points, 256)
-        ctx.strokeStyle = ref.color
-        ctx.beginPath()
-        for (let j = 0; j < samples.length; j++) {
-          const [cx, cy] = toCanvas(samples[j].x, samples[j].y)
-          if (j === 0) ctx.moveTo(cx, cy)
-          else ctx.lineTo(cx, cy)
-        }
-        ctx.stroke()
-      }
-      ctx.restore()
-    }
-
-    const activePts = dragDataRef.current || pts
-    const samples = sampleCurveForDisplay(activePts, 256)
-    console.log(`[CurveEditor] channel=${curveChannel} controlPoints=${activePts.length} samples=${samples.length}`)
-    const curveColor = CURVE_CHANNELS.find(c => c.key === curveChannel)?.color || '#7c6df2'
-    ctx.strokeStyle = curveColor
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    for (let j = 0; j < samples.length; j++) {
-      const [cx, cy] = toCanvas(samples[j].x, samples[j].y)
-      if (j === 0) ctx.moveTo(cx, cy)
-      else ctx.lineTo(cx, cy)
-    }
-    ctx.stroke()
-
-    for (const p of activePts) {
-      const [cx, cy] = toCanvas(p.x, p.y)
-      ctx.fillStyle = '#7c6df2'
-      ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = '#e6e1ed'
-      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill()
-    }
-  }, [curves, curveChannel, referenceCurves, pts])
-
-  const handleMouseDown = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect()
-    const mx = e.clientX - rect.left
-    const my = e.clientY - rect.top
-
-    const activePts = dragDataRef.current || pts
+  const hitTest = useCallback((mx, my, activePts) => {
     for (let i = 0; i < activePts.length; i++) {
       const [cx, cy] = toCanvas(activePts[i].x, activePts[i].y)
-      if (Math.abs(mx - cx) < 8 && Math.abs(my - cy) < 8) {
-        dragIdxRef.current = i
-        return
-      }
+      if (Math.abs(mx - cx) < HIT_RADIUS && Math.abs(my - cy) < HIT_RADIUS) return i
+    }
+    return -1
+  }, [toCanvas])
+
+  const handlePointerDown = (e) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const rawMx = e.clientX - rect.left
+    const rawMy = e.clientY - rect.top
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const mx = rawMx * scaleX
+    const my = rawMy * scaleY
+
+    const activePts = dragDataRef.current || pts
+    const hit = hitTest(mx, my, activePts)
+    if (hit >= 0) {
+      canvas.style.touchAction = 'none'
+      e.preventDefault()
+      try { canvas.setPointerCapture(e.pointerId) } catch (_) {}
+      dragIdxRef.current = hit
+      return
     }
 
     if (mx >= GRID_PAD && mx <= GRID_PAD + GRID_W && my >= GRID_PAD && my <= GRID_PAD + GRID_H) {
-      const [vx, vy] = toValue(mx, my)
-      let insertAt = activePts.length
-      for (let i = 0; i < activePts.length; i++) {
-        if (activePts[i].x > vx) { insertAt = i; break }
-      }
-      const newId = 'pt_' + (nextIdRef.current++)
-      const next = [...activePts]
-      next.splice(insertAt, 0, { id: newId, x: vx, y: vy })
-      dragDataRef.current = null
-      const patch = { curves: { ...(curves || {}), [curveChannel]: next } }
-      onChange(itemId, patch)
-      onCommit(itemId, patch)
+      pendingTapRef.current = { startX: e.clientX, startY: e.clientY, canvasX: mx, canvasY: my, startTime: Date.now() }
     }
   }
 
-  const handleMouseMove = (e) => {
+  const handlePointerMove = (e) => {
+    if (pendingTapRef.current && dragIdxRef.current == null) {
+      const dx = Math.abs(e.clientX - pendingTapRef.current.startX)
+      const dy = Math.abs(e.clientY - pendingTapRef.current.startY)
+      if (dx > 10 || dy > 10) {
+        pendingTapRef.current = null
+      }
+    }
     if (dragIdxRef.current == null) return
-    const rect = canvasRef.current.getBoundingClientRect()
-    const mx = e.clientX - rect.left
-    const my = e.clientY - rect.top
-    const [vx, vy] = toValue(
-      Math.max(GRID_PAD, Math.min(GRID_PAD + GRID_W, mx)),
-      Math.max(GRID_PAD, Math.min(GRID_PAD + GRID_H, my))
-    )
+    e.preventDefault()
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const mx = (e.clientX - rect.left) * scaleX
+    const my = (e.clientY - rect.top) * scaleY
+    const [vx, vy] = toValue(clamp(mx), clamp(my))
 
     const activePts = dragDataRef.current || pts
     const next = activePts.map((p, i) =>
       i === dragIdxRef.current ? { ...p, x: vx, y: vy } : p
     )
     dragDataRef.current = next
-    const patch = { curves: { ...(curves || {}), [curveChannel]: next } }
-    onChange(itemId, patch)
+    scheduleDraw(next)
   }
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (e) => {
+    const canvas = canvasRef.current
+    if (canvas) canvas.style.touchAction = 'auto'
+
+    if (pendingTapRef.current) {
+      const { startX, startY, canvasX, canvasY, startTime } = pendingTapRef.current
+      pendingTapRef.current = null
+      const dx = Math.abs(e.clientX - startX)
+      const dy = Math.abs(e.clientY - startY)
+      const duration = Date.now() - startTime
+      const isTap = dx < 10 && dy < 10 && duration < 300
+      if (isTap) {
+        const vx = Math.round(((canvasX - GRID_PAD) / GRID_W) * 255)
+        const vy = Math.round(255 - ((canvasY - GRID_PAD) / GRID_H) * 255)
+        const activePts = dragDataRef.current || pts
+        let insertAt = activePts.length
+        for (let i = 0; i < activePts.length; i++) {
+          if (activePts[i].x > vx) { insertAt = i; break }
+        }
+        const newId = 'pt_' + (nextIdRef.current++)
+        const next = [...activePts]
+        next.splice(insertAt, 0, { id: newId, x: vx, y: vy })
+        dragDataRef.current = null
+        const patch = { curves: { ...(curves || {}), [curveChannel]: next } }
+        onChange(itemId, patch)
+        onCommit(itemId, patch)
+      }
+    }
+
     if (dragIdxRef.current == null) return
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
     dragIdxRef.current = null
     const finalPts = dragDataRef.current || pts
     dragDataRef.current = null
@@ -159,24 +219,31 @@ function CurveEditor({ curves, curveChannel, referenceCurves, onChange, onCommit
     onCommit(itemId, patch)
   }
 
+  const handlePointerCancel = () => {
+    const canvas = canvasRef.current
+    if (canvas) canvas.style.touchAction = 'auto'
+    dragIdxRef.current = null
+  }
+
   const handleDoubleClick = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect()
-    const mx = e.clientX - rect.left
-    const my = e.clientY - rect.top
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const mx = (e.clientX - rect.left) * scaleX
+    const my = (e.clientY - rect.top) * scaleY
     const activePts = dragDataRef.current || pts
-    for (let i = 0; i < activePts.length; i++) {
-      const [cx, cy] = toCanvas(activePts[i].x, activePts[i].y)
-      if (Math.abs(mx - cx) < 8 && Math.abs(my - cy) < 8) {
-        const p = activePts[i]
-        if (p.id === 'start' || p.id === 'end') return
-        if (activePts.length <= 2) return
-        const next = activePts.filter((_, idx) => idx !== i)
-        dragDataRef.current = null
-        const patch = { curves: { ...(curves || {}), [curveChannel]: next } }
-        onChange(itemId, patch)
-        onCommit(itemId, patch)
-        return
-      }
+    const hit = hitTest(mx, my, activePts)
+    if (hit >= 0) {
+      const p = activePts[hit]
+      if (p.id === 'start' || p.id === 'end') return
+      if (activePts.length <= 2) return
+      const next = activePts.filter((_, idx) => idx !== hit)
+      dragDataRef.current = null
+      const patch = { curves: { ...(curves || {}), [curveChannel]: next } }
+      onChange(itemId, patch)
+      onCommit(itemId, patch)
     }
   }
 
@@ -185,12 +252,13 @@ function CurveEditor({ curves, curveChannel, referenceCurves, onChange, onCommit
       ref={canvasRef}
       width={GRID_PAD * 2 + GRID_W}
       height={GRID_PAD * 2 + GRID_H}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       onDoubleClick={handleDoubleClick}
-      style={{ width: '100%', height: 'auto', borderRadius: '8px', cursor: 'crosshair', background: '#1a1721', display: 'block' }}
+      style={{ width: '100%', height: 'auto', borderRadius: '8px', cursor: 'crosshair', background: '#1a1721', display: 'block', touchAction: 'auto' }}
     />
   )
 }

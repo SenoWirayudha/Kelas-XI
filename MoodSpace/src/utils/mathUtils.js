@@ -40,6 +40,38 @@ export const getDynamicGridLines = (size, verticalCount, horizontalCount) => {
 }
 
 /**
+ * Rubber-band stabilizer smoothing.
+ * brushPos — current brush position (mutated in place for convenience)
+ * cursorPos — raw pointer position
+ * radius — smoothing radius in world-space pixels (0 = no smoothing)
+ * Returns { x, y } (same object as brushPos) after applying rubber-band logic.
+ */
+export const applyRubberBandSmoothing = (brushPos, cursorPos, radius) => {
+  if (radius <= 0) {
+    brushPos.x = cursorPos.x
+    brushPos.y = cursorPos.y
+    return brushPos
+  }
+  const dx = cursorPos.x - brushPos.x
+  const dy = cursorPos.y - brushPos.y
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  if (dist <= radius) return brushPos
+  const pull = dist - radius
+  const ratio = pull / dist
+  brushPos.x += dx * ratio
+  brushPos.y += dy * ratio
+  return brushPos
+}
+
+/**
+ * Snap brushPos to cursorPos (for pointerup — finish the "tail").
+ */
+export const snapBrushToCursor = (brushPos, cursorPos) => {
+  brushPos.x = cursorPos.x
+  brushPos.y = cursorPos.y
+}
+
+/**
  * Pre-compute the static workspace background grid lines once.
  * @param {{ x, y, width, height }} virtualWorkspace
  * @param {number} gridSize pixel spacing between lines

@@ -5,16 +5,25 @@ import CreateMenu from './CreateMenu'
 
 function BottomNav() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const closeTimer = useRef(null)
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false)
+  const animTimer = useRef(null)
 
   const openMenu = () => {
-    clearTimeout(closeTimer.current)
     setIsCreateOpen(true)
+    setIsAnimatingOut(false)
+    if (animTimer.current) {
+      clearTimeout(animTimer.current)
+      animTimer.current = null
+    }
   }
 
-  const scheduleClose = () => {
-    clearTimeout(closeTimer.current)
-    closeTimer.current = setTimeout(() => setIsCreateOpen(false), 120)
+  const closeMenu = () => {
+    setIsAnimatingOut(true)
+    animTimer.current = setTimeout(() => {
+      setIsCreateOpen(false)
+      setIsAnimatingOut(false)
+      animTimer.current = null
+    }, 140)
   }
 
   return (
@@ -31,9 +40,7 @@ function BottomNav() {
         <button
           type="button"
           className="bottom-nav-plus"
-          onClick={() => setIsCreateOpen((v) => !v)}
-          onMouseEnter={openMenu}
-          onMouseLeave={scheduleClose}
+          onClick={isCreateOpen ? closeMenu : openMenu}
           aria-label="Create"
         >
           <Plus size={26} />
@@ -48,9 +55,15 @@ function BottomNav() {
         </NavLink>
       </nav>
       {isCreateOpen && (
-        <div className="bottom-nav-create-backdrop" onClick={() => setIsCreateOpen(false)}>
-          <div className="bottom-nav-create-menu" onClick={(e) => e.stopPropagation()} onMouseEnter={openMenu} onMouseLeave={scheduleClose}>
-            <CreateMenu onAction={() => setIsCreateOpen(false)} />
+        <div
+          className={`bottom-nav-create-backdrop${isAnimatingOut ? ' closing' : ''}`}
+          onClick={closeMenu}
+        >
+          <div
+            className={`bottom-nav-create-menu${isAnimatingOut ? ' closing' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CreateMenu onAction={closeMenu} staggerDelay={50} />
           </div>
         </div>
       )}

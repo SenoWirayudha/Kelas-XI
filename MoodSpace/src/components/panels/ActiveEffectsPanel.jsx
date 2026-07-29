@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
+import { usePanelHistory } from '../../hooks/usePanelHistory'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ArrowLeft, Plus, Sparkles } from 'lucide-react'
@@ -10,9 +11,12 @@ import ActiveEffectRow from './ActiveEffectRow'
 export default function ActiveEffectsPanel({ item, onBack, onUpdate }) {
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [selectedInstanceId, setSelectedInstanceId] = useState(null)
+  usePanelHistory({
+    isActive: libraryOpen,
+    onBack: () => setLibraryOpen(false),
+  })
   const effects = item.effects || {}
   const effectOrder = useMemo(() => getEffectOrder(item), [item.effectOrder, item.effects])
-  console.log('[PANEL] item.id:', item?.id?.substring?.(0, 8), 'effectOrder:', item?.effectOrder, 'effects keys:', Object.keys(item?.effects || {}), 'getEffectOrder:', getEffectOrder(item), 'getEffectInstances:', getEffectInstances(item))
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -30,7 +34,9 @@ export default function ActiveEffectsPanel({ item, onBack, onUpdate }) {
 
   const handleAddEffect = (effectId) => {
     const patch = addEffectToStack(item, effectId)
-    if (patch) onUpdate(item.id, patch)
+    if (patch) {
+      onUpdate(item.id, patch)
+    }
   }
 
   const handleChange = useCallback((instanceId, val, skipBroadcast) => {
@@ -91,32 +97,32 @@ export default function ActiveEffectsPanel({ item, onBack, onUpdate }) {
         <div className="workspace-color-picker-title">Effects</div>
       </div>
 
-      <div className="active-effects-list">
-        {effectOrder.length === 0 ? (
+      {effectOrder.length === 0 ? (
+        <div className="active-effects-list">
           <div className="active-effects-empty">
             <Sparkles size={32} />
             <p>Belum ada efek</p>
             <button type="button" className="workspace-button" onClick={() => setLibraryOpen(true)}>
-              <Plus size={14} /> Tambah Efek
+              <Plus size={12} /> Tambah Efek
             </button>
           </div>
-        ) : (
-          <>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={effectOrder} strategy={verticalListSortingStrategy}>
-                {effectOrder.map((instanceId) => (
-                  <ActiveEffectRow key={instanceId} instanceId={instanceId} item={item} onUpdate={onUpdate} onSelect={setSelectedInstanceId} />
-                ))}
-              </SortableContext>
-            </DndContext>
-            <div className="active-effects-footer">
-              <button type="button" className="workspace-button" onClick={() => setLibraryOpen(true)}>
-                <Plus size={14} /> Tambah Efek
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="active-effects-list">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={effectOrder} strategy={verticalListSortingStrategy}>
+              {effectOrder.map((instanceId) => (
+                <ActiveEffectRow key={instanceId} instanceId={instanceId} item={item} onUpdate={onUpdate} onSelect={setSelectedInstanceId} />
+              ))}
+            </SortableContext>
+          </DndContext>
+          <div className="active-effects-footer">
+            <button type="button" className="workspace-button" onClick={() => setLibraryOpen(true)}>
+              <Plus size={12} /> Tambah Efek
+            </button>
+          </div>
+        </div>
+      )}
 
       {libraryOpen && (
         <EffectLibraryModal

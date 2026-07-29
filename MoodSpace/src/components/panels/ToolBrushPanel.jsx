@@ -55,7 +55,7 @@ const BRUSH_ICONS = {
 
 const BRUSH_TYPES = ['solid', 'pixel', 'dashed', 'dotted', 'airbrush', 'watercolor']
 
-export default function ToolBrushPanel({ settings, onChange, onBack }) {
+export default function ToolBrushPanel({ settings, onChange, onBack, eraserSessionActive, onApplyEraser, onCancelEraser }) {
   const [showColorPicker, setShowColorPicker] = useState(false)
   const isErase = settings.mode === 'erase'
 
@@ -144,6 +144,35 @@ export default function ToolBrushPanel({ settings, onChange, onBack }) {
         <span className="panel-value">{settings.size}px</span>
       </div>
 
+      <div className="panel-section">
+        <label className="panel-label">Smoothing</label>
+        <input
+          type="range"
+          min={0}
+          max={60}
+          value={isErase ? (settings.smoothingErase ?? 0) : (settings.smoothingPaint ?? 0)}
+          onChange={(e) => {
+            const val = Number(e.target.value)
+            onChange(isErase
+              ? { ...settings, smoothingErase: val }
+              : { ...settings, smoothingPaint: val }
+            )
+          }}
+          className="panel-slider"
+        />
+        <span className="panel-value">{isErase ? (settings.smoothingErase ?? 0) : (settings.smoothingPaint ?? 0)}px</span>
+      </div>
+
+      {isErase && eraserSessionActive && (
+        <div className="panel-section eraser-commit-row">
+          <button type="button" className="eraser-apply-btn" onClick={onApplyEraser}>
+            Apply
+          </button>
+          <button type="button" className="eraser-cancel-btn" onClick={onCancelEraser}>
+            Cancel
+          </button>
+        </div>
+      )}
       {!isErase && (
         <>
           <div className="panel-section">

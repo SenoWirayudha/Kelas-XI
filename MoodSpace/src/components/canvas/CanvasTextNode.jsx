@@ -2,8 +2,10 @@
  * CanvasTextNode.jsx
  * Konva Text node for canvas text items.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Group, Image, Rect, Shape, Text } from 'react-konva'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, createContext, useContext } from 'react'
+import { Group, Image, Line, Rect, Shape, Text } from 'react-konva'
+
+export const CameraScaleContext = createContext(1)
 import { preloadFont, getShadowProps, applyBevelEmbossToNode, applyInnerShadowToNode } from '../../utils/konvaUtils'
 
 import { clamp } from '../../utils/mathUtils'
@@ -35,36 +37,48 @@ function renderCurvedText(text, fontFamily, fontSize, fontStyle, curveAmount, le
   const totalWidth = charWidths.reduce((s, w, i) => s + w + (i < chars.length - 1 ? (letterSpacing || 0) : 0), 0)
   if (totalWidth <= 0) return null
   const maxHeight = Math.min(totalWidth * 0.3, fontSize * 3)
-  const curveHeight = Math.abs(curveAmount) * maxHeight
+  const h = Math.abs(curveAmount) * maxHeight
   const pad = fontSize * 1.5
-  canvas.width = Math.ceil(totalWidth + pad * 2)
-  canvas.height = Math.ceil(curveHeight + fontSize * 2 + pad * 2)
+  const W = totalWidth
+
+  // Circular arc: semua huruf di satu titik pusat & radius yang sama
+  // R satisfies: (W/2)^2 + (R-h)^2 = R^2 → R = W^2/(8h) + h/2
+  const R = h > 0.001 ? (W * W / (8 * h) + h / 2) : 1000000
+  const halfAngle = Math.asin(W / (2 * R))
+
+  canvas.width = Math.ceil(W + pad * 2)
+  canvas.height = Math.ceil(h + fontSize * 2 + pad * 2)
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   ctx.textBaseline = 'middle'
   ctx.textAlign = 'center'
   const isUp = curveAmount >= 0
-  const W = totalWidth
-  const baseY = isUp ? canvas.height - pad - fontSize / 2 : pad + fontSize / 2
-  let cx = pad
+  const chordY = isUp ? canvas.height - pad - fontSize / 2 : pad + fontSize / 2
+  const arcCenterX = pad + W / 2
+  const arcCenterY = isUp ? chordY + (R - h) : chordY - (R - h)
+
+  const totalCharWidth = charWidths.reduce((s, w) => s + w, 0)
+  const totalGaps = (chars.length - 1) * (letterSpacing || 0)
+  const adjustedTotal = totalCharWidth + totalGaps
+  let cumWidth = 0
   for (let i = 0; i < chars.length; i++) {
     const cw = charWidths[i]
+    const gap = i < chars.length - 1 ? (letterSpacing || 0) : 0
+    const t = (cumWidth + cw / 2) / adjustedTotal
+    const theta = -halfAngle + 2 * halfAngle * t
+    const x = arcCenterX + R * Math.sin(theta)
+    const y = isUp ? arcCenterY - R * Math.cos(theta) : arcCenterY + R * Math.cos(theta)
+    const rot = isUp ? theta : -theta
     const r = charRuns[i]
     const rFamily = r?.fontFamily || fontFamily
-    const rStyle = [r?.bold && 'bold', r?.italic && 'italic'].filter(Boolean).join(' ') || 'normal'
+    const rStyle = r ? [r.bold && 'bold', r.italic && 'italic'].filter(Boolean).join(' ') || 'normal' : fontStyle
     ctx.font = `${rStyle} ${fontSize}px ${rFamily}`
     ctx.fillStyle = (typeof r?.fill === 'string' && r.fill.startsWith('#')) ? r.fill : (typeof fillColor === 'string' && fillColor.startsWith('#')) ? fillColor : '#000'
-    const centerX = cx + cw / 2
-    const nx = 2 * (centerX - pad) / W - 1
-    const yOff = curveAmount * maxHeight * (1 - nx * nx)
-    const y = baseY - yOff
-    const slope = 4 * curveAmount * maxHeight * nx / W
-    const rot = Math.atan(slope)
     ctx.save()
-    ctx.translate(centerX, y)
+    ctx.translate(x, y)
     ctx.rotate(rot)
     ctx.fillText(chars[i], 0, 0)
     ctx.restore()
-    cx += cw + (letterSpacing || 0)
+    cumWidth += cw + gap
   }
   return canvas
 }
@@ -128,9 +142,18 @@ function processTextRgbSplit(cleanCanvas, item, textHeight, pad = { y: 0 }, alig
   return { center, left, right, dxDisp, dyDisp, padY: pad.y || 0 }
 }
 
-export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, getActiveTransformAnchor, fontInjectVersion }) {
+// Set cursor on the canvas element, NOT stage.content (which React controls via inline style)
+// Canvas inline cursor survives React re-renders and is the element under the mouse pointer.
+const setCanvasCursor = (stage, cursor) => {
+  if (!stage) return
+  const canvas = stage.content?.querySelector('canvas')
+  if (canvas) canvas.style.cursor = cursor
+}
+
+export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, getActiveTransformAnchor, fontInjectVersion, selectedId }) {
   const textNodeRef = useRef(null)
   const curveImageRef = useRef(null)
+  const groupRef = useRef(null)
   const multiRunGroupRef = useRef(null)
   const runsLayoutRef = useRef({ height: 0 })
   const [fontLoaded, setFontLoaded] = useState(false)
@@ -139,7 +162,54 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   const transformAnchorRef = useRef(null)
   const multiRunLastWidthRef = useRef(null)
   const [dragWidth, setDragWidth] = useState(null)
+  const [dragX, setDragX] = useState(null)
+  const [dragY, setDragY] = useState(null)
+  const [dragFontSize, setDragFontSize] = useState(null)
+  const [dragRotation, setDragRotation] = useState(null)
   const displayWidth = dragWidth !== null ? dragWidth : item.w
+  const cameraScale = useContext(CameraScaleContext)
+  const ANCHOR_SIZE = 10
+  const adjustedSize = Math.max(ANCHOR_SIZE, Math.round(ANCHOR_SIZE / (cameraScale || 1)))
+  const adjustedHalf = adjustedSize / 2
+  const ROTATE_ANCHOR_OFFSET = 50
+  const zoomRotateOffset = Math.round(ROTATE_ANCHOR_OFFSET / (cameraScale || 1))
+  const zoomStroke = Math.max(1, Math.round(1 / (cameraScale || 1)))
+  // Cursor for each custom selection handle — set on CANVAS element via setCanvasCursor()
+  // to survive React inline style override on stage.content.
+  // Transformer default: rotateAnchorCursor = 'crosshair'.
+  const isSelected = selectedId === item.id
+  const ANCHOR_CURSOR = {
+    'top-left': 'nwse-resize',
+    'top-right': 'nesw-resize',
+    'bottom-left': 'nesw-resize',
+    'bottom-right': 'nwse-resize',
+    'middle-left': 'ew-resize',
+    'middle-right': 'ew-resize',
+    'rotate': 'crosshair',
+  }
+  // DIAG-TIMING: refs untuk lacak freeze di groupNode.width() dan proses deferred
+  const prevDiagTimeRef = useRef(0)
+  const prevGroupWRef = useRef(null)
+  const ghostGuardRef = useRef(false)
+  const isUserDraggingRef = useRef(false)
+  const resizeStateRef = useRef(null)
+  const resizeMoveRef = useRef(null)
+  const resizeUpRef = useRef(null)
+  const moveStateRef = useRef(null)
+
+  // Reset drag* state saat properti item berubah dari luar (commit atau undo)
+  // supaya display* vars tidak tetap pakai stale drag state setelah aksi berakhir
+  useEffect(() => {
+    if (dragWidth !== null) setDragWidth(null)
+    if (dragX !== null) setDragX(null)
+    if (dragY !== null) setDragY(null)
+    if (dragFontSize !== null) setDragFontSize(null)
+    if (dragRotation !== null) setDragRotation(null)
+  }, [item.w, item.x, item.y, item.fontSize, item.rotation])
+
+  // Cache lebar karakter per fontFamily+fontSize+fontStyle+char — mencegah
+  // measureText() ulang untuk karakter yang sama di tiap recompute
+  const charWidthCacheRef = useRef(new Map())
 
   const rgbLayersRef = useRef(null)
   const textRgbChannelCacheRef = useRef(null)
@@ -218,8 +288,24 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       item.fontSize, item.fontStyle, item.align, item.strokeWidth, item.stroke,
       item.strokeEnabled, item.runs, actualTextWidth])
 
-  const hasEffects = item.effects && Object.keys(item.effects).some(k => !['letterSpacing', 'curve'].includes(k))
-  const hasRgbSplit = !!item.effects?.rgbSplit
+  const effectById = useMemo(() => {
+    const map = {}
+    if (item.effects) {
+      for (const entry of Object.values(item.effects)) {
+        if (entry && entry.effectId) map[entry.effectId] = entry.value
+      }
+    }
+    return map
+  }, [item.effects])
+  // Stretch effect scale: reads from effectById (must be after effectById definition)
+  const stretchEffect = effectById.stretch
+  const stretchScaleX = (stretchEffect?.scaleX ?? 1)
+  const stretchScaleY = (stretchEffect?.scaleY ?? 1)
+  const hasEffects = item.effects && Object.keys(item.effects).some(k => {
+    const entry = item.effects[k]
+    return entry?.effectId && !['letterSpacing', 'curve'].includes(entry.effectId)
+  })
+  const hasRgbSplit = !!effectById.rgbSplit
 
   const runs = useMemo(() => getRuns(item), [item.runs, item.text, item.isBold, item.isItalic, item.isUnderline])
   const displayRuns = useMemo(() => {
@@ -227,10 +313,21 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   }, [runs])
   const text = runsToText(displayRuns)
   const isMultiRun = runs.length > 1
+  const showSelectionBox = isMultiRun && isSelected
+  const displayX = showSelectionBox && dragX !== null ? dragX : item.x
+  const displayY = showSelectionBox && dragY !== null ? dragY : item.y
+  const displayFontSizeVar = showSelectionBox && dragFontSize !== null ? dragFontSize : (item.fontSize || 48)
+  const displayRotation = showSelectionBox && dragRotation !== null ? dragRotation : (item.rotation || 0)
 
-  const letterSpacing = item.effects?.letterSpacing?.value ?? 0
-  const curveAmount = item.effects?.curve?.amount ?? 0
+  // Hapus cache lebar karakter saat font/runs berubah
+  useEffect(() => {
+    charWidthCacheRef.current = new Map()
+  }, [item.fontSize, item.fontFamily, runs])
+
+  const letterSpacing = effectById.letterSpacing?.value ?? 0
+  const curveAmount = effectById.curve?.amount ?? 0
   const hasCurve = Math.abs(curveAmount) > 0.001 && !text.includes('\n')
+  const prevHasCurveRef = useRef(hasCurve)
 
   const fontStyle = isMultiRun ? 'normal' : ([runs[0]?.bold && 'bold', runs[0]?.italic && 'italic'].filter(Boolean).join(' ') || 'normal')
   const textDecoration = isMultiRun ? 'none' : (runs[0]?.underline ? 'underline' : 'none')
@@ -304,8 +401,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     item.strokeGradientType, item.strokeGradientStops, item.strokeGradientAngle,
     item.fontSize, item.fontFamily, letterSpacing, curveAmount,
     runs,
-    item.align, text, item.opacity,
-    item.effects,
+    item.align, text, item.opacity, item.visible,
+    item.effects, item.effectOrder,
     item.shadowEnabled, item.shadow, item.shadowColor, item.shadowOpacity, item.shadowOffsetX, item.shadowOffsetY,
     item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
     item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity, item.bevelEmbossHighlightBlendMode, item.bevelEmbossShadowBlendMode,
@@ -324,7 +421,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     applyBevelEmbossToNode(node, item)
     applyInnerShadowToNode(node, item)
     node.getLayer()?.draw()
-  }, [item.effects, hasCurve, text, item.fontFamily, item.fontSize, runs, item.fill,
+  }, [item.effects, item.effectOrder, hasCurve, text, item.fontFamily, item.fontSize, runs, item.fill, item.visible,
       item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
       item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity, item.bevelEmbossHighlightBlendMode, item.bevelEmbossShadowBlendMode,
       item.innerShadowEnabled, item.innerShadowColor, item.innerShadowOpacity, item.innerShadowBlur, item.innerShadowDistance, item.innerShadowAngle])
@@ -333,6 +430,25 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   useLayoutEffect(() => {
     const node = multiRunGroupRef.current
     if (!node || !isMultiRun || hasCurve) return
+    // Clear residual stretch from root Group (single-run→multi-run transition).
+    // _getStretchTarget returns root Group for single-run (parent of Text) but
+    // multiRunGroupRef (a Group itself) for multi-run, so root Group retains its
+    // _stretchBaseScaleX/scaleX/Y and doubles the stretch on transition.
+    const rootGroup = groupRef.current
+    if (rootGroup) {
+      const baseX = rootGroup.getAttr('_stretchBaseScaleX')
+      if (baseX) {
+        rootGroup.scaleX(baseX)
+        rootGroup.scaleY(rootGroup.getAttr('_stretchBaseScaleY') || 1)
+        rootGroup.skewX(0)
+        rootGroup.skewY(0)
+        rootGroup.setAttrs({
+          _stretchBaseScaleX: undefined, _stretchBaseScaleY: undefined,
+          _stretchScaleX: undefined, _stretchScaleY: undefined,
+          _stretchSkewX: undefined, _stretchSkewY: undefined,
+        })
+      }
+    }
     node.clearCache()
     const fx = { ...item.effects }
     delete fx.rgbSplit
@@ -340,14 +456,14 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     applyBevelEmbossToNode(node, item)
     applyInnerShadowToNode(node, item)
     node.getLayer()?.draw()
-  }, [item.effects, isMultiRun, hasCurve, runs, item.fontSize, item.fontFamily, item.fill, letterSpacing,
+  }, [item.effects, item.effectOrder, isMultiRun, hasCurve, runs, item.fontSize, item.fontFamily, item.fill, letterSpacing, item.visible,
       item.bevelEmbossEnabled, item.bevelEmbossStyle, item.bevelEmbossDepth, item.bevelEmbossAngle, item.bevelEmbossSoftness,
       item.bevelEmbossHighlightColor, item.bevelEmbossHighlightOpacity, item.bevelEmbossShadowColor, item.bevelEmbossShadowOpacity, item.bevelEmbossHighlightBlendMode, item.bevelEmbossShadowBlendMode,
       item.innerShadowEnabled, item.innerShadowColor, item.innerShadowOpacity, item.innerShadowBlur, item.innerShadowDistance, item.innerShadowAngle])
 
   // rgbSplit capture: build R/G/B channel canvases from clean text
   useLayoutEffect(() => {
-    const rgbSplit = item.effects?.rgbSplit
+    const rgbSplit = effectById.rgbSplit
     if (!rgbSplit) {
       if (rgbLayersRef.current) {
         rgbLayersRef.current = null
@@ -425,8 +541,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       setTextRgbSplitVer(v => v + 1)
     }
   }, [
-    item.effects?.rgbSplit, item.effects?.rgbSplit?.offset,
-    item.effects?.rgbSplit?.angle, item.effects?.rgbSplit?.mode,
+    effectById.rgbSplit, effectById.rgbSplit?.offset,
+    effectById.rgbSplit?.angle, effectById.rgbSplit?.mode,
     isMultiRun, item.w, item.h, item.fontSize, text, item.fontFamily,
     item.fill, item.align, displayWidth, letterSpacing, hasEffects, fontLoaded,
     item.stroke, item.strokeWidth,
@@ -463,6 +579,10 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         node = textNodeRef.current
       }
       if (!node) return
+      if (isMultiRun) {
+        console.log('[DIAG-TIMING] rAF effect fire at=%s',
+          performance.now().toFixed(1))
+      }
       const rafFx = { ...(filterItemRef.current.effects || {}) }
       const rafOrder = filterItemRef.current.effectOrder
       delete rafFx.rgbSplit
@@ -477,6 +597,44 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null }
     }
   }, [item.effects, fontLoaded, hasCurve, isMultiRun])
+
+  // Force Transformer to recalculate bounding box when curve toggles
+  useLayoutEffect(() => {
+    const prev = prevHasCurveRef.current
+    prevHasCurveRef.current = hasCurve
+
+    if (prev && !hasCurve) {
+      // Curve was active, now turned off — the Group children switched from
+      // Image to Text. Force multiple redraw cycles and orphan cleanup.
+      const group = groupRef.current
+      if (!group) return
+
+      // Remove any orphan curve-image nodes left by React-Konva reconciliation
+      const orphans = group.find('#curve-image')
+      if (orphans.length) {
+        console.log('[CURVE-BBOX] removing', orphans.length, 'orphan curve image(s)')
+        orphans.forEach(n => { n.remove(); n.destroy() })
+      }
+
+      // Force synchronous layer redraw to flush child state before attachTransformer
+      try { group.getLayer()?.draw() } catch {}
+
+      console.log('[CURVE-BBOX] curve off, children:', group.getChildren().map(c => c.nodeType + '#' + (c.name() || '')), 'rect:', group.getClientRect())
+
+      requestAnimationFrame(() => {
+        group.getLayer()?.batchDraw()
+        requestAnimationFrame(() => {
+          group.getLayer()?.batchDraw()
+          const rect2 = group.getClientRect()
+          console.log('[CURVE-BBOX] after 2x batchDraw rect:', rect2)
+        })
+      })
+    } else if (!prev && hasCurve) {
+      // Curve turned on — force batchDraw for the new Image node
+      const group = groupRef.current
+      requestAnimationFrame(() => group?.getLayer()?.batchDraw())
+    }
+  }, [hasCurve])
 
   const hasTextFill = item.fill !== null && item.fill !== 'transparent' && item.fill !== 'none'
   const hasFillGradient = hasTextFill && item.gradientType !== 'solid' && item.gradientStops?.length >= 2
@@ -551,12 +709,23 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       runsLayoutRef.current = { height: 0 }
       return null
     }
+    const t0 = performance.now()
     const ctx = document.createElement('canvas').getContext('2d')
-    const fs = item.fontSize || 48
+    const fs = displayFontSizeVar
     const lineHeight = fs * (hasEffects ? 1.25 : 1.2)
     const maxW = Math.max(1, displayWidth || 300)
     const lsp = letterSpacing || 0
-    const measureRun = (t) => Math.max(1, ctx.measureText(t).width)
+    const cache = charWidthCacheRef.current
+    const measureCached = (fontStr, text) => {
+      const key = `${fontStr}|${text}`
+      let w = cache.get(key)
+      if (w === undefined) {
+        ctx.font = fontStr
+        w = Math.max(1, ctx.measureText(text).width)
+        cache.set(key, w)
+      }
+      return w
+    }
     const translateYCache = {}
     const getTranslateY = (fontFamily, fontStyle) => {
       const key = `${fontStyle}|${fontFamily}`
@@ -602,8 +771,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       if (!isLeftAlign) return 0
       const prefixRun = displayRuns.find(r => r.isPrefix)
       if (!prefixRun) return 0
-      ctx.font = `normal ${fs}px ${item.fontFamily || 'Inter, Arial'}`
-      return measureRun(prefixRun.text)
+      const prefixFont = `normal ${fs}px ${item.fontFamily || 'Inter, Arial'}`
+      return measureCached(prefixFont, prefixRun.text)
     })()
 
     const segments = []
@@ -615,8 +784,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         x = 0
         return
       }
-      ctx.font = `${run.fontStyle} ${fs}px ${run.fontFamily}`
-      const charW = measureRun(run.text)
+      const charFont = `${run.fontStyle} ${fs}px ${run.fontFamily}`
+      const charW = measureCached(charFont, run.text)
       if (x + charW > maxW && x > 0) {
         y += lineHeight
         x = isLeftAlign ? prefixWidth : 0
@@ -690,12 +859,178 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           lineJoin={hasStroke ? 'round' : 'miter'} miterLimit={hasStroke ? 2 : 10} perfectDrawEnabled={false} listening={false} />
       )
     }
+    const elapsed = performance.now() - t0
+    if (elapsed > 5) {
+      console.log('[DIAG-TIMING] multiRunTexts useMemo: %s ms (displayWidth=%s)', elapsed.toFixed(2), displayWidth.toFixed(1))
+    }
     return nodes
-  }, [displayRuns, isMultiRun, hasCurve, item.fontSize, item.fontFamily, item.fill, displayWidth, letterSpacing, hasEffects, gradientProps.fill, fontLoaded, item.align, hasStroke, item.stroke, item.strokeWidth, item.shadow, item.shadowColor, item.shadowOpacity, item.shadowOffsetX, item.shadowOffsetY, item.shadowEnabled])
+  }, [displayRuns, isMultiRun, hasCurve, displayFontSizeVar, item.fontFamily, item.fill, letterSpacing, hasEffects, gradientProps.fill, fontLoaded, item.align, hasStroke, item.stroke, item.strokeWidth, item.shadow, item.shadowColor, item.shadowOpacity, item.shadowOffsetX, item.shadowOffsetY, item.shadowEnabled])
 
   const textHeight = isMultiRun
     ? (runsLayoutRef.current.height || Math.max(item.h || 1, item.fontSize || 1))
     : Math.max(item.h || 1, item.fontSize || 1)
+
+  // ── Custom resize handlers for multi-run text (bypass Konva Transformer) ──
+  const isRotationAnchor = (a) => a === 'rotate'
+  const isCornerAnchor = (a) => ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(a)
+  const isRightSideAnchor = (a) => a.endsWith('-right')
+  const doResizePointerDown = useCallback((e, anchor) => {
+    if (!isMultiRun || anchor === 'top-center' || anchor === 'bottom-center') return
+    e.cancelBubble = true
+    const stage = groupRef.current?.getStage()
+    if (!stage) return
+    const worldLayer = stage.findOne('.world-layer')
+    if (!worldLayer) return
+    setCanvasCursor(stage, ANCHOR_CURSOR[anchor] || 'default')
+    const inv = worldLayer.getAbsoluteTransform().copy().invert()
+    const isRotate = isRotationAnchor(anchor)
+    // Store initial values in ref to avoid stale closure in move/up handlers
+    const boxW = displayWidth * stretchScaleX
+    const boxH = textHeight * stretchScaleY
+    resizeStateRef.current = {
+      anchor,
+      origX: item.x, origW: item.w,
+      origY: item.y,
+      origFontSize: item.fontSize || 48,
+      origRotation: item.rotation || 0,
+      // For rotation: center point of the item (in world-layer coords)
+      centerX: item.x + (item.w / 2),
+      centerY: item.y + (textHeight / 2),
+      startAngle: isRotate ? (() => {
+        // Compute initial pointer angle relative to item center
+        const world = inv.point(stage.getPointerPosition())
+        return Math.atan2(world.y - (item.y + textHeight / 2), world.x - (item.x + item.w / 2))
+      })() : null,
+      dragX: null, dragW: null,
+      dragFontSize: null,
+      dragRotation: null,
+      boxW, boxH,
+    }
+    const resizeMove = (evt) => {
+      const state = resizeStateRef.current
+      if (!state) return
+      const inv2 = worldLayer.getAbsoluteTransform().copy().invert()
+      const world = inv2.point(stage.getPointerPosition())
+      const grp = groupRef.current
+      const clipGrp = multiRunGroupRef.current
+      if (isRotate) {
+        // Rotation via atan2 relative to item center, DELTA from startAngle
+        const rad = Math.atan2(world.y - state.centerY, world.x - state.centerX)
+        let deg = state.origRotation + (rad - state.startAngle) * 180 / Math.PI
+        // Wrap to [0, 360)
+        deg = ((deg % 360) + 360) % 360
+        // Snap to nearest 45° within 6° tolerance
+        const SNAPS = [0, 45, 90, 135, 180, 225, 270, 315]
+        const snapped = SNAPS.find(a => Math.abs(deg - a) <= 6 || Math.abs(deg - (a + 360)) <= 6)
+        if (snapped !== undefined) deg = snapped
+        // Compensate x/y so center stays stationary (rotateAroundPoint equivalent)
+        const diffRad = (deg - state.origRotation) * Math.PI / 180
+        const cx = state.centerX, cy = state.centerY
+        const nx = cx + (state.origX - cx) * Math.cos(diffRad) - (state.origY - cy) * Math.sin(diffRad)
+        const ny = cy + (state.origX - cx) * Math.sin(diffRad) + (state.origY - cy) * Math.cos(diffRad)
+        state.dragRotation = deg
+        state.dragX = nx
+        state.dragY = ny
+        // Instant imperative update + React state
+        if (grp) { grp.x(nx); grp.y(ny); grp.rotation(deg) }
+        setDragX(nx); setDragY(ny); setDragRotation(deg)
+        setCanvasCursor(stage, 'crosshair')
+        return
+      }
+      // Width resize (same formula for all resize anchors)
+      const isRight = isRightSideAnchor(anchor)
+      if (isRight) {
+        // Right-side anchors (middle-right, top-right, bottom-right):
+        // pointerX - origLeft
+        const nextWidth = Math.max(24, world.x - state.origX)
+        state.dragW = nextWidth
+        state.dragX = null
+        // Instant imperative update
+        if (grp) grp.width(nextWidth)
+        if (clipGrp) clipGrp.clipWidth(nextWidth)
+        setDragWidth(nextWidth)
+      } else {
+        // Left-side anchors (middle-left, top-left, bottom-left):
+        // origRight - pointerX, newX = pointerX
+        const newX = world.x
+        const nextWidth = Math.max(24, state.origX + state.origW - newX)
+        state.dragX = newX
+        state.dragW = nextWidth
+        // Instant imperative update
+        if (grp) { grp.x(newX); grp.width(nextWidth) }
+        if (clipGrp) clipGrp.clipWidth(nextWidth)
+        setDragX(newX)
+        setDragWidth(nextWidth)
+      }
+      // Corner resize also updates fontSize proportionally (like single-run text)
+      if (isCornerAnchor(anchor) && state.dragW > 0) {
+        const scale = state.dragW / state.origW
+        const nextFontSize = clamp(state.origFontSize * scale, 8, 1000)
+        state.dragFontSize = nextFontSize
+        setDragFontSize(nextFontSize)
+      }
+      setCanvasCursor(stage, ANCHOR_CURSOR[anchor] || 'default')
+    }
+    const resizeUp = () => {
+      stage.off('pointermove', resizeMove)
+      stage.off('pointerup', resizeUp)
+      const state = resizeStateRef.current
+      if (!state) return
+      resizeStateRef.current = null
+      const finalX = state.dragX !== null ? state.dragX : state.origX
+      const finalY = state.dragY !== null ? state.dragY : state.origY
+      const finalW = state.dragW !== null ? state.dragW : state.origW
+      const finalFontSize = state.dragFontSize !== null ? state.dragFontSize : state.origFontSize
+      const finalRotation = state.dragRotation !== null ? state.dragRotation : state.origRotation
+      setDragX(null)
+      setDragY(null)
+      setDragWidth(null)
+      setDragFontSize(null)
+      setDragRotation(null)
+      if (isRotate) {
+        const patch = {}
+        if (finalRotation !== state.origRotation) patch.rotation = finalRotation
+        if (finalX !== state.origX) patch.x = finalX
+        if (finalY !== state.origY) patch.y = finalY
+        if (Object.keys(patch).length) onChangeRef.current(patch)
+      } else {
+        const patch = {}
+        if (finalW !== state.origW) patch.w = finalW
+        if (finalX !== state.origX) patch.x = finalX
+        if (finalFontSize !== state.origFontSize) patch.fontSize = Math.round(finalFontSize)
+        if (Object.keys(patch).length) onChangeRef.current(patch)
+      }
+    }
+    resizeMoveRef.current = resizeMove
+    resizeUpRef.current = resizeUp
+    stage.on('pointermove', resizeMove)
+    stage.on('pointerup', resizeUp)
+  }, [isMultiRun, item.x, item.w, item.fontSize, displayWidth, textHeight, stretchScaleX, stretchScaleY])
+
+  // Cleanup stage listeners if component unmounts during active resize
+  useEffect(() => {
+    return () => {
+      if (resizeStateRef.current) {
+        const stage = groupRef.current?.getStage()
+        if (stage) {
+          stage.off('pointermove', resizeMoveRef.current)
+          stage.off('pointerup', resizeUpRef.current)
+        }
+        resizeStateRef.current = null
+      }
+      if (moveStateRef.current) {
+        const stage = groupRef.current?.getStage()
+        if (stage) {
+          stage.off('pointermove')
+          stage.off('pointerup')
+        }
+        moveStateRef.current = null
+      }
+    }
+  }, [])
+  
+  // Move is handled by Konva's built-in drag (draggable=true on Group below).
+  // Custom handlers only needed for resize/rotate.
 
   if (item.isAdjustmentLayer) {
     return (
@@ -715,18 +1050,36 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
 
   return (
     <Group
+      ref={groupRef}
       key={item.id}
       {...commonProps}
-      width={item.w}
+      draggable={commonProps.draggable}
+      x={showSelectionBox ? displayX : commonProps.x}
+      y={showSelectionBox ? displayY : commonProps.y}
+      rotation={showSelectionBox ? displayRotation : commonProps.rotation}
+      width={isMultiRun ? displayWidth : item.w}
       height={textHeight}
       opacity={isTextEditing ? 0 : (item.opacity ?? 1)}
       onDblClick={(e) => { e.cancelBubble = true; onTextEdit(item.id) }}
       onDblTap={(e) => { e.cancelBubble = true; onTextEdit(item.id) }}
       onTransformStart={(event) => {
+        if (ghostGuardRef.current) {
+          console.log('[DIAG-GHOST] ignored ghostGuard')
+          return
+        }
+        if (event.target?.height() === 0) {
+          console.log('[DIAG-GHOST] ignored height=0')
+          return
+        }
+        // Real user drag — ghost never reaches here
+        isUserDraggingRef.current = true
         const node = textNodeRef.current
         transformAnchorRef.current = getActiveTransformAnchor?.()
+        console.log('[DIAG-START] anchor=%s isMultiRun=%s dragging=%s', transformAnchorRef.current, isMultiRun, isUserDraggingRef.current)
         if (isMultiRun) {
+          setDragWidth(null)
           transformStartRef.current = {
+            x: item.x || 0,
             width: item.w || 8,
             fontSize: clamp(item.fontSize || 48, 8, 1000),
           }
@@ -739,27 +1092,57 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         }
       }}
       onTransform={(event) => {
+        if (ghostGuardRef.current) return
+        if (!isUserDraggingRef.current) {
+          console.log('[DIAG-GHOST] ignored onTransform (no user drag)')
+          return
+        }
         const groupNode = event.target
-        const activeAnchor = transformAnchorRef.current || getActiveTransformAnchor?.()
+        if (groupNode?.height() === 0) return
+        const activeAnchor = getActiveTransformAnchor?.() ?? transformAnchorRef.current
         const isSideResize = activeAnchor === 'middle-left' || activeAnchor === 'middle-right'
 
         if (isMultiRun) {
           if (isSideResize) {
             const start = transformStartRef.current
-            const curWidth = displayWidth || item.w
-            const nextWidth = Math.max(24, (start?.width || item.w) * Math.abs(groupNode.scaleX() || 1))
-            multiRunLastWidthRef.current = nextWidth
-            if (nextWidth < curWidth) {
-              setDragWidth(nextWidth)
+            let nextWidth
+            // (a) Baca scaleX/scaleY dari Konva (nilai yang baru diterapkan oleh Transformer)
+            const rawSx = Math.abs(groupNode.scaleX() || 1)
+            const rawSy = Math.abs(groupNode.scaleY() || 1)
+            if (activeAnchor === 'middle-left') {
+              // LEFT handle: right edge (x + width) must stay constant.
+              const deltaX = (start?.x || item.x) - groupNode.x()
+              nextWidth = Math.max(24, (start?.width || item.w) + deltaX)
             } else {
-              const g = multiRunGroupRef.current
-              if (g) {
-                g.clipWidth(nextWidth)
-                g.getLayer()?.batchDraw()
-              }
+              // RIGHT handle: start.width * rawSx (bukan currentW) supaya tidak compounding
+              nextWidth = Math.max(24, (start?.width || item.w) * rawSx)
             }
+            // (b) Simpan hasil konversi scale→width
+            multiRunLastWidthRef.current = nextWidth
+            setDragWidth(nextWidth)
+            // (c) RESET scale ke 1 — SEBELUM apapun baca node (drift/getClientRect/dll)
             groupNode.scaleX(1)
             groupNode.scaleY(1)
+            // (d) Baru setelah scale=1, hitung currentRight/drift
+            const origW = start?.width || item.w
+            const origRight = item.x + item.w
+            const currentRight = groupNode.x() + nextWidth
+            const drift = currentRight - origRight
+            const gW = groupNode.width()
+            const now = performance.now()
+            const gap = prevDiagTimeRef.current ? (now - prevDiagTimeRef.current) : 0
+            const gWFrozen = prevGroupWRef.current !== null && gW === prevGroupWRef.current && gap > 10
+            if (gap > 50 || gWFrozen) {
+              console.log('[DIAG-A:GAP] gap=%s ms gW=%s prevW=%s frozen=%s',
+                gap.toFixed(1), gW?.toFixed(1) ?? '?', prevGroupWRef.current?.toFixed(1) ?? '?', gWFrozen)
+            }
+            prevDiagTimeRef.current = now
+            prevGroupWRef.current = gW
+            console.log('[DIAG-A] anchor=%s origRight=%s currentRight=%s drift=%s x=%s nextW=%s origX=%s nX=%s scaleX=%s gW=%s time=%s',
+              activeAnchor, origRight.toFixed(1), currentRight.toFixed(1), drift.toFixed(1),
+              groupNode.x().toFixed(1), nextWidth.toFixed(1), item.x.toFixed(1),
+              groupNode.x().toFixed(1), groupNode.scaleX()?.toFixed(4) ?? '?',
+              gW?.toFixed(1) ?? '?', now.toFixed(1))
           } else {
             const start = transformStartRef.current
             const nextWidth = Math.max(24, (start?.width || item.w) * Math.max(Math.abs(groupNode.scaleX() || 1), Math.abs(groupNode.scaleY() || 1)))
@@ -788,10 +1171,16 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           node.getLayer()?.batchDraw()
         }
       }}
-
+      onTransformEnd={() => {
+        isUserDraggingRef.current = false
+        setDragWidth(null)
+        // Arm ghost guard: tolak transformStart hantu dari Transformer forceUpdate/rAF
+        ghostGuardRef.current = true
+        setTimeout(() => { ghostGuardRef.current = false }, 0)
+      }}
     >
       <Rect
-        width={hasCurve ? curveW : item.w}
+        width={hasCurve ? curveW : (isMultiRun ? displayWidth : item.w)}
         height={hasCurve ? curveH : textHeight}
         fill="rgba(0,0,0,0)"
         strokeWidth={0}
@@ -829,7 +1218,6 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
             width={sc.width}
             height={sc.height}
             listening={false}
-            perfectDrawEnabled={false}
           />
         )
       })()}
@@ -870,6 +1258,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         </>
       ) : hasCurve && curveCanvas ? (
         <Image
+          name="curve-image"
           ref={curveImageRef}
           image={curveCanvas}
           width={curveW}
@@ -899,6 +1288,114 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
             fillEnabled={true}
             strokeEnabled={false}
             listening={false}
+          />
+        </>
+      )}
+      {showSelectionBox && (
+        <>
+          {/* Custom selection box (bypass Konva Transformer — no ghost events) */}
+          {/* Stretch-responsive dimensions: multiRunGroupRef has stretch, this box lives at groupRef level */}
+          {/* Border — matching Transformer borderStroke="#a970ff", strokeWidth=1 */}
+          <Rect
+            x={0} y={0}
+            width={displayWidth * stretchScaleX}
+            height={textHeight * stretchScaleY}
+            fill="transparent"
+            stroke="#a970ff"
+            strokeWidth={zoomStroke}
+            listening={false}
+          />
+          {/* Rotation line — extending 50px upward from top-center (matching Konva default rotateAnchorOffset=50) */}
+          <Line
+            points={[displayWidth * stretchScaleX / 2, 0, displayWidth * stretchScaleX / 2, -zoomRotateOffset]}
+            stroke="#a970ff"
+            strokeWidth={zoomStroke}
+            listening={false}
+          />
+          {/* Rotation handle (top-center, same styling as anchors) */}
+          <Rect
+            x={displayWidth * stretchScaleX / 2 - adjustedHalf} y={-zoomRotateOffset - adjustedHalf}
+            width={adjustedSize} height={adjustedSize}
+            fill="#f4e8ff"
+            stroke="#a970ff"
+            strokeWidth={zoomStroke}
+            onPointerDown={(e) => doResizePointerDown(e, 'rotate')}
+            onTap={(e) => doResizePointerDown(e, 'rotate')}
+            onMouseEnter={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), ANCHOR_CURSOR['rotate']) }}
+            onMouseLeave={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), '') }}
+          />
+          {/* Corner + side handles — matching Transformer: anchorSize=10, anchorFill="#f4e8ff", anchorStroke="#a970ff" */}
+          {/* top-left */}
+          <Rect
+            x={-adjustedHalf} y={-adjustedHalf}
+            width={adjustedSize} height={adjustedSize}
+            fill="#f4e8ff"
+            stroke="#a970ff"
+            strokeWidth={zoomStroke}
+            onPointerDown={(e) => doResizePointerDown(e, 'top-left')}
+            onTap={(e) => doResizePointerDown(e, 'top-left')}
+            onMouseEnter={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), ANCHOR_CURSOR['top-left']) }}
+            onMouseLeave={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), '') }}
+          />
+          {/* top-right */}
+          <Rect
+            x={displayWidth * stretchScaleX - adjustedHalf} y={-adjustedHalf}
+            width={adjustedSize} height={adjustedSize}
+            fill="#f4e8ff"
+            stroke="#a970ff"
+            strokeWidth={zoomStroke}
+            onPointerDown={(e) => doResizePointerDown(e, 'top-right')}
+            onTap={(e) => doResizePointerDown(e, 'top-right')}
+            onMouseEnter={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), ANCHOR_CURSOR['top-right']) }}
+            onMouseLeave={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), '') }}
+          />
+          {/* bottom-left */}
+          <Rect
+            x={-adjustedHalf} y={textHeight * stretchScaleY - adjustedHalf}
+            width={adjustedSize} height={adjustedSize}
+            fill="#f4e8ff"
+            stroke="#a970ff"
+            strokeWidth={zoomStroke}
+            onPointerDown={(e) => doResizePointerDown(e, 'bottom-left')}
+            onTap={(e) => doResizePointerDown(e, 'bottom-left')}
+            onMouseEnter={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), ANCHOR_CURSOR['bottom-left']) }}
+            onMouseLeave={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), '') }}
+          />
+          {/* bottom-right */}
+          <Rect
+            x={displayWidth * stretchScaleX - adjustedHalf} y={textHeight * stretchScaleY - adjustedHalf}
+            width={adjustedSize} height={adjustedSize}
+            fill="#f4e8ff"
+            stroke="#a970ff"
+            strokeWidth={zoomStroke}
+            onPointerDown={(e) => doResizePointerDown(e, 'bottom-right')}
+            onTap={(e) => doResizePointerDown(e, 'bottom-right')}
+            onMouseEnter={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), ANCHOR_CURSOR['bottom-right']) }}
+            onMouseLeave={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), '') }}
+          />
+          {/* middle-left */}
+          <Rect
+            x={-adjustedHalf} y={textHeight * stretchScaleY / 2 - adjustedHalf}
+            width={adjustedSize} height={adjustedSize}
+            fill="#f4e8ff"
+            stroke="#a970ff"
+            strokeWidth={zoomStroke}
+            onPointerDown={(e) => doResizePointerDown(e, 'middle-left')}
+            onTap={(e) => doResizePointerDown(e, 'middle-left')}
+            onMouseEnter={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), ANCHOR_CURSOR['middle-left']) }}
+            onMouseLeave={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), '') }}
+          />
+          {/* middle-right */}
+          <Rect
+            x={displayWidth * stretchScaleX - adjustedHalf} y={textHeight * stretchScaleY / 2 - adjustedHalf}
+            width={adjustedSize} height={adjustedSize}
+            fill="#f4e8ff"
+            stroke="#a970ff"
+            strokeWidth={zoomStroke}
+            onPointerDown={(e) => doResizePointerDown(e, 'middle-right')}
+            onTap={(e) => doResizePointerDown(e, 'middle-right')}
+            onMouseEnter={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), ANCHOR_CURSOR['middle-right']) }}
+            onMouseLeave={(e) => { e.cancelBubble = true; setCanvasCursor(e.target.getStage(), '') }}
           />
         </>
       )}

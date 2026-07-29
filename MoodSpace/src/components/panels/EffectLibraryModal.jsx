@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Palette, Sparkles, Droplets, Move, Layers, Type as TypeIcon, X, Search } from 'lucide-react'
 import { EFFECT_CATEGORIES, EFFECTS, ADJUSTMENT_RESTRICTED_EFFECTS, getEffectInstances } from '../../utils/effectUtils'
 import FxEffectCard from './FxEffectCard'
@@ -25,6 +25,12 @@ export default function EffectLibraryModal({ item, effects, effectOrder, onAdd, 
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
   const q = search.trim().toLowerCase()
+
+  const handleAdd = useCallback((effectId) => {
+    if (onAdd) {
+      onAdd(effectId)
+    }
+  }, [onAdd])
 
   const instanceCounts = useMemo(() => {
     const counts = {}
@@ -100,15 +106,17 @@ export default function EffectLibraryModal({ item, effects, effectOrder, onAdd, 
                   : q
                   ? searchedEffects
                   : filteredByCategory
-                ).map((effect) => (
-                  <FxEffectCard
-                    key={effect.id}
-                    effect={effect}
-                    onClick={() => onAdd(effect.id)}
-                    showPreview
-                    count={instanceCounts[effect.id] || 0}
-                  />
-                ))}
+                ).map((effect) => {
+                  return (
+                    <FxEffectCard
+                      key={effect.id}
+                      effect={effect}
+                      onClick={() => handleAdd(effect.id)}
+                      showPreview
+                      count={instanceCounts[effect.id] || 0}
+                    />
+                  )
+                })}
               </div>
             )
           ) : (
@@ -123,15 +131,17 @@ export default function EffectLibraryModal({ item, effects, effectOrder, onAdd, 
                     {cat.label}
                   </div>
                   <div className="effect-library-grid">
-                    {categoryEffects.map((effect) => (
-                      <FxEffectCard
-                        key={effect.id}
-                        effect={effect}
-                        onClick={() => onAdd(effect.id)}
-                        showPreview
-                        count={instanceCounts[effect.id] || 0}
-                      />
-                    ))}
+                    {categoryEffects.map((effect) => {
+                      return (
+                        <FxEffectCard
+                          key={effect.id}
+                          effect={effect}
+                          onClick={() => handleAdd(effect.id)}
+                          showPreview
+                          count={instanceCounts[effect.id] || 0}
+                        />
+                      )
+                    })}
                   </div>
                 </div>
               )

@@ -8,6 +8,7 @@ export const createWorkspace = async ({
   background,
   settings,
   snapshot,
+  isTemplate,
 }) => (
   apiRequest('/workspaces', {
     method: 'POST',
@@ -19,6 +20,7 @@ export const createWorkspace = async ({
       background,
       settings,
       snapshot,
+      isTemplate,
     },
   })
 )

@@ -558,24 +558,45 @@ export function handleCompositeUngroup({
   setItems,
   broadcastItemUpdate,
   captureGroupUndo,
+  batchUndoCallback,
 }) {
   // 1. Bake compositeGroup* → absolute member positions
   bakeCompositeGroup({ groupId, itemsRef, stageRef })
 
   const membersToClear = itemsRef.current.filter((i) => i.groupId === groupId)
 
-  // 2. Capture undo
-  membersToClear.forEach((item) => {
-    captureGroupUndo(item.id, {
-      groupId: null,
-      compositeMode: null,
-      compositeGroupX: undefined,
-      compositeGroupY: undefined,
-      compositeGroupScaleX: undefined,
-      compositeGroupScaleY: undefined,
-      compositeGroupRotation: undefined,
+  // 2. Capture undo (batch if callback provided, otherwise per-item)
+  if (batchUndoCallback) {
+    const patches = membersToClear.map((item) => {
+      const patch = {
+        groupId: null,
+        compositeMode: null,
+        compositeGroupX: undefined,
+        compositeGroupY: undefined,
+        compositeGroupScaleX: undefined,
+        compositeGroupScaleY: undefined,
+        compositeGroupRotation: undefined,
+      }
+      const prevPatch = {}
+      for (const key of Object.keys(patch)) {
+        prevPatch[key] = key in item ? item[key] : undefined
+      }
+      return { itemId: item.id, prevPatch }
     })
-  })
+    batchUndoCallback(patches)
+  } else {
+    membersToClear.forEach((item) => {
+      captureGroupUndo(item.id, {
+        groupId: null,
+        compositeMode: null,
+        compositeGroupX: undefined,
+        compositeGroupY: undefined,
+        compositeGroupScaleX: undefined,
+        compositeGroupScaleY: undefined,
+        compositeGroupRotation: undefined,
+      })
+    })
+  }
 
   // 3. Clear group membership + compositeGroup* dari React state
   setItems((current) =>

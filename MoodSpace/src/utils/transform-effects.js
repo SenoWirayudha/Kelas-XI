@@ -342,6 +342,8 @@ export function applyRepeater(node, p, repeatersWeakMap) {
   const old = repeatersWeakMap?.get(node)
   if (old) { old.forEach(c => c.destroy()); repeatersWeakMap?.delete(node) }
 
+  if (!node.isVisible()) return
+
   const count   = Math.max(1, Math.round(p.count ?? 3))
   const offsetX = p.offsetX ?? 0
   const offsetY = p.offsetY ?? 20

@@ -10,6 +10,7 @@ export default function FrameRenderer({
   disableDrag,
   dropTargetFrameId,
   dropTargetSlotIndex,
+  dropPreviewState,
   editingFrameId,
   editingFrameSlot,
   onFrameImageEdit,
@@ -51,6 +52,7 @@ export default function FrameRenderer({
           }
         },
       }}
+      dropPreviewState={dropPreviewState}
       isDropTarget={dropTargetFrameId === item.id}
       dropSlotIndex={dropTargetSlotIndex}
       isEditing={isEditing}

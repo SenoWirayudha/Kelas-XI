@@ -70,6 +70,9 @@ const serializeWorkspace = (workspace, version = null) => ({
   }),
   isPublished: workspace.isPublished,
   isTemplate: workspace.isTemplate,
+  ownerDisplayName: workspace.ownerDisplayName,
+  ownerUsername: workspace.ownerUsername,
+  ownerAvatarUrl: workspace.ownerAvatarUrl,
   shareToken: workspace.shareToken,
   sourceTemplateId: workspace.sourceTemplateId,
   publishedAt: workspace.publishedAt,
@@ -103,6 +106,7 @@ export const createWorkspace = async ({ userId, body }) => {
     settings: body.settings,
     snapshot,
     snapshotHash,
+    isTemplate: body.isTemplate === true,
   })
 
   const workspace = await findWorkspaceById(result.workspaceId)
@@ -441,9 +445,9 @@ const deepCopyWorkspace = async ({ sourceWorkspace, sourceWorkspaceId, userId })
         `insert into workspaces (
            owner_id, title, description, visibility, status,
            canvas_width, canvas_height, canvas_ratio, background, settings,
-           is_published, is_template, source_template_id
-         )
-         values ($1, $2, $3, $4, 'draft', $5, $6, $7, $8::jsonb, $9::jsonb, false, false, $10)
+         is_published, is_template, source_template_id
+          )
+          values ($1, $2, $3, $4, 'draft', $5, $6, $7, $8::jsonb, $9::jsonb, false, true, $10)
          returning id`,
         [
           userId,

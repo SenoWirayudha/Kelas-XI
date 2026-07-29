@@ -1,3 +1,5 @@
+import { generateId } from './generateId'
+
 export const EFFECT_CATEGORIES = [
   { id: 'color', label: 'Color', icon: 'Palette' },
   { id: 'stylize', label: 'Stylize', icon: 'Sparkles' },
@@ -192,13 +194,13 @@ export const EFFECTS = [
     { key: 'fade', label: 'Fade/Wash', type: 'slider', default: 0.2, min: 0, max: 1, step: 0.01 },
   ]},
   // ── Text ──
-  { id: 'letterSpacing', label: 'Letter Spacing', category: 'text', type: 'object', default: null, icon: 'Type', params: [
+  { id: 'letterSpacing', label: 'Letter Spacing', category: 'text', type: 'object', default: null, icon: 'Type', previewImagePath: 'effect-previews/letterSpacing.png', params: [
     { key: 'value', label: 'Spacing', type: 'slider', default: 0, min: -5, max: 20 },
   ]},
-  { id: 'curve', label: 'Curve', category: 'text', type: 'object', default: null, icon: 'RotateCw', params: [
+  { id: 'curve', label: 'Curve', category: 'text', type: 'object', default: null, icon: 'RotateCw', previewImagePath: 'effect-previews/curve.png', params: [
     { key: 'amount', label: 'Amount', type: 'slider', default: 0, min: -1, max: 1, step: 0.01 },
   ]},
-  { id: 'stretch', label: 'Stretch', category: 'text', type: 'object', default: null, icon: 'Move', params: [
+  { id: 'stretch', label: 'Stretch', category: 'text', type: 'object', default: null, icon: 'Move', previewImagePath: 'effect-previews/stretch.png', params: [
     { key: 'scaleX', label: 'Scale X', type: 'slider', default: 1, min: 0.3, max: 3, step: 0.1 },
     { key: 'scaleY', label: 'Scale Y', type: 'slider', default: 1, min: 0.3, max: 3, step: 0.1 },
     { key: 'skewX', label: 'Skew X', type: 'slider', default: 0, min: -1, max: 1, step: 0.05 },
@@ -262,18 +264,29 @@ export function getEffectOrder(item) {
  * to instance-based format (effectOrder=instanceId[], effects={instanceId: {effectId, value}}).
  * Idempotent — detects already-migrated items and returns as-is.
  */
+const KNOWN_EFFECT_IDS = new Set(EFFECTS.map((e) => e.id))
+
+function hasLegacyFormatEffects(effects) {
+  if (!effects || typeof effects !== 'object') return false
+  return Object.keys(effects).some((key) => KNOWN_EFFECT_IDS.has(key))
+}
+
 export function migrateLegacyEffects(item) {
   const order = item.effectOrder
-  if (!order?.length) return item
-  if (typeof item.effects?.[order[0]]?.effectId === 'string') return item
-  console.log('[MIGRATE] Running migration for item', item.id?.substring?.(0, 8), 'old order:', order, 'old effects keys:', Object.keys(item.effects || {}))
+  if (order?.length) {
+    if (typeof item.effects?.[order[0]]?.effectId === 'string') return item
+  } else if (!hasLegacyFormatEffects(item.effects)) {
+    return item
+  }
+  const effectiveOrder = order?.length ? order : Object.keys(item.effects || {}).filter((k) => KNOWN_EFFECT_IDS.has(k))
+  console.log('[MIGRATE] Running migration for item', item.id?.substring?.(0, 8), 'old order:', effectiveOrder, 'old effects keys:', Object.keys(item.effects || {}))
   const newEffects = {}
   const newOrder = []
-  for (const effectId of order) {
+  for (const effectId of effectiveOrder) {
     if (!(effectId in (item.effects || {}))) continue
     const val = item.effects[effectId]
     if (val === undefined) continue
-    const instanceId = crypto.randomUUID()
+    const instanceId = generateId()
     newEffects[instanceId] = { effectId, value: val }
     newOrder.push(instanceId)
   }
@@ -284,7 +297,7 @@ export function migrateLegacyEffects(item) {
 }
 
 export function addEffectToStack(item, effectId, value) {
-  const instanceId = crypto.randomUUID()
+  const instanceId = generateId()
   const finalValue = value ?? getDefaultEnabledValue(findEffect(effectId))
   const currentOrder = item.effectOrder || []
   const currentEffects = item.effects || {}

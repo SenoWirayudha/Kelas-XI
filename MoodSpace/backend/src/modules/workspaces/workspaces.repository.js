@@ -27,9 +27,15 @@ const workspaceSelect = `
     w.published_version_id as "publishedVersionId",
     w.created_at as "createdAt",
     w.updated_at as "updatedAt",
-    w.published_at as "publishedAt"
+    w.published_at as "publishedAt",
+    owner_u.display_name as "ownerDisplayName",
+    owner_u.username as "ownerUsername",
+    owner_ma.public_url as "ownerAvatarUrl"
   from workspaces w
   left join media_assets tm on tm.id = w.thumbnail_media_id and tm.deleted_at is null
+  left join users owner_u on owner_u.id = w.owner_id
+  left join user_profiles owner_up on owner_up.user_id = owner_u.id
+  left join media_assets owner_ma on owner_ma.id = owner_up.avatar_media_id and owner_ma.deleted_at is null
 `
 
 export const createWorkspaceWithVersion = async ({
@@ -44,13 +50,14 @@ export const createWorkspaceWithVersion = async ({
   settings,
   snapshot,
   snapshotHash,
+  isTemplate,
 }) => withTransaction(async (client) => {
   const workspaceResult = await client.query(
     `insert into workspaces (
        owner_id, title, description, visibility, canvas_width, canvas_height,
-       canvas_ratio, background, settings
+       canvas_ratio, background, settings, is_template
      )
-     values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10)
      returning id, updated_at as "updatedAt"`,
     [
       ownerId,
@@ -62,6 +69,7 @@ export const createWorkspaceWithVersion = async ({
       canvasRatio || null,
       JSON.stringify(background || {}),
       JSON.stringify(settings || {}),
+      isTemplate === true,
     ],
   )
   const workspaceId = workspaceResult.rows[0].id

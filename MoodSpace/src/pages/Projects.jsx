@@ -84,6 +84,10 @@ const workspaceToProject = (workspace) => ({
   thumbnailVersion: workspace.thumbnailMediaId || workspace.updatedAt,
   updatedAt: workspace.updatedAt,
   ownerId: workspace.ownerId,
+  ownerDisplayName: workspace.ownerDisplayName,
+  ownerUsername: workspace.ownerUsername,
+  ownerAvatarUrl: workspace.ownerAvatarUrl,
+  isTemplate: !!workspace.isTemplate,
 })
 
 const withCacheBuster = (url, version) => {
@@ -96,6 +100,7 @@ function Projects() {
   const navigate = useNavigate()
   const { user, isAuthenticated, isLoading: isAuthLoading, requireAuth } = useAuth()
   const [projects, setProjects] = useState(readProjects)
+  const [activeTab, setActiveTab] = useState('biasa')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
@@ -136,6 +141,18 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
     () => ratioPresets.find((preset) => preset.id === form.preset) || ratioPresets[2],
     [form.preset],
   )
+
+  const filteredProjects = useMemo(() => {
+    const uid = user?.id
+    switch (activeTab) {
+      case 'template':
+        return projects.filter((p) => p.isTemplate && p.ownerId === uid)
+      case 'kolaborator':
+        return projects.filter((p) => uid && p.ownerId !== uid)
+      default:
+        return projects.filter((p) => !p.isTemplate && p.ownerId === uid)
+    }
+  }, [projects, activeTab, user?.id])
 
   const refetchProjects = useCallback(async (reason = 'manual') => {
     if (isAuthLoading || !isAuthenticated) return
@@ -392,6 +409,7 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
         background: data.background || { type: 'solid', color: '#f4f1e8' },
         settings: data.settings || { autosave: true },
         snapshot: data.snapshot,
+        isTemplate: true,
       })
       const workspace = payload.workspace
       const project = {
@@ -402,6 +420,7 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
         height: workspace.canvasHeight,
         updatedAt: workspace.updatedAt || new Date().toISOString(),
         isNew: true,
+        isTemplate: true,
       }
       const nextProjects = [project, ...projects.filter((item) => item.id !== project.id)]
       setProjects(nextProjects)
@@ -743,6 +762,23 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
         </div>
       </header>
 
+      <div className="project-tabs">
+        {[
+          { id: 'biasa', label: 'Proyekmu' },
+          { id: 'template', label: 'Template' },
+          { id: 'kolaborator', label: 'Kolaborator' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={`project-tab${activeTab === tab.id ? ' active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {showImportModal && (
         <div className="workspace-export-modal-backdrop" role="presentation" onMouseDown={() => { setShowImportModal(false); setCreateError(''); setImportLink('') }}>
           <section className="workspace-export-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
@@ -806,19 +842,21 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
         </div>
       )}
 
-      {projects.length === 0 ? (
+      {filteredProjects.length === 0 ? (
         <div className="projects-empty">
           <Sparkles size={44} strokeWidth={1.3} />
-          <h3>No projects yet</h3>
-          <p>Start your first creative journey</p>
+          <h3>{activeTab === 'biasa' ? 'Belum ada project' : activeTab === 'template' ? 'Belum ada template' : 'Belum ada project kolaborasi'}</h3>
+          <p>{activeTab === 'biasa' ? 'Mulai project pertamamu' : activeTab === 'template' ? 'Kamu belum membuat template' : 'Tidak ada project yang dibagikan ke kamu'}</p>
           <small>Create moodboards, visual concepts, storyboards, and digital projects.</small>
-          <button className="project-upload-btn" type="button" onClick={() => setIsModalOpen(true)}>
-            <Plus size={18} strokeWidth={1.9} />
-            New Project
-          </button>
+          {activeTab === 'biasa' && (
+            <button className="project-upload-btn" type="button" onClick={() => setIsModalOpen(true)}>
+              <Plus size={18} strokeWidth={1.9} />
+              New Project
+            </button>
+          )}
         </div>
       ) : <div className="projects-list">
-        {projects.map((project) => (
+        {filteredProjects.map((project) => (
           <article className={`project-row-card${openProjectMenuId === project.id ? ' project-row-card-menu-open' : ''}`} key={project.id}>
             <button type="button" className="project-row-main" onClick={() => openProject(project)}>
               <span className="project-row-thumb" style={{ aspectRatio: `${project.width} / ${project.height}` }}>
@@ -826,6 +864,18 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
                   <img src={withCacheBuster(project.thumbnailUrl, project.thumbnailVersion || project.updatedAt)} alt="" loading="lazy" />
                 ) : (
                   <FolderOpen size={24} strokeWidth={1.7} />
+                )}
+                {user && project.ownerId !== user.id && (
+                  <span
+                    className="project-owner-avatar"
+                    style={project.ownerAvatarUrl ? { backgroundImage: `url("${project.ownerAvatarUrl}")` } : { background: 'linear-gradient(135deg, #a78bfa, #4f46e5)' }}
+                  >
+                    {!project.ownerAvatarUrl && (
+                      <span className="avatar-initial" style={{ fontSize: '9px' }}>
+                        {(project.ownerDisplayName || project.ownerUsername || '?')[0].toUpperCase()}
+                      </span>
+                    )}
+                  </span>
                 )}
               </span>
               <span>

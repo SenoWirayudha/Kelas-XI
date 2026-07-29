@@ -31,6 +31,7 @@ export function CollaborationProvider({ workspaceId, user, children, itemUpdateH
   const reconnectTimeoutRef = useRef(null)
   const sustainedTimeoutRef = useRef(null)
   const isUnmountingRef = useRef(false)
+  const receiveSeqRef = useRef(0)
   const MAX_RECONNECT_ATTEMPTS = 10
   const RECONNECT_BASE_MS = 1000
   const RECONNECT_MAX_MS = 30000
@@ -175,7 +176,8 @@ export function CollaborationProvider({ workspaceId, user, children, itemUpdateH
       .on('broadcast', { event: 'item_update' }, (payload) => {
         const data = payload.payload || payload
         if (data.userId === user.id) return
-        itemUpdateHandlerRef?.current?.(data.itemId, data.patch)
+        const recvSeq = ++receiveSeqRef.current
+        itemUpdateHandlerRef?.current?.(data.itemId, data.patch, { isFinal: data.isFinal, dragSessionId: data.dragSessionId })
       })
       .on('broadcast', { event: 'item_added' }, (payload) => {
         const data = payload.payload || payload
@@ -222,7 +224,7 @@ export function CollaborationProvider({ workspaceId, user, children, itemUpdateH
           sustainedTimeoutRef.current = setTimeout(() => {
             reconnectAttemptsRef.current = 0
             sustainedTimeoutRef.current = null
-            console.log('[COLLAB_SUB] Connection stable >30s, reconnect counter reset')
+
           }, SUSTAINED_CONNECTION_MS)
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           // Ignore CLOSED triggered by our own cleanup (unsubscribe during effect unmount)

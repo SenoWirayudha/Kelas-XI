@@ -14,6 +14,7 @@ export const createWorkspaceSchema = z.object({
     background: jsonObject.optional(),
     settings: jsonObject.optional(),
     snapshot: jsonObject.optional(),
+    isTemplate: z.boolean().optional(),
   }),
   params: z.object({}).optional(),
   query: z.object({}).optional(),

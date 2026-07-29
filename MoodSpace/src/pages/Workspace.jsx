@@ -77,6 +77,7 @@ import {
   List,
   ListOrdered,
   Image,
+  Eraser as EraserIcon,
 } from 'lucide-react'
 import { Stage, Layer, Rect, Text, Group, Image as KonvaImage, Line, Transformer, Circle, Ellipse, RegularPolygon, Star, Arrow, Path } from 'react-konva'
 import {
@@ -97,6 +98,9 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import ZoomControlPill from '../components/ZoomControlPill'
 import ConfirmationModal from '../components/ConfirmationModal'
+
+import { generateId } from '../utils/generateId'
+import { registerCleanup } from '../utils/clearUserData'
 import { imageSources } from '../utils/imageSources'
 import { SHAPE_LIBRARY, SHAPE_CATEGORIES, getShapesByCategory } from '../data/shapeLibrary'
 import { FRAME_LIBRARY, FRAME_CATEGORIES, getFramesByCategory, getFrameById } from '../data/frameLibrary'
@@ -114,7 +118,7 @@ import {
 } from '../constants/uiConstants'
 
 // Utils
-import { clamp, getDynamicGridLines, buildWorkspaceGridLines, rectsIntersect } from '../utils/mathUtils'
+import { clamp, getDynamicGridLines, buildWorkspaceGridLines, rectsIntersect, applyRubberBandSmoothing } from '../utils/mathUtils'
 import { getClampedCanvasPosition, getCanvasContainedSize, getWorldPointFromViewport, getItemsBounds } from '../utils/canvasPositionUtils'
 import { getArrowShapePath, getShapeTextBounds, getShapeMinSizeForText, getShapeMinHeightForTextWidth, getShapeResizeSize, getArrowResizeSize } from '../utils/shapeUtils'
 import { generateSvgString } from '../utils/svgExport'
@@ -151,6 +155,7 @@ import { ObjectAnchors, ConnectorEndpointAnchors } from './canvas/ConnectorAncho
 import ConnectorRenderer from '../components/canvas/renderers/ConnectorRenderer'
 import ImageRenderer from '../components/canvas/renderers/ImageRenderer'
 import TextRenderer from '../components/canvas/renderers/TextRenderer'
+import { CameraScaleContext } from '../components/canvas/CanvasTextNode'
 import ShapeRenderer from '../components/canvas/renderers/ShapeRenderer'
 import FrameRenderer from '../components/canvas/renderers/FrameRenderer'
 import GlobalAdjustmentLayer from '../components/canvas/GlobalAdjustmentLayer'
@@ -180,6 +185,7 @@ import { CollaborationPresence } from '../components/canvas/CollaborationPresenc
 import { CollaborationCursors } from '../components/canvas/CollaborationCursors'
 import { CollaborationSelectionIndicators } from '../components/canvas/CollaborationSelectionIndicators'
 import { CollaborationSelectionLabels } from '../components/canvas/CollaborationSelectionLabels'
+import { usePanelHistory } from '../hooks/usePanelHistory'
 import { useCursorBroadcast } from '../hooks/useCursorBroadcast'
 import { useCollaboration } from '../hooks/useCollaboration'
 import { getCursorColor } from '../utils/cursorColors'
@@ -202,6 +208,13 @@ let canvasBounds = { x: 0, y: 0, width: canvasSize.width, height: canvasSize.hei
 let _brushOffscreenCanvas = null
 let _brushImageNode = null
 let _brushFallbackImg = null
+
+registerCleanup(() => {
+  _brushOffscreenCanvas = null
+  _brushImageNode = null
+  _brushFallbackImg = null
+  _destFxCache.clear()
+})
 
 const isBasicFrame = (item) => item?.kind === 'frame' && basicFrameTypes.has(item.frameType)
 
@@ -979,17 +992,18 @@ function DefaultItemRenderer({ item, commonProps }) {
 }
 
 const CanvasItemComparitor = (prev, next) => {
-  if (prev.item !== next.item) return false
-  if (prev.selectedId !== next.selectedId) return false
-  if (prev.selectedIds !== next.selectedIds) return false
-  if (prev.isTextEditing !== next.isTextEditing) return false
-  if (prev.disableDrag !== next.disableDrag) return false
-  if (prev.isShiftDown !== next.isShiftDown) return false
-  if (prev.isCropTarget !== next.isCropTarget) return false
-  if (prev.fontInjectVersion !== next.fontInjectVersion) return false
-  return true
+  return prev.item === next.item
+    && prev.selectedId === next.selectedId
+    && prev.selectedIds === next.selectedIds
+    && prev.isTextEditing === next.isTextEditing
+    && prev.disableDrag === next.disableDrag
+    && prev.isShiftDown === next.isShiftDown
+    && prev.isCropTarget === next.isCropTarget
+    && prev.fontInjectVersion === next.fontInjectVersion
+    && prev.eraserPreviewCanvas === next.eraserPreviewCanvas
+    && prev.eraserTargetId === next.eraserTargetId
 }
-const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false, fontInjectVersion, suspendGeometryRef }) {
+const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, dropPreviewState, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false, fontInjectVersion, suspendGeometryRef, eraserPreviewCanvas, eraserTargetId, liveGeometryRef }) {
   const sizeRef = useRef({ w: item.w, h: item.h })
   const compositeOperation = allowComposite
     ? getItemCompositeOperation(item)
@@ -999,9 +1013,12 @@ const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, sele
     sizeRef.current = { w: item.w, h: item.h }
   }, [item.w, item.h])
 
+  const liveGeo = liveGeometryRef?.current
   const commonProps = {
     id: item.id,
-    ...(!suspendGeometryRef?.current ? { x: item.x, y: item.y, rotation: item.rotation || 0 } : {}),
+    x: liveGeo?.x ?? item.x,
+    y: liveGeo?.y ?? item.y,
+    rotation: liveGeo?.rotation ?? (item.rotation || 0),
     draggable: !item.locked && !disableDrag,
     opacity: item.opacity ?? 1,
     visible: item.visible !== false,
@@ -1044,6 +1061,7 @@ const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, sele
       onItemHover={onItemHover}
       disableDrag={disableDrag}
       canvasBounds={canvasBounds}
+      dropPreviewState={dropPreviewState}
       dropTargetFrameId={dropTargetFrameId}
       dropTargetSlotIndex={dropTargetSlotIndex}
       editingFrameId={editingFrameId}
@@ -1052,6 +1070,8 @@ const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, sele
       getActiveTransformAnchor={getActiveTransformAnchor}
       onCropStart={onCropStart}
       fontInjectVersion={fontInjectVersion}
+      eraserPreviewCanvas={eraserPreviewCanvas}
+      eraserTargetId={eraserTargetId}
     />
   )
 })
@@ -2259,8 +2279,9 @@ const getEffectedAlphaMask = (sourceItem, sourceImage) => {
   }))
   const canvasMinX = Math.min(...corners.map((p) => p.x))
   const canvasMinY = Math.min(...corners.map((p) => p.y))
-  const canvasW = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.x)) - canvasMinX))
-  const canvasH = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.y)) - canvasMinY))
+  const displacePad = getRoughenEdgePad(sourceItem.effects, sourceItem.effectOrder)
+  const canvasW = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.x)) - canvasMinX + displacePad * 2))
+  const canvasH = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.y)) - canvasMinY + displacePad * 2))
   const canvas = document.createElement('canvas')
   canvas.width = canvasW
   canvas.height = canvasH
@@ -2281,7 +2302,7 @@ const getEffectedAlphaMask = (sourceItem, sourceImage) => {
 
   ctx.save()
   ctx.globalAlpha = sourceItem.opacity ?? 1
-  ctx.translate(-canvasMinX, -canvasMinY)
+  ctx.translate(-canvasMinX + displacePad, -canvasMinY + displacePad)
   if (rotation) ctx.rotate(rotation)
   ctx.scale(scaleX, scaleY)
   if (crop) {
@@ -2325,7 +2346,23 @@ const getEffectedAlphaMask = (sourceItem, sourceImage) => {
 
   console.timeEnd(timerLabel)
 
-  return { canvas, originOffsetX: canvasMinX, originOffsetY: canvasMinY }
+  return { canvas, originOffsetX: canvasMinX - displacePad, originOffsetY: canvasMinY - displacePad }
+}
+
+const getRoughenEdgePad = (effects, effectOrder) => {
+  if (!effects || !effectOrder?.length) return 0
+  let maxPad = 0
+  for (const instanceId of effectOrder) {
+    const entry = effects[instanceId]
+    if (!entry || entry.effectId !== 'roughenEdge') continue
+    const val = entry.value
+    if (!val) continue
+    const strength = val.strength ?? 0.5
+    const scale = val.scale ?? 10
+    const pad = Math.ceil(0.4 * strength * scale * 2)
+    if (pad > maxPad) maxPad = pad
+  }
+  return maxPad
 }
 
 const getBezierMaskCanvas = (sourceItem) => {
@@ -2351,8 +2388,9 @@ const getBezierMaskCanvas = (sourceItem) => {
   }))
   const canvasMinX = Math.min(...corners.map((p) => p.x))
   const canvasMinY = Math.min(...corners.map((p) => p.y))
-  const canvasW = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.x)) - canvasMinX))
-  const canvasH = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.y)) - canvasMinY))
+  const displacePad = getRoughenEdgePad(sourceItem.effects, sourceItem.effectOrder)
+  const canvasW = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.x)) - canvasMinX + displacePad * 2))
+  const canvasH = Math.max(1, Math.ceil(Math.max(...corners.map((p) => p.y)) - canvasMinY + displacePad * 2))
   const canvas = document.createElement('canvas')
   canvas.width = canvasW
   canvas.height = canvasH
@@ -2361,7 +2399,7 @@ const getBezierMaskCanvas = (sourceItem) => {
 
   ctx.save()
   ctx.globalAlpha = sourceItem.opacity ?? 1
-  ctx.translate(-canvasMinX, -canvasMinY)
+  ctx.translate(-canvasMinX + displacePad, -canvasMinY + displacePad)
   if (rotation) ctx.rotate(rotation)
   ctx.scale(scaleX, scaleY)
   try {
@@ -2410,7 +2448,7 @@ const getBezierMaskCanvas = (sourceItem) => {
     }
   }
 
-  return { canvas, originOffsetX: canvasMinX, originOffsetY: canvasMinY }
+  return { canvas, originOffsetX: canvasMinX - displacePad, originOffsetY: canvasMinY - displacePad }
 }
 
 const getShapeMaskCanvas = (sourceItem) => {
@@ -2427,8 +2465,9 @@ const getShapeMaskCanvas = (sourceItem) => {
   ].map(p => ({ x: p.x * cos - p.y * sin, y: p.x * sin + p.y * cos }))
   const canvasMinX = Math.min(...corners.map(p => p.x))
   const canvasMinY = Math.min(...corners.map(p => p.y))
-  const canvasW = Math.max(1, Math.ceil(Math.max(...corners.map(p => p.x)) - canvasMinX))
-  const canvasH = Math.max(1, Math.ceil(Math.max(...corners.map(p => p.y)) - canvasMinY))
+  const displacePad = getRoughenEdgePad(sourceItem.effects, sourceItem.effectOrder)
+  const canvasW = Math.max(1, Math.ceil(Math.max(...corners.map(p => p.x)) - canvasMinX + displacePad * 2))
+  const canvasH = Math.max(1, Math.ceil(Math.max(...corners.map(p => p.y)) - canvasMinY + displacePad * 2))
   const canvas = document.createElement('canvas')
   canvas.width = canvasW
   canvas.height = canvasH
@@ -2437,7 +2476,7 @@ const getShapeMaskCanvas = (sourceItem) => {
 
   ctx.save()
   ctx.globalAlpha = sourceItem.opacity ?? 1
-  ctx.translate(-canvasMinX, -canvasMinY)
+  ctx.translate(-canvasMinX + displacePad, -canvasMinY + displacePad)
   if (rotation) ctx.rotate(rotation)
   ctx.scale(scaleX, scaleY)
 
@@ -2522,7 +2561,7 @@ const getShapeMaskCanvas = (sourceItem) => {
     ctx.putImageData(imageData, 0, 0)
   }
 
-  return { canvas, originOffsetX: canvasMinX, originOffsetY: canvasMinY }
+  return { canvas, originOffsetX: canvasMinX - displacePad, originOffsetY: canvasMinY - displacePad }
 }
 
 function CompositeAlphaBitmap({ sourceItem, destinationItems, bounds, mode, isDraggingRef, isDraggingTrigger, adjustSourceItem, redrawKey }) {
@@ -2806,7 +2845,7 @@ const CompositeCanvasGroupMemoComparitor = (prev, next) => {
   }
   return !hasChange
 }
-const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, onRefreshTransform, fontInjectVersion, getItemsVisualBounds, getCompositeSnapBounds, getSnappedDelta, setAlignmentGuides, setRotationSnapGuide, skipGroupDragEndRef, selectedIdsRef, itemsRef, multiDragRef, multiDragActiveRef, stageRef, setStageCursor, getInteractionNode, adjustSourceTargetId, broadcastItemUpdate }) {
+const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, dropPreviewState, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, cropSession, canvasSize, onSyncTransformer, onRefreshTransform, fontInjectVersion, getItemsVisualBounds, getCompositeSnapBounds, getSnappedDelta, setAlignmentGuides, setRotationSnapGuide, skipGroupDragEndRef, selectedIdsRef, itemsRef, multiDragRef, multiDragActiveRef, stageRef, setStageCursor, getInteractionNode, adjustSourceTargetId, broadcastItemUpdate, liveGeometryRef }) {
   const groupRef = useRef(null)
   const dragStartRef = useRef(null)
   const snapResultRef = useRef(null)
@@ -3393,7 +3432,8 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
               isShiftDown={isShiftDown}
               getActiveTransformAnchor={getActiveTransformAnchor}
             adjustSourceTargetId={adjustSourceTargetId}
-            dropTargetFrameId={dropTargetFrameId}
+              dropPreviewState={dropPreviewState}
+              dropTargetFrameId={dropTargetFrameId}
               dropTargetSlotIndex={dropTargetSlotIndex}
               editingFrameId={editingFrameId}
               editingFrameSlot={editingFrameSlot}
@@ -3402,6 +3442,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
               isCropTarget={cropSession?.itemId === item.id}
               fontInjectVersion={fontInjectVersion}
               suspendGeometryRef={isDraggingRef}
+              liveGeometryRef={liveGeometryRef}
             />
             )
           })}
@@ -3429,6 +3470,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           disableDrag={true}
           isShiftDown={isShiftDown}
           getActiveTransformAnchor={getActiveTransformAnchor}
+          dropPreviewState={dropPreviewState}
           dropTargetFrameId={dropTargetFrameId}
           dropTargetSlotIndex={dropTargetSlotIndex}
           editingFrameId={editingFrameId}
@@ -3439,6 +3481,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           fontInjectVersion={fontInjectVersion}
           allowComposite={item.id === entry.operatorId}
           suspendGeometryRef={isDraggingRef}
+          liveGeometryRef={liveGeometryRef}
         />
           )
         })
@@ -3446,6 +3489,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
     </Group>
   )
 })
+
 
 const ADJUSTMENT_PRESETS = [
   {
@@ -3512,6 +3556,7 @@ function Workspace() {
   const workspaceId = initialProject.id
   const [workspaceOwnerId, setWorkspaceOwnerId] = useState(null)
   const isViewerRef = useRef(false)
+  const liveGeometryRef = useRef(null)
   const uploadInputRef = useRef(null)
   const {
     canvasAssets: uploadedCanvasAssets,
@@ -3601,6 +3646,10 @@ function Workspace() {
   const [stageCursor, setStageCursor] = useState('default')
   const [dropTargetFrameId, setDropTargetFrameId] = useState(null)
   const [dropTargetSlotIndex, setDropTargetSlotIndex] = useState(null)  // ← TAMBAH INI
+
+  const DROP_PREVIEW_RADIUS = 120
+  const [dropPreviewState, setDropPreviewState] = useState({ active: false, targetFrameId: null, targetSlotIndex: null, previewSrc: null })
+  const dropPreviewRef = useRef({ active: false, targetFrameId: null, targetSlotIndex: null, previewSrc: null })
   const [, setHoveredItemId] = useState(null)
   const [selectedIds, setSelectedIds] = useState(() => {
     if (initialProject.imageSrc) return ['image-1']
@@ -3697,7 +3746,8 @@ function Workspace() {
   const [exportError, setExportError] = useState('')
 
   // Tool states
-  const [brushSettings, setBrushSettings] = useState({ size: 10, color: '#000000', opacity: 1, mode: 'paint', type: 'solid' })
+  const [brushSettings, setBrushSettings] = useState({ size: 10, color: '#000000', opacity: 1, mode: 'paint', type: 'solid', smoothingPaint: 0, smoothingErase: 0 })
+  const smoothPosRef = useRef({ x: 0, y: 0 })
   const brushSettingsRef = useRef(brushSettings)
   useEffect(() => { brushSettingsRef.current = brushSettings })
   // Offscreen brush layer infrastructure
@@ -3710,6 +3760,14 @@ function Workspace() {
   const brushUndoStackRef = useRef([])
   const eraserImageTargetRef = useRef(null)
   const eraserImagePointsRef = useRef([])
+  const brushStrokeJustEndedRef = useRef(false)
+  // Image eraser session: accumulate mask locally, commit once on Apply
+  const eraserMaskCanvasRef = useRef(null)
+  const eraserOriginalSrcRef = useRef(null)
+  const eraserTargetIdRef = useRef(null)
+  const [eraserSessionActive, setEraserSessionActive] = useState(false)
+  const [eraserPreviewCanvasState, setEraserPreviewCanvasState] = useState(null)
+  const eraserPreviewCanvasRef = useRef(null)
   const brushPaintDebounceRef = useRef(null)
   const brushEraseDebounceRef = useRef(null)
 
@@ -3751,7 +3809,10 @@ function Workspace() {
 
     if (existingBrushLayer) {
       brushUndoStackRef.current = []
-      _brushImageNode = null
+      if (_brushImageNode) {
+        _brushImageNode.image(_brushOffscreenCanvas)
+        _brushImageNode.getLayer()?.batchDraw()
+      }
       return existingBrushLayer.id
     }
 
@@ -3768,14 +3829,15 @@ function Workspace() {
       locked: false,
       effects: getDefaultEffects(),
     }
-    setItems(items => [newItem, ...items])
+    flushSync(() => {
+      setItems(items => [newItem, ...items])
+    })
     if (collaboratorsGuardRef.current.length > 1) {
       broadcastItemAdd(newItem)
     }
     captureAddUndo(id)
     activeBrushLayerIdRef.current = id
     brushUndoStackRef.current = []
-    _brushImageNode = null
     return id
   }
 
@@ -3875,25 +3937,64 @@ function Workspace() {
       }
 
       if (targetItem?.kind === 'image') {
+        // If switching to a different image mid-session, auto-cancel old session
+        if (eraserTargetIdRef.current && eraserTargetIdRef.current !== targetItem.id) {
+          clearEraserSession()
+        }
         eraserImageTargetRef.current = targetItem
         eraserImagePointsRef.current = []
         const worldPos = getWorldPointFromViewport(pointer, cameraRef.current)
+        smoothPosRef.current = { x: worldPos.x, y: worldPos.y }
         eraserImagePointsRef.current.push(worldPos.x, worldPos.y)
-        isDrawingRef.current = true
-        lastBrushPosRef.current = worldPos
-        return
+
+        // First stroke of this session? Initialize mask canvas.
+        // Subsequent strokes must accumulate into the same mask.
+        if (eraserTargetIdRef.current !== targetItem.id || !eraserMaskCanvasRef.current) {
+          const displayW = Math.max(1, Math.ceil(targetItem.w))
+          const displayH = Math.max(1, Math.ceil(targetItem.h))
+          const mask = document.createElement('canvas')
+          mask.width = displayW
+          mask.height = displayH
+          eraserMaskCanvasRef.current = mask
+          eraserOriginalSrcRef.current = targetItem.src
+          eraserTargetIdRef.current = targetItem.id
+          // Init preview canvas
+          const preview = document.createElement('canvas')
+          preview.width = displayW
+          preview.height = displayH
+          eraserPreviewCanvasRef.current = preview
+          setEraserSessionActive(true)
+        }
+
+          const maskCtx = eraserMaskCanvasRef.current.getContext('2d')
+          const cam = cameraRef.current
+          const radius = brushSettingsRef.current.size / (cam.scale || 1) / 2
+          const lineWidth = radius * 2
+          const type = brushSettingsRef.current.type
+          const originX = targetItem.x
+          const originY = targetItem.y
+          const lx = worldPos.x - originX
+          const ly = worldPos.y - originY
+          drawEraserMaskPoint(maskCtx, lx, ly, type, lineWidth, radius)
+          updateEraserPreview()
+
+          isDrawingRef.current = true
+          lastBrushPosRef.current = worldPos
+          return
+        }
+
+        eraserImageTargetRef.current = null
+        if (!targetItem || targetItem.kind !== 'brushLayer') return
       }
 
-      eraserImageTargetRef.current = null
-      if (!targetItem || targetItem.kind !== 'brushLayer') return
-    }
-
+    eraserImageTargetRef.current = null
     ensureBrushLayer()
     const ctx = brushCtxRef.current
-    if (!ctx) return
+    if (!ctx) { console.warn('[BRUSH] no ctx'); return }
     const pointer = stageRef.current?.getPointerPosition()
-    if (!pointer) return
+    if (!pointer) { console.warn('[BRUSH] no pointer'); return }
     const worldPos = getWorldPointFromViewport(pointer, cameraRef.current)
+    smoothPosRef.current = { x: worldPos.x, y: worldPos.y }
     isDrawingRef.current = true
     lastBrushPosRef.current = worldPos
     lastStampPosRef.current = { x: worldPos.x, y: worldPos.y }
@@ -3901,6 +4002,7 @@ function Workspace() {
     const type = brushSettings.type
     const mode = brushSettings.mode
     const lineWidth = radius * 2
+    console.log('[BRUSH] start paint', { mode, type, size: brushSettings.size, wx: Math.round(worldPos.x), wy: Math.round(worldPos.y), cw: brushCanvasRef.current?.width, ch: brushCanvasRef.current?.height, hasCtx: !!ctx, hasNode: !!_brushImageNode })
 
     prepareCtxForBrushType(ctx, type, mode, lineWidth)
 
@@ -3954,25 +4056,64 @@ function Workspace() {
       const pointer = stageRef.current?.getPointerPosition()
       if (!pointer) return
       const worldPos = getWorldPointFromViewport(pointer, cameraRef.current)
-      eraserImagePointsRef.current.push(worldPos.x, worldPos.y)
-      lastBrushPosRef.current = worldPos
+      // Rubber-band smoothing
+      const smoothingRadius = brushSettingsRef.current.smoothingErase / (cameraRef.current.scale || 1)
+      if (smoothingRadius > 0) {
+        applyRubberBandSmoothing(smoothPosRef.current, worldPos, smoothingRadius)
+        smoothPosRef.current.x = +smoothPosRef.current.x.toFixed(2)
+        smoothPosRef.current.y = +smoothPosRef.current.y.toFixed(2)
+      } else {
+        smoothPosRef.current.x = worldPos.x
+        smoothPosRef.current.y = worldPos.y
+      }
+      const brushPos = smoothPosRef.current
+      eraserImagePointsRef.current.push(brushPos.x, brushPos.y)
+
+      // Draw segment onto accumulated mask canvas
+      const last = lastBrushPosRef.current
+      if (last && eraserMaskCanvasRef.current) {
+        const targetItem = eraserImageTargetRef.current
+        const cam = cameraRef.current
+        const radius = brushSettingsRef.current.size / (cam.scale || 1) / 2
+        const lineWidth = radius * 2
+        const type = brushSettingsRef.current.type
+        const originX = targetItem.x
+        const originY = targetItem.y
+        const maskCtx = eraserMaskCanvasRef.current.getContext('2d')
+        drawEraserMaskSegment(maskCtx, last.x - originX, last.y - originY, brushPos.x - originX, brushPos.y - originY, type, lineWidth, radius)
+        updateEraserPreview()
+      }
+
+      lastBrushPosRef.current = { x: brushPos.x, y: brushPos.y }
       return
     }
 
     const ctx = brushCtxRef.current
     const last = lastBrushPosRef.current
-    if (!ctx || !last) return
+    if (!ctx || !last) { console.warn('[BRUSH] move skip: no ctx/last', { ctx: !!ctx, last: !!last }); return }
     const pointer = stageRef.current?.getPointerPosition()
-    if (!pointer) return
+    if (!pointer) { console.warn('[BRUSH] move skip: no pointer'); return }
     const worldPos = getWorldPointFromViewport(pointer, cameraRef.current)
+    // Rubber-band smoothing
+    const smoothingRadius = brushSettings.smoothingPaint / (cameraRef.current.scale || 1)
+    if (smoothingRadius > 0) {
+      applyRubberBandSmoothing(smoothPosRef.current, worldPos, smoothingRadius)
+      smoothPosRef.current.x = +smoothPosRef.current.x.toFixed(2)
+      smoothPosRef.current.y = +smoothPosRef.current.y.toFixed(2)
+    } else {
+      smoothPosRef.current.x = worldPos.x
+      smoothPosRef.current.y = worldPos.y
+    }
+    const brushPos = smoothPosRef.current
+
     const radius = brushSettings.size / (cameraRef.current.scale || 1) / 2
     const type = brushSettings.type
     const mode = brushSettings.mode
 
-    const dx = worldPos.x - last.x
-    const dy = worldPos.y - last.y
+    const dx = brushPos.x - last.x
+    const dy = brushPos.y - last.y
     const segDist = Math.sqrt(dx * dx + dy * dy)
-    if (segDist === 0) return
+    if (segDist === 0) { console.log('[BRUSH] move segDist=0', { bx: Math.round(brushPos.x), by: Math.round(brushPos.y), lx: Math.round(last.x), ly: Math.round(last.y), mode }); return }
 
     const lineWidth = radius * 2
 
@@ -3984,8 +4125,8 @@ function Workspace() {
       const lastStamp = lastStampPosRef.current
       if (!lastStamp) return
 
-      const sdx = worldPos.x - lastStamp.x
-      const sdy = worldPos.y - lastStamp.y
+      const sdx = brushPos.x - lastStamp.x
+      const sdy = brushPos.y - lastStamp.y
       const sDist = Math.sqrt(sdx * sdx + sdy * sdy)
 
       if (sDist >= stampDist) {
@@ -4029,7 +4170,7 @@ function Workspace() {
         }
       }
 
-      lastBrushPosRef.current = worldPos
+      lastBrushPosRef.current = { x: brushPos.x, y: brushPos.y }
       _brushImageNode?.getLayer()?.batchDraw()
       return
     }
@@ -4043,7 +4184,7 @@ function Workspace() {
         const py = last.y + dy * t
         airbrushSpray(ctx, px, py, radius, Math.round(radius * 2))
       }
-      lastBrushPosRef.current = worldPos
+      lastBrushPosRef.current = { x: brushPos.x, y: brushPos.y }
       _brushImageNode?.getLayer()?.batchDraw()
       return
     }
@@ -4057,7 +4198,7 @@ function Workspace() {
         const py = last.y + dy * t
         drawWatercolor(ctx, px, py, wcSize, brushSettings.color, 0.2)
       }
-      lastBrushPosRef.current = worldPos
+      lastBrushPosRef.current = { x: brushPos.x, y: brushPos.y }
       _brushImageNode?.getLayer()?.batchDraw()
       return
     }
@@ -4065,12 +4206,105 @@ function Workspace() {
     prepareCtxForBrushType(ctx, type, mode, lineWidth)
     ctx.beginPath()
     ctx.moveTo(last.x, last.y)
-    ctx.lineTo(worldPos.x, worldPos.y)
+    ctx.lineTo(brushPos.x, brushPos.y)
     ctx.stroke()
-    lastBrushPosRef.current = worldPos
+    lastBrushPosRef.current = { x: brushPos.x, y: brushPos.y }
+    console.log('[BRUSH] solid stroke', { from: { x: Math.round(last.x), y: Math.round(last.y) }, to: { x: Math.round(brushPos.x), y: Math.round(brushPos.y) }, lw: Math.round(lineWidth), color: brushSettings.color, hasNode: !!_brushImageNode })
     _brushImageNode?.getLayer()?.batchDraw()
   }
 
+  // ── Image Eraser Session helpers ──
+  const drawEraserMaskPoint = (ctx, x, y, type, lineWidth, radius) => {
+    if (type === 'watercolor') {
+      drawWatercolor(ctx, x, y, lineWidth * 2.5, 'rgba(0,0,0,1)', 0.2)
+      return
+    }
+    prepareCtxForBrushType(ctx, type, 'paint', lineWidth)
+    ctx.fillStyle = 'rgba(0,0,0,1)'
+    ctx.strokeStyle = 'rgba(0,0,0,1)'
+    if (type === 'solid' || type === 'airbrush') {
+      if (type === 'airbrush') { airbrushSpray(ctx, x, y, radius, Math.round(radius * 3)); return }
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill()
+    } else if (type === 'dotted') {
+      ctx.beginPath(); ctx.arc(x, y, lineWidth / 2, 0, Math.PI * 2); ctx.fill()
+    } else if (type === 'pixel') {
+      const d = Math.max(1, lineWidth); ctx.fillRect(x - d / 2, y - d / 2, d, d)
+    } else if (type === 'dashed') {
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + lineWidth * 2, y); ctx.stroke()
+    }
+  }
+
+  const drawEraserMaskSegment = (ctx, x1, y1, x2, y2, type, lineWidth, radius) => {
+    const dx = x2 - x1; const dy = y2 - y1
+    const segDist = Math.sqrt(dx * dx + dy * dy)
+    if (segDist === 0) { drawEraserMaskPoint(ctx, x1, y1, type, lineWidth, radius); return }
+
+    if (type === 'solid' || type === 'watercolor') {
+      prepareCtxForBrushType(ctx, type, 'paint', lineWidth)
+      ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.strokeStyle = 'rgba(0,0,0,1)'
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+      ctx.beginPath(); ctx.arc(x2, y2, radius, 0, Math.PI * 2); ctx.fill()
+      if (type === 'watercolor') {
+        drawWatercolor(ctx, x2, y2, lineWidth * 2.5, 'rgba(0,0,0,1)', 0.2)
+      }
+    } else if (type === 'airbrush') {
+      const steps = Math.max(1, Math.round(segDist / (radius * 0.5)))
+      for (let i = 0; i <= steps; i++) { const t = i / steps; airbrushSpray(ctx, x1 + dx * t, y1 + dy * t, radius, Math.round(radius * 2)) }
+    } else {
+      // Stamp types (dotted/dashed/pixel) — process like handleBrushMove does
+      const stampDist = type === 'dotted' ? lineWidth * 2.25 : type === 'dashed' ? lineWidth * 4 : lineWidth
+      const dashLen = type === 'dashed' ? lineWidth * 3 : 0
+      const nx = dx / segDist; const ny = dy / segDist
+      let placed = 0
+      while (placed + stampDist <= segDist) {
+        placed += stampDist; const px = x1 + nx * placed; const py = y1 + ny * placed
+        prepareCtxForBrushType(ctx, type, 'paint', lineWidth)
+        ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.strokeStyle = 'rgba(0,0,0,1)'
+        if (type === 'dotted') { ctx.beginPath(); ctx.arc(px, py, lineWidth / 2, 0, Math.PI * 2); ctx.fill() }
+        else if (type === 'pixel') { const d = Math.max(1, lineWidth); ctx.fillRect(px - d / 2, py - d / 2, d, d) }
+        else if (type === 'dashed') {
+          const hd = dashLen / 2
+          ctx.beginPath(); ctx.moveTo(px - nx * hd, py - ny * hd); ctx.lineTo(px + nx * hd, py + ny * hd); ctx.stroke()
+        }
+      }
+    }
+  }
+
+  const updateEraserPreview = () => {
+    const mask = eraserMaskCanvasRef.current
+    const preview = eraserPreviewCanvasRef.current
+    if (!mask || !preview) return
+    const pctx = preview.getContext('2d')
+    const pw = preview.width, ph = preview.height
+    pctx.clearRect(0, 0, pw, ph)
+    // Draw semi-transparent red overlay only where mask has pixels
+    pctx.save()
+    pctx.fillStyle = 'rgba(255, 40, 40, 0.4)'
+    pctx.fillRect(0, 0, pw, ph)
+    pctx.globalCompositeOperation = 'destination-in'
+    pctx.drawImage(mask, 0, 0)
+    pctx.restore()
+    // Create a fresh canvas copy so Konva sees a new image reference
+    const copy = document.createElement('canvas')
+    copy.width = pw; copy.height = ph
+    copy.getContext('2d').drawImage(preview, 0, 0)
+    setEraserPreviewCanvasState(copy)
+  }
+
+  const clearEraserSession = () => {
+    eraserMaskCanvasRef.current = null
+    eraserOriginalSrcRef.current = null
+    eraserTargetIdRef.current = null
+    eraserImageTargetRef.current = null
+    eraserImagePointsRef.current = []
+    eraserPreviewCanvasRef.current = null
+    setEraserSessionActive(false)
+    setEraserPreviewCanvasState(null)
+  }
+
+  // ══════════════════════════════════════════════
+  // OLD per-stroke eraseImageStroke — kept as fallback
+  // ══════════════════════════════════════════════
   const eraseImageStroke = async () => {
     const targetItem = eraserImageTargetRef.current
     const points = eraserImagePointsRef.current
@@ -4260,24 +4494,119 @@ function Workspace() {
     nativeCanvas.toBlob((blob) => {
       if (!blob) return
       const localUrl = URL.createObjectURL(blob)
-      updateItem(targetItem.id, { src: localUrl, _oldSrc: oldSrc, _pendingUpload: blob }, true)
+      updateItem(targetItem.id, { src: localUrl, _oldSrc: oldSrc, _pendingUpload: blob, skipDeleteOldSrc: true }, true)
       debouncedBrushUpload({ eraseBlob: blob, eraseItemId: targetItem.id })
     })
   }
 
+  // ── Image Eraser: commit accumulated mask once ──
+  const handleApplyEraser = () => {
+    const mask = eraserMaskCanvasRef.current
+    const targetId = eraserTargetIdRef.current
+    const targetItem = items.find(i => i.id === targetId)
+    if (!mask || !targetItem) { clearEraserSession(); return }
+
+    const img = new window.Image()
+    img.crossOrigin = 'anonymous'
+    img.src = targetItem.src
+    img.onload = () => {
+      const nativeW = img.naturalWidth
+      const nativeH = img.naturalHeight
+      const displayW = mask.width
+      const displayH = mask.height
+      const oldSrc = targetItem.src
+
+      const nativeCanvas = document.createElement('canvas')
+      nativeCanvas.width = nativeW
+      nativeCanvas.height = nativeH
+      const nativeCtx = nativeCanvas.getContext('2d')
+      nativeCtx.drawImage(img, 0, 0, nativeW, nativeH)
+      nativeCtx.globalCompositeOperation = 'destination-out'
+      // Scale mask from display to native resolution
+      nativeCtx.drawImage(mask, 0, 0, nativeW, nativeH)
+
+      nativeCanvas.toBlob((blob) => {
+        if (!blob) { clearEraserSession(); return }
+        const localUrl = URL.createObjectURL(blob)
+        updateItem(targetItem.id, { src: localUrl, _oldSrc: oldSrc, _pendingUpload: blob, skipDeleteOldSrc: true }, true)
+        debouncedBrushUpload({ eraseBlob: blob, eraseItemId: targetItem.id })
+        clearEraserSession()
+      })
+    }
+    img.onerror = () => { clearEraserSession() }
+  }
+
+  const handleCancelEraser = () => {
+    clearEraserSession()
+  }
+
   const handleBrushEnd = () => {
     if (!isDrawingRef.current) return
+    console.log('[BRUSH] end')
     isDrawingRef.current = false
+    brushStrokeJustEndedRef.current = true
+    setTimeout(() => { brushStrokeJustEndedRef.current = false }, 0)
+
+    // Snap brushPoint to final cursor position (rubber-band tail catch-up)
+    const finalPointer = stageRef.current?.getPointerPosition()
+    if (finalPointer) {
+      const finalWorld = getWorldPointFromViewport(finalPointer, cameraRef.current)
+      if (eraserImageTargetRef.current) {
+        const smoothingRadius = brushSettingsRef.current.smoothingErase / (cameraRef.current.scale || 1)
+        if (smoothingRadius > 0) {
+          const dx = finalWorld.x - smoothPosRef.current.x
+          const dy = finalWorld.y - smoothPosRef.current.y
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          if (dist > 1) {
+            // Draw final catch-up segment on mask
+            const targetItem = eraserImageTargetRef.current
+            const cam = cameraRef.current
+            const radius = brushSettingsRef.current.size / (cam.scale || 1) / 2
+            const lineWidth = radius * 2
+            const type = brushSettingsRef.current.type
+            const originX = targetItem.x
+            const originY = targetItem.y
+            const maskCtx = eraserMaskCanvasRef.current?.getContext('2d')
+            if (maskCtx) {
+              const last = lastBrushPosRef.current || smoothPosRef.current
+              drawEraserMaskSegment(maskCtx, last.x - originX, last.y - originY, finalWorld.x - originX, finalWorld.y - originY, type, lineWidth, radius)
+              updateEraserPreview()
+            }
+          }
+        }
+      } else {
+        const smoothingRadius = brushSettings.smoothingPaint / (cameraRef.current.scale || 1)
+        if (smoothingRadius > 0) {
+          const dx = finalWorld.x - smoothPosRef.current.x
+          const dy = finalWorld.y - smoothPosRef.current.y
+          const segDist = Math.sqrt(dx * dx + dy * dy)
+          if (segDist > 1) {
+            // Draw final catch-up segment on brush canvas
+            const ctx = brushCtxRef.current
+            if (ctx) {
+              const last = lastBrushPosRef.current || smoothPosRef.current
+              const radius = brushSettings.size / (cameraRef.current.scale || 1) / 2
+              const lineWidth = radius * 2
+              const type = brushSettings.type
+              const mode = brushSettings.mode
+              prepareCtxForBrushType(ctx, type, mode, lineWidth)
+              ctx.beginPath()
+              ctx.moveTo(last.x, last.y)
+              ctx.lineTo(finalWorld.x, finalWorld.y)
+              ctx.stroke()
+              _brushImageNode?.getLayer()?.batchDraw()
+            }
+          }
+        }
+      }
+      smoothPosRef.current = { x: finalWorld.x, y: finalWorld.y }
+    }
 
     if (eraserImageTargetRef.current) {
       lastBrushPosRef.current = null
       lastStampPosRef.current = null
-      if (eraserImagePointsRef.current.length >= 4) {
-        eraseImageStroke()
-      } else {
-        eraserImageTargetRef.current = null
-        eraserImagePointsRef.current = []
-      }
+      // Accumulated mode: clear points but KEEP session alive (don't call eraseImageStroke)
+      eraserImagePointsRef.current = []
       return
     }
 
@@ -4441,6 +4770,18 @@ function Workspace() {
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [destFxTargetId, setDestFxTargetId] = useState(null)
   const [showDestPicker, setShowDestPicker] = useState(false)
+
+  // ── Hardware back button → close nested panels ──
+  const isDeepPanel = isFxPanelOpen || isHslPanelOpen || isCurvesPanelOpen || isMorePanelOpen || !!activeToolCard || !!destFxTargetId
+  const deepPanelCount = [isFxPanelOpen, isHslPanelOpen, isCurvesPanelOpen, isMorePanelOpen, !!activeToolCard, !!destFxTargetId].filter(Boolean).length
+  const closeAllDeepPanels = useCallback(() => {
+    setIsFxPanelOpen(false)
+    setIsHslPanelOpen(false)
+    setIsCurvesPanelOpen(false)
+    setIsMorePanelOpen(false)
+    setActiveToolCard(null)
+    setDestFxTargetId(null)
+  }, [])
   const [adjustSourceTargetId, setAdjustSourceTargetId] = useState(null)
   const [showAdjSourcePicker, setShowAdjSourcePicker] = useState(false)
   const [isGroupSelectMode, setIsGroupSelectMode] = useState(false)
@@ -4458,12 +4799,14 @@ function Workspace() {
   const touchDragAssetRef = useRef(null)
   const touchDragMovedRef = useRef(false)
   const touchDragStartPosRef = useRef(null)
+  const touchSuppressClickRef = useRef(false)
   const panSessionRef = useRef(null)
   const pinchSessionRef = useRef(null)
   const touchStartPosRef = useRef(null)
   const cameraRef = useRef(camera)
   const viewportSizeRef = useRef(viewportSize)
   const prevViewportWidthRef = useRef(null)
+  const prevViewportHeightRef = useRef(null)
   const zoomAnimationRef = useRef(null)
   const wheelPanClampTimerRef = useRef(null)
   const wheelPanFrameRef = useRef(null)
@@ -4483,14 +4826,22 @@ function Workspace() {
   const skipGroupDragEndRef = useRef(false)
   const pendingGroupDeltasRef = useRef({})
   const broadcastRef = useRef(null)
+  const broadcastSeqRef = useRef(0)
   const itemUpdateThrottleRef = useRef({})
-  const broadcastItemUpdate = useCallback((itemId, patch) => {
+  const dragSessionIdRef = useRef(0)
+  const lastFinalDragSessionRef = useRef({})
+  useEffect(() => {
+    console.debug('[PANEL-STACK] deepPanelCount=%d isDeepPanel=%s sources:', deepPanelCount, isDeepPanel, { isFxPanelOpen, isHslPanelOpen, isCurvesPanelOpen, isMorePanelOpen, activeToolCard, destFxTargetId })
+  }, [deepPanelCount, isDeepPanel, isFxPanelOpen, isHslPanelOpen, isCurvesPanelOpen, isMorePanelOpen, activeToolCard, destFxTargetId])
+  const broadcastItemUpdate = useCallback((itemId, patch, options) => {
     if (isViewerRef.current) return
-    console.log('[SEND] broadcastItemUpdate called:', { itemId: itemId?.substring?.(0, 8) || itemId, patchKeys: Object.keys(patch || {}), hasX: 'x' in (patch || {}), hasCGX: 'compositeGroupX' in (patch || {}) })
+    const isFinal = options?.isFinal
+    const dragSessionId = options?.dragSessionId
+    const seq = broadcastSeqRef.current++
     const now = Date.now()
     const throttle = itemUpdateThrottleRef.current
-    if (!throttle[itemId] || now - throttle[itemId] > 200) {
-      throttle[itemId] = now
+    if (isFinal || !throttle[itemId] || now - throttle[itemId] > 200) {
+      if (!isFinal) throttle[itemId] = now
       const safePatch = {}
       for (const [k, v] of Object.entries(patch)) {
         if (k === 'src' && typeof v === 'string' && v.startsWith('blob:')) continue
@@ -4521,12 +4872,50 @@ function Workspace() {
         safePatch.effectPatch = diff
         delete safePatch.effects
       }
-      broadcastRef.current?.('item_update', { userId: user?.id, itemId, patch: safePatch })
+      broadcastRef.current?.('item_update', { userId: user?.id, itemId, patch: safePatch, _seq: seq, ...(isFinal ? { isFinal, dragSessionId } : dragSessionId !== undefined ? { dragSessionId } : {}) })
+    } else {
     }
   }, [user?.id])
   const itemUpdateHandlerRef = useRef(null)
-  itemUpdateHandlerRef.current = (itemId, patch) => {
-    console.log('[RECV] item_update received:', { itemId: itemId?.substring?.(0, 8) || itemId, patchKeys: Object.keys(patch || {}), hasX: 'x' in (patch || {}), hasCGX: 'compositeGroupX' in (patch || {}), hasCGNull: patch?.compositeGroupX === null })
+  itemUpdateHandlerRef.current = (itemId, patch, extras) => {
+    const { isFinal, dragSessionId } = extras || {}
+    const renderStartTs = Date.now()
+
+    // Final broadcast: always override, update session tracker
+    if (isFinal && dragSessionId !== undefined) {
+      lastFinalDragSessionRef.current[itemId] = dragSessionId
+      setItems((prev) => {
+        skipUndoCaptureRef.current = true
+        return prev.map((item) => {
+          if (item.id !== itemId) return item
+          const updated = { ...item }
+          for (const [k, v] of Object.entries(patch)) {
+            if (v === null) {
+              delete updated[k]
+            } else if (k === 'effectPatch' && typeof v === 'object' && !Array.isArray(v)) {
+              updated.effects = { ...(item.effects || {}) }
+              for (const [instId, instVal] of Object.entries(v)) {
+                if (instVal === null || instVal === undefined) {
+                  delete updated.effects[instId]
+                } else {
+                  updated.effects[instId] = instVal
+                }
+              }
+            } else {
+              updated[k] = v
+            }
+          }
+          return updated
+        })
+      })
+      return
+    }
+
+    // Non-final live broadcast with dragSessionId: ignore if stale (final already arrived for this session)
+    if (dragSessionId !== undefined && lastFinalDragSessionRef.current[itemId] !== undefined && dragSessionId <= lastFinalDragSessionRef.current[itemId]) {
+      return
+    }
+
     setItems((prev) => {
       skipUndoCaptureRef.current = true
       return prev.map((item) => {
@@ -6084,7 +6473,9 @@ function Workspace() {
     if (!oldSrc || !oldSrc.includes('/storage/') && !oldSrc.includes('supabase.co')) return
     try {
       await deleteMediaByUrl(oldSrc)
-    } catch {}
+    } catch (err) {
+      console.error('[deleteOldSrc] Gagal menghapus media lama:', oldSrc, err)
+    }
   }, [])
 
   const uploadPendingItems = useCallback(async () => {
@@ -6093,6 +6484,7 @@ function Workspace() {
 
     const updates = []
     const failed = []
+    const pendingDeletes = []
     for (const item of pendingItems) {
       const blob = item._pendingUpload
       const file = new File([blob], `pending-${Date.now()}-${item.id}.png`, { type: 'image/png' })
@@ -6103,7 +6495,9 @@ function Workspace() {
           const uploaded = await uploadMediaFile({ file, addToUploads: false })
           const newUrl = uploaded?.media?.url
           if (newUrl) {
-            await deleteOldSrc(item._oldSrc || item.src)
+            if (!item.skipDeleteOldSrc) {
+              pendingDeletes.push({ oldSrc: item._oldSrc || item.src })
+            }
             URL.revokeObjectURL(item.src)
             updates.push({ id: item.id, src: newUrl })
             success = true
@@ -6119,6 +6513,12 @@ function Workspace() {
       if (!success) {
         console.error(`Failed to upload pending item after 3 attempts:`, item.id, lastError)
         failed.push(item.id)
+      }
+    }
+    // Only delete old sources if ALL items succeeded (no partial deletion)
+    if (failed.length === 0 && pendingDeletes.length > 0) {
+      for (const { oldSrc } of pendingDeletes) {
+        await deleteOldSrc(oldSrc)
       }
     }
     return { updates, failed }
@@ -6341,6 +6741,12 @@ function Workspace() {
   }, [isWorkspaceLoading, persistWorkspaceSnapshot, workspaceId])
 
   useEffect(() => {
+    const handler = () => { closeAllDeepPanels() }
+    window.addEventListener('popstate', handler)
+    return () => window.removeEventListener('popstate', handler)
+  }, [])
+
+  useEffect(() => {
     if (!workspaceId) return undefined
 
     const handleBeforeUnload = (event) => {
@@ -6444,6 +6850,7 @@ function Workspace() {
 
     const updateViewportSize = () => {
       const rect = viewportNode.getBoundingClientRect()
+      const stage = stageRef.current
       setViewportSize({
         width: Math.max(1, Math.round(rect.width)),
         height: Math.max(1, Math.round(rect.height)),
@@ -6647,17 +7054,25 @@ function Workspace() {
     }
 
     const prevWidth = prevViewportWidthRef.current
+    const prevHeight = prevViewportHeightRef.current
     const rect = viewportRef.current?.getBoundingClientRect()
     const actualWidth = rect ? Math.max(1, Math.round(rect.width)) : viewportSize.width
+    const actualHeight = rect ? Math.max(1, Math.round(rect.height)) : viewportSize.height
+
+    const currentCamera = cameraRef.current
+    let shifted = { scale: currentCamera.scale, x: currentCamera.x, y: currentCamera.y }
 
     if (prevWidth !== null && prevWidth !== actualWidth) {
-      const currentCamera = cameraRef.current
       const canvasAtCenter = (prevWidth / 2 - currentCamera.x) / currentCamera.scale
-      const shifted = {
-        scale: currentCamera.scale,
-        x: actualWidth / 2 - canvasAtCenter * currentCamera.scale,
-        y: currentCamera.y,
-      }
+      shifted.x = actualWidth / 2 - canvasAtCenter * currentCamera.scale
+    }
+
+    if (prevHeight !== null && prevHeight !== actualHeight) {
+      const canvasAtCenterY = (prevHeight / 2 - currentCamera.y) / currentCamera.scale
+      shifted.y = actualHeight / 2 - canvasAtCenterY * currentCamera.scale
+    }
+
+    if (shifted.x !== currentCamera.x || shifted.y !== currentCamera.y) {
       const clamped = clampCameraToCanvas(shifted)
       targetCameraRef.current = clamped
       cameraRef.current = clamped
@@ -6665,6 +7080,7 @@ function Workspace() {
     }
 
     prevViewportWidthRef.current = actualWidth
+    prevViewportHeightRef.current = actualHeight
   }, [viewportSize, clampCameraToCanvas])
 
 
@@ -6733,7 +7149,10 @@ const attachTransformer = useCallback((idOrIds) => {
     } else if (!info) {
       const itemNode = stageRef.current?.findOne(`[id="${id}"]`) || stageRef.current?.findOne(`#${id}`)
       const item = itemsRef.current.find((candidate) => candidate.id === id)
-      if (itemNode && item?.kind !== 'connector') nodes.push(itemNode)
+      // Skip multi-run text nodes — uses custom selection box + resize handles
+      // that bypass Konva Transformer entirely (no ghost transformStart events).
+      const isMultiRunText = item?.kind === 'text' && item.runs?.length > 1
+      if (itemNode && item?.kind !== 'connector' && !isMultiRunText) nodes.push(itemNode)
     }
   })
 
@@ -6977,6 +7396,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const closeRightPanelAndCenter = () => {
+    closeAllDeepPanels()
     restoreHiddenWarpItem()
     requestRecenterAfterWorkspaceLayoutChange()
     setMobileSheetState('collapsed')
@@ -6985,6 +7405,18 @@ const attachTransformer = useCallback((idOrIds) => {
     warpStateRef.current = null
     warpImageRef.current = null
   }
+
+  const fullClosePanelsAndExit = useCallback(() => {
+    closeAllDeepPanels()
+    restoreHiddenWarpItem()
+    setActivePanel(null)
+    setMobileSheetState('collapsed')
+    setIsRightPanelOpen(false)
+    setActiveToolCard(null)
+
+    if (window.history.length > 1) navigate(-1)
+    else navigate('/projects')
+  }, [navigate])
 
   const deselectCanvas = () => {
     setConnectorTool(null)
@@ -7189,6 +7621,11 @@ const attachTransformer = useCallback((idOrIds) => {
         setItems,
         captureGroupUndo,
         broadcastItemUpdate: collaboratorsGuardRef.current.length > 1 ? broadcastItemUpdate : null,
+        batchUndoCallback: (patches) => {
+          localUndoRef.current.push({ _type: 'composite_group', items: patches })
+          if (localUndoRef.current.length > 50) localUndoRef.current.shift()
+          localRedoRef.current = []
+        },
       })
     }
     // Handle parentGroupId members (for both composite and regular groups)
@@ -7281,6 +7718,33 @@ const attachTransformer = useCallback((idOrIds) => {
         }
         return
       }
+      if (entry._type === 'composite_group') {
+        const redoItems = entry.items.map(({ itemId, prevPatch }) => {
+          const currentItem = itemsRef.current.find((i) => i.id === itemId)
+          if (!currentItem) return null
+          const redoPatch = {}
+          for (const key of Object.keys(prevPatch)) {
+            if (key in currentItem) redoPatch[key] = currentItem[key]
+          }
+          return { itemId, prevPatch: redoPatch }
+        }).filter(Boolean)
+        if (redoItems.length) {
+          localRedoRef.current.push({ _type: 'composite_group', items: redoItems })
+        }
+        isLocalUndoingRef.current = true
+        setItems((current) => current.map((item) => {
+          const patch = entry.items.find((p) => p.itemId === item.id)
+          if (!patch) return item
+          return { ...item, ...patch.prevPatch }
+        }))
+        isLocalUndoingRef.current = false
+        if (collaboratorsGuardRef.current.length > 1) {
+          entry.items.forEach(({ itemId, prevPatch }) => {
+            broadcastItemUpdate(itemId, prevPatch)
+          })
+        }
+        return
+      }
       const currentItem = itemsRef.current.find((i) => i.id === entry.itemId)
       if (currentItem) {
         const redoPatch = {}
@@ -7361,6 +7825,33 @@ const attachTransformer = useCallback((idOrIds) => {
           localUndoRef.current.push({ _type: 'reorder', prevItemIds: nextIds })
           isLocalUndoingRef.current = false
           broadcastRef.current?.('items_reorder', { userId: user?.id, orderedIds: prevIds })
+        }
+        return
+      }
+      if (entry._type === 'composite_group') {
+        const undoItems = entry.items.map(({ itemId, prevPatch }) => {
+          const currentItem = itemsRef.current.find((i) => i.id === itemId)
+          if (!currentItem) return null
+          const undoPatch = {}
+          for (const key of Object.keys(prevPatch)) {
+            if (key in currentItem) undoPatch[key] = currentItem[key]
+          }
+          return { itemId, prevPatch: undoPatch }
+        }).filter(Boolean)
+        if (undoItems.length) {
+          localUndoRef.current.push({ _type: 'composite_group', items: undoItems })
+        }
+        isLocalUndoingRef.current = true
+        setItems((current) => current.map((item) => {
+          const patch = entry.items.find((p) => p.itemId === item.id)
+          if (!patch) return item
+          return { ...item, ...patch.prevPatch }
+        }))
+        isLocalUndoingRef.current = false
+        if (collaboratorsGuardRef.current.length > 1) {
+          entry.items.forEach(({ itemId, prevPatch }) => {
+            broadcastItemUpdate(itemId, prevPatch)
+          })
         }
         return
       }
@@ -7903,7 +8394,8 @@ const attachTransformer = useCallback((idOrIds) => {
     if (!item || item.groupId) return
     const prevPatch = {}
     for (const key of Object.keys(patch)) {
-      if (key in item && key !== 'undefined') prevPatch[key] = item[key]
+      if (key === 'undefined') continue
+      prevPatch[key] = key in item ? item[key] : undefined
     }
     if (!Object.keys(prevPatch).length) return
     localUndoRef.current.push({ itemId: id, prevPatch })
@@ -7917,7 +8409,8 @@ const attachTransformer = useCallback((idOrIds) => {
     if (!item) return
     const prevPatch = {}
     for (const key of Object.keys(patch)) {
-      if (key in item && key !== 'undefined') prevPatch[key] = item[key]
+      if (key === 'undefined') continue
+      prevPatch[key] = key in item ? item[key] : undefined
     }
     if (!Object.keys(prevPatch).length) return
     localUndoRef.current.push({ itemId: id, prevPatch })
@@ -7959,6 +8452,9 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const updateItem = (id, patch, skipBroadcast = false) => {
     if (isViewerRef.current) return
+    if ('effects' in patch || 'effectOrder' in patch) {
+      if (typeof window.__fxMarkers !== 'undefined') window.__fxMarkers.push({ t: performance.now(), msg: 'UPDATEITEM_FX effects=' + Object.keys(patch.effects || {}).length + ' orderLen=' + (patch.effectOrder?.length ?? '?') })
+    }
     if (patch.src) {
       const oldItem = itemsRef.current.find((i) => i.id === id)
       if (oldItem?.src?.startsWith('blob:') && oldItem.src !== patch.src) {
@@ -8000,10 +8496,14 @@ const attachTransformer = useCallback((idOrIds) => {
 
     setItems((current) => {
       const currentItem = current.find(i => i.id === id)
-      if (currentItem && ('w' in patch || 'h' in patch || 'compositeGroupX' in patch)) {
-        console.log('[TRACE] setItems callback', { id, prevW: currentItem.w, prevH: currentItem.h, patchW: patch.w, patchH: patch.h, patchCX: patch.compositeGroupX, inCX: 'compositeGroupX' in patch })
+      if ('effectOrder' in patch || 'effects' in patch) {
+        const oldCount = currentItem ? Object.keys(currentItem.effects || {}).length : -1
+        const newEffects = patch.effects || currentItem?.effects || {}
+        const newCount = Object.keys(newEffects).length
+        if (currentItem) {
+        }
       }
-      return current.map((item) => {
+      const updated = current.map((item) => {
         if (item.id !== id) return item
         const next = { ...item, ...patch }
         if (patch.src && patch.src !== item.src) {
@@ -8012,6 +8512,12 @@ const attachTransformer = useCallback((idOrIds) => {
         }
         return next
       })
+      if ('effects' in patch || 'effectOrder' in patch) {
+        const updatedItem = updated.find(i => i.id === id)
+        if (updatedItem) {
+        }
+      }
+      return updated
     })
 
     // FIX STROKE RENDER BUG: Force immediate Konva layer redraw for ALL visual property
@@ -8019,8 +8525,12 @@ const attachTransformer = useCallback((idOrIds) => {
     // Now we always schedule a batchDraw to ensure the layer repaints in the next RAF.
     // The CanvasTextNode component also handles clearCache() imperatively via useEffect.
     requestAnimationFrame(() => {
+      if (typeof window.__fxMarkers !== 'undefined') window.__fxMarkers.push({ t: performance.now(), msg: 'UPDATEITEM_RAF_B' })
       const layer = stageRef.current?.findOne('Layer')
       layer?.batchDraw()
+      if ('effects' in patch || 'effectOrder' in patch) {
+        if (typeof window.__fxMarkers !== 'undefined') window.__fxMarkers.push({ t: performance.now(), msg: 'UPDATEITEM_RAF_B_FX' })
+      }
     })
   }
 
@@ -8795,13 +9305,24 @@ const attachTransformer = useCallback((idOrIds) => {
     const selectedSet = new Set(compositableIds)
     const nextMode = activeCompositeMode === mode ? null : mode
 
-    compositableIds.forEach((id, index) => {
+    const groupPatches = compositableIds.map((id, index) => {
       const isOperator = index === 0 && nextMode !== null
+      const item = itemsRef.current.find((candidate) => candidate.id === id)
+      if (!item) return null
       const patch = { groupId }
       if (isOperator) patch.compositeMode = nextMode
       else patch.compositeMode = null
-      captureGroupUndo(id, patch)
-    })
+      const prevPatch = {}
+      for (const key of Object.keys(patch)) {
+        prevPatch[key] = key in item ? item[key] : undefined
+      }
+      return { itemId: id, prevPatch }
+    }).filter(Boolean)
+    if (groupPatches.length > 1) {
+      localUndoRef.current.push({ _type: 'composite_group', items: groupPatches })
+      if (localUndoRef.current.length > 50) localUndoRef.current.shift()
+      localRedoRef.current = []
+    }
 
     let capturedGroupMembers = null
 
@@ -9084,10 +9605,10 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const getNextItemId = (type) => {
     const existingIds = new Set(itemsRef.current.map((item) => item.id))
-    let nextId = crypto.randomUUID()
+    let nextId = generateId()
 
     while (existingIds.has(nextId)) {
-      nextId = crypto.randomUUID()
+      nextId = generateId()
     }
 
     return nextId
@@ -9716,9 +10237,14 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const createCanvasItemFromAsset = async (asset, position = null) => {
     const id = getNextItemId(asset.type)
-    const imageSize = asset.type === 'image'
-      ? await getImageMetadata(asset.source)
-      : { w: asset.w, h: asset.h, aspectRatio: asset.w / asset.h }
+    let imageSize
+    try {
+      imageSize = asset.type === 'image'
+        ? await getImageMetadata(asset.source)
+        : { w: asset.w, h: asset.h, aspectRatio: asset.w / asset.h }
+    } catch (e) {
+      imageSize = { w: 200, h: 200, aspectRatio: 1 }
+    }
     const safePosition = getSafeSpawnPosition(imageSize, position)
     const base = {
       id,
@@ -9769,6 +10295,12 @@ const attachTransformer = useCallback((idOrIds) => {
     justDroppedIdRef.current = nextItem.id
     // FIX: Prepend to array so new item appears at top layer (frontmost)
     setItems((current) => [nextItem, ...current])
+    requestAnimationFrame(() => {
+      const layer = stageRef.current?.findOne('Layer')
+      if (layer) {
+        layer.batchDraw()
+      }
+    })
     broadcastItemAdd(nextItem)
     captureAddUndo(nextItem.id)
 
@@ -10368,6 +10900,30 @@ const attachTransformer = useCallback((idOrIds) => {
     return slot?.slotIndex ?? null
   }
 
+  const findNearestEmptySlot = (point) => {
+    if (!point) return null
+    let best = null
+    let bestDist = Infinity
+    for (const frame of itemsRef.current) {
+      if (frame.kind !== 'frame' || frame.visible === false || frame.locked) continue
+      const localPoint = getFrameLocalPoint(frame, point)
+      const slots = getResolvedFrameSlots(frame)
+      for (const slot of slots) {
+        if (!canAddImageToFrameSlot(frame, slot.slotIndex)) continue
+        const slotCenterX = slot.x + slot.width / 2
+        const slotCenterY = slot.y + slot.height / 2
+        const dx = localPoint.x - slotCenterX
+        const dy = localPoint.y - slotCenterY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < bestDist && dist < DROP_PREVIEW_RADIUS) {
+          bestDist = dist
+          best = { frameId: frame.id, slotIndex: slot.slotIndex, slotBounds: slot, frame }
+        }
+      }
+    }
+    return best
+  }
+
   const canAddImageToFrameSlot = (frame, slotIndex) => {
     if (!isGridFrame(frame.frameType)) {
       const hasImage = !!frame.frameImageSrc
@@ -10469,6 +11025,8 @@ const attachTransformer = useCallback((idOrIds) => {
   const handleObjectSelect = (event, id) => {
     event.cancelBubble = true
     if ((activePanel === 'brush' && brushSettings.mode !== 'erase') || activePanel === 'bezier') return
+    // Suppress spurious click that fires after brush/eraser stroke ends
+    if (brushStrokeJustEndedRef.current) { brushStrokeJustEndedRef.current = false; return }
     const isMultiSelect = isGroupSelectMode || event.evt?.shiftKey
 
     requestAnimationFrame(() => {
@@ -10480,6 +11038,7 @@ const attachTransformer = useCallback((idOrIds) => {
     console.log('[ENTRY] handleObjectDragStart', { id, multiDrag: !!multiDragRef?.current })
     event.cancelBubble = true
     activeObjectDragRef.current = id
+    dragSessionIdRef.current++
     if (justDroppedIdRef.current === id) {
       justDroppedIdRef.current = null
     }
@@ -10545,6 +11104,14 @@ const attachTransformer = useCallback((idOrIds) => {
     const rawDx = event.target.x() - dragSession.start.x
     const rawDy = event.target.y() - dragSession.start.y
     const snapped = getSnappedDelta(movingIds, baseBounds, rawDx, rawDy)
+    const firstItem = itemsRef.current.find(i => i.id === movingIds[0])
+    const firstNode = firstItem ? stageRef.current?.findOne(`#${firstItem.id}`) : null
+    const clientRect = firstNode?.getClientRect({ skipShadow: true })
+    if (clientRect) {
+      const cam = cameraRef.current
+      const visualCX = (clientRect.x - cam.x) / cam.scale + (clientRect.width / cam.scale) / 2
+      console.log('[CX-DIAG] calcCX:', baseBounds.centerX + snapped.dx, 'visualCX:', visualCX, 'itemW:', firstItem?.w, 'itemRot:', firstItem?.rotation, 'nodeScaleY:', firstNode?.scaleY())
+    }
     console.log('[SnapDebug] regular handleObjectDragMove:', {
       rawDx, rawDy, guideCount: snapped.guides?.length, snapped: snapped.snapped,
       movingIds, baseBounds, _candidateCounts: snapped._candidateCounts,
@@ -10553,6 +11120,20 @@ const attachTransformer = useCallback((idOrIds) => {
 
     if (movingIds.length === 1 && !snapped.snapped) {
       setAlignmentGuides(snapped.guides)
+      const movingId = movingIds[0]
+      const item = itemsRef.current.find((current) => current.id === movingId)
+      const startPosition = dragSession.positions[movingId]
+      if (item && startPosition) {
+        const node = getInteractionNode(movingId)
+        if (node) {
+          const nextPosition = getClampedCanvasPosition(item.w || 1, item.h || 1, {
+            x: startPosition.x + snapped.dx,
+            y: startPosition.y + snapped.dy,
+          }, canvasBounds)
+          node.position(nextPosition)
+          broadcastItemUpdate(movingId, nextPosition, { dragSessionId: dragSessionIdRef.current })
+        }
+      }
       return
     }
 
@@ -10586,10 +11167,38 @@ const attachTransformer = useCallback((idOrIds) => {
         y: startPosition.y + snapped.dy,
       }, canvasBounds)
       node.position(nextPosition)
-      broadcastItemUpdate(movingId, nextPosition)
+      broadcastItemUpdate(movingId, nextPosition, { dragSessionId: dragSessionIdRef.current })
     })
 
     setAlignmentGuides(snapped.guides)
+
+    // Frame drop preview detection: for image items, find nearest empty slot
+    const dragItem = itemsRef.current.find((i) => i.id === id)
+    if (dragItem?.kind === 'image') {
+      const node = getInteractionNode(id)
+      if (node) {
+        const cx = node.x() + (dragItem.w || 0) / 2
+        const cy = node.y() + (dragItem.h || 0) / 2
+        const nearest = findNearestEmptySlot({ x: cx, y: cy })
+        const prev = dropPreviewRef.current
+
+        if (nearest && (!prev.active || prev.targetFrameId !== nearest.frameId || prev.targetSlotIndex !== nearest.slotIndex)) {
+          dropPreviewRef.current = { active: true, targetFrameId: nearest.frameId, targetSlotIndex: nearest.slotIndex, previewSrc: dragItem.src }
+          setDropPreviewState({ active: true, targetFrameId: nearest.frameId, targetSlotIndex: nearest.slotIndex, previewSrc: dragItem.src })
+          node.opacity(0.5)
+        } else if (!nearest && prev.active) {
+          dropPreviewRef.current = { active: false, targetFrameId: null, targetSlotIndex: null, previewSrc: null }
+          setDropPreviewState({ active: false, targetFrameId: null, targetSlotIndex: null, previewSrc: null })
+          node.opacity(1)
+        } else if (nearest && prev.active && nearest.frameId === prev.targetFrameId && nearest.slotIndex === prev.targetSlotIndex) {
+          // Same target, no state update needed — keep preview
+        } else if (!nearest && !prev.active) {
+          // No preview needed — ensure opacity is normal
+          if (node.opacity() < 1) node.opacity(1)
+        }
+      }
+    }
+
     event.target.getLayer()?.batchDraw()
   }
 
@@ -10845,6 +11454,7 @@ const attachTransformer = useCallback((idOrIds) => {
         })
 
         // Broadcast final positions to collaborators
+        const finalDsId = dragSessionIdRef.current
         movingIds.forEach((movingId) => {
           const compositeInfo = getCompositeInfoForItemId(movingId)
           if (compositeInfo) {
@@ -10859,11 +11469,11 @@ const attachTransformer = useCallback((idOrIds) => {
                   compositeGroupY: (it.compositeGroupY ?? 0) + delta.y,
                   compositeGroupScaleX: null,
                   compositeGroupScaleY: null,
-                })
+                }, { isFinal: true, dragSessionId: finalDsId })
               } else {
                 const patch = { x: startPos.x + delta.x, y: startPos.y + delta.y }
                 if (it?.compositeMode) Object.assign(patch, { compositeGroupX: null, compositeGroupY: null, compositeGroupScaleX: null, compositeGroupScaleY: null, compositeGroupRotation: null })
-                broadcastItemUpdate(movingId, patch)
+                broadcastItemUpdate(movingId, patch, { isFinal: true, dragSessionId: finalDsId })
               }
             }
           } else {
@@ -10872,7 +11482,7 @@ const attachTransformer = useCallback((idOrIds) => {
               const it = itemsRef.current.find((i) => i.id === movingId)
               if (it) {
                 const clamped = getClampedCanvasPosition(it.w || 1, it.h || 1, { x: movedNode.x(), y: movedNode.y() }, canvasBounds)
-                broadcastItemUpdate(movingId, clamped)
+                broadcastItemUpdate(movingId, clamped, { isFinal: true, dragSessionId: finalDsId })
               }
             }
           }
@@ -10886,19 +11496,32 @@ const attachTransformer = useCallback((idOrIds) => {
 
     multiDragActiveRef.current = false
 
-    // NEW: Cek apakah image canvas di-drag ke dalam frame slot
-if (item?.kind === 'image') {
-      const itemCenter = {
+    // Reset frame drop preview
+    const prevDropPreview = dropPreviewRef.current
+    if (prevDropPreview.active) {
+      dropPreviewRef.current = { active: false, targetFrameId: null, targetSlotIndex: null, previewSrc: null }
+      setDropPreviewState({ active: false, targetFrameId: null, targetSlotIndex: null, previewSrc: null })
+      node.opacity(1)
+    }
+
+    // Cek apakah image canvas di-drag ke dalam frame slot
+    // Priority: use active drop preview if available (more tolerant detection)
+    if (item?.kind === 'image') {
+      const targetInfo = prevDropPreview.active && prevDropPreview.targetFrameId
+        ? { frame: itemsRef.current.find((i) => i.id === prevDropPreview.targetFrameId), slotIndex: prevDropPreview.targetSlotIndex }
+        : null
+      const itemCenter = targetInfo ? null : {
         x: nextPosition.x + item.w / 2,
         y: nextPosition.y + item.h / 2,
       }
-      const targetFrame = getFrameAtDropPosition(itemCenter)
- 
+      const targetFrame = targetInfo?.frame || (itemCenter ? getFrameAtDropPosition(itemCenter) : null)
+
       if (targetFrame) {
-        // Find which specific slot the image center is closest to
-        let slotIndex = null
-        if (isGridFrame(targetFrame.frameType)) {
+        let slotIndex = targetInfo?.slotIndex ?? null
+        if (slotIndex === null && isGridFrame(targetFrame.frameType)) {
           slotIndex = getGridSlotIndexAtPosition(targetFrame, itemCenter)
+        }
+        if (isGridFrame(targetFrame.frameType)) {
           if (slotIndex === null || !canAddImageToFrameSlot(targetFrame, slotIndex)) {
             node.position(nextPosition)
             updateItem(id, nextPosition)
@@ -10909,10 +11532,10 @@ if (item?.kind === 'image') {
           updateItem(id, nextPosition)
           return
         }
- 
+
         await addImageToFrame(targetFrame.id, item.src, slotIndex, { removeItemId: id })
         setDropTargetFrameId(null)
- 
+
         pendingSelectIdRef.current = targetFrame.id
         requestAnimationFrame(() => {
           selectItem(targetFrame.id)
@@ -10924,6 +11547,7 @@ if (item?.kind === 'image') {
 
     node.position(nextPosition)
     updateItem(id, nextPosition)
+    broadcastItemUpdate(id, nextPosition, { isFinal: true, dragSessionId: dragSessionIdRef.current })
     requestAnimationFrame(() => requestAnimationFrame(updateToolbarPosition))
   }
 
@@ -11036,22 +11660,33 @@ if (item?.kind === 'image') {
       touchDragMovedRef.current = false
 
       const touch = e.changedTouches?.[0]
-      if (!touch) return
+      if (!touch) {
+        return
+      }
 
       const shell = viewportRef.current
-      if (!shell) return
+      if (!shell) {
+        return
+      }
       const rect = shell.getBoundingClientRect()
       if (touch.clientX < rect.left || touch.clientX > rect.right ||
-          touch.clientY < rect.top || touch.clientY > rect.bottom) return
+          touch.clientY < rect.top || touch.clientY > rect.bottom) {
+        touchSuppressClickRef.current = false
+        return
+      }
 
       const position = getTouchCanvasPosition(touch)
-      if (position) addAssetToCanvasRef.current(asset, position)
+      if (position) {
+        touchSuppressClickRef.current = false
+        addAssetToCanvasRef.current(asset, position)
+      }
     }
 
     const handleTouchCancel = () => {
       touchDragAssetRef.current = null
       touchDragMovedRef.current = false
       touchDragStartPosRef.current = null
+      touchSuppressClickRef.current = false
     }
     window.addEventListener('touchend', handleTouchEnd, { passive: true })
     window.addEventListener('touchcancel', handleTouchCancel, { passive: true })
@@ -11125,6 +11760,10 @@ const handleFrameImageEdit = (id, slotIdx = 0) => {
           draggable
           style={{ touchAction: 'none' }}
           onClick={() => {
+            if (touchSuppressClickRef.current) {
+              touchSuppressClickRef.current = false
+              return
+            }
             addAssetToCanvas(asset)
           }}
           onTouchStart={(e) => {
@@ -11139,7 +11778,11 @@ const handleFrameImageEdit = (id, slotIdx = 0) => {
               if (start) {
                 const dx = e.touches[0].clientX - start.x
                 const dy = e.touches[0].clientY - start.y
-                if (Math.abs(dx) > 8 || Math.abs(dy) > 8) touchDragMovedRef.current = true
+                const moved = Math.abs(dx) > 8 || Math.abs(dy) > 8
+                if (moved) {
+                  touchDragMovedRef.current = true
+                  touchSuppressClickRef.current = true
+                }
               }
             }
           }}
@@ -11626,6 +12269,8 @@ let commitTransformerChangesLock = false
 const commitTransformerChanges = () => {
   if (commitTransformerChangesLock) return
   commitTransformerChangesLock = true
+  const tStart = performance.now()
+  dragSessionIdRef.current++
   const nodes = transformerRef.current?.nodes?.() || []
   if (!nodes.length) { commitTransformerChangesLock = false; return }
 
@@ -11641,8 +12286,10 @@ const commitTransformerChanges = () => {
     const node = nodes.find((candidate) => candidate.id() === item.id)
     if (!node) return item
 
-    const scaleX = node.scaleX()
-    const scaleY = node.scaleY()
+    const stretchSX = node.getAttr('_stretchScaleX') || 1
+    const stretchSY = node.getAttr('_stretchScaleY') || 1
+    const scaleX = node.scaleX() / stretchSX
+    const scaleY = node.scaleY() / stretchSY
 
     if (item.kind === 'text') {
       const activeAnchor = transformerRef.current?.getActiveAnchor?.()
@@ -11650,14 +12297,35 @@ const commitTransformerChanges = () => {
       const scaleApplied = Math.abs(scaleX - 1) >= 0.001 || Math.abs(scaleY - 1) >= 0.001
 
       let nextW, nextFontSize
+      const hasGroupChild = !!node.findOne('Group')
+
+      // DIAG-COMMIT[T1] — capture pre-commit state before any reads
+      const diagT1 = hasGroupChild ? performance.now() : 0
+      const diagNodeW = hasGroupChild ? node.width() : 0
+      const diagNodeX = hasGroupChild ? node.x() : 0
+      const diagNodeScaleX = hasGroupChild ? node.scaleX() : 0
+
       if (scaleApplied) {
         nextW = Math.max(8, (item.w || node.width() || 1) * Math.abs(scaleX || 1))
         nextFontSize = isCornerResize
           ? clamp((item.fontSize || 48) * Math.max(Math.abs(scaleX || 1), Math.abs(scaleY || 1)), 8, 1000)
           : (item.fontSize || 48)
       } else {
-        const innerText = node.findOne('Text')
-        nextW = Math.max(8, innerText?.width() || node.width() || item.w || 8)
+        if (hasGroupChild) {
+          nextW = Math.max(8, node.width() || item.w || 8)
+          // DIAG-B: multi-run commit — compare committed width vs displayWidth during drag
+          console.log('[DIAG-B] multi-run commit: anchor=%s nodeW=%s itemW=%s nextW=%s sx=%s sy=%s time=%s',
+            activeAnchor,
+            diagNodeW.toFixed(1),
+            item.w.toFixed(1),
+            nextW.toFixed(1),
+            scaleX.toFixed(4),
+            scaleY.toFixed(4),
+            diagT1.toFixed(1))
+        } else {
+          const innerText = node.findOne('Text')
+          nextW = Math.max(8, innerText?.width() || node.width() || item.w || 8)
+        }
         nextFontSize = item.fontSize || 48
       }
 
@@ -11667,24 +12335,43 @@ const commitTransformerChanges = () => {
       node.scaleY(1)
       node.width?.(nextW)
       node.fontSize?.(nextFontSize)
+      const innerText = node.findOne('Text')
+      if (innerText) { innerText.width(nextW); innerText.fontSize(nextFontSize) }
       node.setAttr('height', undefined)
       node.clearCache()
       if (typeof node._clearTextCache === 'function') node._clearTextCache()
       try { effectManager.applyAll(node, item.effects, null, item.effectOrder) } catch {}
+      // DIAG-COMMIT[T3] — after setting Konva attrs: verify node.width matches nextW
+      if (hasGroupChild) {
+        const t3 = performance.now()
+        console.log('[DIAG-COMMIT:T3] after-set-attrs: anchor=%s nextW=%s nodeW_after=%s nodeScaleX_after=%s elapsed=%s',
+          activeAnchor, nextW.toFixed(1), node.width()?.toFixed(1) ?? 'null',
+          node.scaleX().toFixed(4), (t3 - diagT1).toFixed(2))
+      }
 
-      const textRect = node.getClientRect({ skipTransform: true, skipShadow: true })
-      const nextH = Math.max(8, Math.ceil(textRect.height || node.height() || nextFontSize))
+      let nextH
+      if (hasGroupChild) {
+        const textRect = node.getClientRect({ skipTransform: true, skipShadow: true })
+        nextH = Math.max(8, Math.ceil(textRect.height || node.height() || nextFontSize))
+      } else {
+        const innerText = node.findOne('Text')
+        if (innerText) {
+          const textRect = innerText.getClientRect({ skipTransform: true, skipShadow: true })
+          nextH = Math.max(8, Math.ceil(textRect.height || nextFontSize))
+        } else {
+          const textRect = node.getClientRect({ skipTransform: true, skipShadow: true })
+          nextH = Math.max(8, Math.ceil(textRect.height || node.height() || nextFontSize))
+        }
+      }
       const nextPosition = getClampedCanvasPosition(nextW, nextH, { x: node.x(), y: node.y() }, canvasBounds)
 
       node.position(nextPosition)
+      const textTransformPatch = { x: nextPosition.x, y: nextPosition.y, w: nextW, h: nextH, fontSize: nextFontSize, rotation: node.rotation() }
+      if (item.groupId) captureGroupUndo(item.id, textTransformPatch)
+      else captureUndo(item.id, textTransformPatch)
       return {
         ...item,
-        x: nextPosition.x,
-        y: nextPosition.y,
-        w: nextW,
-        h: nextH,
-        fontSize: nextFontSize,
-        rotation: node.rotation(),
+        ...textTransformPatch,
       }
     }
 
@@ -11784,11 +12471,54 @@ const commitTransformerChanges = () => {
     node.position(nextPosition)
     node.width?.(nextSize.w)
     node.height?.(nextSize.h)
+    // Sync inner child node dimensions immediately (not wait for React re-render)
+    if (item.kind === 'image') {
+      const innerImg = node.findOne('.canvas-image-main')
+      if (innerImg) {
+        innerImg.width(nextSize.w)
+        innerImg.height(nextSize.h)
+        // Apply effects to INNER Image node, NOT the Group. This prevents caching the
+        // Group with filters — a stale Group cache would persist across subsequent effect
+        // changes (remove/toggle/reorder) and override the canvas-image-main node's updated
+        // state, making effect changes invisible until the next transform event.
+        if (item.effects) {
+          try { effectManager.applyAll(innerImg, item.effects, null, item.effectOrder) } catch (e) { console.warn('applyAll error:', e) }
+        }
+      }
+    } else if (item.effects) {
+      // Non-image items: apply effects to the transform-attached node (Group) directly
+      try { effectManager.applyAll(node, item.effects, null, item.effectOrder) } catch (e) { console.warn('applyAll error:', e) }
+    }
+    // Directly re-apply stretch from item.effects on the item's own Group node
+    // (bypass applyAll's stretch handler which gets broken by _clearBounds clearing
+    // _stretchBaseScaleX/Y before the handler fires; also must run AFTER applyAll
+    // because applyAll calls node.cache() which may reset filters+scale)
+    if (item.effects && item.effectOrder?.length) {
+      for (const instId of item.effectOrder) {
+        const entry = item.effects[instId]
+        if (entry?.effectId === 'stretch' && entry.value) {
+          const sv = entry.value
+          node.setAttrs({
+            scaleX: sv.scaleX ?? 1,
+            scaleY: sv.scaleY ?? 1,
+            skewX: sv.skewX ?? 0,
+            skewY: sv.skewY ?? 0,
+          })
+          break
+        }
+      }
+    }
+    if (item.groupId) captureGroupUndo(item.id, patch)
+    else captureUndo(item.id, patch)
     return { ...item, ...patch }
   })
   if (didChange) {
+    const diagBeforeSetItems = performance.now()
     itemsRef.current = nextItems
     setItems(nextItems)
+    // DIAG-COMMIT[T4] — after setItems: measure elapsed from start of commit
+    console.log('[DIAG-COMMIT:T4] after-setItems elapsed=%s from-entry=%s',
+      (performance.now() - diagBeforeSetItems).toFixed(2), (performance.now() - tStart).toFixed(2))
     // Broadcast transform changes to collaborators
     ids.forEach((id) => {
       const item = itemsRef.current.find((i) => i.id === id)
@@ -11807,7 +12537,7 @@ const commitTransformerChanges = () => {
         if (item.frameImagePosition) patch.frameImagePosition = item.frameImagePosition
         if (item.frameImageScale !== undefined) patch.frameImageScale = item.frameImageScale
       }
-      broadcastItemUpdate(id, patch)
+      broadcastItemUpdate(id, patch, { isFinal: true, dragSessionId: dragSessionIdRef.current })
     })
   }
 
@@ -11816,10 +12546,65 @@ const commitTransformerChanges = () => {
     handleCompositeTransformEnd({ node, itemsRef, updateItem })
   })
 
+  // Clear stale stretch attrs from canvas-content Group (backward cleanup for bug
+  // where _getStretchTarget climbed to shared parent instead of item's Group)
+  if (!commitTransformerChangesLock && !window.__canvasContentCleaned &&
+      stageRef.current && ids.length) {
+    const cc = stageRef.current.findOne('Group[name="canvas-content"]')
+    if (cc && cc.getAttr('_stretchScaleY') != null) {
+      cc.setAttrs({
+        scaleX: 1, scaleY: 1,
+        _stretchBaseScaleX: undefined, _stretchBaseScaleY: undefined,
+        _stretchScaleX: undefined, _stretchScaleY: undefined,
+        _stretchSkewX: undefined, _stretchSkewY: undefined,
+      })
+    }
+    window.__canvasContentCleaned = true
+  }
+
+  liveGeometryRef.current = null
+
   requestAnimationFrame(() => {
+    // DIAG-COMMIT[T5] — first rAF after commit: React should have re-rendered by now
+    const t5 = performance.now()
+    const diagNodes = ids.map(id => {
+      const n = stageRef.current?.findOne('#' + id)
+      if (!n) return null
+      return { id, nodeW: n.width(), nodeX: n.x(), nodeScaleX: n.scaleX(), nodeAttrsW: n.getAttr('width') }
+    }).filter(Boolean)
+    console.log('[DIAG-COMMIT:T5] first-rAF elapsed=%s nodes=%s',
+      (t5 - tStart).toFixed(2), JSON.stringify(diagNodes))
+    // Hide Transformer during re-attach so ghost transformStart visual
+    // (stale node bounds from forceUpdate()) never appears on screen.
+    const tr = transformerRef.current
+    const trWasVisible = tr?.visible?.()
+    if (trWasVisible) tr?.visible?.(false)
+
+    // Silence transform events on committed nodes BEFORE re-attach/forceUpdate,
+    // preventing ghost transformStart (anchor=bottom-right, h=0) that Konva
+    // Transformer fires internally during nodes()/forceUpdate().
+    // Handlers are re-attached by react-konva's reconciliation (applyNodeProps)
+    // on the React render triggered by setItems() above.
+    ids.forEach(id => {
+      const n = stageRef.current?.findOne('#' + id)
+      if (n) n.off('transformstart').off('transform').off('transformend')
+    })
     attachTransformer(ids)
-    requestAnimationFrame(updateToolbarPosition)
-    commitTransformerChangesLock = false
+    requestAnimationFrame(() => {
+      // DIAG-COMMIT[T6] — second rAF: Konva should have batchDrawn by now
+      const t6 = performance.now()
+      const diagNodes2 = ids.map(id => {
+        const n = stageRef.current?.findOne('#' + id)
+        if (!n) return null
+        return { id, nodeW: n.width(), nodeX: n.x(), nodeScaleX: n.scaleX() }
+      }).filter(Boolean)
+      console.log('[DIAG-COMMIT:T6] second-rAF elapsed=%s nodes=%s',
+        (t6 - tStart).toFixed(2), JSON.stringify(diagNodes2))
+      // Restore Transformer visibility after ghost has passed
+      if (typeof trWasVisible === 'boolean') tr?.visible?.(trWasVisible)
+      updateToolbarPosition()
+      commitTransformerChangesLock = false
+    })
   })
 }
 
@@ -12955,6 +13740,9 @@ const toggleMobileSheetSize = () => {
         settings={brushSettings}
         onChange={setBrushSettings}
         onBack={() => { setActivePanel(null); setIsRightPanelOpen(false) }}
+        eraserSessionActive={eraserSessionActive}
+        onApplyEraser={handleApplyEraser}
+        onCancelEraser={handleCancelEraser}
       />
     )
   }
@@ -16240,6 +17028,7 @@ onPointerUp={(e) => {
             disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush' || activePanel === 'bezier'}
             isShiftDown={isShiftDown}
             getActiveTransformAnchor={() => transformerRef.current?.getActiveAnchor?.()}
+            dropPreviewState={dropPreviewState}
             dropTargetFrameId={dropTargetFrameId}
             dropTargetSlotIndex={dropTargetSlotIndex}
             editingFrameId={editingFrameId}
@@ -16270,6 +17059,7 @@ onPointerUp={(e) => {
             stageRef={stageRef}
             getInteractionNode={getInteractionNode}
             adjustSourceTargetId={adjustSourceTargetId}
+            liveGeometryRef={liveGeometryRef}
           />
         )
       }
@@ -16292,6 +17082,7 @@ onPointerUp={(e) => {
           disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush' || activePanel === 'bezier' || cropSession?.itemId === item.id}
           isShiftDown={isShiftDown}
           getActiveTransformAnchor={() => transformerRef.current?.getActiveAnchor?.()}
+          dropPreviewState={dropPreviewState}
           dropTargetFrameId={dropTargetFrameId}
           dropTargetSlotIndex={dropTargetSlotIndex}
           editingFrameId={editingFrameId}
@@ -16300,6 +17091,8 @@ onPointerUp={(e) => {
           onCropStart={beginImageCrop}
           isCropTarget={cropSession?.itemId === item.id}
           fontInjectVersion={fontInjectVersion}
+          eraserPreviewCanvas={eraserPreviewCanvasState}
+          eraserTargetId={eraserTargetIdRef.current}
         />
       )
     })
@@ -16315,9 +17108,9 @@ onPointerUp={(e) => {
       handleObjectSelect, updateItem, handleObjectDragStart, handleObjectDragMove,
       handleObjectDragEnd, editTextObject, editingText, handleItemCursor,
       setHoveredItemId, isSpaceDown, isPanning, activePanel, isShiftDown,
-      dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot,
+      dropPreviewState, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot,
       handleFrameImageEdit, beginImageCrop, cropSession, canvasSize, fontInjectVersion,
-      updateToolbarPosition, transformerRef],
+      updateToolbarPosition, transformerRef, eraserSessionActive, eraserPreviewCanvasState],
   )
   const renderedAboveCanvasContent = useMemo(() =>
     renderCanvasStackItems(aboveItems),
@@ -16325,9 +17118,9 @@ onPointerUp={(e) => {
       handleObjectSelect, updateItem, handleObjectDragStart, handleObjectDragMove,
       handleObjectDragEnd, editTextObject, editingText, handleItemCursor,
       setHoveredItemId, isSpaceDown, isPanning, activePanel, isShiftDown,
-      dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot,
+      dropPreviewState, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot,
       handleFrameImageEdit, beginImageCrop, cropSession, canvasSize, fontInjectVersion,
-      updateToolbarPosition, transformerRef],
+      updateToolbarPosition, transformerRef, eraserSessionActive, eraserPreviewCanvasState],
   )
   const renderedAdjustmentLayerItems = useMemo(() =>
     [...items].reverse().filter((item) => item.isAdjustmentLayer).map((item) => (
@@ -16349,6 +17142,7 @@ onPointerUp={(e) => {
         disableDrag={isViewerRef.current || isSpaceDown || isPanning || activePanel === 'brush' || activePanel === 'bezier' || cropSession?.itemId === item.id}
         isShiftDown={isShiftDown}
         getActiveTransformAnchor={() => transformerRef.current?.getActiveAnchor?.()}
+        dropPreviewState={dropPreviewState}
         dropTargetFrameId={dropTargetFrameId}
         dropTargetSlotIndex={dropTargetSlotIndex}
         editingFrameId={editingFrameId}
@@ -16356,14 +17150,16 @@ onPointerUp={(e) => {
         onFrameImageEdit={handleFrameImageEdit}
         onCropStart={beginImageCrop}
         isCropTarget={cropSession?.itemId === item.id}
+        eraserPreviewCanvas={eraserPreviewCanvasState}
+        eraserTargetId={eraserTargetIdRef.current}
       />
     )),
     [items, selectedId, selectedIds, handleObjectSelect, updateItem,
       handleObjectDragStart, handleObjectDragMove, handleObjectDragEnd,
       editTextObject, editingText, handleItemCursor, setHoveredItemId,
       isSpaceDown, isPanning, activePanel, isShiftDown, transformerRef,
-      dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot,
-      handleFrameImageEdit, beginImageCrop, cropSession],
+      dropPreviewState, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot,
+      handleFrameImageEdit, beginImageCrop, cropSession, eraserSessionActive, eraserPreviewCanvasState],
   )
 
   if (isWorkspaceLoading || (shouldLoadWorkspace && isAuthLoading) || (shouldLoadWorkspace && loadingPhase !== 'done')) {
@@ -16479,8 +17275,11 @@ onPointerUp={(e) => {
           type="button"
           className="workspace-title-back"
           onClick={() => {
-            if (window.history.length > 1) navigate(-1)
-            else navigate('/projects')
+            if (hasUnsavedChangesRef.current) {
+              setShowExitConfirm(true)
+              return
+            }
+            fullClosePanelsAndExit()
           }}
           aria-label="Back"
           title="Back"
@@ -16518,6 +17317,9 @@ onPointerUp={(e) => {
       </button>
     </header>
 
+    <div className="workspace-debug-panelstack" style={{ position: 'fixed', top: 40, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: 'rgba(0,0,0,0.85)', color: '#0f0', fontSize: 12, fontFamily: 'monospace', padding: '4px 10px', borderRadius: 6, pointerEvents: 'none', display: (new URLSearchParams(window.location.search).has('debug') ? 'block' : 'none') }}>
+      panels={deepPanelCount} isDeep={String(isDeepPanel)}
+    </div>
     <main
       className="workspace-canvas-wrap"
       onPointerDown={(event) => {
@@ -16669,7 +17471,9 @@ onPointerUp={(e) => {
                   {...canvasBackgroundProps}
                 />
                 <Group name="canvas-content">
-                  {renderedBelowCanvasContent}
+                  <CameraScaleContext.Provider value={camera.scale}>
+                    {renderedBelowCanvasContent}
+                  </CameraScaleContext.Provider>
                 </Group>
               </Group>
 
@@ -16680,14 +17484,16 @@ onPointerUp={(e) => {
                 clipWidth={canvasSize.width}
                 clipHeight={canvasSize.height}
               >
-                {renderedAdjustmentLayerItems}
-                <GlobalAdjustmentLayer
-                  stageRef={stageRef}
-                  items={items}
-                  canvasWidth={canvasSize.width}
-                  canvasHeight={canvasSize.height}
-                />
-                {renderedAboveCanvasContent}
+                <CameraScaleContext.Provider value={camera.scale}>
+                  {renderedAdjustmentLayerItems}
+                  <GlobalAdjustmentLayer
+                    stageRef={stageRef}
+                    items={items}
+                    canvasWidth={canvasSize.width}
+                    canvasHeight={canvasSize.height}
+                  />
+                  {renderedAboveCanvasContent}
+                </CameraScaleContext.Provider>
                 {items.map((item) => (
                   <ObjectAnchors
                     key={`anchors-${item.id}`}
@@ -17119,9 +17925,22 @@ onPointerUp={(e) => {
                           : transformAnchors
                   )
                 }
+                  onTransformStart={() => {
+                    // Ghost guard: ignore transformStart during commitTransformerChanges
+                    // (re-attach rAF fires ghost transformstart with stale node bounds)
+                    if (commitTransformerChangesLock) return
+                    const nodes = transformerRef.current?.nodes?.()
+                    const n = nodes?.[0]
+                    if (n) liveGeometryRef.current = { x: n.x(), y: n.y(), rotation: n.rotation() }
+                  }}
                   onTransform={() => {
                     const nodes = transformerRef.current?.nodes?.()
                     const firstNode = nodes?.[0]
+                    if (firstNode) liveGeometryRef.current = { x: firstNode.x(), y: firstNode.y(), rotation: firstNode.rotation() }
+                    // [DIAG-B] sample transform attrs (every ~100ms)
+                    if (firstNode && Math.random() < 0.1) {
+                      console.log('[DIAG-B] duringTransform:', { id: firstNode.id(), x: firstNode.x(), y: firstNode.y(), w: firstNode.width(), h: firstNode.height(), sx: firstNode.scaleX(), sy: firstNode.scaleY() })
+                    }
                     const nodeRect = firstNode?.getClientRect?.()
                     if (!nodeRect) return
                     // getClientRect() returns STAGE coordinates (viewport space with camera zoom/pan).
@@ -17591,6 +18410,7 @@ onPointerUp={(e) => {
                 { label: 'Duplikat', action: () => duplicateItems(selectedIds.length ? selectedIds : [selectedId]), Icon: CopyPlus },
                 { label: 'Hapus (Delete)', action: deleteSelectedObject, Icon: Trash2 },
                 ...(selectedItem?.kind === 'image' && selectedIds.length <= 1 ? [{ label: 'Pangkas', action: () => beginImageCrop(selectedItem.id), Icon: Crop }] : []),
+                ...(selectedItem?.kind === 'image' && selectedIds.length <= 1 && !eraserSessionActive ? [{ label: 'Eraser', action: () => { setActivePanel('brush'); setBrushSettings(prev => ({ ...prev, mode: 'erase' })) }, Icon: EraserIcon }] : []),
                 ...((canUseCompositeGroupMode || hasCompositeInSelection) ? [
                   { label: activeCompositeMode === 'mask' ? 'Matikan Masking' : activeSelectionCount > 1 ? `Masking (${activeSelectionCount})` : 'Masking', action: hasCompositeInSelection || selectedItems.length > 2 ? null : () => applyCompositeGroupMode('mask'), Icon: Box, disabled: hasCompositeInSelection || selectedItems.length > 2 },
                   { label: activeCompositeMode === 'exclude' ? 'Matikan Exclude' : activeSelectionCount > 1 ? `Exclude (${activeSelectionCount})` : 'Exclude', action: hasCompositeInSelection || selectedItems.length > 2 ? null : () => applyCompositeGroupMode('exclude'), Icon: MinusIcon, disabled: hasCompositeInSelection || selectedItems.length > 2 },
@@ -17679,6 +18499,7 @@ onPointerUp={(e) => {
             : { label: activeSelectionCount > 1 ? `Kelompokkan (${activeSelectionCount})` : 'Group', shortcut: '', action: handleGroupSelectionAction, Icon: GroupIcon },
           { label: 'Duplikat', shortcut: '', action: () => duplicateItems(selectedIds.length ? selectedIds : [selectedId]), Icon: CopyPlus },
           ...(selectedItem?.kind === 'image' && selectedIds.length <= 1 ? [{ label: 'Pangkas', shortcut: '', action: () => beginImageCrop(selectedItem.id), Icon: Crop }] : []),
+          ...(selectedItem?.kind === 'image' && selectedIds.length <= 1 && !eraserSessionActive ? [{ label: 'Eraser', shortcut: '', action: () => { setActivePanel('brush'); setBrushSettings(prev => ({ ...prev, mode: 'erase' })) }, Icon: EraserIcon }] : []),
           ...((canUseCompositeGroupMode || hasCompositeInSelection) ? [
             { label: activeCompositeMode === 'mask' ? 'Matikan Masking' : activeSelectionCount > 1 ? `Masking (${activeSelectionCount})` : 'Masking', shortcut: '', action: hasCompositeInSelection || selectedItems.length > 2 ? null : () => applyCompositeGroupMode('mask'), Icon: Box, disabled: hasCompositeInSelection || selectedItems.length > 2 },
             { label: activeCompositeMode === 'exclude' ? 'Matikan Exclude' : activeSelectionCount > 1 ? `Exclude (${activeSelectionCount})` : 'Exclude', shortcut: '', action: hasCompositeInSelection || selectedItems.length > 2 ? null : () => applyCompositeGroupMode('exclude'), Icon: MinusIcon, disabled: hasCompositeInSelection || selectedItems.length > 2 },
@@ -17765,11 +18586,18 @@ onPointerUp={(e) => {
       isDanger={true}
       onConfirm={() => {
         setShowExitConfirm(false)
-        blocker.proceed?.()
+        if (blocker.state === 'blocked') {
+          blocker.proceed?.()
+        } else {
+          hasUnsavedChangesRef.current = false
+          fullClosePanelsAndExit()
+        }
       }}
       onCancel={() => {
         setShowExitConfirm(false)
-        blocker.reset?.()
+        if (blocker.state === 'blocked') {
+          blocker.reset?.()
+        }
       }}
     />
 
