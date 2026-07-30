@@ -2067,11 +2067,11 @@ export const searchExternalImages = async ({
   // Skipped on paginated pages to avoid repetitive results — provider API
   // variety handles subsequent pages naturally.
   let dbMixIds = new Set()
-  if (context === 'home' && homeDbItems.length) {
-    // Style floor untuk home feed: lacak item dari DB text similarity yang survive ke pool.
+  if (context === 'home' && (homeProfileItems.length || homeTextItems.length)) {
+    // Style floor untuk home feed: lacak item dari DB (profile + text) yang survive ke pool.
     // Ter-set tiap page (cursor-based offset), beda dengan search yang page-1-only.
     const mergedIds = new Set(items.map(i => i.id))
-    dbMixIds = new Set(homeDbItems.filter(i => mergedIds.has(i.id)).map(i => i.id))
+    dbMixIds = new Set([...homeProfileItems, ...homeTextItems].filter(i => mergedIds.has(i.id)).map(i => i.id))
     console.log('[STYLE-FLOOR-DEBUG] Home dbMixIds set:', dbMixIds.size, 'items')
   }
   if (textEmb && !(context === 'browse_asset') && context !== 'home' && queries.length && !decodedCursor?.queries) {
@@ -2228,7 +2228,7 @@ export const searchExternalImages = async ({
   // Visual similarity pool — profile-based discovery for home feed
   // Uses stored user embedding (from EMA profile) to find visually similar
   // external images, independent of keyword/title search.
-  if (context === 'home' && viewerId && !visualSimilarTo && !semanticText && !homeProfilePoolItems.length) {
+  if (context === 'home' && viewerId && !visualSimilarTo && !semanticText && !homeProfileItems.length) {
     const profileData = await getUserProfileEmbedding(viewerId).catch(() => null)
     const profileEmb = profileData?.embedding || null
     if (profileEmb) {

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, cre
 import { Group, Image, Line, Rect, Shape, Text } from 'react-konva'
 
 export const CameraScaleContext = createContext(1)
+export const SnapContext = createContext({})
 import { preloadFont, getShadowProps, applyBevelEmbossToNode, applyInnerShadowToNode } from '../../utils/konvaUtils'
 
 import { clamp } from '../../utils/mathUtils'
@@ -150,7 +151,7 @@ const setCanvasCursor = (stage, cursor) => {
   if (canvas) canvas.style.cursor = cursor
 }
 
-export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, getActiveTransformAnchor, fontInjectVersion, selectedId }) {
+export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, getActiveTransformAnchor, fontInjectVersion, selectedId, selectedIds, onBroadcastRef }) {
   const textNodeRef = useRef(null)
   const curveImageRef = useRef(null)
   const groupRef = useRef(null)
@@ -168,6 +169,8 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   const [dragRotation, setDragRotation] = useState(null)
   const displayWidth = dragWidth !== null ? dragWidth : item.w
   const cameraScale = useContext(CameraScaleContext)
+  const snapCtx = useContext(SnapContext)
+  const { getSnappedDelta, snapResizeBox, setAlignmentGuides, setRotationSnapGuide } = snapCtx
   const ANCHOR_SIZE = 10
   const adjustedSize = Math.max(ANCHOR_SIZE, Math.round(ANCHOR_SIZE / (cameraScale || 1)))
   const adjustedHalf = adjustedSize / 2
@@ -178,6 +181,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   // to survive React inline style override on stage.content.
   // Transformer default: rotateAnchorCursor = 'crosshair'.
   const isSelected = selectedId === item.id
+  const isMultiSelected = (selectedIds?.length || 0) > 1 && (selectedIds?.includes(item.id) || false)
   const ANCHOR_CURSOR = {
     'top-left': 'nwse-resize',
     'top-right': 'nesw-resize',
@@ -196,6 +200,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   const resizeMoveRef = useRef(null)
   const resizeUpRef = useRef(null)
   const moveStateRef = useRef(null)
+  const lastBroadcastRef = useRef(0)
 
   // Reset drag* state saat properti item berubah dari luar (commit atau undo)
   // supaya display* vars tidak tetap pakai stale drag state setelah aksi berakhir
@@ -313,7 +318,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   }, [runs])
   const text = runsToText(displayRuns)
   const isMultiRun = runs.length > 1
-  const showSelectionBox = isMultiRun && isSelected
+  const showSelectionBox = isMultiRun && isSelected && !isMultiSelected
   const displayX = showSelectionBox && dragX !== null ? dragX : item.x
   const displayY = showSelectionBox && dragY !== null ? dragY : item.y
   const displayFontSizeVar = showSelectionBox && dragFontSize !== null ? dragFontSize : (item.fontSize || 48)
@@ -864,7 +869,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       console.log('[DIAG-TIMING] multiRunTexts useMemo: %s ms (displayWidth=%s)', elapsed.toFixed(2), displayWidth.toFixed(1))
     }
     return nodes
-  }, [displayRuns, isMultiRun, hasCurve, displayFontSizeVar, item.fontFamily, item.fill, letterSpacing, hasEffects, gradientProps.fill, fontLoaded, item.align, hasStroke, item.stroke, item.strokeWidth, item.shadow, item.shadowColor, item.shadowOpacity, item.shadowOffsetX, item.shadowOffsetY, item.shadowEnabled])
+  }, [displayRuns, isMultiRun, hasCurve, displayFontSizeVar, displayWidth, item.fontFamily, item.fill, letterSpacing, hasEffects, gradientProps.fill, fontLoaded, item.align, hasStroke, item.stroke, item.strokeWidth, item.shadow, item.shadowColor, item.shadowOpacity, item.shadowOffsetX, item.shadowOffsetY, item.shadowEnabled])
 
   const textHeight = isMultiRun
     ? (runsLayoutRef.current.height || Math.max(item.h || 1, item.fontSize || 1))
@@ -922,7 +927,29 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         // Snap to nearest 45° within 6° tolerance
         const SNAPS = [0, 45, 90, 135, 180, 225, 270, 315]
         const snapped = SNAPS.find(a => Math.abs(deg - a) <= 6 || Math.abs(deg - (a + 360)) <= 6)
-        if (snapped !== undefined) deg = snapped
+        if (snapped !== undefined) {
+          deg = snapped
+          if (setRotationSnapGuide) {
+            const angleRad = (snapped * Math.PI) / 180
+            const stageSize = stage.size()
+            const len = Math.max(stageSize.width, stageSize.height) / (cameraScale || 1)
+            const upX = Math.sin(angleRad)
+            const upY = -Math.cos(angleRad)
+            const originX = state.centerX
+            const originY = state.centerY
+            setRotationSnapGuide({
+              centerX: originX,
+              centerY: originY,
+              angle: snapped,
+              p1x: originX - upX * len,
+              p1y: originY - upY * len,
+              p2x: originX + upX * len,
+              p2y: originY + upY * len,
+            })
+          }
+        } else if (setRotationSnapGuide) {
+          setRotationSnapGuide(null)
+        }
         // Compensate x/y so center stays stationary (rotateAroundPoint equivalent)
         const diffRad = (deg - state.origRotation) * Math.PI / 180
         const cx = state.centerX, cy = state.centerY
@@ -939,28 +966,40 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       }
       // Width resize (same formula for all resize anchors)
       const isRight = isRightSideAnchor(anchor)
+      const oldBox = { x: state.origX, y: state.origY, width: state.origW, height: textHeight }
       if (isRight) {
         // Right-side anchors (middle-right, top-right, bottom-right):
         // pointerX - origLeft
         const nextWidth = Math.max(24, world.x - state.origX)
-        state.dragW = nextWidth
+        const newBox = { x: state.origX, y: state.origY, width: nextWidth, height: textHeight }
+        const snapResult = snapResizeBox?.(oldBox, newBox)
+        const snapped = snapResult?.box
+        const finalW = snapped ? snapped.width : nextWidth
+        state.dragW = finalW
         state.dragX = null
         // Instant imperative update
-        if (grp) grp.width(nextWidth)
-        if (clipGrp) clipGrp.clipWidth(nextWidth)
-        setDragWidth(nextWidth)
+        if (grp) grp.width(finalW)
+        if (clipGrp) clipGrp.clipWidth(finalW)
+        setDragWidth(finalW)
+        if (setAlignmentGuides) setAlignmentGuides(snapResult?.guides || [])
       } else {
         // Left-side anchors (middle-left, top-left, bottom-left):
         // origRight - pointerX, newX = pointerX
         const newX = world.x
         const nextWidth = Math.max(24, state.origX + state.origW - newX)
-        state.dragX = newX
-        state.dragW = nextWidth
+        const newBox = { x: newX, y: state.origY, width: nextWidth, height: textHeight }
+        const snapResult = snapResizeBox?.(oldBox, newBox)
+        const snapped = snapResult?.box
+        const finalX = snapped ? snapped.x : newX
+        const finalW = snapped ? snapped.width : nextWidth
+        state.dragX = finalX
+        state.dragW = finalW
         // Instant imperative update
-        if (grp) { grp.x(newX); grp.width(nextWidth) }
-        if (clipGrp) clipGrp.clipWidth(nextWidth)
-        setDragX(newX)
-        setDragWidth(nextWidth)
+        if (grp) { grp.x(finalX); grp.width(finalW) }
+        if (clipGrp) clipGrp.clipWidth(finalW)
+        setDragX(finalX)
+        setDragWidth(finalW)
+        if (setAlignmentGuides) setAlignmentGuides(snapResult?.guides || [])
       }
       // Corner resize also updates fontSize proportionally (like single-run text)
       if (isCornerAnchor(anchor) && state.dragW > 0) {
@@ -968,6 +1007,28 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         const nextFontSize = clamp(state.origFontSize * scale, 8, 1000)
         state.dragFontSize = nextFontSize
         setDragFontSize(nextFontSize)
+      }
+      // Live broadcast to collaborators during drag (throttled)
+      if (onBroadcastRef?.current) {
+        const now = Date.now()
+        if (now - lastBroadcastRef.current > 80) {
+          lastBroadcastRef.current = now
+          const liveX = state.dragX !== null ? state.dragX : state.origX
+          const liveW = state.dragW !== null ? state.dragW : state.origW
+          const liveFontSize = state.dragFontSize !== null ? state.dragFontSize : state.origFontSize
+          const liveRot = state.dragRotation !== null ? state.dragRotation : state.origRotation
+          const patch = {}
+          if (isRotate) {
+            if (liveRot !== state.origRotation) patch.rotation = liveRot
+            if (liveX !== state.origX) patch.x = liveX
+            if (state.dragY !== null && state.dragY !== state.origY) patch.y = state.dragY
+          } else {
+            if (liveW !== state.origW) patch.w = liveW
+            if (liveX !== state.origX) patch.x = liveX
+            if (liveFontSize !== state.origFontSize) patch.fontSize = Math.round(liveFontSize)
+          }
+          if (Object.keys(patch).length) onBroadcastRef.current(patch)
+        }
       }
       setCanvasCursor(stage, ANCHOR_CURSOR[anchor] || 'default')
     }
@@ -1000,12 +1061,81 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         if (finalFontSize !== state.origFontSize) patch.fontSize = Math.round(finalFontSize)
         if (Object.keys(patch).length) onChangeRef.current(patch)
       }
+      if (setAlignmentGuides) setAlignmentGuides([])
+      if (setRotationSnapGuide) setRotationSnapGuide(null)
+      setCanvasCursor(stage, '')
     }
     resizeMoveRef.current = resizeMove
     resizeUpRef.current = resizeUp
     stage.on('pointermove', resizeMove)
     stage.on('pointerup', resizeUp)
-  }, [isMultiRun, item.x, item.w, item.fontSize, displayWidth, textHeight, stretchScaleX, stretchScaleY])
+  }, [isMultiRun, item.x, item.w, item.fontSize, displayWidth, textHeight, stretchScaleX, stretchScaleY, snapResizeBox, setAlignmentGuides])
+
+  // ── Imperative drag-move for multi-run text (bypasses Konva Group drag) ──
+  const handleMovePointerDown = useCallback((e) => {
+    if (!showSelectionBox) return
+    e.cancelBubble = true
+    const stage = groupRef.current?.getStage()
+    if (!stage) return
+    const worldLayer = stage.findOne('.world-layer')
+    if (!worldLayer) return
+    const inv = worldLayer.getAbsoluteTransform().copy().invert()
+    const startPos = inv.point(stage.getPointerPosition())
+    const startX = item.x
+    const startY = item.y
+    // baseBounds for snap (non-rotation-aware: acceptable for text)
+    const baseBounds = {
+      left: startX,
+      right: startX + displayWidth,
+      top: startY,
+      bottom: startY + textHeight,
+      centerX: startX + displayWidth / 2,
+      centerY: startY + textHeight / 2,
+    }
+    moveStateRef.current = { startX, startY, startPos }
+
+    const moveHandler = (evt) => {
+      const inv2 = worldLayer.getAbsoluteTransform().copy().invert()
+      const pos = inv2.point(stage.getPointerPosition())
+      const rawDx = pos.x - startPos.x
+      const rawDy = pos.y - startPos.y
+      const result = getSnappedDelta?.([item.id], baseBounds, rawDx, rawDy)
+      const snapDx = result?.dx ?? rawDx
+      const snapDy = result?.dy ?? rawDy
+      const grp = groupRef.current
+      if (grp) {
+        grp.x(startX + snapDx)
+        grp.y(startY + snapDy)
+      }
+      if (result && setAlignmentGuides) {
+        setAlignmentGuides(result.guides || [])
+      }
+      // Live broadcast to collaborators during drag (throttled)
+      if (onBroadcastRef?.current) {
+        const now = Date.now()
+        if (now - lastBroadcastRef.current > 80) {
+          lastBroadcastRef.current = now
+          onBroadcastRef.current({ x: startX + snapDx, y: startY + snapDy })
+        }
+      }
+    }
+    const upHandler = () => {
+      stage.off('pointermove', moveHandler)
+      stage.off('pointerup', upHandler)
+      moveStateRef.current = null
+      if (setAlignmentGuides) setAlignmentGuides([])
+      const grp = groupRef.current
+      if (!grp) return
+      const fx = grp.x()
+      const fy = grp.y()
+      if (Math.abs(fx - startX) > 0.5 || Math.abs(fy - startY) > 0.5) {
+        onChangeRef.current({ x: fx, y: fy })
+      }
+      setCanvasCursor(stage, '')
+    }
+    stage.on('pointermove', moveHandler)
+    stage.on('pointerup', upHandler)
+  }, [showSelectionBox, item.id, item.x, item.y, displayWidth, textHeight, getSnappedDelta, setAlignmentGuides])
 
   // Cleanup stage listeners if component unmounts during active resize
   useEffect(() => {
@@ -1029,8 +1159,10 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     }
   }, [])
   
-  // Move is handled by Konva's built-in drag (draggable=true on Group below).
-  // Custom handlers only needed for resize/rotate.
+  // Move is handled by a body Rect with imperative Konva updates (below).
+  // Group draggable=false when showSelectionBox=true to prevent Konva's drag
+  // system from hijacking handle pointerdown events (cancelBubble doesn't
+  // stop Konva's internal drag tree walk).
 
   if (item.isAdjustmentLayer) {
     return (
@@ -1053,7 +1185,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       ref={groupRef}
       key={item.id}
       {...commonProps}
-      draggable={commonProps.draggable}
+      draggable={showSelectionBox ? false : commonProps.draggable}
       x={showSelectionBox ? displayX : commonProps.x}
       y={showSelectionBox ? displayY : commonProps.y}
       rotation={showSelectionBox ? displayRotation : commonProps.rotation}
@@ -1293,6 +1425,14 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       )}
       {showSelectionBox && (
         <>
+          {/* Body hit area for imperative drag-move (under handles, over text) */}
+          <Rect
+            width={displayWidth}
+            height={textHeight}
+            fill="transparent"
+            listening={true}
+            onPointerDown={handleMovePointerDown}
+          />
           {/* Custom selection box (bypass Konva Transformer — no ghost events) */}
           {/* Stretch-responsive dimensions: multiRunGroupRef has stretch, this box lives at groupRef level */}
           {/* Border — matching Transformer borderStroke="#a970ff", strokeWidth=1 */}

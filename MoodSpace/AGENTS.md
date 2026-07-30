@@ -997,3 +997,39 @@ Transformer is OUTSIDE the world-layer Group (Workspace.jsx — `</Group>` close
 ### Key Files
 - `src/components/canvas/CanvasTextNode.jsx` — `CameraScaleContext`, `adjustedSize`/`adjustedHalf` computed from `cameraScale`, all handle sizes use adjusted values
 - `src/pages/Workspace.jsx` — `CameraScaleContext.Provider` wrapping rendered canvas content
+
+## Session 2026-07-30: Custom Selection Box — ANCHOR_SIZE 10, Cursor Fix, Cursor Re-apply, Imperative Konva Updates, Group draggable=false, Snap-Guide Integration
+
+### Changes
+- **ANCHOR_SIZE 14 → 10**: Match Transformer default `anchorSize=10` so handles appear same size regardless of zoom compensation.
+- **`zoomRotateOffset`**: Rotation line length now zoom-compensated (`round(50 / cameraScale)`) — always 50px screen distance.
+- **`zoomStroke`**: Handle border and selection box stroke zoom-compensated (`max(1, round(1 / cameraScale))`) — always ~1px screen width.
+- **Cursor helper** (`setCanvasCursor`): Queries `<canvas>` inside `stage.content`, sets `canvas.style.cursor` — survives React re-renders (stage `style={{ cursor }}` overrides DOM on stage.content). Applied on pointerdown + re-applied every `pointermove` tick. Cleared on pointerup.
+- **All 7 handle `onMouseEnter`/`onMouseLeave`**: Old `stage.content.style.cursor` → `setCanvasCursor` helper.
+- **`displayWidth` removed from `multiRunTexts` `useMemo` deps**: Prevents expensive text layout recompute during width-only resize tick.
+- **Imperative Konva node updates**: `grp.x()`, `.y()`, `.width()`, `.clipWidth()` called BEFORE `setDragX`/`setDragWidth` in `resizeMove` — instant visual feedback without waiting for React render.
+- **Group `draggable={false}` when `showSelectionBox=true`**: Body transparent Rect (under handles, over text) handles move via `handleMovePointerDown` with imperative Konva updates — no Konva drag system interference.
+- **`SnapContext`**: Created/exported from `CanvasTextNode.jsx`. Provider wraps rendered content in Workspace.jsx (alongside `CameraScaleContext.Provider`) with `{ getSnappedDelta, snapResizeBox, setAlignmentGuides }`.
+- **`getSnappedDelta` in `handleMovePointerDown`**: Computes `baseBounds` from item position/size; calls snap per `pointermove`; applies snapped dx/dy via imperative Konva update; sets alignment guides; clears on pointerup.
+- **`snapResizeBox` in `resizeMove`**: Computes `oldBox` (original bounds at pointerdown) + `newBox` (proposed bounds); calls `snapResizeBox`; applies snapped x/width via imperative Konva update; sets guides per tick; clears on `resizeUp`.
+- **Deps arrays**: `doResizePointerDown` useCallback deps include `snapResizeBox` + `setAlignmentGuides`; `handleMovePointerDown` already had them.
+
+### Key Files
+- `src/components/canvas/CanvasTextNode.jsx` — all handler logic, `setCanvasCursor`, `CameraScaleContext`/`SnapContext` export, `ANCHOR_SIZE=10`, `zoomRotateOffset`, `zoomStroke`
+- `src/pages/Workspace.jsx` — `SnapContext.Provider` + `CameraScaleContext.Provider` wrapping, `getSnappedDelta`/`snapResizeBox` definitions
+
+## Session 2026-07-30 (lanjutan): Align-Offset Bug + Snap/Guide Fixes
+
+### BUG 1 — Single-run text guides (onTransform overwrites boundBoxFunc guides)
+- **Root cause**: `onTransform` at Workspace.jsx:17970 called `setAlignmentGuides(guides)` EVERY tick unconditionally. During resize, `boundBoxFunc` → `snapResizeBox` sets object-alignment/edge/margin guides FIRST, but `onTransform` fires AFTER and overwrites with canvas-center guides (or empty `[]`). Result: only canvas-center guides ever visible during Transformer resize; all other snap types suppressed.
+- **Fix**: Guard `setAlignmentGuides(guides)` behind `isRotating` check (via `getActiveAnchor() === 'rotater'`). During RESIZE, `boundBoxFunc` exclusively controls alignmentGuides. During ROTATION (where `boundBoxFunc` doesn't fire), `onTransform` manages canvas-center guides as before.
+- **File**: `Workspace.jsx:17965-17976`
+
+### BUG 2 — Multi-run text rotation guide line not visible
+- **Root cause**: Custom rotate handler in `CanvasTextNode.jsx` correctly snaps angle to 45° increments but never called `setRotationSnapGuide` — not available through `SnapContext`.
+- **Fix**: Added `setRotationSnapGuide` to `SnapContext.Provider` value in Workspace.jsx. In `CanvasTextNode.jsx`, destructured from context and call it in the rotate handler with the same guide-point computation (stage-derived length, center-origin, sin/cos projection). Cleared on pointerup.
+- **File**: `Workspace.jsx:17474,17489` (SnapContext), `CanvasTextNode.jsx:173,928-949` (rotate handler), `CanvasTextNode.jsx:1041` (resizeUp clear)
+
+### Key Files
+- `src/pages/Workspace.jsx` — `isRotating` guard in `onTransform`, `setRotationSnapGuide` in SnapContext
+- `src/components/canvas/CanvasTextNode.jsx` — rotation snap guide call + clear in resizeUp

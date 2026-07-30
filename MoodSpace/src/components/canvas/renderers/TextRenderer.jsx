@@ -9,6 +9,8 @@ export default function TextRenderer({
   getActiveTransformAnchor,
   fontInjectVersion,
   selectedId,
+  selectedIds,
+  onBroadcastRef,
 }) {
   return (
     <CanvasTextNode
@@ -20,6 +22,8 @@ export default function TextRenderer({
       getActiveTransformAnchor={getActiveTransformAnchor}
       fontInjectVersion={fontInjectVersion}
       selectedId={selectedId}
+      selectedIds={selectedIds}
+      onBroadcastRef={onBroadcastRef}
     />
   )
 }

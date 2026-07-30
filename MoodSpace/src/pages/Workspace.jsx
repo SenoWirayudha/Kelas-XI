@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate, useSearchParams, useBlocker } from 'react-router-dom'
 import Konva from 'konva'
@@ -155,7 +155,8 @@ import { ObjectAnchors, ConnectorEndpointAnchors } from './canvas/ConnectorAncho
 import ConnectorRenderer from '../components/canvas/renderers/ConnectorRenderer'
 import ImageRenderer from '../components/canvas/renderers/ImageRenderer'
 import TextRenderer from '../components/canvas/renderers/TextRenderer'
-import { CameraScaleContext } from '../components/canvas/CanvasTextNode'
+import { CameraScaleContext, SnapContext } from '../components/canvas/CanvasTextNode'
+import RulerBar from '../components/canvas/RulerBar'
 import ShapeRenderer from '../components/canvas/renderers/ShapeRenderer'
 import FrameRenderer from '../components/canvas/renderers/FrameRenderer'
 import GlobalAdjustmentLayer from '../components/canvas/GlobalAdjustmentLayer'
@@ -1003,7 +1004,7 @@ const CanvasItemComparitor = (prev, next) => {
     && prev.eraserPreviewCanvas === next.eraserPreviewCanvas
     && prev.eraserTargetId === next.eraserTargetId
 }
-const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, selectedIds, onSelect, onChange, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, dropPreviewState, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false, fontInjectVersion, suspendGeometryRef, eraserPreviewCanvas, eraserTargetId, liveGeometryRef }) {
+const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, selectedIds, onSelect, onChange, onBroadcastRef, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, dropPreviewState, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false, fontInjectVersion, suspendGeometryRef, eraserPreviewCanvas, eraserTargetId, liveGeometryRef }) {
   const sizeRef = useRef({ w: item.w, h: item.h })
   const compositeOperation = allowComposite
     ? getItemCompositeOperation(item)
@@ -1052,6 +1053,7 @@ const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, sele
       selectedIds={selectedIds}
       onSelect={onSelect}
       onChange={onChange}
+      onBroadcastRef={onBroadcastRef}
       onDragStart={onDragStart}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
@@ -3421,6 +3423,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
               selectedIds={selectedIds}
               onSelect={onSelect}
               onChange={(patch) => onChange(item.id, patch)}
+              onBroadcastRef={{ current: (patch) => broadcastItemUpdate?.(item.id, patch) }}
               onDragStart={onDragStart}
               onDragMove={onDragMove}
               onDragEnd={onDragEnd}
@@ -3460,6 +3463,7 @@ const CompositeCanvasGroup = memo(function CompositeCanvasGroupInner({ entry, it
           selectedIds={selectedIds}
           onSelect={onSelect}
           onChange={(patch) => onChange(item.id, patch)}
+          onBroadcastRef={{ current: (patch) => broadcastItemUpdate?.(item.id, patch) }}
           onDragStart={onDragStart}
           onDragMove={onDragMove}
           onDragEnd={onDragEnd}
@@ -3637,6 +3641,7 @@ function Workspace() {
     showGrid: false,
     snapToGrid: false,
     autosave: true,
+    showRulers: false,
   })
   const [camera, setCamera] = useState({ x: 0, y: 0, scale: 0.75 })
   const [viewportSize, setViewportSize] = useState({ width: canvasSize.width, height: canvasSize.height })
@@ -3657,6 +3662,31 @@ function Workspace() {
   })
   const [selectionBox, setSelectionBox] = useState(null)
   const [alignmentGuides, setAlignmentGuides] = useState([])
+  const [cursorWorldPos, setCursorWorldPos] = useState(null)
+  const [liveSelectedBounds, setLiveSelectedBounds] = useState(null)
+  const [frozenSelectedBounds, setFrozenSelectedBounds] = useState(null)
+  const hasSelection = selectedIds.length > 0 || !!selectedId
+  useEffect(() => {
+    if (!hasSelection) { setLiveSelectedBounds(null); setFrozenSelectedBounds(null) }
+  }, [hasSelection])
+  const selectedBounds = useMemo(() => {
+    const ids = selectedIds.length > 0 ? selectedIds : (selectedId ? [selectedId] : [])
+    if (ids.length === 0) return null
+    const selItems = items.filter((item) => ids.includes(item.id) && item.visible !== false)
+    if (selItems.length === 0) return null
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    selItems.forEach((item) => {
+      const left = item.x || 0
+      const top = item.y || 0
+      const right = left + (item.w || 1)
+      const bottom = top + (item.h || 1)
+      if (left < minX) minX = left
+      if (right > maxX) maxX = right
+      if (top < minY) minY = top
+      if (bottom > maxY) maxY = bottom
+    })
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY, left: minX, right: maxX, top: minY, bottom: maxY }
+  }, [items, selectedIds, selectedId])
   const [rotationSnapGuide, setRotationSnapGuide] = useState(null)
   useEffect(() => { selectedIdsRef.current = selectedIds }, [selectedIds])
   const [connectorTool, setConnectorTool] = useState(null)
@@ -5408,6 +5438,7 @@ function Workspace() {
       showGrid: false,
       snapToGrid: false,
       autosave: true,
+      showRulers: false,
       ...restoredSettings,
       ...(useWorkspaceMetadata ? workspaceSettings : {}),
       ratio: restoredRatio,
@@ -7149,10 +7180,12 @@ const attachTransformer = useCallback((idOrIds) => {
     } else if (!info) {
       const itemNode = stageRef.current?.findOne(`[id="${id}"]`) || stageRef.current?.findOne(`#${id}`)
       const item = itemsRef.current.find((candidate) => candidate.id === id)
-      // Skip multi-run text nodes — uses custom selection box + resize handles
+      // Solo-select multi-run text: uses custom selection box + resize handles
       // that bypass Konva Transformer entirely (no ghost transformStart events).
+      // Multi-select: attach to Transformer for combined bounding box + group transform.
       const isMultiRunText = item?.kind === 'text' && item.runs?.length > 1
-      if (itemNode && item?.kind !== 'connector' && !isMultiRunText) nodes.push(itemNode)
+      const skipMultiRunText = isMultiRunText && ids.length === 1
+      if (itemNode && item?.kind !== 'connector' && !skipMultiRunText) nodes.push(itemNode)
     }
   })
 
@@ -8095,6 +8128,18 @@ const attachTransformer = useCallback((idOrIds) => {
   const moveSelected = useCallback((dx, dy) => {
     const activeIds = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : [])
     if (!activeIds.length) return
+    // Show alignment guides without snapping (visual aid only)
+    const snapItems = itemsRef.current.filter((item) => activeIds.includes(item.id) && !item.locked)
+    if (snapItems.length) {
+      const bounds = getItemsVisualBoundsRef.current(snapItems)
+      if (bounds) {
+        const result = getSnappedDeltaRef.current(activeIds, bounds, dx, dy)
+        if (result.guides.length > 0) {
+          setAlignmentGuides(result.guides)
+          setTimeout(() => setAlignmentGuides([]), 800)
+        }
+      }
+    }
     activeIds.forEach((aid) => {
       const mi = itemsRef.current.find((c) => c.id === aid)
       if (!mi || mi.locked) return
@@ -8109,15 +8154,15 @@ const attachTransformer = useCallback((idOrIds) => {
       if (item.kind === 'connector') {
         return {
           ...item,
-          x: (item.x || 0) + dx,
-          y: (item.y || 0) + dy,
-          fromPoint: item.fromPoint ? { x: item.fromPoint.x + dx, y: item.fromPoint.y + dy } : item.fromPoint,
-          toPoint: item.toPoint ? { x: item.toPoint.x + dx, y: item.toPoint.y + dy } : item.toPoint,
+          x: (item.x || 0) + effectiveDx,
+          y: (item.y || 0) + effectiveDy,
+          fromPoint: item.fromPoint ? { x: item.fromPoint.x + effectiveDx, y: item.fromPoint.y + effectiveDy } : item.fromPoint,
+          toPoint: item.toPoint ? { x: item.toPoint.x + effectiveDx, y: item.toPoint.y + effectiveDy } : item.toPoint,
         }
       }
       const nextPosition = getClampedCanvasPosition(item.w || 1, item.h || 1, {
-        x: (item.x || 0) + dx,
-        y: (item.y || 0) + dy,
+        x: (item.x || 0) + effectiveDx,
+        y: (item.y || 0) + effectiveDy,
       }, canvasBounds)
       return { ...item, ...nextPosition }
     }))
@@ -8330,8 +8375,18 @@ const attachTransformer = useCallback((idOrIds) => {
 
       event.preventDefault()
       const step = event.shiftKey ? 10 : 1
-      const dx = delta.x * step
-      const dy = delta.y * step
+      let dx = delta.x * step
+      let dy = delta.y * step
+
+      // Show alignment guides without snapping (visual aid only)
+      const bounds = getItemsVisualBoundsRef.current(activeItems)
+      if (bounds) {
+        const result = getSnappedDeltaRef.current(activeIds, bounds, dx, dy)
+        if (result.guides.length > 0) {
+          setAlignmentGuides(result.guides)
+          setTimeout(() => setAlignmentGuides([]), 800)
+        }
+      }
 
       activeIds.forEach((aid) => {
         const mi = itemsRef.current.find((c) => c.id === aid)
@@ -9641,6 +9696,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const getSnappedDelta = (movingIds, baseBounds, dx, dy) => {
     if (!baseBounds) return { dx, dy, guides: [] }
+    console.log('[DEBUG-getSnappedDelta] CALLED', { movingIds, baseBounds, dx, dy, hasItems: itemsRef.current.length > 0 })
 
     const moved = {
       ...baseBounds,
@@ -9738,6 +9794,8 @@ const attachTransformer = useCallback((idOrIds) => {
       .filter((candidate) => Math.abs(candidate.diff) <= getGuideTolerance(candidate.guide))
       .sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff))[0]
 
+    console.log('[DEBUG-getSnappedDelta] bestX:', bestX ? { diff: bestX.diff, type: bestX.guide.type, value: bestX.guide.value } : null)
+    console.log('[DEBUG-getSnappedDelta] bestY:', bestY ? { diff: bestY.diff, type: bestY.guide.type, value: bestY.guide.value } : null)
     if (bestX) {
       snappedDx += bestX.diff
       guides.push({ axis: 'x', value: bestX.guide.value, type: bestX.guide.type })
@@ -9764,8 +9822,132 @@ const attachTransformer = useCallback((idOrIds) => {
       )) === index
     ))
 
+    if (movingIds.length === 1) {
+      const halfSnapped = {
+        ...moved,
+        left: baseBounds.left + snappedDx,
+        right: baseBounds.right + snappedDx,
+        top: baseBounds.top + snappedDy,
+        bottom: baseBounds.bottom + snappedDy,
+        centerX: baseBounds.centerX + snappedDx,
+        centerY: baseBounds.centerY + snappedDy,
+      }
+
+      const visibleItems = itemsRef.current.filter((item) => !movingIds.includes(item.id) && item.visible !== false && item.kind !== 'connector')
+      const topFudge = 6
+
+      const getSorted = (axis) => {
+        const isX = axis === 'x'
+        const itemsWithBounds = visibleItems.map((item) => {
+          const b = getItemVisualBounds(item)
+          return { item, id: item.id?.substring(0,8), mid: isX ? b.centerX : b.centerY, start: isX ? b.left : b.top, end: isX ? b.right : b.bottom }
+        }).sort((a, b) => a.mid - b.mid)
+
+        const movingMid = isX ? halfSnapped.centerX : halfSnapped.centerY
+        const movingStart = isX ? halfSnapped.left : halfSnapped.top
+        const movingEnd = isX ? halfSnapped.right : halfSnapped.bottom
+
+        const insertIdx = itemsWithBounds.findIndex((p) => p.mid > movingMid)
+        const leftNeighbor = insertIdx > 0
+          ? itemsWithBounds[insertIdx - 1]
+          : (insertIdx === -1 && itemsWithBounds.length > 0
+            ? itemsWithBounds[itemsWithBounds.length - 1]
+            : null)
+        const rightNeighbor = insertIdx >= 0 && insertIdx < itemsWithBounds.length ? itemsWithBounds[insertIdx] : null
+        const gapLeft = leftNeighbor ? movingStart - leftNeighbor.end : null
+        const gapRight = rightNeighbor ? rightNeighbor.start - movingEnd : null
+
+        const pairs = []
+        for (let i = 0; i < itemsWithBounds.length - 1; i++) {
+          pairs.push({ left: itemsWithBounds[i], right: itemsWithBounds[i + 1], gap: itemsWithBounds[i + 1].start - itemsWithBounds[i].end })
+        }
+        const leftStr = leftNeighbor ? `${leftNeighbor.id}@mid=${Math.round(leftNeighbor.mid)}` : 'null'
+        const rightStr = rightNeighbor ? `${rightNeighbor.id}@mid=${Math.round(rightNeighbor.mid)}` : 'null'
+        console.log(`[SORTED] axis=${axis} itemsCount=${itemsWithBounds.length} movingMid=${Math.round(movingMid)} insertIdx=${insertIdx} left=${leftStr} right=${rightStr} movingStart=${Math.round(movingStart)} movingEnd=${Math.round(movingEnd)}`)
+
+        return { leftNeighbor, rightNeighbor, gapLeft, gapRight, pairs, items: itemsWithBounds, insertIdx }
+      }
+
+      const SPACING_TOLERANCE = 2
+
+      const detectSpacing = (axis) => {
+        const isX = axis === 'x'
+        const { gapLeft, gapRight, pairs, leftNeighbor, rightNeighbor } = getSorted(axis)
+        const spacingGuides = []
+
+        const checkGap = (gap, isLeft) => {
+          if (gap == null || gap <= 0) return
+          for (const pair of pairs) {
+            if (Math.abs(pair.gap - gap) <= SPACING_TOLERANCE) {
+              const p1End = pair.left.end
+              const p2Start = pair.right.start
+              const matchMid = (p1End + p2Start) / 2
+              const neighbor = isLeft ? leftNeighbor : rightNeighbor
+              const gapMid = isLeft
+                ? isX ? (neighbor.end + halfSnapped.left) / 2 : (neighbor.end + halfSnapped.top) / 2
+                : isX ? (halfSnapped.right + neighbor.start) / 2 : (halfSnapped.bottom + neighbor.start) / 2
+
+              spacingGuides.push({
+                axis,
+                type: 'spacing-drag',
+                value: gapMid,
+                gap,
+              })
+              spacingGuides.push({
+                axis,
+                type: 'spacing-match',
+                value: matchMid,
+                gap,
+              })
+            }
+          }
+        }
+
+        checkGap(gapLeft, true)
+        checkGap(gapRight, false)
+        return spacingGuides
+      }
+
+      uniqueGuides.push(...detectSpacing('x'), ...detectSpacing('y'))
+
+      // Basic gap: always show distance to nearest neighbor per axis (positive gap only)
+      const detectBasicGap = (axis) => {
+        const isX = axis === 'x'
+        const { leftNeighbor, rightNeighbor, items } = getSorted(axis)
+        const gaps = []
+        if (leftNeighbor) {
+          const gap = isX ? halfSnapped.left - leftNeighbor.end : halfSnapped.top - leftNeighbor.end
+          const gapMid = isX ? (leftNeighbor.end + halfSnapped.left) / 2 : (leftNeighbor.end + halfSnapped.top) / 2
+          if (gap > 0) gaps.push({ gap, gapMid })
+        }
+        if (rightNeighbor) {
+          const gap = isX ? rightNeighbor.start - halfSnapped.right : rightNeighbor.start - halfSnapped.bottom
+          const gapMid = isX ? (halfSnapped.right + rightNeighbor.start) / 2 : (halfSnapped.bottom + rightNeighbor.start) / 2
+          if (gap > 0) gaps.push({ gap, gapMid })
+        }
+        if (gaps.length === 0) { console.log(`[DEBUG-GAP] axis=${axis} no gaps found (visibleItems=${visibleItems.length} items=${items.length})`); return [] }
+        const leftStr = leftNeighbor ? `id=${leftNeighbor.id} start=${Math.round(leftNeighbor.start)} end=${Math.round(leftNeighbor.end)}` : 'null'
+        const rightStr = rightNeighbor ? `id=${rightNeighbor.id} start=${Math.round(rightNeighbor.start)} end=${Math.round(rightNeighbor.end)}` : 'null'
+        const hsStart = isX ? halfSnapped.left : halfSnapped.top
+        const hsEnd = isX ? halfSnapped.right : halfSnapped.bottom
+        console.log(`[DEBUG-GAP] axis=${axis} movingStart=${Math.round(hsStart)} movingEnd=${Math.round(hsEnd)} leftNeighbor=${leftStr} rightNeighbor=${rightStr} gaps=${JSON.stringify(gaps.map(g => ({ gap: Math.round(g.gap), mid: Math.round(g.gapMid) })))}`)
+        return gaps.map(g => ({
+          axis,
+          type: 'gap',
+          value: g.gapMid,
+          gap: Math.round(g.gap),
+        }))
+      }
+
+      uniqueGuides.push(...detectBasicGap('x'), ...detectBasicGap('y'))
+    }
+
     return { dx: snappedDx, dy: snappedDy, guides: uniqueGuides, snapped: !!(bestX || bestY), _baseBounds: baseBounds, _candidateCounts: { x: xCandidates.length, y: yCandidates.length } }
   }
+  const getSnappedDeltaRef = useRef(getSnappedDelta)
+  getSnappedDeltaRef.current = getSnappedDelta
+  const getItemsVisualBoundsRef = useRef(getItemsVisualBounds)
+  getItemsVisualBoundsRef.current = getItemsVisualBounds
 
   const getResizeSnapCandidates = (activeIds = []) => {
     const candidates = [
@@ -9841,11 +10023,21 @@ const attachTransformer = useCallback((idOrIds) => {
     const guides = []
 
     edges.forEach((edge) => {
-      const best = candidates
+      const candidatesWithDiff = candidates
         .filter((candidate) => candidate.axis === edge.axis)
         .map((candidate) => ({ candidate, diff: toBoxValue(candidate.axis, candidate.value) - edge.value }))
+      const best = candidatesWithDiff
         .filter(({ candidate, diff }) => Math.abs(diff) <= toBoxTolerance(candidate.type === 'edge' ? edgeSnapTolerance : candidate.type === 'margin' ? marginSnapTolerance : snapTolerance))
         .sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff))[0]
+
+      // [DIAG-B1] log closest candidate each tick for single-run text resize
+      if (candidatesWithDiff.length > 0) {
+        const closest = candidatesWithDiff.sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff))[0]
+        const tolerance = toBoxTolerance(closest.candidate.type === 'edge' ? edgeSnapTolerance : closest.candidate.type === 'margin' ? marginSnapTolerance : snapTolerance)
+        if (Math.random() < 0.2) {
+          console.log(`[DIAG-B1] edge=${edge.edge} axis=${edge.axis} | closest=${closest.candidate.type} value=${closest.candidate.value} | diff=${closest.diff.toFixed(2)} tolerance=${tolerance} | matched=${!!best} | guides.length=${guides.length}`)
+        }
+      }
 
       if (!best) return
 
@@ -11104,6 +11296,23 @@ const attachTransformer = useCallback((idOrIds) => {
     const rawDx = event.target.x() - dragSession.start.x
     const rawDy = event.target.y() - dragSession.start.y
     const snapped = getSnappedDelta(movingIds, baseBounds, rawDx, rawDy)
+    // Update ruler highlight for real-time bounds during drag
+    const currentPositions = movingItems.map((item) => {
+      const startPos = dragSession.positions[item.id]
+      if (!startPos) return item
+      return { ...item, x: startPos.x + snapped.dx, y: startPos.y + snapped.dy }
+    })
+    const currentBounds = getItemsVisualBounds(currentPositions)
+    if (currentBounds) {
+      setLiveSelectedBounds({
+        left: currentBounds.left,
+        right: currentBounds.right,
+        top: currentBounds.top,
+        bottom: currentBounds.bottom,
+        centerX: currentBounds.centerX,
+        centerY: currentBounds.centerY,
+      })
+    }
     const firstItem = itemsRef.current.find(i => i.id === movingIds[0])
     const firstNode = firstItem ? stageRef.current?.findOne(`#${firstItem.id}`) : null
     const clientRect = firstNode?.getClientRect({ skipShadow: true })
@@ -11203,6 +11412,8 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const handleObjectDragEnd = async (event, id) => {
+    setLiveSelectedBounds(null)
+    setFrozenSelectedBounds(null)
     console.log('[ENTRY] handleObjectDragEnd', { id, isViewer: isViewerRef.current, activeDragId: activeObjectDragRef.current, multiDragActive: multiDragActiveRef?.current, skipGroupEnd: skipGroupDragEndRef?.current })
     if (isViewerRef.current) return
     event.cancelBubble = true
@@ -12089,6 +12300,12 @@ const beginPan = (event) => {
   }
 
 const handleStageMouseMove = (e) => {
+  // Cursor tracking for rulers
+  const cursorPointer = stageRef.current?.getPointerPosition()
+  if (cursorPointer) {
+    setCursorWorldPos(getWorldPointFromViewport(cursorPointer, cameraRef.current))
+  }
+
   // Tool handlers: brush
   if (activePanel === 'brush' && isDrawingRef.current) {
     handleBrushMove(e)
@@ -12246,6 +12463,7 @@ const handleStageMouseUp = (event) => {
 }
 
 const endPan = () => {
+  setCursorWorldPos(null)
   setAlignmentGuides([])
   if (!panSessionRef.current) return
 
@@ -12267,6 +12485,8 @@ const endPan = () => {
 
 let commitTransformerChangesLock = false
 const commitTransformerChanges = () => {
+  setLiveSelectedBounds(null)
+  setFrozenSelectedBounds(null)
   if (commitTransformerChangesLock) return
   commitTransformerChangesLock = true
   const tStart = performance.now()
@@ -16936,6 +17156,19 @@ onPointerUp={(e) => {
           </div>
 
           <div className="workspace-section-card">
+            <div className="workspace-section-title">Ruler</div>
+            <label className="workspace-toggle-row">
+              <input type="checkbox" checked={canvasSettings.showRulers} onChange={(event) => {
+                const next = event.target.checked
+                setCanvasSettings((current) => ({ ...current, showRulers: next }))
+                broadcastWorkspaceUpdate({ canvasSettings: { showRulers: next } })
+              }} />
+              <span className="toggle-track" />
+              Show Rulers
+            </label>
+          </div>
+
+          <div className="workspace-section-card">
             <div className="workspace-section-title">Grid</div>
             <label className="workspace-toggle-row">
               <input type="checkbox" checked={canvasSettings.showGrid} onChange={(event) => {
@@ -17072,6 +17305,7 @@ onPointerUp={(e) => {
           selectedIds={selectedIds}
           onSelect={handleObjectSelect}
           onChange={(patch) => updateItem(item.id, patch)}
+          onBroadcastRef={{ current: (patch) => broadcastItemUpdate(item.id, patch) }}
           onDragStart={handleObjectDragStart}
           onDragMove={handleObjectDragMove}
           onDragEnd={handleObjectDragEnd}
@@ -17105,7 +17339,7 @@ onPointerUp={(e) => {
   const renderedBelowCanvasContent = useMemo(() =>
     renderCanvasStackItems(belowItems),
     [belowItems, compositeGroupMap, items, selectedId, selectedIds,
-      handleObjectSelect, updateItem, handleObjectDragStart, handleObjectDragMove,
+      handleObjectSelect, updateItem, broadcastItemUpdate, handleObjectDragStart, handleObjectDragMove,
       handleObjectDragEnd, editTextObject, editingText, handleItemCursor,
       setHoveredItemId, isSpaceDown, isPanning, activePanel, isShiftDown,
       dropPreviewState, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot,
@@ -17115,7 +17349,7 @@ onPointerUp={(e) => {
   const renderedAboveCanvasContent = useMemo(() =>
     renderCanvasStackItems(aboveItems),
     [aboveItems, compositeGroupMap, items, selectedId, selectedIds,
-      handleObjectSelect, updateItem, handleObjectDragStart, handleObjectDragMove,
+      handleObjectSelect, updateItem, broadcastItemUpdate, handleObjectDragStart, handleObjectDragMove,
       handleObjectDragEnd, editTextObject, editingText, handleItemCursor,
       setHoveredItemId, isSpaceDown, isPanning, activePanel, isShiftDown,
       dropPreviewState, dropTargetFrameId, dropTargetSlotIndex, editingFrameId, editingFrameSlot,
@@ -17132,6 +17366,7 @@ onPointerUp={(e) => {
         selectedIds={selectedIds}
         onSelect={handleObjectSelect}
         onChange={(patch) => updateItem(item.id, patch)}
+        onBroadcastRef={{ current: (patch) => broadcastItemUpdate(item.id, patch) }}
         onDragStart={handleObjectDragStart}
         onDragMove={handleObjectDragMove}
         onDragEnd={handleObjectDragEnd}
@@ -17154,7 +17389,7 @@ onPointerUp={(e) => {
         eraserTargetId={eraserTargetIdRef.current}
       />
     )),
-    [items, selectedId, selectedIds, handleObjectSelect, updateItem,
+    [items, selectedId, selectedIds, handleObjectSelect, updateItem, broadcastItemUpdate,
       handleObjectDragStart, handleObjectDragMove, handleObjectDragEnd,
       editTextObject, editingText, handleItemCursor, setHoveredItemId,
       isSpaceDown, isPanning, activePanel, isShiftDown, transformerRef,
@@ -17471,9 +17706,11 @@ onPointerUp={(e) => {
                   {...canvasBackgroundProps}
                 />
                 <Group name="canvas-content">
-                  <CameraScaleContext.Provider value={camera.scale}>
-                    {renderedBelowCanvasContent}
-                  </CameraScaleContext.Provider>
+                  <SnapContext.Provider value={{ getSnappedDelta, snapResizeBox, setAlignmentGuides, setRotationSnapGuide }}>
+                    <CameraScaleContext.Provider value={camera.scale}>
+                      {renderedBelowCanvasContent}
+                    </CameraScaleContext.Provider>
+                  </SnapContext.Provider>
                 </Group>
               </Group>
 
@@ -17484,16 +17721,18 @@ onPointerUp={(e) => {
                 clipWidth={canvasSize.width}
                 clipHeight={canvasSize.height}
               >
-                <CameraScaleContext.Provider value={camera.scale}>
-                  {renderedAdjustmentLayerItems}
-                  <GlobalAdjustmentLayer
-                    stageRef={stageRef}
-                    items={items}
-                    canvasWidth={canvasSize.width}
-                    canvasHeight={canvasSize.height}
-                  />
-                  {renderedAboveCanvasContent}
-                </CameraScaleContext.Provider>
+                <SnapContext.Provider value={{ getSnappedDelta, snapResizeBox, setAlignmentGuides, setRotationSnapGuide }}>
+                  <CameraScaleContext.Provider value={camera.scale}>
+                    {renderedAdjustmentLayerItems}
+                    <GlobalAdjustmentLayer
+                      stageRef={stageRef}
+                      items={items}
+                      canvasWidth={canvasSize.width}
+                      canvasHeight={canvasSize.height}
+                    />
+                    {renderedAboveCanvasContent}
+                  </CameraScaleContext.Provider>
+                </SnapContext.Provider>
                 {items.map((item) => (
                   <ObjectAnchors
                     key={`anchors-${item.id}`}
@@ -17585,29 +17824,97 @@ onPointerUp={(e) => {
                     perfectDrawEnabled={false}
                   />
                 ))}
-                {alignmentGuides.map((guide, index) => (
-                  guide.axis === 'x' ? (
-                    <Line
-                      key={`guide-${index}`}
-                      points={[guide.value, canvasBounds.y, guide.value, canvasBounds.y + canvasBounds.height]}
-                      stroke={guide.type === 'canvas-center' ? '#ff4fd8' : guide.type === 'edge' ? '#f59e0b' : guide.type === 'margin' ? '#6b6475' : '#38bdf8'}
-                      strokeWidth={guide.type === 'margin' ? 0.75 : 1}
-                      opacity={guide.type === 'margin' ? 0.38 : 1}
-                      dash={guide.type === 'margin' ? [] : [6, 5]}
-                      listening={false}
-                    />
-                  ) : (
-                    <Line
-                      key={`guide-${index}`}
-                      points={[canvasBounds.x, guide.value, canvasBounds.x + canvasBounds.width, guide.value]}
-                      stroke={guide.type === 'canvas-center' ? '#ff4fd8' : guide.type === 'edge' ? '#f59e0b' : guide.type === 'margin' ? '#6b6475' : '#38bdf8'}
-                      strokeWidth={guide.type === 'margin' ? 0.75 : 1}
-                      opacity={guide.type === 'margin' ? 0.38 : 1}
-                      dash={guide.type === 'margin' ? [] : [6, 5]}
-                      listening={false}
-                    />
+                {(() => {
+                  const LabelWithBg = ({ x, y, text, fontSize = 11, opacity = 1 }) => {
+                    const invScale = 1 / camera.scale
+                    const adjFs = Math.max(8, Math.round(fontSize * invScale))
+                    const padX = Math.max(4, Math.round(6 * invScale))
+                    const padY = Math.max(3, Math.round(4 * invScale))
+                    const textW = text.length * (adjFs * 0.7) + padX * 2
+                    const textH = adjFs + padY * 2
+                    return (
+                      <>
+                        <Rect x={x - padX} y={y - padY} width={textW} height={textH} fill="#a970ff" opacity={0.88 * opacity} cornerRadius={Math.max(2, Math.round(4 * invScale))} listening={false} />
+                        <Text x={x} y={y} text={text} fontSize={adjFs} fill="#ffffff" opacity={opacity} fontFamily="Inter, system-ui, sans-serif" listening={false} />
+                      </>
+                    )
+                  }
+
+                  const isSpacingType = (t) => t === 'spacing-drag' || t === 'spacing-match'
+                  const groups = []
+                  const spacingPairs = []
+                  alignmentGuides.forEach((guide, idx) => {
+                    if (isSpacingType(guide.type)) {
+                      const existing = spacingPairs.find((p) => p.gap === guide.gap && p.axis === guide.axis && p.drag === (guide.type === 'spacing-drag'))
+                      if (!existing) {
+                        const pair = alignmentGuides.filter((g) => g.gap === guide.gap && g.axis === guide.axis && g.type !== guide.type)
+                        spacingPairs.push({ drag: guide, match: pair[0], gap: guide.gap, axis: guide.axis })
+                      }
+                      return
+                    }
+                    if (guide.type === 'gap') { groups.push({ key: idx, axis: guide.axis, value: guide.value, stroke: '#ff4fd8', strokeWidth: 1, opacity: 0.8, dash: [6, 4] }); return }
+                    groups.push({
+                      key: idx,
+                      axis: guide.axis,
+                      value: guide.value,
+                      stroke: guide.type === 'canvas-center' ? '#ff4fd8' : guide.type === 'edge' ? '#f59e0b' : guide.type === 'margin' ? '#6b6475' : '#38bdf8',
+                      strokeWidth: guide.type === 'margin' ? 0.75 : 1,
+                      opacity: guide.type === 'margin' ? 0.38 : 1,
+                      dash: guide.type === 'margin' ? [] : [6, 5],
+                    })
+                  })
+                  return (
+                    <>
+                      {groups.map((g) => (
+                        g.axis === 'x' ? (
+                          <Line key={`guide-${g.key}`} points={[g.value, canvasBounds.y, g.value, canvasBounds.y + canvasBounds.height]} stroke={g.stroke} strokeWidth={g.strokeWidth} opacity={g.opacity} dash={g.dash} listening={false} />
+                        ) : (
+                          <Line key={`guide-${g.key}`} points={[canvasBounds.x, g.value, canvasBounds.x + canvasBounds.width, g.value]} stroke={g.stroke} strokeWidth={g.strokeWidth} opacity={g.opacity} dash={g.dash} listening={false} />
+                        )
+                      ))}
+                      {spacingPairs.map((sp, i) => {
+                        const gapText = `${Math.round(sp.gap)}px`
+                        return (
+                          <Fragment key={`spacing-${i}`}>
+                            {sp.axis === 'x' ? (
+                              <>
+                                <Line points={[sp.drag.value, canvasBounds.y, sp.drag.value, canvasBounds.y + canvasBounds.height]} stroke="#ff4fd8" strokeWidth={1} dash={[6, 4]} opacity={0.8} listening={false} />
+                                <Line points={[sp.match.value, canvasBounds.y, sp.match.value, canvasBounds.y + canvasBounds.height]} stroke="#ff4fd8" strokeWidth={1} dash={[6, 4]} opacity={0.6} listening={false} />
+                                <LabelWithBg x={sp.drag.value - 28} y={canvasBounds.y + canvasBounds.height / 2 - 7} text={gapText} fontSize={11} />
+                                <LabelWithBg x={sp.match.value - 28} y={canvasBounds.y + canvasBounds.height / 2 + 10} text={gapText} fontSize={10} opacity={0.7} />
+                              </>
+                            ) : (
+                              <>
+                                <Line points={[canvasBounds.x, sp.drag.value, canvasBounds.x + canvasBounds.width, sp.drag.value]} stroke="#ff4fd8" strokeWidth={1} dash={[6, 4]} opacity={0.8} listening={false} />
+                                <Line points={[canvasBounds.x, sp.match.value, canvasBounds.x + canvasBounds.width, sp.match.value]} stroke="#ff4fd8" strokeWidth={1} dash={[6, 4]} opacity={0.6} listening={false} />
+                                <LabelWithBg x={canvasBounds.x + canvasBounds.width / 2 - 16} y={sp.drag.value - 16} text={gapText} fontSize={11} />
+                                <LabelWithBg x={canvasBounds.x + canvasBounds.width / 2 + 8} y={sp.match.value - 16} text={gapText} fontSize={10} opacity={0.7} />
+                              </>
+                            )}
+                          </Fragment>
+                        )
+                      })}
+                      {(() => {
+                        const axisOffsets = {}
+                        return alignmentGuides.filter((g) => g.type === 'gap').map((g, i) => {
+                          const off = axisOffsets[g.axis] = (axisOffsets[g.axis] ?? 0) + 1
+                          const stagger = (off - 1) * 28
+                          return g.axis === 'x' ? (
+                            <Fragment key={`gap-${i}`}>
+                              <Line points={[g.value, canvasBounds.y, g.value, canvasBounds.y + canvasBounds.height]} stroke="#ff4fd8" strokeWidth={1} dash={[6, 4]} opacity={0.8} listening={false} />
+                              <LabelWithBg x={g.value - 24} y={canvasBounds.y + canvasBounds.height / 2 - 7 + stagger} text={`${g.gap}px`} fontSize={11} />
+                            </Fragment>
+                          ) : (
+                            <Fragment key={`gap-${i}`}>
+                              <Line points={[canvasBounds.x, g.value, canvasBounds.x + canvasBounds.width, g.value]} stroke="#ff4fd8" strokeWidth={1} dash={[6, 4]} opacity={0.8} listening={false} />
+                              <LabelWithBg x={canvasBounds.x + canvasBounds.width / 2 - 16 + stagger} y={g.value - 16} text={`${g.gap}px`} fontSize={11} />
+                            </Fragment>
+                          )
+                        })
+                      })()}
+                    </>
                   )
-                ))}
+                })()}
                 {rotationSnapGuide && (
                   <Line
                     points={[rotationSnapGuide.p1x, rotationSnapGuide.p1y, rotationSnapGuide.p2x, rotationSnapGuide.p2y]}
@@ -17932,19 +18239,19 @@ onPointerUp={(e) => {
                     const nodes = transformerRef.current?.nodes?.()
                     const n = nodes?.[0]
                     if (n) liveGeometryRef.current = { x: n.x(), y: n.y(), rotation: n.rotation() }
+                    const anchor = transformerRef.current?.getActiveAnchor?.()
+                    if (anchor === 'rotater' && liveSelectedBounds) {
+                      setFrozenSelectedBounds(liveSelectedBounds)
+                    }
                   }}
                   onTransform={() => {
                     const nodes = transformerRef.current?.nodes?.()
                     const firstNode = nodes?.[0]
                     if (firstNode) liveGeometryRef.current = { x: firstNode.x(), y: firstNode.y(), rotation: firstNode.rotation() }
-                    // [DIAG-B] sample transform attrs (every ~100ms)
-                    if (firstNode && Math.random() < 0.1) {
-                      console.log('[DIAG-B] duringTransform:', { id: firstNode.id(), x: firstNode.x(), y: firstNode.y(), w: firstNode.width(), h: firstNode.height(), sx: firstNode.scaleX(), sy: firstNode.scaleY() })
-                    }
+                    const activeAnchor = transformerRef.current?.getActiveAnchor?.()
+                    const isRotating = activeAnchor === 'rotater'
                     const nodeRect = firstNode?.getClientRect?.()
                     if (!nodeRect) return
-                    // getClientRect() returns STAGE coordinates (viewport space with camera zoom/pan).
-                    // Convert to WORLD coordinates (camera Group space) since guides render inside the camera Group.
                     const cam = cameraRef.current
                     const worldX = (nodeRect.x - cam.x) / cam.scale
                     const worldY = (nodeRect.y - cam.y) / cam.scale
@@ -17958,14 +18265,22 @@ onPointerUp={(e) => {
                       centerX: worldX + worldW / 2,
                       centerY: worldY + worldH / 2,
                     }
-                    const guides = []
-                    const canvasCenterX = canvasBounds.x + canvasBounds.width / 2
-                    const canvasCenterY = canvasBounds.y + canvasBounds.height / 2
-                    if (Math.abs(worldBox.centerX - canvasCenterX) <= snapTolerance) guides.push({ axis: 'x', value: canvasCenterX, type: 'canvas-center' })
-                    if (Math.abs(worldBox.centerY - canvasCenterY) <= snapTolerance) guides.push({ axis: 'y', value: canvasCenterY, type: 'canvas-center' })
-                    setAlignmentGuides(guides)
+                    // During rotation, use frozen snapshot instead of live bounds
+                    if (!isRotating) {
+                      setLiveSelectedBounds(worldBox)
+                    }
+                    // During RESIZE, boundBoxFunc manages alignment guides via snapResizeBox.
+                    // Only override alignmentGuides here during ROTATION (boundBoxFunc doesn't fire for rotation).
+                    if (isRotating) {
+                      const guides = []
+                      const canvasCenterX = canvasBounds.x + canvasBounds.width / 2
+                      const canvasCenterY = canvasBounds.y + canvasBounds.height / 2
+                      if (Math.abs(worldBox.centerX - canvasCenterX) <= snapTolerance) guides.push({ axis: 'x', value: canvasCenterX, type: 'canvas-center' })
+                      if (Math.abs(worldBox.centerY - canvasCenterY) <= snapTolerance) guides.push({ axis: 'y', value: canvasCenterY, type: 'canvas-center' })
+                      setAlignmentGuides(guides)
+                    }
 
-                    if (nodes?.length === 1) {
+                    if (isRotating && nodes?.length === 1) {
                       const normalizedRot = ((firstNode.rotation() % 360) + 360) % 360
                       const snappedAngle = [0, 45, 90, 135, 180, 225, 270, 315].find((a) => Math.abs(normalizedRot - a) <= 3 || Math.abs(normalizedRot - (a + 360)) <= 3)
                       if (snappedAngle !== undefined) {
@@ -18101,6 +18416,9 @@ onPointerUp={(e) => {
             </Group>
           </Layer>
         </Stage>
+        {canvasSettings.showRulers && (
+          <RulerBar camera={camera} viewportSize={viewportSize} cursorWorldPos={cursorWorldPos} selectedBounds={frozenSelectedBounds || liveSelectedBounds || selectedBounds} />
+        )}
         {editingFrameId && (
           <div
             style={{

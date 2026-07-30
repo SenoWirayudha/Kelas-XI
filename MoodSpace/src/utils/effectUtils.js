@@ -212,6 +212,38 @@ export const EFFECTS = [
     { key: 'speed', label: 'Speed', type: 'slider', default: 1, min: 0, max: 5, step: 0.1 },
     { key: 'rotation', label: 'Rotation', type: 'slider', default: 0, min: 0, max: 360, unit: '°' },
   ]},
+  { id: 'posterize', label: 'Posterize', category: 'stylize', type: 'object', default: null, icon: 'Layers', previewImagePath: 'effect-previews/posterize.png', params: [
+    { key: 'levels', label: 'Levels', type: 'slider', default: 4, min: 2, max: 16 },
+  ]},
+  { id: 'dithering', label: 'Dithering', category: 'stylize', type: 'object', default: null, icon: 'Grid', previewImagePath: 'effect-previews/dithering.png', params: [
+    { key: 'mode', label: 'Mode', type: 'select', default: 'ordered', options: [
+      { value: 'ordered', label: 'Ordered (Bayer)' }, { value: 'floyd', label: 'Floyd-Steinberg' }, { value: 'atkinson', label: 'Atkinson' },
+    ]},
+    { key: 'preBw', label: 'Pre-dither B&W', type: 'toggle', default: false },
+    { key: 'colorSteps', label: 'Color Steps', type: 'slider', default: 4, min: 2, max: 16 },
+    { key: 'baseDensity', label: 'Base Density', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
+    { key: 'pixelDensity', label: 'Pixel Density', type: 'slider', default: 4, min: 1, max: 16 },
+    { key: 'colorType', label: 'Color Type', type: 'select', default: 'color', options: [
+      { value: 'color', label: 'Color' }, { value: 'B&W', label: 'B&W' },
+    ]},
+  ]},
+  { id: 'longShadow', label: 'Long Shadow', category: 'stylize', type: 'object', default: null, icon: 'SunDim', previewImagePath: 'effect-previews/longShadow.png', params: [
+    { key: 'angle', label: 'Angle', type: 'slider', default: 45, min: 0, max: 360, unit: '°' },
+    { key: 'length', label: 'Length', type: 'slider', default: 0.5, min: 0.1, max: 2, step: 0.01 },
+    { key: 'color', label: 'Color', type: 'color', default: '#000000' },
+    { key: 'fade', label: 'Fade', type: 'toggle', default: true },
+  ]},
+  { id: 'distressedBleed', label: 'Distressed Bleed', category: 'stylize', type: 'object', default: null, icon: 'Droplet', previewImagePath: 'effect-previews/distressedBleed.png', params: [
+    { key: 'blurRadius', label: 'Blur Radius', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
+    { key: 'edgeOnly', label: 'Edge Only', type: 'toggle', default: true },
+    { key: 'sideLeft', label: '← Kiri', type: 'toggle', default: true },
+    { key: 'sideRight', label: 'Kanan →', type: 'toggle', default: true },
+    { key: 'sideTop', label: '↑ Atas', type: 'toggle', default: true },
+    { key: 'sideBottom', label: '↓ Bawah', type: 'toggle', default: true },
+    { key: 'grainSize', label: 'Grain Size', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
+    { key: 'bleedColor', label: 'Bleed Color', type: 'color', default: '#ff0000' },
+    { key: 'bleedAmount', label: 'Bleed Amount', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
+  ]},
 ]
 
 export const ALL_EFFECT_IDS = EFFECTS.map(e => e.id)

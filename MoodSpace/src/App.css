@@ -8005,6 +8005,14 @@
     0 18px 80px rgba(0, 0, 0, 0.48);
 }
 
+.workspace-ruler-container {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 10;
+}
+
 .workspace-stage-shell canvas {
   width: 100% !important;
   height: 100% !important;

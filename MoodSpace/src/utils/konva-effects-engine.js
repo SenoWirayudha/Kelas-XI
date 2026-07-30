@@ -898,6 +898,272 @@ function duotonePixels(d, w, h, hexA, hexB) {
   }
 }
 
+function posterizePixels(d, w, h, levels) {
+  const step = 255 / (levels - 1)
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = Math.round(Math.round(d[i] / step) * step)
+    d[i+1] = Math.round(Math.round(d[i+1] / step) * step)
+    d[i+2] = Math.round(Math.round(d[i+2] / step) * step)
+  }
+}
+
+function floydSteinbergDitherPixels(d, w, h, colorSteps, baseDensity, preBw) {
+  colorSteps = colorSteps ?? 4
+  baseDensity = baseDensity ?? 0.5
+  const step = 255 / (colorSteps - 1)
+  const offset = Math.round((baseDensity - 0.5) * step)
+  if (preBw) {
+    for (let i = 0; i < d.length; i += 4) {
+      const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
+      d[i] = d[i+1] = d[i+2] = l
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4
+      const oldR = d[i], oldG = d[i+1], oldB = d[i+2]
+      const quantize = (v) => {
+        const clamped = Math.max(0, Math.min(255, v + offset))
+        return Math.round(Math.round(clamped / step) * step)
+      }
+      const newR = quantize(oldR), newG = quantize(oldG), newB = quantize(oldB)
+      d[i] = newR; d[i+1] = newG; d[i+2] = newB
+      const errR = oldR - newR, errG = oldG - newG, errB = oldB - newB
+      if (x + 1 < w) { const j = i + 4; d[j] = Math.round(d[j] + errR * 7 / 16); d[j+1] = Math.round(d[j+1] + errG * 7 / 16); d[j+2] = Math.round(d[j+2] + errB * 7 / 16) }
+      if (y + 1 < h) {
+        if (x > 0) { const j = i + w * 4 - 4; d[j] = Math.round(d[j] + errR * 3 / 16); d[j+1] = Math.round(d[j+1] + errG * 3 / 16); d[j+2] = Math.round(d[j+2] + errB * 3 / 16) }
+        { const j = i + w * 4; d[j] = Math.round(d[j] + errR * 5 / 16); d[j+1] = Math.round(d[j+1] + errG * 5 / 16); d[j+2] = Math.round(d[j+2] + errB * 5 / 16) }
+        if (x + 1 < w) { const j = i + w * 4 + 4; d[j] = Math.round(d[j] + errR * 1 / 16); d[j+1] = Math.round(d[j+1] + errG * 1 / 16); d[j+2] = Math.round(d[j+2] + errB * 1 / 16) }
+      }
+    }
+  }
+}
+
+const BAYER_8x8 = new Uint8Array([
+  0,48,12,60, 3,51,15,63,
+  32,16,44,28,35,19,47,31,
+  8,56, 4,52,11,59, 7,55,
+  40,24,36,20,43,27,39,23,
+  2,50,14,62, 1,49,13,61,
+  34,18,46,30,33,17,45,29,
+  10,58, 6,54, 9,57, 5,53,
+  42,26,38,22,41,25,37,21,
+])
+
+function bayerDitherPixels(d, w, h, colorSteps, baseDensity, pixelDensity, colorType, preBw) {
+  colorSteps = colorSteps ?? 4
+  baseDensity = baseDensity ?? 0.5
+  pixelDensity = pixelDensity ?? 4
+  colorType = colorType ?? 'color'
+  const step = 256 / colorSteps
+  const pScale = Math.max(1, Math.round(pixelDensity))
+  if (preBw) {
+    for (let i = 0; i < d.length; i += 4) {
+      const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
+      d[i] = d[i+1] = d[i+2] = l
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4
+      const tx = Math.floor(x / pScale)
+      const ty = Math.floor(y / pScale)
+      const bayerVal = BAYER_8x8[(ty % 8) * 8 + (tx % 8)] / 64
+      const adjThreshold = Math.max(0, Math.min(1, bayerVal + baseDensity - 0.5))
+      if (colorType === 'B&W') {
+        const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
+        const val = l / 255 + (adjThreshold - 0.5) * 2
+        d[i] = d[i+1] = d[i+2] = val < 0.5 ? 0 : 255
+      } else {
+        d[i] = Math.min(255, Math.max(0, Math.round(Math.floor(d[i] / step + adjThreshold) * step)))
+        d[i+1] = Math.min(255, Math.max(0, Math.round(Math.floor(d[i+1] / step + adjThreshold) * step)))
+        d[i+2] = Math.min(255, Math.max(0, Math.round(Math.floor(d[i+2] / step + adjThreshold) * step)))
+      }
+    }
+  }
+}
+
+function atkinsonDitherPixels(d, w, h, colorSteps, preBw) {
+  colorSteps = colorSteps ?? 4
+  const step = 255 / (colorSteps - 1)
+  if (preBw) {
+    for (let i = 0; i < d.length; i += 4) {
+      const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
+      d[i] = d[i+1] = d[i+2] = l
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4
+      const oldR = d[i], oldG = d[i+1], oldB = d[i+2]
+      const newR = Math.round(Math.round(oldR / step) * step)
+      const newG = Math.round(Math.round(oldG / step) * step)
+      const newB = Math.round(Math.round(oldB / step) * step)
+      d[i] = newR; d[i+1] = newG; d[i+2] = newB
+      const errR = oldR - newR, errG = oldG - newG, errB = oldB - newB
+      if (x + 1 < w) { const j = i + 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+      if (y + 1 < h) {
+        if (x > 0) { const j = i + w * 4 - 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+        { const j = i + w * 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+        if (x + 1 < w) { const j = i + w * 4 + 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+      }
+    }
+  }
+}
+
+function longShadowPixels(d, w, h, angle, length, color, fade) {
+  const rad = (angle || 45) * Math.PI / 180
+  const cosA = Math.cos(rad), sinA = Math.sin(rad)
+  const shadowLen = Math.max(1, Math.round((length ?? 0.5) * Math.min(w, h)))
+  const cr = parseInt((color || '#000000').slice(1,3),16)
+  const cg = parseInt((color || '#000000').slice(3,5),16)
+  const cb = parseInt((color || '#000000').slice(5,7),16)
+  const orig = new Uint8ClampedArray(d)
+  // Edge trace: only process opaque pixels with transparent neighbor in +angle
+  const mindist = new Uint16Array(w * h)
+  const MAX = shadowLen + 1
+  for (let i = 0; i < w * h; i++) mindist[i] = MAX
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const si = (y * w + x) * 4
+      if (orig[si + 3] <= 10) continue
+      const nx = Math.round(x + cosA)
+      const ny = Math.round(y + sinA)
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h || orig[(ny * w + nx) * 4 + 3] <= 10) {
+        for (let s = 1; s <= shadowLen; s++) {
+          const sx = Math.round(x + cosA * s)
+          const sy = Math.round(y + sinA * s)
+          if (sx < 0 || sx >= w || sy < 0 || sy >= h) break
+          const mi = sy * w + sx
+          if (orig[mi * 4 + 3] > 10) break
+          if (s < mindist[mi]) mindist[mi] = s
+        }
+      }
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const s = mindist[y * w + x]
+      if (s > shadowLen) continue
+      const i = (y * w + x) * 4
+      const t = fade ? 1 - s / shadowLen : 1
+      const a = t * 0.7
+      if (d[i + 3] < Math.round(255 * a)) d[i + 3] = Math.round(255 * a)
+      d[i] = Math.round(d[i] * (1 - a) + cr * a)
+      d[i+1] = Math.round(d[i+1] * (1 - a) + cg * a)
+      d[i+2] = Math.round(d[i+2] * (1 - a) + cb * a)
+    }
+  }
+}
+
+function boxBlur(src, w, h, radius) {
+  const temp = new Uint8ClampedArray(w * h)
+  const result = new Uint8ClampedArray(w * h)
+  const size = radius * 2 + 1
+  // Horizontal sliding window
+  for (let y = 0; y < h; y++) {
+    const row = y * w
+    let sum = 0
+    let count = 0
+    for (let x = -radius; x <= radius; x++) {
+      const px = x < 0 ? 0 : x >= w ? w - 1 : x
+      sum += src[row + px]; count++
+    }
+    temp[row] = Math.round(sum / count)
+    for (let x = 1; x < w; x++) {
+      const outPx = Math.max(0, x - 1 - radius)
+      const inPx = Math.min(w - 1, x + radius)
+      sum += src[row + inPx] - src[row + outPx]
+      temp[row + x] = Math.round(sum / size)
+    }
+  }
+  // Vertical sliding window
+  for (let x = 0; x < w; x++) {
+    let sum = 0
+    let count = 0
+    for (let y = -radius; y <= radius; y++) {
+      const py = y < 0 ? 0 : y >= h ? h - 1 : y
+      sum += temp[py * w + x]; count++
+    }
+    result[x] = Math.round(sum / count)
+    for (let y = 1; y < h; y++) {
+      const outPy = Math.max(0, y - 1 - radius)
+      const inPy = Math.min(h - 1, y + radius)
+      sum += temp[inPy * w + x] - temp[outPy * w + x]
+      result[y * w + x] = Math.round(sum / size)
+    }
+  }
+  return result
+}
+
+function distressedBleedPixels(d, w, h, blurRadius, grain, bleedHex, bleedAmount, edgeOnly, sideL, sideR, sideT, sideB) {
+  blurRadius = blurRadius ?? 0.3
+  grain = grain ?? 0.3
+  bleedAmount = bleedAmount ?? 0.5
+  edgeOnly = edgeOnly !== false
+  if (edgeOnly) {
+    sideL = sideL !== false; sideR = sideR !== false
+    sideT = sideT !== false; sideB = sideB !== false
+  }
+  const br = parseInt((bleedHex || '#ff0000').slice(1,3),16)
+  const bg = parseInt((bleedHex || '#ff0000').slice(3,5),16)
+  const bb = parseInt((bleedHex || '#ff0000').slice(5,7),16)
+  const origA = new Uint8ClampedArray(w * h)
+  for (let i = 0; i < w * h; i++) origA[i] = d[i * 4 + 3]
+  const radius = Math.max(1, Math.round(blurRadius * Math.min(w, h) * 0.15))
+  const blurredA = boxBlur(origA, w, h, radius)
+  const grainSize = Math.max(1, Math.round(grain * 8))
+  const seedOffset = Math.round(blurRadius * 100 + grain * 50 + bleedAmount * 25)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x
+      const idx = i * 4
+      const origAlpha = origA[i]
+      if (origAlpha === 0) continue
+      const blurA = blurredA[i]
+      const isEdge = Math.abs(blurA - origAlpha) > 2 || (origAlpha > 0 && origAlpha < 255)
+      if (!isEdge) continue
+      if (edgeOnly) {
+        const gx = blurredA[y * w + Math.min(w - 1, x + 1)] - blurredA[y * w + Math.max(0, x - 1)]
+        const gy = blurredA[Math.min(h - 1, y + 1) * w + x] - blurredA[Math.max(0, y - 1) * w + x]
+        const glen = Math.sqrt(gx * gx + gy * gy)
+        if (glen >= 8) {
+          const nx = gx / glen, ny = gy / glen
+          let pass = false
+          if (Math.abs(nx) > Math.abs(ny)) {
+            if (nx > 0 && sideL) pass = true
+            if (nx < 0 && sideR) pass = true
+          } else {
+            if (ny > 0 && sideT) pass = true
+            if (ny < 0 && sideB) pass = true
+          }
+          if (!pass) continue
+        }
+      }
+      if (blurA === 0) { d[idx + 3] = 0; continue }
+      const bx = Math.floor(x / grainSize)
+      const by = Math.floor(y / grainSize)
+      const r = ((Math.sin(bx * 127.1 + by * 311.7 + seedOffset) * 43758.5453) % 1 + 1) % 1
+      if (r < blurA / 255) {
+        if (bleedAmount > 0.01) {
+          const blend = bleedAmount * 0.4
+          d[idx] = Math.round(d[idx] * (1 - blend) + br * blend)
+          d[idx+1] = Math.round(d[idx+1] * (1 - blend) + bg * blend)
+          d[idx+2] = Math.round(d[idx+2] * (1 - blend) + bb * blend)
+        }
+        d[idx + 3] = 255
+      } else {
+        if (bleedAmount > 0.01) {
+          d[idx] = br; d[idx+1] = bg; d[idx+2] = bb
+          d[idx+3] = Math.round(bleedAmount * 200)
+        } else {
+          d[idx + 3] = 0
+        }
+      }
+    }
+  }
+}
+
 function reflectPixels(d, w, h, angleDeg) {
   const cx=w/2, cy=h/2, a=angleDeg*Math.PI/180
   const cos2a=Math.cos(2*a), sin2a=Math.sin(2*a)
@@ -950,7 +1216,7 @@ export class EffectManager {
     if (!this._stackOrig) this._stackOrig = new WeakMap()
     this._stackOrig.delete(node)  // clear stale captures from prior run (reorder/remove)
     const _this = this
-    const STACKED_EFFECTS = new Set(['risograph', 'duotone', 'halftone', 'noise', 'vhs', 'filmDamage', 'jpegDamage', 'replaceColor', 'spotColor', 'bubble', 'dotMatrix', 'solid', 'chromaKey', 'lumaKey', 'spectralMap', 'roughenEdge', 'waveWarp', 'mirror', 'feather', 'gaussianBlur', 'directionalBlur', 'zoomBlur', 'spinBlur', 'rgbSplit', 'threshold', 'maskFade', 'edgeGlow'])
+    const STACKED_EFFECTS = new Set(['risograph', 'duotone', 'halftone', 'noise', 'vhs', 'filmDamage', 'jpegDamage', 'replaceColor', 'spotColor', 'bubble', 'dotMatrix', 'solid', 'chromaKey', 'lumaKey', 'spectralMap', 'roughenEdge', 'waveWarp', 'mirror', 'feather', 'gaussianBlur', 'directionalBlur', 'zoomBlur', 'spinBlur', 'rgbSplit', 'threshold', 'maskFade', 'edgeGlow', 'posterize', 'dithering', 'longShadow', 'distressedBleed'])
     const afterPush = (effectId) => {
       const cntBefore = (effectInstanceCount[effectId] || 0) - 1
       if (!STACKED_EFFECTS.has(effectId) || cntBefore < 0) { _prevFilterLen = filterList.length; return }
@@ -996,6 +1262,7 @@ export class EffectManager {
       'halftone', 'dotMatrix', 'chromaKey', 'lumaKey', 'roughenEdge', 'edgeGlow',
       'repeater', 'solid',
       'jpegDamage', 'filmDamage', 'vhs', 'stretch', 'waveWarp', 'bubble',
+      'posterize', 'dithering', 'longShadow', 'distressedBleed',
     ]
     const order = effectOrder && effectOrder.length ? effectOrder : []
     const effectInstanceCount = {}
@@ -1368,6 +1635,58 @@ export class EffectManager {
         })
         afterPush(id); continue
       }
+      if (id === 'posterize' && val) {
+        const p = val
+        filterList.push(function posterizeFilter(imgData) {
+          posterizePixels(imgData.data, imgData.width, imgData.height, p.levels ?? 4)
+        })
+        afterPush(id); continue
+      }
+      if (id === 'dithering' && val) {
+        const p = val
+        const colorSteps = p.colorSteps ?? p.levels ?? 4
+        const scale = Math.max(Math.abs(node.scaleX?.() || 1), Math.abs(node.scaleY?.() || 1))
+        filterList.push(function ditheringFilter(imgData) {
+          const d = imgData.data, w2 = imgData.width, h2 = imgData.height
+          if (p.mode === 'atkinson') {
+            atkinsonDitherPixels(d, w2, h2, colorSteps, p.preBw)
+            if (p.colorType === 'B&W') {
+              for (let i = 0; i < d.length; i += 4) {
+                const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
+                d[i] = d[i+1] = d[i+2] = l < 128 ? 0 : 255
+              }
+            }
+          } else if (p.mode === 'floyd') {
+            floydSteinbergDitherPixels(d, w2, h2, colorSteps, p.baseDensity, p.preBw)
+            if (p.colorType === 'B&W') {
+              for (let i = 0; i < d.length; i += 4) {
+                const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
+                d[i] = d[i+1] = d[i+2] = l < 128 ? 0 : 255
+              }
+            }
+          } else {
+            bayerDitherPixels(d, w2, h2, colorSteps, p.baseDensity, (p.pixelDensity ?? 4) * scale, p.colorType, p.preBw)
+          }
+        })
+        afterPush(id); continue
+      }
+      if (id === 'longShadow' && val) {
+        const p = val
+        const shadowLen = (p.length ?? 0.5) * Math.max(node.width(), node.height())
+        addPad(Math.ceil(shadowLen) + 5)
+        filterList.push(function longShadowFilter(imgData) {
+          longShadowPixels(imgData.data, imgData.width, imgData.height, p.angle, p.length, p.color, p.fade)
+        })
+        afterPush(id); continue
+      }
+      if (id === 'distressedBleed' && val) {
+        const p = val
+        addPad(Math.ceil((p.blurRadius ?? 0.3) * Math.min(node.width(), node.height()) * 0.15 + 5))
+        filterList.push(function distressedBleedFilter(imgData) {
+          distressedBleedPixels(imgData.data, imgData.width, imgData.height, p.blurRadius, p.grainSize, p.bleedColor, p.bleedAmount, p.edgeOnly, p.sideLeft, p.sideRight, p.sideTop, p.sideBottom)
+        })
+        afterPush(id); continue
+      }
 
       // ── Text Effects (Canvas 2D pixel distortion) ─────
       if (id === 'bubble' && val) {
@@ -1717,6 +2036,7 @@ export class EffectManager {
       'halftone', 'dotMatrix', 'chromaKey', 'lumaKey', 'roughenEdge', 'edgeGlow',
       'solid',
       'jpegDamage', 'filmDamage', 'vhs', 'waveWarp',
+      'posterize', 'dithering', 'longShadow', 'distressedBleed',
     ]
     const order = effectOrder && effectOrder.length ? effectOrder : []
     const effectInstanceCount = {}
@@ -1969,6 +2289,42 @@ export class EffectManager {
       }
       if (id === 'replaceColor' && val) {
         const p = val; replaceColorPixels(d, w, h, p.fromColor ?? '#ff0000', p.toColor ?? '#00ff00', p.threshold ?? 30, p.feather ?? 0.2)
+        continue
+      }
+      if (id === 'posterize' && val) {
+        const p = val; posterizePixels(d, w, h, p.levels ?? 4)
+        continue
+      }
+      if (id === 'dithering' && val) {
+        const p = val
+        const colorSteps = p.colorSteps ?? p.levels ?? 4
+        if (p.mode === 'atkinson') {
+          atkinsonDitherPixels(d, w, h, colorSteps, p.preBw)
+          if (p.colorType === 'B&W') {
+            for (let i = 0; i < d.length; i += 4) {
+              const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
+              d[i] = d[i+1] = d[i+2] = l < 128 ? 0 : 255
+            }
+          }
+        } else if (p.mode === 'floyd') {
+          floydSteinbergDitherPixels(d, w, h, colorSteps, p.baseDensity, p.preBw)
+          if (p.colorType === 'B&W') {
+            for (let i = 0; i < d.length; i += 4) {
+              const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
+              d[i] = d[i+1] = d[i+2] = l < 128 ? 0 : 255
+            }
+          }
+        } else {
+          bayerDitherPixels(d, w, h, colorSteps, p.baseDensity, p.pixelDensity ?? 4, p.colorType, p.preBw)
+        }
+        continue
+      }
+      if (id === 'longShadow' && val) {
+        const p = val; longShadowPixels(d, w, h, p.angle, p.length, p.color, p.fade)
+        continue
+      }
+      if (id === 'distressedBleed' && val) {
+        const p = val; distressedBleedPixels(d, w, h, p.blurRadius, p.grainSize, p.bleedColor, p.bleedAmount, p.edgeOnly, p.sideLeft, p.sideRight, p.sideTop, p.sideBottom)
         continue
       }
 
