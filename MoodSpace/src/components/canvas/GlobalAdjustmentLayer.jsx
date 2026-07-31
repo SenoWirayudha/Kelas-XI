@@ -3,7 +3,7 @@ import Konva from 'konva'
 import { Group, Image as KonvaImage, Rect } from 'react-konva'
 import { getActiveAdjustmentLayers } from '../../utils/adjustmentLayerUtils'
 import { applyImageFilters, applyMoodSpaceToImageData } from '../../utils/imageFilters'
-import { hasAnyEffect } from '../../utils/effectUtils'
+import { hasAnyEffect, filterAdjustmentRestrictedEffects } from '../../utils/effectUtils'
 import { EffectManager } from '../../utils/konva-effects-engine'
 import { applyBevelEmbossToNode, applyInnerShadowToNode } from '../../utils/konvaUtils'
 import { applyBevelEmboss } from '../../utils/bevelEmboss'
@@ -171,6 +171,50 @@ const createAdjustmentClipFunc = (layer) => (ctx) => {
 
   if (layer.shapeType === 'star') {
     drawRegularPolygonPath(ctx, layer, layer.numPoints || 5, Math.min(layer.w, layer.h) * (layer.starInnerRatio ?? 0.25))
+    return
+  }
+
+  if (layer.shapeType === 'bezier-path') {
+    const pts = []
+    const parts = layer.path?.match(/[ML]\s+([\d.]+)\s*,\s*([\d.]+)/g)
+    if (parts && parts.length >= 2) {
+      for (const p of parts) {
+        const m = p.match(/[ML]\s+([\d.]+)\s*,\s*([\d.]+)/)
+        if (m) pts.push({ x: parseFloat(m[1]), y: parseFloat(m[2]) })
+      }
+    } else {
+      const rawParts = (layer.path || '').split(/(?=[MLZ])/i).filter(Boolean)
+      for (const part of rawParts) {
+        if (/^z$/i.test(part)) continue
+        const nums = part.slice(1).trim().split(/[, ]+/).map(Number)
+        for (let i = 0; i < nums.length; i += 2) pts.push({ x: nums[i], y: nums[i + 1] })
+      }
+    }
+    if (pts.length < 2) {
+      drawRoundedRectPath(ctx, 0, 0, layer.w, layer.h, 0)
+      return
+    }
+    const cp = layer.bezierData
+    const n = pts.length
+    ctx.beginPath()
+    ctx.moveTo(pts[0].x, pts[0].y)
+    for (let i = 0; i < n; i++) {
+      const curr = pts[i]
+      const next = pts[(i + 1) % n]
+      const cpo = cp?.[i]
+      const cpi = cp?.[(i + 1) % n]
+      const hasCurve = cpo && cpi && (cpo.cpOutX || cpo.cpOutY || cpi.cpInX || cpi.cpInY)
+      if (hasCurve) {
+        ctx.bezierCurveTo(
+          curr.x + cpo.cpOutX, curr.y + cpo.cpOutY,
+          next.x + cpi.cpInX, next.y + cpi.cpInY,
+          next.x, next.y,
+        )
+      } else {
+        ctx.lineTo(next.x, next.y)
+      }
+    }
+    ctx.closePath()
     return
   }
 
@@ -467,7 +511,7 @@ export default function GlobalAdjustmentLayer({ stageRef, items, canvasWidth, ca
       .join('|')
     const layerHashes = activeLayers
       .map((l) =>
-        `${l.id}:${l.x},${l.y},${l.w},${l.h}:${l.blendMode || 'source-over'}:${l.exposure},${l.temperature},${l.hue},${l.highlights},${l.shadows},${l.whites},${l.blacks},${l.brightness},${l.contrast},${l.saturation},${l.sharpen},${l.vignette},${l.blur}:hsl=${JSON.stringify(l.hsl || {})}:curves=${JSON.stringify(l.curves || {})}:fx=${JSON.stringify(l.effects || {})}`,
+        `${l.id}:${l.x},${l.y},${l.w},${l.h}:${l.blendMode || 'source-over'}:${l.exposure},${l.temperature},${l.hue},${l.highlights},${l.shadows},${l.whites},${l.blacks},${l.brightness},${l.contrast},${l.saturation},${l.sharpen},${l.vignette},${l.blur}:hsl=${JSON.stringify(l.hsl || {})}:curves=${JSON.stringify(l.curves || {})}:fx=${JSON.stringify(l.effects || {})}:st=${l.shapeType || ''}:path=${l.path || ''}:bd=${JSON.stringify(l.bezierData || [])}`,
       )
       .join('|')
     return `${itemHashes}|${layerHashes}|${canvasWidth}x${canvasHeight}`
@@ -592,8 +636,9 @@ export default function GlobalAdjustmentLayer({ stageRef, items, canvasWidth, ca
             ].join(','))
           }
 
-          if (hasAnyEffect(layer)) {
-            effectManager.applyEffectsToImageData(imageData, layer.effects, layer.effectOrder)
+          const layerEffects = filterAdjustmentRestrictedEffects(layer.effects || {}, layer.effectOrder)
+          if (hasAnyEffect(layerEffects)) {
+            effectManager.applyEffectsToImageData(imageData, layerEffects.effects, layerEffects.effectOrder)
           }
 
           // Write adjusted pixels to a FRESH canvas at offscreen size

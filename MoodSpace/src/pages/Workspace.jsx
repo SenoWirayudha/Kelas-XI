@@ -42,6 +42,7 @@ import {
   CopyPlus,
   ClipboardPaste,
   Crop,
+  Maximize2,
   MoreHorizontal,
   AlignCenter,
   AlignLeft,
@@ -1004,7 +1005,7 @@ const CanvasItemComparitor = (prev, next) => {
     && prev.eraserPreviewCanvas === next.eraserPreviewCanvas
     && prev.eraserTargetId === next.eraserTargetId
 }
-const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, selectedIds, onSelect, onChange, onBroadcastRef, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, dropPreviewState, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false, fontInjectVersion, suspendGeometryRef, eraserPreviewCanvas, eraserTargetId, liveGeometryRef }) {
+const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, selectedIds, onSelect, onChange, onBroadcastRef, onDragStart, onDragMove, onDragEnd, onTextEdit, isTextEditing, onCursor, onItemHover, disableDrag, isShiftDown, getActiveTransformAnchor, dropTargetFrameId, dropTargetSlotIndex, dropPreviewState, editingFrameId, editingFrameSlot, onFrameImageEdit, onCropStart, allowComposite = false, fontInjectVersion, suspendGeometryRef, eraserPreviewCanvas, eraserTargetId, liveGeometryRef, onToolbarRepositionRef }) {
   const sizeRef = useRef({ w: item.w, h: item.h })
   const compositeOperation = allowComposite
     ? getItemCompositeOperation(item)
@@ -1074,6 +1075,7 @@ const CanvasItem = memo(function CanvasItemInner({ item, items, selectedId, sele
       fontInjectVersion={fontInjectVersion}
       eraserPreviewCanvas={eraserPreviewCanvas}
       eraserTargetId={eraserTargetId}
+      onToolbarRepositionRef={onToolbarRepositionRef}
     />
   )
 })
@@ -4789,6 +4791,7 @@ function Workspace() {
   const [isRenamingTitle, setIsRenamingTitle] = useState(false)
   const [renamingTitleValue, setRenamingTitleValue] = useState('')
   const [toolbarPos, setToolbarPos] = useState(null)
+  const toolbarRepositionRef = useRef(null)
   const [contextMenu, setContextMenu] = useState(null)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showAlignSubmenu, setShowAlignSubmenu] = useState(false)
@@ -8215,12 +8218,32 @@ const attachTransformer = useCallback((idOrIds) => {
   }, [])
 
   const updateToolbarPosition = useCallback(() => {
-    if (!transformerRef.current || !stageRef.current) {
+    if (!stageRef.current) {
       setToolbarPos(null)
       return
     }
     try {
-      const box = transformerRef.current.getClientRect()
+      let box = null
+      const trNodes = transformerRef.current?.nodes?.() || []
+      if (trNodes.length) {
+        const tb = transformerRef.current.getClientRect()
+        if (tb && tb.width) box = tb
+      } else {
+        // Multi-run text: Konva Transformer is bypassed → use custom selection box
+        const soloId = selectedIds.length === 1
+          ? selectedIds[0]
+          : (selectedIds.length === 0 ? selectedId : null)
+        if (soloId) {
+          const borderNode = stageRef.current.findOne('.multi-run-selection-border')
+          const node = borderNode
+            || stageRef.current.findOne(`[id="${soloId}"]`)
+            || stageRef.current.findOne(`#${soloId}`)
+          if (node) {
+            const r = node.getClientRect()
+            if (r && r.width && r.height) box = r
+          }
+        }
+      }
       if (!box || !box.width) { setToolbarPos(null); return }
       const stageEl = stageRef.current.container()
       const stageRect = stageEl.getBoundingClientRect()
@@ -8245,7 +8268,11 @@ const attachTransformer = useCallback((idOrIds) => {
         mobile: isMobile,
       })
     } catch { setToolbarPos(null) }
-  }, [])
+  }, [selectedId, selectedIds])
+
+  useEffect(() => {
+    toolbarRepositionRef.current = () => requestAnimationFrame(updateToolbarPosition)
+  }, [updateToolbarPosition])
 
   useEffect(() => {
     if (selectedIds.length || selectedId) {
@@ -8505,16 +8532,28 @@ const attachTransformer = useCallback((idOrIds) => {
     localRedoRef.current = []
   }
 
+  const isBlobReferencedInHistory = (url) => {
+    if (!url || !url.startsWith('blob:')) return false
+    const entryHasUrl = (entry) => {
+      if (!entry) return false
+      if (entry.prevPatch && entry.prevPatch.src === url) return true
+      if (Array.isArray(entry.items)) {
+        return entry.items.some(({ item }) => item && item.src === url)
+      }
+      return false
+    }
+    if (localUndoRef.current.some(entryHasUrl)) return true
+    if (localRedoRef.current.some(entryHasUrl)) return true
+    const stackHasUrl = (stack) => stack.some((items) => items.some((i) => i.src === url))
+    if (undoStackRef.current.some(stackHasUrl)) return true
+    if (redoStackRef.current.some(stackHasUrl)) return true
+    return false
+  }
+
   const updateItem = (id, patch, skipBroadcast = false) => {
     if (isViewerRef.current) return
     if ('effects' in patch || 'effectOrder' in patch) {
       if (typeof window.__fxMarkers !== 'undefined') window.__fxMarkers.push({ t: performance.now(), msg: 'UPDATEITEM_FX effects=' + Object.keys(patch.effects || {}).length + ' orderLen=' + (patch.effectOrder?.length ?? '?') })
-    }
-    if (patch.src) {
-      const oldItem = itemsRef.current.find((i) => i.id === id)
-      if (oldItem?.src?.startsWith('blob:') && oldItem.src !== patch.src) {
-        URL.revokeObjectURL(oldItem.src)
-      }
     }
     const currentItem = itemsRef.current.find((i) => i.id === id)
     // Reactive maskSourceType: when effects change on composite operator, auto-update
@@ -8528,6 +8567,17 @@ const attachTransformer = useCallback((idOrIds) => {
     if (!skipBroadcast) {
       if (currentItem?.groupId) captureGroupUndo(id, patch)
       else captureUndo(id, patch)
+    }
+
+    // Revoke a replaced blob src ONLY when no undo/redo entry references it and we're
+    // not restoring via undo/redo. Eager revokes here previously killed the "before" src
+    // right as captureUndo recorded it, and killed the applied blob while the redo entry
+    // still held it — producing revoked-blob reads (ERR_FILE_NOT_FOUND) on undo/redo.
+    if (patch.src && !isLocalUndoingRef.current) {
+      const oldItem = itemsRef.current.find((i) => i.id === id)
+      if (oldItem?.src?.startsWith('blob:') && oldItem.src !== patch.src && !isBlobReferencedInHistory(oldItem.src)) {
+        URL.revokeObjectURL(oldItem.src)
+      }
     }
 
     // Accumulate pending color-picker patches for broadcast on picker close
@@ -8588,6 +8638,23 @@ const attachTransformer = useCallback((idOrIds) => {
       }
     })
   }
+
+  // Fit image to fill the whole canvas: width spans edge-to-edge (no distortion),
+  // image centered vertically. Applies to the selected image item only.
+  const fillImageToCanvas = useCallback((id) => {
+    if (isViewerRef.current) return
+    const item = itemsRef.current.find((c) => c.id === id)
+    if (!item || item.kind !== 'image') return
+    const cw = canvasSettings.width
+    const ch = canvasSettings.height
+    if (!cw || !ch) return
+    const aspect = item.aspectRatio || ((item.w || 1) / (item.h || 1)) || 1
+    const newW = cw
+    const newH = Math.max(1, Math.round(cw / aspect))
+    const newX = 0
+    const newY = Math.round((ch - newH) / 2)
+    updateItem(id, { x: newX, y: newY, w: newW, h: newH, rotation: 0, scaleX: 1, scaleY: 1 })
+  }, [canvasSettings.height, canvasSettings.width, updateItem])
 
   // ── Tool handlers ─────────────────────────────────
 
@@ -8809,7 +8876,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const getImageDimensions = (file) => new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
-    const img = new Image()
+    const img = new window.Image()
     img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.naturalWidth, height: img.naturalHeight }) }
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Gagal membaca dimensi gambar')) }
     img.src = url
@@ -8945,24 +9012,34 @@ const attachTransformer = useCallback((idOrIds) => {
       canvas.height = Math.max(1, Math.ceil(cropNativeH))
       const ctx = canvas.getContext('2d')
       ctx.drawImage(tempCanvas, srcNativeX, srcNativeY, cropNativeW, cropNativeH, 0, 0, canvas.width, canvas.height)
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.9))
       if (!blob) return
       const localUrl = URL.createObjectURL(blob)
 
       const oldItem = itemsRef.current.find((i) => i.id === item.id)
-      if (oldItem?.src?.startsWith('blob:')) URL.revokeObjectURL(oldItem.src)
+      // Per-item undo for the bake: restore the exact pre-warp state on Ctrl+Z.
+      if (oldItem && !oldItem.groupId) {
+        localUndoRef.current.push({ itemId: item.id, prevPatch: { src: oldItem.src, x: itemX, y: itemY, w: itemW, h: itemH, visible: oldItem.visible ?? true, imageCropRect: oldItem.imageCropRect ?? null, cropSourceWidth: oldItem.cropSourceWidth ?? null, cropSourceHeight: oldItem.cropSourceHeight ?? null, cropEnabled: oldItem.cropEnabled ?? null } })
+        localRedoRef.current = []
+      }
+      if (oldItem?.src?.startsWith('blob:') && !isBlobReferencedInHistory(oldItem.src)) URL.revokeObjectURL(oldItem.src)
       setItems((prev) => prev.map((i) =>
-        i.id === item.id ? { ...i, src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH), imageCropRect: undefined, cropSourceWidth: undefined, cropSourceHeight: undefined, cropEnabled: undefined, _oldSrc: oldItem?.src, _pendingUpload: blob } : i
+        i.id === item.id ? { ...i, src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH), imageCropRect: undefined, cropSourceWidth: undefined, cropSourceHeight: undefined, cropEnabled: undefined, _oldSrc: oldItem?.src, _pendingUpload: blob, skipDeleteOldSrc: true } : i
       ))
       broadcastItemUpdate(item.id, { src: localUrl, visible: true, x: itemX + displayMinX, y: itemY + displayMinY, w: Math.round(displayCropW), h: Math.round(displayCropH), imageCropRect: null, cropSourceWidth: null, cropSourceHeight: null, cropEnabled: null })
       if (collaboratorsGuardRef.current.length > 1) {
         uploadForBroadcast(blob, 'warp').then((realUrl) => {
           if (realUrl) {
-            URL.revokeObjectURL(localUrl)
-            setItems((prev) => prev.map((i) =>
-              i.id === item.id ? { ...i, src: realUrl, _pendingUpload: undefined } : i
-            ))
-            broadcastItemUpdate(item.id, { src: realUrl })
+            // Only finalize if the item is still awaiting this exact upload (user didn't
+            // undo/change it while the upload was in flight).
+            const stillPending = itemsRef.current.find((i) => i.id === item.id)?._pendingUpload === blob
+            if (stillPending) {
+              URL.revokeObjectURL(localUrl)
+              setItems((prev) => prev.map((i) =>
+                i.id === item.id ? { ...i, src: realUrl, _pendingUpload: undefined } : i
+              ))
+              broadcastItemUpdate(item.id, { src: realUrl })
+            }
           }
         })
       }
@@ -9156,10 +9233,16 @@ const attachTransformer = useCallback((idOrIds) => {
     if (!item || !item.relight) return
     const relight = item.relight
 
+    // Close the panel immediately — the bake continues in the background.
+    // The item keeps its `relight` state so LightOverlay still shows the live
+    // preview until updateItem clears it with the baked src (no visual flash).
+    setRelightActive(false)
+    setActiveToolCard(null)
+
     let img
     try {
       img = await new Promise((resolve, reject) => {
-        const el = new Image()
+        const el = new window.Image()
         el.crossOrigin = 'anonymous'
         el.onload = () => resolve(getToolSource(el, item))
         el.onerror = reject
@@ -9239,26 +9322,29 @@ const attachTransformer = useCallback((idOrIds) => {
     ctx.globalCompositeOperation = 'overlay'
     ctx.drawImage(lCanvas, 0, 0)
 
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.9))
     if (!blob) return
     const localUrl = URL.createObjectURL(blob)
     const oldSrc = itemsRef.current.find((i) => i.id === item.id)?.src
 
-    updateItem(item.id, { src: localUrl, relight: null, _oldSrc: oldSrc, _pendingUpload: blob })
+    updateItem(item.id, { src: localUrl, relight: null, _oldSrc: oldSrc, _pendingUpload: blob, skipDeleteOldSrc: true })
 
     if (collaboratorsGuardRef.current.length > 1) {
       uploadForBroadcast(blob, 'relight').then((realUrl) => {
         if (realUrl) {
-          URL.revokeObjectURL(localUrl)
-          setItems((prev) => prev.map((i) =>
-            i.id === item.id ? { ...i, src: realUrl, _pendingUpload: undefined } : i
-          ))
+          // Only finalize if the item is still awaiting this exact upload (user didn't
+          // undo/change it while the upload was in flight).
+          const stillPending = itemsRef.current.find((i) => i.id === item.id)?._pendingUpload === blob
+          if (stillPending) {
+            URL.revokeObjectURL(localUrl)
+            setItems((prev) => prev.map((i) =>
+              i.id === item.id ? { ...i, src: realUrl, _pendingUpload: undefined } : i
+            ))
+            broadcastItemUpdate(item.id, { src: realUrl })
+          }
         }
       })
     }
-
-    setRelightActive(false)
-    setActiveToolCard(null)
   }
 
   const handleCancelRemoveBg = useCallback(() => {
@@ -9314,19 +9400,41 @@ const attachTransformer = useCallback((idOrIds) => {
       })
 
       if (removeBgCancelRef.current) throw CANCELED
-      const localUrl = URL.createObjectURL(resultBlob)
+      const resultUrl = URL.createObjectURL(resultBlob)
+      const encodedBlob = await new Promise((resolve) => {
+        const img = new window.Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width = img.naturalWidth
+          canvas.height = img.naturalHeight
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0)
+          URL.revokeObjectURL(resultUrl)
+          canvas.toBlob(resolve, 'image/webp', 0.9)
+        }
+        img.onerror = () => { URL.revokeObjectURL(resultUrl); resolve(resultBlob) }
+        img.src = resultUrl
+      })
       if (removeBgCancelRef.current) throw CANCELED
-      const newItem = { ...selectedItem, id: `image-${Date.now()}`, x: selectedItem.x + 30, y: selectedItem.y + 30, src: localUrl, _pendingUpload: resultBlob, imageCropRect: undefined, cropSourceWidth: undefined, cropSourceHeight: undefined, cropEnabled: undefined }
+      const uploadBlob = encodedBlob || resultBlob
+      const localUrl = URL.createObjectURL(uploadBlob)
+      if (removeBgCancelRef.current) throw CANCELED
+      const newItem = { ...selectedItem, id: `image-${Date.now()}`, x: selectedItem.x + 30, y: selectedItem.y + 30, src: localUrl, _pendingUpload: uploadBlob, imageCropRect: undefined, cropSourceWidth: undefined, cropSourceHeight: undefined, cropEnabled: undefined }
       setItems((items) => [newItem, ...items])
       captureAddUndo(newItem.id)
       if (collaboratorsGuardRef.current.length > 1) {
-        uploadForBroadcast(resultBlob, 'removebg').then((realUrl) => {
+        uploadForBroadcast(uploadBlob, 'removebg').then((realUrl) => {
           if (realUrl) {
-            URL.revokeObjectURL(localUrl)
-            setItems((prev) => prev.map((item) =>
-              item.id === newItem.id ? { ...item, src: realUrl, _pendingUpload: undefined } : item
-            ))
-            broadcastItemAdd({ ...newItem, src: realUrl, _pendingUpload: undefined })
+            // Only finalize if the item still exists and is awaiting this exact upload
+            // (user didn't undo/delete it while the upload was in flight).
+            const stillPending = itemsRef.current.find((i) => i.id === newItem.id)?._pendingUpload === uploadBlob
+            if (stillPending) {
+              URL.revokeObjectURL(localUrl)
+              setItems((prev) => prev.map((item) =>
+                item.id === newItem.id ? { ...item, src: realUrl, _pendingUpload: undefined } : item
+              ))
+              broadcastItemAdd({ ...newItem, src: realUrl, _pendingUpload: undefined })
+            }
           }
         })
       }
@@ -13327,7 +13435,13 @@ const toggleMobileSheetSize = () => {
                                 imageStrokeWidth: selectedItem.imageStrokeWidth || 3,
                               })
                             } else if (isFillTarget) {
-                              updateItem(selectedItem.id, { fill: color })
+                              if (editingText && selectedItem.kind === 'text' && richTextEditorRef.current) {
+                                richTextEditorRef.current.formatColor(color)
+                              } else {
+                                const runs = getRuns(selectedItem)
+                                const newRuns = runs.map(r => ({ ...r, fill: color }))
+                                updateItem(selectedItem.id, { fill: color, runs: newRuns })
+                              }
                             } else {
                               updateItem(selectedItem.id, {
                                 stroke: color,
@@ -14811,6 +14925,22 @@ const toggleMobileSheetSize = () => {
               </button>
             </div>
           </div>
+
+          {selectedItem?.kind === 'image' && (
+            <div className="workspace-section-card">
+              <div className="workspace-section-title">Canvas Fill</div>
+              <div className="workspace-canvas-align-grid-modern">
+                <button
+                  type="button"
+                  className="workspace-align-btn-modern workspace-canvas-fill-btn"
+                  title="Isi seluruh canvas — lebar menyentuh pinggir kanan & kiri, posisi di tengah, tanpa mendistorsi"
+                  onClick={() => fillImageToCanvas(selectedItem.id)}
+                >
+                  <Maximize2 size={18} /><span>Isi Canvas</span>
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )
     }
@@ -17327,6 +17457,7 @@ onPointerUp={(e) => {
           fontInjectVersion={fontInjectVersion}
           eraserPreviewCanvas={eraserPreviewCanvasState}
           eraserTargetId={eraserTargetIdRef.current}
+          onToolbarRepositionRef={toolbarRepositionRef}
         />
       )
     })
@@ -18657,6 +18788,9 @@ onPointerUp={(e) => {
         <button className="zoom-btn" onClick={lockToggleSelected} title="Lock/Unlock" type="button" style={{ width: 28, height: 28, fontSize: 14 }}>{selectedItem?.locked ? <Unlock size={14} /> : <Lock size={14} />}</button>
         {selectedItem?.kind === 'image' && selectedIds.length <= 1 && (
           <button className="zoom-btn" onClick={() => beginImageCrop(selectedItem.id)} title="Crop" type="button" style={{ width: 28, height: 28, fontSize: 14 }}><Crop size={14} /></button>
+        )}
+        {selectedItem?.kind === 'image' && selectedIds.length <= 1 && (
+          <button className="zoom-btn" onClick={() => fillImageToCanvas(selectedItem.id)} title="Isi Canvas" type="button" style={{ width: 28, height: 28, fontSize: 14 }}><Maximize2 size={14} /></button>
         )}
         {selectedItem?.kind === 'frame' && selectedIds.length <= 1 && frameHasImages(selectedItem) && (
           <button className="zoom-btn" onClick={() => detachFrameImages(selectedItem.id)} title="Pisahkan gambar" type="button" style={{ width: 28, height: 28, fontSize: 14 }}><Unlink size={14} /></button>

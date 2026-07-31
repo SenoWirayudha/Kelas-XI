@@ -11,6 +11,7 @@ export default function TextRenderer({
   selectedId,
   selectedIds,
   onBroadcastRef,
+  onToolbarRepositionRef,
 }) {
   return (
     <CanvasTextNode
@@ -24,6 +25,7 @@ export default function TextRenderer({
       selectedId={selectedId}
       selectedIds={selectedIds}
       onBroadcastRef={onBroadcastRef}
+      onToolbarRepositionRef={onToolbarRepositionRef}
     />
   )
 }

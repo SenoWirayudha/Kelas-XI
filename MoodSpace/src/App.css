@@ -11407,6 +11407,20 @@
   letter-spacing: 0.02em;
 }
 
+.workspace-canvas-fill-btn {
+  grid-column: 1 / -1;
+  width: 100%;
+  flex-direction: row;
+  background: rgba(185, 140, 255, 0.1);
+  border-color: rgba(185, 140, 255, 0.28);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.workspace-canvas-fill-btn:hover {
+  background: rgba(185, 140, 255, 0.18);
+  border-color: rgba(185, 140, 255, 0.5);
+}
+
 .workspace-group-panel-action {
   width: 100%;
   flex-direction: row;

@@ -117,20 +117,38 @@ export const findEmbeddingsByItemIds = async (ids) => {
   return results
 }
 
-export const findImagesByVisualSimilarity = async ({ embedding, limit = 30, offset = 0, excludeIds = [] }) => {
-  if (!embedding?.length) return []
-  const poolLimit = 500 + offset
+// In-memory embedding pool cache — full scan of ALL external_images embeddings.
+// Solves the recency-bias problem: previously only the 500 most recently updated
+// rows were scanned, so old-but-visually-similar items (e.g. La Haine backdrops)
+// never entered the candidate pool regardless of similarity.
+// Pattern follows existing lazy-singleton caches (clipZeroShot.service.js:13-20),
+// but with a TTL because the pool grows (~25 embeddings/day).
+const EMBEDDING_POOL_CACHE_TTL_MS = 5 * 60 * 1000
+let cachedEmbeddingPool = null
+let embeddingPoolCacheTimestamp = 0
+
+const getEmbeddingPool = async () => {
+  const now = Date.now()
+  if (cachedEmbeddingPool && now - embeddingPoolCacheTimestamp < EMBEDDING_POOL_CACHE_TTL_MS) {
+    return cachedEmbeddingPool
+  }
   const { rows } = await query(
     `select id, provider, external_id as "externalId", title, description, tags,
             url, thumbnail_url as "thumbnailUrl", width, height,
             mime_type as "mimeType", author, license, source_url as "sourceUrl",
             metadata, embedding, created_at as "createdAt", updated_at as "updatedAt"
      from external_images
-     where embedding is not null
-     order by updated_at desc
-     limit $1`,
-    [poolLimit],
+     where embedding is not null`,
   )
+  cachedEmbeddingPool = rows
+  embeddingPoolCacheTimestamp = now
+  console.log(`[EMBEDDING-POOL] Refreshed cache: ${rows.length} rows`)
+  return cachedEmbeddingPool
+}
+
+export const findImagesByVisualSimilarity = async ({ embedding, limit = 30, offset = 0, excludeIds = [] }) => {
+  if (!embedding?.length) return []
+  const rows = await getEmbeddingPool()
   const scored = rows
     .filter((row) => row.embedding && !excludeIds.includes(row.id))
     .map((row) => ({

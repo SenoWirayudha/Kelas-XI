@@ -294,7 +294,14 @@ function FxEffectDetail({ effect, value, onBack, onChange, onToggle, imageDomina
       }
       {effect.type === 'object' && params && effect.id !== 'risograph' && (
         <div className="workspace-fx-detail-params">
-          {params.map((param) => {
+          {params.filter((param) => {
+            if (Array.isArray(param.modes) && param.modes.length) {
+              const modeParam = params.find((p) => p.key === 'mode')
+              const currentMode = (value || {}).mode ?? (modeParam && modeParam.default)
+              return currentMode ? param.modes.includes(currentMode) : true
+            }
+            return true
+          }).map((param) => {
             const paramVal = (value || {})[param.key] ?? param.default
 
             if (param.type === 'toggle') {

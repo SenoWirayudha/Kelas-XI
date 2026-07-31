@@ -6,6 +6,7 @@ import { getShadowProps, preloadFont, applyBevelEmbossToNode, applyInnerShadowTo
 import { getArrowShapePath, getShapeFillProps, getShapeTextBounds } from '../../../utils/shapeUtils'
 import { effectManager } from '../../../utils/konva-effects-engine'
 import { generateGeometryShadowCanvas, isEffectivelyFillNone } from '../../../utils/geometryShadow'
+import { filterAdjustmentRestrictedEffects } from '../../../utils/effectUtils'
 
 const isolateChannel = (data, ch, nw, nh) => {
   const buf = new Uint8ClampedArray(data.length)
@@ -153,8 +154,8 @@ export default function ShapeRenderer({
   const shapePaintProps = {
     ...getShapeFillProps(item),
     stroke: item.stroke || '#3f3a46',
-    strokeEnabled: item.stroke !== null && (item.strokeWidth ?? 0) > 0,
-    strokeWidth: item.stroke !== null ? (item.strokeWidth ?? 0) : 0,
+    strokeEnabled: item.isAdjustmentLayer ? false : (item.stroke !== null && (item.strokeWidth ?? 0) > 0),
+    strokeWidth: item.isAdjustmentLayer ? 0 : (item.stroke !== null ? (item.strokeWidth ?? 0) : 0),
     strokeScaleEnabled: false,
     lineJoin: 'round',
   }
@@ -191,11 +192,12 @@ export default function ShapeRenderer({
   const centerRef = useRef(null)
 
   const nonRgbEffects = useMemo(() => {
-    const fx = item.effects || {}
+    let fx = item.effects || {}
+    if (item.isAdjustmentLayer) fx = filterAdjustmentRestrictedEffects(fx, item.effectOrder).effects
     if (!hasRgbSplit) return fx
     const { rgbSplit, ...rest } = fx
     return Object.keys(rest).length > 0 ? rest : {}
-  }, [item.effects, hasRgbSplit])
+  }, [item.effects, hasRgbSplit, item.isAdjustmentLayer, item.effectOrder])
 
   // Derive display channels from captured pixel data + current rgbSplit params
   const shapeChannels = useMemo(() => {
@@ -255,8 +257,14 @@ export default function ShapeRenderer({
       const node = groupRef.current
       if (!node) return
       if (hasRgbSplit && shapeChannels) return
-      const rafFx = { ...(filterItemRef.current.effects || {}) }
-      const rafOrder = filterItemRef.current.effectOrder
+      const rafItem = filterItemRef.current
+      let rafFx = { ...(rafItem.effects || {}) }
+      let rafOrder = rafItem.effectOrder
+      if (rafItem.isAdjustmentLayer) {
+        const filtered = filterAdjustmentRestrictedEffects(rafFx, rafOrder)
+        rafFx = filtered.effects
+        rafOrder = filtered.effectOrder
+      }
       if (hasRgbSplit) delete rafFx.rgbSplit
       if (Object.keys(rafFx).length > 0) {
         effectManager.applyAll(node, rafFx, null, rafOrder)
@@ -494,7 +502,8 @@ export default function ShapeRenderer({
         <Path
           data={item.bezierData ? buildBezierDisplayPath(item) : (item.path || '')}
           stroke={item.stroke || '#000000'}
-          strokeWidth={item.strokeWidth || 3}
+          strokeWidth={item.strokeWidth ?? 3}
+          strokeEnabled={item.isAdjustmentLayer ? false : item.stroke !== null && (item.strokeWidth ?? 0) > 0}
           fill={item.fill || 'transparent'}
           listening={true}
           {...nativeShadowProps}

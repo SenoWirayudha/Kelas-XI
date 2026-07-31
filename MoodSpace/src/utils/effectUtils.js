@@ -12,7 +12,20 @@ export const EFFECT_CATEGORIES = [
 // Effect IDs yang dilarang untuk adjustment layer
 export const ADJUSTMENT_RESTRICTED_EFFECTS = new Set([
   'repeater', 'chromaKey', 'lumaKey', 'spotColor', 'maskFade', 'roughenEdge', 'feather', 'letterSpacing', 'curve', 'stretch',
+  'longShadow', 'distressedBleed',
 ])
+
+// Returns a copy of effects/effectOrder with ADJUSTMENT_RESTRICTED_EFFECTS removed.
+// Used so restricted effects never render on adjustment-layer items or their pixels.
+export const filterAdjustmentRestrictedEffects = (effects = {}, effectOrder = []) => {
+  const order = (effectOrder || []).filter((instanceId) => {
+    const entry = effects[instanceId]
+    return entry && !ADJUSTMENT_RESTRICTED_EFFECTS.has(entry.effectId)
+  })
+  const kept = {}
+  for (const instanceId of order) kept[instanceId] = effects[instanceId]
+  return { effects: kept, effectOrder: order }
+}
 
 export const EFFECTS = [
   // ── Phase 1: Simple (Konva built-in / Canvas 2D) ──
@@ -217,15 +230,19 @@ export const EFFECTS = [
   ]},
   { id: 'dithering', label: 'Dithering', category: 'stylize', type: 'object', default: null, icon: 'Grid', previewImagePath: 'effect-previews/dithering.png', params: [
     { key: 'mode', label: 'Mode', type: 'select', default: 'ordered', options: [
-      { value: 'ordered', label: 'Ordered (Bayer)' }, { value: 'floyd', label: 'Floyd-Steinberg' }, { value: 'atkinson', label: 'Atkinson' },
+      { value: 'ordered', label: 'Ordered (Bayer)' }, { value: 'floyd', label: 'Floyd-Steinberg' }, { value: 'atkinson', label: 'Atkinson' }, { value: 'halftone', label: 'Halftone (Dots)' },
     ]},
-    { key: 'preBw', label: 'Pre-dither B&W', type: 'toggle', default: false },
-    { key: 'colorSteps', label: 'Color Steps', type: 'slider', default: 4, min: 2, max: 16 },
-    { key: 'baseDensity', label: 'Base Density', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
-    { key: 'pixelDensity', label: 'Pixel Density', type: 'slider', default: 4, min: 1, max: 16 },
+    { key: 'colorSteps', label: 'Color Steps', type: 'slider', default: 4, min: 2, max: 16, modes: ['ordered', 'floyd', 'atkinson', 'halftone'] },
+    { key: 'baseDensity', label: 'Base Density', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01, modes: ['ordered'] },
+    { key: 'pixelDensity', label: 'Pixel Density', type: 'slider', default: 4, min: 1, max: 16, modes: ['ordered'] },
+    { key: 'serpentine', label: 'Serpentine Scanning', type: 'toggle', default: true, modes: ['floyd', 'atkinson'] },
+    { key: 'dotSpacing', label: 'Dot Spacing', type: 'slider', default: 4, min: 2, max: 32, modes: ['halftone'] },
+    { key: 'maxDotRadius', label: 'Max Dot Radius', type: 'slider', default: 3, min: 1, max: 16, modes: ['halftone'] },
+    { key: 'screenAngle', label: 'Screen Angle', type: 'slider', default: 45, min: 0, max: 360, unit: '°', modes: ['halftone'] },
+    { key: 'preBw', label: 'Pre-dither B&W', type: 'toggle', default: false, modes: ['ordered', 'floyd', 'atkinson', 'halftone'] },
     { key: 'colorType', label: 'Color Type', type: 'select', default: 'color', options: [
       { value: 'color', label: 'Color' }, { value: 'B&W', label: 'B&W' },
-    ]},
+    ], modes: ['ordered', 'floyd', 'atkinson', 'halftone'] },
   ]},
   { id: 'longShadow', label: 'Long Shadow', category: 'stylize', type: 'object', default: null, icon: 'SunDim', previewImagePath: 'effect-previews/longShadow.png', params: [
     { key: 'angle', label: 'Angle', type: 'slider', default: 45, min: 0, max: 360, unit: '°' },
@@ -241,6 +258,7 @@ export const EFFECTS = [
     { key: 'sideTop', label: '↑ Atas', type: 'toggle', default: true },
     { key: 'sideBottom', label: '↓ Bawah', type: 'toggle', default: true },
     { key: 'grainSize', label: 'Grain Size', type: 'slider', default: 0.3, min: 0, max: 1, step: 0.01 },
+    { key: 'smooth', label: 'Smooth', type: 'slider', default: 0.25, min: 0, max: 1, step: 0.01 },
     { key: 'bleedColor', label: 'Bleed Color', type: 'color', default: '#ff0000' },
     { key: 'bleedAmount', label: 'Bleed Amount', type: 'slider', default: 0.5, min: 0, max: 1, step: 0.01 },
   ]},

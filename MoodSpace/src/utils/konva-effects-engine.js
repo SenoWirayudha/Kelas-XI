@@ -907,11 +907,9 @@ function posterizePixels(d, w, h, levels) {
   }
 }
 
-function floydSteinbergDitherPixels(d, w, h, colorSteps, baseDensity, preBw) {
+function floydSteinbergDitherPixels(d, w, h, colorSteps, preBw, serpentine) {
   colorSteps = colorSteps ?? 4
-  baseDensity = baseDensity ?? 0.5
   const step = 255 / (colorSteps - 1)
-  const offset = Math.round((baseDensity - 0.5) * step)
   if (preBw) {
     for (let i = 0; i < d.length; i += 4) {
       const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
@@ -919,21 +917,38 @@ function floydSteinbergDitherPixels(d, w, h, colorSteps, baseDensity, preBw) {
     }
   }
   for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4
-      const oldR = d[i], oldG = d[i+1], oldB = d[i+2]
-      const quantize = (v) => {
-        const clamped = Math.max(0, Math.min(255, v + offset))
-        return Math.round(Math.round(clamped / step) * step)
+    const reverse = serpentine && (y % 2 === 1)
+    if (reverse) {
+      for (let x = w - 1; x >= 0; x--) {
+        const i = (y * w + x) * 4
+        const oldR = d[i], oldG = d[i+1], oldB = d[i+2]
+        const newR = Math.round(Math.round(oldR / step) * step)
+        const newG = Math.round(Math.round(oldG / step) * step)
+        const newB = Math.round(Math.round(oldB / step) * step)
+        d[i] = newR; d[i+1] = newG; d[i+2] = newB
+        const errR = oldR - newR, errG = oldG - newG, errB = oldB - newB
+        if (x - 1 >= 0) { const j = i - 4; d[j] = Math.round(d[j] + errR * 7 / 16); d[j+1] = Math.round(d[j+1] + errG * 7 / 16); d[j+2] = Math.round(d[j+2] + errB * 7 / 16) }
+        if (y + 1 < h) {
+          if (x + 1 < w) { const j = i + w * 4 + 4; d[j] = Math.round(d[j] + errR * 3 / 16); d[j+1] = Math.round(d[j+1] + errG * 3 / 16); d[j+2] = Math.round(d[j+2] + errB * 3 / 16) }
+          { const j = i + w * 4; d[j] = Math.round(d[j] + errR * 5 / 16); d[j+1] = Math.round(d[j+1] + errG * 5 / 16); d[j+2] = Math.round(d[j+2] + errB * 5 / 16) }
+          if (x - 1 >= 0) { const j = i + w * 4 - 4; d[j] = Math.round(d[j] + errR * 1 / 16); d[j+1] = Math.round(d[j+1] + errG * 1 / 16); d[j+2] = Math.round(d[j+2] + errB * 1 / 16) }
+        }
       }
-      const newR = quantize(oldR), newG = quantize(oldG), newB = quantize(oldB)
-      d[i] = newR; d[i+1] = newG; d[i+2] = newB
-      const errR = oldR - newR, errG = oldG - newG, errB = oldB - newB
-      if (x + 1 < w) { const j = i + 4; d[j] = Math.round(d[j] + errR * 7 / 16); d[j+1] = Math.round(d[j+1] + errG * 7 / 16); d[j+2] = Math.round(d[j+2] + errB * 7 / 16) }
-      if (y + 1 < h) {
-        if (x > 0) { const j = i + w * 4 - 4; d[j] = Math.round(d[j] + errR * 3 / 16); d[j+1] = Math.round(d[j+1] + errG * 3 / 16); d[j+2] = Math.round(d[j+2] + errB * 3 / 16) }
-        { const j = i + w * 4; d[j] = Math.round(d[j] + errR * 5 / 16); d[j+1] = Math.round(d[j+1] + errG * 5 / 16); d[j+2] = Math.round(d[j+2] + errB * 5 / 16) }
-        if (x + 1 < w) { const j = i + w * 4 + 4; d[j] = Math.round(d[j] + errR * 1 / 16); d[j+1] = Math.round(d[j+1] + errG * 1 / 16); d[j+2] = Math.round(d[j+2] + errB * 1 / 16) }
+    } else {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4
+        const oldR = d[i], oldG = d[i+1], oldB = d[i+2]
+        const newR = Math.round(Math.round(oldR / step) * step)
+        const newG = Math.round(Math.round(oldG / step) * step)
+        const newB = Math.round(Math.round(oldB / step) * step)
+        d[i] = newR; d[i+1] = newG; d[i+2] = newB
+        const errR = oldR - newR, errG = oldG - newG, errB = oldB - newB
+        if (x + 1 < w) { const j = i + 4; d[j] = Math.round(d[j] + errR * 7 / 16); d[j+1] = Math.round(d[j+1] + errG * 7 / 16); d[j+2] = Math.round(d[j+2] + errB * 7 / 16) }
+        if (y + 1 < h) {
+          if (x > 0) { const j = i + w * 4 - 4; d[j] = Math.round(d[j] + errR * 3 / 16); d[j+1] = Math.round(d[j+1] + errG * 3 / 16); d[j+2] = Math.round(d[j+2] + errB * 3 / 16) }
+          { const j = i + w * 4; d[j] = Math.round(d[j] + errR * 5 / 16); d[j+1] = Math.round(d[j+1] + errG * 5 / 16); d[j+2] = Math.round(d[j+2] + errB * 5 / 16) }
+          if (x + 1 < w) { const j = i + w * 4 + 4; d[j] = Math.round(d[j] + errR * 1 / 16); d[j+1] = Math.round(d[j+1] + errG * 1 / 16); d[j+2] = Math.round(d[j+2] + errB * 1 / 16) }
+        }
       }
     }
   }
@@ -983,7 +998,7 @@ function bayerDitherPixels(d, w, h, colorSteps, baseDensity, pixelDensity, color
   }
 }
 
-function atkinsonDitherPixels(d, w, h, colorSteps, preBw) {
+function atkinsonDitherPixels(d, w, h, colorSteps, preBw, serpentine) {
   colorSteps = colorSteps ?? 4
   const step = 255 / (colorSteps - 1)
   if (preBw) {
@@ -993,65 +1008,203 @@ function atkinsonDitherPixels(d, w, h, colorSteps, preBw) {
     }
   }
   for (let y = 0; y < h; y++) {
+    const reverse = serpentine && (y % 2 === 1)
+    if (reverse) {
+      for (let x = w - 1; x >= 0; x--) {
+        const i = (y * w + x) * 4
+        const oldR = d[i], oldG = d[i+1], oldB = d[i+2]
+        const newR = Math.round(Math.round(oldR / step) * step)
+        const newG = Math.round(Math.round(oldG / step) * step)
+        const newB = Math.round(Math.round(oldB / step) * step)
+        d[i] = newR; d[i+1] = newG; d[i+2] = newB
+        const errR = oldR - newR, errG = oldG - newG, errB = oldB - newB
+        if (x - 1 >= 0) { const j = i - 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+        if (x - 2 >= 0) { const j = i - 8; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+        if (y + 1 < h) {
+          if (x + 1 < w) { const j = i + w * 4 + 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+          { const j = i + w * 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+          if (x - 1 >= 0) { const j = i + w * 4 - 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+        }
+        if (y + 2 < h) { const j = i + w * 8; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+      }
+    } else {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4
+        const oldR = d[i], oldG = d[i+1], oldB = d[i+2]
+        const newR = Math.round(Math.round(oldR / step) * step)
+        const newG = Math.round(Math.round(oldG / step) * step)
+        const newB = Math.round(Math.round(oldB / step) * step)
+        d[i] = newR; d[i+1] = newG; d[i+2] = newB
+        const errR = oldR - newR, errG = oldG - newG, errB = oldB - newB
+        if (x + 1 < w) { const j = i + 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+        if (x + 2 < w) { const j = i + 8; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+        if (y + 1 < h) {
+          if (x > 0) { const j = i + w * 4 - 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+          { const j = i + w * 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+          if (x + 1 < w) { const j = i + w * 4 + 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+        }
+        if (y + 2 < h) { const j = i + w * 8; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+      }
+    }
+  }
+}
+
+function halftoneDotDitherPixels(d, w, h, colorSteps, dotSpacing, maxDotRadius, screenAngle, preBw, colorType) {
+  colorSteps = colorSteps ?? 4
+  dotSpacing = Math.max(2, dotSpacing ?? 4)
+  maxDotRadius = Math.max(1, maxDotRadius ?? 3)
+  colorType = colorType ?? 'color'
+  const rad = (screenAngle ?? 45) * Math.PI / 180
+  const cosA = Math.cos(rad), sinA = Math.sin(rad)
+  const qSteps = colorSteps
+  if (preBw) {
+    for (let i = 0; i < d.length; i += 4) {
+      const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
+      d[i] = d[i+1] = d[i+2] = l
+    }
+  }
+  // Rotated grid extent for index bijection
+  const gu = Math.ceil((Math.abs(w * cosA) + Math.abs(h * sinA)) / dotSpacing) + 2
+  const gv = Math.ceil((Math.abs(w * sinA) + Math.abs(h * cosA)) / dotSpacing) + 2
+  const gvSpan = 2 * gv + 1
+  const cellCount = new Int32Array(gu * 2 * gvSpan + gvSpan)
+  const cellLuma = new Float64Array(gu * 2 * gvSpan + gvSpan)
+  const cellR = new Float64Array(gu * 2 * gvSpan + gvSpan)
+  const cellG = new Float64Array(gu * 2 * gvSpan + gvSpan)
+  const cellB = new Float64Array(gu * 2 * gvSpan + gvSpan)
+  const keyOf = (cu, cv) => (cu + gu) * gvSpan + (cv + gv)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const u = x * cosA + y * sinA
+      const v = -x * sinA + y * cosA
+      const cu = Math.floor(u / dotSpacing)
+      const cv = Math.floor(v / dotSpacing)
+      const k = keyOf(cu, cv)
+      const i = (y * w + x) * 4
+      const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
+      cellCount[k]++
+      cellLuma[k] += l
+      cellR[k] += d[i]
+      cellG[k] += d[i+1]
+      cellB[k] += d[i+2]
+    }
+  }
+  // Draw dots
+  for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4
-      const oldR = d[i], oldG = d[i+1], oldB = d[i+2]
-      const newR = Math.round(Math.round(oldR / step) * step)
-      const newG = Math.round(Math.round(oldG / step) * step)
-      const newB = Math.round(Math.round(oldB / step) * step)
-      d[i] = newR; d[i+1] = newG; d[i+2] = newB
-      const errR = oldR - newR, errG = oldG - newG, errB = oldB - newB
-      if (x + 1 < w) { const j = i + 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
-      if (y + 1 < h) {
-        if (x > 0) { const j = i + w * 4 - 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
-        { const j = i + w * 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
-        if (x + 1 < w) { const j = i + w * 4 + 4; d[j] += Math.round(errR * 1 / 8); d[j+1] += Math.round(errG * 1 / 8); d[j+2] += Math.round(errB * 1 / 8) }
+      const u = x * cosA + y * sinA
+      const v = -x * sinA + y * cosA
+      const cu = Math.floor(u / dotSpacing)
+      const cv = Math.floor(v / dotSpacing)
+      const k = keyOf(cu, cv)
+      const cnt = cellCount[k]
+      if (cnt <= 0) { d[i] = d[i+1] = d[i+2] = 255; continue }
+      const avgL = cellLuma[k] / cnt
+      const darkness = Math.max(0, Math.min(1, 1 - avgL / 255))
+      const qDark = Math.round(darkness * (qSteps - 1)) / (qSteps - 1)
+      const radius = qDark * maxDotRadius
+      const cuC = (cu + 0.5) * dotSpacing
+      const cvC = (cv + 0.5) * dotSpacing
+      const dist = Math.sqrt((u - cuC) * (u - cuC) + (v - cvC) * (v - cvC))
+      if (dist <= radius) {
+        if (colorType === 'B&W') {
+          d[i] = d[i+1] = d[i+2] = 0
+        } else {
+          const l = qDark
+          d[i] = Math.round(255 * (1 - l) + (cellR[k] / cnt) * l)
+          d[i+1] = Math.round(255 * (1 - l) + (cellG[k] / cnt) * l)
+          d[i+2] = Math.round(255 * (1 - l) + (cellB[k] / cnt) * l)
+        }
+      } else {
+        d[i] = d[i+1] = d[i+2] = 255
       }
     }
   }
 }
 
 function longShadowPixels(d, w, h, angle, length, color, fade) {
-  const rad = (angle || 45) * Math.PI / 180
+  const rad = (angle ?? 45) * Math.PI / 180
   const cosA = Math.cos(rad), sinA = Math.sin(rad)
   const shadowLen = Math.max(1, Math.round((length ?? 0.5) * Math.min(w, h)))
   const cr = parseInt((color || '#000000').slice(1,3),16)
   const cg = parseInt((color || '#000000').slice(3,5),16)
   const cb = parseInt((color || '#000000').slice(5,7),16)
-  const orig = new Uint8ClampedArray(d)
-  // Edge trace: only process opaque pixels with transparent neighbor in +angle
-  const mindist = new Uint16Array(w * h)
-  const MAX = shadowLen + 1
-  for (let i = 0; i < w * h; i++) mindist[i] = MAX
+
+  // Opaque mask of the original image (alpha > threshold counts as text).
+  const origA = new Uint8ClampedArray(w * h)
+  let any = false
+  for (let i = 0; i < w * h; i++) {
+    const a = d[i * 4 + 3]
+    origA[i] = a
+    if (a > 10) any = true
+  }
+  if (!any) return
+
+  // ── Backward-check directional dilation ──
+  // A pixel is part of the shadow iff an opaque text pixel exists within
+  // shadowLen distance BEHIND it along the -angle direction. We walk every
+  // scan line parallel to the angle and keep a running window ("last opaque
+  // behind") — O(w*h), no diverging rays, therefore no gaps at any distance.
+  const shadowDist = new Float32Array(w * h)
+
+  // Walk each scan line stepping exactly one pixel along the dominant axis so
+  // the discrete line is 8-connected (never skips a cell along the path).
+  const dom = Math.max(Math.abs(cosA), Math.abs(sinA))
+  const step = 1 / dom
+  const ux = cosA * step, uy = sinA * step
+
+  const visited = new Uint8Array(w * h)
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const si = (y * w + x) * 4
-      if (orig[si + 3] <= 10) continue
-      const nx = Math.round(x + cosA)
-      const ny = Math.round(y + sinA)
-      if (nx < 0 || nx >= w || ny < 0 || ny >= h || orig[(ny * w + nx) * 4 + 3] <= 10) {
-        for (let s = 1; s <= shadowLen; s++) {
-          const sx = Math.round(x + cosA * s)
-          const sy = Math.round(y + sinA * s)
-          if (sx < 0 || sx >= w || sy < 0 || sy >= h) break
-          const mi = sy * w + sx
-          if (orig[mi * 4 + 3] > 10) break
-          if (s < mindist[mi]) mindist[mi] = s
+      if (visited[y * w + x]) continue
+      // Is this cell the start of its scan line? (predecessor lies outside image)
+      const bx = Math.round(x - ux), by = Math.round(y - uy)
+      const isStart = bx < 0 || bx >= w || by < 0 || by >= h
+      if (!isStart) continue
+
+      let t = 0, lastOpaqueT = -Infinity
+      let cx = x, cy = y
+      while (cx >= 0 && cx < w && cy >= 0 && cy < h) {
+        const idx = cy * w + cx
+        visited[idx] = 1
+        if (origA[idx] > 10) {
+          lastOpaqueT = t
+        } else {
+          const dt = t - lastOpaqueT
+          if (dt <= shadowLen && dt > 0) shadowDist[idx] = dt
         }
+        t += step
+        cx = Math.round(x + cosA * t)
+        cy = Math.round(y + sinA * t)
       }
     }
   }
+
+  // Paint shadow onto transparent pixels; original text is excluded.
+  // Continuous alpha coverage: shadow fills the non-covered fraction of each
+  // pixel (a = t*0.7*(1-cov)) and is composited UNDER the text. AA fringe
+  // pixels (partial coverage) therefore receive shadow instead of showing the
+  // background through them — no more light hairline at the text edge.
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const s = mindist[y * w + x]
-      if (s > shadowLen) continue
-      const i = (y * w + x) * 4
-      const t = fade ? 1 - s / shadowLen : 1
-      const a = t * 0.7
-      if (d[i + 3] < Math.round(255 * a)) d[i + 3] = Math.round(255 * a)
-      d[i] = Math.round(d[i] * (1 - a) + cr * a)
-      d[i+1] = Math.round(d[i+1] * (1 - a) + cg * a)
-      d[i+2] = Math.round(d[i+2] * (1 - a) + cb * a)
+      const idx = y * w + x
+      const dt = shadowDist[idx]
+      if (!(dt > 0 && dt <= shadowLen)) continue
+      const cov = origA[idx] / 255
+      if (cov >= 1) continue
+      const i = idx * 4
+      const t = fade ? Math.max(0, 1 - dt / shadowLen) : 1
+      const a = t * 0.7 * (1 - cov)
+      if (a <= 0) continue
+      const outA = cov + a - a * cov
+      const na = Math.round(255 * outA)
+      if (na > d[i + 3]) {
+        d[i] = Math.round((d[i] * cov + cr * a * (1 - cov)) / outA)
+        d[i+1] = Math.round((d[i+1] * cov + cg * a * (1 - cov)) / outA)
+        d[i+2] = Math.round((d[i+2] * cov + cb * a * (1 - cov)) / outA)
+        d[i+3] = na
+      }
     }
   }
 }
@@ -1096,10 +1249,11 @@ function boxBlur(src, w, h, radius) {
   return result
 }
 
-function distressedBleedPixels(d, w, h, blurRadius, grain, bleedHex, bleedAmount, edgeOnly, sideL, sideR, sideT, sideB) {
+function distressedBleedPixels(d, w, h, blurRadius, grain, bleedHex, bleedAmount, edgeOnly, sideL, sideR, sideT, sideB, smooth) {
   blurRadius = blurRadius ?? 0.3
   grain = grain ?? 0.3
   bleedAmount = bleedAmount ?? 0.5
+  smooth = smooth ?? 0.25
   edgeOnly = edgeOnly !== false
   if (edgeOnly) {
     sideL = sideL !== false; sideR = sideR !== false
@@ -1110,41 +1264,84 @@ function distressedBleedPixels(d, w, h, blurRadius, grain, bleedHex, bleedAmount
   const bb = parseInt((bleedHex || '#ff0000').slice(5,7),16)
   const origA = new Uint8ClampedArray(w * h)
   for (let i = 0; i < w * h; i++) origA[i] = d[i * 4 + 3]
-  const radius = Math.max(1, Math.round(blurRadius * Math.min(w, h) * 0.15))
+  // Blur radius scales with item size so the gradient zone is proportional to shape
+  const radius = Math.max(1, Math.round(blurRadius * Math.min(w, h) * 0.35))
   const blurredA = boxBlur(origA, w, h, radius)
-  const grainSize = Math.max(1, Math.round(grain * 8))
+  // Grain size now up to ~16px blocks for coarse visible particles
+  const grainSize = Math.max(1, Math.round(grain * 16))
   const seedOffset = Math.round(blurRadius * 100 + grain * 50 + bleedAmount * 25)
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x
-      const idx = i * 4
-      const origAlpha = origA[i]
-      if (origAlpha === 0) continue
-      const blurA = blurredA[i]
-      const isEdge = Math.abs(blurA - origAlpha) > 2 || (origAlpha > 0 && origAlpha < 255)
-      if (!isEdge) continue
-      if (edgeOnly) {
-        const gx = blurredA[y * w + Math.min(w - 1, x + 1)] - blurredA[y * w + Math.max(0, x - 1)]
-        const gy = blurredA[Math.min(h - 1, y + 1) * w + x] - blurredA[Math.max(0, y - 1) * w + x]
-        const glen = Math.sqrt(gx * gx + gy * gy)
-        if (glen >= 8) {
-          const nx = gx / glen, ny = gy / glen
-          let pass = false
-          if (Math.abs(nx) > Math.abs(ny)) {
-            if (nx > 0 && sideL) pass = true
-            if (nx < 0 && sideR) pass = true
-          } else {
-            if (ny > 0 && sideT) pass = true
-            if (ny < 0 && sideB) pass = true
-          }
-          if (!pass) continue
+  const edgeTest = (x, y) => {
+    const i = y * w + x
+    const origAlpha = origA[i]
+    if (origAlpha === 0) return false
+    const blurA = blurredA[i]
+    if (Math.abs(blurA - origAlpha) <= 2 && !(origAlpha > 0 && origAlpha < 255)) return false
+    if (edgeOnly) {
+      const gx = blurredA[y * w + Math.min(w - 1, x + 1)] - blurredA[y * w + Math.max(0, x - 1)]
+      const gy = blurredA[Math.min(h - 1, y + 1) * w + x] - blurredA[Math.max(0, y - 1) * w + x]
+      const glen = Math.sqrt(gx * gx + gy * gy)
+      if (glen >= 8) {
+        const nx = gx / glen, ny = gy / glen
+        if (Math.abs(nx) > Math.abs(ny)) {
+          if (nx > 0 && sideL) return true
+          if (nx < 0 && sideR) return true
+        } else {
+          if (ny > 0 && sideT) return true
+          if (ny < 0 && sideB) return true
         }
+        return false
       }
+    }
+    return true
+  }
+  // Pass 1: find cells that touch the dissolve zone and their average edge intensity
+  const cellsW = Math.max(1, Math.ceil(w / grainSize))
+  const cellsH = Math.max(1, Math.ceil(h / grainSize))
+  const cellCount = new Int32Array(cellsW * cellsH)
+  const cellBlur = new Float32Array(cellsW * cellsH)
+  for (let y = 0; y < h; y++) {
+    const yBase = y * w
+    for (let x = 0; x < w; x++) {
+      if (!edgeTest(x, y)) continue
+      const i = yBase + x
+      const bx = Math.floor(x / grainSize)
+      const by = Math.floor(y / grainSize)
+      const ci = by * cellsW + bx
+      cellCount[ci]++
+      cellBlur[ci] += blurredA[i]
+    }
+  }
+  // Pass 2: render each surviving particle as a round anti-aliased dot with
+  // radius proportional to grain size and 0.7x-1.3x random variation
+  for (let y = 0; y < h; y++) {
+    const yBase = y * w
+    for (let x = 0; x < w; x++) {
+      if (!edgeTest(x, y)) continue
+      const i = yBase + x
+      const idx = i * 4
+      const blurA = blurredA[i]
       if (blurA === 0) { d[idx + 3] = 0; continue }
       const bx = Math.floor(x / grainSize)
       const by = Math.floor(y / grainSize)
-      const r = ((Math.sin(bx * 127.1 + by * 311.7 + seedOffset) * 43758.5453) % 1 + 1) % 1
-      if (r < blurA / 255) {
+      const ci = by * cellsW + bx
+      const cnt = cellCount[ci]
+      if (cnt <= 0) continue
+      const r1 = ((Math.sin(bx * 127.1 + by * 311.7 + seedOffset) * 43758.5453) % 1 + 1) % 1
+      if (r1 >= cellBlur[ci] / cnt / 255) {
+        if (bleedAmount > 0.01) {
+          d[idx] = br; d[idx+1] = bg; d[idx+2] = bb
+          d[idx+3] = Math.round(bleedAmount * 200)
+        } else {
+          d[idx + 3] = 0
+        }
+        continue
+      }
+      const r2 = ((Math.sin(bx * 191.9 + by * 271.3 + seedOffset * 2.7) * 24623.1237) % 1 + 1) % 1
+      const radius = (grainSize / 2) * (0.7 + 0.6 * r2)
+      const cxx = (bx + 0.5) * grainSize
+      const cyy = (by + 0.5) * grainSize
+      const dist = Math.sqrt((x + 0.5 - cxx) * (x + 0.5 - cxx) + (y + 0.5 - cyy) * (y + 0.5 - cyy))
+      if (dist <= radius) {
         if (bleedAmount > 0.01) {
           const blend = bleedAmount * 0.4
           d[idx] = Math.round(d[idx] * (1 - blend) + br * blend)
@@ -1152,6 +1349,15 @@ function distressedBleedPixels(d, w, h, blurRadius, grain, bleedHex, bleedAmount
           d[idx+2] = Math.round(d[idx+2] * (1 - blend) + bb * blend)
         }
         d[idx + 3] = 255
+      } else if (dist <= radius + 0.8) {
+        const aa = (radius + 0.8 - dist) / 0.8
+        if (bleedAmount > 0.01) {
+          const blend = bleedAmount * 0.4 * aa
+          d[idx] = Math.round(d[idx] * (1 - blend) + br * blend)
+          d[idx+1] = Math.round(d[idx+1] * (1 - blend) + bg * blend)
+          d[idx+2] = Math.round(d[idx+2] * (1 - blend) + bb * blend)
+        }
+        d[idx + 3] = Math.round(255 * aa)
       } else {
         if (bleedAmount > 0.01) {
           d[idx] = br; d[idx+1] = bg; d[idx+2] = bb
@@ -1161,6 +1367,14 @@ function distressedBleedPixels(d, w, h, blurRadius, grain, bleedHex, bleedAmount
         }
       }
     }
+  }
+  // Post-dissolve smoothing: light blur on alpha softens hard particle edges
+  if (smooth > 0) {
+    const a = new Uint8ClampedArray(w * h)
+    for (let i = 0; i < w * h; i++) a[i] = d[i * 4 + 3]
+    const sRadius = Math.max(1, Math.round(smooth * 5))
+    const smoothA = boxBlur(a, w, h, sRadius)
+    for (let i = 0; i < w * h; i++) d[i * 4 + 3] = smoothA[i]
   }
 }
 
@@ -1649,7 +1863,7 @@ export class EffectManager {
         filterList.push(function ditheringFilter(imgData) {
           const d = imgData.data, w2 = imgData.width, h2 = imgData.height
           if (p.mode === 'atkinson') {
-            atkinsonDitherPixels(d, w2, h2, colorSteps, p.preBw)
+            atkinsonDitherPixels(d, w2, h2, colorSteps, p.preBw, p.serpentine)
             if (p.colorType === 'B&W') {
               for (let i = 0; i < d.length; i += 4) {
                 const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
@@ -1657,13 +1871,15 @@ export class EffectManager {
               }
             }
           } else if (p.mode === 'floyd') {
-            floydSteinbergDitherPixels(d, w2, h2, colorSteps, p.baseDensity, p.preBw)
+            floydSteinbergDitherPixels(d, w2, h2, colorSteps, p.preBw, p.serpentine)
             if (p.colorType === 'B&W') {
               for (let i = 0; i < d.length; i += 4) {
                 const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
                 d[i] = d[i+1] = d[i+2] = l < 128 ? 0 : 255
               }
             }
+          } else if (p.mode === 'halftone') {
+            halftoneDotDitherPixels(d, w2, h2, colorSteps, p.dotSpacing, p.maxDotRadius, p.screenAngle, p.preBw, p.colorType)
           } else {
             bayerDitherPixels(d, w2, h2, colorSteps, p.baseDensity, (p.pixelDensity ?? 4) * scale, p.colorType, p.preBw)
           }
@@ -1681,9 +1897,9 @@ export class EffectManager {
       }
       if (id === 'distressedBleed' && val) {
         const p = val
-        addPad(Math.ceil((p.blurRadius ?? 0.3) * Math.min(node.width(), node.height()) * 0.15 + 5))
+        addPad(Math.ceil((p.blurRadius ?? 0.3) * Math.min(node.width(), node.height()) * 0.35 + 8))
         filterList.push(function distressedBleedFilter(imgData) {
-          distressedBleedPixels(imgData.data, imgData.width, imgData.height, p.blurRadius, p.grainSize, p.bleedColor, p.bleedAmount, p.edgeOnly, p.sideLeft, p.sideRight, p.sideTop, p.sideBottom)
+          distressedBleedPixels(imgData.data, imgData.width, imgData.height, p.blurRadius, p.grainSize, p.bleedColor, p.bleedAmount, p.edgeOnly, p.sideLeft, p.sideRight, p.sideTop, p.sideBottom, p.smooth)
         })
         afterPush(id); continue
       }
@@ -2299,7 +2515,7 @@ export class EffectManager {
         const p = val
         const colorSteps = p.colorSteps ?? p.levels ?? 4
         if (p.mode === 'atkinson') {
-          atkinsonDitherPixels(d, w, h, colorSteps, p.preBw)
+          atkinsonDitherPixels(d, w, h, colorSteps, p.preBw, p.serpentine)
           if (p.colorType === 'B&W') {
             for (let i = 0; i < d.length; i += 4) {
               const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
@@ -2307,13 +2523,15 @@ export class EffectManager {
             }
           }
         } else if (p.mode === 'floyd') {
-          floydSteinbergDitherPixels(d, w, h, colorSteps, p.baseDensity, p.preBw)
+          floydSteinbergDitherPixels(d, w, h, colorSteps, p.preBw, p.serpentine)
           if (p.colorType === 'B&W') {
             for (let i = 0; i < d.length; i += 4) {
               const l = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]
               d[i] = d[i+1] = d[i+2] = l < 128 ? 0 : 255
             }
           }
+        } else if (p.mode === 'halftone') {
+          halftoneDotDitherPixels(d, w, h, colorSteps, p.dotSpacing, p.maxDotRadius, p.screenAngle, p.preBw, p.colorType)
         } else {
           bayerDitherPixels(d, w, h, colorSteps, p.baseDensity, p.pixelDensity ?? 4, p.colorType, p.preBw)
         }
@@ -2324,7 +2542,7 @@ export class EffectManager {
         continue
       }
       if (id === 'distressedBleed' && val) {
-        const p = val; distressedBleedPixels(d, w, h, p.blurRadius, p.grainSize, p.bleedColor, p.bleedAmount, p.edgeOnly, p.sideLeft, p.sideRight, p.sideTop, p.sideBottom)
+        const p = val; distressedBleedPixels(d, w, h, p.blurRadius, p.grainSize, p.bleedColor, p.bleedAmount, p.edgeOnly, p.sideLeft, p.sideRight, p.sideTop, p.sideBottom, p.smooth)
         continue
       }
 

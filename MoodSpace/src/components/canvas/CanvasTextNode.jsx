@@ -151,7 +151,7 @@ const setCanvasCursor = (stage, cursor) => {
   if (canvas) canvas.style.cursor = cursor
 }
 
-export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, getActiveTransformAnchor, fontInjectVersion, selectedId, selectedIds, onBroadcastRef }) {
+export default function CanvasTextNode({ item, commonProps, isTextEditing, onTextEdit, onChange, getActiveTransformAnchor, fontInjectVersion, selectedId, selectedIds, onBroadcastRef, onToolbarRepositionRef }) {
   const textNodeRef = useRef(null)
   const curveImageRef = useRef(null)
   const groupRef = useRef(null)
@@ -962,6 +962,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         if (grp) { grp.x(nx); grp.y(ny); grp.rotation(deg) }
         setDragX(nx); setDragY(ny); setDragRotation(deg)
         setCanvasCursor(stage, 'crosshair')
+        onToolbarRepositionRef?.current?.()
         return
       }
       // Width resize (same formula for all resize anchors)
@@ -1031,6 +1032,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         }
       }
       setCanvasCursor(stage, ANCHOR_CURSOR[anchor] || 'default')
+      onToolbarRepositionRef?.current?.()
     }
     const resizeUp = () => {
       stage.off('pointermove', resizeMove)
@@ -1064,6 +1066,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       if (setAlignmentGuides) setAlignmentGuides([])
       if (setRotationSnapGuide) setRotationSnapGuide(null)
       setCanvasCursor(stage, '')
+      onToolbarRepositionRef?.current?.()
     }
     resizeMoveRef.current = resizeMove
     resizeUpRef.current = resizeUp
@@ -1118,6 +1121,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           onBroadcastRef.current({ x: startX + snapDx, y: startY + snapDy })
         }
       }
+      onToolbarRepositionRef?.current?.()
     }
     const upHandler = () => {
       stage.off('pointermove', moveHandler)
@@ -1132,6 +1136,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         onChangeRef.current({ x: fx, y: fy })
       }
       setCanvasCursor(stage, '')
+      onToolbarRepositionRef?.current?.()
     }
     stage.on('pointermove', moveHandler)
     stage.on('pointerup', upHandler)
@@ -1437,6 +1442,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
           {/* Stretch-responsive dimensions: multiRunGroupRef has stretch, this box lives at groupRef level */}
           {/* Border — matching Transformer borderStroke="#a970ff", strokeWidth=1 */}
           <Rect
+            name="multi-run-selection-border"
             x={0} y={0}
             width={displayWidth * stretchScaleX}
             height={textHeight * stretchScaleY}
