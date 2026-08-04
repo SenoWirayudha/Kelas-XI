@@ -1123,10 +1123,17 @@ function halftoneDotDitherPixels(d, w, h, colorSteps, dotSpacing, maxDotRadius, 
   }
 }
 
-function longShadowPixels(d, w, h, angle, length, color, fade) {
+function longShadowPixels(d, w, h, angle, length, color, fade, cW, cH) {
   const rad = (angle ?? 45) * Math.PI / 180
   const cosA = Math.cos(rad), sinA = Math.sin(rad)
-  const shadowLen = Math.max(1, Math.round((length ?? 0.5) * Math.min(w, h)))
+  // Shadow length must be based on the CONTENT size, not the padded cache
+  // buffer. If computed from `w/h` (buffer dims that already include pad*2 +
+  // textPad + scale + pixelRatio) the shadow length inherits the padding it
+  // was supposed to reserve, overruns the cache edge, and gets hard-clipped —
+  // visible as jagged "pecah-pecah" outlines on text/shape/chroma silhouettes.
+  const refW = (cW && cW > 0) ? cW : Math.min(w, h)
+  const refH = (cH && cH > 0) ? cH : refW
+  const shadowLen = Math.max(1, Math.round((length ?? 0.5) * Math.min(refW, refH)))
   const cr = parseInt((color || '#000000').slice(1,3),16)
   const cg = parseInt((color || '#000000').slice(3,5),16)
   const cb = parseInt((color || '#000000').slice(5,7),16)
@@ -1168,12 +1175,16 @@ function longShadowPixels(d, w, h, angle, length, color, fade) {
       while (cx >= 0 && cx < w && cy >= 0 && cy < h) {
         const idx = cy * w + cx
         visited[idx] = 1
-        if (origA[idx] > 10) {
-          lastOpaqueT = t
-        } else {
+        const a = origA[idx]
+        // Receive shadow under this pixel if not fully opaque. This includes
+        // AA-fringe pixels (0 < alpha < 255) so text/shape/chroma edges get a
+        // shadow instead of showing background through the fringe ("pecah-pecah").
+        if (a < 255) {
           const dt = t - lastOpaqueT
           if (dt <= shadowLen && dt > 0) shadowDist[idx] = dt
         }
+        // Cast shadow for pixels behind on this scan line.
+        if (a > 10) lastOpaqueT = t
         t += step
         cx = Math.round(x + cosA * t)
         cy = Math.round(y + sinA * t)
@@ -1249,126 +1260,199 @@ function boxBlur(src, w, h, radius) {
   return result
 }
 
-function distressedBleedPixels(d, w, h, blurRadius, grain, bleedHex, bleedAmount, edgeOnly, sideL, sideR, sideT, sideB, smooth) {
+function edt1D(f, n) {
+  const d = new Float64Array(n)
+  const v = new Int32Array(n)
+  const z = new Float64Array(n + 1)
+  let k = 0
+  v[0] = 0
+  z[0] = -Infinity
+  z[1] = Infinity
+  for (let q = 1; q < n; q++) {
+    let s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k])
+    while (s <= z[k]) {
+      k--
+      s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k])
+    }
+    k++
+    v[k] = q
+    z[k] = s
+    z[k + 1] = Infinity
+  }
+  k = 0
+  for (let q = 0; q < n; q++) {
+    while (z[k + 1] < q) k++
+    d[q] = (q - v[k]) * (q - v[k]) + f[v[k]]
+  }
+  return d
+}
+
+function edt2D(mask, w, h) {
+  const INF = 1e20
+  const g = new Float64Array(w * h)
+  for (let i = 0; i < w * h; i++) g[i] = mask[i] ? 0 : INF
+
+  const temp = new Float64Array(w * h)
+  const colBuf = new Float64Array(h)
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) colBuf[y] = g[y * w + x]
+    const dt = edt1D(colBuf, h)
+    for (let y = 0; y < h; y++) temp[y * w + x] = dt[y]
+  }
+
+  const out = new Float64Array(w * h)
+  const rowBuf = new Float64Array(w)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) rowBuf[x] = temp[y * w + x]
+    const dt = edt1D(rowBuf, w)
+    for (let x = 0; x < w; x++) out[y * w + x] = dt[x]
+  }
+  return out
+}
+
+function distressedBleedPixels(d, w, h, blurRadius, grain, bleedHex, bleedAmount, edgeOnly, sideL, sideR, sideT, sideB, smooth, cW, cH, spread) {
   blurRadius = blurRadius ?? 0.3
   grain = grain ?? 0.3
   bleedAmount = bleedAmount ?? 0.5
   smooth = smooth ?? 0.25
+  spread = spread ?? 0.5
   edgeOnly = edgeOnly !== false
   if (edgeOnly) {
     sideL = sideL !== false; sideR = sideR !== false
     sideT = sideT !== false; sideB = sideB !== false
   }
-  const br = parseInt((bleedHex || '#ff0000').slice(1,3),16)
-  const bg = parseInt((bleedHex || '#ff0000').slice(3,5),16)
-  const bb = parseInt((bleedHex || '#ff0000').slice(5,7),16)
+  const br = parseInt((bleedHex || '#ff0000').slice(1, 3), 16)
+  const bg = parseInt((bleedHex || '#ff0000').slice(3, 5), 16)
+  const bb = parseInt((bleedHex || '#ff0000').slice(5, 7), 16)
+
   const origA = new Uint8ClampedArray(w * h)
   for (let i = 0; i < w * h; i++) origA[i] = d[i * 4 + 3]
-  // Blur radius scales with item size so the gradient zone is proportional to shape
-  const radius = Math.max(1, Math.round(blurRadius * Math.min(w, h) * 0.35))
-  const blurredA = boxBlur(origA, w, h, radius)
-  // Grain size now up to ~16px blocks for coarse visible particles
-  const grainSize = Math.max(1, Math.round(grain * 16))
+
+  const fgMask = new Uint8Array(w * h)
+  for (let i = 0; i < w * h; i++) fgMask[i] = origA[i] > 127 ? 1 : 0
+  const bgMask = new Uint8Array(w * h)
+  for (let i = 0; i < w * h; i++) bgMask[i] = 1 - fgMask[i]
+
+  const distOutSq = edt2D(fgMask, w, h) // bg pixels: dist to nearest fg. fg pixels: 0
+  const distInSq = edt2D(bgMask, w, h)  // fg pixels: dist to nearest bg. bg pixels: 0
+
+  // Signed distance field: negative inside shape, positive outside. Valid & smooth at ANY distance,
+  // unlike a fixed-radius box blur — this is what makes edgeOnly direction detection work at large blurRadius.
+  const S = new Float32Array(w * h)
+  for (let i = 0; i < w * h; i++) {
+    S[i] = origA[i] > 127 ? -Math.sqrt(distInSq[i]) : Math.sqrt(distOutSq[i])
+  }
+
+  const refW = (cW && cW > 0) ? cW : Math.min(w, h)
+  const refH = (cH && cH > 0) ? cH : refW
+  const radius = Math.max(1, blurRadius * Math.min(refW, refH) * 0.35)
+
+  // spread controls the falloff curve: high spread = density stays higher further from edge (grain reaches
+  // further out, evenly). Low spread = density collapses fast near the edge (tight, dense cluster).
+  const spreadExp = 0.3 + (1 - spread) * 2.2
+
   const seedOffset = Math.round(blurRadius * 100 + grain * 50 + bleedAmount * 25)
-  const edgeTest = (x, y) => {
-    const i = y * w + x
-    const origAlpha = origA[i]
-    if (origAlpha === 0) return false
-    const blurA = blurredA[i]
-    if (Math.abs(blurA - origAlpha) <= 2 && !(origAlpha > 0 && origAlpha < 255)) return false
-    if (edgeOnly) {
-      const gx = blurredA[y * w + Math.min(w - 1, x + 1)] - blurredA[y * w + Math.max(0, x - 1)]
-      const gy = blurredA[Math.min(h - 1, y + 1) * w + x] - blurredA[Math.max(0, y - 1) * w + x]
-      const glen = Math.sqrt(gx * gx + gy * gy)
-      if (glen >= 8) {
-        const nx = gx / glen, ny = gy / glen
-        if (Math.abs(nx) > Math.abs(ny)) {
-          if (nx > 0 && sideL) return true
-          if (nx < 0 && sideR) return true
-        } else {
-          if (ny > 0 && sideT) return true
-          if (ny < 0 && sideB) return true
-        }
-        return false
+  const grainCells = Math.max(1, Math.round(grain * 16))
+  const octaves = [
+    { cells: grainCells,       amp: 0.55, seed: seedOffset * 1.0 },
+    { cells: grainCells * 2.3, amp: 0.30, seed: seedOffset * 2.7 + 91 },
+    { cells: grainCells * 5.1, amp: 0.15, seed: seedOffset * 4.3 + 233 },
+  ]
+  const grids = octaves.map(o => {
+    const gw = Math.ceil(w / o.cells) + 1
+    const gh = Math.ceil(h / o.cells) + 1
+    const grid = new Float32Array(gw * gh)
+    for (let j = 0; j < gh; j++) {
+      for (let i = 0; i < gw; i++) {
+        const s = Math.sin(i * 127.1 + j * 311.7 + o.seed * 74.7) * 43758.5453
+        grid[j * gw + i] = s - Math.floor(s)
       }
     }
-    return true
+    return { gw, gh, grid, cells: o.cells, amp: o.amp }
+  })
+  const sampleGrid = (g, x, y) => {
+    const fx = x / g.cells, fy = y / g.cells
+    const ix = Math.floor(fx), iy = Math.floor(fy)
+    const tx = fx - ix, ty = fy - iy
+    const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty)
+    const g00 = g.grid[iy * g.gw + ix], g10 = g.grid[iy * g.gw + ix + 1]
+    const g01 = g.grid[(iy + 1) * g.gw + ix], g11 = g.grid[(iy + 1) * g.gw + ix + 1]
+    return (g00 * (1 - sx) + g10 * sx) * (1 - sy) + (g01 * (1 - sx) + g11 * sx) * sy
   }
-  // Pass 1: find cells that touch the dissolve zone and their average edge intensity
-  const cellsW = Math.max(1, Math.ceil(w / grainSize))
-  const cellsH = Math.max(1, Math.ceil(h / grainSize))
-  const cellCount = new Int32Array(cellsW * cellsH)
-  const cellBlur = new Float32Array(cellsW * cellsH)
+  let ampSum = 0
+  for (const g of grids) ampSum += g.amp
+  const fbm = (x, y) => {
+    let v = 0
+    for (const g of grids) v += sampleGrid(g, x, y) * g.amp
+    return v / ampSum
+  }
+  const clusterAt = (x, y) => fbm(x + 1000, y + 1000)
+
   for (let y = 0; y < h; y++) {
     const yBase = y * w
     for (let x = 0; x < w; x++) {
-      if (!edgeTest(x, y)) continue
-      const i = yBase + x
-      const bx = Math.floor(x / grainSize)
-      const by = Math.floor(y / grainSize)
-      const ci = by * cellsW + bx
-      cellCount[ci]++
-      cellBlur[ci] += blurredA[i]
-    }
-  }
-  // Pass 2: render each surviving particle as a round anti-aliased dot with
-  // radius proportional to grain size and 0.7x-1.3x random variation
-  for (let y = 0; y < h; y++) {
-    const yBase = y * w
-    for (let x = 0; x < w; x++) {
-      if (!edgeTest(x, y)) continue
       const i = yBase + x
       const idx = i * 4
-      const blurA = blurredA[i]
-      if (blurA === 0) { d[idx + 3] = 0; continue }
-      const bx = Math.floor(x / grainSize)
-      const by = Math.floor(y / grainSize)
-      const ci = by * cellsW + bx
-      const cnt = cellCount[ci]
-      if (cnt <= 0) continue
-      const r1 = ((Math.sin(bx * 127.1 + by * 311.7 + seedOffset) * 43758.5453) % 1 + 1) % 1
-      if (r1 >= cellBlur[ci] / cnt / 255) {
-        if (bleedAmount > 0.01) {
-          d[idx] = br; d[idx+1] = bg; d[idx+2] = bb
-          d[idx+3] = Math.round(bleedAmount * 200)
-        } else {
-          d[idx + 3] = 0
-        }
-        continue
+      const a = origA[i]
+      const distOut = Math.sqrt(distOutSq[i])
+      const distIn = Math.sqrt(distInSq[i])
+
+      if (a === 0 && distOut > radius) continue
+
+      if (edgeOnly) {
+        if (!sideL && !sideR && !sideT && !sideB) continue
+        const xL = x > 0 ? i - 1 : i, xR = x < w - 1 ? i + 1 : i
+        const yU = y > 0 ? i - w : i, yD = y < h - 1 ? i + w : i
+        const grx = S[xR] - S[xL]
+        const gry = S[yD] - S[yU]
+        const glen = Math.sqrt(grx * grx + gry * gry)
+        if (glen < 1e-4) continue
+        const nx = grx / glen, ny = gry / glen
+        let onSide = false
+        if (Math.abs(nx) > Math.abs(ny)) onSide = nx > 0 ? sideL : sideR
+        else onSide = ny > 0 ? sideT : sideB
+        if (!onSide) continue
       }
-      const r2 = ((Math.sin(bx * 191.9 + by * 271.3 + seedOffset * 2.7) * 24623.1237) % 1 + 1) % 1
-      const radius = (grainSize / 2) * (0.7 + 0.6 * r2)
-      const cxx = (bx + 0.5) * grainSize
-      const cyy = (by + 0.5) * grainSize
-      const dist = Math.sqrt((x + 0.5 - cxx) * (x + 0.5 - cxx) + (y + 0.5 - cyy) * (y + 0.5 - cyy))
-      if (dist <= radius) {
-        if (bleedAmount > 0.01) {
-          const blend = bleedAmount * 0.4
+
+      const n = fbm(x, y)
+
+      if (a > 0) {
+        const erosionReach = Math.max(1, radius * 0.6)
+        const edgeDist = Math.min(1, distIn / erosionReach)
+        if (n > edgeDist) {
+          if (bleedAmount > 0.01) {
+            d[idx] = br; d[idx + 1] = bg; d[idx + 2] = bb
+            d[idx + 3] = Math.round(255 * Math.min(1, bleedAmount))
+          } else {
+            d[idx + 3] = 0
+          }
+        } else if (bleedAmount > 0.01 && n > edgeDist - 0.12) {
+          const blend = bleedAmount * 0.35 * (1 - (edgeDist - n) / 0.12)
           d[idx] = Math.round(d[idx] * (1 - blend) + br * blend)
-          d[idx+1] = Math.round(d[idx+1] * (1 - blend) + bg * blend)
-          d[idx+2] = Math.round(d[idx+2] * (1 - blend) + bb * blend)
-        }
-        d[idx + 3] = 255
-      } else if (dist <= radius + 0.8) {
-        const aa = (radius + 0.8 - dist) / 0.8
-        if (bleedAmount > 0.01) {
-          const blend = bleedAmount * 0.4 * aa
+          d[idx + 1] = Math.round(d[idx + 1] * (1 - blend) + bg * blend)
+          d[idx + 2] = Math.round(d[idx + 2] * (1 - blend) + bb * blend)
+        } else if (bleedAmount > 0.01 && edgeDist > 0.6 && clusterAt(x, y) < bleedAmount * 0.32) {
+          const blend = bleedAmount * 0.5
           d[idx] = Math.round(d[idx] * (1 - blend) + br * blend)
-          d[idx+1] = Math.round(d[idx+1] * (1 - blend) + bg * blend)
-          d[idx+2] = Math.round(d[idx+2] * (1 - blend) + bb * blend)
+          d[idx + 1] = Math.round(d[idx + 1] * (1 - blend) + bg * blend)
+          d[idx + 2] = Math.round(d[idx + 2] * (1 - blend) + bb * blend)
         }
-        d[idx + 3] = Math.round(255 * aa)
       } else {
-        if (bleedAmount > 0.01) {
-          d[idx] = br; d[idx+1] = bg; d[idx+2] = bb
-          d[idx+3] = Math.round(bleedAmount * 200)
-        } else {
-          d[idx + 3] = 0
+        if (bleedAmount <= 0.01) continue
+        const density = Math.pow(Math.max(0, 1 - distOut / radius), spreadExp)
+        if (density <= 0) continue
+        if (n < density) {
+          const strength = Math.min(1, density * 1.4)
+          d[idx] = br; d[idx + 1] = bg; d[idx + 2] = bb
+          d[idx + 3] = Math.round(255 * bleedAmount * strength)
+        } else if (clusterAt(x, y) < density * 0.4) {
+          d[idx] = br; d[idx + 1] = bg; d[idx + 2] = bb
+          d[idx + 3] = Math.round(255 * bleedAmount * 0.5)
         }
       }
     }
   }
-  // Post-dissolve smoothing: light blur on alpha softens hard particle edges
+
   if (smooth > 0) {
     const a = new Uint8ClampedArray(w * h)
     for (let i = 0; i < w * h; i++) a[i] = d[i * 4 + 3]
@@ -1485,6 +1569,17 @@ export class EffectManager {
       if (!entry) continue
       const id = entry.effectId
       const val = entry.value
+      if (id === 'longShadow') {
+        if (!this._longShadowSeen) this._longShadowSeen = new WeakSet()
+        this._longShadowSeen.add(node)
+        const skipped = (!val && val !== 0) || val === false || val === 'none' || val === ''
+        console.log('[LONGSHADOW-DEBUG] applyAll longShadow entry', {
+          node: node.id ? (node.id() || node.className || '?') : (node.className || '?'),
+          value: val,
+          skipped,
+          instanceId: String(instanceId).substring(0, 6),
+        })
+      }
       if (!val && val !== 0) continue
       if (val === false || val === 'none' || val === '') continue
       effectInstanceCount[id] = (effectInstanceCount[id] || 0) + 1
@@ -1891,7 +1986,17 @@ export class EffectManager {
         const shadowLen = (p.length ?? 0.5) * Math.max(node.width(), node.height())
         addPad(Math.ceil(shadowLen) + 5)
         filterList.push(function longShadowFilter(imgData) {
-          longShadowPixels(imgData.data, imgData.width, imgData.height, p.angle, p.length, p.color, p.fade)
+          // Content size in buffer pixels = local content × scale × pixelRatio.
+          // Pass it so shadow length is computed from CONTENT, not the padded
+          // cache buffer (prevents shadow overrun/clip at the cache edge).
+          const sX = Math.abs(node.scaleX() || 1)
+          const sY = Math.abs(node.scaleY() || 1)
+          const pr = Math.min(window.devicePixelRatio || 1, 3)
+          const nW = typeof node.width === 'function' ? (node.width() || 0) : (node.getAttr('width') || 0)
+          const nH = typeof node.height === 'function' ? (node.height() || 0) : (node.getAttr('height') || 0)
+          const cW = Math.max(1, (nW > 0 ? nW : imgData.width / (sX * pr)) * sX * pr)
+          const cH = Math.max(1, (nH > 0 ? nH : imgData.height / (sY * pr)) * sY * pr)
+          longShadowPixels(imgData.data, imgData.width, imgData.height, p.angle, p.length, p.color, p.fade, cW, cH)
         })
         afterPush(id); continue
       }
@@ -1899,7 +2004,14 @@ export class EffectManager {
         const p = val
         addPad(Math.ceil((p.blurRadius ?? 0.3) * Math.min(node.width(), node.height()) * 0.35 + 8))
         filterList.push(function distressedBleedFilter(imgData) {
-          distressedBleedPixels(imgData.data, imgData.width, imgData.height, p.blurRadius, p.grainSize, p.bleedColor, p.bleedAmount, p.edgeOnly, p.sideLeft, p.sideRight, p.sideTop, p.sideBottom, p.smooth)
+          const sX = Math.abs(node.scaleX() || 1)
+          const sY = Math.abs(node.scaleY() || 1)
+          const pr = Math.min(window.devicePixelRatio || 1, 3)
+          const nW = typeof node.width === 'function' ? (node.width() || 0) : (node.getAttr('width') || 0)
+          const nH = typeof node.height === 'function' ? (node.height() || 0) : (node.getAttr('height') || 0)
+          const cW = Math.max(1, (nW > 0 ? nW : imgData.width / (sX * pr)) * sX * pr)
+          const cH = Math.max(1, (nH > 0 ? nH : imgData.height / (sY * pr)) * sY * pr)
+          distressedBleedPixels(imgData.data, imgData.width, imgData.height, p.blurRadius, p.grainSize, p.bleedColor, p.bleedAmount, p.edgeOnly, p.sideLeft, p.sideRight, p.sideTop, p.sideBottom, p.smooth, cW, cH)
         })
         afterPush(id); continue
       }
@@ -2131,13 +2243,23 @@ export class EffectManager {
           }
         } catch (_) {}
       }
+      // Konva renders the cache in LOCAL space but displays it at scaleX/scaleY.
+      // Failing to multiply by scale here rasterizes pixel-cell effects (long
+      // shadow dilation, distressed bleed particles) at low resolution and then
+      // stretches them → "kurang HD". Matches konvaUtils (cW = explicitW * scale).
       node.clearCache()
-      node.cache({ x: -(textPadL + pad), y: -(textPadT + pad), width: w + textPadL + textPadR + pad * 2, height: h + textPadT + textPadB + pad * 2, pixelRatio: pr })
+      node.cache({ x: -(textPadL + pad), y: -(textPadT + pad), width: (w + textPadL + textPadR + pad * 2) * scaleX, height: (h + textPadT + textPadB + pad * 2) * scaleY, pixelRatio: pr })
     } else {
       node.clearCache()
     }
 
     node.getLayer()?.batchDraw()
+    if (this._longShadowSeen && this._longShadowSeen.has(node)) {
+      console.log('[LONGSHADOW-DEBUG] applyAll done', {
+        node: node.id ? (node.id() || node.className || '?') : (node.className || '?'),
+        filterCount: filterList.length,
+      })
+    }
   }
 
   removeAll(node) {

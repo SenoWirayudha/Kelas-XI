@@ -45,6 +45,7 @@ function NewPost() {
   const [editPostId, setEditPostId] = useState(searchParams.get('edit') || '')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState('')
+  const [isFromWorkspace, setIsFromWorkspace] = useState(false)
 
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) requireAuth('login')
@@ -125,6 +126,7 @@ function NewPost() {
     if (!state?.exportedImage || processedExportRef.current) return
     processedExportRef.current = true
     fromWorkspaceRef.current = true
+    setIsFromWorkspace(true)
     if (state.templateWorkspaceId) {
       templateWorkspaceIdRef.current = state.templateWorkspaceId
     }
@@ -149,6 +151,7 @@ function NewPost() {
   }, [])
 
   const addSelectedFiles = (fileList) => {
+    if (isFromWorkspace) return
     const selected = [...(fileList || [])].filter((file) => file.type.startsWith('image/'))
     if (!selected.length) return
     setMediaItems((current) => {
@@ -300,7 +303,7 @@ function NewPost() {
       </header>
       <form className="new-post-form" onSubmit={submit}>
         <div className="new-post-assets">
-          {!editPostId && (
+          {!editPostId && !isFromWorkspace && (
             <label
               className={`new-post-dropzone${isDropActive ? ' is-active' : ''}`}
               onDragOver={(event) => {
@@ -317,15 +320,21 @@ function NewPost() {
               <button type="button" onClick={() => fileInputRef.current?.click()}>Browse Files</button>
             </label>
           )}
+          {!editPostId && isFromWorkspace && (
+            <div className="new-post-source-banner">
+              <Lock size={16} />
+              <span>Diterbitkan dari workspace — satu gambar memurut hasil ekspor. Tambahan media tidak tersedia untuk unggahan otomatis.</span>
+            </div>
+          )}
 
           <section className="new-post-carousel-panel">
             <div className="new-post-section-title">
               <div>
                 <strong>Media Carousel</strong>
-                <span>{mediaItems.length} media akan dipublikasikan</span>
+                <span>{mediaItems.length} media akan dipublikasikan{isFromWorkspace ? ' (maks. 1 — dari workspace)' : ''}</span>
               </div>
             </div>
-            {!editPostId && <input ref={carouselInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={addFiles} />}
+            {!editPostId && !isFromWorkspace && <input ref={carouselInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={addFiles} />}
             <div className="new-post-carousel-list">
               {mediaItems.map((item, index) => (
                 <article
@@ -340,12 +349,14 @@ function NewPost() {
                   <img src={item.url} alt="" />
                   <span className="new-post-media-order">{index + 1}</span>
                   <span className="new-post-media-drag"><GripVertical size={14} /></span>
-                  <button type="button" aria-label="Hapus media" onClick={() => removeMedia(item.id)}>
-                    <Trash2 size={14} />
-                  </button>
+                  {!isFromWorkspace && (
+                    <button type="button" aria-label="Hapus media" onClick={() => removeMedia(item.id)}>
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </article>
               ))}
-              {!editPostId && (
+              {!editPostId && !isFromWorkspace && (
                 <button type="button" className="new-post-add-media" onClick={() => carouselInputRef.current?.click()}>
                   <Plus size={22} />
                   <span>Add</span>

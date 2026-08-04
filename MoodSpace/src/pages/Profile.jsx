@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { FolderPlus, Globe, MapPin } from 'lucide-react'
+import { Bookmark, FolderPlus, Globe, MapPin } from 'lucide-react'
 import { detectPlatform, SocialLinkIcon, toAbsoluteUrl } from '../components/SocialLinkIcon'
 import BoardPickerModal from '../components/BoardPickerModal'
 import CommunityPostCard from '../components/CommunityPostCard'
@@ -124,6 +124,7 @@ function Profile() {
       } else {
         await (nextSaved ? savePost(post.id) : unsavePost(post.id))
       }
+      setToastData({ message: nextSaved ? 'Disimpan ke Saved' : 'Dihapus dari Saved' })
     } catch {
       setPosts((current) => current.map((item) => item.id === post.id ? post : item))
     }
@@ -413,9 +414,11 @@ function Profile() {
       />
       {toastData && (
         <div className="post-detail-toast" role="status" aria-live="polite">
-          <FolderPlus size={15} />
+          {toastData.currentBoardId ? <FolderPlus size={15} /> : <Bookmark size={15} />}
           <span>{toastData.message}</span>
-          <button type="button" className="toast-ubah-btn" onClick={handleUbahBoard}>Ubah</button>
+          {toastData.currentBoardId && (
+            <button type="button" className="toast-ubah-btn" onClick={handleUbahBoard}>Ubah</button>
+          )}
         </div>
       )}
     </section>

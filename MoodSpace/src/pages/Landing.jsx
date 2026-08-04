@@ -269,7 +269,7 @@ function Landing() {
         <nav className="landing-nav">
           <div className="landing-nav-left">
             <Link className="landing-brand" to="/">
-              Moodspace
+              <img className="landing-brand-logo" src="/logo-text.svg" alt="Moodspace" />
             </Link>
             <Link className="landing-nav-explore" to="/feed">Explore</Link>
           </div>
@@ -442,7 +442,9 @@ function Landing() {
             <Sparkles size={16} />
             <span>CREATIVE MOODBOARD WORKSPACE</span>
           </div>
-          <h1>Moodspace</h1>
+          <h1>
+            <img className="landing-hero-logo" src="/logo-text.svg" alt="Moodspace" />
+          </h1>
           <p>
             Workspace visual untuk mengumpulkan inspirasi, menyusun moodboard,
             presentasi arah kreatif.
@@ -645,7 +647,7 @@ function Landing() {
         <div className="landing-footer-inner">
           <div className="landing-footer-brand">
             <Link className="landing-brand" to="/">
-              Moodspace
+              <img className="landing-brand-logo" src="/logo-text.svg" alt="Moodspace" />
             </Link>
           </div>
           <div className="landing-footer-links">

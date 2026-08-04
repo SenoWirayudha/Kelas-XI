@@ -13,6 +13,13 @@ const formatCount = (value = 0) => (
   value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value
 )
 
+const PARTICLE_ANGLES = [-120, -95, -70, -50, -30, -10, 10, 30, 50, 70, 95, 120]
+
+const PARTICLE_DIRECTIONS = PARTICLE_ANGLES.map((angle, index) => {
+  const radians = (angle * Math.PI) / 180
+  return [Math.cos(radians) * 26, Math.sin(radians) * 26, index]
+})
+
 const getExtensionFromUrl = (url = '') => {
   const cleanUrl = url.split('?')[0]
   const extension = cleanUrl.split('.').pop()?.toLowerCase()
@@ -31,6 +38,7 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
   const [reportPostId, setReportPostId] = useState(null)
   const [showTemplateConfirm, setShowTemplateConfirm] = useState(false)
   const [isForking, setIsForking] = useState(false)
+  const [likePulse, setLikePulse] = useState(false)
   const menuRef = useRef(null)
   const isDraft = post.status === 'draft'
   const isExternalImage = !!post.isExternalImage
@@ -99,6 +107,10 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
     event.preventDefault()
     event.stopPropagation()
     if (isExternalImage || !onToggleLike || isSaving) return
+    if (!post.isLiked) {
+      setLikePulse(true)
+      window.setTimeout(() => setLikePulse(false), 400)
+    }
     setIsSaving(true)
     try {
       await onToggleLike(post)
@@ -177,12 +189,19 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
               <div className="gallery-card-actions">
                 {!isDraft && !isExternalImage && <button
                   type="button"
-                  className={`gallery-action-btn ${post.isLiked ? 'active' : ''}`}
+                  className={`gallery-action-btn gallery-like-btn ${post.isLiked ? 'active' : ''}`}
                   title={post.isLiked ? 'Unlike' : 'Like'}
                   disabled={isSaving}
                   onClick={handleLike}
                 >
-                  <Heart size={18} fill={post.isLiked ? 'currentColor' : 'none'} />
+                  <Heart size={18} fill={post.isLiked ? 'currentColor' : 'none'} className={post.isLiked ? 'gallery-like-pulse' : undefined} />
+                  {likePulse && (
+                    <span className="gallery-like-burst" aria-hidden="true">
+                      {PARTICLE_DIRECTIONS.map(([sparkX, sparkY, index]) => (
+                        <span key={index} className="gallery-like-spark" style={{ '--spark-x': `${sparkX}px`, '--spark-y': `${sparkY}px` }} />
+                      ))}
+                    </span>
+                  )}
                 </button>}
                 {!isDraft && onAddToBoard && (
                   <button type="button" className="gallery-action-btn" title="Add to board" onClick={handleAddToBoard}>

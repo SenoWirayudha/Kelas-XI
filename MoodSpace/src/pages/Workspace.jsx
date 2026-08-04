@@ -6461,7 +6461,7 @@ function Workspace() {
   }, [exportFormat, exportScale, exportTransparent, generateWorkspaceExportDataUrl, isCanvasBackgroundNone, workspaceTitle, canvasSettings.width, canvasSettings.height, canvasSettings.background, items])
 
   const handleExportAndRedirect = useCallback(async ({ isTemplate }) => {
-    const shouldExportTransparent = false
+    const shouldExportTransparent = isCanvasBackgroundNone
     const dataUrl = generateWorkspaceExportDataUrl({
       format: 'png',
       scale: 1,
@@ -6478,7 +6478,7 @@ function Workspace() {
         ...(isTemplate ? { templateWorkspaceId: workspaceId } : {}),
       },
     })
-  }, [generateWorkspaceExportDataUrl, navigate, workspaceTitle, toastRef, workspaceId])
+  }, [generateWorkspaceExportDataUrl, isCanvasBackgroundNone, navigate, workspaceTitle, toastRef, workspaceId])
 
   const handleDownloadTemplate = useCallback(async () => {
     const snapshot = buildWorkspaceSnapshot()
@@ -8554,6 +8554,17 @@ const attachTransformer = useCallback((idOrIds) => {
     if (isViewerRef.current) return
     if ('effects' in patch || 'effectOrder' in patch) {
       if (typeof window.__fxMarkers !== 'undefined') window.__fxMarkers.push({ t: performance.now(), msg: 'UPDATEITEM_FX effects=' + Object.keys(patch.effects || {}).length + ' orderLen=' + (patch.effectOrder?.length ?? '?') })
+      if (patch.effects) {
+        for (const [iid, entry] of Object.entries(patch.effects)) {
+          if (entry?.effectId === 'longShadow') {
+            console.log('[LONGSHADOW-DEBUG] updateItem longShadow', {
+              id: String(id).substring(0, 8),
+              instanceId: String(iid).substring(0, 6),
+              value: entry.value,
+            })
+          }
+        }
+      }
     }
     const currentItem = itemsRef.current.find((i) => i.id === id)
     // Reactive maskSourceType: when effects change on composite operator, auto-update

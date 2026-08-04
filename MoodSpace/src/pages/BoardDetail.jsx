@@ -5,7 +5,7 @@ import ConfirmationModal from '../components/ConfirmationModal'
 import MasonryImage from '../components/MasonryImage'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
 import { useAuth } from '../context/authState'
-import { getPublicBoard, removeBoardItem } from '../lib/api/boards'
+import { getBoard, getPublicBoard, removeBoardItem } from '../lib/api/boards'
 
 const estimateBoardItemHeight = (item, columnWidth) => {
   const media = item.postMedia?.[0] || item
@@ -28,11 +28,14 @@ function BoardDetail() {
   useEffect(() => {
     setIsLoading(true)
     setError('')
-    getPublicBoard(id)
+    const load = isAuthenticated
+      ? getBoard(id).catch(() => getPublicBoard(id))
+      : getPublicBoard(id)
+    load
       .then((payload) => setBoard(payload.board))
       .catch((nextError) => setError(nextError.message || 'Board gagal dimuat'))
       .finally(() => setIsLoading(false))
-  }, [id])
+  }, [id, isAuthenticated])
 
   const handleRemove = async () => {
     if (!deleteTarget) return

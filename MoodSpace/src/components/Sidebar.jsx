@@ -25,13 +25,7 @@ function Sidebar({ onLinkClick }) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark" aria-hidden="true">
-          M
-        </div>
-        <div>
-          <p className="brand-name">Moodspace</p>
-          <p className="brand-tag">Creative Workspace</p>
-        </div>
+        <img className="brand-logo" src="/logo-text.svg" alt="Moodspace" />
       </div>
 
       <nav className="nav" aria-label="Primary">

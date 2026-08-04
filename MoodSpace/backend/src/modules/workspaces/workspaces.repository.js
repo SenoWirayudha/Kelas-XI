@@ -324,7 +324,6 @@ export const findWorkspaceByShareToken = async (token) => {
   const { rows } = await query(
     `${workspaceSelect}
      where w.share_token = $1
-       and w.is_template = true
        and w.deleted_at is null
      limit 1`,
     [token],

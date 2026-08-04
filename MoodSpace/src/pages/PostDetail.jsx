@@ -29,6 +29,11 @@ const interleavePosts = (internal, external, excludeId) => {
   return mixed
 }
 
+const POST_DETAIL_PARTICLES = [-120, -95, -70, -50, -30, -10, 10, 30, 50, 70, 95, 120].map((angle, index) => {
+  const radians = (angle * Math.PI) / 180
+  return [{ '--spark-x': `${Math.cos(radians) * 26}px`, '--spark-y': `${Math.sin(radians) * 26}px` }, index]
+})
+
 const timeAgo = (date) => {
   const diff = Date.now() - new Date(date).getTime()
   const mins = Math.floor(diff / 60000)
@@ -138,6 +143,7 @@ function PostDetail() {
   const [reportPostId, setReportPostId] = useState(null)
   const [reportCommentId, setReportCommentId] = useState(null)
   const [toastData, setToastData] = useState(null)
+  const [likePulse, setLikePulse] = useState(false)
   const moreMenuRef = useRef(null)
   const recommendedSentinelRef = useRef(null)
   const recommendedLoadingRef = useRef(false)
@@ -324,6 +330,7 @@ function PostDetail() {
     }))
     try {
       await (nextSaved ? savePost(post.id) : unsavePost(post.id))
+      setToastData({ message: nextSaved ? 'Disimpan ke Saved' : 'Dihapus dari Saved' })
     } catch {
       setPost(post)
     }
@@ -332,6 +339,10 @@ function PostDetail() {
   const handleLike = async () => {
     if (!requireAuth('login') || !post) return
     const nextLiked = !post.isLiked
+    if (nextLiked) {
+      setLikePulse(true)
+      window.setTimeout(() => setLikePulse(false), 400)
+    }
     setPost((current) => ({
       ...current,
       isLiked: nextLiked,
@@ -599,8 +610,15 @@ function PostDetail() {
           </div>
 
           <div className="post-detail-actions">
-            <button type="button" className="action-btn primary" onClick={handleLike}>
-              <Heart size={18} fill={post.isLiked ? 'currentColor' : 'none'} />
+            <button type="button" className="action-btn primary gallery-like-btn" onClick={handleLike}>
+              <Heart size={18} fill={post.isLiked ? 'currentColor' : 'none'} className={likePulse ? 'gallery-like-pulse' : undefined} />
+              {likePulse && (
+                <span className="gallery-like-burst" aria-hidden="true">
+                  {POST_DETAIL_PARTICLES.map(([style, index]) => (
+                    <span key={index} className="gallery-like-spark" style={style} />
+                  ))}
+                </span>
+              )}
               {post.isLiked ? 'Liked' : 'Like'}
             </button>
             <button type="button" className="action-btn secondary" onClick={handleSave}>
@@ -772,9 +790,11 @@ function PostDetail() {
       />
       {toastData && (
         <div className="post-detail-toast" role="status" aria-live="polite">
-          <FolderPlus size={15} />
+          {toastData.currentBoardId ? <FolderPlus size={15} /> : <Bookmark size={15} />}
           <span>{toastData.message}</span>
-          <button type="button" className="toast-ubah-btn" onClick={handleUbahBoard}>Ubah</button>
+          {toastData.currentBoardId && (
+            <button type="button" className="toast-ubah-btn" onClick={handleUbahBoard}>Ubah</button>
+          )}
         </div>
       )}
     </div>

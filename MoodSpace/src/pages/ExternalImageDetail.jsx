@@ -189,6 +189,7 @@ function ExternalImageDetail() {
       } else {
         await (nextSaved ? savePost(targetPost.id) : unsavePost(targetPost.id))
       }
+      setToastData({ message: nextSaved ? 'Disimpan ke Saved' : 'Dihapus dari Saved' })
     } catch {
       if (targetPost.id === post?.id) setPost(post)
     }
@@ -351,9 +352,11 @@ function ExternalImageDetail() {
       />
       {toastData && (
         <div className="post-detail-toast" role="status" aria-live="polite">
-          <FolderPlus size={15} />
+          {toastData.currentBoardId ? <FolderPlus size={15} /> : <Bookmark size={15} />}
           <span>{toastData.message}</span>
-          <button type="button" className="toast-ubah-btn" onClick={handleUbahBoard}>Ubah</button>
+          {toastData.currentBoardId && (
+            <button type="button" className="toast-ubah-btn" onClick={handleUbahBoard}>Ubah</button>
+          )}
         </div>
       )}
     </section>

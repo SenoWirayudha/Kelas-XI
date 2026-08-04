@@ -253,7 +253,7 @@ export const shareAsTemplate = async ({ userId, workspaceId }) => {
     ownerId: userId,
     flags: {
       isPublished: false,
-      isTemplate: true,
+      isTemplate: false,
     },
   })
 
