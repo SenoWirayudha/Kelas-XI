@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 4000
 
-CMD ["sh", "-c", "npm run db:migrate && node backend/src/server.js"]
+CMD ["node", "backend/src/start.js"]
