@@ -40,6 +40,10 @@ export const createApp = () => {
     next()
   })
 
+  app.get('/', (req, res) => {
+    res.json({ ok: true })
+  })
+
   app.get('/api/health', (req, res) => {
     res.json({ ok: true })
   })

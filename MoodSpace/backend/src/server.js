@@ -6,7 +6,7 @@ import { startEmbeddingMonitor } from './shared/embeddingMonitor.js'
 
 const app = createApp()
 
-const port = env.PORT || 4000
+const port = env.PORT || 3000
 
 const server = app.listen(port, () => {
   console.log(`Backend running on http://localhost:${port}`)
