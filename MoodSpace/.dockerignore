@@ -1,0 +1,13 @@
+node_modules
+dist
+harness
+harness-dist
+*.log
+.env
+.env.*
+!.env.example
+chi_sim.traineddata
+chi_tra.traineddata
+eng.traineddata
+kor.traineddata
+.git
