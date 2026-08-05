@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:backend": "node --watch backend/src/server.js",
+    "start": "node backend/src/start.js",
     "backend:start": "node backend/src/server.js",
     "db:migrate": "node backend/src/db/migrate.js",
     "build": "vite build",
