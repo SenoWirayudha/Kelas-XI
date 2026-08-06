@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+COPY .env.production ./.env
 
 EXPOSE 3000
 

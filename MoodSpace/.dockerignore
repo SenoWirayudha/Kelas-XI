@@ -6,6 +6,7 @@ harness-dist
 .env
 .env.*
 !.env.example
+!.env.production
 chi_sim.traineddata
 chi_tra.traineddata
 eng.traineddata
