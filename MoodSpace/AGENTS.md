@@ -1033,3 +1033,41 @@ Transformer is OUTSIDE the world-layer Group (Workspace.jsx — `</Group>` close
 ### Key Files
 - `src/pages/Workspace.jsx` — `isRotating` guard in `onTransform`, `setRotationSnapGuide` in SnapContext
 - `src/components/canvas/CanvasTextNode.jsx` — rotation snap guide call + clear in resizeUp
+
+## Session 2026-08-05: Deployment (SnapDeploy + Supabase + Vercel)
+
+### Arsitektur deploy
+- **Backend**: SnapDeploy (Docker), DB di Supabase Postgres, storage tetap Supabase.
+- **Frontend**: Vercel (belum deploy) — `VITE_API_URL=https://<snapdeploy-domain>/api`.
+- Monorepo: git root `D:/Kelas-XI`, app di subfolder `MoodSpace/`. Root Directory SnapDeploy = `MoodSpace`.
+
+### File deployment baru
+- `MoodSpace/Dockerfile` — `node:20`, `npm ci`, `EXPOSE 3000`, `CMD ["node","backend/src/start.js"]`.
+- `MoodSpace/.dockerignore` — exclude node_modules, dist, *.log, .env*, traineddata, .git.
+- `MoodSpace/backend/src/start.js` — wrapper: `execSync('node backend/src/db/migrate.js')` lalu `await import('./server.js')`. Dibuat karena SnapDeploy menolak shell operator `&&` di Start Command.
+- `package.json` — script `start` ditambah (`node backend/src/start.js`) untuk auto-detect SnapDeploy entry point.
+
+### Perubahan port & health
+- `backend/src/config/env.js` PORT default 4000 → **3000** (SnapDeploy mengkonfigurasi container di port 3000 untuk health check).
+- `backend/src/server.js` `env.PORT || 4000` → `|| 3000`.
+- `backend/src/app.js` tambah route root `GET /` → `{ok:true}` (health check SnapDeploy biasa hit `/`, bukan `/api/health`).
+- `Dockerfile` EXPOSE 4000 → **3000**.
+
+### Env SnapDeploy (backend)
+Minimal wajib: `DATABASE_URL` (Supabase connection string, direct port 5432), `JWT_ACCESS_SECRET` (min 16 char). Lengkap: `PORT=3000`, `COOKIE_SECURE=true`, `CLIENT_ORIGIN=https://<vercel-domain>` (bisa diubah nanti, default localhost), Supabase keys (`STORAGE_PROVIDER=supabase`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`), `MEDIA_PUBLIC_BASE_URL=https://kzvlwatqidbrstlbjosm.supabase.co/storage/v1/object/public/moodspace`, provider keys (UNSPLASH/PEXELS/PIXABAY/TMDB), `RESEND_API_KEY` optional.
+- JANGAN set `DEV_BYPASS_WORKSPACE_OWNER=true` di production.
+- Form SnapDeploy menampilkan `MEDIA_PUBLIC_BASE_URL` sebagai contoh saja; variabel lain ditambah manual (Add variable).
+
+### Data migration local → Supabase
+- Data sumber ada di Postgres lokal (`postgres://postgres:12345@localhost:5432/moodspace`), bukan Supabase DB. Supabase hanya storage.
+- Urutan: deploy backend → `db:migrate` bikin skema di Supabase → import data LOKAL ke Supabase via pgAdmin **data-only** (jangan CREATE TABLE, biar tidak konflik) → reset sequence (`setval`) per tabel.
+- Supabase free tier bisa **pause** setelah 7 hari idle — DB harus aktif sebelum import.
+
+### Known status
+- Local smoke test PASS: `start.js` → migrasi semua skip (sudah applied) → server boot → `/api/health` = 200.
+- Deploy SnapDeploy pertama crash `DATABASE_URL: expected string, received undefined` — env belum diisi, bukan bug kode. Fix: isi env lalu redeploy.
+- SnapDeploy deploy limit: 5 deploy / 12 jam. Setelah limit, tunggu reset.
+- Cookie refresh di `auth.controller.js` masih `sameSite:'lax'` — cross-origin Vercel→SnapDeploy **tidak akan mengirim cookie refresh** → login expire tiap token expiry. Perlu ubah ke `sameSite:'none'` + `COOKIE_SECURE=true` bila frontend di Vercel. Belum diubah.
+- CLIP warm-up unduh model ~200MB tiap instance dingin → cold start lambat (normal).
+- `GOOGLE_APPLICATION_CREDENTIALS`/`GOOGLE_CLOUD_VISION_ENABLED` di `.env` lokal tidak dipakai kode (env schema tidak membacanya) → jangan ikut ke production.
+- `HF_TOKEN` ada di env schema tapi tidak dipakai kode (grep kosong).
