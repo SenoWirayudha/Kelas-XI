@@ -44,7 +44,7 @@ export const createApp = () => {
     res.json({ ok: true })
   })
 
-  app.get('/api/health', (req, res) => {
+  app.get(['/api/health', '/health', '/healthz', '/ping'], (req, res) => {
     res.json({ ok: true })
   })
 
