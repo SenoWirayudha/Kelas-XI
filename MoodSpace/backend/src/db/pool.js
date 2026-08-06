@@ -3,9 +3,9 @@ import { env } from '../config/env.js'
 
 export const pool = new pg.Pool({
   connectionString: env.DATABASE_URL,
-  max: 10,
+  max: 5,
   idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  connectionTimeoutMillis: 10_000,
 })
 
 pool.on('error', (error) => {
