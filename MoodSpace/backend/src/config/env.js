@@ -7,8 +7,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be at least 16 characters'),
+  DATABASE_URL: z.string().optional().default(''),
+  JWT_ACCESS_SECRET: z.string().optional().default('dev-insecure-jwt-secret'),
   ACCESS_TOKEN_TTL: z.string().default('15m'),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
   REFRESH_TOKEN_COOKIE_NAME: z.string().default('moodspace_refresh'),
@@ -34,6 +34,14 @@ const parsed = envSchema.safeParse(process.env)
 if (!parsed.success) {
   console.error('Invalid environment configuration:', parsed.error.flatten().fieldErrors)
   process.exit(1)
+}
+
+if (!parsed.data.DATABASE_URL) {
+  console.warn('[ENV] DATABASE_URL is not set — starting without DB. Migration and DB queries will fail.')
+}
+
+if (!process.env.JWT_ACCESS_SECRET) {
+  console.warn('[ENV] JWT_ACCESS_SECRET is not set — using insecure development fallback. Set it in production!')
 }
 
 export const env = parsed.data
