@@ -3,7 +3,7 @@ import * as authService from './auth.service.js'
 
 const cookieOptions = {
   httpOnly: true,
-  sameSite: 'lax',
+  sameSite: env.COOKIE_SECURE ? 'none' : 'lax',
   secure: env.COOKIE_SECURE,
   path: '/api/auth',
   maxAge: env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,

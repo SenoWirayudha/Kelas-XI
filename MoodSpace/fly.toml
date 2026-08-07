@@ -1,0 +1,34 @@
+# fly.toml — MoodSpace backend on Fly.io
+# Deploy: fly launch --no-deploy && fly secrets set ... && fly deploy
+
+app = "moodspace"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3000"
+
+[vm]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[[services]]
+  internal_port = 3000
+  protocol = "tcp"
+  processes = ["app"]
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.http_checks]]
+    interval = "15s"
+    grace_period = "30s"
+    method = "get"
+    path = "/api/health"
+    timeout = "5s"
