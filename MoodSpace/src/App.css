@@ -15252,6 +15252,17 @@
   margin: 0;
 }
 
+.share-modal-invite-link {
+  padding: 0 24px;
+}
+
+.share-modal-invite-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .share-modal-divider {
   margin: 16px 24px;
   height: 1px;
