@@ -93,11 +93,7 @@ function Profile() {
 
   useEffect(() => { loadProfile() }, [loadProfile])
 
-  useEffect(() => {
-    const onFocus = () => { if (!isAuthLoading && user) loadProfile() }
-    window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
-  }, [isAuthLoading, user, loadProfile])
+  
 
   useEffect(() => {
     if (location.state?.openEditProfile) {

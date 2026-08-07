@@ -191,17 +191,12 @@ const [importedWorkspaceId, setImportedWorkspaceId] = useState(null)
   useEffect(() => {
     if (isAuthLoading || !isAuthenticated) return undefined
 
-    const handleFocus = () => {
-      refetchProjects('window-focus').catch(() => console.warn('[projects refetch failed]', { reason: 'window-focus' }))
-    }
     const handlePageShow = () => {
       refetchProjects('pageshow').catch(() => console.warn('[projects refetch failed]', { reason: 'pageshow' }))
     }
 
-    window.addEventListener('focus', handleFocus)
     window.addEventListener('pageshow', handlePageShow)
     return () => {
-      window.removeEventListener('focus', handleFocus)
       window.removeEventListener('pageshow', handlePageShow)
     }
   }, [isAuthenticated, isAuthLoading, refetchProjects])
