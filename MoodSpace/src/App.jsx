@@ -24,11 +24,13 @@ import AdminReports from './pages/admin/AdminReports.jsx'
 import AdminComments from './pages/admin/AdminComments.jsx'
 import AdminMedia from './pages/admin/AdminMedia.jsx'
 import AuthModal from './components/AuthModal.jsx'
+import { ToastContainer } from './components/ToastContainer.jsx'
 
 function RootLayout() {
   return (
     <>
       <Outlet />
+      <ToastContainer />
       <AuthModal />
     </>
   )
