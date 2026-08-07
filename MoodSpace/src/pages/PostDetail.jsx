@@ -17,6 +17,7 @@ import { getHomeFeed, getPost, getRecommendedPosts, likePost, savePost, unlikePo
 import { useAsTemplate } from '../lib/api/workspaces'
 import { externalImageToPost, postToExternalImagePayload } from '../utils/externalImagePost'
 import { copyText } from '../utils/share'
+import { useToast } from '../context/ToastContext'
 
 const interleavePosts = (internal, external, excludeId) => {
   const filteredInternal = excludeId ? internal.filter(i => i.id !== excludeId) : internal
@@ -144,6 +145,7 @@ function PostDetail() {
   const [reportPostId, setReportPostId] = useState(null)
   const [reportCommentId, setReportCommentId] = useState(null)
   const [toastData, setToastData] = useState(null)
+  const toast = useToast()
   const [likePulse, setLikePulse] = useState(false)
   const moreMenuRef = useRef(null)
   const recommendedSentinelRef = useRef(null)
@@ -440,6 +442,7 @@ function PostDetail() {
       ? `/external/${encodeURIComponent(post.id)}`
       : `/post/${post.id}`
     await copyText(`${window.location.origin}${path}`)
+    toast?.addToast?.('Link posting disalin', { type: 'success', duration: 3000 })
   }
 
   const handleReportComment = (commentId) => {

@@ -9,6 +9,7 @@ import ReportModal from './ReportModal'
 import ConfirmationModal from './ConfirmationModal'
 import { useAsTemplate } from '../lib/api/workspaces'
 import { copyText } from '../utils/share'
+import { useToast } from '../context/ToastContext'
 
 const formatCount = (value = 0) => (
   value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value
@@ -41,6 +42,7 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
   const [isForking, setIsForking] = useState(false)
   const [likePulse, setLikePulse] = useState(false)
   const menuRef = useRef(null)
+  const toast = useToast()
   const isDraft = post.status === 'draft'
   const isExternalImage = !!post.isExternalImage
   const isOwnPost = isOwner || currentUser?.id === post.author?.id
@@ -164,6 +166,7 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
         ? `/posts/new?draft=${encodeURIComponent(post.id)}`
         : `/post/${post.id}`
     await copyText(`${window.location.origin}${path}`)
+    toast?.addToast?.('Link posting disalin', { type: 'success', duration: 3000 })
   }
 
   return (
