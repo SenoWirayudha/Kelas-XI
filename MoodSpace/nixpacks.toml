@@ -1,0 +1,5 @@
+[phases.build]
+cmds = ["echo 'Building backend (no frontend vite build for this deployment)'"]
+
+[start]
+cmd = "node backend/src/start.js"
