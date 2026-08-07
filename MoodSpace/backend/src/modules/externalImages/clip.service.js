@@ -1,4 +1,4 @@
-import '../shared/transformers-cache.js'
+import '../../shared/transformers-cache.js'
 import {
   AutoProcessor,
   AutoTokenizer,
