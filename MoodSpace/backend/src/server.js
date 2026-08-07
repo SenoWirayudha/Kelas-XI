@@ -10,11 +10,7 @@ const port = env.PORT || 3000
 
 const server = app.listen(port, () => {
   console.log(`Backend running on http://localhost:${port}`)
-  if (env.NODE_ENV !== 'production') {
-    warmUpClip()
-  } else {
-    console.log('[CLIP] Warm-up skipped in production (lazy-load on first use)')
-  }
+  warmUpClip()
   startEmbeddingMonitor()
 })
 
