@@ -1,3 +1,4 @@
+import './transformers-cache.js'
 import { RawImage } from '@xenova/transformers'
 
 const SAMPLE_COUNT = 500
