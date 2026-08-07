@@ -12,6 +12,7 @@ import ResetPassword from './pages/ResetPassword.jsx'
 import TemplatePreview from './pages/TemplatePreview.jsx'
 import PostDetail from './pages/PostDetail.jsx'
 import ExternalImageDetail from './pages/ExternalImageDetail.jsx'
+import WorkspaceInvite from './pages/WorkspaceInvite.jsx'
 import Workspace from './pages/Workspace.jsx'
 import NewPost from './pages/NewPost.jsx'
 import SearchResults from './pages/SearchResults.jsx'
@@ -58,6 +59,7 @@ const router = createBrowserRouter([
         ],
       },
       { path: 'template/:token', element: <TemplatePreview /> },
+      { path: 'workspace/invite/:token', element: <WorkspaceInvite /> },
       { path: 'reset-password', element: <ResetPassword /> },
       { path: '/workspace', element: <Workspace /> },
       {

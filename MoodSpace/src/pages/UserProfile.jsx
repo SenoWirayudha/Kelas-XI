@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Flag, Globe, MapPin, MoreVertical, UserPlus, UserCheck } from 'lucide-react'
+import { Flag, Globe, Link2, MapPin, MoreVertical, UserPlus, UserCheck } from 'lucide-react'
 import { detectPlatform, SocialLinkIcon, toAbsoluteUrl } from '../components/SocialLinkIcon'
 import CommunityPostCard from '../components/CommunityPostCard'
 import CroppedProfileImage from '../components/CroppedProfileImage'
@@ -12,6 +12,8 @@ import { followUser, unfollowUser } from '../lib/api/follows'
 import { getUserPosts, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
 import { getPublicProfile } from '../lib/api/profiles'
 import { listPublicUserBoards } from '../lib/api/boards'
+import { useToast } from '../context/ToastContext'
+import { copyText } from '../utils/share'
 
 const formatCount = (value = 0) => value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value
 const estimatePostHeight = (post, columnWidth) => {
@@ -37,6 +39,12 @@ function UserProfile() {
   const profileMenuRef = useRef(null)
 
   const isOwner = user?.username?.toLowerCase() === username?.toLowerCase()
+  const toast = useToast()
+
+  const handleShare = async () => {
+    await copyText(`${window.location.origin}/user/${username}`)
+    toast?.addToast?.('Link profil disalin', { type: 'success', duration: 3000 })
+  }
 
   const load = useCallback(async () => {
     if (!username) return
@@ -187,6 +195,9 @@ function UserProfile() {
             </div>
           </div>
           <div className="profile-actions">
+            <button type="button" className="profile-menu-btn" onClick={handleShare} title="Salin link profil">
+              <Link2 size={18} />
+            </button>
             {!isOwner && (
               <button
                 type="button"

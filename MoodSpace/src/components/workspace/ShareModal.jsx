@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { X, Search, Trash2, ChevronDown, Check, Copy, Globe, Link, LoaderCircle, LayoutTemplate, Share2, Upload, Users } from 'lucide-react'
-import { listCollaborators, inviteCollaborator, updateCollaboratorRole, removeCollaborator, searchUsers, shareAsTemplate } from '../../lib/api/workspaces'
+import { listCollaborators, inviteCollaborator, updateCollaboratorRole, removeCollaborator, searchUsers, shareAsTemplate, createWorkspaceInviteLink, listWorkspaceInviteLinks, revokeWorkspaceInviteLink } from '../../lib/api/workspaces'
 import { useToast } from '../../context/ToastContext'
 
 const PUBLISH_MODES = [
@@ -49,6 +49,13 @@ export default function ShareModal({ workspaceId, onClose, defaultTab = 'kolabor
   const [publishResult, setPublishResult] = useState(null)
   const [copied, setCopied] = useState(false)
 
+  // Invite link state
+  const [inviteLinks, setInviteLinks] = useState([])
+  const [inviteLinkMode, setInviteLinkMode] = useState('view')
+  const [creatingInviteLink, setCreatingInviteLink] = useState(false)
+  const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
+  const [inviteLinkError, setInviteLinkError] = useState('')
+
   const handlePublishConfirm = useCallback(async () => {
     setIsPublishing(true)
     try {
@@ -92,6 +99,17 @@ export default function ShareModal({ workspaceId, onClose, defaultTab = 'kolabor
       setCollaborators(data.collaborators || [])
     } catch {}
   }, [workspaceId])
+
+  const fetchInviteLinks = useCallback(async () => {
+    try {
+      const data = await listWorkspaceInviteLinks(workspaceId)
+      setInviteLinks(data.inviteLinks || [])
+    } catch {}
+  }, [workspaceId])
+
+  useEffect(() => {
+    fetchInviteLinks()
+  }, [fetchInviteLinks])
 
   useEffect(() => {
     fetchCollaborators()
@@ -157,6 +175,43 @@ export default function ShareModal({ workspaceId, onClose, defaultTab = 'kolabor
     try {
       await removeCollaborator(workspaceId, userId)
       await fetchCollaborators()
+    } catch {}
+  }
+
+  const handleCreateInviteLink = async () => {
+    setCreatingInviteLink(true)
+    setInviteLinkError('')
+    try {
+      const res = await createWorkspaceInviteLink(workspaceId, inviteLinkMode)
+      await fetchInviteLinks()
+      const fullUrl = `${window.location.origin}${res.inviteUrl}`
+      try {
+        await navigator.clipboard.writeText(fullUrl)
+        setInviteLinkCopied(true)
+        setTimeout(() => setInviteLinkCopied(false), 2000)
+      } catch {}
+      return fullUrl
+    } catch (err) {
+      setInviteLinkError(err.message || 'Gagal membuat link undang')
+      return null
+    } finally {
+      setCreatingInviteLink(false)
+    }
+  }
+
+  const handleRevokeInviteLink = async (linkId) => {
+    try {
+      await revokeWorkspaceInviteLink(workspaceId, linkId)
+      await fetchInviteLinks()
+    } catch {}
+  }
+
+  const handleCopyInviteLink = async (token) => {
+    const fullUrl = `${window.location.origin}/workspace/invite/${token}`
+    try {
+      await navigator.clipboard.writeText(fullUrl)
+      setInviteLinkCopied(true)
+      setTimeout(() => setInviteLinkCopied(false), 2000)
     } catch {}
   }
 
@@ -282,6 +337,70 @@ export default function ShareModal({ workspaceId, onClose, defaultTab = 'kolabor
           )}
 
           {error && <p className="share-modal-error">{error}</p>}
+
+          <div className="share-modal-divider" />
+
+          <div className="share-modal-invite-link">
+            <span className="share-modal-list-title">Undang via Link</span>
+            <p className="share-modal-empty" style={{ margin: '4px 0 10px' }}>
+              Bagikan link agar siapa pun bisa bergabung sebagai kolaborator.
+            </p>
+            <div className="share-modal-invite-link-row">
+              <div className="share-modal-role-group">
+                <button
+                  type="button"
+                  className={`share-modal-role-btn ${inviteLinkMode === 'view' ? 'active' : ''}`}
+                  onClick={() => setInviteLinkMode('view')}
+                >
+                  View
+                </button>
+                <button
+                  type="button"
+                  className={`share-modal-role-btn ${inviteLinkMode === 'edit' ? 'active' : ''}`}
+                  onClick={() => setInviteLinkMode('edit')}
+                >
+                  Edit
+                </button>
+              </div>
+              <button
+                type="button"
+                className="share-modal-invite-btn"
+                onClick={handleCreateInviteLink}
+                disabled={creatingInviteLink}
+              >
+                {creatingInviteLink ? 'Membuat...' : 'Buat Link'}
+              </button>
+            </div>
+            {inviteLinkError && <p className="share-modal-error">{inviteLinkError}</p>}
+
+            {inviteLinks.length > 0 && (
+              <div className="share-modal-invite-links-list" style={{ marginTop: 10 }}>
+                {inviteLinks.map((l) => (
+                  <div className="share-modal-collab-item" key={l.id}>
+                    <span className="share-modal-collab-info">
+                      <strong>{l.role === 'edit' ? 'Edit' : 'View'}</strong>
+                      <small>Dibuat {new Date(l.createdAt).toLocaleDateString('id-ID')}</small>
+                    </span>
+                    <button
+                      type="button"
+                      className="publish-copy-btn"
+                      onClick={() => handleCopyInviteLink(l.token)}
+                    >
+                      {inviteLinkCopied ? <Check size={15} /> : <Copy size={15} />}
+                    </button>
+                    <button
+                      type="button"
+                      className="share-modal-remove-btn"
+                      onClick={() => handleRevokeInviteLink(l.id)}
+                      aria-label="Revoke invite link"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="share-modal-divider" />
 

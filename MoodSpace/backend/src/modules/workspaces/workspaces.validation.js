@@ -120,3 +120,34 @@ export const importByTokenSchema = z.object({
   params: z.object({}).optional(),
   query: z.object({}).optional(),
 })
+
+export const createInviteLinkSchema = z.object({
+  params: z.object({ id: uuid }),
+  body: z.object({
+    role: z.enum(['view', 'edit']).default('view'),
+  }),
+  query: z.object({}).optional(),
+})
+
+export const inviteLinkIdParamSchema = z.object({
+  params: z.object({
+    id: uuid,
+    linkId: uuid,
+  }),
+  body: z.object({}).optional(),
+  query: z.object({}).optional(),
+})
+
+export const inviteTokenParamSchema = z.object({
+  params: z.object({ token: z.string().min(1) }),
+  body: z.object({}).optional(),
+  query: z.object({}).optional(),
+})
+
+export const joinInviteSchema = z.object({
+  body: z.object({
+    token: z.string().min(1),
+  }),
+  params: z.object({}).optional(),
+  query: z.object({}).optional(),
+})

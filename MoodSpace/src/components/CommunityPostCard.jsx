@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bookmark, Download, Edit3, Eye, Flag, FolderPlus, GitFork, Heart, Images, Lock, MoreHorizontal, Trash2, Users } from 'lucide-react'
+import { Bookmark, Download, Edit3, Eye, Flag, FolderPlus, GitFork, Heart, Images, Lock, MoreHorizontal, Share2, Trash2, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/authState'
 import { ensureExternalImage } from '../lib/api/externalImages'
@@ -8,6 +8,7 @@ import MasonryImage from './MasonryImage'
 import ReportModal from './ReportModal'
 import ConfirmationModal from './ConfirmationModal'
 import { useAsTemplate } from '../lib/api/workspaces'
+import { copyText } from '../utils/share'
 
 const formatCount = (value = 0) => (
   value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value
@@ -153,6 +154,18 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
     }
   }
 
+  const handleShare = async (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setShowMenu(false)
+    const path = isExternalImage
+      ? `/external/${encodeURIComponent(post.id)}`
+      : isDraft
+        ? `/posts/new?draft=${encodeURIComponent(post.id)}`
+        : `/post/${post.id}`
+    await copyText(`${window.location.origin}${path}`)
+  }
+
   return (
     <>
     <article className={`gallery-card${showMenu ? ' has-open-menu' : ''}`}>
@@ -274,6 +287,11 @@ function CommunityPostCard({ post, isOwner, onToggleLike, onToggleSave, onAddToB
                   <button type="button" className="metadata-dropdown-item" onClick={handleDownload}>
                     <Download size={13} /> Download
                   </button>
+                  {!isDraft && (
+                    <button type="button" className="metadata-dropdown-item" onClick={handleShare}>
+                      <Share2 size={13} /> Share
+                    </button>
+                  )}
                   {!isExternalImage && !isOwnPost && (
                     <button type="button" className="metadata-dropdown-item" onClick={handleReport}>
                       <Flag size={13} /> Laporkan

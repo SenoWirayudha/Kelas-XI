@@ -155,6 +155,69 @@ export const removeCollaborator = async (req, res, next) => {
   }
 }
 
+// --- Invite link handlers ---
+
+export const createWorkspaceInviteLink = async (req, res, next) => {
+  try {
+    const result = await service.createWorkspaceInviteLink({
+      userId: req.auth.sub,
+      workspaceId: req.validated.params.id,
+      role: req.validated.body.role,
+    })
+    res.status(201).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const listWorkspaceInviteLinks = async (req, res, next) => {
+  try {
+    const result = await service.listWorkspaceInviteLinks({
+      userId: req.auth.sub,
+      workspaceId: req.validated.params.id,
+    })
+    res.json({ inviteLinks: result })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const revokeWorkspaceInviteLink = async (req, res, next) => {
+  try {
+    const result = await service.revokeWorkspaceInviteLink({
+      userId: req.auth.sub,
+      workspaceId: req.validated.params.id,
+      linkId: req.validated.params.linkId,
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getWorkspaceInviteInfo = async (req, res, next) => {
+  try {
+    const result = await service.getWorkspaceInviteInfo({
+      token: req.validated.params.token,
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const joinWorkspaceByInvite = async (req, res, next) => {
+  try {
+    const result = await service.joinWorkspaceByInvite({
+      userId: req.auth.sub,
+      token: req.validated.body.token,
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 // --- Publish & Template handlers ---
 
 export const shareAsTemplate = async (req, res, next) => {

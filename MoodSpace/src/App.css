@@ -15326,3 +15326,88 @@
     animation: none !important;
   }
 }
+
+/* --- Workspace invite page --- */
+.invite-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #16161a;
+}
+.invite-card {
+  width: 100%;
+  max-width: 420px;
+  background: #1f1f24;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 28px 24px;
+  text-align: center;
+}
+.invite-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(167,113,255,0.15);
+  color: #a970ff;
+  margin-bottom: 12px;
+}
+.invite-card h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: #fff;
+}
+.invite-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e4e4e9;
+  margin: 0 0 8px;
+}
+.invite-card-desc {
+  font-size: 14px;
+  color: #9a9aa2;
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+.invite-join-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #a970ff;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.invite-join-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.board-detail-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  background: transparent;
+  color: #e4e4e9;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.board-detail-share-btn:hover {
+  background: rgba(255,255,255,0.08);
+}
+.board-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}

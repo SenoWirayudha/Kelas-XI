@@ -95,6 +95,36 @@ export const removeCollaborator = async (workspaceId, userId) => (
   })
 )
 
+// --- Invite link API ---
+
+export const createWorkspaceInviteLink = async (workspaceId, role = 'view') => (
+  apiRequest(`/workspaces/${workspaceId}/invite-links`, {
+    method: 'POST',
+    body: { role },
+  })
+)
+
+export const listWorkspaceInviteLinks = async (workspaceId) => (
+  apiRequest(`/workspaces/${workspaceId}/invite-links`)
+)
+
+export const revokeWorkspaceInviteLink = async (workspaceId, linkId) => (
+  apiRequest(`/workspaces/${workspaceId}/invite-links/${linkId}`, {
+    method: 'DELETE',
+  })
+)
+
+export const getWorkspaceInviteInfo = async (token) => (
+  apiRequest(`/workspaces/invite/${token}`)
+)
+
+export const joinWorkspaceByInvite = async (token) => (
+  apiRequest('/workspaces/join-invite', {
+    method: 'POST',
+    body: { token },
+  })
+)
+
 // --- Publish & Template API ---
 
 export const shareAsTemplate = async (workspaceId) => (

@@ -5,9 +5,13 @@ import {
   byTokenSchema,
   changeRoleSchema,
   collaboratorIdParamSchema,
+  createInviteLinkSchema,
   createWorkspaceSchema,
   importByTokenSchema,
   inviteCollaboratorSchema,
+  inviteLinkIdParamSchema,
+  inviteTokenParamSchema,
+  joinInviteSchema,
   saveWorkspaceSchema,
   shareAsTemplateSchema,
   thumbnailSchema,
@@ -21,6 +25,7 @@ export const workspacesRouter = Router()
 
 // Public route — registered before authRequired middleware
 workspacesRouter.get('/by-token/:token', validate(byTokenSchema), controller.getWorkspaceByToken)
+workspacesRouter.get('/invite/:token', validate(inviteTokenParamSchema), controller.getWorkspaceInviteInfo)
 
 workspacesRouter.use(authRequired)
 workspacesRouter.post('/', validate(createWorkspaceSchema), controller.createWorkspace)
@@ -43,3 +48,9 @@ workspacesRouter.get('/:id/collaborators', validate(workspaceIdParamSchema), con
 workspacesRouter.post('/:id/collaborators', validate(inviteCollaboratorSchema), controller.inviteCollaborator)
 workspacesRouter.patch('/:id/collaborators/:userId', validate(changeRoleSchema), controller.changeCollaboratorRole)
 workspacesRouter.delete('/:id/collaborators/:userId', validate(collaboratorIdParamSchema), controller.removeCollaborator)
+
+// Invite link routes
+workspacesRouter.get('/:id/invite-links', validate(workspaceIdParamSchema), controller.listWorkspaceInviteLinks)
+workspacesRouter.post('/:id/invite-links', validate(createInviteLinkSchema), controller.createWorkspaceInviteLink)
+workspacesRouter.delete('/:id/invite-links/:linkId', validate(inviteLinkIdParamSchema), controller.revokeWorkspaceInviteLink)
+workspacesRouter.post('/join-invite', validate(joinInviteSchema), controller.joinWorkspaceByInvite)

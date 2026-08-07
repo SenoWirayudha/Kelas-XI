@@ -37,6 +37,12 @@ import {
   insertCollaborator as insertCollaboratorRepo,
   updateCollaboratorRole,
 } from './workspaceCollaborators.repository.js'
+import {
+  findInviteLinkByToken,
+  findInviteLinksByWorkspace,
+  insertInviteLink,
+  revokeInviteLink,
+} from './workspaceInviteLinks.repository.js'
 import { buildInitialSnapshot, hashSnapshot } from './snapshot.service.js'
 
 const assertWorkspaceAccess = async (workspace, userId, operation = 'read') => {
@@ -617,4 +623,87 @@ export const removeCollaborator = async ({ userId, workspaceId, targetUserId }) 
 
   const result = await deleteCollaborator(workspaceId, targetUserId)
   if (!result) throw notFound('Collaborator not found')
+}
+
+const generateInviteToken = () => crypto.randomBytes(24).toString('base64url')
+
+export const createWorkspaceInviteLink = async ({ userId, workspaceId, role = 'view' }) => {
+  const workspace = await findWorkspaceById(workspaceId)
+  if (!workspace) throw notFound('Workspace not found')
+  if (workspace.ownerId !== userId) throw forbidden('Only the workspace owner can create invite links')
+
+  const token = generateInviteToken()
+  const link = await insertInviteLink({ workspaceId, token, role, createdBy: userId })
+  if (!link) throw new AppError('Failed to create invite link', 500)
+
+  return {
+    linkId: link.id,
+    token,
+    role: link.role,
+    createdAt: link.createdAt,
+    inviteUrl: `/workspace/invite/${token}`,
+  }
+}
+
+export const listWorkspaceInviteLinks = async ({ userId, workspaceId }) => {
+  const workspace = await findWorkspaceById(workspaceId)
+  if (!workspace) throw notFound('Workspace not found')
+  if (workspace.ownerId !== userId) throw forbidden('Only the workspace owner can view invite links')
+
+  return findInviteLinksByWorkspace(workspaceId)
+}
+
+export const revokeWorkspaceInviteLink = async ({ userId, workspaceId, linkId }) => {
+  const workspace = await findWorkspaceById(workspaceId)
+  if (!workspace) throw notFound('Workspace not found')
+  if (workspace.ownerId !== userId) throw forbidden('Only the workspace owner can revoke invite links')
+
+  const result = await revokeInviteLink({ workspaceId, linkId })
+  if (!result) throw notFound('Invite link not found')
+  return { ok: true }
+}
+
+export const getWorkspaceInviteInfo = async ({ token }) => {
+  const link = await findInviteLinkByToken(token)
+  if (!link) throw notFound('Invite link not found atau sudah tidak berlaku')
+  if (link.revokedAt) throw notFound('Invite link sudah dicabut')
+  if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+    throw notFound('Invite link sudah kedaluwarsa')
+  }
+  return {
+    workspaceId: link.workspaceId,
+    workspaceTitle: link.workspaceTitle,
+    ownerId: link.ownerId,
+    role: link.role,
+  }
+}
+
+export const joinWorkspaceByInvite = async ({ userId, token }) => {
+  const link = await findInviteLinkByToken(token)
+  if (!link) throw notFound('Invite link not found atau sudah tidak berlaku')
+  if (link.revokedAt) throw notFound('Invite link sudah dicabut')
+  if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+    throw notFound('Invite link sudah kedaluwarsa')
+  }
+
+  const existing = await findCollaborator(link.workspaceId, userId)
+  if (existing) return { workspaceId: link.workspaceId, alreadyJoined: true }
+
+  await insertCollaboratorRepo({
+    workspaceId: link.workspaceId,
+    userId,
+    role: link.role,
+    invitedBy: link.ownerId,
+  })
+
+  await insertNotification({
+    userId: link.ownerId,
+    actorId: userId,
+    type: 'workspace_invite',
+    targetType: 'workspace',
+    targetId: link.workspaceId,
+    metadata: { workspaceTitle: link.workspaceTitle },
+  })
+
+  return { workspaceId: link.workspaceId, alreadyJoined: false }
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Bookmark, ChevronLeft, ChevronRight, Copy, Download, Eye, Flag, FolderPlus, GitFork, Heart, LoaderCircle, Lock, MoreVertical, Share2, Trash2, Users } from 'lucide-react'
+import { Bookmark, ChevronLeft, ChevronRight, Copy, Download, Eye, Flag, FolderPlus, GitFork, Heart, Link2, LoaderCircle, Lock, MoreVertical, Share2, Trash2, Users } from 'lucide-react'
 import BoardPickerModal from '../components/BoardPickerModal'
 import CommunityPostCard from '../components/CommunityPostCard'
 import ConfirmationModal from '../components/ConfirmationModal'
@@ -16,6 +16,7 @@ import { saveExternalImage, searchExternalImages, unsaveExternalImage } from '..
 import { getHomeFeed, getPost, getRecommendedPosts, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
 import { useAsTemplate } from '../lib/api/workspaces'
 import { externalImageToPost, postToExternalImagePayload } from '../utils/externalImagePost'
+import { copyText } from '../utils/share'
 
 const interleavePosts = (internal, external, excludeId) => {
   const filteredInternal = excludeId ? internal.filter(i => i.id !== excludeId) : internal
@@ -434,6 +435,13 @@ function PostDetail() {
     setReportPostId(post?.id)
   }
 
+  const handleShare = async () => {
+    const path = post?.isExternalImage
+      ? `/external/${encodeURIComponent(post.id)}`
+      : `/post/${post.id}`
+    await copyText(`${window.location.origin}${path}`)
+  }
+
   const handleReportComment = (commentId) => {
     setReportCommentId(commentId)
   }
@@ -644,6 +652,10 @@ function PostDetail() {
             <button type="button" className="action-btn secondary" onClick={handleDownloadActiveMedia}>
               <Download size={18} />
               Download
+            </button>
+            <button type="button" className="action-btn secondary" onClick={handleShare}>
+              <Link2 size={18} />
+              Share
             </button>
           </div>
 

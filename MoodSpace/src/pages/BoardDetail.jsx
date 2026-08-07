@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Link2, Trash2 } from 'lucide-react'
 import ConfirmationModal from '../components/ConfirmationModal'
 import MasonryImage from '../components/MasonryImage'
 import ResponsiveMasonry from '../components/ResponsiveMasonry'
 import { useAuth } from '../context/authState'
 import { getBoard, getPublicBoard, removeBoardItem } from '../lib/api/boards'
+import { useToast } from '../context/ToastContext'
+import { copyText } from '../utils/share'
 
 const estimateBoardItemHeight = (item, columnWidth) => {
   const media = item.postMedia?.[0] || item
@@ -22,8 +24,14 @@ function BoardDetail() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState('')
   const [activeIndex, setActiveIndex] = useState({})
+  const toast = useToast()
 
   const isOwner = isAuthenticated && board?.ownerId === user?.id
+
+  const handleShare = async () => {
+    await copyText(`${window.location.origin}/boards/${id}`)
+    toast?.addToast?.('Link board disalin', { type: 'success', duration: 3000 })
+  }
 
   useEffect(() => {
     setIsLoading(true)
@@ -69,6 +77,10 @@ function BoardDetail() {
           <h1 className="board-detail-title">{board.name}</h1>
           <p className="board-detail-description">{board.description || 'Koleksi visual tersimpan.'}</p>
         </div>
+        <button type="button" className="board-detail-share-btn" onClick={handleShare} title="Salin link board">
+          <Link2 size={16} />
+          Share
+        </button>
       </header>
 
       {board.items.length === 0 && <p className="community-state">Board ini masih kosong. Simpan post dari Home untuk mengisinya.</p>}
