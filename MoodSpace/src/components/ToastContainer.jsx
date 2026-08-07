@@ -45,13 +45,17 @@ function ToastItem({ toast, onDone }) {
   )
 }
 
-export function ToastContainer() {
+export function ToastContainer({ position = 'default' }) {
   const { toasts, removeToast } = useToast()
 
   if (toasts.length === 0) return null
 
+  const className = position === 'bottom-right'
+    ? 'workspace-toast-stack workspace-toast-stack--bottom-right'
+    : 'workspace-toast-stack'
+
   return (
-    <div className="workspace-toast-stack">
+    <div className={className}>
       {toasts.map((t) => (
         <ToastItem key={t.id} toast={t} onDone={removeToast} />
       ))}

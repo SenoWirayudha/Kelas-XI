@@ -30,7 +30,7 @@ function RootLayout() {
   return (
     <>
       <Outlet />
-      <ToastContainer />
+      <ToastContainer position="bottom-right" />
       <AuthModal />
     </>
   )
