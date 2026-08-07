@@ -46,13 +46,13 @@ const DUMMY_IMAGE = Buffer.from(
 
 export const warmUpClip = async () => {
   try {
-    console.log('[CLIP] Warming up models...')
+    console.log('[CLIP] Pre-warming text model...')
     const start = Date.now()
-    await Promise.all([
-      getTextEmbedding('warmup'),
-      getImageEmbedding(DUMMY_IMAGE),
-    ])
-    console.log(`[CLIP] Models pre-warmed in ${Date.now() - start}ms`)
+    // Only preload the TEXT model at boot to keep RAM usage low on 512MB
+    // containers (vision model loads on-demand via getImageEmbedding and is
+    // then cached in memory). Preloading both at once caused OOM on Belmo free.
+    await getTextEmbedding('warmup')
+    console.log(`[CLIP] Text model pre-warmed in ${Date.now() - start}ms`)
   } catch (error) {
     console.error('[CLIP] Pre-warm failed:', error.message)
   }
