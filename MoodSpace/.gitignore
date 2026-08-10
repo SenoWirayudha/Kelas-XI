@@ -13,6 +13,9 @@ dist-ssr
 *.local
 .env
 
+# CLIP/ONNX model cache
+model_cache
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
