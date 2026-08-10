@@ -11336,6 +11336,11 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const handleObjectSelect = (event, id) => {
     event.cancelBubble = true
+    // Canva-style selection gate: touch pan gesture (started on an unselected item)
+    // must NEVER select the item even if the finger happens to be over it when the
+    // gesture ends. Mouse/desktop clicks still select normally.
+    const touchGate = isTouchNativeEvt(event.evt) && touchSuppressClickRef.current
+    if (touchGate) return
     if (touchPinchActiveRef.current || touchSuppressClickRef.current) return
     if ((activePanel === 'brush' && brushSettings.mode !== 'erase') || activePanel === 'bezier') return
     // Suppress spurious click that fires after brush/eraser stroke ends
@@ -11350,21 +11355,28 @@ const attachTransformer = useCallback((idOrIds) => {
   const handleObjectDragStart = (event, id) => {
     console.log('[ENTRY] handleObjectDragStart', { id, multiDrag: !!multiDragRef?.current })
     event.cancelBubble = true
-    // Pinch aktif → jangan mulai drag object
-    if (touchPinchActiveRef.current) {
+    // Pinch aktif / multi-touch aktif → jangan mulai drag object.
+    // Item's own drag handler fires independently of active touch count, so a pinch
+    // with a finger over an item could otherwise start dragging the item. Let the
+    // pinch handler own the gesture when 2+ fingers are down.
+    if (touchPinchActiveRef.current || (event.evt?.touches?.length || 0) >= 2) {
       event.target.stopDrag?.()
       return
     }
     // Mobile-only: 1-finger drag on an UNSELECTED item = pan viewport (Canva-style).
     // Konva starts the drag before node position is committed on dragstart, so we can
     // restore the node to its state position and stop the drag silently. Desktop untouched.
-    if (event.evt?.pointerType === 'touch' && !isGroupSelectMode && !selectedIds.includes(id)) {
+    if (isTouchNativeEvt(event.evt) && !isGroupSelectMode && !selectedIds.includes(id)) {
       const preItem = itemsRef.current.find((i) => i.id === id)
       if (preItem) {
         event.target.x(preItem.x || 0)
         event.target.y(preItem.y || 0)
       }
       event.target.stopDrag()
+      // Canva-style: touch drag on a UNSELECTED item = viewport pan, never select.
+      // This drag gesture fires a spurious click/tap on the item at its end, so
+      // suppress that click (touch-only; desktop mouse path is untouched).
+      touchSuppressClickRef.current = true
       beginPan({ evt: event.evt })
       return
     }
@@ -12337,7 +12349,14 @@ const beginPan = (event) => {
   const pointer = stage?.getPointerPosition()
 
   if (!pointer) return
-  const isTouchPan = event.evt.type?.startsWith('touch') || event.evt.pointerType === 'touch'
+  const isTouchPan = isTouchNativeEvt(event.evt)
+
+  // Canva-style: a touch viewport-pan gesture must never select an item, even if
+  // the finger happens to be over an item when the gesture ends (Konva would fire a
+  // spurious click/tap on it). Touch-only — desktop space/middle-mouse pan is untouched.
+  if (isTouchPan) {
+    touchSuppressClickRef.current = true
+  }
 
   if (!isTouchPan && !canPanCamera(cameraRef.current)) {
     const centeredCamera = clampCameraToCanvas(cameraRef.current)
@@ -12423,7 +12442,7 @@ const beginPan = (event) => {
     }
  
     if (isEmpty) {
-      if (event.evt.pointerType === 'touch') {
+      if (isTouchNativeEvt(event.evt)) {
         beginPan(event)
         return
       }
@@ -13103,6 +13122,13 @@ const getTouchCenter = (touches) => {
   }
 }
 
+// Reliable touch detection — pointerType is undefined on native TouchEvent.
+const isTouchNativeEvt = (evt) => {
+  if (!evt) return false
+  if (typeof TouchEvent !== 'undefined' && evt instanceof TouchEvent) return true
+  return evt.touches !== undefined || evt.changedTouches !== undefined || evt.targetTouches !== undefined
+}
+
 const handleStageTouchStart = (event) => {
   if (activePanel === 'brush') {
     handleBrushStart(event)
@@ -13162,7 +13188,11 @@ const handleStageTouchStart = (event) => {
     }
   } else if (isEmptyCanvasTarget(event.target)) {
     touchStartPosRef.current = stageRef.current?.getPointerPosition()
-    // 1 finger on empty canvas: no pan — tool mode only (brush/eraser/select)
+    // 1 finger on empty canvas: start a viewport pan session in the default
+    // (select) tool. Brush/eraser returned earlier; bezier keeps its own logic.
+    if (activePanel !== 'bezier') {
+      beginPan({ evt: event.evt })
+    }
   }
 }
 
@@ -13220,7 +13250,50 @@ const handleStageTouchMove = (event) => {
     return
   }
 
-  // 1 finger: no pan — tool mode only
+  // 1 finger: viewport pan for an active touch pan session (begun from empty
+  // canvas or an unselected item). Skip until the finger passes a 6px deadzone so
+  // a pure tap stays a tap (touchEnd deselect) instead of a tiny pan. Uses the
+  // same RAF-coalesced refs as the mouse path — sessions never overlap.
+  const touchPanSession = panSessionRef.current
+  if (touchPanSession?.isTouchPan) {
+    const pointer = stageRef.current?.getPointerPosition()
+    if (!pointer) return
+
+    const dx = pointer.x - touchPanSession.pointer.x
+    const dy = pointer.y - touchPanSession.pointer.y
+    if (Math.hypot(dx, dy) < 6) return
+
+    if (!mousePanAccumRef.current) {
+      mousePanAccumRef.current = {
+        baseCamera: { ...touchPanSession.camera },
+        basePointer: { x: touchPanSession.pointer.x, y: touchPanSession.pointer.y },
+        currentPointer: { x: pointer.x, y: pointer.y },
+        isTouchPan: true,
+      }
+    } else {
+      mousePanAccumRef.current.currentPointer = { x: pointer.x, y: pointer.y }
+    }
+
+    if (!mousePanFrameRef.current) {
+      mousePanFrameRef.current = requestAnimationFrame(() => {
+        mousePanFrameRef.current = null
+        const accum = mousePanAccumRef.current
+        mousePanAccumRef.current = null
+        if (!accum) return
+
+        const nextCamera = {
+          ...accum.baseCamera,
+          x: accum.baseCamera.x + accum.currentPointer.x - accum.basePointer.x,
+          y: accum.baseCamera.y + accum.currentPointer.y - accum.basePointer.y,
+        }
+        const clamped = clampCameraToCanvas(nextCamera)
+        cameraRef.current = clamped
+        targetCameraRef.current = clamped
+        setCamera(clamped)
+      })
+    }
+    return
+  }
 }
 
 const handleStageTouchEnd = (event) => {
