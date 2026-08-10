@@ -11,9 +11,21 @@ const inviteLinkSelect = `
     li.expires_at as "expiresAt",
     li.revoked_at as "revokedAt",
     w.owner_id as "ownerId",
-    w.title as "workspaceTitle"
+    w.title as "workspaceTitle",
+    w.description,
+    w.thumbnail_media_id as "thumbnailMediaId",
+    tm.bucket as "thumbnailBucket",
+    tm.object_key as "thumbnailObjectKey",
+    tm.public_url as "thumbnailPublicUrl",
+    owner_u.display_name as "ownerDisplayName",
+    owner_u.username as "ownerUsername",
+    owner_ma.public_url as "ownerAvatarUrl"
   from workspace_invite_links li
   join workspaces w on w.id = li.workspace_id
+  left join media_assets tm on tm.id = w.thumbnail_media_id and tm.deleted_at is null
+  left join users owner_u on owner_u.id = w.owner_id
+  left join user_profiles owner_up on owner_up.user_id = owner_u.id
+  left join media_assets owner_ma on owner_ma.id = owner_up.avatar_media_id and owner_ma.deleted_at is null
 `
 
 export const insertInviteLink = async ({ workspaceId, token, role, createdBy, expiresAt }) => {

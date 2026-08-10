@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Bookmark, FolderPlus, Globe, MapPin } from 'lucide-react'
+import { Bookmark, FolderPlus, Globe, Link2, MapPin } from 'lucide-react'
 import { detectPlatform, SocialLinkIcon, toAbsoluteUrl } from '../components/SocialLinkIcon'
 import BoardPickerModal from '../components/BoardPickerModal'
 import CommunityPostCard from '../components/CommunityPostCard'
@@ -18,6 +18,8 @@ import { getSavedExternalImages, saveExternalImage, unsaveExternalImage } from '
 import { deletePost as deletePostApi, getSavedPosts, getUserPosts, likePost, savePost, unlikePost, unsavePost } from '../lib/api/posts'
 import { getPublicProfile } from '../lib/api/profiles'
 import { externalImageToPost, postToExternalImagePayload } from '../utils/externalImagePost'
+import { useToast } from '../context/ToastContext'
+import { copyText } from '../utils/share'
 
 const formatCount = (value = 0) => value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value
 const estimatePostHeight = (post, columnWidth) => {
@@ -64,6 +66,13 @@ function Profile() {
     observer.observe(headerRef.current)
     return () => observer.disconnect()
   }, [isLoading, profile])
+
+  const toast = useToast()
+
+  const handleShare = async () => {
+    await copyText(`${window.location.origin}/user/${user?.username}`)
+    toast?.addToast?.('Link profil disalin', { type: 'success', duration: 3000 })
+  }
 
   const loadProfile = useCallback(() => {
     if (isAuthLoading) return
@@ -294,6 +303,9 @@ function Profile() {
             </div>
           </div>
           <div className="profile-actions">
+            <button type="button" className="profile-menu-btn" onClick={handleShare} title="Salin link profil">
+              <Link2 size={18} />
+            </button>
             <button type="button" className="profile-follow" onClick={() => setIsEditProfileOpen(true)}>
               Edit Profile
             </button>

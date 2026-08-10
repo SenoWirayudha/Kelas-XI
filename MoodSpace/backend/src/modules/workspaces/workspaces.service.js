@@ -673,7 +673,18 @@ export const getWorkspaceInviteInfo = async ({ token }) => {
   return {
     workspaceId: link.workspaceId,
     workspaceTitle: link.workspaceTitle,
-    ownerId: link.ownerId,
+    description: link.description || null,
+    thumbnailUrl: link.thumbnailMediaId ? buildPublicUrl({
+      bucket: link.thumbnailBucket,
+      objectKey: link.thumbnailObjectKey,
+      publicUrl: link.thumbnailPublicUrl,
+    }) : null,
+    owner: {
+      id: link.ownerId,
+      displayName: link.ownerDisplayName,
+      username: link.ownerUsername,
+      avatarUrl: link.ownerAvatarUrl || null,
+    },
     role: link.role,
   }
 }
