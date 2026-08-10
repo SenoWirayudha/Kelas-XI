@@ -36,6 +36,9 @@ function buildPostOgs(request, post) {
   const media = Array.isArray(post.media) ? post.media : []
   const firstImage = media.find((m) => m && m.url && /^https?:/.test(m.url))?.url
   const image = (post.cover?.url && /^https?:/.test(post.cover.url) && post.cover.url) || firstImage || FALLBACK_IMAGE
+  const imageW = post.cover?.width || media.find((m) => m && m.width)?.width
+  const imageH = post.cover?.height || media.find((m) => m && m.height)?.height
+  const imageMime = post.cover?.mimeType || media.find((m) => m && m.mimeType)?.mimeType
 
   const tags = []
   if (description) tags.push(`<meta name="description" content="${escapeHtml(description)}" />`)
@@ -46,6 +49,9 @@ function buildPostOgs(request, post) {
   if (description) tags.push(`<meta property="og:description" content="${escapeHtml(description)}" />`)
   tags.push(`<meta property="og:url" content="${url}" />`)
   tags.push(`<meta property="og:image" content="${image}" />`)
+  if (imageMime) tags.push(`<meta property="og:image:type" content="${imageMime}" />`)
+  if (imageW) tags.push(`<meta property="og:image:width" content="${imageW}" />`)
+  if (imageH) tags.push(`<meta property="og:image:height" content="${imageH}" />`)
   tags.push(`<meta name="twitter:card" content="summary_large_image" />`)
   tags.push(`<meta name="twitter:title" content="${escapeHtml(title)}" />`)
   if (description) tags.push(`<meta name="twitter:description" content="${escapeHtml(description)}" />`)
