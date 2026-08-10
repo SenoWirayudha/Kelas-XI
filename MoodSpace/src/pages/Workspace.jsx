@@ -156,7 +156,7 @@ import { ObjectAnchors, ConnectorEndpointAnchors } from './canvas/ConnectorAncho
 import ConnectorRenderer from '../components/canvas/renderers/ConnectorRenderer'
 import ImageRenderer from '../components/canvas/renderers/ImageRenderer'
 import TextRenderer from '../components/canvas/renderers/TextRenderer'
-import { CameraScaleContext, SnapContext } from '../components/canvas/CanvasTextNode'
+import { CameraScaleContext, PinchGuardContext, SnapContext } from '../components/canvas/CanvasTextNode'
 import RulerBar from '../components/canvas/RulerBar'
 import ShapeRenderer from '../components/canvas/renderers/ShapeRenderer'
 import FrameRenderer from '../components/canvas/renderers/FrameRenderer'
@@ -4833,6 +4833,7 @@ function Workspace() {
   const touchDragMovedRef = useRef(false)
   const touchDragStartPosRef = useRef(null)
   const touchSuppressClickRef = useRef(false)
+  const touchPinchActiveRef = useRef(false)
   const panSessionRef = useRef(null)
   const pinchSessionRef = useRef(null)
   const touchStartPosRef = useRef(null)
@@ -11335,6 +11336,7 @@ const attachTransformer = useCallback((idOrIds) => {
 
   const handleObjectSelect = (event, id) => {
     event.cancelBubble = true
+    if (touchPinchActiveRef.current || touchSuppressClickRef.current) return
     if ((activePanel === 'brush' && brushSettings.mode !== 'erase') || activePanel === 'bezier') return
     // Suppress spurious click that fires after brush/eraser stroke ends
     if (brushStrokeJustEndedRef.current) { brushStrokeJustEndedRef.current = false; return }
@@ -11348,6 +11350,24 @@ const attachTransformer = useCallback((idOrIds) => {
   const handleObjectDragStart = (event, id) => {
     console.log('[ENTRY] handleObjectDragStart', { id, multiDrag: !!multiDragRef?.current })
     event.cancelBubble = true
+    // Pinch aktif → jangan mulai drag object
+    if (touchPinchActiveRef.current) {
+      event.target.stopDrag?.()
+      return
+    }
+    // Mobile-only: 1-finger drag on an UNSELECTED item = pan viewport (Canva-style).
+    // Konva starts the drag before node position is committed on dragstart, so we can
+    // restore the node to its state position and stop the drag silently. Desktop untouched.
+    if (event.evt?.pointerType === 'touch' && !isGroupSelectMode && !selectedIds.includes(id)) {
+      const preItem = itemsRef.current.find((i) => i.id === id)
+      if (preItem) {
+        event.target.x(preItem.x || 0)
+        event.target.y(preItem.y || 0)
+      }
+      event.target.stopDrag()
+      beginPan({ evt: event.evt })
+      return
+    }
     activeObjectDragRef.current = id
     dragSessionIdRef.current++
     if (justDroppedIdRef.current === id) {
@@ -11404,6 +11424,7 @@ const attachTransformer = useCallback((idOrIds) => {
   }
 
   const handleObjectDragMove = (event, id) => {
+    if (touchPinchActiveRef.current) return
     const dragSession = multiDragRef.current
     if (!dragSession || dragSession.id !== id) return
 
@@ -11533,6 +11554,12 @@ const attachTransformer = useCallback((idOrIds) => {
   const handleObjectDragEnd = async (event, id) => {
     setLiveSelectedBounds(null)
     setFrozenSelectedBounds(null)
+    if (touchPinchActiveRef.current) {
+      activeObjectDragRef.current = null
+      multiDragRef.current = null
+      multiDragActiveRef.current = false
+      return
+    }
     console.log('[ENTRY] handleObjectDragEnd', { id, isViewer: isViewerRef.current, activeDragId: activeObjectDragRef.current, multiDragActive: multiDragActiveRef?.current, skipGroupEnd: skipGroupDragEndRef?.current })
     if (isViewerRef.current) return
     event.cancelBubble = true
@@ -13106,6 +13133,27 @@ const handleStageTouchStart = (event) => {
     panSessionRef.current = null
     touchStartPosRef.current = null
     setIsPanning(false)
+    // Pinch guard: selama 2 jari turun, semua interaksi object di-suppress supaya
+    // zoom tidak ikut menarik/resize object yang sedang terkena jari #1.
+    touchPinchActiveRef.current = true
+    touchSuppressClickRef.current = true
+    // Cancel object drag yang sudah mulai dari jari #1
+    if (activeObjectDragRef.current) {
+      const draggedNode = stageRef.current?.findOne('#' + activeObjectDragRef.current)
+      draggedNode?.stopDrag?.()
+      activeObjectDragRef.current = null
+      multiDragRef.current = null
+      multiDragActiveRef.current = false
+      setIsDraggingState(false)
+      setStageCursor('default')
+    }
+    // Cancel Transformer resize/rotate yang sudah mulai dari jari #1 (anchor nodes)
+    try {
+      const activeAnchor = transformerRef.current?.getActiveAnchor?.()
+      if (activeAnchor) {
+        transformerRef.current?.getAnchor?.(activeAnchor)?.stopDrag?.()
+      }
+    } catch { /* noop */ }
     const center = getTouchCenter(touches)
     pinchSessionRef.current = {
       distance: getTouchDistance(touches),
@@ -13183,6 +13231,9 @@ const handleStageTouchEnd = (event) => {
 
   if ((event.evt.touches?.length || 0) < 2) {
     pinchSessionRef.current = null
+    if (touchPinchActiveRef.current) {
+      touchPinchActiveRef.current = false
+    }
 
     if (touchStartPosRef.current && isEmptyCanvasTarget(event.target)) {
       const pointer = stageRef.current?.getPointerPosition()
@@ -13205,6 +13256,11 @@ const handleStageTouchEnd = (event) => {
       }
     }
     touchStartPosRef.current = null
+    if (touchSuppressClickRef.current && event.evt.touches?.length === 0) {
+      window.setTimeout(() => {
+        touchSuppressClickRef.current = false
+      }, 300)
+    }
 
     endPan()
   }
@@ -17850,7 +17906,9 @@ onPointerUp={(e) => {
                 <Group name="canvas-content">
                   <SnapContext.Provider value={{ getSnappedDelta, snapResizeBox, setAlignmentGuides, setRotationSnapGuide }}>
                     <CameraScaleContext.Provider value={camera.scale}>
-                      {renderedBelowCanvasContent}
+                      <PinchGuardContext.Provider value={touchPinchActiveRef}>
+                        {renderedBelowCanvasContent}
+                      </PinchGuardContext.Provider>
                     </CameraScaleContext.Provider>
                   </SnapContext.Provider>
                 </Group>
@@ -17865,14 +17923,16 @@ onPointerUp={(e) => {
               >
                 <SnapContext.Provider value={{ getSnappedDelta, snapResizeBox, setAlignmentGuides, setRotationSnapGuide }}>
                   <CameraScaleContext.Provider value={camera.scale}>
-                    {renderedAdjustmentLayerItems}
-                    <GlobalAdjustmentLayer
-                      stageRef={stageRef}
-                      items={items}
-                      canvasWidth={canvasSize.width}
-                      canvasHeight={canvasSize.height}
-                    />
-                    {renderedAboveCanvasContent}
+                    <PinchGuardContext.Provider value={touchPinchActiveRef}>
+                      {renderedAdjustmentLayerItems}
+                      <GlobalAdjustmentLayer
+                        stageRef={stageRef}
+                        items={items}
+                        canvasWidth={canvasSize.width}
+                        canvasHeight={canvasSize.height}
+                      />
+                      {renderedAboveCanvasContent}
+                    </PinchGuardContext.Provider>
                   </CameraScaleContext.Provider>
                 </SnapContext.Provider>
                 {items.map((item) => (
@@ -18378,6 +18438,7 @@ onPointerUp={(e) => {
                     // Ghost guard: ignore transformStart during commitTransformerChanges
                     // (re-attach rAF fires ghost transformstart with stale node bounds)
                     if (commitTransformerChangesLock) return
+                    if (touchPinchActiveRef.current) return
                     const nodes = transformerRef.current?.nodes?.()
                     const n = nodes?.[0]
                     if (n) liveGeometryRef.current = { x: n.x(), y: n.y(), rotation: n.rotation() }
@@ -18453,6 +18514,7 @@ onPointerUp={(e) => {
                   }}
                 onTransformEnd={commitTransformerChanges}
                 boundBoxFunc={(oldBox, newBox) => {
+                  if (touchPinchActiveRef.current) return oldBox
                   const snappedResize = snapResizeBox(oldBox, newBox)
                   const candidateBox = snappedResize.box
                   setAlignmentGuides(snappedResize.guides)

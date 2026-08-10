@@ -7,6 +7,7 @@ import { Group, Image, Line, Rect, Shape, Text } from 'react-konva'
 
 export const CameraScaleContext = createContext(1)
 export const SnapContext = createContext({})
+export const PinchGuardContext = createContext(null)
 import { preloadFont, getShadowProps, applyBevelEmbossToNode, applyInnerShadowToNode } from '../../utils/konvaUtils'
 
 import { clamp } from '../../utils/mathUtils'
@@ -171,6 +172,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   const cameraScale = useContext(CameraScaleContext)
   const snapCtx = useContext(SnapContext)
   const { getSnappedDelta, snapResizeBox, setAlignmentGuides, setRotationSnapGuide } = snapCtx
+  const pinchActiveRef = useContext(PinchGuardContext)
   const ANCHOR_SIZE = 10
   const adjustedSize = Math.max(ANCHOR_SIZE, Math.round(ANCHOR_SIZE / (cameraScale || 1)))
   const adjustedHalf = adjustedSize / 2
@@ -881,6 +883,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   const isRightSideAnchor = (a) => a.endsWith('-right')
   const doResizePointerDown = useCallback((e, anchor) => {
     if (!isMultiRun || anchor === 'top-center' || anchor === 'bottom-center') return
+    if (pinchActiveRef?.current) return
     e.cancelBubble = true
     const stage = groupRef.current?.getStage()
     if (!stage) return
@@ -914,6 +917,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     const resizeMove = (evt) => {
       const state = resizeStateRef.current
       if (!state) return
+      if (pinchActiveRef?.current) return
       const inv2 = worldLayer.getAbsoluteTransform().copy().invert()
       const world = inv2.point(stage.getPointerPosition())
       const grp = groupRef.current
@@ -1040,6 +1044,16 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       const state = resizeStateRef.current
       if (!state) return
       resizeStateRef.current = null
+      setDragX(null)
+      setDragY(null)
+      setDragWidth(null)
+      setDragFontSize(null)
+      setDragRotation(null)
+      if (setAlignmentGuides) setAlignmentGuides([])
+      if (setRotationSnapGuide) setRotationSnapGuide(null)
+      setCanvasCursor(stage, '')
+      onToolbarRepositionRef?.current?.()
+      if (pinchActiveRef?.current) return
       const finalX = state.dragX !== null ? state.dragX : state.origX
       const finalY = state.dragY !== null ? state.dragY : state.origY
       const finalW = state.dragW !== null ? state.dragW : state.origW
@@ -1077,6 +1091,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
   // ── Imperative drag-move for multi-run text (bypasses Konva Group drag) ──
   const handleMovePointerDown = useCallback((e) => {
     if (!showSelectionBox) return
+    if (pinchActiveRef?.current) return
     e.cancelBubble = true
     const stage = groupRef.current?.getStage()
     if (!stage) return
@@ -1098,6 +1113,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
     moveStateRef.current = { startX, startY, startPos }
 
     const moveHandler = (evt) => {
+      if (pinchActiveRef?.current) return
       const inv2 = worldLayer.getAbsoluteTransform().copy().invert()
       const pos = inv2.point(stage.getPointerPosition())
       const rawDx = pos.x - startPos.x
@@ -1128,15 +1144,16 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       stage.off('pointerup', upHandler)
       moveStateRef.current = null
       if (setAlignmentGuides) setAlignmentGuides([])
+      setCanvasCursor(stage, '')
+      onToolbarRepositionRef?.current?.()
       const grp = groupRef.current
       if (!grp) return
+      if (pinchActiveRef?.current) return
       const fx = grp.x()
       const fy = grp.y()
       if (Math.abs(fx - startX) > 0.5 || Math.abs(fy - startY) > 0.5) {
         onChangeRef.current({ x: fx, y: fy })
       }
-      setCanvasCursor(stage, '')
-      onToolbarRepositionRef?.current?.()
     }
     stage.on('pointermove', moveHandler)
     stage.on('pointerup', upHandler)
@@ -1200,6 +1217,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
       onDblClick={(e) => { e.cancelBubble = true; onTextEdit(item.id) }}
       onDblTap={(e) => { e.cancelBubble = true; onTextEdit(item.id) }}
       onTransformStart={(event) => {
+        if (pinchActiveRef?.current) return
         if (ghostGuardRef.current) {
           console.log('[DIAG-GHOST] ignored ghostGuard')
           return
@@ -1229,6 +1247,7 @@ export default function CanvasTextNode({ item, commonProps, isTextEditing, onTex
         }
       }}
       onTransform={(event) => {
+        if (pinchActiveRef?.current) return
         if (ghostGuardRef.current) return
         if (!isUserDraggingRef.current) {
           console.log('[DIAG-GHOST] ignored onTransform (no user drag)')
