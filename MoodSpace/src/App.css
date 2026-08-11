@@ -10060,6 +10060,11 @@
   opacity: 0.85;
 }
 
+.board-detail-page .metadata-menu-btn {
+  opacity: 1;
+  color: rgba(246, 247, 251, 0.7);
+}
+
 .metadata-menu-wrapper {
   position: relative;
   z-index: 1001;

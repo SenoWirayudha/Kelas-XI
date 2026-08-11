@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MoreVertical, Pen, Trash2 } from 'lucide-react'
+import { Link2, MoreVertical, Pen, Trash2 } from 'lucide-react'
 import ConfirmationModal from '../components/ConfirmationModal'
 import NewBoardModal from '../components/NewBoardModal'
 import { useAuth } from '../context/authState'
+import { useToast } from '../context/ToastContext'
 import { deleteBoard, listBoards } from '../lib/api/boards'
+import { copyText } from '../utils/share'
 
 const formatDate = (value) => {
   const date = new Date(value)
@@ -30,6 +32,7 @@ function BoardCover({ images = [] }) {
 function Boards() {
   const navigate = useNavigate()
   const { isAuthenticated, isLoading: isAuthLoading, requireAuth } = useAuth()
+  const toast = useToast()
   const [boards, setBoards] = useState([])
   const [query, setQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -80,6 +83,12 @@ function Boards() {
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  const handleShare = async (board) => {
+    setOpenMenuId(null)
+    await copyText(`${window.location.origin}/boards/${board.id}`)
+    toast?.addToast?.('Link board disalin', { type: 'success', duration: 3000 })
   }
 
   useEffect(() => {
@@ -137,6 +146,10 @@ function Boards() {
                 </button>
                 {openMenuId === board.id && (
                   <div className="board-dropdown-menu" onClick={(event) => event.stopPropagation()}>
+                    <button type="button" className="board-dropdown-item" onClick={(event) => { event.stopPropagation(); setOpenMenuId(null); handleShare(board) }}>
+                      <Link2 size={14} />
+                      Share Board
+                    </button>
                     <button type="button" className="board-dropdown-item" onClick={(event) => { event.stopPropagation(); setOpenMenuId(null); setEditBoard(board) }}>
                       <Pen size={14} />
                       Edit Board
