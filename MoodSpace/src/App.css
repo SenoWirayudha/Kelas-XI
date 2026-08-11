@@ -13205,6 +13205,10 @@
     padding: 12px 12px calc(64px + 12px);
   }
 
+  .board-detail-page {
+    padding: 0;
+  }
+
   /* Search collapsed/expand */
   .search {
     max-width: 36px;
