@@ -120,8 +120,8 @@ const buildProfileOgs = (profile) => {
   if (profile.boardCount != null) countParts.push(`${profile.boardCount} board`)
   const countText = countParts.length ? ` — ${countParts.join(', ')}.` : '.'
   const description = profile.bio || `Profil ${name} di ${SITE_NAME}${countText}`
-  const image = (profile.bannerUrl && /^https?:/.test(profile.bannerUrl) && profile.bannerUrl)
-    || (profile.avatarUrl && /^https?:/.test(profile.avatarUrl) && profile.avatarUrl)
+  const image = (profile.avatarUrl && /^https?:/.test(profile.avatarUrl) && profile.avatarUrl)
+    || (profile.bannerUrl && /^https?:/.test(profile.bannerUrl) && profile.bannerUrl)
     || FALLBACK_IMAGE
 
   return buildOgsHtml({ url, title, description, image })
@@ -190,9 +190,11 @@ async function resolve(kind, data, token) {
       }
       return null
     }
-    case 'board':
-      if (data && (data.id || data.name)) return buildBoardOgs(data)
+    case 'board': {
+      const board = data?.board || data
+      if (board && (board.id || board.name)) return buildBoardOgs(board)
       return null
+    }
     case 'invite':
       if (data && (data.workspaceId || data.workspaceTitle || data.thumbnailUrl)) return buildInviteOgs({ ...data, token })
       return null

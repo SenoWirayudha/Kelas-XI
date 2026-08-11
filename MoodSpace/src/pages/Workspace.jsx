@@ -6148,9 +6148,7 @@ function Workspace() {
     const stage = stageRef.current
     if (!stage || !canvasSettings.width || !canvasSettings.height) return null
 
-    const currentCamera = cameraRef.current || camera
     const canvasBackgroundNode = stage.findOne('.canvas-background')
-    const canvasContentNode = stage.findOne('.canvas-content')
     const exportWidth = canvasSettings.width
     const exportHeight = canvasSettings.height
     const exportX = 0
@@ -6192,16 +6190,14 @@ function Workspace() {
         }))
       }
 
-      if (lowestAdjIndex === -1 && canvasContentNode) {
-        exportLayer.add(sanitizeTransparentTextFills(canvasContentNode.clone({
-          x: 0,
-          y: 0,
-          scaleX: 1,
-          scaleY: 1,
-          rotation: 0,
-          listening: false,
-        })))
-      } else if (lowestAdjIndex !== -1) {
+      if (lowestAdjIndex === -1) {
+        addWorkspaceItemClones({
+          stage,
+          exportLayer,
+          items,
+          filterItem: () => true,
+        })
+      } else {
         const exportBelowItems = items.filter((_, index) => index > lowestAdjIndex)
         const exportAboveItems = items.filter((_, index) => index < lowestAdjIndex)
         addWorkspaceItemClones({
