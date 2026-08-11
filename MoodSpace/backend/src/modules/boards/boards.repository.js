@@ -247,7 +247,7 @@ export const updateBoardRecord = async ({ boardId, ownerId, name, visibility }) 
   const { rows } = await query(
     `update boards set name = coalesce($3, name), visibility = coalesce($4, visibility), updated_at = now()
      where id = $1 and owner_id = $2
-     returning id, name, description, categories, visibility, created_at as "createdAt", updated_at as "updatedAt"`,
+     returning id, owner_id as "ownerId", name, description, categories, visibility, created_at as "createdAt", updated_at as "updatedAt"`,
     [boardId, ownerId, name || null, visibility || null],
   )
   return rows[0] || null

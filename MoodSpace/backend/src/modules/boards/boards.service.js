@@ -27,7 +27,7 @@ const serializeBoard = (board) => ({
   description: board.description,
   categories: board.categories || [],
   visibility: board.visibility,
-  ownerId: board.owner_id,
+  ownerId: board.ownerId,
   itemCount: board.itemCount || 0,
   coverImages: board.coverImages || [],
   createdAt: board.createdAt,
