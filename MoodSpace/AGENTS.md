@@ -1071,3 +1071,50 @@ Minimal wajib: `DATABASE_URL` (Supabase connection string, direct port 5432), `J
 - CLIP warm-up unduh model ~200MB tiap instance dingin → cold start lambat (normal).
 - `GOOGLE_APPLICATION_CREDENTIALS`/`GOOGLE_CLOUD_VISION_ENABLED` di `.env` lokal tidak dipakai kode (env schema tidak membacanya) → jangan ikut ke production.
 - `HF_TOKEN` ada di env schema tapi tidak dipakai kode (grep kosong).
+
+## Session 2026-08-06: Open Graph (Vercel Edge Middleware) — 5 Routes
+
+### What
+- `MoodSpace/middleware.js`: Vercel edge middleware untuk preview kartu share (title/description/og:image) di 5 route: `/post/:id`, `/template/:token`, `/boards/:id`, `/workspace/invite/:token`, `/user/:username`.
+- Matcher: `['/post/:id', '/template/:token', '/boards/:id', '/workspace/invite/:token', '/user/:username']`. Path lain (dan request browser normal user-agent) → passthrough.
+- Bot-only: deteksi via negative regex `(?!.*(Prerender|HeadlessChrome|MoodleBot.Standard))` — Telegram bot, Facebook `facebookexternalhit`, WhatsApp (daripada parse daftar UA).
+- Non-bot / 404 / fetch gagal / image-only-fallback → `PASSTHROUGH` (`x-middleware-next: 1` → SPA index.html → OG generik homepage).
+- Semua fetch ke Belmo diprefix `resolveApiBase()` = `process.env.VITE_API_URL || process.env.VITE_API_BASE_URL` (fallback `FALLBACK_API = https://moodspace-1f37.onbelmo.uk/api`). NOTEL: pakai variabel **yang sama dengan frontend** (`VITE_API_URL`) — sudah di-set di Vercel, TIDAK perlu variabel baru.
+- Resolvers:
+  - Post → `GET /posts/:id` → `{post:{title,caption,user{username,displayName},media,items[...]}}` → `media[0]`/`items[0].media` (2-level: item dgn `media`, item dgn `mediaId` dimana media dipakai di snapshot), fallback author username + post URL share.
+  - Template → `GET /workspaces/by-token/:token` → `{id,title,description,thumbnailUrl,ownerId,isTemplate}` — kalau `isTemplate`, address direkt.
+  - Board → `GET /boards/public/:id` → **dibungkus `{board}`** (controller) — middleware baca `data?.board || data`. Kalau board private → 404 → HTTP 404 di middleware → render root layout (title generic, NO og:image) — board private TIDAK terekspos. Cover image pertama dari `coverImages[0]` (shape: `{url?} | {image:{publicUrl}}`).
+  - Invite → `GET /workspaces/invite/:token` → `{workspaceId,workspaceTitle,description,thumbnailUrl,owner:{...}}` → `thumbnailUrl`, fallback `owner.avatarUrl`. Response extension (`thumbnailUrl`+`owner`) baru ada SETELAH Belmo redeploy (commit `f7f254a` backend) — sebelum redeploy, invite share masih putih.
+  - Profile → `GET /users/:username/profile` → `{profile:{avatarUrl,bannerUrl,displayName,username,bio,postCount,boardCount}}` → **`avatarUrl` didahulukan**, fallback `bannerUrl`, image type `profile`.
+- Deterministic: durasi <500ms, set `cache-control: s-maxage=86400` untuk fallback-only dan HTTP ok non-200 (401/404), 10s untuk HTTP 200.
+
+### Route table & penempatan
+| Route | fetch | fail resp | gambar |
+|-------|-------|-----------|--------|
+| `/post/:id` | `/posts/:id` | 404 root + `canonical` | media deterministik |
+| `/template/:token` | `/workspaces/by-token/:token` | 404 root | thumbnailUrl / owner.avatarUrl |
+| `/boards/:id` | `/boards/public/:id` | 404 root | coverImages[0] |
+| `/workspace/invite/:token` | `/workspaces/invite/:token` | 404 root | thumbnailUrl / owner.avatarUrl |
+| `/user/:username` | `/users/:username/profile` | 404 root | avatarUrl / bannerUrl |
+- Untuk setiap route yang gagal (404/gagal/error) middleware render `<Template home="home">` (title generic) + canonical diset ke URL asli — jadi scraped link tetap terindeks, tapi title pakai homepage fallback.
+
+### Profile share button (own profile)
+- `Profile.jsx`: tombol share (ikon Link2) sebelum tombol Edit Profile, `handleShare` → `navigator.clipboard.writeText(\`${window.location.origin}/user/${user?.username}\`)` + toast "Link profil disalin".
+
+### Fix thumbnail export terapkan efek item
+- `Workspace.jsx` `generateWorkspaceThumbnailDataUrl` (~6147): cabang `lowestAdjIndex === -1` sebelumnya meng-clone seluruh `.canvas-content` (hasil efek item `effectManager.applyAll`, bevel, inner shadow HILANG). Sekarang pakai `addWorkspaceItemClones({stage, exportLayer, items, filterItem: () => true})` — clone per-item yang menerapkan seluruh efek → thumbnail ekspor hasil efek. Unused vars `canvasContentNode`/`currentCamera` dihapus.
+- Export penuh (`generateWorkspaceExportDataUrl`, ~6348) sudah benar — selalu pakai `addWorkspaceItemClones`.
+
+### Commits
+- `f19056c` feat(og): Vercel edge middleware untuk /post/:id Open Graph preview
+- `a4b4758` chore: ignore model_cache
+- `08b38e1` feat(og): add og:image width/height/type
+- `f7f254a` feat(og): extend edge middleware ke template/board/invite/profile + invite payload + share button di profile sendiri
+- `01c3b1e` fix(og): board resolver baca {board} wrapper; profile og:image avatar dulu; thumbnail export terapkan per-item effects via addWorkspaceItemClones
+
+### Status/Limitations
+- **Verify status**: post OK; template OK (user konfirmasi "Share as template sudah berisi thumbnail proyek"); profile title OK via curl `facebookexternalhit/1.1` ke `/user/newacc5` sebelum fix avatar. Board & template og:image belum visual-revalidate di production pas rilis ini.
+- **Belum deploy**: middleware & frontend fix baru di Vercel perlu redeploy; **backend Belmo belum redeploy** → `/workspaces/invite/:token` masih response lama tanpa `thumbnailUrl` → invite share putih.
+- **Board private**: board yang visibility-nya `private` → `/boards/public/:id` 404 → render root (title generic, no OG image). Ini expected (privacy). Board hanya dapat OG kalau `visibility='public'` DAN punya minimal 1 cover image.
+- Board share link (`/boards/:id`) sama utk owner & non-owner; controller `getPublicBoard` HANYA untuk public (non-owner anonymous akan 404 di SPA kalau board private → web UI fallback `getBoard`).
+- **Pengujian**: user-agent bot facebook/twitter/telegram dapat HTML statis; browser klik link → SPA normal.
