@@ -6713,6 +6713,7 @@
 @media (max-width: 768px) {
   .board-detail-header {
     flex-direction: column;
+    align-items: flex-start;
     gap: 20px;
     margin-bottom: 28px;
     padding-bottom: 24px;
