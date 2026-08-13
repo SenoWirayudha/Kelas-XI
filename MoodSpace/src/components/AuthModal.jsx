@@ -96,7 +96,13 @@ function AuthModal() {
         if (user?.role === 'admin') navigate('/admin')
       }
     } catch (err) {
-      setError(err.message || 'Authentication failed')
+      const fieldErrors = err?.details?.fieldErrors || {}
+      const parts = []
+      if (fieldErrors.username?.length) parts.push('Username hanya boleh huruf, angka, dan underscore (3-32 karakter)')
+      if (fieldErrors.email?.length) parts.push('Email tidak valid')
+      if (fieldErrors.password?.length) parts.push('Password minimal 8 karakter')
+      if (fieldErrors.displayName?.length) parts.push('Display name tidak valid')
+      setError(parts.join('. ') || err.message || 'Authentication failed')
     } finally {
       setIsSubmitting(false)
     }
@@ -160,7 +166,7 @@ function AuthModal() {
                   </label>
                   <label>
                     <span>Username</span>
-                    <input type="text" value={values.username} onChange={updateValue('username')} autoComplete="username" required minLength={3} />
+                    <input type="text" value={values.username} onChange={updateValue('username')} autoComplete="username" required minLength={3} pattern="[a-zA-Z0-9_]+" title="Hanya huruf, angka, dan underscore" />
                   </label>
                   <label>
                     <span>Display name</span>
