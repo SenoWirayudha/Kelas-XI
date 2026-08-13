@@ -177,7 +177,7 @@
                             <button type="submit" 
                                     class="text-red-600 hover:text-red-900" 
                                     title="Ban User" 
-                                    onclick="return confirm('Are you sure you want to ban this user?')">
+                                    onclick="return requireConfirm(event, 'Are you sure you want to ban this user?', { form: this.closest('form') })">
                                 <i class="fas fa-ban"></i>
                             </button>
                         </form>

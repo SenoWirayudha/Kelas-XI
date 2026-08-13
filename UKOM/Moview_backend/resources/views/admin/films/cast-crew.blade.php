@@ -178,7 +178,7 @@ document.getElementById('editModal')?.addEventListener('click', function(e) {
                                 <button @click="editing = !editing" class="text-blue-600 hover:text-blue-800 p-2" title="Edit Character">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <form action="{{ route('admin.films.castcrew.destroy', [$movie->id, $moviePerson->id]) }}" method="POST" class="inline" onsubmit="return confirm('Remove this cast member?')">
+                                <form action="{{ route('admin.films.castcrew.destroy', [$movie->id, $moviePerson->id]) }}" method="POST" class="inline" onsubmit="return requireConfirm(event, 'Remove this cast member?', { form: this })">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="text-red-600 hover:text-red-800 p-2" title="Remove">
@@ -286,7 +286,7 @@ document.getElementById('editModal')?.addEventListener('click', function(e) {
                                 <button @click="editing = !editing" class="text-blue-600 hover:text-blue-800 p-2" title="Edit Job">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <form action="{{ route('admin.films.castcrew.destroy', [$movie->id, $moviePerson->id]) }}" method="POST" class="inline" onsubmit="return confirm('Remove this crew member?')">
+                                <form action="{{ route('admin.films.castcrew.destroy', [$movie->id, $moviePerson->id]) }}" method="POST" class="inline" onsubmit="return requireConfirm(event, 'Remove this crew member?', { form: this })">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="text-red-600 hover:text-red-800 p-2" title="Remove">

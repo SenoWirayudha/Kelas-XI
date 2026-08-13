@@ -203,19 +203,16 @@
                 <i class="fas fa-globe text-blue-600 mr-2"></i>
                 Countries
             </h3>
-            
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                @foreach($countries as $country)
-                <label class="flex items-center space-x-2 cursor-pointer">
-                    <input type="checkbox" 
-                           name="countries[]"
-                           value="{{ $country->id }}"
-                           {{ isset($film) && $film->movieCountries->pluck('country_id')->contains($country->id) ? 'checked' : '' }}
-                           class="rounded text-blue-600 focus:ring-2 focus:ring-blue-500">
-                    <span class="text-sm">{{ $country->name }}</span>
-                </label>
-                @endforeach
-            </div>
+            <p class="text-sm text-gray-500 mb-4">
+                <i class="fas fa-info-circle mr-1"></i>
+                Searchable multi-select — {{ $countries->count() }} countries total.
+            </p>
+            <x-admin.searchable-multiselect
+                name="countries[]"
+                :options="$countries"
+                :selected="old('countries', isset($film) ? $film->movieCountries->pluck('country_id')->all() : [])"
+                placeholder="Search countries..."
+            />
         </div>
 
         <!-- Languages -->
@@ -224,19 +221,16 @@
                 <i class="fas fa-language text-blue-600 mr-2"></i>
                 Languages
             </h3>
-            
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                @foreach($languages as $language)
-                <label class="flex items-center space-x-2 cursor-pointer">
-                    <input type="checkbox" 
-                           name="languages[]"
-                           value="{{ $language->id }}"
-                           {{ isset($film) && $film->movieLanguages->pluck('language_id')->contains($language->id) ? 'checked' : '' }}
-                           class="rounded text-blue-600 focus:ring-2 focus:ring-blue-500">
-                    <span class="text-sm">{{ $language->name }}</span>
-                </label>
-                @endforeach
-            </div>
+            <p class="text-sm text-gray-500 mb-4">
+                <i class="fas fa-info-circle mr-1"></i>
+                Searchable multi-select — {{ $languages->count() }} languages total.
+            </p>
+            <x-admin.searchable-multiselect
+                name="languages[]"
+                :options="$languages"
+                :selected="old('languages', isset($film) ? $film->movieLanguages->pluck('language_id')->all() : [])"
+                placeholder="Search languages..."
+            />
         </div>
 
         <!-- Production Houses -->
@@ -245,19 +239,21 @@
                 <i class="fas fa-building text-blue-600 mr-2"></i>
                 Production Houses
             </h3>
-            
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                @foreach($productionHouses as $productionHouse)
-                <label class="flex items-center space-x-2 cursor-pointer">
-                    <input type="checkbox" 
-                           name="production_houses[]"
-                           value="{{ $productionHouse->id }}"
-                           {{ isset($film) && $film->movieProductionHouses->pluck('production_house_id')->contains($productionHouse->id) ? 'checked' : '' }}
-                           class="rounded text-blue-600 focus:ring-2 focus:ring-blue-500">
-                    <span class="text-sm">{{ $productionHouse->name }}</span>
-                </label>
-                @endforeach
-            </div>
+            <p class="text-sm text-gray-500 mb-4">
+                <i class="fas fa-info-circle mr-1"></i>
+                Bisa pilih dari {{ $productionHouses->count() }} production house yang ada, atau tambahkan baru langsung dari dropdown.
+            </p>
+            <x-admin.searchable-multiselect
+                name="production_houses[]"
+                :options="$productionHouses"
+                :selected="old('production_houses', isset($film) ? $film->movieProductionHouses->pluck('production_house_id')->all() : [])"
+                placeholder="Search production houses..."
+                add-url="{{ route('admin.production-houses.store') }}"
+                add-label="+ Add Production House"
+                add-placeholder="Production house name... e.g. A24"
+                add-button-text="Add"
+            />
+        </div>
 
         <!-- Themes -->
         <div class="bg-white rounded-lg shadow p-6">
@@ -290,12 +286,6 @@
                     Cancel
                 </button>
                 <div class="flex space-x-3">
-                    <button type="button" 
-                            class="px-6 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50"
-                            onclick="alert('Preview action (UI only)')">
-                        <i class="fas fa-eye mr-2"></i>
-                        Preview
-                    </button>
                     <button type="submit" 
                             name="status"
                             value="draft"

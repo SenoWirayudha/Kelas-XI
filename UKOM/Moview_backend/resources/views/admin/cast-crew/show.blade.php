@@ -33,7 +33,7 @@
         Edit Person
     </a>
     <form action="{{ route('admin.cast-crew.destroy', $person->id) }}" method="POST" class="inline"
-          onsubmit="return confirm('Are you sure you want to delete {{ $person->full_name }}? This action cannot be undone.')">
+          onsubmit="return requireConfirm(event, 'Are you sure you want to delete {{ $person->full_name }}? This action cannot be undone.', { form: this })">
         @csrf
         @method('DELETE')
         <button type="submit" 

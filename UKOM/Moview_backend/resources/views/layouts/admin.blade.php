@@ -235,6 +235,166 @@
         </div>
     </div>
 
+    {{-- Global Toast Container --}}
+    <div x-data="globalToast" class="fixed top-5 right-5 z-[100] space-y-3 w-80">
+        <template x-for="t in toasts" :key="t.id">
+            <div class="transform transition-all duration-300 bg-white rounded-lg shadow-lg border overflow-hidden"
+                 :class="t.type === 'success' ? 'border-green-400' : t.type === 'error' ? 'border-red-400' : 'border-blue-400'">
+                <div class="flex items-start p-4">
+                    <i class="fas mt-0.5 mr-3"
+                       :class="t.type === 'success' ? 'fa-check-circle text-green-500' : t.type === 'error' ? 'fa-exclamation-circle text-red-500' : 'fa-info-circle text-blue-500'"></i>
+                    <div class="flex-1 min-w-0">
+                        <p x-text="t.msg" class="text-sm text-gray-800"></p>
+                    </div>
+                    <button @click="toasts = toasts.filter(x => x.id !== t.id)" class="text-gray-400 hover:text-gray-600 ml-2">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    {{-- Global Confirm Modal --}}
+    <div x-data="confirmModal" x-cloak>
+        <div x-show="open" class="fixed inset-0 z-[110] flex items-center justify-center p-4" x-cloak>
+            <div class="absolute inset-0 bg-black bg-opacity-50" @click="cancel()"></div>
+            <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+                         :class="danger ? 'bg-red-100' : 'bg-blue-100'">
+                        <i class="fas"
+                           :class="danger ? 'fa-exclamation-triangle text-red-600' : 'fa-info-circle text-blue-600'"></i>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <h3 class="text-lg font-semibold text-gray-900" x-text="message"></h3>
+                        <p class="mt-1 text-sm text-gray-500" x-text="submessage" x-show="submessage"></p>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" @click="cancel()"
+                            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Batal
+                    </button>
+                    <button type="button" @click="confirmAction()"
+                            :class="danger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'"
+                            class="px-4 py-2 text-white rounded-lg"
+                            x-text="confirmText"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @stack('scripts')
+
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('globalToast', () => ({
+            toasts: [],
+            init() {
+                // Show any toasts that were queued before a page reload.
+                this.drainPending();
+                window.__toast = (msg, type = 'success') => {
+                    this.push(msg, type);
+                };
+            },
+            push(msg, type = 'success') {
+                const id = Date.now() + Math.random();
+                this.toasts.push({ id, msg, type });
+                setTimeout(() => this.toasts = this.toasts.filter(t => t.id !== id), 3500);
+            },
+            // Store a toast that should appear AFTER the current page reloads.
+            // Used by actions that do an instant location.reload() to fetch fresh data.
+            persist(msg, type = 'success') {
+                const queue = JSON.parse(sessionStorage.getItem('moview_pending_toasts') || '[]');
+                queue.push({ msg, type });
+                sessionStorage.setItem('moview_pending_toasts', JSON.stringify(queue));
+            },
+            drainPending() {
+                const queue = JSON.parse(sessionStorage.getItem('moview_pending_toasts') || '[]');
+                if (queue.length === 0) return;
+                sessionStorage.removeItem('moview_pending_toasts');
+                queue.forEach(t => this.push(t.msg, t.type));
+            }
+        }));
+
+        Alpine.data('confirmModal', () => ({
+            open: false,
+            message: '',
+            submessage: '',
+            confirmText: 'Ya, Lanjutkan',
+            danger: true,
+            callback: null,
+            show(opts) {
+                this.message = opts.message || 'Konfirmasi';
+                this.submessage = opts.submessage || '';
+                this.confirmText = opts.confirmText || (opts.danger === false ? 'Ya, Lanjutkan' : 'Ya, Lanjutkan');
+                this.danger = opts.danger !== false;
+                this.callback = opts.callback || null;
+                this.open = true;
+            },
+            cancel() {
+                this.open = false;
+                if (this.callback && this.callback.onCancel) this.callback.onCancel();
+                this.callback = null;
+            },
+            confirmAction() {
+                this.open = false;
+                if (this.callback && this.callback.onConfirm) this.callback.onConfirm();
+                this.callback = null;
+            }
+        }));
+
+        // Global helpers available to any page
+        Alpine.magic('openConfirm', () => (opts) => {
+            const modal = document.querySelector('[x-data="confirmModal"]');
+            if (modal && modal._x_dataStack) {
+                modal._x_dataStack[0].show(opts);
+            }
+        });
+
+        // Legacy fallback: window.confirmAction() for inline onclick handlers
+        window.confirmAction = (message, onConfirm, opts = {}) => {
+            const modal = document.querySelector('[x-data="confirmModal"]');
+            if (modal && modal._x_dataStack) {
+                modal._x_dataStack[0].show({
+                    message,
+                    danger: opts.danger !== false,
+                    confirmText: opts.confirmText,
+                    submessage: opts.submessage,
+                    callback: { onConfirm, onCancel: opts.onCancel }
+                });
+            }
+        };
+
+        window.showToast = (msg, type = 'success') => {
+            if (window.__toast) window.__toast(msg, type);
+        };
+
+        // Show a toast that must survive an immediate page reload (upload/set default/delete).
+        window.showToastAfterReload = (msg, type = 'success') => {
+            const el = document.querySelector('[x-data="globalToast"]');
+            if (el && el._x_dataStack) {
+                el._x_dataStack[0].persist(msg, type);
+            }
+        };
+
+        // Inline confirmation: use onsubmit for forms or onclick for buttons.
+        // Elements: onsubmit="return requireConfirm(event, 'msg', { form: this })"
+        // Buttons:  onclick="return requireConfirm(event, 'msg', { onConfirm: cb, danger: false })"
+        window.requireConfirm = (event, message, opts = {}) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const form = opts.form || (event.target.closest ? event.target.closest('form') : null);
+            window.confirmAction(message, () => {
+                if (form) form.submit();
+                else if (opts.onConfirm) opts.onConfirm();
+            }, {
+                confirmText: opts.confirmText,
+                danger: opts.danger
+            });
+            return false;
+        };
+    });
+    </script>
 </body>
 </html>

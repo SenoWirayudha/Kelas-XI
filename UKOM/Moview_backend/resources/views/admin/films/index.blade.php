@@ -253,7 +253,7 @@
                            class="text-green-600 hover:text-green-900" title="Reviews">
                             <i class="fas fa-star"></i>
                         </a>
-                        <button class="text-red-600 hover:text-red-900" title="Delete" onclick="alert('Delete action (UI only)')">
+                        <button class="text-red-600 hover:text-red-900" title="Delete" onclick="window.showToast('Delete action (UI only)', 'info')">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>

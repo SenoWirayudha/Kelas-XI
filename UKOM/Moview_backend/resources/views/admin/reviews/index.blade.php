@@ -169,7 +169,7 @@
         
         <div class="flex items-center justify-end pt-4 border-t">
             <div class="flex space-x-2">
-                <button class="text-red-600 hover:text-red-800 px-3 py-2" title="Delete" onclick="if(confirm('Delete this review?')) alert('Deleted (UI only)')">
+                <button class="text-red-600 hover:text-red-800 px-3 py-2" title="Delete" onclick="requireConfirm(event, 'Delete this review?', { confirmText: 'Hapus', onConfirm: () => window.showToast('Review deleted (UI only)') })">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>

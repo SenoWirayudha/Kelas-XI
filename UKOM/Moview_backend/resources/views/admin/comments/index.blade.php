@@ -199,7 +199,7 @@
                                 <button type="submit" 
                                         class="text-red-600 hover:text-red-900" 
                                         title="Mark as Deleted"
-                                        onclick="return confirm('Mark this comment as deleted? It will show as \\'Comment removed\\' on mobile.')">
+                                        onclick="return requireConfirm(event, 'Mark this comment as deleted? It will show as \\'Comment removed\\' on mobile.', { form: this.closest('form') })">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
@@ -211,7 +211,7 @@
                                 <button type="submit" 
                                         class="text-green-600 hover:text-green-900" 
                                         title="Restore Comment"
-                                        onclick="return confirm('Restore this comment?')">
+                                        onclick="return requireConfirm(event, 'Restore this comment?', { form: this.closest('form'), danger: false, confirmText: 'Ya, Restore' })">
                                     <i class="fas fa-undo"></i>
                                 </button>
                             </form>

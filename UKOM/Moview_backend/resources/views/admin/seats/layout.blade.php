@@ -156,7 +156,7 @@
                     </div>
 
                     <button type="submit"
-                            onclick="return confirm('Generate layout kursi? Layout lama (yang belum dipesan) akan dihapus.')"
+                            onclick="return requireConfirm(event, 'Generate layout kursi? Layout lama (yang belum dipesan) akan dihapus.', { form: this.closest('form'), danger: false, confirmText: 'Ya, Generate' })"
                             class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition flex items-center justify-center gap-2">
                         <i class="fas fa-magic"></i> Generate Kursi
                     </button>
@@ -204,7 +204,7 @@
                     @csrf
                     @method('DELETE')
                     <button type="submit"
-                            onclick="return confirm('Hapus semua kursi studio ini? Kursi yang sudah dipesan tidak akan terhapus.')"
+                            onclick="return requireConfirm(event, 'Hapus semua kursi studio ini? Kursi yang sudah dipesan tidak akan terhapus.', { form: this.closest('form') })"
                             class="w-full py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium rounded-lg transition flex items-center justify-center gap-2">
                         <i class="fas fa-trash"></i> Hapus Semua Kursi
                     </button>

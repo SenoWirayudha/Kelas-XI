@@ -67,7 +67,7 @@
                                 <i class="fas fa-pen mr-1"></i> Edit
                             </a>
                             <form action="{{ route('admin.schedules.destroy', $schedule->id) }}" method="POST"
-                                  onsubmit="return confirm('Hapus jadwal ini?')">
+                                  onsubmit="return requireConfirm(event, 'Hapus jadwal ini?', { form: this })">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit"

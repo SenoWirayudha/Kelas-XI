@@ -90,7 +90,7 @@
                                 <i class="fas fa-pen mr-1"></i> Edit
                             </a>
                             <form action="{{ route('admin.studios.destroy', $studio->id) }}" method="POST"
-                                  onsubmit="return confirm('Hapus studio {{ addslashes($studio->studio_name) }}? Data seats dan jadwal terkait ikut terhapus.')">
+                                  onsubmit="return requireConfirm(event, 'Hapus studio {{ addslashes($studio->studio_name) }}? Data seats dan jadwal terkait ikut terhapus.', { form: this })">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit"

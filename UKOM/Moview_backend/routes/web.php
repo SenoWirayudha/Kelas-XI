@@ -58,6 +58,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     // Services Management
     Route::put('/films/{id}/services', [FilmController::class, 'updateServices'])->name('films.services.update');
     
+    // Quick-add metadata (used by the film form)
+    Route::post('/production-houses', [FilmController::class, 'storeProductionHouse'])->name('production-houses.store');
     Route::post('/themes', [FilmController::class, 'storeTheme'])->name('themes.store');
     
     // Cast & Crew Management

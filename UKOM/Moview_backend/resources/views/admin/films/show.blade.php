@@ -379,13 +379,13 @@
                 <!-- Tabs -->
                 <div class="border-b border-gray-200 mb-6">
                     <nav class="-mb-px flex space-x-8">
-                        <button @click="activeTab = 'posters'; currentTab = 'posters'" 
+                        <button @click="setTab('posters')" 
                                 :class="activeTab === 'posters' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                                 class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200">
                             <i class="fas fa-image mr-2"></i>
                             Posters ({{ count($posters) }})
                         </button>
-                        <button @click="activeTab = 'backdrops'; currentTab = 'backdrops'" 
+                        <button @click="setTab('backdrops')" 
                                 :class="activeTab === 'backdrops' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                                 class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200">
                             <i class="fas fa-panorama mr-2"></i>
@@ -979,15 +979,7 @@
                         {{ $movie->status === 'published' ? 'Unpublish' : 'Publish' }}
                     </button>
                 </form>
-                <form method="POST" action="{{ route('admin.films.duplicate', $movie->id) }}">
-                    @csrf
-                    <button type="submit" 
-                            class="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg transition-colors duration-200">
-                        <i class="fas fa-copy mr-2"></i>
-                        Duplicate
-                    </button>
-                </form>
-                <form method="POST" action="{{ route('admin.films.destroy', $movie->id) }}" onsubmit="return confirm('Are you sure you want to delete this film? This action cannot be undone.')">
+                <form method="POST" action="{{ route('admin.films.destroy', $movie->id) }}" onsubmit="return requireConfirm(event, 'Are you sure you want to delete this film? This action cannot be undone.', { form: this })">
                     @csrf
                     @method('DELETE')
                     <button type="submit" 
@@ -1007,7 +999,22 @@
 // Media Manager Alpine.js component
 document.addEventListener('alpine:init', () => {
     Alpine.data('mediaManager', () => ({
-        currentTab: 'posters',
+        currentTab: sessionStorage.getItem('moview_media_tab') || 'posters',
+        activeTab: sessionStorage.getItem('moview_media_tab') || 'posters',
+
+        init() {
+            const saved = sessionStorage.getItem('moview_media_tab');
+            if (saved === 'posters' || saved === 'backdrops') {
+                this.currentTab = saved;
+                this.activeTab = saved;
+            }
+        },
+
+        setTab(tab) {
+            this.activeTab = tab;
+            this.currentTab = tab;
+            sessionStorage.setItem('moview_media_tab', tab);
+        },
         
         openFileDialog() {
             document.getElementById('mediaFileInput').click();
@@ -1034,13 +1041,13 @@ document.addEventListener('alpine:init', () => {
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(data.message);
+                    window.showToastAfterReload(data.message);
                     location.reload(); // Reload to show new media
                 } else {
-                    alert('Error: ' + (data.message || 'Upload gagal'));
+                    window.showToast('Error: ' + (data.message || 'Upload gagal'), 'error');
                 }
             } catch (error) {
-                alert('Error uploading file: ' + error.message);
+                window.showToast('Error uploading file: ' + error.message, 'error');
             }
             
             event.target.value = ''; // Reset input
@@ -1049,81 +1056,81 @@ document.addEventListener('alpine:init', () => {
 });
 
 // Set media as default
-async function setMediaDefault(movieId, mediaId) {
-    if (!confirm('Set sebagai media default?')) return;
-    
-    try {
-        const response = await fetch(`/admin/films/${movieId}/media/${mediaId}/default`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+function setMediaDefault(movieId, mediaId) {
+    window.confirmAction('Set sebagai media default?', async () => {
+        try {
+            const response = await fetch(`/admin/films/${movieId}/media/${mediaId}/default`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                window.showToastAfterReload(data.message);
+                location.reload();
+            } else {
+                window.showToast('Error: ' + data.message, 'error');
             }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert(data.message);
-            location.reload();
-        } else {
-            alert('Error: ' + data.message);
+        } catch (error) {
+            window.showToast('Error: ' + error.message, 'error');
         }
-    } catch (error) {
-        alert('Error: ' + error.message);
-    }
+    }, { danger: false, confirmText: 'Ya, Set Default' });
 }
 
 // Delete media
-async function deleteMedia(movieId, mediaId) {
-    if (!confirm('Hapus media ini?')) return;
-    
-    try {
-        const response = await fetch(`/admin/films/${movieId}/media/${mediaId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+function deleteMedia(movieId, mediaId) {
+    window.confirmAction('Hapus media ini?', async () => {
+        try {
+            const response = await fetch(`/admin/films/${movieId}/media/${mediaId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                window.showToastAfterReload(data.message);
+                location.reload();
+            } else {
+                window.showToast('Error: ' + data.message, 'error');
             }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert(data.message);
-            location.reload();
-        } else {
-            alert('Error: ' + data.message);
+        } catch (error) {
+            window.showToast('Error: ' + error.message, 'error');
         }
-    } catch (error) {
-        alert('Error: ' + error.message);
-    }
+    });
 }
 
 // Delete cast/crew
-async function deleteCastCrew(movieId, moviePersonId) {
-    if (!confirm('Hapus cast/crew ini?')) return;
-    
-    try {
-        const response = await fetch(`/admin/films/${movieId}/cast-crew/${moviePersonId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+function deleteCastCrew(movieId, moviePersonId) {
+    window.confirmAction('Hapus cast/crew ini?', async () => {
+        try {
+            const response = await fetch(`/admin/films/${movieId}/cast-crew/${moviePersonId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                window.showToastAfterReload(data.message);
+                location.reload();
+            } else {
+                window.showToast('Error: ' + data.message, 'error');
             }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert(data.message);
-            location.reload();
-        } else {
-            alert('Error: ' + data.message);
+        } catch (error) {
+            window.showToast('Error: ' + error.message, 'error');
         }
-    } catch (error) {
-        alert('Error: ' + error.message);
-    }
+    });
 }
 </script>
 @endpush

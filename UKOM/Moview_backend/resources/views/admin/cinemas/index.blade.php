@@ -58,7 +58,7 @@
                     </td>
                     <td class="px-4 py-3 text-center">
                         <form action="{{ route('admin.cinemas.destroy', $cinema->id) }}" method="POST"
-                              onsubmit="return confirm('Hapus bioskop {{ addslashes($cinema->cinema_name) }}? Semua studio dan jadwal terkait akan ikut terhapus.')">
+                              onsubmit="return requireConfirm(event, 'Hapus bioskop {{ addslashes($cinema->cinema_name) }}? Semua studio dan jadwal terkait akan ikut terhapus.', { form: this })">
                             @csrf
                             @method('DELETE')
                             <button type="submit"

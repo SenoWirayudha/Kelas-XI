@@ -561,6 +561,29 @@ class FilmController extends Controller
             ->with('success', 'Services updated successfully!');
     }
 
+    public function storeProductionHouse(Request $request)
+    {
+        $request->validate(['name' => 'required|string|max:255']);
+
+        $name = trim($request->name);
+        $existing = ProductionHouse::whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
+        if ($existing) {
+            return response()->json(['success' => true, 'id' => $existing->id, 'name' => $existing->name, 'duplicate' => true]);
+        }
+
+        try {
+            $house = ProductionHouse::create(['name' => $name]);
+            return response()->json(['success' => true, 'id' => $house->id, 'name' => $house->name]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Race condition: someone else inserted the same name just now.
+            $existing = ProductionHouse::whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
+            if ($existing) {
+                return response()->json(['success' => true, 'id' => $existing->id, 'name' => $existing->name, 'duplicate' => true]);
+            }
+            throw $e;
+        }
+    }
+
     public function storeTheme(Request $request)
     {
         $request->validate(['name' => 'required|string|max:150']);

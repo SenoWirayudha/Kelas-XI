@@ -155,7 +155,7 @@
 
     <!-- Delete Form (Separate) -->
     <div class="mt-4">
-        <form action="{{ route('admin.cast-crew.destroy', $person->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this person? This action cannot be undone.')">
+        <form action="{{ route('admin.cast-crew.destroy', $person->id) }}" method="POST" onsubmit="return requireConfirm(event, 'Are you sure you want to delete this person? This action cannot be undone.', { form: this })">
             @csrf
             @method('DELETE')
             <button type="submit" 

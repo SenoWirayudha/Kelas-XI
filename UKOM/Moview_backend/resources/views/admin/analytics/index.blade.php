@@ -211,19 +211,19 @@
         Export Reports
     </h3>
     <div class="flex flex-wrap gap-3">
-        <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg" onclick="alert('Export to PDF (UI only)')">
+        <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg" onclick="window.showToast('Export to PDF (UI only)', 'info')">
             <i class="fas fa-file-pdf mr-2"></i>
             Export PDF
         </button>
-        <button class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg" onclick="alert('Export to Excel (UI only)')">
+        <button class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg" onclick="window.showToast('Export to Excel (UI only)', 'info')">
             <i class="fas fa-file-excel mr-2"></i>
             Export Excel
         </button>
-        <button class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg" onclick="alert('Export to CSV (UI only)')">
+        <button class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg" onclick="window.showToast('Export to CSV (UI only)', 'info')">
             <i class="fas fa-file-csv mr-2"></i>
             Export CSV
         </button>
-        <button class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg" onclick="alert('Schedule report (UI only)')">
+        <button class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg" onclick="window.showToast('Schedule report (UI only)', 'info')">
             <i class="fas fa-calendar mr-2"></i>
             Schedule Report
         </button>

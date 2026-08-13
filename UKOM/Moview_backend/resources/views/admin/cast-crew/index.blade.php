@@ -125,7 +125,7 @@
                 <a href="{{ route('admin.cast-crew.edit', $person->id) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded text-sm">
                     <i class="fas fa-edit"></i>
                 </a>
-                <form method="POST" action="{{ route('admin.cast-crew.destroy', $person->id) }}" onsubmit="return confirm('Are you sure you want to delete this person?')">
+                <form method="POST" action="{{ route('admin.cast-crew.destroy', $person->id) }}" onsubmit="return requireConfirm(event, 'Are you sure you want to delete this person?', { form: this })">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm">
