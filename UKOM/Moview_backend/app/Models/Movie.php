@@ -161,4 +161,49 @@ class Movie extends Model
         return $this->hasMany(MovieTheme::class);
     }
 
+    /**
+     * Multi-release rows (premiere / theatrical / streaming) with their own dates.
+     * One movie may have many rows (e.g. Cannes premiere, theatrical in Indonesia, Netflix US).
+     */
+    public function movieReleases()
+    {
+        return $this->hasMany(MovieRelease::class, 'movie_id')->orderBy('release_date');
+    }
+
+    /**
+     * The "primary" or main release date used for sorting & year filtering.
+     * Priority: earliest premiere/festival date if present, otherwise the earliest
+     * theatrical/streaming date. Implemented as a computed value here so every query
+     * uses one consistent source instead of hardcoding the logic elsewhere.
+     */
+    public function getPrimaryReleaseDateAttribute()
+    {
+        $premiere = $this->movieReleases()
+            ->where('type', MovieRelease::TYPE_PREMIERE)
+            ->orderBy('release_date')
+            ->value('release_date');
+
+        if ($premiere) {
+            return $premiere;
+        }
+
+        return $this->movieReleases()
+            ->whereIn('type', [MovieRelease::TYPE_THEATRICAL, MovieRelease::TYPE_STREAMING])
+            ->orderBy('release_date')
+            ->value('release_date');
+    }
+
+    /**
+     * Selling status: "released" once at least one theatrical or streaming row has a
+     * release_date that has passed. Premiere-only films stay "coming soon".
+     */
+    public function getReleaseStatusAttribute()
+    {
+        $publicRelease = $this->movieReleases()
+            ->whereIn('type', [MovieRelease::TYPE_THEATRICAL, MovieRelease::TYPE_STREAMING])
+            ->where('release_date', '<=', now()->toDateString())
+            ->exists();
+
+        return $publicRelease ? 'released' : 'coming_soon';
+    }
 }
