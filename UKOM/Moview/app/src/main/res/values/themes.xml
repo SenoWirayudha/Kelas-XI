@@ -14,6 +14,9 @@
         
         <!-- Status bar color -->
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+
+        <!-- Global font family -->
+        <item name="android:fontFamily">@font/font_family_inter</item>
     </style>
 
     <!-- Theme without action bar for main activity -->
