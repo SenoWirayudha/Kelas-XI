@@ -40,7 +40,7 @@ class SimpleReviewAdapter(
         fun bind(review: ReviewData) {
             binding.apply {
                 // Load poster
-                ivPoster.loadPoster(review.poster_path)
+                ivPoster.loadPoster(review.poster_path, review.title)
 
                 // Set title and year
                 tvTitle.text = review.title

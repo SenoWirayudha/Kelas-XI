@@ -36,6 +36,8 @@ class FilmographyAdapter(
         fun bind(film: Film) {
             Glide.with(binding.ivPoster)
                 .load(film.posterUrl)
+                .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, film.title))
+                .error(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, film.title))
                 .into(binding.ivPoster)
             
             binding.tvYear.text = film.year

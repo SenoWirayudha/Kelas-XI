@@ -40,7 +40,7 @@ class SimpleDiaryAdapter(
         fun bind(diary: Diary) {
             binding.apply {
                 // Load poster
-                ivPoster.loadPoster(diary.poster_path)
+                ivPoster.loadPoster(diary.poster_path, diary.title)
 
                 // Set title and year
                 tvTitle.text = diary.title

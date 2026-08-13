@@ -92,7 +92,12 @@ class MovieScheduleActivity : AppCompatActivity() {
         binding.btnTrailer.visibility = View.GONE
 
         if (moviePosterUrl.isNotBlank()) {
-            Glide.with(this).load(ServerConfig.fixUrl(moviePosterUrl)).into(binding.ivPoster)
+            Glide.with(this).load(ServerConfig.fixUrl(moviePosterUrl))
+                .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(this, movieTitle))
+                .error(com.komputerkit.moview.util.PosterFallbackDrawable(this, movieTitle))
+                .into(binding.ivPoster)
+        } else {
+            binding.ivPoster.setImageDrawable(com.komputerkit.moview.util.PosterFallbackDrawable(this, movieTitle))
         }
         if (movieBackdropUrl.isNotBlank()) {
             Glide.with(this).load(ServerConfig.fixUrl(movieBackdropUrl)).into(binding.ivBackdrop)

@@ -52,15 +52,15 @@ class FilmGridAdapter(
                 Glide.with(binding.root.context)
                     .load(fixedUrl)
                     .thumbnail(0.1f)  // Load 10% thumbnail first for fast preview
-                    .placeholder(R.drawable.placeholder_poster)  // Show placeholder while loading
-                    .error(R.drawable.placeholder_poster)  // Show placeholder if error
+                    .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(binding.root.context, movie.title))  // Show fallback while loading
+                    .error(com.komputerkit.moview.util.PosterFallbackDrawable(binding.root.context, movie.title))  // Show fallback if error
                     .diskCacheStrategy(DiskCacheStrategy.ALL)  // Cache both original & resized
                     .centerCrop()
                     .into(binding.ivPoster)
                 Log.d("FilmGridAdapter", "Loading poster for ${movie.title}: ${movie.posterUrl}")
             } else {
-                // No poster URL, show placeholder
-                binding.ivPoster.setImageResource(R.drawable.placeholder_poster)
+                // No poster URL, show fallback
+                binding.ivPoster.setImageDrawable(com.komputerkit.moview.util.PosterFallbackDrawable(binding.root.context, movie.title))
                 Log.w("FilmGridAdapter", "No poster URL for ${movie.title}")
             }
             

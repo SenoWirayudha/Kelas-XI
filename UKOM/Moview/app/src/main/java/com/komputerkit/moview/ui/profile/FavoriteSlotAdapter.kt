@@ -44,7 +44,7 @@ class FavoriteSlotAdapter(
             
             if (hasPoster) {
                 // Show movie poster with explicit dimensions to prevent stretching
-                binding.ivPoster.loadThumbnail(slot.movie!!.posterUrl)
+                binding.ivPoster.loadThumbnail(slot.movie!!.posterUrl, slot.movie!!.title)
                 
                 // Remove button click
                 binding.btnRemove.setOnClickListener {

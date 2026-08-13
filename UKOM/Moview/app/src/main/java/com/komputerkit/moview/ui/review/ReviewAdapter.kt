@@ -104,7 +104,7 @@ class ReviewAdapter(
             binding.ivRewatch.visibility = if (review.isRewatch) View.VISIBLE else View.GONE
 
             // Load poster using Glide extension for fast loading
-            binding.ivPoster.loadPoster(review.movie.posterUrl)
+            binding.ivPoster.loadPoster(review.movie.posterUrl, review.movie.title)
 
             binding.root.setOnClickListener {
                 onReviewClick(review)

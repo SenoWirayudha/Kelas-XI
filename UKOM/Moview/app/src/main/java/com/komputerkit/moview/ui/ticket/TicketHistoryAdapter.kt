@@ -74,12 +74,12 @@ class TicketHistoryAdapter(
             binding.tvPaymentMethod.text = "Metode: ${item.paymentMethod}"
 
             if (item.posterUrl.isBlank()) {
-                binding.ivPoster.setImageResource(R.drawable.ic_movie)
+                binding.ivPoster.setImageDrawable(com.komputerkit.moview.util.PosterFallbackDrawable(context, item.title))
             } else {
                 Glide.with(context)
                     .load(item.posterUrl)
-                    .placeholder(R.drawable.ic_movie)
-                    .error(R.drawable.ic_movie)
+                    .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(context, item.title))
+                    .error(com.komputerkit.moview.util.PosterFallbackDrawable(context, item.title))
                     .into(binding.ivPoster)
             }
 

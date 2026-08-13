@@ -19,9 +19,9 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
-import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentLogFilmBinding
+import com.komputerkit.moview.util.loadPoster
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -97,9 +97,7 @@ class LogFilmFragment : Fragment() {
             binding.tvTitle.text = movie.title
             binding.tvInfo.text = "${movie.releaseYear} • ${movie.genre}"
             
-            Glide.with(this)
-                .load(movie.posterUrl)
-                .into(binding.ivPoster)
+            binding.ivPoster.loadPoster(movie.posterUrl, movie.title)
         }
         
         viewModel.isLiked.observe(viewLifecycleOwner) { isLiked ->

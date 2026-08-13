@@ -43,7 +43,7 @@ class MovieCardAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(movie: Movie) {
-            binding.ivPoster.loadThumbnail(movie.posterUrl)
+            binding.ivPoster.loadThumbnail(movie.posterUrl, movie.title)
             
             binding.tvRating.text = String.format("%.1f", movie.averageRating)
             binding.tvTitle.text = movie.title

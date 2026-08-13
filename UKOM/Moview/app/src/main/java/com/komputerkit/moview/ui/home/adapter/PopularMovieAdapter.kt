@@ -39,8 +39,8 @@ class PopularMovieAdapter(
             starRating.visibility = if ((movie.averageRating ?: 0f) > 0f) View.VISIBLE else View.GONE
 
             // Load poster image with optimization
-            posterImage.loadThumbnail(movie.posterUrl)
-            
+            posterImage.loadThumbnail(movie.posterUrl, movie.title)
+
             itemView.setOnClickListener {
                 onMovieClick(movie)
             }

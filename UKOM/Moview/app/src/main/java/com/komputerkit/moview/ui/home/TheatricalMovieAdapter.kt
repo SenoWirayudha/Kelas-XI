@@ -59,7 +59,7 @@ class TheatricalMovieAdapter(
                 }
             }
 
-            binding.ivPoster.loadThumbnail(movie.posterUrl)
+            binding.ivPoster.loadThumbnail(movie.posterUrl, movie.title)
 
             // Title
             binding.tvTitle.text = movie.title

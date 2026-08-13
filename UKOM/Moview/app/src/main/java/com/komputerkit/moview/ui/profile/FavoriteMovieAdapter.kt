@@ -45,7 +45,7 @@ class FavoriteMovieAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(movie: Movie) {
-            binding.ivPoster.loadThumbnail(movie.posterUrl)
+            binding.ivPoster.loadThumbnail(movie.posterUrl, movie.title)
             
             // Root click behavior:
             // - If has review: navigate to review detail

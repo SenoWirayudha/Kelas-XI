@@ -84,8 +84,8 @@ class TicketQrActivity : AppCompatActivity() {
 
                 Glide.with(this@TicketQrActivity)
                     .load(ServerConfig.resolveStorageUrl(data.movie.poster_path))
-                    .placeholder(R.drawable.ic_movie)
-                    .error(R.drawable.ic_movie)
+                    .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(this@TicketQrActivity, data.movie.title))
+                    .error(com.komputerkit.moview.util.PosterFallbackDrawable(this@TicketQrActivity, data.movie.title))
                     .into(binding.ivPoster)
 
                 binding.ivQr.setImageBitmap(generateQrBitmap(data.ticket_code, 700))

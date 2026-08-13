@@ -48,7 +48,7 @@ class FriendActivityGridAdapter(
         
         fun bind(activity: FriendActivity) {
             // Movie poster with optimization
-            binding.ivPoster.loadThumbnail(activity.movie.posterUrl)
+            binding.ivPoster.loadThumbnail(activity.movie.posterUrl, activity.movie.title)
             
             // User profile photo with optimization
             binding.ivUserPhoto.loadAvatar(activity.user.profilePhotoUrl)

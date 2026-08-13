@@ -48,14 +48,14 @@ class FilmographyAdapter(
             if (!movie.posterUrl.isNullOrEmpty()) {
                 Glide.with(binding.root.context)
                     .load(movie.posterUrl)
-                    .placeholder(R.drawable.placeholder_poster)
-                    .error(R.drawable.placeholder_poster)
+                    .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(binding.root.context, movie.title))
+                    .error(com.komputerkit.moview.util.PosterFallbackDrawable(binding.root.context, movie.title))
                     .diskCacheStrategy(DiskCacheStrategy.NONE)
                     .skipMemoryCache(true)
                     .centerCrop()
                     .into(binding.ivPoster)
             } else {
-                binding.ivPoster.setImageResource(R.drawable.placeholder_poster)
+                binding.ivPoster.setImageDrawable(com.komputerkit.moview.util.PosterFallbackDrawable(binding.root.context, movie.title))
             }
             
             binding.root.setOnClickListener {

@@ -4,12 +4,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import androidx.core.content.ContextCompat
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.DiaryEntry
 import com.komputerkit.moview.databinding.ItemRecentActivityBinding
 import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.util.loadPoster
 
 class RecentActivityAdapter(
     private val onMovieClick: ((DiaryEntry) -> Unit)? = null,
@@ -47,10 +47,7 @@ class RecentActivityAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(entry: DiaryEntry) {
-            val posterUrl = if (!entry.movie.posterUrl.isNullOrEmpty()) com.komputerkit.moview.util.ServerConfig.fixUrl(entry.movie.posterUrl) else entry.movie.posterUrl
-            Glide.with(binding.root.context)
-                .load(posterUrl)
-                .into(binding.ivPoster)
+            binding.ivPoster.loadPoster(entry.movie.posterUrl, entry.movie.title)
             
             // Show rating stars
             binding.starRating.apply {

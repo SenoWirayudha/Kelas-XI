@@ -42,7 +42,7 @@ class MovieGridAdapter(
         
         fun bind(movie: Movie) {
             // Load poster image
-            binding.ivPoster.loadThumbnail(movie.posterUrl)
+            binding.ivPoster.loadThumbnail(movie.posterUrl, movie.title)
             
             // Set rating
             binding.tvRating.text = String.format("%.1f", movie.averageRating)

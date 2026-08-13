@@ -50,10 +50,12 @@ class FilmGridAdapter(
                     com.bumptech.glide.Glide.with(binding.ivPoster.context)
                         .load(fixedUrl)
                         .override(width, height)
+                        .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, movie.title))
+                        .error(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, movie.title))
                         .centerCrop()
                         .into(binding.ivPoster)
                 } else {
-                    binding.ivPoster.loadThumbnail(fixedUrl)
+                    binding.ivPoster.loadThumbnail(fixedUrl, movie.title)
                 }
             }
             

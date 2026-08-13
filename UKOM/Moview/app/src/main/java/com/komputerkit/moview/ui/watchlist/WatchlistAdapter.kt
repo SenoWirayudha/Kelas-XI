@@ -41,7 +41,7 @@ class WatchlistAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: WatchlistItem) {
-            binding.ivPoster.loadThumbnail(item.movie.posterUrl)
+            binding.ivPoster.loadThumbnail(item.movie.posterUrl, item.movie.title)
 
             // Hide rating and review icon for watchlist items
             binding.ratingContainer.visibility = android.view.View.GONE

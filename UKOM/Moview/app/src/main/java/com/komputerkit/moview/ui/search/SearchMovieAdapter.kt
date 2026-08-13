@@ -43,7 +43,7 @@ class SearchMovieAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(movie: Movie) {
-            binding.ivPoster.loadThumbnail(movie.posterUrl)
+            binding.ivPoster.loadThumbnail(movie.posterUrl, movie.title)
             
             binding.tvTitle.text = movie.title
             binding.tvMovieInfo.text = "${movie.releaseYear} • ${movie.genre}"

@@ -96,7 +96,12 @@ class OrderSummaryActivity : AppCompatActivity() {
         binding.tvTotalPrice.text = "Rp${fmt.format(total)}"
 
         if (booking.moviePosterUrl.isNotBlank()) {
-            Glide.with(this).load(ServerConfig.fixUrl(booking.moviePosterUrl)).into(binding.ivPoster)
+            Glide.with(this).load(ServerConfig.fixUrl(booking.moviePosterUrl))
+                .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(this, booking.movieTitle))
+                .error(com.komputerkit.moview.util.PosterFallbackDrawable(this, booking.movieTitle))
+                .into(binding.ivPoster)
+        } else {
+            binding.ivPoster.setImageDrawable(com.komputerkit.moview.util.PosterFallbackDrawable(this, booking.movieTitle))
         }
     }
 

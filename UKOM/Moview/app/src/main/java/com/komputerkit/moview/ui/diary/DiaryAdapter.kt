@@ -7,12 +7,12 @@ import android.widget.ImageView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import androidx.core.content.ContextCompat
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.DiaryEntry
 import com.komputerkit.moview.databinding.ItemDiaryEntryBinding
 import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.util.loadPoster
 
 class DiaryAdapter(
     private val onEntryClick: (DiaryEntry) -> Unit,
@@ -82,9 +82,7 @@ class DiaryAdapter(
             binding.tvYear.text = entry.movie.releaseYear.toString()
             binding.tvDate.text = entry.dateLabel
 
-            Glide.with(binding.root.context)
-                .load(entry.movie.posterUrl)
-                .into(binding.ivPoster)
+            binding.ivPoster.loadPoster(entry.movie.posterUrl, entry.movie.title)
 
             // Set stars
             binding.starRating.apply {

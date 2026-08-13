@@ -108,7 +108,7 @@ class ReviewDetailFragment : Fragment() {
                 ivProfile.loadProfilePhoto(review.userAvatar)
 
                 // Load poster using extension for fast loading
-                ivPoster.loadPoster(review.movie.posterUrl)
+                ivPoster.loadPoster(review.movie.posterUrl, review.movie.title)
 
                 tvUsername.text = review.userName
                 
