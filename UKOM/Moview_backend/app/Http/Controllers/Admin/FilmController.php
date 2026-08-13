@@ -168,6 +168,8 @@ class FilmController extends Controller
         // Get filter parameters
         $search = $request->input('search');
         $status = $request->input('status');
+        $releaseType = $request->input('release_type');
+        $releaseStatus = $request->input('release_status');
         
         // Build query
         $query = Movie::with([
@@ -183,6 +185,20 @@ class FilmController extends Controller
         // Apply status filter
         if ($status) {
             $query->where('status', $status);
+        }
+        
+        // Apply release type filter (theatrical / streaming platform)
+        if (in_array($releaseType, ['theatrical', 'streaming'])) {
+            $query->whereHas('movieServices.service', function ($q) use ($releaseType) {
+                $q->where('type', $releaseType);
+            });
+        }
+        
+        // Apply release status filter (already released / coming soon)
+        if (in_array($releaseStatus, ['released', 'coming_soon'])) {
+            $query->whereHas('movieServices', function ($q) use ($releaseStatus) {
+                $q->where('is_coming_soon', $releaseStatus === 'coming_soon' ? 1 : 0);
+            });
         }
         
         // Paginate results

@@ -6,7 +6,7 @@
 
 @section('content')
 <!-- Search & Filters -->
-<div class="bg-white rounded-lg shadow p-6 mb-6">
+<div class="bg-white rounded-lg shadow p-6 mb-6" x-data="{ filterOpen: false }">
     <form method="GET" action="{{ route('admin.films.index') }}" id="filterForm">
         <div class="mb-4 flex justify-between items-center flex-wrap gap-4">
             <div class="flex space-x-4 flex-1">
@@ -18,20 +18,23 @@
                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
                 </div>
-                <select name="status"
-                        class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        onchange="document.getElementById('filterForm').submit()">
-                    <option value="">All Status</option>
-                    <option value="published" {{ request('status') == 'published' ? 'selected' : '' }}>Published</option>
-                    <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Draft</option>
-                </select>
-                <button type="submit" 
-                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <button type="button" 
+                        @click="filterOpen = true" 
+                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap">
                     <i class="fas fa-filter mr-2"></i>Filter
+                    @if(request()->hasAny(['status', 'release_type', 'release_status']))
+                        <span class="ml-1 px-2 py-0.5 rounded-full bg-blue-400 text-white text-xs font-bold">
+                            @php
+                                $activeFilterCount = collect(['status', 'release_type', 'release_status'])
+                                    ->filter(fn($k) => request($k))->count();
+                            @endphp
+                            {{ $activeFilterCount }}
+                        </span>
+                    @endif
                 </button>
-                @if(request()->hasAny(['search', 'status']))
+                @if(request()->hasAny(['search', 'status', 'release_type', 'release_status']))
                     <a href="{{ route('admin.films.index') }}" 
-                       class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                       class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors whitespace-nowrap">
                         <i class="fas fa-times mr-2"></i>Clear
                     </a>
                 @endif
@@ -41,11 +44,67 @@
                 Add New Film
             </a>
         </div>
+
+        <!-- Filter Modal -->
+        <div x-show="filterOpen" x-cloak class="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black bg-opacity-50" @click="filterOpen = false"></div>
+            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-lg">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-filter mr-2 text-blue-600"></i>Filter Films
+                    </h3>
+                    <button type="button" @click="filterOpen = false" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="px-6 py-5 space-y-5 max-h-[60vh] overflow-y-auto">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Publication Status</label>
+                        <select name="status"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">All Status</option>
+                            <option value="published" {{ request('status') == 'published' ? 'selected' : '' }}>Published</option>
+                            <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Draft</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Release Type</label>
+                        <select name="release_type"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">All Types</option>
+                            <option value="theatrical" {{ request('release_type') == 'theatrical' ? 'selected' : '' }}>Theatrical</option>
+                            <option value="streaming" {{ request('release_type') == 'streaming' ? 'selected' : '' }}>Streaming</option>
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">Based on the release platform (theater / streaming service).</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Release Status</label>
+                        <select name="release_status"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">All</option>
+                            <option value="released" {{ request('release_status') == 'released' ? 'selected' : '' }}>Already Released</option>
+                            <option value="coming_soon" {{ request('release_status') == 'coming_soon' ? 'selected' : '' }}>Coming Soon</option>
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">Filters films with at least one release slot matching.</p>
+                    </div>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                    <a href="{{ route('admin.films.index') }}" 
+                       @click="filterOpen = false"
+                       class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        <i class="fas fa-times mr-2"></i>Clear
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-check mr-2"></i>Apply Filters
+                    </button>
+                </div>
+            </div>
+        </div>
     </form>
 </div>
 
 <!-- Active Filters Display -->
-@if(request()->hasAny(['search', 'status']))
+@if(request()->hasAny(['search', 'status', 'release_type', 'release_status']))
 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
     <div class="flex items-center flex-wrap gap-2">
         <span class="text-sm font-semibold text-blue-900">
@@ -63,6 +122,22 @@
             <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
                 Status: {{ ucfirst(request('status')) }}
                 <a href="{{ request()->fullUrlWithQuery(['status' => null]) }}" class="ml-2 hover:text-blue-200">
+                    <i class="fas fa-times"></i>
+                </a>
+            </span>
+        @endif
+        @if(request('release_type'))
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
+                Type: {{ ucfirst(request('release_type')) }}
+                <a href="{{ request()->fullUrlWithQuery(['release_type' => null]) }}" class="ml-2 hover:text-blue-200">
+                    <i class="fas fa-times"></i>
+                </a>
+            </span>
+        @endif
+        @if(request('release_status'))
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
+                Release: {{ request('release_status') == 'coming_soon' ? 'Coming Soon' : 'Already Released' }}
+                <a href="{{ request()->fullUrlWithQuery(['release_status' => null]) }}" class="ml-2 hover:text-blue-200">
                     <i class="fas fa-times"></i>
                 </a>
             </span>
