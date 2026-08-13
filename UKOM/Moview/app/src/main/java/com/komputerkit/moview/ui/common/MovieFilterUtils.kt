@@ -24,7 +24,8 @@ data class MovieFilterState(
     val selectedYear: Int? = null,
     val selectedGenre: String? = null,
     val selectedCountry: String? = null,
-    val selectedLanguage: String? = null
+    val selectedLanguage: String? = null,
+    val selectedTheme: String? = null
 )
 
 object MovieFilterUtils {
@@ -55,6 +56,12 @@ object MovieFilterUtils {
         state.selectedLanguage?.takeIf { it.isNotBlank() }?.let { language ->
             filtered = filtered.filter { movie ->
                 movie.languages.any { it.equals(language, ignoreCase = true) }
+            }
+        }
+
+        state.selectedTheme?.takeIf { it.isNotBlank() }?.let { theme ->
+            filtered = filtered.filter { movie ->
+                movie.themes.any { it.equals(theme, ignoreCase = true) }
             }
         }
 

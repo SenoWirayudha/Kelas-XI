@@ -10,6 +10,7 @@ use App\Models\Service;
 use App\Models\Country;
 use App\Models\Language;
 use App\Models\ProductionHouse;
+use App\Models\Theme;
 use Illuminate\Http\Request;
 
 class FilmController extends Controller
@@ -219,7 +220,8 @@ class FilmController extends Controller
         $countries = Country::all();
         $languages = Language::all();
         $productionHouses = ProductionHouse::all();
-        return view('admin.films.form', compact('genres', 'services', 'countries', 'languages', 'productionHouses'));
+        $themes = Theme::all();
+        return view('admin.films.form', compact('genres', 'services', 'countries', 'languages', 'productionHouses', 'themes'));
     }
 
     public function store(Request $request)
@@ -242,6 +244,8 @@ class FilmController extends Controller
             'languages.*' => 'exists:languages,id',
             'production_houses' => 'nullable|array',
             'production_houses.*' => 'exists:production_houses,id',
+            'themes' => 'nullable|array',
+            'themes.*' => 'exists:themes,id',
         ]);
 
         $movie = Movie::create($validated);
@@ -281,6 +285,13 @@ class FilmController extends Controller
             }
         }
 
+        // Sync themes
+        if ($request->has('themes')) {
+            foreach ($request->themes as $themeId) {
+                $movie->movieThemes()->create(['theme_id' => $themeId]);
+            }
+        }
+
         return redirect()->route('admin.films.show', $movie->id)
             ->with('success', 'Film berhasil ditambahkan!');
     }
@@ -293,6 +304,7 @@ class FilmController extends Controller
             'movieCountries.country',
             'movieLanguages.language',
             'movieProductionHouses.productionHouse',
+            'movieThemes.theme',
             'movieServices.service',
             'moviePersons.person',
             'ratings'
@@ -309,8 +321,9 @@ class FilmController extends Controller
         $countries = Country::all();
         $languages = Language::all();
         $productionHouses = ProductionHouse::all();
+        $themes = Theme::all();
         
-        return view('admin.films.form', compact('film', 'genres', 'services', 'countries', 'languages', 'productionHouses'));
+        return view('admin.films.form', compact('film', 'genres', 'services', 'countries', 'languages', 'productionHouses', 'themes'));
     }
 
     public function update(Request $request, $id)
@@ -333,6 +346,8 @@ class FilmController extends Controller
             'languages.*' => 'exists:languages,id',
             'production_houses' => 'nullable|array',
             'production_houses.*' => 'exists:production_houses,id',
+            'themes' => 'nullable|array',
+            'themes.*' => 'exists:themes,id',
         ]);
 
         $movie = Movie::findOrFail($id);
@@ -378,6 +393,14 @@ class FilmController extends Controller
             }
         }
 
+        // Sync themes (delete old, add new)
+        $movie->movieThemes()->delete();
+        if ($request->has('themes')) {
+            foreach ($request->themes as $themeId) {
+                $movie->movieThemes()->create(['theme_id' => $themeId]);
+            }
+        }
+
         return redirect()->route('admin.films.show', $movie->id)
             ->with('success', 'Film berhasil diperbarui!');
     }
@@ -400,7 +423,8 @@ class FilmController extends Controller
             'movieServices',
             'movieCountries',
             'movieLanguages',
-            'movieProductionHouses'
+            'movieProductionHouses',
+            'movieThemes'
         ])->findOrFail($id);
 
         // Create duplicate movie
@@ -436,6 +460,11 @@ class FilmController extends Controller
         // Duplicate production houses
         foreach ($originalMovie->movieProductionHouses as $mph) {
             $duplicateMovie->movieProductionHouses()->create(['production_house_id' => $mph->production_house_id]);
+        }
+
+        // Duplicate themes
+        foreach ($originalMovie->movieThemes as $mt) {
+            $duplicateMovie->movieThemes()->create(['theme_id' => $mt->theme_id]);
         }
 
         return redirect()->route('admin.films.edit', $duplicateMovie->id)
@@ -529,5 +558,28 @@ class FilmController extends Controller
         
         return redirect()->route('admin.films.show', $id)
             ->with('success', 'Services updated successfully!');
+    }
+
+    public function storeTheme(Request $request)
+    {
+        $request->validate(['name' => 'required|string|max:150']);
+
+        $name = trim($request->name);
+        $existing = Theme::whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
+        if ($existing) {
+            return response()->json(['success' => true, 'id' => $existing->id, 'name' => $existing->name, 'duplicate' => true]);
+        }
+
+        try {
+            $theme = Theme::create(['name' => $name]);
+            return response()->json(['success' => true, 'id' => $theme->id, 'name' => $theme->name]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Race condition: someone else inserted the same name just now.
+            $existing = Theme::whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
+            if ($existing) {
+                return response()->json(['success' => true, 'id' => $existing->id, 'name' => $existing->name, 'duplicate' => true]);
+            }
+            throw $e;
+        }
     }
 }

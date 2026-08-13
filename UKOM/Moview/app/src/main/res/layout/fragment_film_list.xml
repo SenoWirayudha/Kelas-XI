@@ -43,6 +43,16 @@
                 android:maxLines="1"
                 android:ellipsize="end" />
 
+            <ImageView
+                android:id="@+id/btn_filter"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="8dp"
+                android:src="@drawable/ic_filter"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Filter"
+                app:tint="@color/white" />
+
         </LinearLayout>
 
     </androidx.appcompat.widget.Toolbar>

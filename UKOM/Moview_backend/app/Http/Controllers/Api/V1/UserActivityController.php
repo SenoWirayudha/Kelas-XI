@@ -35,12 +35,21 @@ class UserActivityController extends Controller
             ->values()
             ->toArray();
 
+        $themes = DB::table('movie_themes')
+            ->join('themes', 'movie_themes.theme_id', '=', 'themes.id')
+            ->where('movie_themes.movie_id', $movieId)
+            ->pluck('themes.name')
+            ->filter()
+            ->values()
+            ->toArray();
+
         $avgRating = (float) (DB::table('reviews')->where('film_id', $movieId)->avg('rating') ?? 0);
 
         return [
             'genres' => $genres,
             'countries' => $countries,
             'languages' => $languages,
+            'themes' => $themes,
             'average_rating' => round($avgRating, 1),
         ];
     }
@@ -136,6 +145,7 @@ class UserActivityController extends Controller
                     'genres' => $meta['genres'],
                     'countries' => $meta['countries'],
                     'languages' => $meta['languages'],
+                    'themes' => $meta['themes'],
                     'rated_at' => $film->activity_date,
                     'is_liked' => (bool)$film->is_liked,
                     'is_in_watchlist' => (bool)$film->is_in_watchlist
@@ -627,6 +637,7 @@ class UserActivityController extends Controller
                     'genres' => $meta['genres'],
                     'countries' => $meta['countries'],
                     'languages' => $meta['languages'],
+                    'themes' => $meta['themes'],
                     'liked_at' => $like->liked_at
                 ];
             });
@@ -690,6 +701,7 @@ class UserActivityController extends Controller
                     'genres' => $meta['genres'],
                     'countries' => $meta['countries'],
                     'languages' => $meta['languages'],
+                    'themes' => $meta['themes'],
                     'added_at' => $item->added_at
                 ];
             });

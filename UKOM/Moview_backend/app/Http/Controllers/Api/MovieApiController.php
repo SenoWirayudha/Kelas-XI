@@ -218,7 +218,7 @@ class MovieApiController extends Controller
      */
     public function show($id)
     {
-        $movie = Movie::with(['genres', 'moviePersons.person', 'movieServices.service'])
+        $movie = Movie::with(['genres', 'moviePersons.person', 'movieServices.service', 'movieThemes.theme'])
             ->find($id);
         
         if (!$movie) {
@@ -301,6 +301,7 @@ class MovieApiController extends Controller
                 'backdrop_path' => $movie->default_backdrop_path ? url('storage/' . $movie->default_backdrop_path) : null,
                 'trailer_url' => $movie->trailer_url,
                 'genres' => $movie->genres->pluck('name'),
+                'themes' => $movie->movieThemes->map(fn($mt) => $mt->theme->name)->toArray(),
                 'directors' => $directors->map(function ($mp) {
                     return [
                         'id' => $mp->person->id ?? null,

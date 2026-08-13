@@ -14,6 +14,8 @@ class FilmListController extends Controller
             $genres = DB::table('genres')->orderBy('name')->pluck('name')->filter()->values();
             $countries = DB::table('countries')->orderBy('name')->pluck('name')->filter()->values();
             $languages = DB::table('languages')->orderBy('name')->pluck('name')->filter()->values();
+            $themes = DB::table('themes')->orderBy('name')->pluck('name')->filter()->values();
+            $productionHouses = DB::table('production_houses')->orderBy('name')->pluck('name')->filter()->values();
 
             return response()->json([
                 'success' => true,
@@ -21,6 +23,8 @@ class FilmListController extends Controller
                     'genres' => $genres,
                     'countries' => $countries,
                     'languages' => $languages,
+                    'themes' => $themes,
+                    'production_houses' => $productionHouses,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -33,7 +37,7 @@ class FilmListController extends Controller
 
     public function getFilmsByCategory(Request $request)
     {
-        $type  = $request->input('type');  // genre, production_house, country, language, year
+        $type  = $request->input('type');  // genre, production_house, country, language, theme, year
         $value = $request->input('value');
 
         try {
@@ -62,6 +66,12 @@ class FilmListController extends Controller
                     $query->join('movie_languages', 'movies.id', '=', 'movie_languages.movie_id')
                           ->join('languages', 'movie_languages.language_id', '=', 'languages.id')
                           ->where('languages.name', $value);
+                    break;
+
+                case 'theme':
+                    $query->join('movie_themes', 'movies.id', '=', 'movie_themes.movie_id')
+                          ->join('themes', 'movie_themes.theme_id', '=', 'themes.id')
+                          ->where('themes.name', $value);
                     break;
 
                 case 'year':
@@ -105,6 +115,12 @@ class FilmListController extends Controller
                     ->pluck('languages.name')
                     ->toArray();
 
+                $themes = DB::table('movie_themes')
+                    ->join('themes', 'movie_themes.theme_id', '=', 'themes.id')
+                    ->where('movie_themes.movie_id', $movie->id)
+                    ->pluck('themes.name')
+                    ->toArray();
+
                 $avgRating = DB::table('reviews')
                     ->where('film_id', $movie->id)
                     ->avg('rating') ?? 0;
@@ -125,6 +141,7 @@ class FilmListController extends Controller
                     'genres'         => $genres,
                     'countries'      => $countries,
                     'languages'      => $languages,
+                    'themes'         => $themes,
                     'average_rating' => round($avgRating, 1),
                     'watched_count'  => (int)$movie->watched_count,
                 ];

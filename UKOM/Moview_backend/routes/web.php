@@ -58,6 +58,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     // Services Management
     Route::put('/films/{id}/services', [FilmController::class, 'updateServices'])->name('films.services.update');
     
+    Route::post('/themes', [FilmController::class, 'storeTheme'])->name('themes.store');
+    
     // Cast & Crew Management
     Route::get('/persons', [CastCrewController::class, 'getPersons'])->name('persons.list');
     Route::post('/films/{id}/cast-crew', [CastCrewController::class, 'store'])->name('films.castcrew.store');

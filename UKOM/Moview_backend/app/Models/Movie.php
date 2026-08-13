@@ -154,4 +154,10 @@ class Movie extends Model
     {
         return $this->hasMany(MovieProductionHouse::class);
     }
+
+    public function movieThemes()
+    {
+        return $this->hasMany(MovieTheme::class);
+    }
+
 }

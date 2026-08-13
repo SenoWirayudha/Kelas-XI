@@ -37,6 +37,9 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
     private val _languages = MutableLiveData<List<String>>(emptyList())
     val languages: LiveData<List<String>> = _languages
 
+    private val _themes = MutableLiveData<List<String>>(emptyList())
+    val themes: LiveData<List<String>> = _themes
+
     private var filterState = MovieFilterState()
     
     fun loadLikes(userId: Int) {
@@ -55,6 +58,7 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
                 _genres.postValue(options.genres)
                 _countries.postValue(options.countries)
                 _languages.postValue(options.languages)
+                _themes.postValue(options.themes)
                 _likes.postValue(MovieFilterUtils.applyFilters(allLikes, filterState))
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -110,6 +114,33 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
         applyCurrentFilters()
     }
 
+    fun currentGenre(): String? = filterState.selectedGenre
+    fun currentCountry(): String? = filterState.selectedCountry
+    fun currentLanguage(): String? = filterState.selectedLanguage
+    fun currentTheme(): String? = filterState.selectedTheme
+    fun currentYear(): Int? = filterState.selectedYear
+
+    fun currentDateChoice(): String? =
+        if (filterState.sortMode == MovieSortMode.DATE) "Date Liked" else null
+
+    fun currentReleaseYearChoice(): String? = when {
+        filterState.sortMode != MovieSortMode.RELEASE_YEAR -> null
+        filterState.releaseYearDescending -> "Newest First"
+        else -> "Earliest First"
+    }
+
+    fun currentRatingChoice(): String? {
+        if (filterState.sortMode != MovieSortMode.RATING) return null
+        return if (filterState.ratingDescending) {
+            "Highest Rated: ${if (filterState.ratingSource == RatingSource.AVERAGE) "Average" else "Your"}"
+        } else {
+            "Lowest Rated: ${if (filterState.ratingSource == RatingSource.AVERAGE) "Average" else "Your"}"
+        }
+    }
+
+    fun availableYears(): List<String> =
+        allLikes.mapNotNull { it.releaseYear }.distinct().sortedDescending().map { it.toString() }
+
     fun setCountry(country: String?) {
         filterState = filterState.copy(selectedCountry = country)
         applyCurrentFilters()
@@ -117,6 +148,11 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setLanguage(language: String?) {
         filterState = filterState.copy(selectedLanguage = language)
+        applyCurrentFilters()
+    }
+
+    fun setTheme(theme: String?) {
+        filterState = filterState.copy(selectedTheme = theme)
         applyCurrentFilters()
     }
 }

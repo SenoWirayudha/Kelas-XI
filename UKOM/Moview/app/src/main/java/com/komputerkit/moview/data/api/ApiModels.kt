@@ -171,6 +171,7 @@ data class MovieCardDto(
     val genres: List<String>?,
     val countries: List<String>?,
     val languages: List<String>?,
+    val themes: List<String>? = null,
     val average_rating: Float?,
     val watched_count: Int?
 )
@@ -227,6 +228,7 @@ data class MovieDetailDto(
     val backdrop_path: String?,
     val trailer_url: String?,
     val genres: List<String>?,
+    val themes: List<String>? = null,
     val directors: List<DirectorDto>?,
     val cast: List<CastDto>?,
     val crew: List<CrewJobDto>?,
@@ -410,6 +412,7 @@ data class UserFilmDto(
     val genres: List<String> = emptyList(),
     val countries: List<String> = emptyList(),
     val languages: List<String> = emptyList(),
+    val themes: List<String> = emptyList(),
     val rated_at: String? = null,
     val liked_at: String? = null,
     val added_at: String? = null,
@@ -420,7 +423,9 @@ data class UserFilmDto(
 data class FilterOptionsDto(
     val genres: List<String> = emptyList(),
     val countries: List<String> = emptyList(),
-    val languages: List<String> = emptyList()
+    val languages: List<String> = emptyList(),
+    val themes: List<String> = emptyList(),
+    val production_houses: List<String> = emptyList()
 )
 
 data class DiaryEntryDto(

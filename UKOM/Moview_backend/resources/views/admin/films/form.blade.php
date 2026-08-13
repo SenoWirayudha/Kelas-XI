@@ -40,6 +40,19 @@
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Original Title (Judul Asli)</label>
+                    <input type="text" 
+                           name="original_title"
+                           value="{{ old('original_title', $film->original_title ?? '') }}" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('original_title') border-red-500 @enderror"
+                           placeholder="Contoh: 霸王别姬"
+                           >
+                    @error('original_title')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
                 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Release Year *</label>
@@ -252,6 +265,27 @@
                 </label>
                 @endforeach
             </div>
+
+        <!-- Themes -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4 flex items-center">
+                <i class="fas fa-palette text-purple-600 mr-2"></i>
+                Themes
+            </h3>
+            <p class="text-sm text-gray-500 mb-4">
+                <i class="fas fa-info-circle mr-1"></i>
+                Tema/mood film seperti "Coming of age" atau "Mind-bending twists" — {{ $themes->count() }} themes tersedia, bisa tambah baru.
+            </p>
+            <x-admin.searchable-multiselect
+                name="themes[]"
+                :options="$themes"
+                :selected="old('themes', isset($film) ? $film->movieThemes->pluck('theme_id')->all() : [])"
+                placeholder="Search themes..."
+                add-url="{{ route('admin.themes.store') }}"
+                add-label="+ Add Theme"
+                add-placeholder="Theme name... e.g. Mind-bending twists"
+                add-button-text="Add"
+            />
         </div>
 
         <!-- Form Actions -->

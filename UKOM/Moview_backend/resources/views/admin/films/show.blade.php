@@ -661,6 +661,31 @@
                         </div>
                     </div>
                     
+                    <!-- Theme Section -->
+                    <div>
+                        <label class="block text-lg font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-palette text-purple-600 mr-2"></i>
+                            Themes
+                        </label>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            @if($movie->movieThemes->count() > 0)
+                            <div class="flex flex-wrap gap-2 mb-3">
+                                @foreach($movie->movieThemes as $mt)
+                                    <span class="inline-flex items-center px-3 py-1.5 bg-purple-600 text-white rounded-full text-sm font-medium">
+                                        {{ $mt->theme->name }}
+                                    </span>
+                                @endforeach
+                            </div>
+                            @else
+                            <p class="text-gray-500 text-sm">No themes added yet</p>
+                            @endif
+                            <p class="mt-2 text-xs text-gray-500">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Edit film to add themes and moods for this film
+                            </p>
+                        </div>
+                    </div>
+                    
                     <!-- Edit Button -->
                     <div class="flex justify-end pt-4 border-t border-gray-200">
                         <a href="{{ route('admin.films.edit', $movie->id) }}" 
