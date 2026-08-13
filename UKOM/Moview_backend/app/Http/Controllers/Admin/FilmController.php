@@ -187,8 +187,13 @@ class FilmController extends Controller
         
         // Paginate results
         $films = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
-        
-        return view('admin.films.index', compact('films'));
+
+        // Global stats (independent of current page)
+        $totalFilms = Movie::count();
+        $totalPublished = Movie::where('status', 'published')->count();
+        $totalDraft = Movie::where('status', 'draft')->count();
+
+        return view('admin.films.index', compact('films', 'totalFilms', 'totalPublished', 'totalDraft'));
     }
 
     public function create()

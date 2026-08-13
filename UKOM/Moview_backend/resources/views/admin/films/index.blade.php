@@ -80,7 +80,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Total Films</p>
-                <p class="text-3xl font-bold text-gray-800">{{ count($films) }}</p>
+                <p class="text-3xl font-bold text-gray-800">{{ $totalFilms }}</p>
             </div>
             <div class="bg-blue-100 p-3 rounded-full">
                 <i class="fas fa-film text-blue-600 text-2xl"></i>
@@ -92,7 +92,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Published</p>
-                <p class="text-3xl font-bold text-green-600">{{ $films->where('status', 'published')->count() }}</p>
+                <p class="text-3xl font-bold text-green-600">{{ $totalPublished }}</p>
             </div>
             <div class="bg-green-100 p-3 rounded-full">
                 <i class="fas fa-check-circle text-green-600 text-2xl"></i>
@@ -104,7 +104,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Draft</p>
-                <p class="text-3xl font-bold text-yellow-600">{{ $films->where('status', 'draft')->count() }}</p>
+                <p class="text-3xl font-bold text-yellow-600">{{ $totalDraft }}</p>
             </div>
             <div class="bg-yellow-100 p-3 rounded-full">
                 <i class="fas fa-edit text-yellow-600 text-2xl"></i>
