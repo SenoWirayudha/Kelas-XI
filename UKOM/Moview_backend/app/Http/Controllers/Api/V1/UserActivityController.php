@@ -205,7 +205,7 @@ class UserActivityController extends Controller
                     DB::raw('COALESCE(reviews.rating, diaries.rating, ratings.rating) as rating'),
                     'reviews.content as review_content',
                     DB::raw('COALESCE(reviews.is_liked, diaries.is_liked) as is_liked'),
-                    DB::raw('CASE WHEN reviews.content IS NOT NULL THEN "review" ELSE "log" END as type')
+                    DB::raw("CASE WHEN reviews.content IS NOT NULL THEN 'review' ELSE 'log' END as type")
                 )
                 ->orderBy('diaries.watched_at', 'desc')
                 ->orderBy('diaries.created_at', 'desc')
@@ -418,7 +418,7 @@ class UserActivityController extends Controller
                     'user_profiles.display_name',
                     'user_profiles.profile_photo',
                     DB::raw('(SELECT COUNT(*) FROM review_likes WHERE review_likes.review_id = reviews.id) as like_count'),
-                    DB::raw('(SELECT COUNT(*) FROM review_comments WHERE review_comments.review_id = reviews.id AND review_comments.status = "published") as comment_count'),
+                    DB::raw("(SELECT COUNT(*) FROM review_comments WHERE review_comments.review_id = reviews.id AND review_comments.status = 'published') as comment_count"),
                     DB::raw('COALESCE((SELECT d.id FROM diaries d WHERE d.review_id = reviews.id AND d.user_id = reviews.user_id ORDER BY d.created_at DESC LIMIT 1), 0) as diary_id')
                 )
                 ->first();
@@ -2396,7 +2396,7 @@ class UserActivityController extends Controller
                     DB::raw('COALESCE(reviews.rating, diaries.rating, ratings.rating) as rating'),
                     'reviews.content as review_content',
                     DB::raw('COALESCE(reviews.is_liked, diaries.is_liked) as is_liked'),
-                    DB::raw('CASE WHEN reviews.content IS NOT NULL THEN "review" ELSE "log" END as type'),
+                    DB::raw("CASE WHEN reviews.content IS NOT NULL THEN 'review' ELSE 'log' END as type"),
                     DB::raw("COALESCE(
                         (SELECT mm.media_path FROM user_change_medias ucm
                          JOIN movie_media mm ON ucm.media_id = mm.id

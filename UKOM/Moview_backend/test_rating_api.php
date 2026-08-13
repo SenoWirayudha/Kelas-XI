@@ -30,7 +30,7 @@ try {
     
     // Check if is_watched column exists
     echo "\nChecking ratings table structure...\n";
-    $columns = DB::select("DESCRIBE ratings");
+    $columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\" FROM information_schema.columns WHERE table_name = 'ratings' ORDER BY ordinal_position");
     foreach ($columns as $column) {
         echo "  " . $column->Field . " (" . $column->Type . ")\n";
     }

@@ -8,21 +8,18 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 echo "=== FULL DATABASE RESET ===\n\n";
 
 // Get all tables
-$tables = DB::select("SHOW TABLES");
+$tables = DB::select("SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename");
 $existingTables = array_map(function($table) {
-    $key = 'Tables_in_apimoview';
-    return $table->$key;
+    return $table->name;
 }, $tables);
 
 echo "Dropping all tables except migrations...\n";
-DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 foreach ($existingTables as $table) {
     if ($table !== 'migrations') {
-        DB::statement("DROP TABLE IF EXISTS `$table`");
+        DB::statement("DROP TABLE IF EXISTS \"$table\" CASCADE");
         echo "Dropped: $table\n";
     }
 }
-DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
 // Clear migration records except for essential ones
 echo "\nClearing migration records...\n";

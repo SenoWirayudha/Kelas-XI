@@ -1,7 +1,7 @@
 <?php
 require 'vendor/autoload.php';
 
-$db = new PDO('mysql:host=127.0.0.1;dbname=apimoview', 'root', '');
+$db = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=apimoview', 'postgres', '12345');
 
 // Insert sample diary entries
 $sql = "INSERT INTO diaries (user_id, film_id, watched_at, note, created_at, updated_at) 

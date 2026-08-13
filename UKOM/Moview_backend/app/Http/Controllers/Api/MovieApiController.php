@@ -670,8 +670,8 @@ class MovieApiController extends Controller
         // Search Movies
         if ($type === 'all' || $type === 'movies') {
             $movies = Movie::where(function ($q) use ($query) {
-                    $q->where('title', 'like', "%{$query}%")
-                      ->orWhere('synopsis', 'like', "%{$query}%");
+                    $q->where('title', 'ilike', "%{$query}%")
+                      ->orWhere('synopsis', 'ilike', "%{$query}%");
                 })
                 ->where('status', 'published')
                 ->with(['genres'])
@@ -686,7 +686,7 @@ class MovieApiController extends Controller
         // Search Cast & Crew (Persons)
         if ($type === 'all' || $type === 'cast_crew') {
             $persons = DB::table('persons')
-                ->where('full_name', 'like', "%{$query}%")
+                ->where('full_name', 'ilike', "%{$query}%")
                 ->limit(20)
                 ->get();
             
@@ -704,7 +704,7 @@ class MovieApiController extends Controller
         // Search Production Houses
         if ($type === 'all' || $type === 'production_houses') {
             $productionHouses = DB::table('production_houses')
-                ->where('name', 'like', "%{$query}%")
+                ->where('name', 'ilike', "%{$query}%")
                 ->limit(20)
                 ->get();
             
@@ -722,8 +722,8 @@ class MovieApiController extends Controller
                 ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
                 ->where('users.status', 'active')
                 ->where(function($q) use ($query) {
-                    $q->where('users.username', 'like', "%{$query}%")
-                      ->orWhere('user_profiles.display_name', 'like', "%{$query}%");
+                    $q->where('users.username', 'ilike', "%{$query}%")
+                      ->orWhere('user_profiles.display_name', 'ilike', "%{$query}%");
                 })
                 ->select(
                     'users.id',

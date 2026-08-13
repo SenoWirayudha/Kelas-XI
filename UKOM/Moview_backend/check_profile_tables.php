@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 echo "=== user_profiles Table Schema ===\n";
 try {
-    $columns = DB::select("DESCRIBE user_profiles");
+    $columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\" FROM information_schema.columns WHERE table_name = 'user_profiles' ORDER BY ordinal_position");
     foreach ($columns as $column) {
         echo "{$column->Field} ({$column->Type})\n";
     }
@@ -19,7 +19,7 @@ try {
 
 echo "\n=== user_favorite_films Table Schema ===\n";
 try {
-    $columns = DB::select("DESCRIBE user_favorite_films");
+    $columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\" FROM information_schema.columns WHERE table_name = 'user_favorite_films' ORDER BY ordinal_position");
     foreach ($columns as $column) {
         echo "{$column->Field} ({$column->Type})\n";
     }

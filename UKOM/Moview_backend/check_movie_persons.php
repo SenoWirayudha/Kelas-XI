@@ -4,7 +4,7 @@ $app = require_once __DIR__ . '/bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 echo "movie_persons table columns:\n";
-$columns = DB::select("SHOW COLUMNS FROM movie_persons");
+$columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\" FROM information_schema.columns WHERE table_name = 'movie_persons' ORDER BY ordinal_position");
 foreach ($columns as $col) {
     echo "- {$col->Field} ({$col->Type})\n";
 }

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 echo "Checking ratings table structure...\n\n";
 
 try {
-    $columns = DB::select("DESCRIBE ratings");
+    $columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\", is_nullable AS \"Null\", column_default AS \"Default\" FROM information_schema.columns WHERE table_name = 'ratings' ORDER BY ordinal_position");
     foreach ($columns as $column) {
         echo $column->Field . " - " . $column->Type . " - " . $column->Null . " - " . $column->Default . "\n";
     }

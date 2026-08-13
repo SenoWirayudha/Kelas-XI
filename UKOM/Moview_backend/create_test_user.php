@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Hash;
 
 // Check users table structure
 echo "=== users Table Schema ===\n";
-$columns = DB::select("DESCRIBE users");
+$columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\" FROM information_schema.columns WHERE table_name = 'users' ORDER BY ordinal_position");
 foreach ($columns as $column) {
     echo "{$column->Field} ({$column->Type})\n";
 }

@@ -34,7 +34,7 @@ if ($httpCode == 200) {
     $dotenv->load();
     
     $pdo = new PDO(
-        'mysql:host=' . $_ENV['DB_HOST'] . ';dbname=' . $_ENV['DB_DATABASE'],
+        'pgsql:host=' . $_ENV['DB_HOST'] . ';port=' . ($_ENV['DB_PORT'] ?? '5432') . ';dbname=' . $_ENV['DB_DATABASE'],
         $_ENV['DB_USERNAME'],
         $_ENV['DB_PASSWORD']
     );

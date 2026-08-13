@@ -34,7 +34,7 @@ try {
         echo "Not liked yet - Adding like...\n";
         
         // Check column structure
-        $columns = DB::select("DESCRIBE movie_likes");
+        $columns = DB::select("SELECT column_name AS \"Field\" FROM information_schema.columns WHERE table_name = 'movie_likes' ORDER BY ordinal_position");
         echo "Columns: ";
         foreach ($columns as $col) {
             echo $col->Field . " ";

@@ -8,10 +8,9 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 echo "=== FIXING DATABASE ===\n\n";
 
 // Check which tables exist
-$tables = DB::select("SHOW TABLES");
+$tables = DB::select("SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename");
 $existingTables = array_map(function($table) {
-    $key = 'Tables_in_apimoview';
-    return $table->$key;
+    return $table->name;
 }, $tables);
 
 echo "Existing tables: " . count($existingTables) . "\n";
@@ -33,13 +32,11 @@ $problematicTables = [
 ];
 
 echo "\n=== Dropping problematic tables ===\n";
-DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 foreach ($problematicTables as $table) {
     if (in_array($table, $existingTables)) {
-        DB::statement("DROP TABLE IF EXISTS `$table`");
+        DB::statement("DROP TABLE IF EXISTS \"$table\" CASCADE");
         echo "Dropped: $table\n";
     }
 }
-DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
 echo "\n=== Done! Now run: php artisan migrate ===\n";

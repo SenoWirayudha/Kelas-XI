@@ -229,12 +229,16 @@ To verify the integration works:
 
 ## Database Schema Reference
 
-The integration uses the schema defined in `database/moview_schema.sql`. All migrations in `database/migrations/` have been executed successfully on MySQL database `apimoview`.
+The integration uses the schema defined in `database/moview_schema.sql`. All migrations in `database/migrations/` have been executed successfully on database `apimoview`.
 
-Connection details (from `.env`):
-- DB_CONNECTION=mysql
+Connection details (from `.env`) — **PostgreSQL** (migrated from MySQL/XAMPP):
+- DB_CONNECTION=pgsql
 - DB_HOST=127.0.0.1
-- DB_PORT=3306
+- DB_PORT=5432
 - DB_DATABASE=apimoview
-- DB_USERNAME=root
-- DB_PASSWORD=
+- DB_USERNAME=postgres
+- DB_PASSWORD=12345
+
+> Migration dari MySQL (XAMPP) ke PostgreSQL dilakukan lewat `migrate_mysql2pg.php` di root proyek. Untuk menjalankan ulang (syarat: MySQL masih jalan), jalankan `php migrate_mysql2pg.php`.
+>
+> Server dijalankan tanpa XAMPP Control Panel: `php artisan serve` (PHP diambil dari XAMPP, tapi MySQL/Apache tidak perlu diaktifkan). PostgreSQL berjalan sebagai Windows service (`postgresql-x64-18`).

@@ -8,9 +8,9 @@ $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 echo "=== Users Table Schema ===\n";
-$columns = DB::select("DESCRIBE users");
+$columns = DB::select("SELECT column_name AS Field, data_type AS Type, is_nullable AS Null, column_default AS Default FROM information_schema.columns WHERE table_name = 'users' ORDER BY ordinal_position");
 foreach ($columns as $column) {
-    echo "{$column->Field} ({$column->Type}) - Null: {$column->Null}, Key: {$column->Key}, Default: {$column->Default}\n";
+    echo "{$column->field} ({$column->type}) - Null: {$column->null}, Default: {$column->default}\n";
 }
 
 echo "\n=== Sample User Data ===\n";
@@ -20,15 +20,15 @@ foreach ($sampleUsers as $user) {
 }
 
 echo "\n=== Reviews Table Schema ===\n";
-$reviewCols = DB::select("DESCRIBE reviews");
+$reviewCols = DB::select("SELECT column_name AS Field, data_type AS Type FROM information_schema.columns WHERE table_name = 'reviews' ORDER BY ordinal_position");
 foreach ($reviewCols as $col) {
-    echo "{$col->Field} ({$col->Type})\n";
+    echo "{$col->field} ({$col->type})\n";
 }
 
 echo "\n=== Review Likes Table Schema ===\n";
-$likeCols = DB::select("DESCRIBE review_likes");
+$likeCols = DB::select("SELECT column_name AS Field, data_type AS Type FROM information_schema.columns WHERE table_name = 'review_likes' ORDER BY ordinal_position");
 foreach ($likeCols as $col) {
-    echo "{$col->Field} ({$col->Type})\n";
+    echo "{$col->field} ({$col->type})\n";
 }
 
 echo "\n=== Sample Review Likes ===\n";

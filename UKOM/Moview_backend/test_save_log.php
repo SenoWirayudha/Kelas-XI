@@ -23,7 +23,7 @@ echo "\n\n";
 
 // Check diaries table
 require 'vendor/autoload.php';
-$db = new PDO('mysql:host=127.0.0.1;dbname=apimoview', 'root', '');
+$db = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=apimoview', 'postgres', '12345');
 
 $stmt = $db->prepare("SELECT * FROM diaries WHERE user_id = ? ORDER BY created_at DESC LIMIT 3");
 $stmt->execute([$userId]);

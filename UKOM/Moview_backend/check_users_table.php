@@ -13,7 +13,7 @@ echo "CHECKING USERS TABLE STRUCTURE\n";
 echo "========================================\n\n";
 
 // Get columns
-$columns = DB::select("DESCRIBE users");
+$columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\" FROM information_schema.columns WHERE table_name = 'users' ORDER BY ordinal_position");
 
 echo "Columns in 'users' table:\n";
 foreach ($columns as $column) {

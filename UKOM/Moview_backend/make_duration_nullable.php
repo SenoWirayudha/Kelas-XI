@@ -10,12 +10,12 @@ use Illuminate\Support\Facades\DB;
 try {
     echo "Modifying duration column to be nullable...\n";
     
-    DB::statement('ALTER TABLE movies MODIFY COLUMN duration INT NULL');
+    DB::statement('ALTER TABLE movies ALTER COLUMN duration DROP NOT NULL');
     
     echo "✓ SUCCESS: Duration column is now nullable\n";
     
     // Verify the change
-    $columns = DB::select("SHOW COLUMNS FROM movies LIKE 'duration'");
+    $columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\", is_nullable AS \"Null\", column_default AS \"Default\" FROM information_schema.columns WHERE table_name = 'movies' AND column_name = 'duration'");
     if (!empty($columns)) {
         $column = $columns[0];
         echo "\nColumn details:\n";

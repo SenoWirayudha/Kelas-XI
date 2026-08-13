@@ -11,7 +11,7 @@ echo "Testing review save...\n";
 
 // Check table structure
 echo "\n1. Reviews table structure:\n";
-$columns = DB::select("SHOW COLUMNS FROM reviews");
+$columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\" FROM information_schema.columns WHERE table_name = 'reviews' ORDER BY ordinal_position");
 foreach ($columns as $column) {
     echo "  - {$column->Field}: {$column->Type}\n";
 }

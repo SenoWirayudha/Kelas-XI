@@ -21,12 +21,12 @@ $tables = [
 
 foreach ($tables as $table) {
     try {
-        $exists = DB::select("SHOW TABLES LIKE '{$table}'");
+        $exists = DB::select("SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename = '{$table}'");
         if (!empty($exists)) {
             echo "✓ Table '{$table}' EXISTS\n";
             
             // Get columns
-            $columns = DB::select("DESCRIBE {$table}");
+            $columns = DB::select("SELECT column_name AS \"Field\" FROM information_schema.columns WHERE table_name = '{$table}' ORDER BY ordinal_position");
             echo "  Columns: ";
             $colNames = array_map(fn($col) => $col->Field, $columns);
             echo implode(', ', $colNames) . "\n";

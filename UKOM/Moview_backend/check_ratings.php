@@ -6,7 +6,7 @@ $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 echo "Ratings table columns:\n";
-$columns = DB::select("SHOW COLUMNS FROM ratings");
+$columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\" FROM information_schema.columns WHERE table_name = 'ratings' ORDER BY ordinal_position");
 foreach ($columns as $col) {
     echo "- {$col->Field} ({$col->Type})\n";
 }

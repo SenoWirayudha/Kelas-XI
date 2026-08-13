@@ -8,7 +8,7 @@ $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 echo "=== movie_media Table Schema ===\n";
-$columns = DB::select("DESCRIBE movie_media");
+$columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\" FROM information_schema.columns WHERE table_name = 'movie_media' ORDER BY ordinal_position");
 foreach ($columns as $column) {
     echo "{$column->Field} ({$column->Type})\n";
 }

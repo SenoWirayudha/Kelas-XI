@@ -12,7 +12,7 @@ echo "=== Testing Location Field Update ===\n\n";
 try {
     // Test 1: Check if location column exists
     echo "Test 1: Checking if location column exists in user_profiles table...\n";
-    $columns = DB::select("SHOW COLUMNS FROM user_profiles LIKE 'location'");
+    $columns = DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\" FROM information_schema.columns WHERE table_name = 'user_profiles' AND column_name = 'location'");
     if (count($columns) > 0) {
         echo "✓ Location column exists\n";
         echo "  Column details: " . json_encode($columns[0]) . "\n\n";

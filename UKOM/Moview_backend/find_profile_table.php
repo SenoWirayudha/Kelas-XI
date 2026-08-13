@@ -12,17 +12,16 @@ echo "SEARCHING FOR PROFILE PHOTO\n";
 echo "========================================\n\n";
 
 // Get all tables
-$tables = DB::select('SHOW TABLES');
-$databaseName = DB::getDatabaseName();
+$tables = DB::select("SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename");
 
 echo "Looking for tables with 'profile' in name:\n";
 foreach ($tables as $table) {
-    $tableName = $table->{"Tables_in_$databaseName"};
+    $tableName = $table->name;
     if (stripos($tableName, 'profile') !== false) {
         echo "- $tableName\n";
         
         // Show columns
-        $columns = DB::select("DESCRIBE $tableName");
+        $columns = DB::select("SELECT column_name AS \"Field\" FROM information_schema.columns WHERE table_name = '$tableName' ORDER BY ordinal_position");
         echo "  Columns: ";
         $cols = [];
         foreach ($columns as $col) {
@@ -34,12 +33,12 @@ foreach ($tables as $table) {
 
 echo "\nLooking for tables with 'user' in name:\n";
 foreach ($tables as $table) {
-    $tableName = $table->{"Tables_in_$databaseName"};
+    $tableName = $table->name;
     if (stripos($tableName, 'user') !== false && stripos($tableName, 'profile') === false) {
         echo "- $tableName\n";
         
         // Show columns with photo/avatar/image
-        $columns = DB::select("DESCRIBE $tableName");
+        $columns = DB::select("SELECT column_name AS \"Field\" FROM information_schema.columns WHERE table_name = '$tableName' ORDER BY ordinal_position");
         $photoCols = [];
         foreach ($columns as $col) {
             if (stripos($col->Field, 'photo') !== false || 

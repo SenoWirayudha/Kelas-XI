@@ -18,16 +18,13 @@ $moviewTables = [
     'genres'
 ];
 
-DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 foreach ($moviewTables as $table) {
     try {
-        DB::statement("DROP TABLE IF EXISTS `$table`");
+        DB::statement("DROP TABLE IF EXISTS \"$table\" CASCADE");
         echo "Dropped: $table\n";
     } catch (\Exception $e) {
         echo "Skip: $table (doesn't exist)\n";
     }
 }
-DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-echo "\n=== Done! Now import moview_schema.sql ===\n";
-echo "Run: Get-Content database\\moview_schema.sql | mysql -u root -p apimoview\n";
+echo "\n=== Done! ===\n";
