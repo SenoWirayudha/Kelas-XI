@@ -41,6 +41,7 @@ class MovieApiController extends Controller
         return [
             'id' => $movie->id,
             'title' => $movie->title,
+            'original_title' => $movie->original_title,
             'poster' => $movie->default_poster_path ? url('storage/' . $movie->default_poster_path) : null,
             'year' => (int) $movie->release_year,
             'age_rating' => $movie->age_rating,
@@ -293,6 +294,7 @@ class MovieApiController extends Controller
             'data' => [
                 'id' => $movie->id,
                 'title' => $movie->title ?? 'Unknown Title',
+                'original_title' => $movie->original_title,
                 'year' => $movie->release_year,
                 'duration' => $movie->duration ? $movie->duration . 'm' : null,
                 'rating' => $movie->age_rating ?? 'Not Rated',
@@ -945,6 +947,7 @@ class MovieApiController extends Controller
         return [
             'id' => $movie->id,
             'title' => $movie->title,
+            'original_title' => $movie->original_title,
             'year' => $movie->release_year,
             'duration' => $movie->duration . 'm',
             'rating' => $movie->age_rating,
@@ -1027,6 +1030,7 @@ class MovieApiController extends Controller
         return [
             'id' => $movie->id,
             'title' => $movie->title,
+            'original_title' => $movie->original_title,
             'year' => $movie->release_year,
             'duration' => $movie->duration . 'm',
             'rating' => $movie->age_rating,

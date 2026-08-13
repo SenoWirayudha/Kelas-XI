@@ -165,19 +165,12 @@
                 <i class="fas fa-tags text-blue-600 mr-2"></i>
                 Genres
             </h3>
-            
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                @foreach($genres as $genre)
-                <label class="flex items-center space-x-2 cursor-pointer">
-                    <input type="checkbox" 
-                           name="genres[]"
-                           value="{{ $genre->id }}"
-                           {{ isset($film) && $film->movieGenres->pluck('genre_id')->contains($genre->id) ? 'checked' : '' }}
-                           class="rounded text-blue-600 focus:ring-2 focus:ring-blue-500">
-                    <span class="text-sm">{{ $genre->name }}</span>
-                </label>
-                @endforeach
-            </div>
+            <x-admin.searchable-multiselect
+                name="genres[]"
+                :options="$genres"
+                :selected="old('genres', isset($film) ? $film->movieGenres->pluck('genre_id')->all() : [])"
+                placeholder="Search genres..."
+            />
         </div>
 
         <!-- Streaming Services -->

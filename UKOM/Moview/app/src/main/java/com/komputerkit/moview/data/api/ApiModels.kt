@@ -220,6 +220,7 @@ data class UserDto(
 data class MovieDetailDto(
     val id: Int,
     val title: String?,
+    val original_title: String? = null,
     val year: Int?,
     val duration: String?,
     val rating: String?,

@@ -1020,6 +1020,7 @@ class MovieRepository {
                     theatricalServices = movie.theatrical_services ?: emptyList(),
                     crew = fullCrew,
                     originalLanguage = movie.details?.original_language,
+                    originalTitle = movie.original_title,
                     themes = movie.themes ?: emptyList(),
                     spokenLanguages = movie.details?.spoken_languages ?: emptyList(),
                     productionCountries = movie.details?.production_countries ?: emptyList(),

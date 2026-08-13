@@ -62,6 +62,9 @@
                 <img src="{{ $activePoster ? asset('storage/' . $activePoster->media_path) : 'https://via.placeholder.com/500x750' }}" alt="{{ $movie->title }}" class="w-48 h-72 object-cover rounded-lg shadow-2xl">
                 <div class="flex-1 pb-4">
                     <h1 class="text-5xl font-bold mb-2">{{ $movie->title }}</h1>
+                    @if($movie->original_title)
+                        <p class="text-2xl text-gray-300 font-medium mb-2">{{ $movie->original_title }}</p>
+                    @endif
                     <div class="flex items-center space-x-4 text-lg mb-3">
                         <span>{{ $movie->release_year }}</span>
                         <span>•</span>

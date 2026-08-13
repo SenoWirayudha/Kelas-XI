@@ -330,6 +330,7 @@ class FilmController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
+            'original_title' => 'nullable|string|max:255',
             'release_year' => 'required|integer|min:1800|max:' . (date('Y') + 10),
             'duration' => 'nullable|integer|min:1',
             'age_rating' => 'nullable|string|max:10',

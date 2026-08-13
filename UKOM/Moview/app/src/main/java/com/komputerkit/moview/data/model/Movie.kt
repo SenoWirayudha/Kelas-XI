@@ -41,6 +41,7 @@ data class Movie(
     val theatricalServices: List<TheatricalServiceDto> = emptyList(),
     val crew: List<CrewJobDto> = emptyList(),
     val originalLanguage: String? = null,
+    val originalTitle: String? = null,
     val themes: List<String> = emptyList(),
     val spokenLanguages: List<String> = emptyList(),
     val productionCountries: List<String> = emptyList(),

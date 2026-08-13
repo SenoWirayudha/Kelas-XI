@@ -213,6 +213,9 @@
                         <img src="{{ $poster ? asset('storage/' . $poster->media_path) : 'https://via.placeholder.com/100x150' }}" alt="{{ $film->title }}" class="w-12 h-16 object-cover rounded">
                         <div class="ml-4">
                             <div class="text-sm font-medium text-gray-900">{{ $film->title }}</div>
+                            @if($film->original_title)
+                                <div class="text-xs text-gray-400">{{ $film->original_title }}</div>
+                            @endif
                             <div class="text-sm text-gray-500">{{ $film->movieGenres->pluck('genre.name')->implode(', ') }}</div>
                         </div>
                     </div>
