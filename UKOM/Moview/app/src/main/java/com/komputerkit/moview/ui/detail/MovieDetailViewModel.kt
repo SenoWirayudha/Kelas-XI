@@ -86,7 +86,7 @@ class MovieDetailViewModel(application: Application) : AndroidViewModel(applicat
             MovieDetailUserPreviewItem(
                 userId = dto.user.id,
                 profilePhoto = dto.user.profile_photo,
-                starsText = toStarText(dto.rating),
+                rating = dto.rating,
                 reviewId = dto.review_id
             )
         }
@@ -101,14 +101,9 @@ class MovieDetailViewModel(application: Application) : AndroidViewModel(applicat
             MovieDetailUserPreviewItem(
                 userId = dto.id,
                 profilePhoto = dto.profile_photo,
-                starsText = "",
+                rating = null,
                 reviewId = null
             )
         }
-    }
-
-    private fun toStarText(rating: Int?): String {
-        if (rating == null || rating <= 0) return ""
-        return "★".repeat(rating.coerceAtMost(5))
     }
 }

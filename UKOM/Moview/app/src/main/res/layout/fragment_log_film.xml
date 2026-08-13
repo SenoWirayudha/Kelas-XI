@@ -92,50 +92,12 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tv_info">
 
-            <ImageView
-                android:id="@+id/star_1"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+            <com.komputerkit.moview.ui.common.StarRatingView
+                android:id="@+id/star_rating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginHorizontal="4dp"
-                android:contentDescription="1 star"
-                android:src="@drawable/ic_star_outline"
-                app:tint="@color/accent_gold" />
-
-            <ImageView
-                android:id="@+id/star_2"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginHorizontal="4dp"
-                android:contentDescription="2 stars"
-                android:src="@drawable/ic_star_outline"
-                app:tint="@color/accent_gold" />
-
-            <ImageView
-                android:id="@+id/star_3"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginHorizontal="4dp"
-                android:contentDescription="3 stars"
-                android:src="@drawable/ic_star_outline"
-                app:tint="@color/accent_gold" />
-
-            <ImageView
-                android:id="@+id/star_4"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginHorizontal="4dp"
-                android:contentDescription="4 stars"
-                android:src="@drawable/ic_star_outline"
-                app:tint="@color/accent_gold" />
-
-            <ImageView
-                android:id="@+id/star_5"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginHorizontal="4dp"
-                android:contentDescription="5 stars"
-                android:src="@drawable/ic_star_outline"
-                app:tint="@color/accent_gold" />
+                android:contentDescription="Rate this movie" />
         </LinearLayout>
 
         <!-- Rate Label -->

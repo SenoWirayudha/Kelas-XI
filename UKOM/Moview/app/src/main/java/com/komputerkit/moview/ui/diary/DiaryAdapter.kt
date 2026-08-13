@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import androidx.core.content.ContextCompat
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.DiaryEntry
 import com.komputerkit.moview.databinding.ItemDiaryEntryBinding
@@ -86,7 +87,16 @@ class DiaryAdapter(
                 .into(binding.ivPoster)
 
             // Set stars
-            updateStars(entry.rating)
+            binding.starRating.apply {
+                starSizeDp = 14f
+                starGapDp = 0f
+                displayMode = true
+                setColors(
+                    ContextCompat.getColor(binding.root.context, R.color.star_green),
+                    ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
+                )
+                rating = entry.rating
+            }
 
             // Show review icon if has review
             binding.icHasReview.visibility = if (entry.hasReview) View.VISIBLE else View.GONE
@@ -112,24 +122,6 @@ class DiaryAdapter(
                     onChangePoster = { onChangePoster?.invoke(entry) }
                 )
                 true
-            }
-        }
-
-        private fun updateStars(rating: Int) {
-            val stars = listOf(
-                binding.star1,
-                binding.star2,
-                binding.star3,
-                binding.star4,
-                binding.star5
-            )
-
-            stars.forEachIndexed { index, star ->
-                if (index < rating) {
-                    star.setImageResource(R.drawable.ic_star_filled)
-                } else {
-                    star.setImageResource(R.drawable.ic_star_outline)
-                }
             }
         }
     }

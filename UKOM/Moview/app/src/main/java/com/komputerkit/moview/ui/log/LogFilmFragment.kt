@@ -34,7 +34,7 @@ class LogFilmFragment : Fragment() {
     private val viewModel: LogFilmViewModel by viewModels()
     private val args: LogFilmFragmentArgs by navArgs()
     
-    private var currentRating = 0
+    private var currentRating = 0f
     private var selectedDate: String? = null
 
     override fun onCreateView(
@@ -67,7 +67,7 @@ class LogFilmFragment : Fragment() {
             }
             if (args.existingRating > 0) {
                 currentRating = args.existingRating
-                updateStars(args.existingRating)
+                binding.starRating.rating = args.existingRating
             }
             // Load watched date if available
             args.watchedDate?.let { watchedDate ->
@@ -122,7 +122,7 @@ class LogFilmFragment : Fragment() {
         }
         
         viewModel.rating.observe(viewLifecycleOwner) { rating ->
-            updateStars(rating)
+            binding.starRating.rating = rating
         }
         
         viewModel.saveSuccess.observe(viewLifecycleOwner) { success ->
@@ -178,38 +178,16 @@ class LogFilmFragment : Fragment() {
     }
     
     private fun setupStarRating() {
-        val stars = listOf(
-            binding.star1,
-            binding.star2,
-            binding.star3,
-            binding.star4,
-            binding.star5
-        )
-        
-        stars.forEachIndexed { index, star ->
-            star.setOnClickListener {
-                val rating = index + 1
-                currentRating = rating
-                viewModel.setRating(rating)
-                updateStars(rating)
-            }
-        }
-    }
-    
-    private fun updateStars(rating: Int) {
-        val stars = listOf(
-            binding.star1,
-            binding.star2,
-            binding.star3,
-            binding.star4,
-            binding.star5
-        )
-        
-        stars.forEachIndexed { index, star ->
-            if (index < rating) {
-                star.setImageResource(R.drawable.ic_star_filled)
-            } else {
-                star.setImageResource(R.drawable.ic_star_outline)
+        binding.starRating.apply {
+            starSizeDp = 44f
+            starGapDp = 4f
+            setColors(
+                ContextCompat.getColor(requireContext(), R.color.star_yellow),
+                ContextCompat.getColor(requireContext(), R.color.text_secondary)
+            )
+            setEditable(true) { newRating ->
+                currentRating = newRating
+                viewModel.setRating(newRating)
             }
         }
     }

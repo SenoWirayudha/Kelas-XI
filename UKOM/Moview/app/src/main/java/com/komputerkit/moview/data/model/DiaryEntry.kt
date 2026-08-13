@@ -6,7 +6,7 @@ data class DiaryEntry(
     val watchedDate: String,
     val dateLabel: String,
     val monthYear: String,
-    val rating: Int,
+    val rating: Float,
     val hasReview: Boolean,
     val isLiked: Boolean,
     val isRewatched: Boolean = false,

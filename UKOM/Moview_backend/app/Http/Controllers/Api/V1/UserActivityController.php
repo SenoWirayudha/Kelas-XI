@@ -1079,13 +1079,20 @@ class UserActivityController extends Controller
             
             $rating = $request->input('rating', 0); // Default 0 if only marking as watched
             
-            // Validate rating (0-5 scale for star rating)
-            if ($rating < 0 || $rating > 5) {
+            // Validate rating (0-5 scale, 0.5 increments for half-star rating)
+            if (!is_numeric($rating) || $rating < 0 || $rating > 5) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Rating must be between 0 and 5 stars'
                 ], 400);
             }
+            if (fmod((float)$rating * 2, 1) != 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rating must be in 0.5 increments'
+                ], 400);
+            }
+            $rating = (float)$rating;
             
             // Check if rating already exists
             $existingRating = DB::table('ratings')
@@ -1370,6 +1377,21 @@ class UserActivityController extends Controller
             $watchedAt = $request->input('watched_at', now()->format('Y-m-d'));
             $isRewatch = $request->input('is_rewatch', false); // New parameter to indicate rewatch
             
+            // Validate rating (0-5 scale, 0.5 increments for half-star rating)
+            if (!is_numeric($rating) || $rating < 0 || $rating > 5) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rating must be between 0 and 5 stars'
+                ], 400);
+            }
+            if (fmod((float)$rating * 2, 1) != 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rating must be in 0.5 increments'
+                ], 400);
+            }
+            $rating = (float)$rating;
+            
             // Check if user has liked this movie (from movie_likes table)
             $isLiked = DB::table('movie_likes')
                 ->where('user_id', $userId)
@@ -1511,6 +1533,21 @@ class UserActivityController extends Controller
             $rating = $request->input('rating', $review->rating);
             $containsSpoilers = $request->input('contains_spoilers', false);
             $watchedAt = $request->input('watched_at');
+            
+            // Validate rating (0-5 scale, 0.5 increments for half-star rating)
+            if (!is_numeric($rating) || $rating < 0 || $rating > 5) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rating must be between 0 and 5 stars'
+                ], 400);
+            }
+            if (fmod((float)$rating * 2, 1) != 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rating must be in 0.5 increments'
+                ], 400);
+            }
+            $rating = (float)$rating;
             
             // Check current like status from movie_likes
             $isLiked = DB::table('movie_likes')

@@ -296,7 +296,7 @@ interface MovieApiService {
         @Path("userId") userId: Int,
         @Path("movieId") movieId: Int,
         @Field("review") review: String,
-        @Field("rating") rating: Int,
+        @Field("rating") rating: Float,
         @Field("contains_spoilers") containsSpoilers: Int,
         @Field("watched_at") watchedAt: String? = null,
         @Field("is_rewatch") isRewatch: Int = 0
@@ -308,7 +308,7 @@ interface MovieApiService {
         @Path("userId") userId: Int,
         @Path("reviewId") reviewId: Int,
         @Field("review") review: String,
-        @Field("rating") rating: Int,
+        @Field("rating") rating: Float,
         @Field("contains_spoilers") containsSpoilers: Int,
         @Field("watched_at") watchedAt: String? = null
     ): SimpleResponse

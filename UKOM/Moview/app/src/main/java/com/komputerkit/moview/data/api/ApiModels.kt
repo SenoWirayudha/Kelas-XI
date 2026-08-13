@@ -180,7 +180,7 @@ data class FriendReviewDto(
     val review_id: Int,
     val user: UserDto,
     val movie: MovieCardDto,
-    val rating: Int,
+    val rating: Float,
     val created_at: String
 )
 
@@ -439,7 +439,7 @@ data class DiaryEntryDto(
     val watched_at: String,
     val note: String?,
     val review_id: Int?,
-    val rating: Int?,
+    val rating: Float?,
     val review_content: String?,
     val is_liked: Boolean,
     val is_rewatched: Boolean = false,
@@ -464,7 +464,7 @@ data class MovieReviewUserDto(
 data class MovieReviewDto(
     val id: Int,
     val user: MovieReviewUserDto,
-    val rating: Int?,
+    val rating: Float?,
     val title: String?,
     val content: String?,
     val is_spoiler: Boolean = false,
@@ -473,7 +473,7 @@ data class MovieReviewDto(
 
 data class MovieWatchedUserDto(
     val user: MovieReviewUserDto,
-    val rating: Int?,
+    val rating: Float?,
     val review_id: Int?,
     val has_like: Boolean,
     val has_review: Boolean
@@ -491,7 +491,7 @@ data class UserReviewDto(
     val title: String,
     val year: String,  // Changed from Int to String to match backend
     val poster_path: String?,
-    val rating: Int?,  // Changed from Float to Int to match backend
+    val rating: Float?,  // 0.5 increments, supports half-star
     val is_liked: Boolean = false,
     val is_rewatched: Boolean = false,
     val watched_at: String?,
@@ -507,7 +507,7 @@ data class ReviewDetailDto(
     val diary_id: Int = 0,
     val user_id: Int,
     val movie_id: Int,
-    val rating: Int?,
+    val rating: Float?,
     val snapshot_is_liked: Boolean = false,  // Snapshot for icon next to stars
     val is_liked: Boolean = false,  // Current like status from review_likes
     val is_rewatched: Boolean = false,  // Whether review was written during rewatch
@@ -594,11 +594,11 @@ data class UpdateFavoritesRequest(
 )
 
 data class SaveRatingRequest(
-    val rating: Int  // 0-10, 0 = watched without rating
+    val rating: Float  // 0-5 in 0.5 increments, 0 = watched without rating
 )
 
 data class RatingResponse(
-    val rating: Int?,
+    val rating: Float?,
     val is_watched: Boolean,
     val created_at: String? = null,
     val updated_at: String? = null
@@ -723,7 +723,7 @@ data class DiaryActivityDto(
     val poster_path: String?,
     val watched_at: String,
     val note: String?,
-    val rating: Int,
+    val rating: Float,
     val is_liked: Boolean,
     val is_rewatched: Boolean,
     val review_id: Int,
@@ -739,7 +739,7 @@ data class ReviewActivityDto(
     val title: String,
     val year: Int,
     val poster_path: String?,
-    val rating: Int,
+    val rating: Float,
     val is_liked: Boolean,
     val watched_at: String?,
     val review_title: String?,

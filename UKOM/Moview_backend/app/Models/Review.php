@@ -18,7 +18,7 @@ class Review extends Model
     ];
 
     protected $casts = [
-        'rating' => 'integer',
+        'rating' => 'float',
         'is_spoiler' => 'boolean',
     ];
 

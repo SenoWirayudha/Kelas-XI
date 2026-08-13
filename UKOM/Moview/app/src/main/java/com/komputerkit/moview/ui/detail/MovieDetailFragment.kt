@@ -1,24 +1,28 @@
 package com.komputerkit.moview.ui.detail
 
+import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.Toast
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.core.view.ViewCompat
+import androidx.core.view.doOnLayout
+import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.komputerkit.moview.util.loadPoster
 import com.komputerkit.moview.util.loadBackdrop
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
-import com.komputerkit.moview.databinding.BottomSheetMovieActionsBinding
 import com.komputerkit.moview.databinding.FragmentMovieDetailBinding
 import com.komputerkit.moview.util.MovieActionsHelper
 
@@ -38,7 +42,6 @@ class MovieDetailFragment : Fragment() {
     
     private var currentMovie: com.komputerkit.moview.data.model.Movie? = null
     private var isDescriptionExpanded = false
-    private var currentRating = 0
     private var selectedTabPosition = 0  // Track selected tab
 
     override fun onCreateView(
@@ -53,6 +56,8 @@ class MovieDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        setupImmersiveHeader()
+        setupHeaderScrollBehavior()
         setupRecyclerViews()
         setupClickListeners()
         setupObservers()
@@ -141,10 +146,22 @@ class MovieDetailFragment : Fragment() {
             
             // Scroll to top when new movie data is loaded
             binding.scrollView.post {
-                binding.scrollView.scrollTo(0, 0)
+                if (_binding != null) {
+                    binding.scrollView.scrollTo(0, 0)
+                }
             }
             
             binding.tvTitle.text = movie.title ?: "Unknown Title"
+            binding.tvHeaderTitle.text = movie.title ?: "Unknown Title"
+
+            val originalTitle = movie.originalTitle
+            if (!originalTitle.isNullOrBlank() && originalTitle != movie.title) {
+                binding.tvOriginalTitle.text = originalTitle
+                binding.tvOriginalTitle.visibility = View.VISIBLE
+            } else {
+                binding.tvOriginalTitle.visibility = View.GONE
+            }
+
             binding.tvYear.text = movie.releaseYear?.toString() ?: "-"
             binding.tvDuration.text = movie.duration ?: "Unknown"
             binding.tvPgRating.text = movie.pgRating ?: "Not Rated"
@@ -155,15 +172,11 @@ class MovieDetailFragment : Fragment() {
             binding.tvReviewCount.text = movie.reviewCount ?: "0"
             binding.tvAverageRating.text = String.format("%.1f", movie.averageRating ?: 0.0)
             
-            // Rating distribution
-            binding.progress5Star.progress = movie.rating5
-            binding.progress4Star.progress = movie.rating4
-            binding.progress3Star.progress = movie.rating3
-            binding.progress2Star.progress = movie.rating2
-            binding.progress1Star.progress = movie.rating1
+            // Rating distribution (10 buckets 0.5-5.0, vertical chart)
+            binding.ratingChart.setDistribution(movie.ratingDistribution)
             
             // Load images with optimization (caching, resizing, smooth transition)
-            binding.ivPoster.loadPoster(movie.posterUrl)
+            binding.ivPoster.loadPoster(movie.posterUrl, movie.title)
             if (movie.backdropUrl.isNullOrBlank()) {
                 binding.frameBackdrop.visibility = View.GONE
                 val infoParams = binding.layoutMovieInfo.layoutParams as android.widget.LinearLayout.LayoutParams
@@ -172,6 +185,7 @@ class MovieDetailFragment : Fragment() {
                 val titleParams = binding.layoutTitleInfo.layoutParams as android.widget.LinearLayout.LayoutParams
                 titleParams.gravity = android.view.Gravity.TOP
                 binding.layoutTitleInfo.layoutParams = titleParams
+                applyEmptyBackdropHeader()
             } else {
                 binding.frameBackdrop.visibility = View.VISIBLE
                 val infoParams = binding.layoutMovieInfo.layoutParams as android.widget.LinearLayout.LayoutParams
@@ -181,6 +195,7 @@ class MovieDetailFragment : Fragment() {
                 titleParams.gravity = android.view.Gravity.BOTTOM
                 binding.layoutTitleInfo.layoutParams = titleParams
                 binding.ivBackdrop.loadBackdrop(movie.backdropUrl)
+                resetHeaderForBackdrop()
             }
             
             // Show/hide trailer button based on trailer availability
@@ -237,7 +252,9 @@ class MovieDetailFragment : Fragment() {
             
             // Restore selected tab after data is loaded
             binding.tabLayout.post {
-                binding.tabLayout.getTabAt(selectedTabPosition)?.select()
+                if (_binding != null) {
+                    binding.tabLayout.getTabAt(selectedTabPosition)?.select()
+                }
             }
         }
 
@@ -339,6 +356,28 @@ class MovieDetailFragment : Fragment() {
                 navigateToFilmList("genre", genre, genre)
             }
             chipGroup.addView(chip)
+        }
+
+        // Themes - show all
+        val themesChipGroup = binding.chipGroupThemes
+        themesChipGroup.removeAllViews()
+        if (movie.themes.isNotEmpty()) {
+            movie.themes.forEach { theme ->
+                val chip = com.google.android.material.chip.Chip(requireContext())
+                chip.text = theme
+                chip.setTextColor(resources.getColor(com.komputerkit.moview.R.color.white, null))
+                chip.chipBackgroundColor = android.content.res.ColorStateList.valueOf(
+                    resources.getColor(com.komputerkit.moview.R.color.dark_card, null)
+                )
+                chip.chipStrokeWidth = 0f
+                chip.setOnClickListener {
+                    navigateToFilmList("theme", theme, theme)
+                }
+                themesChipGroup.addView(chip)
+            }
+            binding.layoutTheme.visibility = View.VISIBLE
+        } else {
+            binding.layoutTheme.visibility = View.GONE
         }
     }
     
@@ -586,34 +625,6 @@ class MovieDetailFragment : Fragment() {
         }
     }
     
-    private fun setupStarRating(bottomSheetBinding: BottomSheetMovieActionsBinding) {
-        val stars = listOf(
-            bottomSheetBinding.star1,
-            bottomSheetBinding.star2,
-            bottomSheetBinding.star3,
-            bottomSheetBinding.star4,
-            bottomSheetBinding.star5
-        )
-        
-        stars.forEachIndexed { index, star ->
-            star.setOnClickListener {
-                currentRating = index + 1
-                updateStars(stars, currentRating)
-                Toast.makeText(requireContext(), "Rated: $currentRating stars", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-    
-    private fun updateStars(stars: List<ImageView>, rating: Int) {
-        stars.forEachIndexed { index, star ->
-            if (index < rating) {
-                star.setImageResource(R.drawable.ic_star_filled)
-            } else {
-                star.setImageResource(R.drawable.ic_star_outline)
-            }
-        }
-    }
-    
     private fun openTrailer() {
         val trailerUrl = currentMovie?.trailerUrl
         
@@ -676,7 +687,125 @@ class MovieDetailFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        restoreStatusBar()
         super.onDestroyView()
         _binding = null
+    }
+
+    private var originalStatusBarColor = 0
+
+    private fun setupImmersiveHeader() {
+        val window = requireActivity().window
+        originalStatusBarColor = window.statusBarColor
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+
+        // Push the back button below the status bar so it isn't overlapped by clock/icons
+        ViewCompat.setOnApplyWindowInsetsListener(binding.toolbar) { v, insets ->
+            val top = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
+            v.setPadding(v.paddingLeft, top, v.paddingRight, v.paddingBottom)
+            insets
+        }
+        binding.toolbar.requestApplyInsets()
+    }
+
+    private var headerSolid = false
+    private var headerTitleVisible = false
+    private var bgAnimator: android.animation.ValueAnimator? = null
+
+    private fun setupHeaderScrollBehavior() {
+        val backdropHeight = resources.getDimensionPixelSize(R.dimen.backdrop_height)
+        binding.scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            val hasBackdrop = binding.frameBackdrop.visibility == View.VISIBLE
+            if (hasBackdrop) {
+                setHeaderSolid(scrollY >= backdropHeight)
+                setHeaderTitleVisible(scrollY >= backdropHeight)
+            } else {
+                // Empty backdrop: header is already a solid block (classic toolbar),
+                // only the title reacts to scrolling.
+                setHeaderTitleVisible(scrollY > 0)
+            }
+        }
+    }
+
+    // Special strategy when the backdrop is empty: the header renders as a classic
+    // fixed toolbar (solid block + back) and the scroll content is pushed down below
+    // the header block, so it never collides with the layout.
+    private fun applyEmptyBackdropHeader() {
+        setHeaderSolid(true)
+        setHeaderTitleVisible(false)
+        binding.toolbar.doOnLayout {
+            if (_binding == null) return@doOnLayout
+            binding.scrollView.setPadding(
+                binding.scrollView.paddingLeft,
+                it.height,
+                binding.scrollView.paddingRight,
+                binding.scrollView.paddingBottom
+            )
+        }
+    }
+
+    // Restore the standard immersive header when a backdrop is present.
+    private fun resetHeaderForBackdrop() {
+        binding.scrollView.setPadding(
+            binding.scrollView.paddingLeft,
+            0,
+            binding.scrollView.paddingRight,
+            binding.scrollView.paddingBottom
+        )
+        setHeaderSolid(false)
+        setHeaderTitleVisible(false)
+    }
+
+    private fun setHeaderSolid(solid: Boolean) {
+        binding.toolbar.post {
+            if (_binding == null) return@post
+            if (solid == headerSolid) return@post
+            headerSolid = solid
+
+            val solidColor = ContextCompat.getColor(requireContext(), R.color.dark_background)
+            val transparent = Color.TRANSPARENT
+            val start = if (solid) transparent else solidColor
+            val end = if (solid) solidColor else transparent
+
+            bgAnimator?.cancel()
+            bgAnimator = android.animation.ValueAnimator.ofInt(start, end).apply {
+                duration = 180
+                setEvaluator(android.animation.ArgbEvaluator())
+                addUpdateListener {
+                    binding.toolbar.setBackgroundColor(it.animatedValue as Int)
+                }
+                start()
+            }
+
+            // Drop the scrim circle once the header is solid (readability provided by the block)
+            binding.btnBackContainer.background = if (solid) {
+                null
+            } else {
+                ContextCompat.getDrawable(requireContext(), R.drawable.bg_back_button)
+            }
+        }
+    }
+
+    private fun setHeaderTitleVisible(visible: Boolean) {
+        binding.toolbar.post {
+            if (_binding == null) return@post
+            if (visible == headerTitleVisible) return@post
+            headerTitleVisible = visible
+
+            binding.tvHeaderTitle.apply {
+                alpha = if (visible) 1f else 0f
+                if (visible) visibility = View.VISIBLE
+            }
+            if (!visible) binding.tvHeaderTitle.postDelayed({
+                if (!headerTitleVisible && _binding != null) binding.tvHeaderTitle.visibility = View.GONE
+            }, 200)
+        }
+    }
+
+    private fun restoreStatusBar() {
+        val window = requireActivity().window
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        window.statusBarColor = originalStatusBarColor
     }
 }

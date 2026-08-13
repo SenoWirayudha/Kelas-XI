@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.content.ContextCompat
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.ReviewData
@@ -46,7 +47,17 @@ class SimpleReviewAdapter(
                 tvYear.text = review.year.toString()
 
                 // Set rating stars
-                tvRatingStars.text = if (review.rating > 0) "★".repeat(review.rating) else ""
+                binding.starRating.apply {
+starSizeDp = 12f
+                starGapDp = 0f
+                displayMode = true
+                    setColors(
+                        ContextCompat.getColor(binding.root.context, R.color.star_green),
+                        ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
+                    )
+                }
+                binding.starRating.rating = review.rating
+                binding.starRating.visibility = if (review.rating > 0f) View.VISIBLE else View.GONE
 
                 // Show heart icon if liked
                 ivLiked.visibility = if (review.is_liked) View.VISIBLE else View.GONE

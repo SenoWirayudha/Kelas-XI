@@ -13,6 +13,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.navigation.Navigation
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.LifecycleOwner
@@ -95,14 +96,9 @@ object MovieActionsHelper {
         val actualLifecycleOwner = lifecycleOwner ?: getLifecycleOwner(context)
         
         // Use local variable for current rating (not object-level to prevent state leak)
-        var currentRating = 0
+        var currentRating = 0f
         var watchInfo: com.komputerkit.moview.data.api.WatchCountDto? = null
         var isWatchedState = false  // tracks current watched toggle state
-        
-        // Initialize stars to empty state
-        val stars = listOf(
-            binding.star1, binding.star2, binding.star3, binding.star4, binding.star5
-        )
         
         // Load existing rating FIRST before setting default UI state
         if (userId > 0 && actualLifecycleOwner != null) {
@@ -130,11 +126,11 @@ object MovieActionsHelper {
 
                     // Load rating if exists
                     if (ratingResponse != null) {
-                        currentRating = ratingResponse.rating ?: 0
-                        updateStars(stars, currentRating)
+currentRating = ratingResponse.rating ?: 0f
+                        binding.starRating.rating = currentRating
                         Log.d("MovieActionsHelper", "Loaded rating: ${ratingResponse.rating} stars for movie ${movie.id}")
                     } else {
-                        updateStars(stars, 0)
+                        binding.starRating.rating = 0f
                         Log.d("MovieActionsHelper", "No rating found for movie ${movie.id}")
                     }
                     
@@ -205,18 +201,23 @@ object MovieActionsHelper {
                 }
             }
         } else {
-            // No user logged in, set default state
+// No user logged in, set default state
             Log.w("MovieActionsHelper", "Cannot load rating: userId=$userId, lifecycleOwner=$actualLifecycleOwner")
-            updateStars(stars, 0)
+            binding.starRating.rating = 0f
             updateWatchedButtonState(context, binding, false)
             binding.btnShowYourActivity.visibility = View.GONE
         }
 
         // Setup star rating (pass currentRating via closure)
-        setupStarRating(context, binding, actualLifecycleOwner, movie, userId, onRatingSaved) { newRating ->
-            currentRating = newRating
-        }
-
+        setupStarRating(
+            context,
+            binding,
+            actualLifecycleOwner,
+            movie,
+            userId,
+            onRatingSaved,
+            onRatingChanged = { newRating -> currentRating = newRating }
+        )
         // Setup click listeners
         binding.btnWatched.setOnClickListener {
             if (userId > 0 && actualLifecycleOwner != null) {
@@ -264,8 +265,8 @@ object MovieActionsHelper {
                                 watchInfo = updatedInfo
                                 updateWatchedButtonState(context, binding, false, "none")
                                 // Reset stars
-                                currentRating = 0
-                                updateStars(stars, 0)
+                                currentRating = 0f
+                                binding.starRating.rating = 0f
                                 val updatedWatchCount = updatedInfo?.watch_count ?: 0
                                 binding.btnShowYourActivity.visibility = if (updatedWatchCount > 0) View.VISIBLE else View.GONE
                                 binding.tvReviewLogText.text = if (updatedWatchCount > 0) "Review and log again" else "Review and log"
@@ -767,33 +768,30 @@ object MovieActionsHelper {
         movie: Movie,
         userId: Int,
         onRatingSaved: (() -> Unit)?,
-        onRatingChanged: (Int) -> Unit
+        onRatingChanged: (Float) -> Unit
     ) {
-        val stars = listOf(
-            binding.star1,
-            binding.star2,
-            binding.star3,
-            binding.star4,
-            binding.star5
-        )
-
-        stars.forEachIndexed { index, star ->
-            star.setOnClickListener {
-                val newRating = index + 1
+        binding.starRating.apply {
+            starSizeDp = 44f
+            starGapDp = 4f
+            setColors(
+                ContextCompat.getColor(binding.root.context, R.color.star_yellow),
+                ContextCompat.getColor(binding.root.context, R.color.text_secondary)
+            )
+            setEditable(true) { newRating ->
                 onRatingChanged(newRating) // Update local variable in parent scope
-                updateStars(stars, newRating)
-                
-                // Save rating immediately when star is clicked (direct value, no conversion)
+
+                // Save rating immediately when star is tapped (direct value, no conversion)
                 if (userId > 0 && lifecycleOwner != null) {
+                    val ratingToSave = newRating
                     lifecycleOwner.lifecycleScope.launch {
-                        Log.d("MovieActionsHelper", "Star clicked: userId=$userId, movieId=${movie.id}, rating=$newRating")
-                        val success = repository.saveRating(userId, movie.id, newRating)
+                        Log.d("MovieActionsHelper", "Star tapped: userId=$userId, movieId=${movie.id}, rating=$ratingToSave")
+                        val success = repository.saveRating(userId, movie.id, ratingToSave)
                         if (success) {
                             // Update button to "Watched" (green) immediately after rating
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 updateWatchedButtonState(context, binding, true)
                             }
-                            Toast.makeText(context, "Rated: $newRating stars", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Rated: $ratingToSave stars", Toast.LENGTH_SHORT).show()
                             // Trigger callback to refresh data
                             onRatingSaved?.invoke()
                         } else {
@@ -804,22 +802,6 @@ object MovieActionsHelper {
                     Log.e("MovieActionsHelper", "Cannot save rating: userId=$userId, lifecycleOwner=$lifecycleOwner")
                     Toast.makeText(context, "Rated: $newRating stars (please login to save)", Toast.LENGTH_SHORT).show()
                 }
-            }
-        }
-    }
-
-    private fun updateStars(stars: List<ImageView>, rating: Int) {
-        stars.forEachIndexed { index, star ->
-            if (index < rating) {
-                star.setImageResource(R.drawable.ic_star_filled)
-                star.imageTintList = android.content.res.ColorStateList.valueOf(
-                    star.context.getColor(R.color.star_yellow)
-                )
-            } else {
-                star.setImageResource(R.drawable.ic_star_outline)
-                star.imageTintList = android.content.res.ColorStateList.valueOf(
-                    star.context.getColor(R.color.text_secondary)
-                )
             }
         }
     }

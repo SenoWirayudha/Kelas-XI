@@ -3,9 +3,11 @@ package com.komputerkit.moview.ui.watched
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ItemMovieWatchedUserBinding
 import com.komputerkit.moview.util.loadProfilePhoto
 
@@ -13,7 +15,7 @@ data class MovieWatchedUserItem(
     val userId: Int,
     val username: String,
     val profilePhoto: String?,
-    val starsText: String,
+    val rating: Float?,
     val reviewId: Int?,
     val hasLike: Boolean,
     val hasReview: Boolean
@@ -43,9 +45,20 @@ class MovieWatchedUsersAdapter(
         fun bind(item: MovieWatchedUserItem) {
             binding.ivAvatar.loadProfilePhoto(item.profilePhoto)
             binding.tvUsername.text = item.username
-            binding.tvRatingStars.text = item.starsText
 
-            binding.tvRatingStars.visibility = if (item.starsText.isBlank()) View.GONE else View.VISIBLE
+            val rating = item.rating ?: 0f
+            binding.starRating.apply {
+                starSizeDp = 17f
+                starGapDp = 0f
+                displayMode = true
+                setColors(
+                    ContextCompat.getColor(binding.root.context, R.color.star_green),
+                    ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
+                )
+            }
+            binding.starRating.rating = rating
+            binding.starRating.visibility = if (rating > 0f) View.VISIBLE else View.GONE
+
             binding.ivLike.visibility = if (item.hasLike) View.VISIBLE else View.GONE
             binding.ivReview.visibility = if ((item.reviewId ?: 0) > 0) View.VISIBLE else View.GONE
 

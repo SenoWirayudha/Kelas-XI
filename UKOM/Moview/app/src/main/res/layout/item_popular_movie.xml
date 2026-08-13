@@ -40,14 +40,12 @@
                 android:ellipsize="end"
                 tools:text="The Shawshank Redemption" />
 
-            <TextView
-                android:id="@+id/tv_rating"
+            <com.komputerkit.moview.ui.common.StarRatingView
+                android:id="@+id/star_rating"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:textSize="14sp"
-                android:textColor="@color/star_green"
-                tools:text="★★★★★" />
+                android:contentDescription="Star rating" />
 
         </LinearLayout>
 

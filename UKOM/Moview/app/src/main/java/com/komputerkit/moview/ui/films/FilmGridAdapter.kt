@@ -4,6 +4,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -99,35 +100,21 @@ class FilmGridAdapter(
         }
         
         private fun updateStarRating(rating: Float) {
-            val stars = listOf(
-                binding.star1,
-                binding.star2,
-                binding.star3,
-                binding.star4,
-                binding.star5
-            )
-            
-            // Always show the rating container (it contains the like icon too)
             binding.ratingContainer.visibility = View.VISIBLE
-            
-            if (rating == 0f) {
-                // No rating - hide all stars
-                stars.forEach { star ->
-                    star.visibility = View.GONE
+            binding.starRating.apply {
+                if (rating == 0f) {
+                    visibility = View.GONE
+                    return@apply
                 }
-                return
-            }
-            
-            val fullStars = rating.toInt().coerceIn(0, 5)
-
-            stars.forEachIndexed { index, star ->
-                if (index < fullStars) {
-                    star.setImageResource(com.komputerkit.moview.R.drawable.ic_star_filled)
-                    star.alpha = 1f
-                    star.visibility = View.VISIBLE
-                } else {
-                    star.visibility = View.GONE
-                }
+                visibility = View.VISIBLE
+                starSizeDp = 10f
+                starGapDp = 0f
+                displayMode = true
+                setColors(
+                    ContextCompat.getColor(context, R.color.star_green),
+                    ContextCompat.getColor(context, R.color.star_green_empty)
+                )
+                this@FilmViewHolder.binding.starRating.rating = rating
             }
         }
     }

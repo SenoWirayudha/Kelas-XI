@@ -312,7 +312,7 @@ class MovieRepository {
                         watchedDate = dto.watched_at,
                         dateLabel = formatDiaryDate(dto.watched_at),
                         monthYear = formatMonthYear(dto.watched_at),
-                        rating = dto.rating ?: 0,
+                        rating = dto.rating ?: 0f,
                         hasReview = dto.type == "review",
                         isLiked = dto.is_liked,
                         isRewatched = dto.is_rewatched,
@@ -773,7 +773,7 @@ class MovieRepository {
         userId: Int,
         reviewId: Int,
         reviewText: String,
-        rating: Int,
+        rating: Float,
         containsSpoilers: Boolean,
         watchedAt: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
@@ -1000,11 +1000,7 @@ class MovieRepository {
                     pgRating = movie.rating,
                     watchedCount = movie.statistics?.watched_count?.toString(),
                     reviewCount = movie.statistics?.reviews_count?.toString(),
-                    rating5 = movie.statistics?.rating_distribution?.get("5") ?: 0,
-                    rating4 = movie.statistics?.rating_distribution?.get("4") ?: 0,
-                    rating3 = movie.statistics?.rating_distribution?.get("3") ?: 0,
-                    rating2 = movie.statistics?.rating_distribution?.get("2") ?: 0,
-                    rating1 = movie.statistics?.rating_distribution?.get("1") ?: 0,
+                    ratingDistribution = buildRatingDistribution(movie.statistics?.rating_distribution),
                     cast = movie.cast?.map { cast ->
                         com.komputerkit.moview.data.model.CastMember(
                             id = cast.id,
@@ -1401,7 +1397,7 @@ class MovieRepository {
                 watchedDate = "2023-10-14",
                 dateLabel = "14 Oct",
                 monthYear = "OCTOBER 2023",
-                rating = 5,
+                rating = 5.0f,
                 hasReview = true,
                 isLiked = true
             ),
@@ -1411,7 +1407,7 @@ class MovieRepository {
                 watchedDate = "2023-10-12",
                 dateLabel = "12 Oct",
                 monthYear = "OCTOBER 2023",
-                rating = 4,
+                rating = 4.0f,
                 hasReview = false,
                 isLiked = false
             ),
@@ -1421,7 +1417,7 @@ class MovieRepository {
                 watchedDate = "2023-10-08",
                 dateLabel = "08 Oct",
                 monthYear = "OCTOBER 2023",
-                rating = 5,
+                rating = 5.0f,
                 hasReview = true,
                 isLiked = true
             ),
@@ -1431,7 +1427,7 @@ class MovieRepository {
                 watchedDate = "2023-10-05",
                 dateLabel = "05 Oct",
                 monthYear = "OCTOBER 2023",
-                rating = 4,
+                rating = 4.0f,
                 hasReview = false,
                 isLiked = false
             ),
@@ -1441,7 +1437,7 @@ class MovieRepository {
                 watchedDate = "2023-09-28",
                 dateLabel = "28 Sep",
                 monthYear = "SEPTEMBER 2023",
-                rating = 5,
+                rating = 5.0f,
                 hasReview = true,
                 isLiked = true
             ),
@@ -1451,7 +1447,7 @@ class MovieRepository {
                 watchedDate = "2023-09-22",
                 dateLabel = "22 Sep",
                 monthYear = "SEPTEMBER 2023",
-                rating = 4,
+                rating = 4.0f,
                 hasReview = false,
                 isLiked = false
             ),
@@ -1461,7 +1457,7 @@ class MovieRepository {
                 watchedDate = "2023-09-15",
                 dateLabel = "15 Sep",
                 monthYear = "SEPTEMBER 2023",
-                rating = 5,
+                rating = 5.0f,
                 hasReview = true,
                 isLiked = true
             ),
@@ -1471,7 +1467,7 @@ class MovieRepository {
                 watchedDate = "2023-09-10",
                 dateLabel = "10 Sep",
                 monthYear = "SEPTEMBER 2023",
-                rating = 3,
+                rating = 3.0f,
                 hasReview = false,
                 isLiked = false
             )
@@ -1713,7 +1709,20 @@ class MovieRepository {
     }
     
     // Rating functions
-    suspend fun saveRating(userId: Int, movieId: Int, rating: Int): Boolean = withContext(Dispatchers.IO) {
+    private fun buildRatingDistribution(distribution: Map<String, Int>?): List<Int> {
+        val buckets = mutableListOf<Int>()
+        for (n in 1..10) {
+            val i = n * 0.5
+            buckets.add(distribution?.get(bucketKey(i)) ?: 0)
+        }
+        return buckets
+    }
+
+    private fun bucketKey(value: Double): String {
+        return if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()
+    }
+
+    suspend fun saveRating(userId: Int, movieId: Int, rating: Float): Boolean = withContext(Dispatchers.IO) {
         try {
             val request = com.komputerkit.moview.data.api.SaveRatingRequest(rating = rating)
             val response = apiService.saveRating(userId, movieId, request)
@@ -1816,7 +1825,7 @@ class MovieRepository {
         userId: Int,
         filmId: Int,
         reviewText: String,
-        rating: Int,
+        rating: Float,
         containsSpoilers: Boolean,
         watchedAt: String? = null,
         isRewatch: Boolean = false

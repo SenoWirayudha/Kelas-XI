@@ -5,10 +5,11 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import androidx.core.content.ContextCompat
+import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.DiaryEntry
 import com.komputerkit.moview.databinding.ItemRecentActivityBinding
 import com.komputerkit.moview.util.MovieActionsHelper
-import kotlin.math.roundToInt
 
 class RecentActivityAdapter(
     private val onMovieClick: ((DiaryEntry) -> Unit)? = null,
@@ -52,7 +53,17 @@ class RecentActivityAdapter(
                 .into(binding.ivPoster)
             
             // Show rating stars
-            binding.tvRating.text = getStarsFromRating(entry.rating)
+            binding.starRating.apply {
+                displayMode = true
+                starSizeDp = 10f
+                starGapDp = 0f
+                setColors(
+                    ContextCompat.getColor(binding.root.context, R.color.star_green),
+                    ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
+                )
+            }
+            binding.starRating.rating = entry.rating
+            binding.starRating.visibility = if (entry.rating > 0f) View.VISIBLE else View.GONE
             
             // Show rewatch icon if rewatched
             binding.ivRewatch.visibility = if (entry.isRewatched) View.VISIBLE else View.GONE
@@ -88,11 +99,6 @@ class RecentActivityAdapter(
                 )
                 true
             }
-        }
-        
-        private fun getStarsFromRating(rating: Int): String {
-            val fullStars = rating.coerceIn(0, 5)
-            return "★".repeat(fullStars)
         }
     }
 }

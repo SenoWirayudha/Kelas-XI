@@ -86,13 +86,11 @@
                     android:layout_marginTop="2dp">
 
                     <!-- Rating Stars -->
-                    <TextView
-                        android:id="@+id/tv_rating"
+                    <com.komputerkit.moview.ui.common.StarRatingView
+                        android:id="@+id/star_rating"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textSize="11sp"
-                        android:textColor="@color/star_green"
-                        tools:text="★★★★" />
+                        android:contentDescription="Star rating" />
 
                     <!-- Review Icon -->
                     <ImageView

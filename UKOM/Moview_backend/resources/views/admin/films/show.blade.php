@@ -141,11 +141,11 @@
             </h2>
             
             @php
-                // Get actual rating distribution from database
+                // Get actual rating distribution from database (0.5-5.0 increments)
                 $ratingDistribution = [];
-                for ($i = 5; $i >= 1; $i--) {
-                    $ratingDistribution[$i] = $movie->ratings()
-                        ->where('rating', $i)
+                for ($i = 5; $i >= 0.5; $i -= 0.5) {
+                    $ratingDistribution[number_format($i, 1)] = $movie->ratings()
+                        ->where('rating', round($i, 1))
                         ->count();
                 }
                 $totalRatings = array_sum($ratingDistribution);
@@ -153,7 +153,7 @@
                 // Calculate average rating
                 $totalPoints = 0;
                 foreach ($ratingDistribution as $rating => $count) {
-                    $totalPoints += $rating * $count;
+                    $totalPoints += (float)$rating * $count;
                 }
                 $averageRating = $totalRatings > 0 ? $totalPoints / $totalRatings : 0;
                 
@@ -175,22 +175,16 @@
             
             <!-- Distribution Bars -->
             <div class="space-y-3">
-                @foreach([5, 4, 3, 2, 1] as $stars)
+                @foreach($ratingDistribution as $stars => $count)
                     @php
-                        $count = $ratingDistribution[$stars];
                         $percentage = $totalRatings > 0 ? ($count / $totalRatings) * 100 : 0;
                     @endphp
                     
                     <div class="flex items-center gap-4">
-                        <!-- Star Icons -->
+                        <!-- Rating Label -->
                         <div class="flex items-center w-28">
-                            @for($i = 1; $i <= 5; $i++)
-                                @if($i <= $stars)
-                                    <i class="fas fa-star text-yellow-400 text-sm"></i>
-                                @else
-                                    <i class="far fa-star text-gray-300 text-sm"></i>
-                                @endif
-                            @endfor
+                            <span class="text-sm font-semibold text-gray-700 w-10">{{ $stars }}</span>
+                            <i class="fas fa-star text-yellow-400 text-sm"></i>
                         </div>
                         
                         <!-- Progress Bar -->

@@ -74,12 +74,13 @@
         </h2>
         
         <div class="space-y-3">
-            @foreach(range(5, 1) as $rating)
+            @foreach(range(5, 0.5, 0.5) as $rating)
             @php
-                $percentage = $ratingDistribution[$rating] ?? 0;
+                $key = number_format($rating, 1);
+                $percentage = $ratingDistribution[$key] ?? 0;
             @endphp
             <div class="flex items-center space-x-3">
-                <span class="text-sm font-medium w-8">{{ $rating }}</span>
+                <span class="text-sm font-medium w-10">{{ number_format($rating, 1) }}</span>
                 <i class="fas fa-star text-yellow-400 text-xs"></i>
                 <div class="flex-1 bg-gray-200 rounded-full h-4 overflow-hidden">
                     <div class="bg-gradient-to-r from-yellow-400 to-yellow-500 h-full transition-all" 

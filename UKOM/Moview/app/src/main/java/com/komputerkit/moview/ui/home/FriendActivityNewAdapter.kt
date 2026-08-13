@@ -4,13 +4,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
+import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.databinding.ItemFriendActivityNewBinding
 import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.loadThumbnail
 import com.komputerkit.moview.util.loadAvatar
-import kotlin.math.roundToInt
 
 class FriendActivityNewAdapter(
     private val onActivityClick: (FriendActivity) -> Unit = {},
@@ -57,7 +58,17 @@ class FriendActivityNewAdapter(
             binding.tvUserName.text = activity.user.username
             
             // Rating stars
-            binding.tvRating.text = getStarsFromRating(activity.rating)
+            binding.starRating.apply {
+                starSizeDp = 11f
+                starGapDp = 0f
+                displayMode = true
+                setColors(
+                    ContextCompat.getColor(binding.root.context, R.color.star_green),
+                    ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
+                )
+            }
+            binding.starRating.rating = activity.rating
+            binding.starRating.visibility = if (activity.rating > 0f) View.VISIBLE else View.GONE
             
             // Show review icon if activity has review
             binding.icHasReview.visibility = if (activity.hasReview) View.VISIBLE else View.GONE
@@ -104,11 +115,6 @@ class FriendActivityNewAdapter(
                 )
                 true
             }
-        }
-        
-        private fun getStarsFromRating(rating: Float): String {
-            val fullStars = rating.roundToInt()
-            return "★".repeat(fullStars.coerceIn(0, 5))
         }
     }
 }

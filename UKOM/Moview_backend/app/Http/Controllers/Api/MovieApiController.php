@@ -234,13 +234,13 @@ class MovieApiController extends Controller
         $reviewsCount = Review::where('film_id', $id)->count();
         $averageRating = Rating::where('film_id', $id)->avg('rating') ?? 0;
         
-        // Rating distribution (direct 0-5 star ratings)
+        // Rating distribution (direct 0-5 star ratings, 0.5 increments)
         $ratingDistribution = [];
-        for ($i = 1; $i <= 5; $i++) {
+        for ($i = 0.5; $i <= 5; $i += 0.5) {
             $count = Rating::where('film_id', $id)
-                ->where('rating', $i)
+                ->where('rating', round($i, 1))
                 ->count();
-            $ratingDistribution[$i] = $count;
+            $ratingDistribution[(string)round($i, 1)] = $count;
         }
         
         // Get director(s)

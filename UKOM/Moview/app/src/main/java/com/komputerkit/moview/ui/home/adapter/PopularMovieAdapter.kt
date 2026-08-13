@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
@@ -19,31 +20,30 @@ class PopularMovieAdapter(
     inner class MovieViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val posterImage: ImageView = view.findViewById(R.id.iv_poster)
         val titleText: TextView = view.findViewById(R.id.tv_title)
-        val ratingText: TextView = view.findViewById(R.id.tv_rating)
+        val starRating: com.komputerkit.moview.ui.common.StarRatingView = view.findViewById(R.id.star_rating)
 
         fun bind(movie: Movie) {
             titleText.text = movie.title ?: "Unknown"
-            
+
             // Convert rating to stars (★★★★★)
-            val stars = getStarsFromRating(movie.averageRating ?: 0f)
-            ratingText.text = stars
-            
+            starRating.apply {
+                displayMode = true
+                starSizeDp = 14f
+                starGapDp = 0f
+                setColors(
+                    ContextCompat.getColor(itemView.context, R.color.star_green),
+                    ContextCompat.getColor(itemView.context, R.color.star_green_empty)
+                )
+            }
+            starRating.rating = movie.averageRating ?: 0f
+            starRating.visibility = if ((movie.averageRating ?: 0f) > 0f) View.VISIBLE else View.GONE
+
             // Load poster image with optimization
             posterImage.loadThumbnail(movie.posterUrl)
             
             itemView.setOnClickListener {
                 onMovieClick(movie)
             }
-        }
-        
-        private fun getStarsFromRating(rating: Float): String {
-            val fullStars = rating.toInt()
-            val halfStar = if (rating - fullStars >= 0.5f) 1 else 0
-            val emptyStars = 5 - fullStars - halfStar
-            
-            return "★".repeat(fullStars) + 
-                   "½".repeat(halfStar).replace("½", "★") + 
-                   "☆".repeat(emptyStars)
         }
     }
 

@@ -4,12 +4,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.content.ContextCompat
+import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.databinding.ItemFriendActivityGridBinding
 import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.loadThumbnail
 import com.komputerkit.moview.util.loadAvatar
-import kotlin.math.roundToInt
 
 class FriendActivityGridAdapter(
     private val onActivityClick: (FriendActivity) -> Unit = {},
@@ -56,7 +57,17 @@ class FriendActivityGridAdapter(
             binding.tvUserName.text = activity.user.username
             
             // Rating stars
-            binding.tvRating.text = getStarsFromRating(activity.rating)
+            binding.starRating.apply {
+                starSizeDp = 10f
+                starGapDp = 0f
+                displayMode = true
+                setColors(
+                    ContextCompat.getColor(binding.root.context, R.color.star_green),
+                    ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
+                )
+            }
+            binding.starRating.rating = activity.rating
+            binding.starRating.visibility = if (activity.rating > 0f) View.VISIBLE else View.GONE
             
             // Show review icon if activity has review
             binding.icHasReview.visibility = if (activity.hasReview) View.VISIBLE else View.GONE
@@ -81,16 +92,11 @@ class FriendActivityGridAdapter(
                     movie = activity.movie,
                     isFromMovieDetail = false,
                     onGoToFilm = { movie -> (onGoToFilm ?: { onActivityClick(activity) }).invoke(activity) },
-                    onLogFilm = { onLogFilm?.invoke(activity) },
-                    onChangePoster = { onChangePoster?.invoke(activity) }
-                )
-                true
-            }
+onLogFilm = { onLogFilm?.invoke(activity) },
+                onChangePoster = { onChangePoster?.invoke(activity) }
+            )
+            true
         }
-        
-        private fun getStarsFromRating(rating: Float): String {
-            val fullStars = rating.roundToInt()
-            return "★".repeat(fullStars.coerceIn(0, 5))
         }
     }
 }

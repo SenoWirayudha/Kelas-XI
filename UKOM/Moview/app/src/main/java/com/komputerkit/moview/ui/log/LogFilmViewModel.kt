@@ -18,8 +18,8 @@ class LogFilmViewModel : ViewModel() {
     private val _movie = MutableLiveData<Movie>()
     val movie: LiveData<Movie> = _movie
     
-    private val _rating = MutableLiveData<Int>(0)
-    val rating: LiveData<Int> = _rating
+    private val _rating = MutableLiveData<Float>(0f)
+    val rating: LiveData<Float> = _rating
     
     private val _isLiked = MutableLiveData<Boolean>(false)
     val isLiked: LiveData<Boolean> = _isLiked
@@ -63,7 +63,7 @@ class LogFilmViewModel : ViewModel() {
                 val ratingResponse = repository.getRating(currentUserId, movieId)
                 if (ratingResponse != null && ratingResponse.is_watched) {
                     _isWatched.postValue(true)
-                    val existingRating = ratingResponse.rating ?: 0
+                    val existingRating = ratingResponse.rating ?: 0f
                     _rating.postValue(existingRating)
                     Log.d("LogFilmViewModel", "Movie is watched (from ratings table). Rating: $existingRating stars")
                 } else {
@@ -89,7 +89,7 @@ class LogFilmViewModel : ViewModel() {
         }
     }
     
-    fun setRating(stars: Int) {
+    fun setRating(stars: Float) {
         _rating.value = stars
         Log.d("LogFilmViewModel", "Rating set to: $stars stars")
     }
@@ -127,7 +127,7 @@ class LogFilmViewModel : ViewModel() {
             viewModelScope.launch {
                 if (currentUserId > 0) {
                     // Save rating directly (0-5 stars)
-                    val ratingValue = _rating.value ?: 0
+val ratingValue = _rating.value ?: 0f
                     Log.d("LogFilmViewModel", "Saving rating: userId=$currentUserId, movieId=$movieId, rating=$ratingValue")
                     val success = repository.saveRating(currentUserId, movieId, ratingValue)
                     Log.d("LogFilmViewModel", "Save rating result: $success")
@@ -147,7 +147,7 @@ class LogFilmViewModel : ViewModel() {
         
         viewModelScope.launch {
             if (currentUserId > 0) {
-                val ratingValue = _rating.value ?: 0
+val ratingValue = _rating.value ?: 0f
                 Log.d("LogFilmViewModel", "Saving log/review: userId=$currentUserId, movieId=$movieId, rating=$ratingValue, hasReview=${reviewText.isNotBlank()}, isRewatch=$isRewatch")
                 
                 // Save to review endpoint (handles both review and log + diaries table)
@@ -176,7 +176,7 @@ class LogFilmViewModel : ViewModel() {
         }
     }
     
-    fun updateReview(reviewId: Int, reviewText: String, containsSpoilers: Boolean, rating: Int, watchedAt: String? = null) {
+    fun updateReview(reviewId: Int, reviewText: String, containsSpoilers: Boolean, rating: Float, watchedAt: String? = null) {
         viewModelScope.launch {
             if (currentUserId > 0) {
                 Log.d("LogFilmViewModel", "Updating review: userId=$currentUserId, reviewId=$reviewId, rating=$rating")

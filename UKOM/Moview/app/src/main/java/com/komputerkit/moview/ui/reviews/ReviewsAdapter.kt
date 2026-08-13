@@ -5,6 +5,7 @@ import android.text.Html
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -41,7 +42,19 @@ class ReviewsAdapter(
         fun bind(review: ReviewItem, userHasWatched: Boolean) {
             binding.tvUsername.text = review.username
             binding.tvTimestamp.text = review.timestamp
-            binding.ratingBar.rating = review.rating
+
+            // Display star rating - supports half-star
+            binding.starRating.apply {
+                displayMode = true
+                starSizeDp = 12f
+                starGapDp = 0f
+                setColors(
+                    ContextCompat.getColor(binding.root.context, R.color.star_green),
+                    ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
+                )
+            }
+            binding.starRating.rating = review.rating
+            binding.starRating.visibility = if (review.rating > 0f) View.VISIBLE else View.GONE
 
             // Determine spoiler state
             val showSpoiler = review.isSpoiler && !userHasWatched

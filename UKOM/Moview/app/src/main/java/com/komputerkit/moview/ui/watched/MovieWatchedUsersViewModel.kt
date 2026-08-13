@@ -39,7 +39,7 @@ class MovieWatchedUsersViewModel(application: Application) : AndroidViewModel(ap
                         userId = dto.id,
                         username = dto.username,
                         profilePhoto = dto.profile_photo,
-                        starsText = "",
+                        rating = null,
                         reviewId = null,
                         hasLike = false,
                         hasReview = false
@@ -53,7 +53,7 @@ class MovieWatchedUsersViewModel(application: Application) : AndroidViewModel(ap
                         userId = dto.user.id,
                         username = dto.user.username,
                         profilePhoto = dto.user.profile_photo,
-                        starsText = toStarText(dto.rating),
+                        rating = dto.rating,
                         reviewId = reviewId,
                         hasLike = dto.has_like,
                         hasReview = (reviewId ?: 0) > 0
@@ -63,10 +63,5 @@ class MovieWatchedUsersViewModel(application: Application) : AndroidViewModel(ap
 
             _isLoading.value = false
         }
-    }
-
-    private fun toStarText(rating: Int?): String {
-        if (rating == null || rating <= 0) return ""
-        return "★".repeat(rating.coerceAtMost(5))
     }
 }

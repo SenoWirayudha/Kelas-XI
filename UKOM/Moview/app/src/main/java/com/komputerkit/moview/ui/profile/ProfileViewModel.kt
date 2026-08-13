@@ -132,11 +132,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                         followers = profileData.statistics.followers,
                         following = profileData.statistics.following,
                         totalRatings = profileData.statistics.total_ratings ?: 0,
-                        rating5 = profileData.statistics.rating_distribution?.get("5") ?: 0,
-                        rating4 = profileData.statistics.rating_distribution?.get("4") ?: 0,
-                        rating3 = profileData.statistics.rating_distribution?.get("3") ?: 0,
-                        rating2 = profileData.statistics.rating_distribution?.get("2") ?: 0,
-                        rating1 = profileData.statistics.rating_distribution?.get("1") ?: 0
+                        ratingDistribution = buildRatingDistribution(profileData.statistics.rating_distribution)
                     ))
                     
                     // Load recent activity from diary (latest 4 entries)
@@ -233,12 +229,18 @@ data class UserStats(
     val followers: Int,
     val following: Int,
     val totalRatings: Int,
-    val rating5: Int,
-    val rating4: Int,
-    val rating3: Int,
-    val rating2: Int,
-    val rating1: Int
+    val ratingDistribution: List<Int> = List(10) { 0 }  // 10 buckets: 0.5, 1.0, ..., 5.0
 )
+
+private fun buildRatingDistribution(distribution: Map<String, Int>?): List<Int> {
+    val buckets = mutableListOf<Int>()
+    for (n in 1..10) {
+        val i = n * 0.5
+        val key = if (i % 1.0 == 0.0) i.toInt().toString() else i.toString()
+        buckets.add(distribution?.get(key) ?: 0)
+    }
+    return buckets
+}
 
 sealed class FollowActionResult {
     data class Success(val isFollowing: Boolean) : FollowActionResult()

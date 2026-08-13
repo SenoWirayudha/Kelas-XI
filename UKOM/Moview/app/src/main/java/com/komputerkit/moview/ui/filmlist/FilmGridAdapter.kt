@@ -2,11 +2,13 @@ package com.komputerkit.moview.ui.filmlist
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemFilmGridBinding
 import com.komputerkit.moview.util.MovieActionsHelper
@@ -58,7 +60,7 @@ class FilmGridAdapter(
             // Show rating if user has rated
             if (movie.userRating > 0) {
                 binding.ratingContainer.visibility = android.view.View.VISIBLE
-                updateStars(movie.userRating.toInt())
+                updateStars(movie.userRating)
             } else {
                 binding.ratingContainer.visibility = android.view.View.GONE
             }
@@ -87,21 +89,16 @@ class FilmGridAdapter(
             }
         }
         
-        private fun updateStars(rating: Int) {
-            val stars = listOf(
-                binding.star1,
-                binding.star2,
-                binding.star3,
-                binding.star4,
-                binding.star5
-            )
-            
-            stars.forEachIndexed { index, star ->
-                if (index < rating) {
-                    star.setImageResource(com.komputerkit.moview.R.drawable.ic_star_filled)
-                } else {
-                    star.setImageResource(com.komputerkit.moview.R.drawable.ic_star_outline)
-                }
+        private fun updateStars(rating: Float) {
+            binding.starRating.apply {
+                starSizeDp = 10f
+                starGapDp = 0f
+                displayMode = true
+                setColors(
+                    ContextCompat.getColor(context, R.color.star_green),
+                    ContextCompat.getColor(context, R.color.star_green_empty)
+                )
+                this@FilmViewHolder.binding.starRating.rating = rating
             }
         }
     }

@@ -199,15 +199,15 @@ class ProfileController extends Controller
         }
 
         try {
-            // Rating distribution (1-5 stars)
+            // Rating distribution (0.5-5.0 stars, 0.5 increments)
             $ratingDistribution = [];
             $totalRatings = 0;
-            for ($i = 1; $i <= 5; $i++) {
+            for ($i = 0.5; $i <= 5; $i += 0.5) {
                 $count = DB::table('ratings')
                     ->where('user_id', $userId)
-                    ->where('rating', $i)
+                    ->where('rating', round($i, 1))
                     ->count();
-                $ratingDistribution[$i] = $count;
+                $ratingDistribution[(string)round($i, 1)] = $count;
                 $totalRatings += $count;
             }
             
@@ -218,7 +218,7 @@ class ProfileController extends Controller
                 ->count();
             $totalRatings += $watchedNoRating;
         } catch (\Exception $e) {
-            $ratingDistribution = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+            $ratingDistribution = array_fill_keys(['0.5', '1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5'], 0);
             $totalRatings = 0;
         }
 

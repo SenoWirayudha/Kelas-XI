@@ -357,12 +357,9 @@ class ProfileFragment : Fragment() {
         binding.tvFollowersCount.text = formatNumber(stats.followers)
         binding.tvFollowingCount.text = formatNumber(stats.following)
         
-        // Ratings distribution
-        binding.progress5Star.progress = stats.rating5
-        binding.progress4Star.progress = stats.rating4
-        binding.progress3Star.progress = stats.rating3
-        binding.progress2Star.progress = stats.rating2
-        binding.progress1Star.progress = stats.rating1
+        // Ratings distribution (10 buckets 0.5-5.0, vertical chart)
+        binding.ratingChart.setBarColor(android.graphics.Color.parseColor("#4CAF50"))
+        binding.ratingChart.setDistribution(stats.ratingDistribution)
         
         binding.tvTotalRatings.text = "TOTAL RATINGS: ${stats.totalRatings}"
     }

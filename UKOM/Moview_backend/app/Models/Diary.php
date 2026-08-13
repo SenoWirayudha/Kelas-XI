@@ -23,7 +23,7 @@ class Diary extends Model
         'is_liked'     => 'boolean',
         'is_rewatched' => 'boolean',
         'watched_at'   => 'date',
-        'rating'       => 'integer',
+        'rating'       => 'float',
     ];
 
     public function user()

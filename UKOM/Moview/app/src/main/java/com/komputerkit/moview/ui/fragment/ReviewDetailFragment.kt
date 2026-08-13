@@ -17,6 +17,7 @@ import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -129,9 +130,18 @@ class ReviewDetailFragment : Fragment() {
                 // Display year and stars separately
                 tvYear.text = review.movie.releaseYear.toString()
                 
-                // Display star rating
-                val stars = "★".repeat(review.rating.toInt().coerceIn(0, 5))
-                tvRatingStars.text = stars
+                // Display star rating (supports half-star)
+                binding.starRating.apply {
+                    starSizeDp = 15f
+                    starGapDp = 0f
+                    displayMode = true
+                    setColors(
+                        ContextCompat.getColor(binding.root.context, R.color.star_green),
+                        ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
+                    )
+                }
+                binding.starRating.rating = review.rating
+                binding.starRating.visibility = if (review.rating > 0f) View.VISIBLE else View.GONE
                 
                 // Show liked icon if movie was liked when review was written
                 ivLikedIcon.visibility = if (review.isLiked) View.VISIBLE else View.GONE
@@ -821,7 +831,7 @@ class ReviewDetailFragment : Fragment() {
                 isEditMode = true,
                 reviewId = review.reviewId,
                 existingReviewText = review.reviewText,
-                existingRating = review.rating.toInt(),
+                existingRating = review.rating.toFloat(),
                 watchedDate = review.watchedAt
             )
             findNavController().navigate(action)

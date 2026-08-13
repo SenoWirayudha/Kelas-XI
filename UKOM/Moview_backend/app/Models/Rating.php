@@ -13,7 +13,7 @@ class Rating extends Model
     ];
 
     protected $casts = [
-        'rating' => 'integer',
+        'rating' => 'float',
     ];
 
     public function user()

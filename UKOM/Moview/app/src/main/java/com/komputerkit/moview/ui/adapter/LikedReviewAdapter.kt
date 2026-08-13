@@ -4,6 +4,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.content.ContextCompat
+import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.LikedReview
 import com.komputerkit.moview.databinding.ItemLikedReviewBinding
 import com.komputerkit.moview.util.loadProfilePhoto
@@ -43,27 +45,20 @@ class LikedReviewAdapter(
             binding.ivProfile.loadProfilePhoto(review.profilePhoto)
             
             // Set rating stars
-            setRatingStars(review.rating)
+            binding.starRating.apply {
+                starSizeDp = 12f
+                starGapDp = 1f
+                displayMode = true
+                setColors(
+                    ContextCompat.getColor(context, R.color.star_green),
+                    ContextCompat.getColor(context, R.color.star_green_empty)
+                )
+                rating = review.rating
+            }
             
             // Click listener to navigate to review detail
             binding.root.setOnClickListener {
                 onReviewClick(review.reviewId)
-            }
-        }
-        
-        private fun setRatingStars(rating: Float) {
-            val stars = listOf(
-                binding.star1,
-                binding.star2,
-                binding.star3,
-                binding.star4,
-                binding.star5
-            )
-
-            val fullStars = rating.toInt().coerceIn(0, 5)
-
-            stars.forEachIndexed { index, star ->
-                star.visibility = if (index < fullStars) View.VISIBLE else View.GONE
             }
         }
     }

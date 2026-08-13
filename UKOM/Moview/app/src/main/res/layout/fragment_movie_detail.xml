@@ -7,32 +7,12 @@
     android:layout_height="match_parent"
     android:background="@color/dark_background">
 
-    <!-- Fixed Header with Back & Share -->
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@android:color/transparent"
-        android:elevation="4dp"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <ImageView
-            android:id="@+id/btn_back"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_back"
-            android:contentDescription="Back"
-            android:layout_marginStart="16dp"
-            app:tint="@color/white" />
-
-    </androidx.appcompat.widget.Toolbar>
-
-    <!-- Scrollable Content -->
+    <!-- Scrollable Content (starts behind the transparent header so backdrop bleeds to the top) -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll_view"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
 
         <LinearLayout
@@ -45,7 +25,7 @@
             <FrameLayout
                 android:id="@+id/frame_backdrop"
                 android:layout_width="match_parent"
-                android:layout_height="250dp">
+                android:layout_height="@dimen/backdrop_height">
 
                 <ImageView
                     android:id="@+id/iv_backdrop"
@@ -108,6 +88,17 @@
                         android:textSize="24sp"
                         android:textStyle="bold"
                         tools:text="Interstellar" />
+
+                    <TextView
+                        android:id="@+id/tv_original_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:visibility="gone"
+                        tools:text="Interstellar"
+                        tools:visibility="visible" />
 
                     <LinearLayout
                         android:layout_width="wrap_content"
@@ -446,149 +437,11 @@
                         android:orientation="vertical"
                         android:layout_marginStart="24dp">
 
-                        <!-- 5 stars -->
-                        <LinearLayout
+                        <com.komputerkit.moview.ui.common.RatingDistributionChart
+                            android:id="@+id/rating_chart"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="4dp">
-
-                            <TextView
-                                android:layout_width="12dp"
-                                android:layout_height="wrap_content"
-                                android:text="5"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
-
-                            <ProgressBar
-                                android:id="@+id/progress_5_star"
-                                style="?android:attr/progressBarStyleHorizontal"
-                                android:layout_width="0dp"
-                                android:layout_weight="1"
-                                android:layout_height="8dp"
-                                android:layout_marginHorizontal="8dp"
-                                android:progressTint="#1E88E5"
-                                android:progressBackgroundTint="#2E3A47"
-                                android:max="100"
-                                tools:progress="75" />
-
-                        </LinearLayout>
-
-                        <!-- 4 stars -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="4dp">
-
-                            <TextView
-                                android:layout_width="12dp"
-                                android:layout_height="wrap_content"
-                                android:text="4"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
-
-                            <ProgressBar
-                                android:id="@+id/progress_4_star"
-                                style="?android:attr/progressBarStyleHorizontal"
-                                android:layout_width="0dp"
-                                android:layout_weight="1"
-                                android:layout_height="8dp"
-                                android:layout_marginHorizontal="8dp"
-                                android:progressTint="#1E88E5"
-                                android:progressBackgroundTint="#2E3A47"
-                                android:max="100"
-                                tools:progress="60" />
-
-                        </LinearLayout>
-
-                        <!-- 3 stars -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="4dp">
-
-                            <TextView
-                                android:layout_width="12dp"
-                                android:layout_height="wrap_content"
-                                android:text="3"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
-
-                            <ProgressBar
-                                android:id="@+id/progress_3_star"
-                                style="?android:attr/progressBarStyleHorizontal"
-                                android:layout_width="0dp"
-                                android:layout_weight="1"
-                                android:layout_height="8dp"
-                                android:layout_marginHorizontal="8dp"
-                                android:progressTint="#1E88E5"
-                                android:progressBackgroundTint="#2E3A47"
-                                android:max="100"
-                                tools:progress="40" />
-
-                        </LinearLayout>
-
-                        <!-- 2 stars -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="4dp">
-
-                            <TextView
-                                android:layout_width="12dp"
-                                android:layout_height="wrap_content"
-                                android:text="2"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
-
-                            <ProgressBar
-                                android:id="@+id/progress_2_star"
-                                style="?android:attr/progressBarStyleHorizontal"
-                                android:layout_width="0dp"
-                                android:layout_weight="1"
-                                android:layout_height="8dp"
-                                android:layout_marginHorizontal="8dp"
-                                android:progressTint="#1E88E5"
-                                android:progressBackgroundTint="#2E3A47"
-                                android:max="100"
-                                tools:progress="20" />
-
-                        </LinearLayout>
-
-                        <!-- 1 star -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical">
-
-                            <TextView
-                                android:layout_width="12dp"
-                                android:layout_height="wrap_content"
-                                android:text="1"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
-
-                            <ProgressBar
-                                android:id="@+id/progress_1_star"
-                                style="?android:attr/progressBarStyleHorizontal"
-                                android:layout_width="0dp"
-                                android:layout_weight="1"
-                                android:layout_height="8dp"
-                                android:layout_marginHorizontal="8dp"
-                                android:progressTint="#1E88E5"
-                                android:progressBackgroundTint="#2E3A47"
-                                android:max="100"
-                                tools:progress="10" />
-
-                        </LinearLayout>
+                            android:layout_height="110dp"
+                            android:layout_gravity="center_vertical" />
 
                     </LinearLayout>
 
@@ -951,6 +804,33 @@
 
                     </LinearLayout>
 
+                    <!-- Theme -->
+                    <LinearLayout
+                        android:id="@+id/layout_theme"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="THEME"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.05"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginBottom="8dp" />
+
+                        <com.google.android.material.chip.ChipGroup
+                            android:id="@+id/chip_group_themes"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            app:singleLine="false" />
+
+                    </LinearLayout>
+
                 </LinearLayout>
 
             </LinearLayout>
@@ -958,5 +838,52 @@
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
+
+    <!-- Floating transparent header with drop-shadow back button (drawn on top of backdrop) -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <FrameLayout
+            android:id="@+id/btn_back_container"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/bg_back_button"
+            android:elevation="6dp"
+            android:translationZ="2dp">
+
+            <ImageView
+                android:id="@+id/btn_back"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_back"
+                android:contentDescription="Back"
+                app:tint="@color/white" />
+
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tv_header_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:maxWidth="260dp"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:text="Interstellar" />
+
+    </androidx.appcompat.widget.Toolbar>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -11,7 +11,7 @@ data class Diary(
     val poster_path: String?,
     val watched_at: String,
     val note: String?,
-    val rating: Int,
+    val rating: Float,
     val is_liked: Boolean,
     val is_rewatched: Boolean,
     val review_id: Int,

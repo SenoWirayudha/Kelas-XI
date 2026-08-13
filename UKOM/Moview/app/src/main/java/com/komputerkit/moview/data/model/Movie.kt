@@ -25,11 +25,7 @@ data class Movie(
     val pgRating: String? = null,
     val watchedCount: String? = null,
     val reviewCount: String? = null,
-    val rating5: Int = 0,
-    val rating4: Int = 0,
-    val rating3: Int = 0,
-    val rating2: Int = 0,
-    val rating1: Int = 0,
+    val ratingDistribution: List<Int> = List(10) { 0 },  // 10 buckets: 0.5, 1.0, ..., 5.0
     val cast: List<CastMember> = emptyList(),
     val similarMovies: List<Movie> = emptyList(),
     val hasReview: Boolean = false,

@@ -9,7 +9,7 @@ data class ReviewData(
     val title: String,
     val year: Int,
     val poster_path: String?,
-    val rating: Int,
+    val rating: Float,
     val is_liked: Boolean,
     val watched_at: String?,
     val review_title: String?,

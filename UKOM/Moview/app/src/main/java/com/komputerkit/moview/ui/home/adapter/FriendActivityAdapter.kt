@@ -7,6 +7,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import androidx.core.content.ContextCompat
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.util.loadThumbnail
@@ -22,46 +23,44 @@ class FriendActivityAdapter(
         val moviePoster: ImageView = view.findViewById(R.id.iv_movie_poster)
         val profilePhoto: ImageView = view.findViewById(R.id.iv_profile)
         val username: TextView = view.findViewById(R.id.tv_username)
-        val rating: TextView = view.findViewById(R.id.tv_rating)
+        val starRating: com.komputerkit.moview.ui.common.StarRatingView = view.findViewById(R.id.star_rating)
         val rewatchIcon: ImageView = view.findViewById(R.id.iv_rewatch)
         val moreIcon: ImageView = view.findViewById(R.id.iv_more)
 
         fun bind(activity: FriendActivity) {
             username.text = activity.user.username
-            
+
             // Convert rating to stars (★★★★★)
-            val stars = getStarsFromRating(activity.rating)
-            rating.text = stars
-            
+            starRating.apply {
+                starSizeDp = 14f
+                starGapDp = 0f
+                setColors(
+                    ContextCompat.getColor(itemView.context, R.color.star_green),
+                    ContextCompat.getColor(itemView.context, R.color.star_green_empty)
+                )
+            }
+            starRating.rating = activity.rating
+            starRating.visibility = if (activity.rating > 0f) View.VISIBLE else View.GONE
+
             // Show/hide rewatch icon
             rewatchIcon.visibility = if (activity.isRewatch) View.VISIBLE else View.GONE
-            
+
             // Show/hide more menu icon (only if has review)
             moreIcon.visibility = if (activity.hasReview) View.VISIBLE else View.GONE
-            
+
             // Load movie poster with optimization
             moviePoster.loadThumbnail(activity.movie.posterUrl)
-            
+
             // Load profile photo with optimization
             profilePhoto.loadAvatar(activity.user.profilePhotoUrl)
-            
+
             itemView.setOnClickListener {
                 onActivityClick(activity)
             }
-            
+
             moreIcon.setOnClickListener {
                 onMoreClick(activity)
             }
-        }
-        
-        private fun getStarsFromRating(rating: Float): String {
-            val fullStars = rating.toInt()
-            val halfStar = if (rating - fullStars >= 0.5f) 1 else 0
-            val emptyStars = 5 - fullStars - halfStar
-            
-            return "★".repeat(fullStars) + 
-                   "½".repeat(halfStar).replace("½", "★") + 
-                   "☆".repeat(emptyStars)
         }
     }
 

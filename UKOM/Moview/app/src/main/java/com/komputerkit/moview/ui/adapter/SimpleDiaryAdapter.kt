@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.content.ContextCompat
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Diary
 import com.komputerkit.moview.data.model.Movie
@@ -50,13 +51,16 @@ class SimpleDiaryAdapter(
                     diary.watched_at.substring(8, 10).trimStart('0').ifEmpty { "1" }
                 } catch (e: Exception) { diary.watched_at }
 
-                // Update star icons (matching diary screen style)
-                val stars = listOf(star1, star2, star3, star4, star5)
-                stars.forEachIndexed { index, star ->
-                    star.setImageResource(
-                        if (index < diary.rating) R.drawable.ic_star_filled
-                        else R.drawable.ic_star_outline
+                // Update star rating (supports half-star)
+                binding.starRating.apply {
+                    starSizeDp = 14f
+                    starGapDp = 0f
+                    displayMode = true
+                    setColors(
+                        ContextCompat.getColor(binding.root.context, R.color.star_green),
+                        ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
                     )
+                    rating = diary.rating
                 }
 
                 // Show rewatch icon if rewatched

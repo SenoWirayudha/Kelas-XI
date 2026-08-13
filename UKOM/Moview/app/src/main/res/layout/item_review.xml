@@ -67,14 +67,12 @@
             android:textSize="14sp"
             tools:text="1994" />
 
-        <TextView
-            android:id="@+id/tv_rating_stars"
+        <com.komputerkit.moview.ui.common.StarRatingView
+            android:id="@+id/star_rating"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:textColor="@color/star_green"
-            android:textSize="12sp"
-            tools:text="★★★★★" />
+            android:contentDescription="Star rating" />
 
         <ImageView
             android:id="@+id/iv_liked"

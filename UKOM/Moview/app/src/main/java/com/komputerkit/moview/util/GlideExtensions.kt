@@ -14,10 +14,10 @@ import com.komputerkit.moview.R
  */
 
 // Load poster image with optimizations
-fun ImageView.loadPoster(url: String?, placeholder: Drawable? = null) {
+fun ImageView.loadPoster(url: String?, title: String? = null, placeholder: Drawable? = null) {
     if (url.isNullOrEmpty()) {
-        // Show placeholder if URL is null or empty
-        this.setImageResource(R.drawable.placeholder_poster)
+        // Show fallback if URL is null or empty
+        this.setImageDrawable(PosterFallbackDrawable(context, title))
         return
     }
     val fixedUrl = ServerConfig.fixUrl(url)
@@ -27,8 +27,8 @@ fun ImageView.loadPoster(url: String?, placeholder: Drawable? = null) {
         .thumbnail(0.1f) // Load low-res thumbnail first for instant display
         .apply(
             RequestOptions()
-                .placeholder(placeholder ?: context.getDrawable(R.drawable.placeholder_poster))
-                .error(R.drawable.placeholder_poster)
+                .placeholder(placeholder ?: PosterFallbackDrawable(context, title))
+                .error(PosterFallbackDrawable(context, title))
                 .diskCacheStrategy(DiskCacheStrategy.ALL) // Cache both original & resized
                 .centerCrop() // Ensure proper cropping without distortion
         )
@@ -60,7 +60,7 @@ fun ImageView.loadBackdrop(url: String?, placeholder: Drawable? = null) {
 }
 
 // Load thumbnail image (for grids/lists)
-fun ImageView.loadThumbnail(url: String?, placeholder: Drawable? = null) {
+fun ImageView.loadThumbnail(url: String?, title: String? = null, placeholder: Drawable? = null) {
     // Get ImageView dimensions to override Glide sizing
     val width = this.layoutParams?.width ?: ViewGroup.LayoutParams.WRAP_CONTENT
     val height = this.layoutParams?.height ?: ViewGroup.LayoutParams.WRAP_CONTENT
@@ -70,8 +70,8 @@ fun ImageView.loadThumbnail(url: String?, placeholder: Drawable? = null) {
         .load(fixedUrl)
         .apply(
             RequestOptions()
-                .placeholder(placeholder ?: context.getDrawable(R.drawable.ic_launcher_background))
-                .error(R.drawable.ic_launcher_background)
+                .placeholder(placeholder ?: PosterFallbackDrawable(context, title))
+                .error(PosterFallbackDrawable(context, title))
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .centerCrop() // Ensure proper cropping without distortion
                 .dontAnimate() // Disable animation to prevent stretching

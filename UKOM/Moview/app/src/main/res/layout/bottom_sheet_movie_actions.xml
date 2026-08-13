@@ -176,59 +176,13 @@
         android:textSize="12sp"
         android:letterSpacing="0.1" />
 
-    <LinearLayout
+    <com.komputerkit.moview.ui.common.StarRatingView
+        android:id="@+id/star_rating"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="12dp"
-        android:orientation="horizontal"
-        android:gravity="center">
-
-        <ImageView
-            android:id="@+id/star_1"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:padding="6dp"
-            android:src="@drawable/ic_star_outline"
-            android:scaleType="fitCenter" />
-
-        <ImageView
-            android:id="@+id/star_2"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:padding="6dp"
-            android:src="@drawable/ic_star_outline"
-            android:scaleType="fitCenter"
-            android:layout_marginStart="4dp" />
-
-        <ImageView
-            android:id="@+id/star_3"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:padding="6dp"
-            android:src="@drawable/ic_star_outline"
-            android:scaleType="fitCenter"
-            android:layout_marginStart="4dp" />
-
-        <ImageView
-            android:id="@+id/star_4"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:padding="6dp"
-            android:src="@drawable/ic_star_outline"
-            android:scaleType="fitCenter"
-            android:layout_marginStart="4dp" />
-
-        <ImageView
-            android:id="@+id/star_5"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:padding="6dp"
-            android:src="@drawable/ic_star_outline"
-            android:scaleType="fitCenter"
-            android:layout_marginStart="4dp" />
-
-    </LinearLayout>
+        android:contentDescription="Rate this movie" />
 
     <!-- Rewatch Count -->
     <LinearLayout

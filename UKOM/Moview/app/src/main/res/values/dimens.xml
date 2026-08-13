@@ -12,4 +12,6 @@
 
     <!-- Film Detail backdrop overlap for poster/title section -->
     <dimen name="backdrop_overlap">50dp</dimen>
+    <!-- Film Detail backdrop height: header area (actionBarSize + status) + content area -->
+    <dimen name="backdrop_height">306dp</dimen>
 </resources>

@@ -512,15 +512,15 @@ class FilmController extends Controller
         
         $reviews = $movie->reviews()->with('user')->orderBy('created_at', 'desc')->get();
         
-        // Calculate rating distribution from ratings table
+        // Calculate rating distribution from ratings table (0.5-5.0, 0.5 increments)
         $totalRatings = $movie->ratings->count();
         $ratingDistribution = [];
-        for ($i = 5; $i >= 1; $i--) {
-            $count = $movie->ratings->where('rating', $i)->count();
+        for ($i = 5; $i >= 0.5; $i -= 0.5) {
+            $count = $movie->ratings->where('rating', round($i, 1))->count();
             $percentage = $totalRatings > 0 
                 ? ($count / $totalRatings) * 100 
                 : 0;
-            $ratingDistribution[$i] = number_format($percentage, 1);
+            $ratingDistribution[number_format($i, 1)] = number_format($percentage, 1);
         }
         
         return view('admin.films.reviews', compact('movie', 'reviews', 'ratingDistribution'));

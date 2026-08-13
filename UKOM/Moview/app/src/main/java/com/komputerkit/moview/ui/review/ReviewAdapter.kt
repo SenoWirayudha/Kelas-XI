@@ -7,6 +7,8 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.content.ContextCompat
+import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.databinding.ItemReviewBinding
 import com.komputerkit.moview.util.MovieActionsHelper
@@ -82,10 +84,18 @@ class ReviewAdapter(
                 binding.layoutSpoilerOverlay.visibility = View.GONE
             }
 
-            // Display star rating - rating is already in 0-5 scale
-            val starCount = review.rating.toInt().coerceIn(0, 5)
-            val stars = "★".repeat(starCount)
-            binding.tvRatingStars.text = stars
+            // Display star rating - supports half-star
+            binding.starRating.apply {
+                displayMode = true
+                starSizeDp = 12f
+                starGapDp = 0f
+                setColors(
+                    ContextCompat.getColor(binding.root.context, R.color.star_green),
+                    ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
+                )
+            }
+            binding.starRating.rating = review.rating
+            binding.starRating.visibility = if (review.rating > 0f) View.VISIBLE else View.GONE
 
             // Show liked icon if movie is liked
             binding.ivLiked.visibility = if (review.isLiked) View.VISIBLE else View.GONE

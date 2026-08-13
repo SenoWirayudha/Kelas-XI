@@ -27,6 +27,7 @@
     <color name="brand_cinepolis">#1b2a5c</color>
     <color name="star_green">#4CAF50</color>
     <color name="star_yellow">#FFC107</color>
+    <color name="star_green_empty">#20482C</color>
     
     <!-- Status Colors -->
     <color name="transparent">#00000000</color>

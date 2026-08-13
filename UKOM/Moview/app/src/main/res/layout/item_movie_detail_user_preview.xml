@@ -41,14 +41,13 @@
             app:tint="@color/text_secondary" />
     </FrameLayout>
 
-    <TextView
-        android:id="@+id/tv_stars"
+    <com.komputerkit.moview.ui.common.StarRatingView
+        android:id="@+id/star_rating"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:singleLine="true"
-        android:textColor="@color/star_green"
-        android:textSize="11sp"
-        tools:text="★★★★" />
+        android:visibility="gone"
+        android:contentDescription="Star rating"
+        tools:visibility="visible" />
 
 </LinearLayout>

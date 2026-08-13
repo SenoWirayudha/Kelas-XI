@@ -3,16 +3,18 @@ package com.komputerkit.moview.ui.detail
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ItemMovieDetailUserPreviewBinding
 import com.komputerkit.moview.util.loadProfilePhoto
 
 data class MovieDetailUserPreviewItem(
     val userId: Int,
     val profilePhoto: String?,
-    val starsText: String,
+    val rating: Float?,
     val reviewId: Int? = null
 )
 
@@ -44,9 +46,18 @@ class MovieDetailUserPreviewAdapter(
 
         fun bind(item: MovieDetailUserPreviewItem) {
             binding.ivAvatar.loadProfilePhoto(item.profilePhoto)
-            val starCount = item.starsText.count { it == '★' }.coerceIn(0, 5)
-            binding.tvStars.text = "★".repeat(starCount)
-            binding.tvStars.visibility = if (showStars && starCount > 0) View.VISIBLE else View.INVISIBLE
+            val rating = item.rating ?: 0f
+            binding.starRating.apply {
+                starSizeDp = 11f
+                starGapDp = 0f
+                displayMode = true
+                setColors(
+                    ContextCompat.getColor(binding.root.context, R.color.star_green),
+                    ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
+                )
+            }
+            binding.starRating.rating = rating
+            binding.starRating.visibility = if (showStars && rating > 0f) View.VISIBLE else View.INVISIBLE
             binding.ivBadgeAction.visibility = if ((item.reviewId ?: 0) > 0) View.VISIBLE else View.GONE
 
             binding.layoutAvatarContainer.setOnClickListener { onItemClick(item) }
