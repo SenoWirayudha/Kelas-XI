@@ -8,6 +8,8 @@ class MovieCountry extends Model
 {
     protected $table = 'movie_countries';
     
+    public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = ['movie_id', 'country_id'];

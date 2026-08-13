@@ -8,6 +8,8 @@ class MovieLanguage extends Model
 {
     protected $table = 'movie_languages';
     
+    public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = ['movie_id', 'language_id'];

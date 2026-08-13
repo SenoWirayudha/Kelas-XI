@@ -8,6 +8,8 @@ class MovieGenre extends Model
 {
     protected $table = 'movie_genres';
     
+    public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = ['movie_id', 'genre_id'];

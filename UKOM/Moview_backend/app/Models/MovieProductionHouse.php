@@ -8,6 +8,8 @@ class MovieProductionHouse extends Model
 {
     protected $table = 'movie_production_houses';
     
+    public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = ['movie_id', 'production_house_id'];

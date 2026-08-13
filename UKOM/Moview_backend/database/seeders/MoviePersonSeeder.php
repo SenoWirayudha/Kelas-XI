@@ -320,7 +320,7 @@ class MoviePersonSeeder extends Seeder
         $countryData = [
             'The Handmaiden' => ['South Korea'],
             'Perfect Days' => ['Japan', 'Germany'],
-            'Past Lives' => ['USA', 'South Korea'],
+            'Past Lives' => ['United States', 'South Korea'],
             'Resurrection' => ['China'],
         ];
 
