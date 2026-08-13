@@ -85,9 +85,9 @@ class UserActivityController extends Controller
                     'ratings.rating',
                     'ratings.created_at as activity_date',
                     DB::raw('CASE WHEN movie_likes.film_id IS NOT NULL THEN 1 ELSE 0 END as is_liked'),
-                    DB::raw('CASE WHEN watchlists.film_id IS NOT NULL THEN 1 ELSE 0 END as is_in_watchlist')
+                    DB::raw('CASE WHEN watchlists.film_id IS NOT NULL THEN 1 ELSE 0 END as is_in_watchlist'),
+                    DB::raw(\App\Models\Movie::primaryReleaseDateSql() . ' as primary_release_date')
                 );
-
             // Get films that are only liked (not rated)
             $likedOnlyFilms = DB::table('movie_likes')
                 ->join('movies', 'movie_likes.film_id', '=', 'movies.id')
@@ -114,7 +114,8 @@ class UserActivityController extends Controller
                     DB::raw('NULL as rating'),
                     'movie_likes.created_at as activity_date',
                     DB::raw('1 as is_liked'),
-                    DB::raw('CASE WHEN watchlists.film_id IS NOT NULL THEN 1 ELSE 0 END as is_in_watchlist')
+                    DB::raw('CASE WHEN watchlists.film_id IS NOT NULL THEN 1 ELSE 0 END as is_in_watchlist'),
+                    DB::raw(\App\Models\Movie::primaryReleaseDateSql() . ' as primary_release_date')
                 );
 
             // Combine both queries
@@ -148,7 +149,8 @@ class UserActivityController extends Controller
                     'themes' => $meta['themes'],
                     'rated_at' => $film->activity_date,
                     'is_liked' => (bool)$film->is_liked,
-                    'is_in_watchlist' => (bool)$film->is_in_watchlist
+                    'is_in_watchlist' => (bool)$film->is_in_watchlist,
+                    'primary_release_date' => $film->primary_release_date,
                 ];
             });
 

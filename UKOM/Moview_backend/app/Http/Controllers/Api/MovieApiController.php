@@ -194,8 +194,16 @@ class MovieApiController extends Controller
     public function index(Request $request)
     {
         $query = Movie::with(['genres'])
-            ->where('status', 'published');
-        
+            ->where('status', 'published')
+            ->withPrimaryReleaseDate();
+
+        $sort = $request->get('sort');
+        if (in_array($sort, ['newest', 'oldest'], true)) {
+            $query->orderByRaw(
+                Movie::primaryReleaseDateSql() . ($sort === 'newest' ? ' DESC' : ' ASC')
+            );
+        }
+
         // Pagination
         $perPage = $request->get('per_page', 20);
         $movies = $query->paginate($perPage);
@@ -1039,6 +1047,7 @@ class MovieApiController extends Controller
             'genres' => $movie->genres->pluck('name'),
             'average_rating' => round($averageRating, 1),
             'watched_count' => $watchedCount,
+            'primary_release_date' => $movie->primaryReleaseDateForApi(),
         ];
     }
 }

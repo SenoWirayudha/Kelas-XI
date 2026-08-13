@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Movie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -75,7 +76,7 @@ class FilmListController extends Controller
                     break;
 
                 case 'year':
-                    $query->where('movies.release_year', $value);
+                    $query->whereRaw(Movie::primaryReleaseYearSql() . ' = ?', [(int) $value]);
                     break;
 
                 default:
@@ -90,7 +91,8 @@ class FilmListController extends Controller
                 'movies.title',
                 'movies.release_year',
                 'movies.default_poster_path',
-                DB::raw('(SELECT COUNT(*) FROM ratings WHERE ratings.film_id = movies.id) AS watched_count')
+                DB::raw('(SELECT COUNT(*) FROM ratings WHERE ratings.film_id = movies.id) AS watched_count'),
+                DB::raw(Movie::primaryReleaseDateSql() . ' AS primary_release_date')
             )
             ->distinct()
             ->orderByDesc('watched_count')
@@ -144,6 +146,7 @@ class FilmListController extends Controller
                     'themes'         => $themes,
                     'average_rating' => round($avgRating, 1),
                     'watched_count'  => (int)$movie->watched_count,
+                    'primary_release_date' => $movie->primary_release_date,
                 ];
             });
 
