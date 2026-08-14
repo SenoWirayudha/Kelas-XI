@@ -70,8 +70,12 @@ class ReviewsListFragment : Fragment() {
     }
     
     private fun setupObservers() {
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
         viewModel.reviews.observe(viewLifecycleOwner) { reviews ->
             reviewsAdapter.submitList(reviews)
+            binding.tvEmpty.visibility = if (reviews.isEmpty()) View.VISIBLE else View.GONE
         }
         viewModel.userHasWatched.observe(viewLifecycleOwner) { hasWatched ->
             reviewsAdapter.userHasWatched = hasWatched

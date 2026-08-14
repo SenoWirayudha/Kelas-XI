@@ -134,7 +134,11 @@ class UserFilmActivityTabFragment : Fragment() {
     
     private fun setupObservers() {
         android.util.Log.d("UserFilmActivityTab", "setupObservers - tabType: $tabType")
-        
+
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
+
         when (tabType) {
             TAB_DIARY -> {
                 viewModel.diaries.observe(viewLifecycleOwner) { diaries ->

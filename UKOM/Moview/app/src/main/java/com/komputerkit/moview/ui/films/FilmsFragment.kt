@@ -93,12 +93,16 @@ class FilmsFragment : Fragment() {
     }
     
     private fun setupObservers() {
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
         viewModel.films.observe(viewLifecycleOwner) { films ->
             Log.d("FilmsFragment", "Observer received ${films.size} films")
             films.forEach { film ->
                 Log.d("FilmsFragment", "Film to adapter: ${film.title}, isLiked=${film.isLiked}")
             }
             filmGridAdapter.submitList(films)
+            binding.tvEmpty.visibility = if (films.isEmpty()) View.VISIBLE else View.GONE
         }
 
         viewModel.genres.observe(viewLifecycleOwner) { genreOptions = it }

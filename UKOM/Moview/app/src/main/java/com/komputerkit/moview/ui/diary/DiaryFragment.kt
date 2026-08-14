@@ -97,8 +97,12 @@ class DiaryFragment : Fragment() {
     }
     
     private fun observeViewModel() {
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
         viewModel.diaryItems.observe(viewLifecycleOwner) { items ->
             adapter.submitList(items)
+            binding.emptyState.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
         }
     }
     

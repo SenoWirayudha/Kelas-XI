@@ -98,6 +98,9 @@ class SeatSelectionActivity : AppCompatActivity() {
         viewModel.uiState.observe(this) { state ->
             binding.btnOrderSummary.isEnabled = !state.isLoading && seatAdapter.getSelectedSeats().isNotEmpty()
             binding.btnOrderSummary.alpha = if (binding.btnOrderSummary.isEnabled) 1f else 0.5f
+            binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
+            binding.tvEmpty.visibility =
+                if (!state.isLoading && state.error == null && state.seats.isEmpty()) View.VISIBLE else View.GONE
 
             if (state.error != null) {
                 binding.tvSelectedSeats.text = state.error

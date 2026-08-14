@@ -25,8 +25,12 @@ class TicketHistoryViewModel : ViewModel() {
     private val _errorMessage = MutableLiveData<String?>(null)
     val errorMessage: LiveData<String?> = _errorMessage
 
+    private val _isLoading = MutableLiveData<Boolean>(false)
+    val isLoading: LiveData<Boolean> = _isLoading
+
     fun loadTickets(userId: Int) {
         viewModelScope.launch {
+            _isLoading.value = true
             try {
                 val response = withContext(Dispatchers.IO) {
                     RetrofitClient.movieApiService.getUserTickets(userId)
@@ -36,6 +40,7 @@ class TicketHistoryViewModel : ViewModel() {
                     _errorMessage.value = response.message ?: "Gagal memuat tiket."
                     _activeTickets.value = emptyList()
                     _historyTickets.value = emptyList()
+                    _isLoading.value = false
                     return@launch
                 }
 
@@ -55,6 +60,8 @@ class TicketHistoryViewModel : ViewModel() {
                 _errorMessage.value = e.message ?: "Terjadi kesalahan saat memuat tiket."
                 _activeTickets.value = emptyList()
                 _historyTickets.value = emptyList()
+            } finally {
+                _isLoading.value = false
             }
         }
     }

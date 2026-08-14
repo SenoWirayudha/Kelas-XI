@@ -74,8 +74,12 @@ class FollowingFragment : Fragment() {
     }
     
     private fun observeViewModel() {
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
         viewModel.following.observe(viewLifecycleOwner) { users ->
             adapter.submitList(users)
+            binding.tvEmpty.visibility = if (users.isEmpty()) View.VISIBLE else View.GONE
         }
     }
     

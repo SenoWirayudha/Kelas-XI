@@ -194,6 +194,23 @@
                 android:scrollbars="none" />
         </HorizontalScrollView>
 
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_empty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="Tidak ada data kursi"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
         <com.komputerkit.moview.ui.cinema.view.SeatMiniMapView
             android:id="@+id/seat_mini_map"
             android:layout_width="140dp"

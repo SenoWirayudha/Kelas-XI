@@ -159,8 +159,12 @@ class WatchlistFragment : Fragment() {
     }
     
     private fun observeViewModel() {
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
         viewModel.watchlistItems.observe(viewLifecycleOwner) { items ->
             adapter.submitList(items)
+            binding.tvEmpty.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
         }
 
         viewModel.genres.observe(viewLifecycleOwner) { genreOptions = it }

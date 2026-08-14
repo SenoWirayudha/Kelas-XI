@@ -68,6 +68,10 @@ class TicketHistoryTabFragment : Fragment() {
     private fun observeData() {
         val tabType = arguments?.getString(ARG_TAB_TYPE) ?: TAB_ACTIVE
 
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
+
         if (tabType == TAB_ACTIVE) {
             viewModel.activeTickets.observe(viewLifecycleOwner) { tickets ->
                 adapter.submitList(tickets)

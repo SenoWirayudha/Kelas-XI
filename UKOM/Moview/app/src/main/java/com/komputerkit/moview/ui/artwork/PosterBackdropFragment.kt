@@ -101,10 +101,16 @@ class PosterBackdropFragment : Fragment() {
         
         viewModel.posters.observe(viewLifecycleOwner) { posters ->
             posterAdapter.submitList(posters)
+            updateEmptyState()
         }
         
         viewModel.backdrops.observe(viewLifecycleOwner) { backdrops ->
             backdropAdapter.submitList(backdrops)
+            updateEmptyState()
+        }
+
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
         }
 
         viewModel.saveResult.observe(viewLifecycleOwner) { success ->
@@ -130,8 +136,24 @@ class PosterBackdropFragment : Fragment() {
         }
     }
     
+    private fun updateEmptyState() {
+        val currentList = if (currentTab == ArtworkType.POSTER) {
+            viewModel.posters.value
+        } else {
+            viewModel.backdrops.value
+        }
+        val isEmpty = currentList.isNullOrEmpty()
+        binding.tvEmpty.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        if (currentTab == ArtworkType.POSTER) {
+            binding.rvPosters.visibility = if (isEmpty) View.GONE else View.VISIBLE
+        } else {
+            binding.rvBackdrops.visibility = if (isEmpty) View.GONE else View.VISIBLE
+        }
+    }
+
     private fun switchToTab(type: ArtworkType) {
         currentTab = type
+        updateEmptyState()
         
         when (type) {
             ArtworkType.POSTER -> {

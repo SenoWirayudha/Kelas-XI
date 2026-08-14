@@ -21,6 +21,9 @@ class FilmographyViewModel : ViewModel() {
     private val _films = MutableLiveData<List<Movie>>()
     val films: LiveData<List<Movie>> = _films
 
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
+
     private val _genres = MutableLiveData<List<String>>(emptyList())
     val genres: LiveData<List<String>> = _genres
 
@@ -42,6 +45,7 @@ class FilmographyViewModel : ViewModel() {
             Log.e("FG", "userId=0 – cannot apply custom media!")
         }
         viewModelScope.launch {
+            _isLoading.value = true
             try {
                 val rawFilms = repository.getFilmsByCategory(filterType, filterValue)
                 Log.i("FG", "rawFilms count=${rawFilms.size}")
@@ -71,6 +75,8 @@ class FilmographyViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e("FG", "Exception: ${e.message}", e)
                 _films.postValue(emptyList())
+            } finally {
+                _isLoading.postValue(false)
             }
         }
     }

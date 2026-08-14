@@ -31,8 +31,12 @@ class ReviewsListViewModel(application: Application) : AndroidViewModel(applicat
     private val _userHasWatched = MutableLiveData<Boolean>()
     val userHasWatched: LiveData<Boolean> = _userHasWatched
 
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
+
     fun loadReviews(movieId: Int) {
         viewModelScope.launch {
+            _isLoading.value = true
             val userId = prefs.getInt("userId", 0)
             val dtos = repository.getMovieReviews(movieId)
             _reviews.postValue(dtos.map { dto ->
@@ -50,6 +54,7 @@ class ReviewsListViewModel(application: Application) : AndroidViewModel(applicat
             // Check if the current user has watched this movie
             val ratingResponse = if (userId > 0) repository.getRating(userId, movieId) else null
             _userHasWatched.postValue(ratingResponse?.is_watched ?: false)
+            _isLoading.postValue(false)
         }
     }
 

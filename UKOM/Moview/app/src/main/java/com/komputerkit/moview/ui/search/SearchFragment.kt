@@ -190,6 +190,9 @@ class SearchFragment : Fragment() {
     private fun observeUiState() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.uiState.collectLatest { state ->
+                // Loading indicator
+                binding.progressBar.isVisible = state.isLoading
+
                 // Update filter chip selection
                 binding.chipAll.isChecked = state.activeFilter == SearchFilter.ALL
                 binding.chipMovies.isChecked = state.activeFilter == SearchFilter.MOVIES
