@@ -93,11 +93,23 @@
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Status *</label>
-                    <select name="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                        <option value="draft" {{ old('status', $film->status ?? 'draft') === 'draft' ? 'selected' : '' }}>Draft</option>
-                        <option value="published" {{ old('status', $film->status ?? '') === 'published' ? 'selected' : '' }}>Published</option>
-                    </select>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Release Status</label>
+                    <input type="hidden" name="status" value="{{ old('status', $film->status ?? 'draft') }}">
+                    @if(isset($film) && $film->release_status === 'released')
+                        <span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-700">
+                            <i class="fas fa-circle-check mr-2"></i>
+                            Rilis
+                        </span>
+                    @else
+                        <span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-yellow-100 text-yellow-700">
+                            <i class="fas fa-clock mr-2"></i>
+                            Coming Soon
+                        </span>
+                    @endif
+                    <p class="mt-1 text-xs text-gray-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Status rilis dihitung otomatis dari data Release Dates di bawah: "Rilis" jika sudah ada tanggal theatrical/streaming yang lewat.
+                    </p>
                 </div>
                 
                 <div class="md:col-span-2">
@@ -277,6 +289,136 @@
             />
         </div>
 
+        <!-- Release Dates -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-2 flex items-center">
+                <i class="fas fa-calendar-alt text-blue-600 mr-2"></i>
+                Release Dates
+            </h3>
+            <p class="text-sm text-gray-500 mb-4">
+                <i class="fas fa-info-circle mr-1"></i>
+                Multiple releases per film — premiere/festival, theatrical, streaming. Satu baris per rilis. Tanggal premiere paling awal dipakai sebagai primary release date.
+            </p>
+
+            <div
+                x-data="releaseManager({
+                    countries: {{ \Illuminate\Support\Js::from($releaseCountries->map(fn ($c) => ['id' => (int) $c->id, 'name' => $c->name, 'code' => $c->code])->all()) }},
+                    rows: {{ \Illuminate\Support\Js::from($existingReleases) }}
+                })"
+            >
+                <template x-for="(row, index) in rows" :key="index">
+                    <div class="border border-gray-200 rounded-lg p-4 mb-3 bg-gray-50/50">
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                            <!-- Type -->
+                            <div class="md:col-span-3">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                                <select x-model="row.type"
+                                        :name="`releases[${index}][type]`"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="premiere">Premiere / Festival</option>
+                                    <option value="theatrical">Theatrical</option>
+                                    <option value="streaming">Streaming</option>
+                                </select>
+                            </div>
+
+                            <!-- Country (searchable, flag) -->
+                            <div class="md:col-span-3">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Country</label>
+                                <div class="relative">
+                                    <button type="button"
+                                            @click="toggleCountry(index)"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                                        <span class="flex items-center min-w-0">
+                                            <span x-show="row.country_code" class="mr-2 text-base leading-none" x-text="flagEmoji(row.country_code)"></span>
+                                            <span x-text="countryName(row.country_code)" class="text-gray-800 truncate"></span>
+                                            <span x-show="!row.country_code" class="text-gray-400">Pilih negara...</span>
+                                        </span>
+                                        <i class="fas fa-chevron-down text-gray-400 text-xs" :class="row.open ? 'rotate-180' : ''"></i>
+                                    </button>
+                                    <input type="hidden" :name="`releases[${index}][country_code]`" :value="row.country_code || ''">
+
+                                    <div x-show="row.open"
+                                         x-cloak
+                                         x-transition
+                                         @click.outside="row.open = false"
+                                         class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden">
+                                        <div class="p-2 border-b border-gray-200 bg-gray-50 relative">
+                                            <i class="fas fa-search text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 text-sm"></i>
+                                            <input type="text"
+                                                   x-model="row.query"
+                                                   class="w-full pl-8 pr-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                   placeholder="Search country...">
+                                        </div>
+                                        <div class="max-h-48 overflow-y-auto p-1">
+                                            <template x-for="c in filteredCountries(row.query)" :key="c.code">
+                                                <button type="button"
+                                                        @click="selectCountry(index, c.code); row.open = false"
+                                                        class="w-full flex items-center px-3 py-1.5 rounded hover:bg-blue-50 text-sm text-left"
+                                                        :class="row.country_code === c.code ? 'bg-blue-50 text-blue-700' : 'text-gray-700'">
+                                                    <span class="mr-2 text-base" x-text="flagEmoji(c.code)"></span>
+                                                    <span x-text="c.name"></span>
+                                                </button>
+                                            </template>
+                                            <p x-show="filteredCountries(row.query).length === 0" class="text-sm text-gray-400 text-center py-2">
+                                                No countries found
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Name (festival / platform) — hidden for theatrical -->
+                            <div class="md:col-span-3" x-show="row.type !== 'theatrical'">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">
+                                    <span x-text="row.type === 'premiere' ? 'Festival Name' : 'Platform Name'"></span>
+                                    <span class="text-gray-400 font-normal">(optional)</span>
+                                </label>
+                                <input type="text"
+                                       x-model="row.name"
+                                       :name="`releases[${index}][name]`"
+                                       :placeholder="row.type === 'premiere' ? 'e.g. Cannes Film Festival' : 'e.g. Netflix'"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="md:col-span-3" x-show="row.type === 'theatrical'">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">&nbsp;</label>
+                                <p class="px-3 py-2 text-xs text-gray-400 bg-gray-100 rounded-lg">Nama tidak diperlukan untuk rilis theatrical</p>
+                            </div>
+
+                            <!-- Date -->
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                                <input type="date"
+                                       x-model="row.release_date"
+                                       :name="`releases[${index}][release_date]`"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+
+                            <!-- Remove -->
+                            <div class="md:col-span-1 flex md:justify-end">
+                                <button type="button"
+                                        @click="removeRow(index)"
+                                        class="mt-6 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                                        title="Remove release">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <p x-show="rows.length === 0" class="text-sm text-gray-400 text-center py-3">
+                    Belum ada release. Tambahkan baris di bawah.
+                </p>
+
+                <button type="button"
+                        @click="addRow()"
+                        class="w-full px-4 py-3 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg border-2 border-dashed border-blue-300 transition-colors duration-200 flex items-center justify-center">
+                    <i class="fas fa-plus mr-2"></i>
+                    Add Release Date
+                </button>
+            </div>
+        </div>
+
         <!-- Form Actions -->
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center">
@@ -305,4 +447,46 @@
         </div>
     </form>
 </div>
+
+<script>
+function releaseManager(cfg) {
+    return {
+        countries: cfg.countries || [],
+        rows: cfg.rows && cfg.rows.length ? cfg.rows.map(normalizeRow) : [],
+        addRow() {
+            this.rows.push(emptyRow());
+        },
+        removeRow(index) {
+            this.rows.splice(index, 1);
+        },
+        toggleCountry(index) {
+            this.rows.forEach((row, i) => { if (i !== index) row.open = false; });
+            this.rows[index].open = !this.rows[index].open;
+        },
+        selectCountry(index, code) {
+            this.rows[index].country_code = code;
+        },
+        filteredCountries(query) {
+            const q = (query || '').trim().toLowerCase();
+            if (!q) return this.countries;
+            return this.countries.filter(c => c.name.toLowerCase().includes(q));
+        },
+        countryName(code) {
+            const c = this.countries.find(x => x.code === code);
+            return c ? c.name : '';
+        },
+        flagEmoji(code) {
+            if (!code || code.length !== 2) return '';
+            const base = 127397;
+            return code.toUpperCase().split('').map(ch => String.fromCodePoint(base + ch.charCodeAt(0))).join('');
+        }
+    };
+}
+function emptyRow() {
+    return { type: 'theatrical', country_code: '', name: '', release_date: '', query: '', open: false };
+}
+function normalizeRow(row) {
+    return Object.assign({}, emptyRow(), row || {});
+}
+</script>
 @endsection
