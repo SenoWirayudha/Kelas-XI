@@ -14,8 +14,8 @@
     <!-- Circular country flag -->
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/iv_release_flag"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
+        android:layout_width="27dp"
+        android:layout_height="27dp"
         android:scaleType="centerCrop"
         android:contentDescription="Country flag"
         app:shapeAppearanceOverlay="@style/CircleImageView"

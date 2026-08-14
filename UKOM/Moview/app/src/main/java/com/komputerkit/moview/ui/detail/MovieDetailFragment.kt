@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.core.view.ViewCompat
 import androidx.core.view.doOnLayout
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.komputerkit.moview.util.loadPoster
@@ -285,6 +286,7 @@ class MovieDetailFragment : Fragment() {
             movie.productionCompanies.forEach { company ->
                 val chip = com.google.android.material.chip.Chip(requireContext())
                 chip.text = company
+                chip.typeface = ResourcesCompat.getFont(requireContext(), com.komputerkit.moview.R.font.font_family_inter)
                 chip.setTextColor(resources.getColor(com.komputerkit.moview.R.color.white, null))
                 chip.chipBackgroundColor = android.content.res.ColorStateList.valueOf(
                     resources.getColor(com.komputerkit.moview.R.color.dark_card, null)
@@ -307,6 +309,7 @@ class MovieDetailFragment : Fragment() {
             movie.productionCountries.forEach { country ->
                 val chip = com.google.android.material.chip.Chip(requireContext())
                 chip.text = country
+                chip.typeface = ResourcesCompat.getFont(requireContext(), com.komputerkit.moview.R.font.font_family_inter)
                 chip.setTextColor(resources.getColor(com.komputerkit.moview.R.color.white, null))
                 chip.chipBackgroundColor = android.content.res.ColorStateList.valueOf(
                     resources.getColor(com.komputerkit.moview.R.color.dark_card, null)
@@ -329,6 +332,7 @@ class MovieDetailFragment : Fragment() {
             movie.spokenLanguages.forEach { language ->
                 val chip = com.google.android.material.chip.Chip(requireContext())
                 chip.text = language
+                chip.typeface = ResourcesCompat.getFont(requireContext(), com.komputerkit.moview.R.font.font_family_inter)
                 chip.setTextColor(resources.getColor(com.komputerkit.moview.R.color.white, null))
                 chip.chipBackgroundColor = android.content.res.ColorStateList.valueOf(
                     resources.getColor(com.komputerkit.moview.R.color.dark_card, null)
@@ -351,6 +355,7 @@ class MovieDetailFragment : Fragment() {
         movie.genre?.split(", ")?.forEach { genre ->
             val chip = com.google.android.material.chip.Chip(requireContext())
             chip.text = genre
+            chip.typeface = ResourcesCompat.getFont(requireContext(), com.komputerkit.moview.R.font.font_family_inter)
             chip.setTextColor(resources.getColor(com.komputerkit.moview.R.color.white, null))
             chip.chipBackgroundColor = android.content.res.ColorStateList.valueOf(
                 resources.getColor(com.komputerkit.moview.R.color.dark_card, null)
@@ -369,6 +374,7 @@ class MovieDetailFragment : Fragment() {
             movie.themes.forEach { theme ->
                 val chip = com.google.android.material.chip.Chip(requireContext())
                 chip.text = theme
+                chip.typeface = ResourcesCompat.getFont(requireContext(), com.komputerkit.moview.R.font.font_family_inter)
                 chip.setTextColor(resources.getColor(com.komputerkit.moview.R.color.white, null))
                 chip.chipBackgroundColor = android.content.res.ColorStateList.valueOf(
                     resources.getColor(com.komputerkit.moview.R.color.dark_card, null)
@@ -615,20 +621,6 @@ class MovieDetailFragment : Fragment() {
                 binding.tabLayout.getTabAt(2)?.select()
             }
             return
-        }
-
-        val isReleased = movie.releaseStatus == "released"
-        binding.tvReleaseStatusBadge.apply {
-            text = if (isReleased) "Rilis" else "Coming Soon"
-            setBackgroundResource(
-                if (isReleased) R.drawable.bg_badge_release_streaming
-                else R.drawable.bg_badge_release_theatrical
-            )
-        }
-        binding.tvReleaseStatusInfo.text = if (isReleased) {
-            "Sudah ada rilis theatrical/streaming yang tanggalnya telah lewat."
-        } else {
-            "Belum ada rilis theatrical/streaming yang tanggalnya lewat."
         }
 
         // Group into sections: Premiere -> Theatrical -> Streaming, rows sorted by date.
