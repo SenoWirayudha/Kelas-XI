@@ -6,5 +6,6 @@
     android:layout_height="wrap_content"
     android:layout_marginEnd="8dp"
     android:textColor="@color/white"
+    android:fontFamily="@font/font_family_inter"
     app:chipBackgroundColor="@color/dark_card"
     app:chipStrokeWidth="0dp" />

@@ -6,6 +6,7 @@
     style="@style/Widget.MaterialComponents.Chip.Action"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:fontFamily="@font/font_family_inter"
     android:layout_marginEnd="8dp"
     android:layout_marginBottom="8dp"
     android:textColor="@color/text_primary"
