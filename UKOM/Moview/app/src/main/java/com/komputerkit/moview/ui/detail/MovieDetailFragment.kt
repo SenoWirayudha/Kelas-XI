@@ -561,11 +561,13 @@ class MovieDetailFragment : Fragment() {
         binding.rvCrew.visibility = View.GONE
         binding.tvCrewPlaceholder.visibility = View.GONE
         binding.layoutDetails.visibility = View.GONE
+        binding.layoutRilis.visibility = View.GONE
     }
     
     private fun showCrewTab() {
         binding.rvCast.visibility = View.GONE
         binding.layoutDetails.visibility = View.GONE
+        binding.layoutRilis.visibility = View.GONE
         
         // Show crew or placeholder
         currentMovie?.let { movie ->
@@ -589,6 +591,7 @@ class MovieDetailFragment : Fragment() {
         binding.rvCrew.visibility = View.GONE
         binding.tvCrewPlaceholder.visibility = View.GONE
         binding.layoutDetails.visibility = View.VISIBLE
+        binding.layoutRilis.visibility = View.GONE
     }
 
     private fun showRilisTab() {
@@ -604,7 +607,7 @@ class MovieDetailFragment : Fragment() {
         val hasReleases = releases.isNotEmpty()
 
         // Hide the Rilis tab entirely when there is no release data
-        binding.tabRilis.visibility = if (hasReleases) View.VISIBLE else View.GONE
+        binding.tabLayout.getTabAt(3)?.view?.visibility = if (hasReleases) View.VISIBLE else View.GONE
 
         if (!hasReleases) {
             // If the Rilis tab is no longer available, fall back to the current tab
@@ -628,14 +631,30 @@ class MovieDetailFragment : Fragment() {
             "Belum ada rilis theatrical/streaming yang tanggalnya lewat."
         }
 
-        if (releaseAdapter == null) {
-            releaseAdapter = MovieReleaseAdapter(releases)
-            binding.rvMovieReleases.adapter = releaseAdapter
+        // Group into sections: Premiere -> Theatrical -> Streaming, rows sorted by date.
+        // Empty sections are skipped entirely.
+        val order = listOf(
+            "premiere" to "Premiere",
+            "theatrical" to "Theatrical",
+            "streaming" to "Streaming",
+        )
+        val sections = order.mapNotNull { (type, title) ->
+            val rows = releases
+                .filter { it.type == type }
+                .sortedWith(
+                    compareBy(
+                        { it.releaseDate ?: "" },
+                        { it.countryName ?: "" },
+                        { it.name ?: "" }
+                    )
+                )
+            if (rows.isEmpty()) null else ReleaseSection(title, rows)
+        }
+
+        releaseAdapter = MovieReleaseAdapter(sections)
+        binding.rvMovieReleases.adapter = releaseAdapter
+        if (binding.rvMovieReleases.layoutManager == null) {
             binding.rvMovieReleases.layoutManager = LinearLayoutManager(requireContext())
-        } else {
-            // Recreate adapter so items reflect the freshly loaded list
-            releaseAdapter = MovieReleaseAdapter(releases)
-            binding.rvMovieReleases.adapter = releaseAdapter
         }
     }
     

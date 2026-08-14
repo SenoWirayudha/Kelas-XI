@@ -83,6 +83,33 @@ class TheatricalMovieAdapter(
 
             binding.tvPreorderBadge.visibility = if (movie.isPreorder) View.VISIBLE else View.GONE
 
+            // Country flag + code (Coming Soon section)
+            val countryCode = movie.countryCode?.takeIf { it.isNotBlank() }
+            if (countryCode != null) {
+                binding.llCountry.visibility = View.VISIBLE
+                binding.tvCountryCode.text = countryCode
+                val flagRes = binding.root.context.resources.getIdentifier(
+                    "flag_${countryCode.lowercase(Locale.ENGLISH)}",
+                    "drawable",
+                    binding.root.context.packageName
+                )
+                if (flagRes != 0) {
+                    com.bumptech.glide.Glide.with(binding.root.context)
+                        .load(flagRes)
+                        .apply(
+                            com.bumptech.glide.request.RequestOptions()
+                                .placeholder(0)
+                                .error(0)
+                                .circleCrop()
+                        )
+                        .into(binding.tvCountryFlag)
+                } else {
+                    binding.tvCountryFlag.setImageResource(0)
+                }
+            } else {
+                binding.llCountry.visibility = View.GONE
+            }
+
             if (showDateBadge) {
                 binding.vScrim.visibility = View.VISIBLE
                 binding.tvBadge.visibility = View.VISIBLE
