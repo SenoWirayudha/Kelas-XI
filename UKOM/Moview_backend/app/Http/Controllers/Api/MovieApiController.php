@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Movie;
+use App\Models\Country;
 use App\Models\MovieRelease;
 use App\Models\Person;
 use App\Models\Rating;
@@ -228,7 +229,7 @@ class MovieApiController extends Controller
      */
     public function show($id)
     {
-        $movie = Movie::with(['genres', 'moviePersons.person', 'movieServices.service', 'movieThemes.theme'])
+        $movie = Movie::with(['genres', 'moviePersons.person', 'movieServices.service', 'movieThemes.theme', 'movieReleases'])
             ->find($id);
         
         if (!$movie) {
@@ -238,6 +239,7 @@ class MovieApiController extends Controller
             ], 404);
         }
         
+        $countryNameByCode = Country::pluck('name', 'code')->all();
         // Calculate statistics
         $watchedCount = Rating::where('film_id', $id)->count();
         $reviewsCount = Review::where('film_id', $id)->count();
@@ -354,6 +356,33 @@ class MovieApiController extends Controller
                     'production_countries' => $movie->movieCountries->map(fn($mc) => $mc->country->name)->toArray(),
                     'production_companies' => $movie->movieProductionHouses->map(fn($mph) => $mph->productionHouse->name)->toArray(),
                 ],
+                'release_status' => $movie->release_status,
+                'movie_releases' => $movie->movieReleases
+                    ->sortBy('release_date')
+                    ->values()
+                    ->map(function ($release) use ($countryNameByCode) {
+                        $typeLabels = [
+                            MovieRelease::TYPE_PREMIERE => 'Premiere / Festival',
+                            MovieRelease::TYPE_THEATRICAL => 'Theatrical',
+                            MovieRelease::TYPE_STREAMING => 'Streaming',
+                        ];
+                        $countryCode = $release->country_code;
+                        $flag = '';
+                        if ($countryCode) {
+                            foreach (str_split(strtoupper($countryCode)) as $letter) {
+                                $flag .= mb_chr(127397 + ord($letter));
+                            }
+                        }
+                        return [
+                            'type' => $release->type,
+                            'type_label' => $typeLabels[$release->type] ?? ucfirst($release->type),
+                            'country_code' => $countryCode,
+                            'country_name' => $countryCode ? ($countryNameByCode[$countryCode] ?? $countryCode) : null,
+                            'flag_emoji' => $flag ?: null,
+                            'name' => $release->name,
+                            'release_date' => $release->release_date ? $release->release_date->format('Y-m-d') : null,
+                        ];
+                    }),
             ]
         ]);
     }

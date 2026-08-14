@@ -39,7 +39,8 @@ class MovieDetailFragment : Fragment() {
     private lateinit var movieServiceAdapter: MovieServiceAdapter
     private lateinit var watchedByAdapter: MovieDetailUserPreviewAdapter
     private lateinit var wantToWatchAdapter: MovieDetailUserPreviewAdapter
-    
+    private var releaseAdapter: MovieReleaseAdapter? = null
+
     private var currentMovie: com.komputerkit.moview.data.model.Movie? = null
     private var isDescriptionExpanded = false
     private var selectedTabPosition = 0  // Track selected tab
@@ -249,6 +250,9 @@ class MovieDetailFragment : Fragment() {
             
             // Update Details tab with real data
             updateDetailsTab(movie)
+            
+            // Update Rilis tab with release dates
+            updateRilisTab(movie)
             
             // Restore selected tab after data is loaded
             binding.tabLayout.post {
@@ -544,6 +548,7 @@ class MovieDetailFragment : Fragment() {
                     0 -> showCastTab()
                     1 -> showCrewTab()
                     2 -> showDetailsTab()
+                    3 -> showRilisTab()
                 }
             }
             override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
@@ -584,6 +589,54 @@ class MovieDetailFragment : Fragment() {
         binding.rvCrew.visibility = View.GONE
         binding.tvCrewPlaceholder.visibility = View.GONE
         binding.layoutDetails.visibility = View.VISIBLE
+    }
+
+    private fun showRilisTab() {
+        binding.rvCast.visibility = View.GONE
+        binding.rvCrew.visibility = View.GONE
+        binding.tvCrewPlaceholder.visibility = View.GONE
+        binding.layoutDetails.visibility = View.GONE
+        binding.layoutRilis.visibility = View.VISIBLE
+    }
+    
+    private fun updateRilisTab(movie: com.komputerkit.moview.data.model.Movie) {
+        val releases = movie.movieReleases
+        val hasReleases = releases.isNotEmpty()
+
+        // Hide the Rilis tab entirely when there is no release data
+        binding.tabRilis.visibility = if (hasReleases) View.VISIBLE else View.GONE
+
+        if (!hasReleases) {
+            // If the Rilis tab is no longer available, fall back to the current tab
+            if (selectedTabPosition == 3) {
+                binding.tabLayout.getTabAt(2)?.select()
+            }
+            return
+        }
+
+        val isReleased = movie.releaseStatus == "released"
+        binding.tvReleaseStatusBadge.apply {
+            text = if (isReleased) "Rilis" else "Coming Soon"
+            setBackgroundResource(
+                if (isReleased) R.drawable.bg_badge_release_streaming
+                else R.drawable.bg_badge_release_theatrical
+            )
+        }
+        binding.tvReleaseStatusInfo.text = if (isReleased) {
+            "Sudah ada rilis theatrical/streaming yang tanggalnya telah lewat."
+        } else {
+            "Belum ada rilis theatrical/streaming yang tanggalnya lewat."
+        }
+
+        if (releaseAdapter == null) {
+            releaseAdapter = MovieReleaseAdapter(releases)
+            binding.rvMovieReleases.adapter = releaseAdapter
+            binding.rvMovieReleases.layoutManager = LinearLayoutManager(requireContext())
+        } else {
+            // Recreate adapter so items reflect the freshly loaded list
+            releaseAdapter = MovieReleaseAdapter(releases)
+            binding.rvMovieReleases.adapter = releaseAdapter
+        }
     }
     
     private fun navigateToFilmList(categoryType: String, categoryValue: String, categoryName: String) {

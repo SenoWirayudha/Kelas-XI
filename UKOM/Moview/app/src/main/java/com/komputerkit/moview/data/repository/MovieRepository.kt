@@ -1020,7 +1020,19 @@ class MovieRepository {
                     themes = movie.themes ?: emptyList(),
                     spokenLanguages = movie.details?.spoken_languages ?: emptyList(),
                     productionCountries = movie.details?.production_countries ?: emptyList(),
-                    productionCompanies = movie.details?.production_companies ?: emptyList()
+                    productionCompanies = movie.details?.production_companies ?: emptyList(),
+                    releaseStatus = movie.release_status,
+                    movieReleases = movie.movie_releases?.map { release ->
+                        com.komputerkit.moview.data.model.MovieRelease(
+                            type = release.type,
+                            typeLabel = release.type_label,
+                            countryCode = release.country_code,
+                            countryName = release.country_name,
+                            flagEmoji = release.flag_emoji,
+                            name = release.name,
+                            releaseDate = release.release_date
+                        )
+                    } ?: emptyList()
                 )
             } else {
                 null

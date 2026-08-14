@@ -236,7 +236,19 @@ data class MovieDetailDto(
     val statistics: StatisticsDto?,
     val streaming_services: List<StreamingServiceDto>?,
     val theatrical_services: List<TheatricalServiceDto>?,
-    val details: MovieDetailsDto?
+    val details: MovieDetailsDto?,
+    val release_status: String? = null,
+    val movie_releases: List<MovieReleaseDto>? = null
+)
+
+data class MovieReleaseDto(
+    val type: String,
+    val type_label: String,
+    val country_code: String? = null,
+    val country_name: String? = null,
+    val flag_emoji: String? = null,
+    val name: String? = null,
+    val release_date: String? = null
 )
 
 data class DirectorDto(

@@ -629,6 +629,12 @@
                         android:layout_height="wrap_content"
                         android:text="Details" />
 
+                    <com.google.android.material.tabs.TabItem
+                        android:id="@+id/tab_rilis"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Rilis" />
+
                 </com.google.android.material.tabs.TabLayout>
 
                 <!-- Cast Tab Content -->
@@ -830,6 +836,47 @@
                             app:singleLine="false" />
 
                     </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Rilis Tab Content (Initially hidden) -->
+                <LinearLayout
+                    android:id="@+id/layout_rilis"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <!-- Release status badge -->
+                    <TextView
+                        android:id="@+id/tv_release_status_badge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="14dp"
+                        android:paddingVertical="6dp"
+                        android:textColor="@color/white"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        tools:text="Coming Soon" />
+
+                    <TextView
+                        android:id="@+id/tv_release_status_info"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        android:layout_marginTop="8dp"
+                        tools:text="Belum ada rilis theatrical/streaming yang tanggalnya lewat." />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_movie_releases"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="vertical"
+                        android:clipToPadding="false"
+                        tools:listitem="@layout/item_movie_release" />
 
                 </LinearLayout>
 
