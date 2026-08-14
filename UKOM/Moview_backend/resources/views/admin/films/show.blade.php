@@ -683,6 +683,89 @@
                         </div>
                     </div>
                     
+                    <!-- Release Dates Section -->
+                    <div>
+                        <label class="block text-lg font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-calendar-alt text-blue-600 mr-2"></i>
+                            Release Dates
+                        </label>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            @php
+                                $releaseStatus = $movie->release_status;
+                                $releaseTypeLabels = [
+                                    \App\Models\MovieRelease::TYPE_PREMIERE => 'Premiere / Festival',
+                                    \App\Models\MovieRelease::TYPE_THEATRICAL => 'Theatrical',
+                                    \App\Models\MovieRelease::TYPE_STREAMING => 'Streaming',
+                                ];
+                                $releaseTypeColors = [
+                                    \App\Models\MovieRelease::TYPE_PREMIERE => 'bg-purple-100 text-purple-800',
+                                    \App\Models\MovieRelease::TYPE_THEATRICAL => 'bg-blue-100 text-blue-800',
+                                    \App\Models\MovieRelease::TYPE_STREAMING => 'bg-green-100 text-green-800',
+                                ];
+                            @endphp
+
+                            <div class="flex items-center space-x-3 mb-4">
+                                @if($releaseStatus === 'released')
+                                    <span class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white rounded-full text-sm font-semibold">
+                                        <i class="fas fa-circle-check mr-2"></i>
+                                        Rilis
+                                    </span>
+                                    <p class="text-xs text-gray-500">
+                                        Sudah ada rilis theatrical/streaming yang tanggalnya telah lewat.
+                                    </p>
+                                @else
+                                    <span class="inline-flex items-center px-3 py-1.5 bg-yellow-600 text-white rounded-full text-sm font-semibold">
+                                        <i class="fas fa-clock mr-2"></i>
+                                        Coming Soon
+                                    </span>
+                                    <p class="text-xs text-gray-500">
+                                        Belum ada rilis theatrical/streaming yang tanggalnya lewat. Hari ini: {{ now()->format('d M Y') }}.
+                                    </p>
+                                @endif
+                            </div>
+
+                            @if($movie->movieReleases->count() > 0)
+                                <div class="space-y-2">
+                                    @foreach($movie->movieReleases as $release)
+                                        <div class="flex flex-wrap items-center justify-between gap-2 p-3 bg-white border border-gray-200 rounded-lg">
+                                            <div class="flex items-center space-x-2">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $releaseTypeColors[$release->type] ?? 'bg-gray-100 text-gray-700' }}">
+                                                    {{ $releaseTypeLabels[$release->type] ?? ucfirst($release->type) }}
+                                                </span>
+                                                @if($release->country_code)
+                                                    @php
+                                                        $flag = '';
+                                                        foreach (str_split(strtoupper($release->country_code)) as $letter) {
+                                                            $flag .= mb_chr(127397 + ord($letter));
+                                                        }
+                                                    @endphp
+                                                    <span class="text-base">{{ $flag }}</span>
+                                                    <span class="text-sm font-medium text-gray-700">
+                                                        {{ $countryNameByCode[$release->country_code] ?? $release->country_code }}
+                                                    </span>
+                                                @endif
+                                                @if($release->name)
+                                                    <span class="text-sm text-gray-500">— {{ $release->name }}</span>
+                                                @endif
+                                            </div>
+                                            <span class="text-sm font-medium text-gray-800">
+                                                <i class="fas fa-calendar-day text-gray-400 mr-1"></i>
+                                                {{ \Carbon\Carbon::parse($release->release_date)->format('d M Y') }}
+                                            </span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="text-gray-500 text-sm">Belum ada data rilis.</p>
+                            @endif
+
+                            <p class="mt-3 text-xs text-gray-500">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Tanggal premiere paling awal dipakai sebagai primary release date untuk sort & filter tahun.
+                            </p>
+                        </div>
+                    </div>
+
                     <!-- Edit Button -->
                     <div class="flex justify-end pt-4 border-t border-gray-200">
                         <a href="{{ route('admin.films.edit', $movie->id) }}" 

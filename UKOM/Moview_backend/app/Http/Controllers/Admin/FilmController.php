@@ -316,10 +316,13 @@ class FilmController extends Controller
             'movieThemes.theme',
             'movieServices.service',
             'moviePersons.person',
+            'movieReleases',
             'ratings'
         ])->findOrFail($id);
 
-        return view('admin.films.show', compact('movie'));
+        $countryNameByCode = Country::pluck('name', 'code')->all();
+
+        return view('admin.films.show', compact('movie', 'countryNameByCode'));
     }
 
     public function edit($id)
