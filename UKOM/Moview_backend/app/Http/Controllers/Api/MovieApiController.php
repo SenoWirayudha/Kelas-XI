@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Movie;
+use App\Models\MovieRelease;
 use App\Models\Person;
 use App\Models\Rating;
 use App\Models\Review;
@@ -908,6 +909,114 @@ class MovieApiController extends Controller
             'success' => true,
             'data' => $sortedMovies->map(fn(Movie $movie) => $this->mapTheatricalMovie($movie, false))->values(),
         ]);
+    }
+
+    /**
+     * Get "Coming Soon" films for the Indonesian market, sourced from movie_releases
+     * (the repeatable multi-release admin data: premiere / theatrical / streaming with
+     * per-country dates). Ordering prioritises what Indonesian viewers can actually
+     * access soon:
+     *  1. ID theatrical (country_code = ID) — earliest date first
+     *  2. ID streaming (country_code = ID) — earliest date first
+     *  3. theatrical anywhere else — earliest date first
+     * A film only counts once; its badge shows the release type + the relevant date.
+     */
+    public function comingSoon(Request $request)
+    {
+        $limit = $request->get('limit', 0); // 0 = all
+        $today = now()->toDateString();
+
+        $query = Movie::with([
+                'movieReleases',
+                'genres:id,name',
+            ])
+            ->where('status', 'published')
+            ->whereHas('movieReleases', function ($q) use ($today) {
+                $q->whereIn('type', [MovieRelease::TYPE_THEATRICAL, MovieRelease::TYPE_STREAMING])
+                  ->where('release_date', '>=', $today);
+            });
+
+        $movies = $query->get();
+
+        $sorted = $movies->map(function (Movie $movie) use ($today) {
+            $idTheatrical = $movie->movieReleases
+                ->filter(fn($r) => $r->type === MovieRelease::TYPE_THEATRICAL
+                    && $r->country_code === 'ID'
+                    && $r->release_date->format('Y-m-d') >= $today)
+                ->sortBy(fn($r) => $r->release_date)
+                ->first();
+
+            $idStreaming = $movie->movieReleases
+                ->filter(fn($r) => $r->type === MovieRelease::TYPE_STREAMING
+                    && $r->country_code === 'ID'
+                    && $r->release_date->format('Y-m-d') >= $today)
+                ->sortBy(fn($r) => $r->release_date)
+                ->first();
+
+            $otherTheatrical = $movie->movieReleases
+                ->filter(fn($r) => $r->type === MovieRelease::TYPE_THEATRICAL
+                    && $r->country_code !== 'ID'
+                    && $r->release_date->format('Y-m-d') >= $today)
+                ->sortBy(fn($r) => $r->release_date)
+                ->first();
+
+            $otherStreaming = $movie->movieReleases
+                ->filter(fn($r) => $r->type === MovieRelease::TYPE_STREAMING
+                    && $r->country_code !== 'ID'
+                    && $r->release_date->format('Y-m-d') >= $today)
+                ->sortBy(fn($r) => $r->release_date)
+                ->first();
+
+            if ($idTheatrical) {
+                return ['movie' => $movie, 'priority' => 1, 'date' => $idTheatrical->release_date->format('Y-m-d'), 'type' => MovieRelease::TYPE_THEATRICAL, 'country' => 'ID'];
+            }
+            if ($idStreaming) {
+                return ['movie' => $movie, 'priority' => 2, 'date' => $idStreaming->release_date->format('Y-m-d'), 'type' => MovieRelease::TYPE_STREAMING, 'country' => 'ID'];
+            }
+            if ($otherTheatrical) {
+                return ['movie' => $movie, 'priority' => 3, 'date' => $otherTheatrical->release_date->format('Y-m-d'), 'type' => MovieRelease::TYPE_THEATRICAL, 'country' => $otherTheatrical->country_code];
+            }
+            if ($otherStreaming) {
+                return ['movie' => $movie, 'priority' => 4, 'date' => $otherStreaming->release_date->format('Y-m-d'), 'type' => MovieRelease::TYPE_STREAMING, 'country' => $otherStreaming->country_code];
+            }
+
+            return null;
+        })
+        ->filter()
+        ->sortBy(fn($item) => [$item['priority'], $item['date']])
+        ->values();
+
+        if ((int) $limit > 0) {
+            $sorted = $sorted->take((int) $limit);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $sorted->map(fn($item) => $this->mapComingSoonMovie($item['movie'], $item['date'], $item['type'], $item['country']))->values(),
+        ]);
+    }
+
+    /**
+     * Map a movie to the coming-soon card payload, including the release type
+     * and date that determined its position (ID theatrical/streaming first).
+     */
+    private function mapComingSoonMovie(Movie $movie, string $releaseDate, string $releaseType, ?string $countryCode): array
+    {
+        return [
+            'id' => $movie->id,
+            'title' => $movie->title,
+            'original_title' => $movie->original_title,
+            'poster' => $movie->default_poster_path ? url('storage/' . $movie->default_poster_path) : null,
+            'year' => (int) $movie->release_year,
+            'age_rating' => $movie->age_rating,
+            'genre' => $movie->genres->pluck('name')->first(),
+            'release_date' => $releaseDate,
+            'release_type' => $releaseType,
+            'country_code' => $countryCode,
+            'is_coming_soon' => 1,
+            'is_preorder' => false,
+            'has_schedule' => false,
+        ];
     }
 
     /**

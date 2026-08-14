@@ -37,6 +37,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _upcomingMovies = MutableLiveData<List<TheatricalMovie>>()
     val upcomingMovies: LiveData<List<TheatricalMovie>> = _upcomingMovies
 
+    private val _comingSoonMovies = MutableLiveData<List<TheatricalMovie>>()
+    val comingSoonMovies: LiveData<List<TheatricalMovie>> = _comingSoonMovies
+
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
     
@@ -78,9 +81,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 
                 val nowShowing = repository.getNowShowingMovies(limit = 10)
                 val upcoming = repository.getUpcomingMovies()
+                val comingSoon = repository.getComingSoonMovies()
 
                 // Apply custom media (films-type) for the current user's personalizations
-                val theatricalIds = (nowShowing.map { it.id } + upcoming.map { it.id }).distinct()
+                val theatricalIds = (nowShowing.map { it.id } + upcoming.map { it.id } + comingSoon.map { it.id }).distinct()
                 val allFilmIds = (movies.map { it.id } + theatricalIds).distinct()
                 val customMedia = if (userId > 0 && allFilmIds.isNotEmpty()) {
                     repository.batchCustomMedia(userId, allFilmIds, "films")
@@ -94,6 +98,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     if (customPoster != null) movie.copy(posterUrl = customPoster) else movie
                 }
                 _upcomingMovies.value = upcoming.map { movie ->
+                    val entry = customMedia[movie.id] ?: return@map movie
+                    val customPoster = entry.poster?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
+                    if (customPoster != null) movie.copy(posterUrl = customPoster) else movie
+                }
+                _comingSoonMovies.value = comingSoon.map { movie ->
                     val entry = customMedia[movie.id] ?: return@map movie
                     val customPoster = entry.poster?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
                     if (customPoster != null) movie.copy(posterUrl = customPoster) else movie

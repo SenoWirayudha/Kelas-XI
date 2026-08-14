@@ -1920,6 +1920,34 @@ class MovieRepository {
         }
     }
 
+    suspend fun getComingSoonMovies(): List<TheatricalMovie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getComingSoon()
+            if (response.success && response.data != null) {
+                response.data.map { dto ->
+                    TheatricalMovie(
+                        id = dto.id,
+                        title = dto.title,
+                        posterUrl = dto.poster,
+                        releaseDate = dto.release_date,
+                        isPreorder = dto.is_preorder,
+                        hasSchedule = dto.has_schedule,
+                        genre = dto.genre,
+                        year = dto.year,
+                        ageRating = dto.age_rating,
+                        releaseType = dto.release_type,
+                        countryCode = dto.country_code
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
     suspend fun getAcademyAwardMovies(): List<Movie> = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getAcademyAwardNominees()

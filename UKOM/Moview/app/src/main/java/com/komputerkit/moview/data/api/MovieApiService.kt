@@ -455,6 +455,11 @@ interface MovieApiService {
         @Query("limit") limit: Int = 0
     ): ApiResponse<List<TheatricalMovieDto>>
 
+    @GET("movies/coming-soon")
+    suspend fun getComingSoon(
+        @Query("limit") limit: Int = 0
+    ): ApiResponse<List<TheatricalMovieDto>>
+
     @GET("academy-award-nominees")
     suspend fun getAcademyAwardNominees(): ApiResponse<List<MovieCardDto>>
 

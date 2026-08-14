@@ -9,5 +9,7 @@ data class TheatricalMovie(
     val hasSchedule: Boolean,
     val genre: String? = null,
     val year: Int? = null,
-    val ageRating: String? = null
+    val ageRating: String? = null,
+    val releaseType: String? = null,  // "theatrical" / "streaming" (Coming Soon section)
+    val countryCode: String? = null
 )

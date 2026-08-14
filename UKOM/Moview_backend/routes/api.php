@@ -38,9 +38,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/now-showing', [MovieApiController::class, 'nowShowing']);
     Route::get('/preorder', [MovieApiController::class, 'preorder']);
     Route::get('/upcoming', [MovieApiController::class, 'upcoming']);
+    Route::get('/coming-soon', [MovieApiController::class, 'comingSoon']);
     Route::get('/movies/now-showing', [MovieApiController::class, 'nowShowing']);
     Route::get('/movies/preorder', [MovieApiController::class, 'preorder']);
     Route::get('/movies/upcoming', [MovieApiController::class, 'upcoming']);
+    Route::get('/movies/coming-soon', [MovieApiController::class, 'comingSoon']);
     Route::get('/academy-award-nominees', [MovieApiController::class, 'academyAwardNominees']);
     
     // Movies
@@ -166,3 +168,4 @@ Route::get('/schedules', [ScheduleController::class, 'index']);
 Route::get('/movies/now-showing', [MovieApiController::class, 'nowShowing']);
 Route::get('/movies/preorder', [MovieApiController::class, 'preorder']);
 Route::get('/movies/upcoming', [MovieApiController::class, 'upcoming']);
+Route::get('/movies/coming-soon', [MovieApiController::class, 'comingSoon']);

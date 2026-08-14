@@ -29,6 +29,7 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     private lateinit var friendActivityAdapter: FriendActivityNewAdapter
     private lateinit var nowShowingAdapter: TheatricalMovieAdapter
     private lateinit var upcomingAdapter: TheatricalMovieAdapter
+    private lateinit var comingSoonAdapter: TheatricalMovieAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -240,6 +241,33 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             )
         }
 
+        // Setup Coming Soon RecyclerView (Horizontal)
+        comingSoonAdapter = TheatricalMovieAdapter(
+            onMovieClick = { movie ->
+                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            },
+            showDateBadge = true,
+            onLongPressGoToFilm = { movie ->
+                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
+                findNavController().navigate(action)
+            },
+            onLogFilm = { movie ->
+                val action = HomeFragmentDirections.actionHomeToLogFilm(movie.id)
+                findNavController().navigate(action)
+            },
+            onChangePoster = { movie ->
+                val action = HomeFragmentDirections.actionHomeToPosterBackdrop(movie.id, false)
+                findNavController().navigate(action)
+            }
+        )
+        binding.rvComingSoon.apply {
+            adapter = comingSoonAdapter
+            layoutManager = LinearLayoutManager(
+                requireContext(), LinearLayoutManager.HORIZONTAL, false
+            )
+        }
+
     }
 
     private fun observeViewModel() {
@@ -270,6 +298,11 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
         viewModel.upcomingMovies.observe(viewLifecycleOwner) { movies ->
             upcomingAdapter.submitList(movies)
+        }
+
+        viewModel.comingSoonMovies.observe(viewLifecycleOwner) { movies ->
+            comingSoonAdapter.submitList(movies)
+            binding.layoutComingSoon.visibility = if (movies.isEmpty()) View.GONE else View.VISIBLE
         }
 
         viewModel.error.observe(viewLifecycleOwner) { error ->

@@ -86,7 +86,12 @@ class TheatricalMovieAdapter(
             if (showDateBadge) {
                 binding.vScrim.visibility = View.VISIBLE
                 binding.tvBadge.visibility = View.VISIBLE
-                val badgeText = if (!movie.releaseDate.isNullOrBlank()) {
+                val typeLabel = when (movie.releaseType) {
+                    "theatrical" -> "In Theaters"
+                    "streaming" -> "On Streaming"
+                    else -> null
+                }
+                val dateText = if (!movie.releaseDate.isNullOrBlank()) {
                     try {
                         val inFmt = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
                         val outFmt = SimpleDateFormat("d MMM yyyy", Locale.ENGLISH)
@@ -98,7 +103,7 @@ class TheatricalMovieAdapter(
                 } else {
                     "Coming Soon"
                 }
-                binding.tvBadge.text = badgeText
+                binding.tvBadge.text = listOfNotNull(typeLabel, dateText).joinToString(" • ")
             } else {
                 binding.vScrim.visibility = if (rating != null) View.VISIBLE else View.GONE
                 binding.tvBadge.visibility = View.GONE
