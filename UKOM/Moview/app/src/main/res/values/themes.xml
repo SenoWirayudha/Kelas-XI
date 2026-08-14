@@ -17,6 +17,16 @@
 
         <!-- Global font family -->
         <item name="android:fontFamily">@font/font_family_inter</item>
+
+        <!-- Material chips resolve text via textAppearanceLabelLarge, which defaults
+             to Roboto (M3.Sys.Typescale.LabelLarge). Override it to keep Inter. -->
+        <item name="textAppearanceLabelLarge">@style/TextAppearance.Moview.LabelLarge</item>
+    </style>
+
+    <!-- Chip label style: same size/weight as Material LabelLarge but using Inter. -->
+    <style name="TextAppearance.Moview.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
     </style>
 
     <!-- Theme without action bar for main activity -->

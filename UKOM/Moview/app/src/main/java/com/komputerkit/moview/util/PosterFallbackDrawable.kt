@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.drawable.Drawable
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import com.komputerkit.moview.R
 
 /**
@@ -21,6 +22,7 @@ class PosterFallbackDrawable(
         textSize = dp(11f)
         textAlign = Paint.Align.CENTER
         isFakeBoldText = true
+        typeface = ResourcesCompat.getFont(context, R.font.font_family_inter)
         setShadowLayer(dp(4f), 0f, dp(2f), 0xCC000000.toInt())
     }
 

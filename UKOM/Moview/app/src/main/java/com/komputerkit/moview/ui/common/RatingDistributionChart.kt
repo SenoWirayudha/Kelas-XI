@@ -6,6 +6,8 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import androidx.core.content.res.ResourcesCompat
+import com.komputerkit.moview.R
 
 /**
  * Vertical rating distribution chart (Letterboxd-style).
@@ -33,6 +35,7 @@ class RatingDistributionChart @JvmOverloads constructor(
         color = DEFAULT_LABEL_COLOR
         textAlign = Paint.Align.CENTER
         textSize = dp(10f)
+        typeface = ResourcesCompat.getFont(context, R.font.font_family_inter)
     }
 
     fun setBarColor(color: Int) {
