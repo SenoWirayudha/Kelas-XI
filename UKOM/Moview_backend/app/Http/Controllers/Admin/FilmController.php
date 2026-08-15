@@ -175,7 +175,8 @@ class FilmController extends Controller
         // Build query
         $query = Movie::with([
             'movieGenres.genre',
-            'movieServices.service'
+            'movieServices.service',
+            'movieReleases'
         ]);
 
         // Apply search filter (same pattern as the API search: multi-field

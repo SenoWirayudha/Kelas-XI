@@ -231,25 +231,23 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     @php
-                        $releaseSlots = $film->movieServices;
-                        $hasComingSoon = $releaseSlots->contains('is_coming_soon', 1);
-                        $hasReleased = $releaseSlots->contains(function ($slot) {
-                            return $slot->is_coming_soon == 0;
-                        });
-                        $earliestDate = $releaseSlots
-                            ->filter(fn($slot) => $slot->release_date)
+                        $releaseStatus = $film->release_status;
+                        $earliestDate = $film->movieReleases
+                            ->filter(function ($release) {
+                                return $release->release_date
+                                    && in_array($release->type, ['theatrical', 'streaming']);
+                            })
                             ->sortBy('release_date')
                             ->first();
                     @endphp
-                    @if($releaseSlots->isEmpty())
+                    @if($film->movieReleases->isEmpty())
                         <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-500">No release data</span>
                     @else
-                        @if($hasComingSoon)
+                        @if($releaseStatus === 'coming_soon')
                             <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
                                 <i class="fas fa-clock mr-1"></i>Coming Soon
                             </span>
-                        @endif
-                        @if($hasReleased)
+                        @else
                             <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                                 <i class="fas fa-play-circle mr-1"></i>Released
                             </span>
