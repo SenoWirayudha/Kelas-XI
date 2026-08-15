@@ -177,33 +177,64 @@ class FilmController extends Controller
             'movieGenres.genre',
             'movieServices.service'
         ]);
-        
-        // Apply search filter
-        if ($search) {
-            $query->where('title', 'like', "%{$search}%");
+
+        // Apply search filter (same pattern as the API search: multi-field
+        // title + original_title, relevance ranking exact -> starts-with ->
+        // substring -> trigram similarity >= 0.4 -> synopsis)
+        if ($search !== null && trim($search) !== '') {
+            $search = trim($search);
+            $search = preg_replace('/\s+/u', ' ', $search);
+            $like = "%{$search}%";
+            $startsWith = "{$search}%";
+
+            $query
+                ->where(function ($q) use ($search, $like) {
+                    $q->where('title', 'ilike', $like)
+                      ->orWhere('original_title', 'ilike', $like)
+                      ->orWhereRaw('similarity(title, ?) >= 0.4', [$search])
+                      ->orWhereRaw('similarity(original_title, ?) >= 0.4', [$search])
+                      ->orWhere('synopsis', 'ilike', $like);
+                })
+                ->select('movies.*')
+                ->selectRaw(
+                    '(CASE WHEN LOWER(title) = LOWER(?) THEN 100 ELSE 0 END'
+                    . ' + CASE WHEN title ILIKE ? THEN 90 ELSE 0 END'
+                    . ' + CASE WHEN original_title ILIKE ? THEN 85 ELSE 0 END'
+                    . ' + CASE WHEN title ILIKE ? THEN 70 ELSE 0 END'
+                    . ' + CASE WHEN original_title ILIKE ? THEN 65 ELSE 0 END'
+                    . ' + CASE WHEN similarity(title, ?) >= 0.4 THEN similarity(title, ?) * 60 ELSE 0 END'
+                    . ' + CASE WHEN similarity(original_title, ?) >= 0.4 THEN similarity(original_title, ?) * 50 ELSE 0 END'
+                    . ' + CASE WHEN synopsis ILIKE ? THEN 20 ELSE 0 END'
+                    . ') as relevance',
+                    [$search, $startsWith, $startsWith, $like, $like, $search, $search, $search, $search, $like]
+                )
+                ->orderByRaw('relevance DESC, movies.created_at DESC');
+        } else {
+            // Default ordering when not searching
+            $query->orderBy('created_at', 'desc');
         }
-        
+
         // Apply status filter
         if ($status) {
             $query->where('status', $status);
         }
-        
+
         // Apply release type filter (theatrical / streaming platform)
         if (in_array($releaseType, ['theatrical', 'streaming'])) {
             $query->whereHas('movieServices.service', function ($q) use ($releaseType) {
                 $q->where('type', $releaseType);
             });
         }
-        
+
         // Apply release status filter (already released / coming soon)
         if (in_array($releaseStatus, ['released', 'coming_soon'])) {
             $query->whereHas('movieServices', function ($q) use ($releaseStatus) {
                 $q->where('is_coming_soon', $releaseStatus === 'coming_soon' ? 1 : 0);
             });
         }
-        
+
         // Paginate results
-        $films = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
+        $films = $query->paginate(15)->withQueryString();
 
         // Global stats (independent of current page)
         $totalFilms = Movie::count();
