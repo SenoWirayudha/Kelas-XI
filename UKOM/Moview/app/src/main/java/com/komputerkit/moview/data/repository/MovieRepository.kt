@@ -127,20 +127,6 @@ class MovieRepository {
         emptyList()
     }
     
-    suspend fun searchMovies(query: String): List<Movie> = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.searchMovies(query)
-            if (response.success && response.data != null) {
-                response.data.map { it.toMovie() }
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
-    }
-    
     suspend fun search(query: String, type: String): SearchResponse? = withContext(Dispatchers.IO) {
         try {
             val response = apiService.search(query, type)

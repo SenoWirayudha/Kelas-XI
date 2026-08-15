@@ -319,11 +319,6 @@ interface MovieApiService {
         @Query("type") type: String = "all"
     ): ApiResponse<SearchResponse>
     
-    @GET("search")
-    suspend fun searchMovies(
-        @Query("q") query: String
-    ): ApiResponse<List<MovieCardDto>>
-    
     // Review Comments
     @GET("reviews/{reviewId}/comments")
     suspend fun getReviewComments(
