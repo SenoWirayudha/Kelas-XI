@@ -693,29 +693,57 @@ class MovieApiController extends Controller
      */
     public function search(Request $request)
     {
-        $query = $request->get('q');
         $type = $request->get('type', 'all'); // all, movies, cast_crew, production_houses, people
-        
-        if (!$query) {
+
+        // Normalize the query: trim surrounding whitespace and collapse runs of
+        // whitespace so "  the   bride " matches "The Bride".
+        $query = trim((string) $request->get('q'));
+        $query = preg_replace('/\s+/u', ' ', $query);
+
+        if ($query === '') {
             return response()->json([
                 'success' => false,
                 'message' => 'Search query is required'
             ], 400);
         }
-        
+
         $results = [];
-        
+
         // Search Movies
         if ($type === 'all' || $type === 'movies') {
-            $movies = Movie::where(function ($q) use ($query) {
-                    $q->where('title', 'ilike', "%{$query}%")
-                      ->orWhere('synopsis', 'ilike', "%{$query}%");
-                })
+            $like = "%{$query}%";
+            $startsWith = "{$query}%";
+
+            // Weighted relevance: exact title > title starts-with > original
+            // title starts-with > substring title > substring original title >
+            // trigram similarity (>= 0.4) > synopsis substring.
+            $movies = Movie::query()
                 ->where('status', 'published')
+                ->where(function ($q) use ($query, $like) {
+                    $q->where('title', 'ilike', $like)
+                      ->orWhere('original_title', 'ilike', $like)
+                      ->orWhereRaw('similarity(title, ?) >= 0.4', [$query])
+                      ->orWhereRaw('similarity(original_title, ?) >= 0.4', [$query])
+                      ->orWhere('synopsis', 'ilike', $like);
+                })
+                ->select('movies.*')
+                ->selectRaw(
+                    '(CASE WHEN LOWER(title) = LOWER(?) THEN 100 ELSE 0 END'
+                    . ' + CASE WHEN title ILIKE ? THEN 90 ELSE 0 END'
+                    . ' + CASE WHEN original_title ILIKE ? THEN 85 ELSE 0 END'
+                    . ' + CASE WHEN title ILIKE ? THEN 70 ELSE 0 END'
+                    . ' + CASE WHEN original_title ILIKE ? THEN 65 ELSE 0 END'
+                    . ' + CASE WHEN similarity(title, ?) >= 0.4 THEN similarity(title, ?) * 60 ELSE 0 END'
+                    . ' + CASE WHEN similarity(original_title, ?) >= 0.4 THEN similarity(original_title, ?) * 50 ELSE 0 END'
+                    . ' + CASE WHEN synopsis ILIKE ? THEN 20 ELSE 0 END'
+                    . ') as relevance',
+                    [$query, $startsWith, $startsWith, $like, $like, $query, $query, $query, $query, $like]
+                )
                 ->with(['genres'])
+                ->orderByRaw('relevance DESC, movies.id ASC')
                 ->limit(20)
                 ->get();
-            
+
             $results['movies'] = $movies->map(function ($movie) {
                 return $this->formatMovieCard($movie);
             });
