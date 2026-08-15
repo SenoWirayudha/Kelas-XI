@@ -197,6 +197,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Runtime</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Release</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reviews</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -227,6 +228,36 @@
                         {{ $film->status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
                         {{ ucfirst($film->status) }}
                     </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    @php
+                        $releaseSlots = $film->movieServices;
+                        $hasComingSoon = $releaseSlots->contains('is_coming_soon', 1);
+                        $hasReleased = $releaseSlots->contains(function ($slot) {
+                            return $slot->is_coming_soon == 0;
+                        });
+                        $earliestDate = $releaseSlots
+                            ->filter(fn($slot) => $slot->release_date)
+                            ->sortBy('release_date')
+                            ->first();
+                    @endphp
+                    @if($releaseSlots->isEmpty())
+                        <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-500">No release data</span>
+                    @else
+                        @if($hasComingSoon)
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                <i class="fas fa-clock mr-1"></i>Coming Soon
+                            </span>
+                        @endif
+                        @if($hasReleased)
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                <i class="fas fa-play-circle mr-1"></i>Released
+                            </span>
+                        @endif
+                        @if($earliestDate)
+                            <div class="text-xs text-gray-500 mt-1">{{ \Carbon\Carbon::parse($earliestDate->release_date)->format('d M Y') }}</div>
+                        @endif
+                    @endif
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="flex items-center">
@@ -273,13 +304,6 @@
         <div>
             {{ $films->links() }}
         </div>
-    </div>
-</div>
-    <p class="text-sm text-gray-600">Showing 1 to {{ count($films) }} of {{ count($films) }} results</p>
-    <div class="flex space-x-2">
-        <button class="px-3 py-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300" disabled>Previous</button>
-        <button class="px-3 py-1 bg-blue-600 text-white rounded">1</button>
-        <button class="px-3 py-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300" disabled>Next</button>
     </div>
 </div>
 @endsection
