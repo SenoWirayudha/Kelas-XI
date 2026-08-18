@@ -128,6 +128,42 @@ class LogFilmFragment : Fragment() {
                 Toast.makeText(requireContext(), "Rating saved!", Toast.LENGTH_SHORT).show()
             }
         }
+        
+        viewModel.saveResult.observe(viewLifecycleOwner) { result ->
+            if (result == null) return@observe
+            
+            if (!result.success) {
+                Toast.makeText(requireContext(), "Gagal menyimpan, coba lagi", Toast.LENGTH_SHORT).show()
+                return@observe
+            }
+            
+            val message = if (args.isEditMode) {
+                "Review updated successfully!"
+            } else {
+                if (result.reviewId != null) "Review saved successfully!" else "Log saved successfully!"
+            }
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+            
+            if (args.isEditMode) {
+                findNavController().navigateUp()
+            } else {
+                val isLog = result.reviewId == null
+                val entryId = result.reviewId ?: result.diaryId
+                val entryBundle = Bundle().apply {
+                    putInt("reviewId", entryId)
+                    putBoolean("isLog", isLog)
+                    putBoolean("openComments", false)
+                    putInt("diaryId", result.diaryId)
+                }
+                findNavController().navigate(
+                    R.id.reviewDetailFragment,
+                    entryBundle,
+                    androidx.navigation.NavOptions.Builder()
+                        .setPopUpTo(R.id.logFilmFragment, true)
+                        .build()
+                )
+            }
+        }
     }
     
     private fun setupClickListeners() {
@@ -428,23 +464,6 @@ class LogFilmFragment : Fragment() {
             // Create new log/review (or rewatch if already watched)
             viewModel.saveLog(reviewHtml, containsSpoilers, selectedDate, isRewatch = isRewatch)
         }
-        
-        // Give time for async save before closing
-        binding.root.postDelayed({
-            // Check if fragment is still attached to avoid crash
-            if (isAdded && context != null) {
-                val isRewatch = viewModel.isRewatch.value == true && !args.isEditMode
-                val message = if (args.isEditMode && args.reviewId > 0) {
-                    "Review updated successfully!"
-                } else if (isRewatch) {
-                    "Rewatch logged successfully!"
-                } else {
-                    "Review saved successfully!"
-                }
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-                findNavController().navigateUp()
-            }
-        }, 500)
     }
 
     override fun onDestroyView() {

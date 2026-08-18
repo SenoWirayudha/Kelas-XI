@@ -8,6 +8,7 @@ import com.komputerkit.moview.data.api.MovieWatchedUserDto
 import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.data.api.ReviewCommentDto
 import com.komputerkit.moview.data.api.SearchResponse
+import com.komputerkit.moview.data.api.SaveReviewResult
 import com.komputerkit.moview.data.api.UserProfileResponse
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.data.model.Movie
@@ -1827,16 +1828,20 @@ class MovieRepository {
         containsSpoilers: Boolean,
         watchedAt: String? = null,
         isRewatch: Boolean = false
-    ): Boolean = withContext(Dispatchers.IO) {
+    ): SaveReviewResult = withContext(Dispatchers.IO) {
         try {
             android.util.Log.d("MovieRepository", "saveReview: userId=$userId, filmId=$filmId, rating=$rating, spoilers=$containsSpoilers, watchedAt=$watchedAt, isRewatch=$isRewatch")
             val response = apiService.saveReview(userId, filmId, reviewText, rating, if (containsSpoilers) 1 else 0, watchedAt, if (isRewatch) 1 else 0)
-            android.util.Log.d("MovieRepository", "saveReview response: success=${response.success}")
-            response.success
+            android.util.Log.d("MovieRepository", "saveReview response: success=${response.success}, reviewId=${response.review_id}, diaryId=${response.diary_id}")
+            SaveReviewResult(
+                success = response.success,
+                diaryId = response.diary_id ?: 0,
+                reviewId = response.review_id
+            )
         } catch (e: Exception) {
             android.util.Log.e("MovieRepository", "saveReview exception: ${e.message}", e)
             e.printStackTrace()
-            false
+            SaveReviewResult(false, 0, null)
         }
     }
 

@@ -11,6 +11,19 @@ data class SimpleResponse(
     val message: String? = null
 )
 
+data class SaveReviewResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val review_id: Int? = null,
+    val diary_id: Int? = null
+)
+
+data class SaveReviewResult(
+    val success: Boolean,
+    val diaryId: Int = 0,
+    val reviewId: Int? = null
+)
+
 data class PaginatedResponse<T>(
     val success: Boolean,
     val data: List<T>,

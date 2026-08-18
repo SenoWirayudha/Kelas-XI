@@ -1505,7 +1505,9 @@ class UserActivityController extends Controller
             
             return response()->json([
                 'success' => true,
-                'message' => $message
+                'message' => $message,
+                'review_id' => $reviewId,
+                'diary_id' => $diaryId
             ]);
         } catch (\Exception $e) {
             return response()->json([

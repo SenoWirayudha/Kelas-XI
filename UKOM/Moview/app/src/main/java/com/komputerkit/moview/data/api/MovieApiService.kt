@@ -300,7 +300,7 @@ interface MovieApiService {
         @Field("contains_spoilers") containsSpoilers: Int,
         @Field("watched_at") watchedAt: String? = null,
         @Field("is_rewatch") isRewatch: Int = 0
-    ): SimpleResponse
+    ): SaveReviewResponse
     
     @PUT("users/{userId}/reviews/{reviewId}")
     @FormUrlEncoded

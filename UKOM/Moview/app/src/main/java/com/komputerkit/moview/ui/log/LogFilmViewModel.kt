@@ -6,6 +6,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.komputerkit.moview.data.api.SaveReviewResult
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.applyCustomMedia
@@ -32,6 +33,9 @@ class LogFilmViewModel : ViewModel() {
     
     private val _saveSuccess = MutableLiveData<Boolean>()
     val saveSuccess: LiveData<Boolean> = _saveSuccess
+    
+    private val _saveResult = MutableLiveData<SaveReviewResult?>()
+    val saveResult: LiveData<SaveReviewResult?> = _saveResult
     
     private var currentUserId: Int = -1
     
@@ -151,7 +155,7 @@ val ratingValue = _rating.value ?: 0f
                 Log.d("LogFilmViewModel", "Saving log/review: userId=$currentUserId, movieId=$movieId, rating=$ratingValue, hasReview=${reviewText.isNotBlank()}, isRewatch=$isRewatch")
                 
                 // Save to review endpoint (handles both review and log + diaries table)
-                val success = repository.saveReview(
+                val result = repository.saveReview(
                     userId = currentUserId,
                     filmId = movieId,
                     reviewText = reviewText, // Can be empty for log
@@ -161,17 +165,17 @@ val ratingValue = _rating.value ?: 0f
                     isRewatch = isRewatch
                 )
                 
-                if (success) {
+                if (result.success) {
                     _isWatched.postValue(true)
                     Log.d("LogFilmViewModel", "Save ${if (isRewatch) "rewatch" else if (reviewText.isNotBlank()) "review" else "log"} success")
                 } else {
                     Log.e("LogFilmViewModel", "Failed to save ${if (isRewatch) "rewatch" else if (reviewText.isNotBlank()) "review" else "log"}")
                 }
                 
-                _saveSuccess.postValue(success)
+                _saveResult.postValue(result)
             } else {
                 Log.e("LogFilmViewModel", "Cannot save: userId not found ($currentUserId)")
-                _saveSuccess.postValue(false)
+                _saveResult.postValue(SaveReviewResult(false))
             }
         }
     }
@@ -196,10 +200,10 @@ val ratingValue = _rating.value ?: 0f
                     Log.e("LogFilmViewModel", "Failed to update review")
                 }
                 
-                _saveSuccess.postValue(success)
+                _saveResult.postValue(SaveReviewResult(success))
             } else {
                 Log.e("LogFilmViewModel", "Cannot update: userId not found ($currentUserId)")
-                _saveSuccess.postValue(false)
+                _saveResult.postValue(SaveReviewResult(false))
             }
         }
     }
