@@ -266,19 +266,19 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ number_format($film->total_reviews ?? 0) }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div class="flex justify-end space-x-2">
-                        <a href="{{ route('admin.films.show', $film->id) }}" 
+                        <a href="{{ route('admin.films.show', $film->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" 
                            class="text-blue-600 hover:text-blue-900" title="View">
                             <i class="fas fa-eye"></i>
                         </a>
-                        <a href="{{ route('admin.films.edit', $film->id) }}" 
+                        <a href="{{ route('admin.films.edit', $film->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" 
                            class="text-indigo-600 hover:text-indigo-900" title="Edit">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <a href="{{ route('admin.films.cast-crew', $film->id) }}" 
+                        <a href="{{ route('admin.films.cast-crew', $film->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" 
                            class="text-purple-600 hover:text-purple-900" title="Cast & Crew">
                             <i class="fas fa-users"></i>
                         </a>
-                        <a href="{{ route('admin.films.reviews', $film->id) }}" 
+                        <a href="{{ route('admin.films.reviews', $film->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" 
                            class="text-green-600 hover:text-green-900" title="Reviews">
                             <i class="fas fa-star"></i>
                         </a>

@@ -8,7 +8,7 @@
 <div class="max-w-6xl">
     <!-- Back Button -->
     <div class="mb-6">
-        <a href="{{ route('admin.films.index') }}" class="text-blue-600 hover:text-blue-800 flex items-center">
+        <a href="{{ route('admin.films.index') . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" class="text-blue-600 hover:text-blue-800 flex items-center">
             <i class="fas fa-arrow-left mr-2"></i>
             Back to Films
         </a>

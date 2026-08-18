@@ -12,7 +12,7 @@
         Back to Film
     </a>
     <span class="text-gray-400">|</span>
-    <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-indigo-600 hover:text-indigo-800 flex items-center">
+    <a href="{{ route('admin.films.edit', $movie->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" class="text-indigo-600 hover:text-indigo-800 flex items-center">
         <i class="fas fa-edit mr-2"></i>
         Edit Film Details
     </a>

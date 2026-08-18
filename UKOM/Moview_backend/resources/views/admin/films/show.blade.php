@@ -14,7 +14,7 @@
             <p class="text-sm">This is how users will see this film</p>
         </div>
     </div>
-    <a href="{{ route('admin.films.edit', $movie->id) }}" class="bg-white text-yellow-600 px-4 py-2 rounded-lg hover:bg-yellow-50">
+    <a href="{{ route('admin.films.edit', $movie->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" class="bg-white text-yellow-600 px-4 py-2 rounded-lg hover:bg-yellow-50">
         <i class="fas fa-edit mr-2"></i>
         Edit Film
     </a>
@@ -22,7 +22,7 @@
 
 <!-- Quick Actions -->
 <div class="mb-6 flex space-x-3">
-    <a href="{{ route('admin.films.index') }}" class="text-blue-600 hover:text-blue-800 flex items-center">
+    <a href="{{ route('admin.films.index') . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" class="text-blue-600 hover:text-blue-800 flex items-center">
         <i class="fas fa-arrow-left mr-2"></i>
         Back to Films
     </a>
@@ -768,7 +768,7 @@
 
                     <!-- Edit Button -->
                     <div class="flex justify-end pt-4 border-t border-gray-200">
-                        <a href="{{ route('admin.films.edit', $movie->id) }}" 
+                        <a href="{{ route('admin.films.edit', $movie->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" 
                                 class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center">
                             <i class="fas fa-edit mr-2"></i>
                             Edit Metadata
