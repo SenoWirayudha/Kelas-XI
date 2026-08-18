@@ -501,6 +501,11 @@ class FilmController extends Controller
         }
 
         $this->syncTheatricalServices($movie);
+
+        $unhandledStreaming = app(\App\Services\StreamingSyncService::class)->syncMovie($movie);
+        if (!empty($unhandledStreaming)) {
+            session()->flash('streaming_warning', 'Streaming platform tidak dikenal (tidak disinkronkan): ' . implode(', ', $unhandledStreaming));
+        }
     }
 
     /**

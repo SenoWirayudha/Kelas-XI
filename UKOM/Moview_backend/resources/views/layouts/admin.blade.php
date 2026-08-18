@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Film Admin Dashboard')</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -203,6 +204,19 @@
                     <div class="flex items-center">
                         <i class="fas fa-check-circle mr-2"></i>
                         <span class="block sm:inline">{{ session('success') }}</span>
+                        <button @click="show = false" class="absolute top-0 bottom-0 right-0 px-4 py-3">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                @endif
+
+                <!-- Streaming Warning Message -->
+                @if(session('streaming_warning'))
+                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 8000)" class="mb-6 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative" role="alert">
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span class="block sm:inline">{{ session('streaming_warning') }}</span>
                         <button @click="show = false" class="absolute top-0 bottom-0 right-0 px-4 py-3">
                             <i class="fas fa-times"></i>
                         </button>

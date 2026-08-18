@@ -22,12 +22,15 @@ return new class extends Migration
             $table->index('release_date');
         });
 
-        // Unique per (movie, type, country, date) so insertOrIgnore dedupes correctly.
-        // NULLS NOT DISTINCT (PG 15+) treats NULL country_code (e.g. theatrical, no
-        // country specified) as equal, otherwise multiple NULLs would never conflict.
+        // Unique per (movie, type, country, platform, date) so insertOrIgnore
+        // dedupes correctly. `name` holds the platform (streaming) or festival
+        // (premiere); theatrical rows keep name=NULL. NULLS NOT DISTINCT (PG 15+)
+        // treats NULL country_code (e.g. theatrical, no country specified) as
+        // equal, otherwise multiple NULLs would never conflict. Including `name`
+        // lets two streaming platforms share the same release date independently.
         DB::statement(
-            'CREATE UNIQUE INDEX movie_releases_movie_type_country_date_unique '
-            . 'ON movie_releases (movie_id, type, country_code, release_date) '
+            'CREATE UNIQUE INDEX movie_releases_movie_type_country_name_date_unique '
+            . 'ON movie_releases (movie_id, type, country_code, name, release_date) '
             . 'NULLS NOT DISTINCT'
         );
     }

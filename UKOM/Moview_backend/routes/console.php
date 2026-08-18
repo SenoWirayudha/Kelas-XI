@@ -13,3 +13,6 @@ Schedule::command('schedules:delete-expired')->hourly();
 
 // Auto-cancel stale pending orders to free locked seats quickly
 Schedule::command('orders:cleanup-stale-pending')->everyMinute();
+
+// Auto-clear streaming release dates that have naturally passed (Indonesia)
+Schedule::command('services:sync-streaming-dates')->dailyAt('03:00');
