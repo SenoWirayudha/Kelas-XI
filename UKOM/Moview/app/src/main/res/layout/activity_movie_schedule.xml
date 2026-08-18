@@ -43,16 +43,6 @@
                     android:layout_gravity="top"
                     android:background="@drawable/gradient_backdrop_top" />
 
-                <!-- Back button -->
-                <ImageButton
-                    android:id="@+id/btn_back"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_margin="16dp"
-                    android:background="@android:color/transparent"
-                    android:src="@drawable/ic_arrow_back"
-                    app:tint="@android:color/white" />
-
                 <!-- Share button -->
                 <ImageButton
                     android:id="@+id/btn_share"
@@ -444,6 +434,27 @@
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
+    <!-- ── FLOATING BACK BUTTON (sticky) ───────────────────────────── -->
+    <FrameLayout
+        android:id="@+id/btn_back_container"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="16dp"
+        android:background="@drawable/bg_back_button"
+        android:elevation="6dp"
+        android:translationZ="2dp">
+
+        <ImageView
+            android:id="@+id/btn_back"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:contentDescription="Back"
+            android:src="@drawable/ic_back"
+            app:tint="@color/white" />
+    </FrameLayout>
 
     <!-- ── BOTTOM BUY BUTTON ──────────────────────────────────────── -->
     <com.google.android.material.button.MaterialButton
