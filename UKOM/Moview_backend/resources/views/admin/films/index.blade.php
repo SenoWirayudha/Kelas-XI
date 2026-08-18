@@ -190,34 +190,34 @@
 
 <!-- Films Table View -->
 <div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="min-w-full divide-y divide-gray-200">
+    <table class="min-w-full table-fixed divide-y divide-gray-200">
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Film</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Runtime</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Release</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reviews</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th style="width:28%" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Film</th>
+                <th style="width:6%" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                <th style="width:8%" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Runtime</th>
+                <th style="width:9%" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th style="width:15%" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Release</th>
+                <th style="width:7%" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
+                <th style="width:8%" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reviews</th>
+                <th style="width:19%" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @foreach($films as $film)
             <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
+                <td class="px-6 py-4">
+                    <div class="flex items-start">
                         @php
                             $poster = $film->posters()->where('is_default', true)->first() ?? $film->posters()->first();
                         @endphp
-                        <img src="{{ $poster ? asset('storage/' . $poster->media_path) : 'https://via.placeholder.com/100x150' }}" alt="{{ $film->title }}" class="w-12 h-16 object-cover rounded">
-                        <div class="ml-4">
-                            <div class="text-sm font-medium text-gray-900">{{ $film->title }}</div>
+                        <img src="{{ $poster ? asset('storage/' . $poster->media_path) : 'https://via.placeholder.com/100x150' }}" alt="{{ $film->title }}" class="w-12 h-16 object-cover rounded flex-shrink-0">
+                        <div class="ml-4 min-w-0">
+                            <div class="text-sm font-medium text-gray-900 break-words">{{ $film->title }}</div>
                             @if($film->original_title)
-                                <div class="text-xs text-gray-400">{{ $film->original_title }}</div>
+                                <div class="text-xs text-gray-400 break-words">{{ $film->original_title }}</div>
                             @endif
-                            <div class="text-sm text-gray-500">{{ $film->movieGenres->pluck('genre.name')->implode(', ') }}</div>
+                            <div class="text-sm text-gray-500 break-words">{{ $film->movieGenres->pluck('genre.name')->implode(', ') }}</div>
                         </div>
                     </div>
                 </td>
