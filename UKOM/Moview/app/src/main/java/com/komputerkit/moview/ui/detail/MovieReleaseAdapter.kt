@@ -18,7 +18,8 @@ import java.util.Locale
 /**
  * One release date group inside a section: the date plus every country released on it.
  * A group with a single country renders as a normal row; a group with multiple
- * countries renders as one card with the date written once and the countries stacked.
+ * countries renders as one card with the date on the first country row and the
+ * countries stacked underneath (not repeated per country).
  */
 data class ReleaseGroup(
     val date: String?,
@@ -34,8 +35,8 @@ data class ReleaseSection(
 /**
  * Renders the Rilis tab as grouped sections ordered Premiere -> Theatrical -> Streaming.
  * Each section header is followed by its release date groups sorted chronologically.
- * Countries sharing the same release date are grouped into a single block: the date is
- * written once, the countries are stacked underneath (not repeated per country).
+ * Countries sharing the same release date are grouped into a single card: the date is
+ * written once on the first row (right-aligned), the countries are stacked underneath.
  * Sections with no releases are omitted entirely (handled by caller).
  */
 class MovieReleaseAdapter(
@@ -117,13 +118,13 @@ class MovieReleaseAdapter(
         private val binding: ItemMovieReleaseBinding
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(release: MovieRelease) {
-            bindCountry(binding.ivReleaseFlag, binding.tvFlagEmoji, binding.tvReleaseCountry, binding.tvReleaseName, release)
+            bindCountry(binding.ivReleaseFlag, binding.tvReleaseCountry, binding.tvReleaseName, release)
             binding.tvReleaseDate.text = formatDateStatic(release.releaseDate)
             binding.tvReleaseDate.visibility = View.VISIBLE
         }
     }
 
-    /** A single release date + multiple countries (grouped into one block). */
+    /** A single release date + multiple countries (grouped into one card). */
     class GroupViewHolder(
         private val binding: ItemReleaseGroupBinding
     ) : RecyclerView.ViewHolder(binding.root) {
@@ -134,7 +135,7 @@ class MovieReleaseAdapter(
             val dateText = formatDateStatic(group.date)
             group.releases.forEachIndexed { index, release ->
                 val row = ItemReleaseCountryBinding.inflate(inflater, binding.containerCountries, false)
-                bindCountry(row.ivReleaseFlag, row.tvFlagEmoji, row.tvReleaseCountry, row.tvReleaseName, release)
+                bindCountry(row.ivReleaseFlag, row.tvReleaseCountry, row.tvReleaseName, release)
                 row.tvReleaseDate.text = dateText
                 row.tvReleaseDate.visibility = if (index == 0) View.VISIBLE else View.INVISIBLE
                 binding.containerCountries.addView(row.root)
@@ -146,7 +147,6 @@ class MovieReleaseAdapter(
 /** Populate flag + country + optional festival/platform name of a release. */
 private fun bindCountry(
     flagView: ImageView,
-    emojiView: TextView,
     countryView: TextView,
     nameView: TextView,
     release: MovieRelease
@@ -158,7 +158,6 @@ private fun bindCountry(
             )
         }
     if (flagRes != null && flagRes != 0) {
-        emojiView.visibility = View.GONE
         flagView.setImageResource(0)
         com.bumptech.glide.Glide.with(flagView.context)
             .load(flagRes)
@@ -171,10 +170,9 @@ private fun bindCountry(
             .into(flagView)
         flagView.visibility = View.VISIBLE
     } else {
-        flagView.visibility = View.GONE
-        val emoji = release.flagEmoji?.takeIf { it.isNotBlank() }
-        emojiView.text = emoji ?: ""
-        emojiView.visibility = if (emoji != null) View.VISIBLE else View.GONE
+        // No bundled PNG flag -> show a round globe icon placeholder
+        flagView.setImageResource(R.drawable.ic_globe_flag)
+        flagView.visibility = View.VISIBLE
     }
 
     val country = release.countryName?.takeIf { it.isNotBlank() }
