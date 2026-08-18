@@ -11,7 +11,6 @@ import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.databinding.ActivityMainBinding
-import com.komputerkit.moview.util.ScrollableToTop
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -95,27 +94,17 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
 
-        // Tab taps: navigate with popUpTo the start destination so the back stack never
-        // accumulates tab copies / child screens, keeping the checked item in sync.
+        // Letterboxd-style tab navigation: EVERY tap on the bottom nav (whether switching
+        // tabs or re-tapping the active one) goes back to that tab's root and discards all
+        // nested/child screens opened anywhere. No saveState/restoreState / multiple back stacks.
         binding.bottomNavigation.setOnItemSelectedListener { item ->
-            val options = NavOptions.Builder()
-                .setLaunchSingleTop(true)
-                .setPopUpTo(navController.graph.startDestinationId, false)
-                .build()
-            try {
-                navController.navigate(item.itemId, null, options)
-            } catch (e: IllegalArgumentException) {
-                return@setOnItemSelectedListener false
-            }
+            navigateToTabRoot(item.itemId)
             true
         }
 
-        // Re-tap on the active tab: reset the visible tab fragment's scroll to top
-        binding.bottomNavigation.setOnItemReselectedListener {
-            val current = navHostFragment.childFragmentManager.fragments.firstOrNull()
-            if (current is ScrollableToTop) {
-                current.scrollToTop()
-            }
+        // Re-tapping the currently-active tab item also goes to its root (fresh state).
+        binding.bottomNavigation.setOnItemReselectedListener { item ->
+            navigateToTabRoot(item.itemId)
         }
 
         // Hide bottom navigation on login screen
@@ -142,6 +131,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    private fun navigateToTabRoot(itemId: Int) {
+        val options = NavOptions.Builder()
+            .setLaunchSingleTop(true)
+            .setPopUpTo(navController.graph.startDestinationId, false)
+            .build()
+        try {
+            navController.navigate(itemId, null, options)
+        } catch (e: IllegalArgumentException) {
+            // Destination not reachable from current graph state — ignore
+        }
+    }
+
     private fun checkLoginStatus() {
         val sharedPrefs = getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         val isLoggedIn = sharedPrefs.getBoolean("isLoggedIn", false)

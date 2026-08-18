@@ -12,9 +12,8 @@ import com.komputerkit.moview.data.model.Notification
 import com.komputerkit.moview.data.model.NotificationType
 import com.komputerkit.moview.databinding.FragmentNotificationNewBinding
 import com.komputerkit.moview.util.ScrollStateHelper
-import com.komputerkit.moview.util.ScrollableToTop
 
-class NotificationFragment : Fragment(), ScrollableToTop {
+class NotificationFragment : Fragment() {
 
     private var _binding: FragmentNotificationNewBinding? = null
     private val binding get() = _binding!!
@@ -148,9 +147,5 @@ class NotificationFragment : Fragment(), ScrollableToTop {
     private fun navigateToUserProfile(userId: Int) {
         val action = NotificationFragmentDirections.actionNotificationToProfile(userId)
         findNavController().navigate(action)
-    }
-
-    override fun scrollToTop() {
-        binding.rvNotifications.smoothScrollToPosition(0)
     }
 }

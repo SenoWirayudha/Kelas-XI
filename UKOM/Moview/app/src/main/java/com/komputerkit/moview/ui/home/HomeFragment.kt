@@ -17,9 +17,8 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentHomeNewBinding
 import com.komputerkit.moview.ui.cinema.MovieScheduleActivity
-import com.komputerkit.moview.util.ScrollableToTop
 
-class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener, ScrollableToTop {
+class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
     private var _binding: FragmentHomeNewBinding? = null
     private val binding get() = _binding!!
@@ -391,9 +390,5 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener, Scrollabl
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-
-    override fun scrollToTop() {
-        binding.nestedScrollView.smoothScrollTo(0, 0)
     }
 }

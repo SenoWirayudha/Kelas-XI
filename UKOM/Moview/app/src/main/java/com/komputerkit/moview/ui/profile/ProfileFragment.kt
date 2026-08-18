@@ -16,11 +16,10 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentProfileNewBinding
 import com.komputerkit.moview.ui.ticket.TicketHistoryActivity
-import com.komputerkit.moview.util.ScrollableToTop
 import com.komputerkit.moview.util.TmdbImageUrl
 import com.komputerkit.moview.util.loadProfilePhoto
 
-class ProfileFragment : Fragment(), ScrollableToTop {
+class ProfileFragment : Fragment() {
 
     private var _binding: FragmentProfileNewBinding? = null
     private val binding get() = _binding!!
@@ -498,9 +497,5 @@ class ProfileFragment : Fragment(), ScrollableToTop {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-
-    override fun scrollToTop() {
-        binding.scrollView.smoothScrollTo(0, 0)
     }
 }

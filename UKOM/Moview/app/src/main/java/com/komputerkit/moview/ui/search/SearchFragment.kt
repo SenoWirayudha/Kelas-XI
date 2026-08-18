@@ -19,11 +19,10 @@ import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.komputerkit.moview.databinding.FragmentSearchNewBinding
-import com.komputerkit.moview.util.ScrollableToTop
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class SearchFragment : Fragment(), ScrollableToTop {
+class SearchFragment : Fragment() {
 
     private var _binding: FragmentSearchNewBinding? = null
     private val binding get() = _binding!!
@@ -265,9 +264,5 @@ class SearchFragment : Fragment(), ScrollableToTop {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-
-    override fun scrollToTop() {
-        binding.searchScroll.smoothScrollTo(0, 0)
     }
 }
