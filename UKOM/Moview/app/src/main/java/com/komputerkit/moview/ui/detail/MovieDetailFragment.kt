@@ -11,6 +11,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -26,6 +27,9 @@ import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.FragmentMovieDetailBinding
 import com.komputerkit.moview.util.MovieActionsHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MovieDetailFragment : Fragment() {
 
@@ -623,14 +627,33 @@ class MovieDetailFragment : Fragment() {
             return
         }
 
-        // Group into sections: Premiere -> Theatrical -> Streaming, rows sorted by date.
-        // Empty sections are skipped entirely.
+        // Build the grouped sections off the main thread so a film with a huge number
+        // of releases (e.g. 100+ country rows) never janks the UI, then hand the grouped
+        // sections to the adapter on the main thread.
+        viewLifecycleOwner.lifecycleScope.launch {
+            val sections = withContext(Dispatchers.Default) {
+                buildReleaseSections(releases)
+            }
+            if (!isAdded) return@launch
+            releaseAdapter = MovieReleaseAdapter(sections)
+            binding.rvMovieReleases.adapter = releaseAdapter
+            if (binding.rvMovieReleases.layoutManager == null) {
+                binding.rvMovieReleases.layoutManager = LinearLayoutManager(requireContext())
+            }
+        }
+    }
+
+    /** Group releases into Premiere -> Theatrical -> Streaming sections sorted by date.
+     *  Rows sharing a release date become one group card with the date on the first row. */
+    private fun buildReleaseSections(
+        releases: List<com.komputerkit.moview.data.model.MovieRelease>
+    ): List<ReleaseSection> {
         val order = listOf(
             "premiere" to "Premiere",
             "theatrical" to "Theatrical",
             "streaming" to "Streaming",
         )
-        val sections = order.mapNotNull { (type, title) ->
+        return order.mapNotNull { (type, title) ->
             val rows = releases
                 .filter { it.type == type }
                 .sortedWith(
@@ -640,13 +663,19 @@ class MovieDetailFragment : Fragment() {
                         { it.name ?: "" }
                     )
                 )
-            if (rows.isEmpty()) null else ReleaseSection(title, rows)
-        }
+            if (rows.isEmpty()) return@mapNotNull null
 
-        releaseAdapter = MovieReleaseAdapter(sections)
-        binding.rvMovieReleases.adapter = releaseAdapter
-        if (binding.rvMovieReleases.layoutManager == null) {
-            binding.rvMovieReleases.layoutManager = LinearLayoutManager(requireContext())
+            val groups = buildList {
+                var i = 0
+                while (i < rows.size) {
+                    val date = rows[i].releaseDate
+                    var j = i
+                    while (j + 1 < rows.size && rows[j + 1].releaseDate == date) j++
+                    add(ReleaseGroup(date, rows.subList(i, j + 1)))
+                    i = j + 1
+                }
+            }
+            ReleaseSection(title, groups)
         }
     }
     
