@@ -140,8 +140,8 @@ class SeatMiniMapView @JvmOverloads constructor(
         val scaleY = mapRect.height() / (rows * baseSeatSize)
         val scale = min(scaleX, scaleY).coerceAtMost(1f)
 
-        val seatWidth = mapRect.width() / columns
-val seatHeight = (mapRect.height() / rows) * 0.8f
+        val seatWidth = baseSeatSize * scale
+        val seatHeight = baseSeatSize * scale
 
 
         val totalGridWidth = seatWidth * columns
