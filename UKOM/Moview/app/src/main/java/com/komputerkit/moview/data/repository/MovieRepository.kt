@@ -1934,7 +1934,8 @@ class MovieRepository {
                         year = dto.year,
                         ageRating = dto.age_rating,
                         releaseType = dto.release_type,
-                        countryCode = dto.country_code
+                        countryCode = dto.country_code,
+                        countryName = dto.country_name
                     )
                 }
             } else {

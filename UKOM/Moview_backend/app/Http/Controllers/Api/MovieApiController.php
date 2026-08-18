@@ -1063,6 +1063,10 @@ class MovieApiController extends Controller
      */
     private function mapComingSoonMovie(Movie $movie, string $releaseDate, string $releaseType, ?string $countryCode): array
     {
+        $countryName = $countryCode
+            ? \App\Models\Country::where('code', $countryCode)->value('name')
+            : null;
+
         return [
             'id' => $movie->id,
             'title' => $movie->title,
@@ -1074,6 +1078,7 @@ class MovieApiController extends Controller
             'release_date' => $releaseDate,
             'release_type' => $releaseType,
             'country_code' => $countryCode,
+            'country_name' => $countryName,
             'is_coming_soon' => 1,
             'is_preorder' => false,
             'has_schedule' => false,

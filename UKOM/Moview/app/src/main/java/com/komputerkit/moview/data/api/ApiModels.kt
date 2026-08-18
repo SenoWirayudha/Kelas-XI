@@ -697,7 +697,8 @@ data class TheatricalMovieDto(
     val is_preorder: Boolean,
     val has_schedule: Boolean,
     val release_type: String? = null,
-    val country_code: String? = null
+    val country_code: String? = null,
+    val country_name: String? = null
 )
 
 // Rewatch and User Film Activity

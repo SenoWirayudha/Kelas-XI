@@ -24,6 +24,7 @@ class TheatricalMovieAdapter(
     private val onChangePoster: ((TheatricalMovie) -> Unit)? = null
 ) : RecyclerView.Adapter<TheatricalMovieAdapter.TheatricalMovieViewHolder>() {
 
+
     private var movies: List<TheatricalMovie> = emptyList()
 
     fun submitList(list: List<TheatricalMovie>) {
@@ -114,10 +115,13 @@ class TheatricalMovieAdapter(
                 binding.vScrim.visibility = View.VISIBLE
                 binding.tvBadge.visibility = View.VISIBLE
                 val typeLabel = when (movie.releaseType) {
-                    "theatrical" -> "In Theaters"
+                    "theatrical" -> "In Theater"
                     "streaming" -> "On Streaming"
                     else -> null
                 }
+                val countryLabel = movie.countryName
+                    ?.takeIf { it.isNotBlank() }
+                    ?: movie.countryCode?.takeIf { it.isNotBlank() }
                 val dateText = if (!movie.releaseDate.isNullOrBlank()) {
                     try {
                         val inFmt = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
@@ -130,7 +134,7 @@ class TheatricalMovieAdapter(
                 } else {
                     "Coming Soon"
                 }
-                binding.tvBadge.text = listOfNotNull(typeLabel, dateText).joinToString(" • ")
+                binding.tvBadge.text = listOfNotNull(typeLabel, countryLabel, dateText).joinToString(" • ")
             } else {
                 binding.vScrim.visibility = if (rating != null) View.VISIBLE else View.GONE
                 binding.tvBadge.visibility = View.GONE
