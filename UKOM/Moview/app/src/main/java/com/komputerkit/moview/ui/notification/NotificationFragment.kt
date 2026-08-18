@@ -11,14 +11,17 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.komputerkit.moview.data.model.Notification
 import com.komputerkit.moview.data.model.NotificationType
 import com.komputerkit.moview.databinding.FragmentNotificationNewBinding
+import com.komputerkit.moview.util.ScrollStateHelper
+import com.komputerkit.moview.util.ScrollableToTop
 
-class NotificationFragment : Fragment() {
+class NotificationFragment : Fragment(), ScrollableToTop {
 
     private var _binding: FragmentNotificationNewBinding? = null
     private val binding get() = _binding!!
     
     private val viewModel: NotificationViewModel by viewModels()
     private lateinit var notificationAdapter: NotificationAdapter
+    private var savedScrollState: Pair<Int, Int>? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -66,6 +69,8 @@ class NotificationFragment : Fragment() {
             notificationAdapter.submitList(notifications)
             binding.emptyState.visibility = if (notifications.isEmpty()) View.VISIBLE else View.GONE
             binding.rvNotifications.visibility = if (notifications.isEmpty()) View.GONE else View.VISIBLE
+            ScrollStateHelper.restore(binding.rvNotifications, savedScrollState)
+            savedScrollState = null
         }
         
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
@@ -126,6 +131,11 @@ class NotificationFragment : Fragment() {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvNotifications)
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
@@ -138,5 +148,9 @@ class NotificationFragment : Fragment() {
     private fun navigateToUserProfile(userId: Int) {
         val action = NotificationFragmentDirections.actionNotificationToProfile(userId)
         findNavController().navigate(action)
+    }
+
+    override fun scrollToTop() {
+        binding.rvNotifications.smoothScrollToPosition(0)
     }
 }

@@ -7,10 +7,11 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
-import androidx.navigation.ui.NavigationUI
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.databinding.ActivityMainBinding
+import com.komputerkit.moview.util.ScrollableToTop
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -94,8 +95,29 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
 
-        NavigationUI.setupWithNavController(binding.bottomNavigation, navController)
-        
+        // Tab taps: navigate with popUpTo the start destination so the back stack never
+        // accumulates tab copies / child screens, keeping the checked item in sync.
+        binding.bottomNavigation.setOnItemSelectedListener { item ->
+            val options = NavOptions.Builder()
+                .setLaunchSingleTop(true)
+                .setPopUpTo(navController.graph.startDestinationId, false)
+                .build()
+            try {
+                navController.navigate(item.itemId, null, options)
+            } catch (e: IllegalArgumentException) {
+                return@setOnItemSelectedListener false
+            }
+            true
+        }
+
+        // Re-tap on the active tab: reset the visible tab fragment's scroll to top
+        binding.bottomNavigation.setOnItemReselectedListener {
+            val current = navHostFragment.childFragmentManager.fragments.firstOrNull()
+            if (current is ScrollableToTop) {
+                current.scrollToTop()
+            }
+        }
+
         // Hide bottom navigation on login screen
         navController.addOnDestinationChangedListener { _, destination, arguments ->
             when (destination.id) {

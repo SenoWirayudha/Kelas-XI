@@ -19,10 +19,11 @@ import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.komputerkit.moview.databinding.FragmentSearchNewBinding
+import com.komputerkit.moview.util.ScrollableToTop
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class SearchFragment : Fragment() {
+class SearchFragment : Fragment(), ScrollableToTop {
 
     private var _binding: FragmentSearchNewBinding? = null
     private val binding get() = _binding!!
@@ -56,6 +57,11 @@ class SearchFragment : Fragment() {
         setupFilterChips()
         setupRecyclerViews()
         observeUiState()
+
+        // Restore scroll position saved before navigating away
+        binding.searchScroll.post {
+            binding.searchScroll.scrollTo(0, viewModel.savedScrollY)
+        }
     }
     
     private fun setupFilterChips() {
@@ -251,8 +257,17 @@ class SearchFragment : Fragment() {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        viewModel.savedScrollY = binding.searchScroll.scrollY
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    override fun scrollToTop() {
+        binding.searchScroll.smoothScrollTo(0, 0)
     }
 }

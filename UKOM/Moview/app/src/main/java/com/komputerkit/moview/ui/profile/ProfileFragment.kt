@@ -16,10 +16,11 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentProfileNewBinding
 import com.komputerkit.moview.ui.ticket.TicketHistoryActivity
+import com.komputerkit.moview.util.ScrollableToTop
 import com.komputerkit.moview.util.TmdbImageUrl
 import com.komputerkit.moview.util.loadProfilePhoto
 
-class ProfileFragment : Fragment() {
+class ProfileFragment : Fragment(), ScrollableToTop {
 
     private var _binding: FragmentProfileNewBinding? = null
     private val binding get() = _binding!!
@@ -74,6 +75,11 @@ class ProfileFragment : Fragment() {
             val currentUserId = prefs.getInt("userId", 0)
             Log.d("ProfileFragment", "Checking follow status: currentUser=$currentUserId, target=$targetUserId")
             viewModel.checkFollowStatus(currentUserId, targetUserId)
+        }
+        
+        // Restore scroll position saved before navigating away
+        binding.scrollView.post {
+            binding.scrollView.scrollTo(0, viewModel.savedScrollY)
         }
     }
     
@@ -484,8 +490,17 @@ class ProfileFragment : Fragment() {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        viewModel.savedScrollY = binding.scrollView.scrollY
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    override fun scrollToTop() {
+        binding.scrollView.smoothScrollTo(0, 0)
     }
 }
