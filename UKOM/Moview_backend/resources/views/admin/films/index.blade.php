@@ -282,9 +282,14 @@
                            class="text-green-600 hover:text-green-900" title="Reviews">
                             <i class="fas fa-star"></i>
                         </a>
-                        <button class="text-red-600 hover:text-red-900" title="Delete" onclick="window.showToast('Delete action (UI only)', 'info')">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <form action="{{ route('admin.films.destroy', $film->id) }}" method="POST" class="inline"
+                              onsubmit="return requireConfirm(event, 'Hapus film &quot;' + {{ json_encode($film->title) }} + '&quot;? Semua data terkait (review, jadwal, media) ikut terhapus.', { form: this })">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="text-red-600 hover:text-red-900" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
                     </div>
                 </td>
             </tr>
