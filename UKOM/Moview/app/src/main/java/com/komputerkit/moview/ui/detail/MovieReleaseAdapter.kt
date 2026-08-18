@@ -117,7 +117,7 @@ class MovieReleaseAdapter(
         private val binding: ItemMovieReleaseBinding
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(release: MovieRelease) {
-            bindCountry(binding.ivReleaseFlag, binding.tvReleaseCountry, binding.tvReleaseName, release)
+            bindCountry(binding.ivReleaseFlag, binding.tvFlagEmoji, binding.tvReleaseCountry, binding.tvReleaseName, release)
             binding.tvReleaseDate.text = formatDateStatic(release.releaseDate)
             binding.tvReleaseDate.visibility = View.VISIBLE
         }
@@ -134,7 +134,7 @@ class MovieReleaseAdapter(
             val dateText = formatDateStatic(group.date)
             group.releases.forEachIndexed { index, release ->
                 val row = ItemReleaseCountryBinding.inflate(inflater, binding.containerCountries, false)
-                bindCountry(row.ivReleaseFlag, row.tvReleaseCountry, row.tvReleaseName, release)
+                bindCountry(row.ivReleaseFlag, row.tvFlagEmoji, row.tvReleaseCountry, row.tvReleaseName, release)
                 row.tvReleaseDate.text = dateText
                 row.tvReleaseDate.visibility = if (index == 0) View.VISIBLE else View.INVISIBLE
                 binding.containerCountries.addView(row.root)
@@ -146,6 +146,7 @@ class MovieReleaseAdapter(
 /** Populate flag + country + optional festival/platform name of a release. */
 private fun bindCountry(
     flagView: ImageView,
+    emojiView: TextView,
     countryView: TextView,
     nameView: TextView,
     release: MovieRelease
@@ -157,6 +158,7 @@ private fun bindCountry(
             )
         }
     if (flagRes != null && flagRes != 0) {
+        emojiView.visibility = View.GONE
         flagView.setImageResource(0)
         com.bumptech.glide.Glide.with(flagView.context)
             .load(flagRes)
@@ -169,7 +171,10 @@ private fun bindCountry(
             .into(flagView)
         flagView.visibility = View.VISIBLE
     } else {
-        flagView.visibility = View.INVISIBLE
+        flagView.visibility = View.GONE
+        val emoji = release.flagEmoji?.takeIf { it.isNotBlank() }
+        emojiView.text = emoji ?: ""
+        emojiView.visibility = if (emoji != null) View.VISIBLE else View.GONE
     }
 
     val country = release.countryName?.takeIf { it.isNotBlank() }

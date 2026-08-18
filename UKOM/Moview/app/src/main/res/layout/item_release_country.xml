@@ -8,15 +8,31 @@
     android:gravity="center_vertical"
     android:paddingVertical="6dp">
 
-    <!-- Circular country flag -->
-    <com.google.android.material.imageview.ShapeableImageView
-        android:id="@+id/iv_release_flag"
+    <!-- Circular country flag, with emoji fallback when no PNG asset exists -->
+    <FrameLayout
         android:layout_width="27dp"
-        android:layout_height="27dp"
-        android:scaleType="centerCrop"
-        android:contentDescription="Country flag"
-        app:shapeAppearanceOverlay="@style/CircleImageView"
-        tools:src="@tools:sample/avatars" />
+        android:layout_height="27dp">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/iv_release_flag"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="Country flag"
+            app:shapeAppearanceOverlay="@style/CircleImageView"
+            tools:src="@tools:sample/avatars" />
+
+        <TextView
+            android:id="@+id/tv_flag_emoji"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textSize="16sp"
+            android:visibility="gone"
+            tools:text="🇩🇪"
+            tools:visibility="visible" />
+
+    </FrameLayout>
 
     <LinearLayout
         android:layout_width="0dp"
