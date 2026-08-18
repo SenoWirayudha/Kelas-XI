@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Movie;
+use App\Models\MovieRelease;
 use App\Models\Person;
 use App\Models\Genre;
 use App\Models\Service;
@@ -498,12 +499,74 @@ class FilmController extends Controller
                 'updated_at' => now(),
             ]);
         }
+
+        $this->syncTheatricalServices($movie);
+    }
+
+    /**
+     * Auto-sync movie_services theatrical rows (Indonesia only) from movie_releases.
+     *
+     * ON: an Indonesian theatrical release (type=theatrical, country_code=ID) exists
+     *     with a FUTURE release_date -> activate all theatrical cinema services
+     *     (Cinema XXI, CGV, Cinepolis) using the earliest future date.
+     * OFF: the Indonesian theatrical row was deleted OR its date has passed ->
+     *     deactivate (is_coming_soon=0, release_date=NULL) so the film becomes
+     *     Now Showing instead of staying in Coming Soon.
+     */
+    private function syncTheatricalServices(Movie $movie)
+    {
+        $theatricalServiceIds = Service::where('type', 'theatrical')->pluck('id');
+
+        $earliestFuture = $movie->movieReleases()
+            ->where('type', MovieRelease::TYPE_THEATRICAL)
+            ->where('country_code', 'ID')
+            ->where('release_date', '>', now()->toDateString())
+            ->min('release_date');
+
+        if ($earliestFuture) {
+            foreach ($theatricalServiceIds as $serviceId) {
+                $movie->movieServices()->updateOrCreate(
+                    ['service_id' => $serviceId],
+                    [
+                        'availability_type' => 'theatrical',
+                        'release_date' => $earliestFuture,
+                        'is_coming_soon' => 1,
+                    ]
+                );
+            }
+            return;
+        }
+
+        foreach ($theatricalServiceIds as $serviceId) {
+            $movie->movieServices()
+                ->where('service_id', $serviceId)
+                ->update([
+                    'is_coming_soon' => 0,
+                    'release_date' => null,
+                ]);
+        }
+    }
+
+/**
+     * Parse pasted release-date text into structured preview rows (AJAX).
+     * Used by the "Import dari teks" modal in the film form.
+     */
+    public function parseReleases(Request $request)
+    {
+        $request->validate([
+            'text' => 'required|string|max:20000',
+        ]);
+
+        $parser = new \App\Services\ReleaseDateParser();
+        $result = $parser->parse($request->input('text', ''));
+
+        return response()->json($result);
     }
 
     public function toggleStatus($id)
     {
         $movie = Movie::findOrFail($id);
-        
+
         $newStatus = $movie->status === 'published' ? 'draft' : 'published';
         $movie->update(['status' => $newStatus]);
 
