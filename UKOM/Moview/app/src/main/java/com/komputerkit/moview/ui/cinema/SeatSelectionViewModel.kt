@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.data.api.SeatLayoutSeatDto
+import com.komputerkit.moview.data.api.SeatTypeDefinitionDto
 import com.komputerkit.moview.ui.cinema.model.Seat
 import com.komputerkit.moview.ui.cinema.model.SeatStatus
 import com.komputerkit.moview.ui.cinema.model.SeatType
@@ -19,6 +20,7 @@ data class SeatSelectionUiState(
     val rows: Int = 1,
     val columns: Int = 1,
     val rowDirection: String = "front_to_back",
+    val seatTypes: List<SeatType> = emptyList(),
     val seats: List<Seat> = emptyList()
 )
 
@@ -42,7 +44,8 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
                 val response = api.getSeatLayout(scheduleId)
                 if (response.success && response.data != null) {
                     val dto = response.data
-                    val mapped = buildGrid(dto.rows, dto.columns, dto.seats)
+                    val seatTypes = (dto.seat_type_definitions ?: emptyList()).map { it.toSeatType() }
+                    val mapped = buildGrid(dto.rows, dto.columns, dto.seats, seatTypes)
                     val normalizedRows = mapped.maxOfOrNull { it.positionY } ?: 0
                     val normalizedColumns = mapped.maxOfOrNull { it.positionX } ?: 0
                     _uiState.postValue(
@@ -51,11 +54,12 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
                             rows = normalizedRows.coerceAtLeast(1),
                             columns = normalizedColumns.coerceAtLeast(1),
                             rowDirection = dto.row_direction ?: "front_to_back",
+                            seatTypes = seatTypes,
                             seats = mapped,
                             error = null
                         )
                     )
-                    Log.d(logTag, "loadSeatLayout success scheduleId=$scheduleId rows=${dto.rows} columns=${dto.columns} seats=${mapped.size}")
+                    Log.d(logTag, "loadSeatLayout success scheduleId=$scheduleId rows=${dto.rows} columns=${dto.columns} seats=${mapped.size} types=${seatTypes.size}")
                 } else {
                     _uiState.postValue(
                         (_uiState.value ?: SeatSelectionUiState()).copy(
@@ -76,7 +80,19 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    private fun buildGrid(rows: Int, columns: Int, seats: List<SeatLayoutSeatDto>): List<Seat> {
+    private fun SeatTypeDefinitionDto.toSeatType(): SeatType {
+        val multiplier = price_multiplier ?: 1.0
+        return SeatType(
+            key = key,
+            label = label ?: key,
+            color = color ?: "#64748B",
+            priceMultiplier = multiplier,
+            purchaseMode = purchase_mode
+        )
+    }
+
+    private fun buildGrid(rows: Int, columns: Int, seats: List<SeatLayoutSeatDto>, seatTypes: List<SeatType>): List<Seat> {
+        val typeByKey = seatTypes.associateBy { it.key }
         val minRowIndex = seats.minOfOrNull { it.row_index } ?: 0
         val minColumnIndex = seats.minOfOrNull { it.column } ?: 0
 
@@ -113,17 +129,12 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
                     continue
                 }
 
-                val seatType = when (dto.seat_type.lowercase()) {
-                    "couple" -> SeatType.COUPLE
-                    "premium" -> SeatType.PREMIUM
-                    "wheelchair" -> SeatType.WHEELCHAIR
-                    "unavailable" -> SeatType.UNAVAILABLE
-                    "aisle" -> SeatType.AISLE
-                    "entrance" -> SeatType.ENTRANCE
-                    else -> SeatType.SEAT
-                }
+                val rawType = dto.seat_type.lowercase()
+                val seatType = typeByKey[rawType]
+                    ?: SeatType.placeholder(rawType)
+                    ?: SeatType.DEFAULT
 
-                val isInactive = dto.is_active == false || seatType == SeatType.UNAVAILABLE
+                val isInactive = dto.is_active == false || !seatType.isSellable
                 val status = when {
                     isInactive -> SeatStatus.UNAVAILABLE
                     dto.status?.lowercase() == "booked" -> SeatStatus.BOOKED
@@ -140,7 +151,7 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
                         seatId = dto.seat_id,
                         row = dto.row.orEmpty(),
                         number = if (number > 0) number else columnIndex + 1,
-                        seatCode = dto.seat_code ?: if (seatType == SeatType.SEAT) {
+                        seatCode = dto.seat_code ?: if (seatType.key == "seat") {
                             val rowLabel = dto.row?.takeIf { it.isNotBlank() }
                                 ?: (("A".first().code + rowIndex).toChar().toString())
                             "$rowLabel${columnIndex + 1}"

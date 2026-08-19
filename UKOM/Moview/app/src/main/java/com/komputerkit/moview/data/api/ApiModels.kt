@@ -55,11 +55,21 @@ data class ScheduleDto(
     val ticket_price: Double
 )
 
+data class SeatTypeDefinitionDto(
+    val key: String,
+    val label: String? = null,
+    val color: String? = null,
+    val price_multiplier: Double? = null,
+    val purchase_mode: String? = null,
+    val is_builtin: Boolean? = null
+)
+
 data class SeatLayoutResponseDto(
     val studio_id: Int,
     val row_direction: String? = null,
     val rows: Int,
     val columns: Int,
+    val seat_type_definitions: List<SeatTypeDefinitionDto>? = null,
     val seats: List<SeatLayoutSeatDto>
 )
 

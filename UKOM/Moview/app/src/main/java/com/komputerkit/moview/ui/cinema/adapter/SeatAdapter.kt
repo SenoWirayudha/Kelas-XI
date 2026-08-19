@@ -1,5 +1,7 @@
 package com.komputerkit.moview.ui.cinema.adapter
 
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,7 +11,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.R
 import com.komputerkit.moview.ui.cinema.model.Seat
 import com.komputerkit.moview.ui.cinema.model.SeatStatus
-import com.komputerkit.moview.ui.cinema.model.SeatType
 
 class SeatAdapter(
     private val seats: MutableList<Seat>,
@@ -19,9 +20,8 @@ class SeatAdapter(
     private var colorTextPrimary: Int? = null
     private var colorTextSecondary: Int? = null
     private var colorWhite: Int? = null
-    private var colorRose: Int? = null
-    private var colorPurple: Int? = null
-    private var colorGreen: Int? = null
+    private var cornerRadiusPx: Float = 8f * 2f
+    private val bgCache = HashMap<String, GradientDrawable>()
 
     init {
         setHasStableIds(true)
@@ -38,10 +38,8 @@ class SeatAdapter(
             colorTextPrimary = ContextCompat.getColor(view.context, R.color.text_primary)
             colorTextSecondary = ContextCompat.getColor(view.context, R.color.text_secondary)
             colorWhite = ContextCompat.getColor(view.context, android.R.color.white)
-            colorRose = ContextCompat.getColor(view.context, R.color.seat_couple_text)
-            colorPurple = ContextCompat.getColor(view.context, R.color.seat_premium_text)
-            colorGreen = ContextCompat.getColor(view.context, R.color.seat_wheelchair_text)
         }
+        cornerRadiusPx = 8f * view.context.resources.displayMetrics.density
         return ViewHolder(view)
     }
 
@@ -49,13 +47,13 @@ class SeatAdapter(
         val seat = seats[position]
         val stableKey = seat.seatId?.toLong()
             ?: (((seat.positionY.toLong() and 0xFFFF) shl 16) or (seat.positionX.toLong() and 0xFFFF))
-        return (stableKey shl 2) or seat.type.ordinal.toLong()
+        return (stableKey shl 8) or (seat.type.key.hashCode() and 0xFF).toLong()
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val seat = seats[position]
 
-        if (seat.type == SeatType.AISLE || seat.type == SeatType.ENTRANCE) {
+        if (seat.type.key == "aisle" || seat.type.key == "entrance") {
             holder.tv.text = ""
             holder.tv.setBackgroundResource(android.R.color.transparent)
             holder.tv.isEnabled = false
@@ -68,71 +66,40 @@ class SeatAdapter(
         holder.tv.isEnabled = true
         holder.tv.text = seat.id
 
-        when (seat.type) {
-            SeatType.COUPLE -> {
-                if (seat.status == SeatStatus.SELECTED) {
-                    holder.tv.setBackgroundResource(R.drawable.bg_seat_selected)
-                    holder.tv.setTextColor(colorWhite ?: ContextCompat.getColor(holder.tv.context, android.R.color.white))
-                } else {
-                    holder.tv.setBackgroundResource(R.drawable.bg_seat_couple)
-                    holder.tv.setTextColor(colorRose ?: ContextCompat.getColor(holder.tv.context, R.color.seat_couple_text))
-                }
+        when (seat.status) {
+            SeatStatus.SELECTED -> {
+                holder.tv.setBackgroundResource(R.drawable.bg_seat_selected)
+                holder.tv.setTextColor(colorWhite ?: ContextCompat.getColor(holder.tv.context, android.R.color.white))
+                holder.tv.isEnabled = true
             }
-            SeatType.PREMIUM -> {
-                if (seat.status == SeatStatus.SELECTED) {
-                    holder.tv.setBackgroundResource(R.drawable.bg_seat_selected)
-                    holder.tv.setTextColor(colorWhite ?: ContextCompat.getColor(holder.tv.context, android.R.color.white))
-                } else {
-                    holder.tv.setBackgroundResource(R.drawable.bg_seat_premium)
-                    holder.tv.setTextColor(colorPurple ?: ContextCompat.getColor(holder.tv.context, R.color.seat_premium_text))
-                }
+            SeatStatus.BOOKED -> {
+                holder.tv.setBackgroundResource(R.drawable.bg_seat_booked)
+                holder.tv.setTextColor(colorTextSecondary ?: ContextCompat.getColor(holder.tv.context, R.color.text_secondary))
+                holder.tv.isEnabled = false
+                holder.tv.alpha = 0.5f
             }
-            SeatType.WHEELCHAIR -> {
-                if (seat.status == SeatStatus.SELECTED) {
-                    holder.tv.setBackgroundResource(R.drawable.bg_seat_selected)
-                    holder.tv.setTextColor(colorWhite ?: ContextCompat.getColor(holder.tv.context, android.R.color.white))
-                } else {
-                    holder.tv.setBackgroundResource(R.drawable.bg_seat_wheelchair)
-                    holder.tv.setTextColor(colorGreen ?: ContextCompat.getColor(holder.tv.context, R.color.seat_wheelchair_text))
-                }
+            SeatStatus.UNAVAILABLE -> {
+                holder.tv.setBackgroundResource(R.drawable.bg_seat_unavailable)
+                holder.tv.setTextColor(colorTextSecondary ?: ContextCompat.getColor(holder.tv.context, R.color.text_secondary))
+                holder.tv.isEnabled = false
+                holder.tv.alpha = 0.6f
             }
             else -> {
-                when (seat.status) {
-                    SeatStatus.AVAILABLE -> {
-                        holder.tv.setBackgroundResource(R.drawable.bg_seat_available)
-                        holder.tv.setTextColor(colorTextPrimary ?: ContextCompat.getColor(holder.tv.context, R.color.text_primary))
-                        holder.tv.isEnabled = true
-                    }
-                    SeatStatus.BOOKED -> {
-                        holder.tv.setBackgroundResource(R.drawable.bg_seat_booked)
-                        holder.tv.setTextColor(colorTextSecondary ?: ContextCompat.getColor(holder.tv.context, R.color.text_secondary))
-                        holder.tv.isEnabled = false
-                        holder.tv.alpha = 0.5f
-                    }
-                    SeatStatus.UNAVAILABLE -> {
-                        holder.tv.setBackgroundResource(R.drawable.bg_seat_unavailable)
-                        holder.tv.setTextColor(colorTextSecondary ?: ContextCompat.getColor(holder.tv.context, R.color.text_secondary))
-                        holder.tv.isEnabled = false
-                        holder.tv.alpha = 0.6f
-                    }
-                    SeatStatus.SELECTED -> {
-                        holder.tv.setBackgroundResource(R.drawable.bg_seat_selected)
-                        holder.tv.setTextColor(colorWhite ?: ContextCompat.getColor(holder.tv.context, android.R.color.white))
-                        holder.tv.isEnabled = true
-                    }
-                }
+                // Available sellable seat → color comes from its dynamic type definition
+                holder.tv.background = bgFor(seat)
+                holder.tv.setTextColor(textColorFor(seat))
+                holder.tv.isEnabled = true
             }
         }
 
         holder.tv.setOnClickListener {
-            if (seat.type == SeatType.UNAVAILABLE || seat.status == SeatStatus.BOOKED) return@setOnClickListener
-            if (seat.status == SeatStatus.UNAVAILABLE) return@setOnClickListener
+            if (!seat.type.isSellable || seat.status == SeatStatus.BOOKED || seat.status == SeatStatus.UNAVAILABLE) {
+                return@setOnClickListener
+            }
 
-            // Couple/sweetbox: selecting one cell selects its partner (same seat_group)
-            if (seat.type == SeatType.COUPLE && seat.seatGroup != null) {
-                val groupIndexes = seats.indices.filter { i ->
-                    seats[i].seatGroup == seat.seatGroup
-                }
+            // Paired group: picking one cell toggles the whole group (works for any group size)
+            if (seat.type.isPaired && seat.seatGroup != null) {
+                val groupIndexes = seats.indices.filter { i -> seats[i].seatGroup == seat.seatGroup }
                 val anySelected = groupIndexes.any { seats[it].status == SeatStatus.SELECTED }
                 for (i in groupIndexes) {
                     seats[i] = seats[i].copy(
@@ -151,8 +118,55 @@ class SeatAdapter(
         }
     }
 
+    private fun bgFor(seat: Seat): GradientDrawable {
+        val hex = seat.type.color
+        return bgCache.getOrPut(hex) {
+            val base = parseHexColor(hex)
+            GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = cornerRadiusPx
+                setColor(lighten(base, 0.78f))
+                setStroke(2, base)
+            }
+        }
+    }
+
+    private fun textColorFor(seat: Seat): Int {
+        val base = parseHexColor(seat.type.color)
+        return darken(base, 0.35f)
+    }
+
+    private fun parseHexColor(hex: String): Int {
+        val value = hex.removePrefix("#")
+        return if (value.length == 6) {
+            try {
+                Color.parseColor("#$value")
+            } catch (_: IllegalArgumentException) {
+                Color.parseColor("#64748B")
+            }
+        } else {
+            Color.parseColor("#64748B")
+        }
+    }
+
+    /** Returns base mixed towards white by [amount] (0..1). */
+    private fun lighten(color: Int, amount: Float): Int {
+        val r = Color.red(color) + ((255 - Color.red(color)) * amount).toInt()
+        val g = Color.green(color) + ((255 - Color.green(color)) * amount).toInt()
+        val b = Color.blue(color) + ((255 - Color.blue(color)) * amount).toInt()
+        return Color.rgb(r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255))
+    }
+
+    /** Returns base mixed towards black by [amount] (0..1). */
+    private fun darken(color: Int, amount: Float): Int {
+        val r = (Color.red(color) * (1f - amount)).toInt()
+        val g = (Color.green(color) * (1f - amount)).toInt()
+        val b = (Color.blue(color) * (1f - amount)).toInt()
+        return Color.rgb(r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255))
+    }
+
     private fun notifySeatChange() {
-        val selected = seats.filter { it.type in SELECTABLE_TYPES && it.status == SeatStatus.SELECTED }
+        val selected = seats.filter { it.type.isSellable && it.status == SeatStatus.SELECTED }
         onSeatChanged(selected, selected.sumOf { it.price })
     }
 
@@ -165,13 +179,9 @@ class SeatAdapter(
         notifySeatChange()
     }
 
-    fun getSelectedSeats(): List<Seat> = seats.filter { it.type in SELECTABLE_TYPES && it.status == SeatStatus.SELECTED }
+    fun getSelectedSeats(): List<Seat> = seats.filter { it.type.isSellable && it.status == SeatStatus.SELECTED }
 
     fun getSeatsSnapshot(): List<Seat> = seats.toList()
 
-    fun getRealSeatsSnapshot(): List<Seat> = seats.filter { it.type in SELECTABLE_TYPES }
-
-    companion object {
-        val SELECTABLE_TYPES = setOf(SeatType.SEAT, SeatType.COUPLE, SeatType.PREMIUM, SeatType.WHEELCHAIR)
-    }
+    fun getRealSeatsSnapshot(): List<Seat> = seats.filter { it.type.isSellable }
 }

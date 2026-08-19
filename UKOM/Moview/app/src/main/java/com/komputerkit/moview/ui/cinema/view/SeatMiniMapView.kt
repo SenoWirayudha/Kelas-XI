@@ -9,7 +9,6 @@ import android.util.AttributeSet
 import android.view.View
 import com.komputerkit.moview.ui.cinema.model.Seat
 import com.komputerkit.moview.ui.cinema.model.SeatStatus
-import com.komputerkit.moview.ui.cinema.model.SeatType
 import kotlin.math.max
 import kotlin.math.min
 
@@ -42,11 +41,6 @@ class SeatMiniMapView @JvmOverloads constructor(
         strokeWidth = dp(1f)
     }
 
-    private val availablePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#3A3F49")
-        style = Paint.Style.FILL
-    }
-
     private val bookedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#1A1F29")
         style = Paint.Style.FILL
@@ -57,30 +51,12 @@ class SeatMiniMapView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
 
-    private val couplePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#FB7185")
-        style = Paint.Style.FILL
-    }
-
-    private val premiumPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#A78BFA")
-        style = Paint.Style.FILL
-    }
-
-    private val wheelchairPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#22C55E")
-        style = Paint.Style.FILL
-    }
-
     private val unavailablePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#2A2F38")
         style = Paint.Style.FILL
     }
 
-    private val aislePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#161A22")
-        style = Paint.Style.FILL
-    }
+    private val typePaintCache = HashMap<String, Paint>()
 
     private val viewportPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#22FFFFFF")
@@ -173,7 +149,7 @@ class SeatMiniMapView @JvmOverloads constructor(
         val gap = dp(0.5f)
 
         for (seat in seats) {
-            if (seat.type == SeatType.AISLE || seat.type == SeatType.ENTRANCE) continue
+            if (seat.type.key == "aisle" || seat.type.key == "entrance") continue
             val x = (seat.positionX - 1).coerceAtLeast(0)
             val y = (seat.positionY - 1).coerceAtLeast(0)
 
@@ -191,12 +167,9 @@ class SeatMiniMapView @JvmOverloads constructor(
 
             val seatPaint = when {
                 seat.status == SeatStatus.SELECTED -> selectedPaint
-                seat.type == SeatType.COUPLE -> couplePaint
-                seat.type == SeatType.PREMIUM -> premiumPaint
-                seat.type == SeatType.WHEELCHAIR -> wheelchairPaint
-                seat.type == SeatType.UNAVAILABLE || seat.status == SeatStatus.UNAVAILABLE -> unavailablePaint
+                seat.status == SeatStatus.UNAVAILABLE -> unavailablePaint
                 seat.status == SeatStatus.BOOKED -> bookedPaint
-                else -> availablePaint
+                else -> paintForType(seat)
             }
             canvas.drawRect(cellRect, seatPaint)
             canvas.drawRoundRect(cellRect, dp(1f), dp(1f), seatPaint)
@@ -234,6 +207,22 @@ class SeatMiniMapView @JvmOverloads constructor(
 
         val radius = dp(2f)
         canvas.drawRoundRect(viewportRect, radius, radius, viewportPaint)    }
+
+    /** Paint for an available seat, colored from its dynamic type definition. */
+    private fun paintForType(seat: Seat): Paint {
+        val hex = seat.type.color
+        return typePaintCache.getOrPut(hex) {
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                val parsed = try {
+                    Color.parseColor(if (hex.startsWith("#")) hex else "#$hex")
+                } catch (_: IllegalArgumentException) {
+                    Color.parseColor("#3A3F49")
+                }
+                color = parsed
+                style = Paint.Style.FILL
+            }
+        }
+    }
 
     private fun dp(value: Float): Float = value * resources.displayMetrics.density
 }

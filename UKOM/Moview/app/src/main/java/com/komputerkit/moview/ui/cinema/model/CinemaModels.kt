@@ -36,7 +36,37 @@ enum class CinemaBrand { XXI, CGV, CINEPOLIS, OTHER }
 
 enum class SeatStatus { AVAILABLE, BOOKED, SELECTED, UNAVAILABLE }
 
-enum class SeatType { SEAT, COUPLE, PREMIUM, WHEELCHAIR, UNAVAILABLE, AISLE, ENTRANCE }
+/**
+ * Dynamic seat type definition (from API seat_type_definitions).
+ * Color is a hex string like "#F472B6" coming from the backend.
+ */
+data class SeatType(
+    val key: String,
+    val label: String = "",
+    val color: String = "#64748B",
+    val priceMultiplier: Double = 1.0,
+    val purchaseMode: String? = null
+) : Serializable {
+    /** Sellable seats are anything that is not a layout placeholder. */
+    val isSellable: Boolean get() = purchaseMode == "individual" || purchaseMode == "paired"
+
+    /** Paired types must be bought/picked together as a whole group. */
+    val isPaired: Boolean get() = purchaseMode == "paired"
+
+    companion object {
+        val DEFAULT = SeatType(key = "seat", label = "Regular", color = "#64748B", priceMultiplier = 1.0, purchaseMode = "individual")
+        val AISLE = SeatType(key = "aisle", label = "Aisle", color = "#CBD5E1", purchaseMode = null)
+        val ENTRANCE = SeatType(key = "entrance", label = "Entrance", color = "#94A3B8", purchaseMode = null)
+        val UNAVAILABLE = SeatType(key = "unavailable", label = "Unavailable", color = "#1E293B", purchaseMode = null)
+
+        fun placeholder(key: String?): SeatType? = when (key) {
+            "aisle" -> AISLE
+            "entrance" -> ENTRANCE
+            "unavailable" -> UNAVAILABLE
+            else -> null
+        }
+    }
+}
 
 data class Seat(
     val seatId: Int? = null,
@@ -45,7 +75,7 @@ data class Seat(
     val seatCode: String? = null,
     val positionX: Int = 0,
     val positionY: Int = 0,
-    val type: SeatType = SeatType.SEAT,
+    val type: SeatType = SeatType.DEFAULT,
     val status: SeatStatus = SeatStatus.AVAILABLE,
     val price: Int = 0,
     val seatGroup: String? = null
