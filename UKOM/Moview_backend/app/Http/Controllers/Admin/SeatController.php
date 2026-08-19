@@ -160,7 +160,18 @@ class SeatController extends Controller
                 ->when(!empty($keepSeatIds), fn($q) => $q->whereNotIn('id', $keepSeatIds))
                 ->delete();
 
-            $insert = [];
+            // Map kept seats by (row:seat_number) so regenerated slots can be
+            // updated in place instead of duplicating the unique constraint.
+            // seat_row is char(2) so it may carry trailing spaces from padding.
+            $keptSeatKeys = [];
+            if (!empty($keepSeatIds)) {
+                foreach (Seat::whereIn('id', $keepSeatIds)->get(['id', 'seat_row', 'seat_number']) as $ks) {
+                    $keptSeatKeys[trim($ks->seat_row) . ':' . $ks->seat_number] = $ks->id;
+                }
+            }
+
+            $insert  = [];
+            $updates = [];
 
             for ($r = 0; $r < $rowsCount; $r++) {
                 $rowLabel       = chr(65 + $r);
@@ -172,16 +183,27 @@ class SeatController extends Controller
                     foreach ($aisles as $aisleAfter) {
                         if ($s === $aisleAfter + 1) {
                             // Use 200+colIndex as seat_number (unique per row, above max seats_per_row of 50)
-                            $insert[] = [
-                                'studio_id'   => $studio->id,
-                                'seat_row'    => $rowLabel,
-                                'seat_number' => 200 + $colIndex,
-                                'seat_code'   => '',
-                                'seat_type'   => 'aisle',
-                                'position_x'  => $colIndex,
-                                'position_y'  => $r,
-                                'is_active'   => false,
-                            ];
+                            $key = $rowLabel . ':' . (200 + $colIndex);
+                            if (isset($keptSeatKeys[$key])) {
+                                $updates[$keptSeatKeys[$key]] = [
+                                    'position_x' => $colIndex,
+                                    'position_y' => $r,
+                                    'seat_code'  => '',
+                                    'seat_type'  => 'aisle',
+                                    'is_active'  => false,
+                                ];
+                            } else {
+                                $insert[] = [
+                                    'studio_id'   => $studio->id,
+                                    'seat_row'    => $rowLabel,
+                                    'seat_number' => 200 + $colIndex,
+                                    'seat_code'   => '',
+                                    'seat_type'   => 'aisle',
+                                    'position_x'  => $colIndex,
+                                    'position_y'  => $r,
+                                    'is_active'   => false,
+                                ];
+                            }
                             $colIndex++;
                         }
                     }
@@ -194,6 +216,22 @@ class SeatController extends Controller
                     );
 
                     $type = $isEntrance ? 'entrance' : 'seat';
+
+                    $key = $rowLabel . ':' . $s;
+                    if (isset($keptSeatKeys[$key])) {
+                        $updates[$keptSeatKeys[$key]] = [
+                            'position_x' => $colIndex,
+                            'position_y' => $r,
+                            'seat_code'  => $type === 'seat' ? $rowLabel . $s : '',
+                            'seat_type'  => $type,
+                            'is_active'  => $type === 'seat',
+                        ];
+                        if ($type === 'seat') {
+                            $totalActualSeats++;
+                        }
+                        $colIndex++;
+                        continue;
+                    }
 
                     $insert[] = [
                         'studio_id'   => $studio->id,
@@ -213,6 +251,9 @@ class SeatController extends Controller
                 }
             }
 
+            foreach ($updates as $id => $attrs) {
+                Seat::where('id', $id)->update($attrs);
+            }
             foreach (array_chunk($insert, 200) as $chunk) {
                 Seat::insert($chunk);
             }
@@ -310,7 +351,18 @@ class SeatController extends Controller
                 ->when(!empty($keepSeatIds), fn($q) => $q->whereNotIn('id', $keepSeatIds))
                 ->delete();
 
-            $insert = [];
+            // Map kept seats by (row:seat_number) so rebuilt slots can be
+            // updated in place instead of duplicating the unique constraint.
+            // seat_row is char(2) so it may carry trailing spaces from padding.
+            $keptSeatKeys = [];
+            if (!empty($keepSeatIds)) {
+                foreach (Seat::whereIn('id', $keepSeatIds)->get(['id', 'seat_row', 'seat_number']) as $ks) {
+                    $keptSeatKeys[trim($ks->seat_row) . ':' . $ks->seat_number] = $ks->id;
+                }
+            }
+
+            $insert  = [];
+            $updates = [];
             $positionY = 0;
             foreach ($rowsPayload as $row) {
                 $rowLabel = strtoupper($row['label']);
@@ -327,17 +379,35 @@ class SeatController extends Controller
                     $isUnavailable = $type === 'unavailable';
                     $isSellable    = $studio->isSellableKey($type);
 
-                    $insert[] = [
+                    $seatNumber  = $isPlaceholder ? (200 + $positionX) : $seatCounter;
+                    $seatCode    = $isPlaceholder ? '' : $rowLabel . $seatCounter;
+                    $attrs       = [
+                        'seat_code'  => $seatCode,
+                        'seat_type'  => $type,
+                        'seat_group' => $group,
+                        'position_x' => $positionX,
+                        'position_y' => $positionY,
+                        'is_active'  => $isSellable,
+                    ];
+
+                    $key = $rowLabel . ':' . $seatNumber;
+                    if (isset($keptSeatKeys[$key])) {
+                        $updates[$keptSeatKeys[$key]] = $attrs;
+                        if ($isSellable) {
+                            $totalActualSeats++;
+                        }
+                        if ($isSellable || $isUnavailable) {
+                            $seatCounter++;
+                        }
+                        $positionX++;
+                        continue;
+                    }
+
+                    $insert[] = array_merge([
                         'studio_id'   => $studio->id,
                         'seat_row'    => $rowLabel,
-                        'seat_number' => $isPlaceholder ? (200 + $positionX) : $seatCounter,
-                        'seat_code'   => $isPlaceholder ? '' : $rowLabel . $seatCounter,
-                        'seat_type'   => $type,
-                        'seat_group'  => $group,
-                        'position_x'  => $positionX,
-                        'position_y'  => $positionY,
-                        'is_active'   => $isSellable,
-                    ];
+                        'seat_number' => $seatNumber,
+                    ], $attrs);
 
                     if ($isSellable || $isUnavailable) {
                         $seatCounter++;
@@ -350,6 +420,9 @@ class SeatController extends Controller
                 $positionY++;
             }
 
+            foreach ($updates as $id => $attrs) {
+                Seat::where('id', $id)->update($attrs);
+            }
             foreach (array_chunk($insert, 200) as $chunk) {
                 Seat::insert($chunk);
             }
