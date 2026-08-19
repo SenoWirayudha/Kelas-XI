@@ -579,6 +579,20 @@
                 } else {
                     this.applyDims();
                 }
+                // When seat type definitions change (add/edit/delete), drop any
+                // painted cells whose type no longer exists so save can't fail.
+                this.$watch('defList', () => this.cleanUnknownCells());
+            },
+            cleanUnknownCells() {
+                for (const row of this.grid) for (const cell of row.cells) {
+                    if (cell.type !== 'empty' && !this.defs[cell.type]) {
+                        cell.type = 'empty';
+                        cell.group = null;
+                    }
+                }
+                if (this.tool !== 'empty' && !this.defs[this.tool]) {
+                    this.tool = 'seat';
+                }
             },
             get displayRows() {
                 // Render in visual order: if A is front, screen is on top → A at bottom near front.
@@ -691,6 +705,9 @@
             },
             save() {
                 if (this.saving) return;
+                // Safety net: drop any painted cells whose type no longer exists
+                // (e.g. a type was deleted/renamed mid-session), so validation can't fail.
+                this.cleanUnknownCells();
                 // Reject orphaned paired groups before submit
                 const counts = {};
                 for (const row of this.grid) for (const cell of row.cells) {
