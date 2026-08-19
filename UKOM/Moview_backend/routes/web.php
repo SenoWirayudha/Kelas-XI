@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\CinemaController;
 use App\Http\Controllers\Admin\StudioController;
 use App\Http\Controllers\Admin\SeatController;
+use App\Http\Controllers\Admin\SeatTypeController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\TicketScannerController;
@@ -128,6 +129,12 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     Route::post('/studios/{studioId}/seats/layout',    [SeatController::class, 'saveLayout'])->name('seats.save-layout');
     Route::post('/studios/{studioId}/seats/generate',  [SeatController::class, 'generate'])->name('seats.generate');
     Route::delete('/studios/{studioId}/seats',         [SeatController::class, 'destroyAll'])->name('seats.destroy-all');
+
+    // Seat Type Definitions (dynamic custom seat types)
+    Route::get('/studios/{studio}/seat-types',              [SeatTypeController::class, 'index'])->name('seat-types.index');
+    Route::post('/studios/{studio}/seat-types',             [SeatTypeController::class, 'store'])->name('seat-types.store');
+    Route::put('/studios/{studio}/seat-types/{key}',        [SeatTypeController::class, 'update'])->name('seat-types.update');
+    Route::delete('/studios/{studio}/seat-types/{key}',     [SeatTypeController::class, 'destroy'])->name('seat-types.destroy');
 
     // Order Management
     Route::get('/orders',      [AdminOrderController::class, 'index'])->name('orders.index');

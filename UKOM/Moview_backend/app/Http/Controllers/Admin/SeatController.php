@@ -58,7 +58,7 @@ class SeatController extends Controller
         }
 
         // Serialize existing layout into the visual-builder payload format (preload)
-        $gridPayload = $rows->map(function ($rowSeats) {
+        $gridPayload = $rows->map(function ($rowSeats) use ($studio) {
             $byX = $rowSeats->sortBy('position_x')->keyBy('position_x');
             $maxX = $rowSeats->max('position_x');
             $cells = [];
@@ -68,8 +68,12 @@ class SeatController extends Controller
                     continue;
                 }
                 $seat = $byX[$x];
+                $cellType = $seat->seat_type;
+                if (!$seat->is_active && $studio->isSellableKey($seat->seat_type)) {
+                    $cellType = 'unavailable';
+                }
                 $cells[] = [
-                    'type'  => $seat->is_active ? $seat->seat_type : ($seat->seat_type === 'seat' ? 'unavailable' : $seat->seat_type),
+                    'type'  => $cellType,
                     'group' => $seat->seat_group,
                 ];
             }
@@ -78,6 +82,10 @@ class SeatController extends Controller
                 'cells' => $cells,
             ];
         })->values();
+
+        $seatTypeDefinitions = $studio->seat_type_definitions ?? [];
+
+        return view('admin.seats.layout', compact('studio', 'seats', 'rows', 'aisles', 'entranceConfig', 'gridPayload', 'seatTypeDefinitions'));
 
         return view('admin.seats.layout', compact('studio', 'seats', 'rows', 'aisles', 'entranceConfig', 'gridPayload'));
     }
@@ -224,55 +232,57 @@ class SeatController extends Controller
      *
      * Payload (JSON):
      * {
-     *   "seat_prices": { "couple": 1.5, "premium": 2.0, "wheelchair": 1.0 },
      *   "row_direction": "front_to_back",
      *   "rows": [
      *     { "label": "A", "cells": [
      *         { "type": "seat" },
-     *         { "type": "couple", "group": "SB1" },
-     *         { "type": "couple", "group": "SB1" },
+     *         { "type": "couple", "group": "CP1" },
+     *         { "type": "couple", "group": "CP1" },
      *         { "type": "aisle" }
      *     ] }
      *   ]
      * }
      *
-     * - Cell types: seat, aisle, entrance, couple, premium, wheelchair, unavailable.
-     * - Couple/sweetbox: exactly 2 cells sharing the same "group" = 1 unit.
+     * - Cell types are dynamic: any key from the studio's seat_type_definitions,
+     *   plus "empty". Types with purchase_mode = paired must share a seat_group
+     *   (>= 2 cells per group).
      * - Booked seats and their group partners are never deleted.
      */
     public function saveLayout(Request $request, $studioId)
     {
         $studio = Studio::findOrFail($studioId);
+        $definitionsByKey = $studio->definitionsByKey();
+        $allowedTypes = array_values(array_unique(array_merge($studio->seatTypeKeys(), ['empty'])));
 
         $validated = $request->validate([
-            'seat_prices'   => 'nullable|array',
-            'seat_prices.*' => 'numeric|min:0|max:20',
             'row_direction' => 'required|in:front_to_back,back_to_front',
             'rows'          => 'required|array|min:1|max:26',
             'rows.*.label'  => 'required|string|max:2',
             'rows.*.cells'  => 'required|array|min:1|max:60',
-            'rows.*.cells.*.type'  => 'required|in:seat,aisle,entrance,couple,premium,wheelchair,unavailable,empty',
+            'rows.*.cells.*.type'  => 'required|in:' . implode(',', $allowedTypes),
             'rows.*.cells.*.group' => 'nullable|string|max:20',
         ]);
 
         $rowsPayload = $validated['rows'];
 
-        // ---- Validate couple grouping: every couple cell must have a partner in the same group ----
+        // ---- Validate paired grouping: every paired cell must have a group with >= 2 cells ----
+        $groupCounts = [];
         foreach ($rowsPayload as $row) {
-            $groupCounts = [];
             foreach ($row['cells'] as $cell) {
-                if ($cell['type'] === 'couple') {
-                    $group = $cell['group'] ?? '';
-                    if ($group === '') {
-                        abort(422, "Pasangan couple di baris {$row['label']} tidak memiliki group.");
-                    }
-                    $groupCounts[$group] = ($groupCounts[$group] ?? 0) + 1;
+                $mode = $definitionsByKey[$cell['type']]['purchase_mode'] ?? null;
+                if ($mode !== 'paired') {
+                    continue;
                 }
+                $group = $cell['group'] ?? '';
+                if ($group === '') {
+                    abort(422, "Sel bertipe '{$cell['type']}' di baris {$row['label']} harus memiliki group.");
+                }
+                $groupCounts[$group] = ($groupCounts[$group] ?? 0) + 1;
             }
-            foreach ($groupCounts as $group => $count) {
-                if ($count !== 2) {
-                    abort(422, "Group couple '{$group}' di baris {$row['label']} harus berisi tepat 2 sel (ditemukan {$count}).");
-                }
+        }
+        foreach ($groupCounts as $group => $count) {
+            if ($count < 2) {
+                abort(422, "Group '{$group}' harus berisi minimal 2 sel (ditemukan {$count}).");
             }
         }
 
@@ -313,9 +323,9 @@ class SeatController extends Controller
                         $positionX++;
                         continue;
                     }
-                    $isPlaceholder = in_array($type, ['aisle', 'entrance']);
+                    $isPlaceholder = in_array($type, Studio::PLACEHOLDER_TYPE_KEYS);
                     $isUnavailable = $type === 'unavailable';
-                    $isSellable    = in_array($type, Studio::SELLABLE_SEAT_TYPES);
+                    $isSellable    = $studio->isSellableKey($type);
 
                     $insert[] = [
                         'studio_id'   => $studio->id,
@@ -346,7 +356,6 @@ class SeatController extends Controller
 
             $studio->update([
                 'total_seats'   => $totalActualSeats,
-                'seat_prices'   => $validated['seat_prices'] ?? null,
                 'row_direction' => $validated['row_direction'],
             ]);
         });
