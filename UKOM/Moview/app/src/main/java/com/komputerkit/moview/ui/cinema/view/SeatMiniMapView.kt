@@ -57,6 +57,26 @@ class SeatMiniMapView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
 
+    private val couplePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#FB7185")
+        style = Paint.Style.FILL
+    }
+
+    private val premiumPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#A78BFA")
+        style = Paint.Style.FILL
+    }
+
+    private val wheelchairPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#22C55E")
+        style = Paint.Style.FILL
+    }
+
+    private val unavailablePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#2A2F38")
+        style = Paint.Style.FILL
+    }
+
     private val aislePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#161A22")
         style = Paint.Style.FILL
@@ -153,7 +173,7 @@ class SeatMiniMapView @JvmOverloads constructor(
         val gap = dp(0.5f)
 
         for (seat in seats) {
-            if (seat.type != SeatType.SEAT) continue
+            if (seat.type == SeatType.AISLE || seat.type == SeatType.ENTRANCE) continue
             val x = (seat.positionX - 1).coerceAtLeast(0)
             val y = (seat.positionY - 1).coerceAtLeast(0)
 
@@ -169,10 +189,14 @@ class SeatMiniMapView @JvmOverloads constructor(
                 bottom - gap
             )
 
-            val seatPaint = when (seat.status) {
-                SeatStatus.AVAILABLE -> availablePaint
-                SeatStatus.BOOKED -> bookedPaint
-                SeatStatus.SELECTED -> selectedPaint
+            val seatPaint = when {
+                seat.status == SeatStatus.SELECTED -> selectedPaint
+                seat.type == SeatType.COUPLE -> couplePaint
+                seat.type == SeatType.PREMIUM -> premiumPaint
+                seat.type == SeatType.WHEELCHAIR -> wheelchairPaint
+                seat.type == SeatType.UNAVAILABLE || seat.status == SeatStatus.UNAVAILABLE -> unavailablePaint
+                seat.status == SeatStatus.BOOKED -> bookedPaint
+                else -> availablePaint
             }
             canvas.drawRect(cellRect, seatPaint)
             canvas.drawRoundRect(cellRect, dp(1f), dp(1f), seatPaint)

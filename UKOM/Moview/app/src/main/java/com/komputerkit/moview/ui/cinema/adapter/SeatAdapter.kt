@@ -13,13 +13,15 @@ import com.komputerkit.moview.ui.cinema.model.SeatType
 
 class SeatAdapter(
     private val seats: MutableList<Seat>,
-    private val ticketPrice: Int,
     private val onSeatChanged: (selectedSeats: List<Seat>, total: Int) -> Unit
 ) : RecyclerView.Adapter<SeatAdapter.ViewHolder>() {
 
     private var colorTextPrimary: Int? = null
     private var colorTextSecondary: Int? = null
     private var colorWhite: Int? = null
+    private var colorRose: Int? = null
+    private var colorPurple: Int? = null
+    private var colorGreen: Int? = null
 
     init {
         setHasStableIds(true)
@@ -36,6 +38,9 @@ class SeatAdapter(
             colorTextPrimary = ContextCompat.getColor(view.context, R.color.text_primary)
             colorTextSecondary = ContextCompat.getColor(view.context, R.color.text_secondary)
             colorWhite = ContextCompat.getColor(view.context, android.R.color.white)
+            colorRose = ContextCompat.getColor(view.context, R.color.seat_couple_text)
+            colorPurple = ContextCompat.getColor(view.context, R.color.seat_premium_text)
+            colorGreen = ContextCompat.getColor(view.context, R.color.seat_wheelchair_text)
         }
         return ViewHolder(view)
     }
@@ -49,9 +54,9 @@ class SeatAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val seat = seats[position]
-        holder.tv.text = if (seat.type == SeatType.SEAT) seat.id else ""
 
-        if (seat.type == SeatType.AISLE) {
+        if (seat.type == SeatType.AISLE || seat.type == SeatType.ENTRANCE) {
+            holder.tv.text = ""
             holder.tv.setBackgroundResource(android.R.color.transparent)
             holder.tv.isEnabled = false
             holder.tv.alpha = 0f
@@ -59,45 +64,96 @@ class SeatAdapter(
             return
         }
 
-        if (seat.type == SeatType.ENTRANCE) {
-            holder.tv.setBackgroundResource(android.R.color.transparent)
-            holder.tv.isEnabled = false
-            holder.tv.alpha = 0f
-            holder.tv.setOnClickListener(null)
-            return
-        }
+        holder.tv.alpha = 1f
+        holder.tv.isEnabled = true
+        holder.tv.text = seat.id
 
-        when (seat.status) {
-            SeatStatus.AVAILABLE -> {
-                holder.tv.setBackgroundResource(R.drawable.bg_seat_available)
-                holder.tv.setTextColor(colorTextPrimary ?: ContextCompat.getColor(holder.tv.context, R.color.text_primary))
-                holder.tv.isEnabled = true
-                holder.tv.alpha = 1f
+        when (seat.type) {
+            SeatType.COUPLE -> {
+                if (seat.status == SeatStatus.SELECTED) {
+                    holder.tv.setBackgroundResource(R.drawable.bg_seat_selected)
+                    holder.tv.setTextColor(colorWhite ?: ContextCompat.getColor(holder.tv.context, android.R.color.white))
+                } else {
+                    holder.tv.setBackgroundResource(R.drawable.bg_seat_couple)
+                    holder.tv.setTextColor(colorRose ?: ContextCompat.getColor(holder.tv.context, R.color.seat_couple_text))
+                }
             }
-            SeatStatus.BOOKED -> {
-                holder.tv.setBackgroundResource(R.drawable.bg_seat_booked)
-                holder.tv.setTextColor(colorTextSecondary ?: ContextCompat.getColor(holder.tv.context, R.color.text_secondary))
-                holder.tv.isEnabled = false
-                holder.tv.alpha = 0.5f
+            SeatType.PREMIUM -> {
+                if (seat.status == SeatStatus.SELECTED) {
+                    holder.tv.setBackgroundResource(R.drawable.bg_seat_selected)
+                    holder.tv.setTextColor(colorWhite ?: ContextCompat.getColor(holder.tv.context, android.R.color.white))
+                } else {
+                    holder.tv.setBackgroundResource(R.drawable.bg_seat_premium)
+                    holder.tv.setTextColor(colorPurple ?: ContextCompat.getColor(holder.tv.context, R.color.seat_premium_text))
+                }
             }
-            SeatStatus.SELECTED -> {
-                holder.tv.setBackgroundResource(R.drawable.bg_seat_selected)
-                holder.tv.setTextColor(colorWhite ?: ContextCompat.getColor(holder.tv.context, android.R.color.white))
-                holder.tv.isEnabled = true
-                holder.tv.alpha = 1f
+            SeatType.WHEELCHAIR -> {
+                if (seat.status == SeatStatus.SELECTED) {
+                    holder.tv.setBackgroundResource(R.drawable.bg_seat_selected)
+                    holder.tv.setTextColor(colorWhite ?: ContextCompat.getColor(holder.tv.context, android.R.color.white))
+                } else {
+                    holder.tv.setBackgroundResource(R.drawable.bg_seat_wheelchair)
+                    holder.tv.setTextColor(colorGreen ?: ContextCompat.getColor(holder.tv.context, R.color.seat_wheelchair_text))
+                }
+            }
+            else -> {
+                when (seat.status) {
+                    SeatStatus.AVAILABLE -> {
+                        holder.tv.setBackgroundResource(R.drawable.bg_seat_available)
+                        holder.tv.setTextColor(colorTextPrimary ?: ContextCompat.getColor(holder.tv.context, R.color.text_primary))
+                        holder.tv.isEnabled = true
+                    }
+                    SeatStatus.BOOKED -> {
+                        holder.tv.setBackgroundResource(R.drawable.bg_seat_booked)
+                        holder.tv.setTextColor(colorTextSecondary ?: ContextCompat.getColor(holder.tv.context, R.color.text_secondary))
+                        holder.tv.isEnabled = false
+                        holder.tv.alpha = 0.5f
+                    }
+                    SeatStatus.UNAVAILABLE -> {
+                        holder.tv.setBackgroundResource(R.drawable.bg_seat_unavailable)
+                        holder.tv.setTextColor(colorTextSecondary ?: ContextCompat.getColor(holder.tv.context, R.color.text_secondary))
+                        holder.tv.isEnabled = false
+                        holder.tv.alpha = 0.6f
+                    }
+                    SeatStatus.SELECTED -> {
+                        holder.tv.setBackgroundResource(R.drawable.bg_seat_selected)
+                        holder.tv.setTextColor(colorWhite ?: ContextCompat.getColor(holder.tv.context, android.R.color.white))
+                        holder.tv.isEnabled = true
+                    }
+                }
             }
         }
 
         holder.tv.setOnClickListener {
-            if (seat.type != SeatType.SEAT || seat.status == SeatStatus.BOOKED) return@setOnClickListener
-            seats[position] = seat.copy(
-                status = if (seat.status == SeatStatus.SELECTED)
-                    SeatStatus.AVAILABLE else SeatStatus.SELECTED
-            )
-            notifyItemChanged(position)
-            val selected = seats.filter { it.type == SeatType.SEAT && it.status == SeatStatus.SELECTED }
-            onSeatChanged(selected, selected.size * ticketPrice)
+            if (seat.type == SeatType.UNAVAILABLE || seat.status == SeatStatus.BOOKED) return@setOnClickListener
+            if (seat.status == SeatStatus.UNAVAILABLE) return@setOnClickListener
+
+            // Couple/sweetbox: selecting one cell selects its partner (same seat_group)
+            if (seat.type == SeatType.COUPLE && seat.seatGroup != null) {
+                val groupIndexes = seats.indices.filter { i ->
+                    seats[i].seatGroup == seat.seatGroup
+                }
+                val anySelected = groupIndexes.any { seats[it].status == SeatStatus.SELECTED }
+                for (i in groupIndexes) {
+                    seats[i] = seats[i].copy(
+                        status = if (anySelected) SeatStatus.AVAILABLE else SeatStatus.SELECTED
+                    )
+                    notifyItemChanged(i)
+                }
+            } else {
+                seats[position] = seat.copy(
+                    status = if (seat.status == SeatStatus.SELECTED)
+                        SeatStatus.AVAILABLE else SeatStatus.SELECTED
+                )
+                notifyItemChanged(position)
+            }
+            notifySeatChange()
         }
+    }
+
+    private fun notifySeatChange() {
+        val selected = seats.filter { it.type in SELECTABLE_TYPES && it.status == SeatStatus.SELECTED }
+        onSeatChanged(selected, selected.sumOf { it.price })
     }
 
     override fun getItemCount() = seats.size
@@ -106,13 +162,16 @@ class SeatAdapter(
         seats.clear()
         seats.addAll(newSeats)
         notifyDataSetChanged()
-        val selected = seats.filter { it.type == SeatType.SEAT && it.status == SeatStatus.SELECTED }
-        onSeatChanged(selected, selected.size * ticketPrice)
+        notifySeatChange()
     }
 
-    fun getSelectedSeats(): List<Seat> = seats.filter { it.type == SeatType.SEAT && it.status == SeatStatus.SELECTED }
+    fun getSelectedSeats(): List<Seat> = seats.filter { it.type in SELECTABLE_TYPES && it.status == SeatStatus.SELECTED }
 
     fun getSeatsSnapshot(): List<Seat> = seats.toList()
 
-    fun getRealSeatsSnapshot(): List<Seat> = seats.filter { it.type == SeatType.SEAT }
+    fun getRealSeatsSnapshot(): List<Seat> = seats.filter { it.type in SELECTABLE_TYPES }
+
+    companion object {
+        val SELECTABLE_TYPES = setOf(SeatType.SEAT, SeatType.COUPLE, SeatType.PREMIUM, SeatType.WHEELCHAIR)
+    }
 }

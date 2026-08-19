@@ -51,11 +51,12 @@ class OrderSummaryActivity : AppCompatActivity() {
             )
         selectedSeatLabel = intent.getStringExtra(EXTRA_SEATS)
             ?: bookingData.selectedSeatIds.joinToString(",")
+        val extraTotal = intent.getIntExtra(EXTRA_TOTAL, 0)
         latestOrderCode = null
         shouldSyncOnResume = false
 
         val seatCount = calculateSeatCount(selectedSeatLabel, bookingData.selectedSeatIds)
-        populateMovieInfo(bookingData, selectedSeatLabel, seatCount)
+        populateMovieInfo(bookingData, selectedSeatLabel, seatCount, extraTotal)
         initializeMidtransSdk()
         observeViewModel()
         startCountdown(7 * 60 * 1000L)
@@ -76,7 +77,8 @@ class OrderSummaryActivity : AppCompatActivity() {
     private fun populateMovieInfo(
         booking: BookingData,
         seatsLabel: String,
-        seatCount: Int
+        seatCount: Int,
+        extraTotal: Int
     ) {
         val fmt = NumberFormat.getNumberInstance(Locale("id", "ID"))
 
@@ -89,10 +91,9 @@ class OrderSummaryActivity : AppCompatActivity() {
         val seatLabel = if (seatCount > 1) "$seatCount TIKET" else "1 TIKET"
         binding.tvTicketCount.text = seatLabel
         binding.tvSeatLabel.text = "KURSI $seatsLabel (${booking.studioType})"
-        binding.tvTicketPrice.text = "Rp${fmt.format(booking.ticketPrice)} x $seatCount"
         binding.tvServiceCharge.text = "Rp${fmt.format(booking.serviceCharge)} x $seatCount"
 
-        val total = (booking.ticketPrice + booking.serviceCharge) * seatCount
+        val total = extraTotal + (booking.serviceCharge * seatCount)
         binding.tvTotalPrice.text = "Rp${fmt.format(total)}"
 
         if (booking.moviePosterUrl.isNotBlank()) {

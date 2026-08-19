@@ -18,6 +18,7 @@ data class SeatSelectionUiState(
     val error: String? = null,
     val rows: Int = 1,
     val columns: Int = 1,
+    val rowDirection: String = "front_to_back",
     val seats: List<Seat> = emptyList()
 )
 
@@ -49,6 +50,7 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
                             isLoading = false,
                             rows = normalizedRows.coerceAtLeast(1),
                             columns = normalizedColumns.coerceAtLeast(1),
+                            rowDirection = dto.row_direction ?: "front_to_back",
                             seats = mapped,
                             error = null
                         )
@@ -112,13 +114,19 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
                 }
 
                 val seatType = when (dto.seat_type.lowercase()) {
+                    "couple" -> SeatType.COUPLE
+                    "premium" -> SeatType.PREMIUM
+                    "wheelchair" -> SeatType.WHEELCHAIR
+                    "unavailable" -> SeatType.UNAVAILABLE
                     "aisle" -> SeatType.AISLE
                     "entrance" -> SeatType.ENTRANCE
                     else -> SeatType.SEAT
                 }
 
-                val status = when (dto.status?.lowercase()) {
-                    "booked" -> SeatStatus.BOOKED
+                val isInactive = dto.is_active == false || seatType == SeatType.UNAVAILABLE
+                val status = when {
+                    isInactive -> SeatStatus.UNAVAILABLE
+                    dto.status?.lowercase() == "booked" -> SeatStatus.BOOKED
                     else -> SeatStatus.AVAILABLE
                 }
 
@@ -140,7 +148,9 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
                         positionX = columnIndex + 1,
                         positionY = rowIndex + 1,
                         type = seatType,
-                        status = status
+                        status = status,
+                        price = dto.price?.toInt() ?: 0,
+                        seatGroup = dto.seat_group
                     )
                 )
             }

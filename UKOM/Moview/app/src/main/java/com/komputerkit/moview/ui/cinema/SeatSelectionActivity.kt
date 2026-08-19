@@ -62,7 +62,7 @@ class SeatSelectionActivity : AppCompatActivity() {
     }
 
     private fun setupSeats() {
-        seatAdapter = SeatAdapter(mutableListOf(), bookingData.ticketPrice) { selected, total ->
+        seatAdapter = SeatAdapter(mutableListOf()) { selected, total ->
             onSeatsChanged(selected, total)
         }
 
@@ -234,7 +234,7 @@ class SeatSelectionActivity : AppCompatActivity() {
     private fun navigateToOrderSummary() {
         val selected = seatAdapter.getSelectedSeats()
         val seatsLabel = selected.joinToString(", ") { it.id }
-        val total = selected.size * bookingData.ticketPrice
+        val total = selected.sumOf { it.price }
         val selectedSeatIds = selected.mapNotNull { it.seatId }
         val bookingPayload = bookingData.copy(selectedSeatIds = selectedSeatIds)
 

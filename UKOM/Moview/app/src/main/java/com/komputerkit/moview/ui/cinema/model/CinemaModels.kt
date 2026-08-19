@@ -34,9 +34,9 @@ enum class CinemaBrand { XXI, CGV, CINEPOLIS, OTHER }
 
 // ── Seat Selection Screen ──────────────────────────────────────────────────
 
-enum class SeatStatus { AVAILABLE, BOOKED, SELECTED }
+enum class SeatStatus { AVAILABLE, BOOKED, SELECTED, UNAVAILABLE }
 
-enum class SeatType { SEAT, AISLE, ENTRANCE }
+enum class SeatType { SEAT, COUPLE, PREMIUM, WHEELCHAIR, UNAVAILABLE, AISLE, ENTRANCE }
 
 data class Seat(
     val seatId: Int? = null,
@@ -46,7 +46,9 @@ data class Seat(
     val positionX: Int = 0,
     val positionY: Int = 0,
     val type: SeatType = SeatType.SEAT,
-    val status: SeatStatus = SeatStatus.AVAILABLE
+    val status: SeatStatus = SeatStatus.AVAILABLE,
+    val price: Int = 0,
+    val seatGroup: String? = null
 ) : Serializable {
     val id: String get() = seatCode ?: if (row.isNotBlank() && number > 0) "$row$number" else ""
 }
