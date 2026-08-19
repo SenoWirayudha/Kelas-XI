@@ -43,9 +43,9 @@
                 </h3>
 
                 <p class="text-xs text-gray-500 mb-4 leading-relaxed">
-                    Klik sel pada preview untuk toggle tipe kursi. Baris boleh tidak sama panjang
-                    (sel ujung kiri/kanan dikosongkan). Tipe berpasangan dilukis dengan klik
-                    2+ sel berdekatan — sel berdekatan otomatis menjadi satu grup. Klik ganda = kosongkan sel.
+                    Tekan &amp; seret di preview untuk melukis banyak sel sekaligus (dari atas ke bawah).
+                    Klik sel untuk toggle tipe kursi. Tipe berpasangan dilukis dengan 2+ sel berdekatan —
+                    sel berdekatan otomatis menjadi satu grup. Klik ganda = kosongkan sel.
                 </p>
 
                 {{-- Dimensions --}}
@@ -426,7 +426,8 @@
                             <span class="w-5 text-xs font-bold text-gray-500 flex-shrink-0 text-center" x-text="dr.row.label"></span>
                             <template x-for="(cell, ci) in dr.row.cells" :key="ci">
                                 <button type="button"
-                                        @click="paint(dr.idx, ci)"
+                                        @mousedown.prevent="startPaint(dr.idx, ci)"
+                                        @mouseenter="dragPaint(dr.idx, ci)"
                                         @dblclick="clearCell(dr.idx, ci)"
                                         class="flex-shrink-0 h-7 rounded text-xs font-semibold transition select-none"
                                         :class="cellBaseClass(cell)"
@@ -440,7 +441,7 @@
 
                 <p class="text-xs text-gray-400 mt-4">
                     <i class="fas fa-mouse-pointer mr-1"></i>
-                    Klik = lukis dengan alat terpilih · Klik ganda = hapus sel (kosongkan) ·
+                    Tekan &amp; seret = lukis area sekaligus · Klik = lukis 1 sel · Klik ganda = hapus sel (kosongkan) ·
                     Nomor kursi dihitung otomatis (melewati lorong, pola CGV).
                 </p>
             </div>
@@ -551,6 +552,7 @@
             tool: 'seat',
             rowDirection: config.row_direction || 'front_to_back',
             groupCounter: 0,
+            painting: false,
             saving: false,
 
             get defList() { return Alpine.store('seatTypes').defs || []; },
@@ -609,13 +611,35 @@
                     const row = this.grid[ri].cells;
                     const left = ci > 0 ? row[ci - 1] : null;
                     const right = ci < row.length - 1 ? row[ci + 1] : null;
-                    const neighbor = (left && left.type === this.tool) ? left : (right && right.type === this.tool) ? right : null;
+                    const above = ri > 0 ? this.grid[ri - 1].cells[ci] : null;
+                    const below = ri < this.grid.length - 1 ? this.grid[ri + 1].cells[ci] : null;
+                    const neighbor = (left && left.type === this.tool) ? left
+                        : (right && right.type === this.tool) ? right
+                        : (above && above.type === this.tool) ? above
+                        : (below && below.type === this.tool) ? below
+                        : null;
                     cell.type = this.tool;
                     cell.group = neighbor ? neighbor.group : 'G' + (++this.groupCounter);
                     return;
                 }
                 cell.type = this.tool;
                 cell.group = null;
+            },
+            startPaint(ri, ci) {
+                this.painting = true;
+                this.paint(ri, ci);
+                this._endPaint = () => this.endPaint();
+                window.addEventListener('mouseup', this._endPaint, { once: true });
+            },
+            dragPaint(ri, ci) {
+                if (this.painting) this.paint(ri, ci);
+            },
+            endPaint() {
+                this.painting = false;
+                if (this._endPaint) {
+                    window.removeEventListener('mouseup', this._endPaint);
+                    this._endPaint = null;
+                }
             },
             clearCell(ri, ci) {
                 this.grid[ri].cells[ci].type = 'empty';

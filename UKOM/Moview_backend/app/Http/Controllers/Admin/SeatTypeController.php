@@ -42,8 +42,8 @@ class SeatTypeController extends Controller
             'key'              => $validated['key'],
             'label'            => $validated['label'],
             'color'            => $validated['color'],
-            'price_multiplier' => $validated['is_placeholder'] ? null : (float) $validated['price_multiplier'],
-            'purchase_mode'    => $validated['is_placeholder'] ? null : $validated['purchase_mode'],
+            'price_multiplier' => !empty($validated['is_placeholder']) ? null : (float) $validated['price_multiplier'],
+            'purchase_mode'    => !empty($validated['is_placeholder']) ? null : $validated['purchase_mode'],
             'is_builtin'       => false,
         ];
 
@@ -90,8 +90,8 @@ class SeatTypeController extends Controller
                 'key'              => $validated['key'],
                 'label'            => $validated['label'],
                 'color'            => $validated['color'],
-                'price_multiplier' => $validated['is_placeholder'] ? null : (float) $validated['price_multiplier'],
-                'purchase_mode'    => $validated['is_placeholder'] ? null : $validated['purchase_mode'],
+                'price_multiplier' => !empty($validated['is_placeholder']) ? null : (float) $validated['price_multiplier'],
+                'purchase_mode'    => !empty($validated['is_placeholder']) ? null : $validated['purchase_mode'],
                 'is_builtin'       => false,
             ];
         }
