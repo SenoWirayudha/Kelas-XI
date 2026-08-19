@@ -1,6 +1,5 @@
 package com.komputerkit.moview.ui.theatrical
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -11,25 +10,24 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.komputerkit.moview.databinding.FragmentNowShowingBinding
-import com.komputerkit.moview.ui.cinema.MovieScheduleActivity
+import com.komputerkit.moview.databinding.FragmentComingSoonBinding
 import com.komputerkit.moview.ui.home.TheatricalMovieAdapter
 import com.komputerkit.moview.ui.social.GridSpacingItemDecoration
 import com.komputerkit.moview.util.ScrollStateHelper
 
-class NowShowingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
+class ComingSoonFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
-    private var _binding: FragmentNowShowingBinding? = null
+    private var _binding: FragmentComingSoonBinding? = null
     private val binding get() = _binding!!
 
-    private val viewModel: NowShowingViewModel by viewModels()
+    private val viewModel: ComingSoonViewModel by viewModels()
     private lateinit var adapter: TheatricalMovieAdapter
     private var savedScrollState: Pair<Int, Int>? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentNowShowingBinding.inflate(inflater, container, false)
+        _binding = FragmentComingSoonBinding.inflate(inflater, container, false)
         return binding.root
     }
 
@@ -40,37 +38,24 @@ class NowShowingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
         adapter = TheatricalMovieAdapter(
             onMovieClick = { movie ->
-                val action = NowShowingFragmentDirections.actionNowShowingToMovieDetail(movieId = movie.id)
+                val action = ComingSoonFragmentDirections.actionComingSoonToMovieDetail(movieId = movie.id)
                 findNavController().navigate(action)
             },
-            onBuyTicketClick = { movie ->
-                val intent = Intent(requireContext(), MovieScheduleActivity::class.java).apply {
-                    putExtra(MovieScheduleActivity.EXTRA_MOVIE_ID, movie.id)
-                    putExtra(MovieScheduleActivity.EXTRA_MOVIE_TITLE, movie.title)
-                    putExtra(MovieScheduleActivity.EXTRA_POSTER_URL, movie.posterUrl ?: "")
-                    putExtra(MovieScheduleActivity.EXTRA_BACKDROP_URL, "")
-                    putExtra(MovieScheduleActivity.EXTRA_RATING, 0.0)
-                    putExtra(MovieScheduleActivity.EXTRA_AGE_RATING, movie.ageRating ?: "SU")
-                    putExtra(MovieScheduleActivity.EXTRA_GENRE, movie.genre ?: "")
-                    putExtra(MovieScheduleActivity.EXTRA_DURATION, "")
-                    putExtra(MovieScheduleActivity.EXTRA_DIRECTOR, "")
-                }
-                startActivity(intent)
-            },
+            showDateBadge = true,
             gridMode = true,
             onLogFilm = { movie ->
-                val action = NowShowingFragmentDirections.actionNowShowingToLogFilm(movieId = movie.id)
+                val action = ComingSoonFragmentDirections.actionComingSoonToLogFilm(movieId = movie.id)
                 findNavController().navigate(action)
             },
             onChangePoster = { movie ->
-                val action = NowShowingFragmentDirections.actionNowShowingToPosterBackdrop(movieId = movie.id, openBackdropsTab = false)
+                val action = ComingSoonFragmentDirections.actionComingSoonToPosterBackdrop(movieId = movie.id, openBackdropsTab = false)
                 findNavController().navigate(action)
             }
         )
 
         binding.rvMovies.apply {
             layoutManager = GridLayoutManager(requireContext(), 3)
-            adapter = this@NowShowingFragment.adapter
+            adapter = this@ComingSoonFragment.adapter
             val spacingPx = (12 * resources.displayMetrics.density).toInt()
             addItemDecoration(GridSpacingItemDecoration(3, spacingPx, false))
         }

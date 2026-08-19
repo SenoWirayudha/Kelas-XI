@@ -13,6 +13,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentUpcomingBinding
 import com.komputerkit.moview.ui.home.TheatricalMovieAdapter
 import com.komputerkit.moview.ui.social.GridSpacingItemDecoration
+import com.komputerkit.moview.util.ScrollStateHelper
 
 class UpcomingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
@@ -21,6 +22,7 @@ class UpcomingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
     private val viewModel: UpcomingViewModel by viewModels()
     private lateinit var adapter: TheatricalMovieAdapter
+    private var savedScrollState: Pair<Int, Int>? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -68,6 +70,8 @@ class UpcomingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 binding.emptyState.visibility = View.GONE
                 binding.rvMovies.visibility = View.VISIBLE
                 adapter.submitList(movies)
+                ScrollStateHelper.restore(binding.rvMovies, savedScrollState)
+                savedScrollState = null
             }
         }
 
@@ -85,6 +89,11 @@ class UpcomingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     }
 
     override fun onRefresh() { viewModel.loadMovies() }
+
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvMovies)
+    }
 
     override fun onDestroyView() {
         super.onDestroyView()
