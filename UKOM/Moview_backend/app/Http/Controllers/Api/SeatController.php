@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\OrderSeat;
 use App\Models\Schedule;
 use App\Models\Seat;
+use App\Models\Studio;
 use App\Services\PendingOrderCleanupService;
 use Illuminate\Http\Request;
 
@@ -28,6 +29,7 @@ class SeatController extends Controller
         ]);
 
         $schedule = Schedule::findOrFail($request->schedule_id);
+        $studio   = $schedule->studio;
 
         $bookedSeatIds = OrderSeat::where('schedule_id', $schedule->id)
             ->whereHas('order', fn($q) => $q->whereIn('status', ['pending', 'paid']))
@@ -42,32 +44,43 @@ class SeatController extends Controller
         $rows = (int) ($rawSeats->max('position_y') ?? 0);
         $columns = (int) ($rawSeats->max('position_x') ?? 0);
 
-        $seats = $rawSeats->map(function ($seat) use ($bookedSeatIds) {
+        $sellable = Studio::SELLABLE_SEAT_TYPES;
+
+        $seats = $rawSeats->map(function ($seat) use ($bookedSeatIds, $studio, $schedule, $sellable) {
             $seatType = $seat->seat_type ?? 'seat';
             $status = null;
+            $price  = null;
 
-            if ($seatType === 'seat') {
+            if (in_array($seatType, $sellable)) {
                 $status = in_array($seat->id, $bookedSeatIds) ? 'booked' : 'available';
+                if (!$seat->is_active) {
+                    $status = 'unavailable';
+                }
+                $price = (float) round($schedule->ticket_price * $studio->priceMultiplierFor($seatType));
             }
 
             return [
-                'seat_id'   => $seat->id,
-                'seat_code' => $seat->seat_code,
-                'row'       => $seat->seat_row,
-                'row_index' => (int) $seat->position_y,
-                'column'    => (int) $seat->position_x,
-                'seat_type' => $seatType,
-                'status'    => $status,
+                'seat_id'    => $seat->id,
+                'seat_code'  => $seat->seat_code,
+                'row'        => rtrim($seat->seat_row),
+                'row_index'  => (int) $seat->position_y,
+                'column'     => (int) $seat->position_x,
+                'seat_type'  => $seatType,
+                'seat_group' => $seat->seat_group,
+                'is_active'  => (bool) $seat->is_active,
+                'price'      => $price,
+                'status'     => $status,
             ];
         })->values();
 
         return response()->json([
             'success' => true,
             'data'    => [
-                'studio_id' => $schedule->studio_id,
-                'rows'      => $rows,
-                'columns'   => $columns,
-                'seats'     => $seats,
+                'studio_id'     => $schedule->studio_id,
+                'row_direction' => $studio->row_direction ?? 'front_to_back',
+                'rows'          => $rows,
+                'columns'       => $columns,
+                'seats'         => $seats,
             ],
         ]);
     }

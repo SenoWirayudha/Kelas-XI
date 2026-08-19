@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderSeat;
 use App\Models\Schedule;
 use App\Models\Seat;
+use App\Models\Studio;
 use App\Models\Ticket;
 use App\Services\PendingOrderCleanupService;
 use Illuminate\Http\Request;
@@ -44,9 +45,65 @@ class OrderController extends Controller
         try {
             $order = DB::transaction(function () use ($schedule, $seatIds, $validated) {
 
+                // ── Row-level lock on seats table (consistent order → no deadlock) ──
+                // Couple/sweetbox atomicity: every cell in a requested seat_group is
+                // locked together so no race can ever leave a couple half-sold.
+                // 1) Pre-read requested seats (no lock) to discover their groups.
+                $preSeats = Seat::whereIn('id', $seatIds)->get();
+                if ($preSeats->count() !== count(array_unique($seatIds))) {
+                    abort(422, 'Ada kursi yang tidak valid.');
+                }
+
+                $groups = $preSeats->pluck('seat_group')->filter()->unique()->all();
+                $groupSeatIds = [];
+                if (!empty($groups)) {
+                    $groupSeatIds = Seat::where('studio_id', $schedule->studio_id)
+                        ->whereIn('seat_group', $groups)
+                        ->pluck('id')
+                        ->all();
+                }
+
+                // 2) Lock every involved seat in a single sorted query (no deadlock,
+                //    since all transactions acquire the same locks in the same order).
+                $allLockedIds = array_values(array_unique(array_merge($seatIds, $groupSeatIds)));
+                $lockedSeats = Seat::whereIn('id', $allLockedIds)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+                $lockedById = $lockedSeats->keyBy('id');
+
+                // Validate: every requested seat sellable, active, and belongs to this studio
+                $sellable = collect(Studio::SELLABLE_SEAT_TYPES);
+                $invalid = collect($seatIds)->map(fn($id) => $lockedById->get($id))->filter()
+                    ->filter(
+                        fn($s) => $s->studio_id !== $schedule->studio_id
+                            || !$sellable->contains($s->seat_type)
+                            || !$s->is_active
+                    );
+                if ($invalid->isNotEmpty()) {
+                    $codes = $invalid->pluck('seat_code')->implode(', ');
+                    abort(422, "Seat tidak dapat dijual: {$codes}");
+                }
+
+                // Couple atomicity: requesting one cell of a couple group must include its partner
+                $coupleGroups = collect($seatIds)->map(fn($id) => $lockedById->get($id))->filter()
+                    ->where('seat_type', 'couple')
+                    ->pluck('seat_group')
+                    ->filter()
+                    ->unique();
+                foreach ($coupleGroups as $group) {
+                    $memberIds = Seat::where('studio_id', $schedule->studio_id)
+                        ->where('seat_group', $group)
+                        ->pluck('id')
+                        ->all();
+                    if (count($memberIds) !== 2 || count(array_intersect($memberIds, $seatIds)) !== 2) {
+                        abort(422, "Pasangan kursi '{$group}' harus dibeli sekaligus (2 kursi).");
+                    }
+                }
+
                 // Re-check availability inside the transaction (race-condition guard)
                 $alreadyBooked = OrderSeat::where('schedule_id', $schedule->id)
-                    ->whereIn('seat_id', $seatIds)
+                    ->whereIn('seat_id', $allLockedIds)
                     ->whereHas('order', fn($q) => $q->whereIn('status', ['pending', 'paid']))
                     ->lockForUpdate()
                     ->pluck('seat_id')
@@ -58,7 +115,14 @@ class OrderController extends Controller
                     abort(409, "Seat(s) no longer available: {$codes}");
                 }
 
-                $totalPrice = $schedule->ticket_price * count($seatIds);
+                $studio = $schedule->studio;
+                $totalPrice = 0;
+                foreach ($seatIds as $seatId) {
+                    $totalPrice += (int) round($schedule->ticket_price * $studio->priceMultiplierFor(
+                        $lockedById->get($seatId)->seat_type
+                    ));
+                }
+
                 $orderCode  = 'ORD-' . date('Ymd') . '-' . strtoupper(Str::random(6));
 
                 $orderPayload = [
@@ -86,11 +150,14 @@ class OrderController extends Controller
 
                 // Create per-seat records and QR tickets
                 foreach ($seatIds as $seatId) {
+                    $seatModel = $lockedById->get($seatId);
+                    $price = (int) round($schedule->ticket_price * $studio->priceMultiplierFor($seatModel->seat_type));
+
                     OrderSeat::create([
                         'order_id'    => $order->id,
                         'seat_id'     => $seatId,
                         'schedule_id' => $schedule->id,
-                        'price'       => $schedule->ticket_price,
+                        'price'       => $price,
                     ]);
 
                     Ticket::create([

@@ -10,7 +10,7 @@ class Seat extends Model
 
     protected $fillable = [
         'studio_id', 'seat_row', 'seat_number', 'seat_code',
-        'seat_type', 'position_x', 'position_y', 'is_active',
+        'seat_type', 'seat_group', 'position_x', 'position_y', 'is_active',
     ];
 
     protected $casts = [

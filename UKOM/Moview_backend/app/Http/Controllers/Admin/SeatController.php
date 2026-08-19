@@ -57,7 +57,29 @@ class SeatController extends Controller
             }
         }
 
-        return view('admin.seats.layout', compact('studio', 'seats', 'rows', 'aisles', 'entranceConfig'));
+        // Serialize existing layout into the visual-builder payload format (preload)
+        $gridPayload = $rows->map(function ($rowSeats) {
+            $byX = $rowSeats->sortBy('position_x')->keyBy('position_x');
+            $maxX = $rowSeats->max('position_x');
+            $cells = [];
+            for ($x = 0; $x <= $maxX; $x++) {
+                if (!$byX->has($x)) {
+                    $cells[] = ['type' => 'empty', 'group' => null];
+                    continue;
+                }
+                $seat = $byX[$x];
+                $cells[] = [
+                    'type'  => $seat->is_active ? $seat->seat_type : ($seat->seat_type === 'seat' ? 'unavailable' : $seat->seat_type),
+                    'group' => $seat->seat_group,
+                ];
+            }
+            return [
+                'label' => $rowSeats->first()->seat_row,
+                'cells' => $cells,
+            ];
+        })->values();
+
+        return view('admin.seats.layout', compact('studio', 'seats', 'rows', 'aisles', 'entranceConfig', 'gridPayload'));
     }
 
     /**
@@ -107,15 +129,27 @@ class SeatController extends Controller
             $hasEntranceFeature, $entranceStartRow, $entranceWidth, $entranceSide,
             &$totalActualSeats
         ) {
-            // Clear existing unbooked seats
-            $bookedSeatIds = DB::table('order_seats')
-                ->whereIn('schedule_id', function ($q) use ($studio) {
-                    $q->select('id')->from('schedules')->where('studio_id', $studio->id);
-                })
-                ->pluck('seat_id')->unique()->all();
+            // Clear existing unbooked seats (keep booked seats + their couple partners)
+            $bookedSeatIds = $this->bookedSeatIdsForStudio($studio);
+
+            $keepSeatIds = $bookedSeatIds;
+            if (!empty($bookedSeatIds)) {
+                $partnerGroups = Seat::whereIn('id', $bookedSeatIds)
+                    ->whereNotNull('seat_group')
+                    ->pluck('seat_group')
+                    ->unique()
+                    ->all();
+                if (!empty($partnerGroups)) {
+                    $partnerIds = Seat::where('studio_id', $studio->id)
+                        ->whereIn('seat_group', $partnerGroups)
+                        ->pluck('id')
+                        ->all();
+                    $keepSeatIds = array_values(array_unique(array_merge($bookedSeatIds, $partnerIds)));
+                }
+            }
 
             Seat::where('studio_id', $studio->id)
-                ->when(!empty($bookedSeatIds), fn($q) => $q->whereNotIn('id', $bookedSeatIds))
+                ->when(!empty($keepSeatIds), fn($q) => $q->whereNotIn('id', $keepSeatIds))
                 ->delete();
 
             $insert = [];
@@ -186,6 +220,143 @@ class SeatController extends Controller
     }
 
     /**
+     * Save a visual grid layout for a studio (from the interactive builder).
+     *
+     * Payload (JSON):
+     * {
+     *   "seat_prices": { "couple": 1.5, "premium": 2.0, "wheelchair": 1.0 },
+     *   "row_direction": "front_to_back",
+     *   "rows": [
+     *     { "label": "A", "cells": [
+     *         { "type": "seat" },
+     *         { "type": "couple", "group": "SB1" },
+     *         { "type": "couple", "group": "SB1" },
+     *         { "type": "aisle" }
+     *     ] }
+     *   ]
+     * }
+     *
+     * - Cell types: seat, aisle, entrance, couple, premium, wheelchair, unavailable.
+     * - Couple/sweetbox: exactly 2 cells sharing the same "group" = 1 unit.
+     * - Booked seats and their group partners are never deleted.
+     */
+    public function saveLayout(Request $request, $studioId)
+    {
+        $studio = Studio::findOrFail($studioId);
+
+        $validated = $request->validate([
+            'seat_prices'   => 'nullable|array',
+            'seat_prices.*' => 'numeric|min:0|max:20',
+            'row_direction' => 'required|in:front_to_back,back_to_front',
+            'rows'          => 'required|array|min:1|max:26',
+            'rows.*.label'  => 'required|string|max:2',
+            'rows.*.cells'  => 'required|array|min:1|max:60',
+            'rows.*.cells.*.type'  => 'required|in:seat,aisle,entrance,couple,premium,wheelchair,unavailable,empty',
+            'rows.*.cells.*.group' => 'nullable|string|max:20',
+        ]);
+
+        $rowsPayload = $validated['rows'];
+
+        // ---- Validate couple grouping: every couple cell must have a partner in the same group ----
+        foreach ($rowsPayload as $row) {
+            $groupCounts = [];
+            foreach ($row['cells'] as $cell) {
+                if ($cell['type'] === 'couple') {
+                    $group = $cell['group'] ?? '';
+                    if ($group === '') {
+                        abort(422, "Pasangan couple di baris {$row['label']} tidak memiliki group.");
+                    }
+                    $groupCounts[$group] = ($groupCounts[$group] ?? 0) + 1;
+                }
+            }
+            foreach ($groupCounts as $group => $count) {
+                if ($count !== 2) {
+                    abort(422, "Group couple '{$group}' di baris {$row['label']} harus berisi tepat 2 sel (ditemukan {$count}).");
+                }
+            }
+        }
+
+        $totalActualSeats = 0;
+
+        DB::transaction(function () use ($studio, $rowsPayload, $validated, &$totalActualSeats) {
+            // Preserve booked seats + their couple partners
+            $keepSeatIds = $this->bookedSeatIdsForStudio($studio);
+            if (!empty($keepSeatIds)) {
+                $partnerGroups = Seat::whereIn('id', $keepSeatIds)
+                    ->whereNotNull('seat_group')
+                    ->pluck('seat_group')
+                    ->unique()
+                    ->all();
+                if (!empty($partnerGroups)) {
+                    $partnerIds = Seat::where('studio_id', $studio->id)
+                        ->whereIn('seat_group', $partnerGroups)
+                        ->pluck('id')
+                        ->all();
+                    $keepSeatIds = array_values(array_unique(array_merge($keepSeatIds, $partnerIds)));
+                }
+            }
+
+            Seat::where('studio_id', $studio->id)
+                ->when(!empty($keepSeatIds), fn($q) => $q->whereNotIn('id', $keepSeatIds))
+                ->delete();
+
+            $insert = [];
+            $positionY = 0;
+            foreach ($rowsPayload as $row) {
+                $rowLabel = strtoupper($row['label']);
+                $positionX = 0;
+                $seatCounter = 1;
+                foreach ($row['cells'] as $cell) {
+                    $type  = $cell['type'];
+                    $group = $cell['group'] ?? null;
+                    if ($type === 'empty') {
+                        $positionX++;
+                        continue;
+                    }
+                    $isPlaceholder = in_array($type, ['aisle', 'entrance']);
+                    $isUnavailable = $type === 'unavailable';
+                    $isSellable    = in_array($type, Studio::SELLABLE_SEAT_TYPES);
+
+                    $insert[] = [
+                        'studio_id'   => $studio->id,
+                        'seat_row'    => $rowLabel,
+                        'seat_number' => $isPlaceholder ? (200 + $positionX) : $seatCounter,
+                        'seat_code'   => $isPlaceholder ? '' : $rowLabel . $seatCounter,
+                        'seat_type'   => $type,
+                        'seat_group'  => $group,
+                        'position_x'  => $positionX,
+                        'position_y'  => $positionY,
+                        'is_active'   => $isSellable,
+                    ];
+
+                    if ($isSellable || $isUnavailable) {
+                        $seatCounter++;
+                    }
+                    if ($isSellable) {
+                        $totalActualSeats++;
+                    }
+                    $positionX++;
+                }
+                $positionY++;
+            }
+
+            foreach (array_chunk($insert, 200) as $chunk) {
+                Seat::insert($chunk);
+            }
+
+            $studio->update([
+                'total_seats'   => $totalActualSeats,
+                'seat_prices'   => $validated['seat_prices'] ?? null,
+                'row_direction' => $validated['row_direction'],
+            ]);
+        });
+
+        $msg = "Layout berhasil disimpan: {$totalActualSeats} kursi, " . count($rowsPayload) . ' baris.';
+
+        return redirect()->route('admin.seats.layout', $studioId)->with('success', $msg);
+    }
+
+    /**
      * Delete all seats for a studio.
      */
     public function destroyAll($studioId)
@@ -209,5 +380,16 @@ class SeatController extends Controller
 
         return redirect()->route('admin.seats.layout', $studioId)
             ->with('success', "Berhasil menghapus {$deleted} kursi.");
+    }
+
+    private function bookedSeatIdsForStudio(Studio $studio): array
+    {
+        return DB::table('order_seats')
+            ->whereIn('schedule_id', function ($q) use ($studio) {
+                $q->select('id')->from('schedules')->where('studio_id', $studio->id);
+            })
+            ->pluck('seat_id')
+            ->unique()
+            ->all();
     }
 }

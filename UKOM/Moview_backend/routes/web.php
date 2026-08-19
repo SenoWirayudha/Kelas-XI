@@ -49,6 +49,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     Route::post('/films/{id}/duplicate', [FilmController::class, 'duplicate'])->name('films.duplicate');
     Route::get('/films/{id}/cast-crew', [FilmController::class, 'castCrew'])->name('films.cast-crew');
     Route::get('/films/{id}/reviews', [FilmController::class, 'reviews'])->name('films.reviews');
+    Route::post('/films/parse-releases', [FilmController::class, 'parseReleases'])->name('films.parse-releases');
     
     // Media Management (Upload, Set Default, Delete)
     Route::post('/films/{id}/media', [MediaController::class, 'upload'])->name('films.media.upload');
@@ -124,6 +125,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
 
     // Seat Layout Management
     Route::get('/studios/{studioId}/seats',            [SeatController::class, 'layout'])->name('seats.layout');
+    Route::post('/studios/{studioId}/seats/layout',    [SeatController::class, 'saveLayout'])->name('seats.save-layout');
     Route::post('/studios/{studioId}/seats/generate',  [SeatController::class, 'generate'])->name('seats.generate');
     Route::delete('/studios/{studioId}/seats',         [SeatController::class, 'destroyAll'])->name('seats.destroy-all');
 
