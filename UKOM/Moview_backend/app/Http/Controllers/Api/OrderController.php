@@ -44,6 +44,7 @@ class OrderController extends Controller
 
         try {
             $order = DB::transaction(function () use ($schedule, $seatIds, $validated) {
+                $studio = $schedule->studio;
 
                 // ── Row-level lock on seats table (consistent order → no deadlock) ──
                 // Couple/sweetbox atomicity: every cell in a requested seat_group is
@@ -73,11 +74,10 @@ class OrderController extends Controller
                 $lockedById = $lockedSeats->keyBy('id');
 
                 // Validate: every requested seat sellable, active, and belongs to this studio
-                $sellable = collect(Studio::SELLABLE_SEAT_TYPES);
                 $invalid = collect($seatIds)->map(fn($id) => $lockedById->get($id))->filter()
                     ->filter(
                         fn($s) => $s->studio_id !== $schedule->studio_id
-                            || !$sellable->contains($s->seat_type)
+                            || !$studio->isSellableKey($s->seat_type)
                             || !$s->is_active
                     );
                 if ($invalid->isNotEmpty()) {
@@ -85,19 +85,19 @@ class OrderController extends Controller
                     abort(422, "Seat tidak dapat dijual: {$codes}");
                 }
 
-                // Couple atomicity: requesting one cell of a couple group must include its partner
-                $coupleGroups = collect($seatIds)->map(fn($id) => $lockedById->get($id))->filter()
-                    ->where('seat_type', 'couple')
+                // Paired atomicity: any paired seat group must be fully included in the request
+                $pairedGroups = collect($seatIds)->map(fn($id) => $lockedById->get($id))->filter()
+                    ->filter(fn($s) => $studio->purchaseModeFor($s->seat_type) === 'paired')
                     ->pluck('seat_group')
                     ->filter()
                     ->unique();
-                foreach ($coupleGroups as $group) {
+                foreach ($pairedGroups as $group) {
                     $memberIds = Seat::where('studio_id', $schedule->studio_id)
                         ->where('seat_group', $group)
                         ->pluck('id')
                         ->all();
-                    if (count($memberIds) !== 2 || count(array_intersect($memberIds, $seatIds)) !== 2) {
-                        abort(422, "Pasangan kursi '{$group}' harus dibeli sekaligus (2 kursi).");
+                    if (count(array_intersect($memberIds, $seatIds)) !== count($memberIds)) {
+                        abort(422, "Kursi berpasangan '{$group}' harus dibeli sekaligus (semua sel dalam grup).");
                     }
                 }
 
@@ -115,7 +115,6 @@ class OrderController extends Controller
                     abort(409, "Seat(s) no longer available: {$codes}");
                 }
 
-                $studio = $schedule->studio;
                 $totalPrice = 0;
                 foreach ($seatIds as $seatId) {
                     $totalPrice += (int) round($schedule->ticket_price * $studio->priceMultiplierFor(

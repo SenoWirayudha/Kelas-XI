@@ -44,14 +44,12 @@ class SeatController extends Controller
         $rows = (int) ($rawSeats->max('position_y') ?? 0);
         $columns = (int) ($rawSeats->max('position_x') ?? 0);
 
-        $sellable = Studio::SELLABLE_SEAT_TYPES;
-
-        $seats = $rawSeats->map(function ($seat) use ($bookedSeatIds, $studio, $schedule, $sellable) {
+        $seats = $rawSeats->map(function ($seat) use ($bookedSeatIds, $studio, $schedule) {
             $seatType = $seat->seat_type ?? 'seat';
             $status = null;
             $price  = null;
 
-            if (in_array($seatType, $sellable)) {
+            if ($studio->isSellableKey($seatType)) {
                 $status = in_array($seat->id, $bookedSeatIds) ? 'booked' : 'available';
                 if (!$seat->is_active) {
                     $status = 'unavailable';
@@ -76,11 +74,12 @@ class SeatController extends Controller
         return response()->json([
             'success' => true,
             'data'    => [
-                'studio_id'     => $schedule->studio_id,
-                'row_direction' => $studio->row_direction ?? 'front_to_back',
-                'rows'          => $rows,
-                'columns'       => $columns,
-                'seats'         => $seats,
+                'studio_id'             => $schedule->studio_id,
+                'row_direction'         => $studio->row_direction ?? 'front_to_back',
+                'rows'                  => $rows,
+                'columns'               => $columns,
+                'seat_type_definitions' => $studio->seat_type_definitions ?? [],
+                'seats'                 => $seats,
             ],
         ]);
     }
@@ -119,7 +118,7 @@ class SeatController extends Controller
                 'position_x'  => $seat->position_x,
                 'position_y'  => $seat->position_y,
                 // status only meaningful for selectable seats
-                'status'      => ($seat->seat_type === 'seat')
+                'status'      => $schedule->studio->isSellableKey($seat->seat_type)
                     ? (in_array($seat->id, $bookedSeatIds) ? 'booked' : 'available')
                     : null,
             ]);
