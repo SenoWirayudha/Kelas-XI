@@ -3,14 +3,14 @@ package com.komputerkit.moview.ui.search
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ItemSearchPersonBinding
+import com.komputerkit.moview.util.loadAvatar
 
 class SearchPersonAdapter(
     private val onPersonClick: (SearchPerson) -> Unit
 ) : RecyclerView.Adapter<SearchPersonAdapter.SearchPersonViewHolder>() {
     
+
     private var people: List<SearchPerson> = emptyList()
     
     fun submitList(list: List<SearchPerson>) {
@@ -38,11 +38,7 @@ class SearchPersonAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(person: SearchPerson) {
-            Glide.with(binding.root.context)
-                .load(person.avatarUrl)
-                .placeholder(R.drawable.ic_profile)
-                .circleCrop()
-                .into(binding.ivAvatar)
+            binding.ivAvatar.loadAvatar(person.avatarUrl)
             
             binding.tvName.text = person.name
             binding.tvRole.text = person.role

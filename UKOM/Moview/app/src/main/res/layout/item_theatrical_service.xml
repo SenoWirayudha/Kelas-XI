@@ -11,13 +11,12 @@
     <!-- Logo Container with Badge -->
     <FrameLayout
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:paddingEnd="8dp"
-        android:paddingBottom="8dp">
+        android:layout_height="wrap_content">
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="64dp"
             android:layout_height="64dp"
+            android:layout_gravity="center"
             app:cardCornerRadius="12dp"
             app:cardElevation="4dp"
             app:cardBackgroundColor="#1A1F2E">

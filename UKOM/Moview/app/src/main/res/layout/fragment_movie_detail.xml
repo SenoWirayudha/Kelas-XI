@@ -121,6 +121,7 @@
                             tools:text="2014" />
 
                         <TextView
+                            android:id="@+id/tv_sep_duration_1"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text=" • "
@@ -136,6 +137,7 @@
                             tools:text="2h 49m" />
 
                         <TextView
+                            android:id="@+id/tv_sep_duration_2"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text=" • "

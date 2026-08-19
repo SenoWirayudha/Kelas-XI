@@ -23,6 +23,7 @@ class FilmGridAdapter(
     private val onChangePoster: ((Movie) -> Unit)? = null
 ) : ListAdapter<Movie, FilmGridAdapter.FilmViewHolder>(FilmDiffCallback()) {
 
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilmViewHolder {
         val binding = ItemFilmGridBinding.inflate(
             LayoutInflater.from(parent.context),

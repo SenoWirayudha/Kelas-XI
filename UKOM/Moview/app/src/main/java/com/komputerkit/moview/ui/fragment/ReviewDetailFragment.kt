@@ -47,6 +47,7 @@ class ReviewDetailFragment : Fragment() {
     private var commentsBinding: BottomSheetCommentsBinding? = null
     private lateinit var commentAdapter: CommentAdapter
     private lateinit var likedReviewsAdapter: LikedReviewAdapter
+    private var savedScrollY: Int = 0
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -65,6 +66,11 @@ class ReviewDetailFragment : Fragment() {
         setupClickListeners()
         
         viewModel.loadReview(args.reviewId, args.isLog, args.diaryId)
+        
+        // Restore scroll position saved before navigating away
+        binding.reviewScroll.post {
+            binding.reviewScroll.scrollTo(0, savedScrollY)
+        }
     }
     
     private fun setupLikedReviewsRecyclerView() {
@@ -888,6 +894,11 @@ class ReviewDetailFragment : Fragment() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        savedScrollY = binding.reviewScroll.scrollY
     }
 
     override fun onDestroyView() {

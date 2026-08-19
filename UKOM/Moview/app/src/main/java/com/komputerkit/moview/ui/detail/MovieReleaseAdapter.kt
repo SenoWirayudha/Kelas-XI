@@ -180,7 +180,7 @@ private fun bindCountry(
     countryView.text = country ?: release.typeLabel
 
     if (!release.name.isNullOrBlank()) {
-        nameView.text = "— ${release.name}"
+        nameView.text = release.name
         nameView.visibility = View.VISIBLE
     } else {
         nameView.visibility = View.GONE

@@ -20,6 +20,7 @@ class FriendActivityGridAdapter(
     private val onChangePoster: ((FriendActivity) -> Unit)? = null
 ) : RecyclerView.Adapter<FriendActivityGridAdapter.FriendActivityViewHolder>() {
     
+
     private var activities: List<FriendActivity> = emptyList()
     
     fun submitList(list: List<FriendActivity>) {

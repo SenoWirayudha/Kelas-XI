@@ -17,6 +17,7 @@ import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
 import com.komputerkit.moview.ui.films.FilmGridAdapter
 import com.komputerkit.moview.ui.common.RatingSource
+import com.komputerkit.moview.util.ScrollStateHelper
 
 class LikesFragment : Fragment() {
 
@@ -26,6 +27,7 @@ class LikesFragment : Fragment() {
     
     private val viewModel: LikesViewModel by viewModels()
     private lateinit var filmGridAdapter: FilmGridAdapter
+    private var savedScrollState: Pair<Int, Int>? = null
     private var genreOptions: List<String> = emptyList()
     private var countryOptions: List<String> = emptyList()
     private var languageOptions: List<String> = emptyList()
@@ -106,6 +108,8 @@ class LikesFragment : Fragment() {
         viewModel.likes.observe(viewLifecycleOwner) { films ->
             filmGridAdapter.submitList(films)
             binding.emptyState.isVisible = films.isEmpty() && viewModel.isLoading.value != true
+            ScrollStateHelper.restore(binding.rvLikes, savedScrollState)
+            savedScrollState = null
         }
         
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
@@ -183,6 +187,11 @@ class LikesFragment : Fragment() {
                 }
             }
         ).show()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvLikes)
     }
 
     override fun onDestroyView() {

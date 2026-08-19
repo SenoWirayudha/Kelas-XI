@@ -5,17 +5,18 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Notification
 import com.komputerkit.moview.data.model.NotificationSection
 import com.komputerkit.moview.data.model.NotificationType
 import com.komputerkit.moview.databinding.ItemNotificationBinding
+import com.komputerkit.moview.util.loadProfilePhoto
 
 class NotificationAdapter(
     private val onNotificationClick: (Notification) -> Unit,
     private val onAvatarClick: (Notification) -> Unit = {}
 ) : RecyclerView.Adapter<NotificationAdapter.NotificationViewHolder>() {
     
+
     private var notifications: List<Notification> = emptyList()
     
     fun submitList(list: List<Notification>) {
@@ -56,12 +57,7 @@ class NotificationAdapter(
             }
             
             // User avatar
-            val avatarUrl = if (!notification.userAvatar.isNullOrEmpty()) com.komputerkit.moview.util.ServerConfig.fixUrl(notification.userAvatar) else notification.userAvatar
-            Glide.with(binding.root.context)
-                .load(avatarUrl)
-                .placeholder(R.drawable.ic_profile)
-                .circleCrop()
-                .into(binding.ivUserAvatar)
+            binding.ivUserAvatar.loadProfilePhoto(notification.userAvatar)
             
             // Message and time
             binding.tvMessage.text = notification.message

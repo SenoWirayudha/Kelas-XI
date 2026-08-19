@@ -13,6 +13,7 @@ import com.komputerkit.moview.databinding.FragmentUserFilmActivityTabBinding
 import com.komputerkit.moview.ui.adapter.SimpleDiaryAdapter
 import com.komputerkit.moview.ui.adapter.SimpleReviewAdapter
 import com.komputerkit.moview.ui.viewmodel.UserFilmActivityViewModel
+import com.komputerkit.moview.util.ScrollStateHelper
 
 class UserFilmActivityTabFragment : Fragment() {
     private var _binding: FragmentUserFilmActivityTabBinding? = null
@@ -23,6 +24,7 @@ class UserFilmActivityTabFragment : Fragment() {
     private var tabType: Int = TAB_DIARY
     private var userId: Int = 0
     private var filmId: Int = 0
+    private var savedScrollState: Pair<Int, Int>? = null
     
     private lateinit var diaryAdapter: SimpleDiaryAdapter
     private lateinit var reviewAdapter: SimpleReviewAdapter
@@ -146,6 +148,8 @@ class UserFilmActivityTabFragment : Fragment() {
                     if (::diaryAdapter.isInitialized) {
                         diaryAdapter.submitList(diaries)
                         updateEmptyState(diaries.isEmpty())
+                        ScrollStateHelper.restore(binding.rvList, savedScrollState)
+                        savedScrollState = null
                     } else {
                         android.util.Log.e("UserFilmActivityTab", "Diary adapter not initialized!")
                     }
@@ -157,6 +161,8 @@ class UserFilmActivityTabFragment : Fragment() {
                     if (::reviewAdapter.isInitialized) {
                         reviewAdapter.submitList(reviews)
                         updateEmptyState(reviews.isEmpty())
+                        ScrollStateHelper.restore(binding.rvList, savedScrollState)
+                        savedScrollState = null
                     } else {
                         android.util.Log.e("UserFilmActivityTab", "Review adapter not initialized!")
                     }
@@ -170,6 +176,11 @@ class UserFilmActivityTabFragment : Fragment() {
         binding.rvList.visibility = if (isEmpty) View.GONE else View.VISIBLE
     }
     
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvList)
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

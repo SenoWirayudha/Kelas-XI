@@ -37,7 +37,7 @@ class FilmographyViewModel : ViewModel() {
     val themes: LiveData<List<String>> = _themes
 
     private var allFilms: List<Movie> = emptyList()
-    private var filterState = MovieFilterState()
+    private var filterState = MovieFilterState(sortMode = MovieSortMode.POPULARITY)
 
     fun loadFilmography(filterType: String, filterValue: String, userId: Int) {
         Log.i("FG", "loadFilmography userId=$userId type=$filterType value=$filterValue")

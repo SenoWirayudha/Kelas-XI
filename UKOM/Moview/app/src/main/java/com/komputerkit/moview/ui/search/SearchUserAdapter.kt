@@ -11,6 +11,7 @@ class SearchUserAdapter(
     private val onUserClick: (SearchUser) -> Unit
 ) : RecyclerView.Adapter<SearchUserAdapter.SearchUserViewHolder>() {
 
+
     private var users: List<SearchUser> = emptyList()
 
     fun submitList(list: List<SearchUser>) {

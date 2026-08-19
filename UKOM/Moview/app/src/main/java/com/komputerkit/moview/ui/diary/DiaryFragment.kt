@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.DiaryEntry
 import com.komputerkit.moview.databinding.FragmentDiaryBinding
+import com.komputerkit.moview.util.ScrollStateHelper
 
 class DiaryFragment : Fragment() {
 
@@ -22,6 +23,7 @@ class DiaryFragment : Fragment() {
     private val args: DiaryFragmentArgs by navArgs()
     private val viewModel: DiaryViewModel by viewModels()
     private lateinit var adapter: DiaryAdapter
+    private var savedScrollState: Pair<Int, Int>? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -103,6 +105,8 @@ class DiaryFragment : Fragment() {
         viewModel.diaryItems.observe(viewLifecycleOwner) { items ->
             adapter.submitList(items)
             binding.emptyState.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+            ScrollStateHelper.restore(binding.rvDiary, savedScrollState)
+            savedScrollState = null
         }
     }
     
@@ -124,6 +128,11 @@ class DiaryFragment : Fragment() {
             )
             findNavController().navigate(action)
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvDiary)
     }
 
     override fun onDestroyView() {

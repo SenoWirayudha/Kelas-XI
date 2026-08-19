@@ -7,10 +7,10 @@ import android.widget.PopupMenu
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Comment
 import com.komputerkit.moview.databinding.ItemCommentBinding
+import com.komputerkit.moview.util.loadProfilePhoto
 
 class CommentAdapter(
     private val currentUserId: Int,
@@ -68,11 +68,7 @@ class CommentAdapter(
                     )
                 }
                 
-                Glide.with(ivProfile)
-                    .load(comment.userAvatar)
-                    .placeholder(R.color.dark_card)
-                    .circleCrop()
-                    .into(ivProfile)
+                ivProfile.loadProfilePhoto(comment.userAvatar)
 
                 tvUsername.text = comment.username
                 tvTime.text = comment.timeAgo

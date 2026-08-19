@@ -17,6 +17,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val repository = MovieRepository()
     private val prefs = application.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
     
+    var savedScrollY: Int = 0
+    
     private val _favoriteMovies = MutableLiveData<List<Movie>>()
     val favoriteMovies: LiveData<List<Movie>> = _favoriteMovies
     

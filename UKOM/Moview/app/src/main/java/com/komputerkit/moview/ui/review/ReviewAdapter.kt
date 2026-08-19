@@ -20,6 +20,7 @@ class ReviewAdapter(
     private val onChangePoster: ((Review) -> Unit)? = null
 ) : ListAdapter<Review, ReviewAdapter.ReviewViewHolder>(ReviewDiffCallback()) {
 
+
     var isOwnProfile: Boolean = true
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ReviewViewHolder {

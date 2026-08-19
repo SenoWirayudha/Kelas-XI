@@ -23,6 +23,7 @@ class DiaryAdapter(
     private val onChangePoster: ((DiaryEntry) -> Unit)? = null
 ) : ListAdapter<DiaryItem, RecyclerView.ViewHolder>(DiaryItemDiffCallback()) {
 
+
     companion object {
         private const val TYPE_HEADER = 0
         private const val TYPE_ENTRY = 1

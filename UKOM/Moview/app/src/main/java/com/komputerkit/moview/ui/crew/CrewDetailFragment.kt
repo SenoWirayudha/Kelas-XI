@@ -93,6 +93,8 @@ class CrewDetailFragment : Fragment() {
                 
                 Glide.with(this@CrewDetailFragment)
                     .load(personDetail.photo_url)
+                    .placeholder(R.drawable.ic_default_profile)
+                    .error(R.drawable.ic_default_profile)
                     .circleCrop()
                     .into(binding.ivProfile)
                 

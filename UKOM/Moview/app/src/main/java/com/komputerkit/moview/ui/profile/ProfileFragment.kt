@@ -265,8 +265,8 @@ class ProfileFragment : Fragment() {
         
         viewModel.location.observe(viewLifecycleOwner) { location ->
             binding.tvLocation.text = location
-            // Hide location if empty
-            binding.tvLocation.visibility = if (location.isNullOrBlank()) View.GONE else View.VISIBLE
+            // Hide location row (icon + text) if empty
+            binding.layoutLocation.visibility = if (location.isNullOrBlank()) View.GONE else View.VISIBLE
         }
         
         viewModel.favoriteMovies.observe(viewLifecycleOwner) { movies ->

@@ -47,6 +47,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
     
     private var searchJob: Job? = null
+
+    var savedScrollY: Int = 0
     
     fun setSelectMovieMode(enabled: Boolean) {
         _uiState.value = _uiState.value.copy(isSelectMovieMode = enabled)

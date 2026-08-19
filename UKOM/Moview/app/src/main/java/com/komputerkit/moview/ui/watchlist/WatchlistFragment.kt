@@ -17,6 +17,7 @@ import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
 import com.komputerkit.moview.ui.common.RatingSource
+import com.komputerkit.moview.util.ScrollStateHelper
 
 class WatchlistFragment : Fragment() {
 
@@ -26,6 +27,7 @@ class WatchlistFragment : Fragment() {
     
     private val viewModel: WatchlistViewModel by viewModels()
     private lateinit var adapter: WatchlistAdapter
+    private var savedScrollState: Pair<Int, Int>? = null
     private var genreOptions: List<String> = emptyList()
     private var countryOptions: List<String> = emptyList()
     private var languageOptions: List<String> = emptyList()
@@ -165,6 +167,8 @@ class WatchlistFragment : Fragment() {
         viewModel.watchlistItems.observe(viewLifecycleOwner) { items ->
             adapter.submitList(items)
             binding.tvEmpty.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+            ScrollStateHelper.restore(binding.rvWatchlist, savedScrollState)
+            savedScrollState = null
         }
 
         viewModel.genres.observe(viewLifecycleOwner) { genreOptions = it }
@@ -176,6 +180,11 @@ class WatchlistFragment : Fragment() {
     private fun navigateToMovieDetail(item: WatchlistItem) {
         val action = WatchlistFragmentDirections.actionWatchlistToMovieDetail(item.movie.id)
         findNavController().navigate(action)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvWatchlist)
     }
 
     override fun onDestroyView() {

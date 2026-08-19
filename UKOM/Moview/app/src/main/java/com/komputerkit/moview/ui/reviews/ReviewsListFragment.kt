@@ -10,6 +10,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.komputerkit.moview.databinding.FragmentReviewsListBinding
+import com.komputerkit.moview.util.ScrollStateHelper
 
 class ReviewsListFragment : Fragment() {
 
@@ -20,6 +21,7 @@ class ReviewsListFragment : Fragment() {
     private val args: ReviewsListFragmentArgs by navArgs()
     
     private lateinit var reviewsAdapter: ReviewsAdapter
+    private var savedScrollState: Pair<Int, Int>? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -76,11 +78,18 @@ class ReviewsListFragment : Fragment() {
         viewModel.reviews.observe(viewLifecycleOwner) { reviews ->
             reviewsAdapter.submitList(reviews)
             binding.tvEmpty.visibility = if (reviews.isEmpty()) View.VISIBLE else View.GONE
+            ScrollStateHelper.restore(binding.rvReviews, savedScrollState)
+            savedScrollState = null
         }
         viewModel.userHasWatched.observe(viewLifecycleOwner) { hasWatched ->
             reviewsAdapter.userHasWatched = hasWatched
             reviewsAdapter.notifyDataSetChanged()
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvReviews)
     }
 
     override fun onDestroyView() {

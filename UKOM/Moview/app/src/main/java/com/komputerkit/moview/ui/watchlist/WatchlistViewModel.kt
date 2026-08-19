@@ -41,7 +41,7 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
     
     private var allItems: List<WatchlistItem> = emptyList()
     private var allMovies: List<Movie> = emptyList()
-    private var filterState = MovieFilterState()
+    private var filterState = MovieFilterState(sortMode = MovieSortMode.DATE)
     
     fun loadWatchlist(userId: Int) {
         if (userId == 0) return

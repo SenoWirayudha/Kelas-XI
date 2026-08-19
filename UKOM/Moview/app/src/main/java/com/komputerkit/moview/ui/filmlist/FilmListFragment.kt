@@ -21,6 +21,7 @@ import com.komputerkit.moview.ui.common.MovieFilterUtils
 import com.komputerkit.moview.ui.common.MovieSortMode
 import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.applyCustomMedia
+import com.komputerkit.moview.util.ScrollStateHelper
 import kotlinx.coroutines.launch
 
 class FilmListFragment : Fragment() {
@@ -31,9 +32,10 @@ class FilmListFragment : Fragment() {
 
     private lateinit var adapter: FilmGridAdapter
     private val repository = MovieRepository()
+    private var savedScrollState: Pair<Int, Int>? = null
 
     private var allFilms: List<Movie> = emptyList()
-    private var filterState = MovieFilterState()
+    private var filterState = MovieFilterState(sortMode = MovieSortMode.POPULARITY)
 
     private var genreOptions: List<String> = emptyList()
     private var themeOptions: List<String> = emptyList()
@@ -260,7 +262,14 @@ class FilmListFragment : Fragment() {
         } else {
             binding.tvEmpty.visibility = View.GONE
             adapter.submitList(filtered)
+            ScrollStateHelper.restore(binding.rvFilms, savedScrollState)
+            savedScrollState = null
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvFilms)
     }
 
     override fun onDestroyView() {

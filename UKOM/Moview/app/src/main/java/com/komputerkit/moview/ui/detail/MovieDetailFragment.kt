@@ -169,7 +169,16 @@ class MovieDetailFragment : Fragment() {
             }
 
             binding.tvYear.text = movie.releaseYear?.toString() ?: "-"
-            binding.tvDuration.text = movie.duration ?: "Unknown"
+            if (movie.duration.isNullOrBlank()) {
+                binding.tvDuration.visibility = View.GONE
+                binding.tvSepDuration1.visibility = View.GONE
+                binding.tvSepDuration2.visibility = View.GONE
+            } else {
+                binding.tvDuration.visibility = View.VISIBLE
+                binding.tvSepDuration1.visibility = View.VISIBLE
+                binding.tvSepDuration2.visibility = View.VISIBLE
+                binding.tvDuration.text = movie.duration
+            }
             binding.tvPgRating.text = movie.pgRating ?: "Not Rated"
             binding.tvGenre.text = movie.genre ?: "Unknown Genre"
             binding.tvDirector.text = movie.director ?: "Unknown Director"

@@ -19,6 +19,7 @@ class WatchlistAdapter(
     private val onChangePoster: ((WatchlistItem) -> Unit)? = null
 ) : ListAdapter<WatchlistItem, WatchlistAdapter.WatchlistViewHolder>(WatchlistDiffCallback()) {
 
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): WatchlistViewHolder {
         val binding = ItemFilmGridBinding.inflate(
             LayoutInflater.from(parent.context),

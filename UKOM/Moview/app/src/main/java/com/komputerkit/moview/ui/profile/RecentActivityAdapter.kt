@@ -20,6 +20,7 @@ class RecentActivityAdapter(
     private val onChangePoster: ((DiaryEntry) -> Unit)? = null
 ) : RecyclerView.Adapter<RecentActivityAdapter.RecentActivityViewHolder>() {
     
+
     private var activities: List<DiaryEntry> = emptyList()
     
     fun submitList(list: List<DiaryEntry>) {

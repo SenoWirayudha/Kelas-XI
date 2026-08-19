@@ -18,6 +18,7 @@ class FavoriteMovieAdapter(
     private val onChangePoster: ((Movie, Int?) -> Unit)? = null
 ) : RecyclerView.Adapter<FavoriteMovieAdapter.FavoriteMovieViewHolder>() {
     
+
     private var movies: List<Movie> = emptyList()
     
     fun submitList(list: List<Movie>) {

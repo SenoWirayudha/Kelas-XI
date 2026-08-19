@@ -16,6 +16,8 @@ data class Movie(
     val releaseYear: Int?,
     val releasedAtRaw: String? = null,
     val activityAtRaw: String? = null,
+    val primaryReleaseDate: String? = null,
+    val popularity: Int? = null,
     val description: String?,
     val backdropUrl: String? = null,
     val trailerUrl: String? = null,

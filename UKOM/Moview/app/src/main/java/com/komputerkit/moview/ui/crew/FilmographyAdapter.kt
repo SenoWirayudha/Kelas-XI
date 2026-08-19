@@ -1,14 +1,16 @@
 package com.komputerkit.moview.ui.crew
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
-import com.komputerkit.moview.databinding.ItemFilmographyGridBinding
+import com.komputerkit.moview.databinding.ItemFilmGridBinding
 import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.util.loadThumbnail
 
 class FilmographyAdapter(
     private val onFilmClick: (Film) -> Unit,
@@ -17,7 +19,7 @@ class FilmographyAdapter(
 ) : ListAdapter<Film, FilmographyAdapter.FilmViewHolder>(FilmDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilmViewHolder {
-        val binding = ItemFilmographyGridBinding.inflate(
+        val binding = ItemFilmGridBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
@@ -30,23 +32,37 @@ class FilmographyAdapter(
     }
 
     inner class FilmViewHolder(
-        private val binding: ItemFilmographyGridBinding
+        private val binding: ItemFilmGridBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(film: Film) {
-            Glide.with(binding.ivPoster)
-                .load(film.posterUrl)
-                .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, film.title))
-                .error(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, film.title))
-                .into(binding.ivPoster)
-            
-            binding.tvYear.text = film.year
-            
-            binding.root.setOnClickListener {
+            binding.ivPoster.setImageDrawable(null)
+
+            binding.ivPoster.post {
+                val fixedUrl = if (film.posterUrl.isNotEmpty()) com.komputerkit.moview.util.ServerConfig.fixUrl(film.posterUrl) else film.posterUrl
+                val width = binding.ivPoster.width
+                if (width > 0) {
+                    val height = (width * 1.5).toInt()
+                    Glide.with(binding.ivPoster.context)
+                        .load(fixedUrl)
+                        .override(width, height)
+                        .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, film.title))
+                        .error(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, film.title))
+                        .centerCrop()
+                        .into(binding.ivPoster)
+                } else {
+                    binding.ivPoster.loadThumbnail(fixedUrl, film.title)
+                }
+            }
+
+            binding.ratingContainer.visibility = View.GONE
+            binding.icHasReview.visibility = View.GONE
+
+            binding.posterContainer.setOnClickListener {
                 onFilmClick(film)
             }
 
-            binding.root.setOnLongClickListener { view ->
+            binding.posterContainer.setOnLongClickListener { view ->
                 val movie = Movie(
                     id = film.id,
                     title = film.title,

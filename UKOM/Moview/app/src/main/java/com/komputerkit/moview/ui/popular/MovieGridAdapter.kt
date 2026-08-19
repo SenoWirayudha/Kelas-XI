@@ -14,6 +14,7 @@ class MovieGridAdapter(
     private val onChangePoster: ((Movie) -> Unit)? = null
 ) : RecyclerView.Adapter<MovieGridAdapter.MovieGridViewHolder>() {
     
+
     private var movies: List<Movie> = emptyList()
     
     fun submitList(list: List<Movie>) {

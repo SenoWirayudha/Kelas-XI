@@ -13,6 +13,7 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.databinding.FragmentReviewBinding
+import com.komputerkit.moview.util.ScrollStateHelper
 
 class ReviewFragment : Fragment() {
 
@@ -22,6 +23,7 @@ class ReviewFragment : Fragment() {
     
     private val viewModel: ReviewViewModel by viewModels()
     private lateinit var adapter: ReviewAdapter
+    private var savedScrollState: Pair<Int, Int>? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -92,12 +94,19 @@ class ReviewFragment : Fragment() {
     private fun observeViewModel() {
         viewModel.reviews.observe(viewLifecycleOwner) { reviews ->
             adapter.submitList(reviews)
+            ScrollStateHelper.restore(binding.rvReviews, savedScrollState)
+            savedScrollState = null
         }
     }
     
     private fun navigateToReviewDetail(review: Review) {
         val action = ReviewFragmentDirections.actionReviewToReviewDetail(review.id)
         findNavController().navigate(action)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvReviews)
     }
 
     override fun onDestroyView() {

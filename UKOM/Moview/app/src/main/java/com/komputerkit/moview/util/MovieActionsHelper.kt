@@ -625,9 +625,28 @@ currentRating = ratingResponse.rating ?: 0f
             imageView.context,
             object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
                 override fun onScale(detector: ScaleGestureDetector): Boolean {
-                    currentScale = (currentScale * detector.scaleFactor).coerceIn(minScale, maxScale)
-                    imageView.scaleX = currentScale
-                    imageView.scaleY = currentScale
+                    // Cancel any running settle animation so its frame writes don't
+                    // fight our manual scale/translation values.
+                    imageView.animate().cancel()
+
+                    val newScale = (currentScale * detector.scaleFactor).coerceIn(minScale, maxScale)
+                    if (newScale == currentScale) return true
+
+                    // Keep the focal point (midpoint of the two fingers) stationary so the
+                    // content stays under the fingers while zooming, instead of scaling
+                    // around the view center which makes the image slide = jitter.
+                    // ImageView pivot defaults to the view center.
+                    val pivotX = imageView.pivotX
+                    val pivotY = imageView.pivotY
+                    val focusX = detector.focusX
+                    val focusY = detector.focusY
+                    val scaleDelta = currentScale - newScale
+                    imageView.translationX += (focusX - pivotX) * scaleDelta
+                    imageView.translationY += (focusY - pivotY) * scaleDelta
+
+                    currentScale = newScale
+                    imageView.scaleX = newScale
+                    imageView.scaleY = newScale
                     clampTranslation()
                     return true
                 }
@@ -681,6 +700,11 @@ currentRating = ratingResponse.rating ?: 0f
                     skipNextMove = false
                 }
                 MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_POINTER_UP -> {
+                    // Pinch is starting/ending: cancel any settle animation and sync our
+                    // tracked scale with the value actually rendered, so a mid-animation
+                    // pinch doesn't jump.
+                    imageView.animate().cancel()
+                    currentScale = imageView.scaleX
                     skipNextMove = true
                 }
                 MotionEvent.ACTION_MOVE -> {

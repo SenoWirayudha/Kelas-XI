@@ -57,6 +57,7 @@ data class ScheduleDto(
 
 data class SeatLayoutResponseDto(
     val studio_id: Int,
+    val row_direction: String? = null,
     val rows: Int,
     val columns: Int,
     val seats: List<SeatLayoutSeatDto>
@@ -69,6 +70,9 @@ data class SeatLayoutSeatDto(
     val row_index: Int,
     val column: Int,
     val seat_type: String,
+    val seat_group: String? = null,
+    val is_active: Boolean? = null,
+    val price: Double? = null,
     val status: String?
 )
 
@@ -186,7 +190,8 @@ data class MovieCardDto(
     val languages: List<String>?,
     val themes: List<String>? = null,
     val average_rating: Float?,
-    val watched_count: Int?
+    val watched_count: Int?,
+    val primary_release_date: String? = null
 )
 
 data class FriendReviewDto(
@@ -443,7 +448,8 @@ data class UserFilmDto(
     val liked_at: String? = null,
     val added_at: String? = null,
     val is_liked: Boolean? = null,
-    val is_in_watchlist: Boolean? = null
+    val is_in_watchlist: Boolean? = null,
+    val primary_release_date: String? = null
 )
 
 data class FilterOptionsDto(

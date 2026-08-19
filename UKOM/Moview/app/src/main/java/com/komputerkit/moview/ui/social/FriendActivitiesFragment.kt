@@ -12,6 +12,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentFriendActivitiesBinding
+import com.komputerkit.moview.util.ScrollStateHelper
 
 class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
@@ -21,6 +22,7 @@ class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListene
     private val viewModel: FriendActivitiesViewModel by viewModels()
     private lateinit var adapter: FriendActivityGridAdapter
     private var userId: Int = 0
+    private var savedScrollState: Pair<Int, Int>? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -155,6 +157,8 @@ class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListene
                 binding.emptyState.visibility = View.GONE
                 binding.rvFriendActivities.visibility = View.VISIBLE
                 adapter.submitList(activities)
+                ScrollStateHelper.restore(binding.rvFriendActivities, savedScrollState)
+                savedScrollState = null
             }
         }
         
@@ -177,6 +181,11 @@ class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListene
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvFriendActivities)
     }
 
     override fun onDestroyView() {

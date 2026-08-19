@@ -342,6 +342,11 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             val action = HomeFragmentDirections.actionHomeToUpcoming()
             findNavController().navigate(action)
         }
+
+        binding.btnSeeAllComingSoon.setOnClickListener {
+            val action = HomeFragmentDirections.actionHomeToComingSoon()
+            findNavController().navigate(action)
+        }
     }
 
     override fun onRefresh() {

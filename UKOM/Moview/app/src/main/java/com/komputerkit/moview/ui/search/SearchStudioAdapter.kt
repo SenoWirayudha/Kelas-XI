@@ -9,6 +9,7 @@ class SearchStudioAdapter(
     private val onStudioClick: (SearchStudio) -> Unit
 ) : RecyclerView.Adapter<SearchStudioAdapter.SearchStudioViewHolder>() {
     
+
     private var studios: List<SearchStudio> = emptyList()
     
     fun submitList(list: List<SearchStudio>) {

@@ -8,7 +8,8 @@ import java.time.format.DateTimeFormatter
 enum class MovieSortMode {
     DATE,
     RELEASE_YEAR,
-    RATING
+    RATING,
+    POPULARITY
 }
 
 enum class RatingSource {
@@ -67,11 +68,12 @@ object MovieFilterUtils {
 
         return when (state.sortMode) {
             MovieSortMode.DATE -> filtered.sortedByDescending { parseToEpoch(it.activityAtRaw) }
+            MovieSortMode.POPULARITY -> filtered.sortedByDescending { it.popularity ?: 0 }
             MovieSortMode.RELEASE_YEAR -> {
                 if (state.releaseYearDescending) {
-                    filtered.sortedByDescending { it.releaseYear ?: 0 }
+                    filtered.sortedWith(compareByDescending { releaseSortKey(it, missing = 0L) })
                 } else {
-                    filtered.sortedBy { it.releaseYear ?: Int.MAX_VALUE }
+                    filtered.sortedWith(compareBy { releaseSortKey(it, missing = Long.MAX_VALUE) })
                 }
             }
             MovieSortMode.RATING -> {
@@ -93,6 +95,19 @@ object MovieFilterUtils {
         }
     }
 
+    private fun releaseSortKey(movie: Movie, missing: Long): Long {
+        val dateEpoch = parseToEpoch(movie.primaryReleaseDate)
+        if (dateEpoch > 0L) return dateEpoch
+        val year = movie.releaseYear ?: return missing
+        return try {
+            java.time.LocalDate.of(year, 1, 1)
+                .atStartOfDay(java.time.ZoneId.systemDefault())
+                .toEpochSecond()
+        } catch (_: Exception) {
+            year.toLong()
+        }
+    }
+
     private fun parseToEpoch(raw: String?): Long {
         if (raw.isNullOrBlank()) return 0L
 
@@ -105,7 +120,11 @@ object MovieFilterUtils {
                 try {
                     LocalDateTime.parse(raw, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")).atZone(java.time.ZoneId.systemDefault()).toEpochSecond()
                 } catch (_: Exception) {
-                    0L
+                    try {
+                        java.time.LocalDate.parse(raw).atStartOfDay(java.time.ZoneId.systemDefault()).toEpochSecond()
+                    } catch (_: Exception) {
+                        0L
+                    }
                 }
             }
         }

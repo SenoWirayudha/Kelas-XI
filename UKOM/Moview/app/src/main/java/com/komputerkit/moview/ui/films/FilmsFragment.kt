@@ -16,6 +16,7 @@ import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
 import com.komputerkit.moview.ui.common.RatingSource
+import com.komputerkit.moview.util.ScrollStateHelper
 
 class FilmsFragment : Fragment() {
 
@@ -25,6 +26,7 @@ class FilmsFragment : Fragment() {
     private val args: FilmsFragmentArgs by navArgs()
     private val viewModel: FilmsViewModel by viewModels()
     private lateinit var filmGridAdapter: FilmGridAdapter
+    private var savedScrollState: Pair<Int, Int>? = null
     private var genreOptions: List<String> = emptyList()
     private var countryOptions: List<String> = emptyList()
     private var languageOptions: List<String> = emptyList()
@@ -103,6 +105,8 @@ class FilmsFragment : Fragment() {
             }
             filmGridAdapter.submitList(films)
             binding.tvEmpty.visibility = if (films.isEmpty()) View.VISIBLE else View.GONE
+            ScrollStateHelper.restore(binding.rvFilms, savedScrollState)
+            savedScrollState = null
         }
 
         viewModel.genres.observe(viewLifecycleOwner) { genreOptions = it }
@@ -175,6 +179,11 @@ class FilmsFragment : Fragment() {
                 }
             }
         ).show()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvFilms)
     }
 
     override fun onDestroyView() {

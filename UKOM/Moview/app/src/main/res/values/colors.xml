@@ -28,6 +28,9 @@
     <color name="star_green">#4CAF50</color>
     <color name="star_yellow">#FFC107</color>
     <color name="star_green_empty">#20482C</color>
+    <color name="seat_couple_text">#FB7185</color>
+    <color name="seat_premium_text">#C4B5FD</color>
+    <color name="seat_wheelchair_text">#86EFAC</color>
     
     <!-- Status Colors -->
     <color name="transparent">#00000000</color>

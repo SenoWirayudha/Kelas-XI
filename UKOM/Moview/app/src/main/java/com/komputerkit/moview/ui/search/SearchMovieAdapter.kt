@@ -16,6 +16,7 @@ class SearchMovieAdapter(
     private val onChangePoster: ((Movie) -> Unit)? = null
 ) : RecyclerView.Adapter<SearchMovieAdapter.SearchMovieViewHolder>() {
     
+
     private var movies: List<Movie> = emptyList()
     
     fun submitList(list: List<Movie>) {

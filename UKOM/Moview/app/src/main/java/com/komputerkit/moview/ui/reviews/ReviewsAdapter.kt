@@ -9,14 +9,15 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ItemReviewUserBinding
+import com.komputerkit.moview.util.loadProfilePhoto
 
 class ReviewsAdapter(
     private val onReviewClick: (ReviewItem) -> Unit,
     private val onUserClick: ((Int) -> Unit)? = null
 ) : ListAdapter<ReviewItem, ReviewsAdapter.ReviewViewHolder>(ReviewDiffCallback()) {
+
 
     var userHasWatched: Boolean = false
 
@@ -75,11 +76,7 @@ class ReviewsAdapter(
             }
             
             // Load user avatar
-            Glide.with(binding.root.context)
-                .load(if (!review.userAvatar.isNullOrEmpty()) com.komputerkit.moview.util.ServerConfig.fixUrl(review.userAvatar) else review.userAvatar)
-                .placeholder(R.drawable.ic_profile)
-                .circleCrop()
-                .into(binding.ivUserPhoto)
+            binding.ivUserPhoto.loadProfilePhoto(review.userAvatar)
             
             // Tap review card → open review detail
             binding.root.setOnClickListener {

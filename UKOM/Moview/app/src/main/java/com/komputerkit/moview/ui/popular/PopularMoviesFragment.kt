@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentPopularMoviesBinding
 import com.komputerkit.moview.ui.social.GridSpacingItemDecoration
+import com.komputerkit.moview.util.ScrollStateHelper
 
 class PopularMoviesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
@@ -20,6 +21,7 @@ class PopularMoviesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     
     private val viewModel: PopularMoviesViewModel by viewModels()
     private lateinit var adapter: MovieGridAdapter
+    private var savedScrollState: Pair<Int, Int>? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -110,6 +112,8 @@ class PopularMoviesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 binding.emptyState.visibility = View.GONE
                 binding.rvPopularMovies.visibility = View.VISIBLE
                 adapter.submitList(movies)
+                ScrollStateHelper.restore(binding.rvPopularMovies, savedScrollState)
+                savedScrollState = null
             }
         }
         
@@ -126,6 +130,11 @@ class PopularMoviesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        savedScrollState = ScrollStateHelper.save(binding.rvPopularMovies)
     }
 
     override fun onDestroyView() {

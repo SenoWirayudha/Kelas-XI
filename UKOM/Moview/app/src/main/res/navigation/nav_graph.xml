@@ -57,6 +57,9 @@
             android:id="@+id/action_home_to_upcoming"
             app:destination="@id/upcomingFragment" />
         <action
+            android:id="@+id/action_home_to_comingSoon"
+            app:destination="@id/comingSoonFragment" />
+        <action
             android:id="@+id/action_home_to_logFilm"
             app:destination="@id/logFilmFragment" />
         <action
@@ -658,6 +661,21 @@
             app:destination="@id/logFilmFragment" />
         <action
             android:id="@+id/action_upcoming_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/comingSoonFragment"
+        android:name="com.komputerkit.moview.ui.theatrical.ComingSoonFragment"
+        android:label="Coming Soon">
+        <action
+            android:id="@+id/action_comingSoon_to_movieDetail"
+            app:destination="@id/movieDetailFragment" />
+        <action
+            android:id="@+id/action_comingSoon_to_logFilm"
+            app:destination="@id/logFilmFragment" />
+        <action
+            android:id="@+id/action_comingSoon_to_posterBackdrop"
             app:destination="@id/posterBackdropFragment" />
     </fragment>
 
