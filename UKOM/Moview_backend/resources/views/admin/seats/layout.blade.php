@@ -426,7 +426,7 @@
                             <span class="w-5 text-xs font-bold text-gray-500 flex-shrink-0 text-center" x-text="dr.row.label"></span>
                             <template x-for="(cell, ci) in dr.row.cells" :key="ci">
                                 <button type="button"
-                                        @mousedown.prevent="startPaint(dr.idx, ci)"
+                                        @mousedown.prevent="startPaint(dr.idx, ci, $event)"
                                         @mouseenter="dragPaint(dr.idx, ci)"
                                         @dblclick="clearCell(dr.idx, ci)"
                                         class="flex-shrink-0 h-7 rounded text-xs font-semibold transition select-none"
@@ -441,7 +441,7 @@
 
                 <p class="text-xs text-gray-400 mt-4">
                     <i class="fas fa-mouse-pointer mr-1"></i>
-                    Tekan &amp; seret = lukis area sekaligus · Klik = lukis 1 sel · Klik ganda = hapus sel (kosongkan) ·
+                    Tekan &amp; seret = lukis area · Klik = lukis 1 sel · Shift+klik = lukis rentang dari sel terakhir · Klik ganda = hapus sel ·
                     Nomor kursi dihitung otomatis (melewati lorong, pola CGV).
                 </p>
             </div>
@@ -554,6 +554,7 @@
             groupCounter: 0,
             painting: false,
             saving: false,
+            lastPaintCell: null,
 
             get defList() { return Alpine.store('seatTypes').defs || []; },
             get defs() {
@@ -639,14 +640,34 @@
                 cell.type = this.tool;
                 cell.group = null;
             },
-            startPaint(ri, ci) {
+            startPaint(ri, ci, event) {
                 this.painting = true;
-                this.paint(ri, ci);
+                // Shift+click paints the whole range from the last painted cell.
+                if (event && event.shiftKey && this.lastPaintCell) {
+                    this.paintRange(this.lastPaintCell.ri, this.lastPaintCell.ci, ri, ci);
+                } else {
+                    this.paint(ri, ci);
+                }
+                this.lastPaintCell = { ri, ci };
                 this._endPaint = () => this.endPaint();
                 window.addEventListener('mouseup', this._endPaint, { once: true });
             },
+            paintRange(r0, c0, r1, c1) {
+                const minR = Math.min(r0, r1), maxR = Math.max(r0, r1);
+                const minC = Math.min(c0, c1), maxC = Math.max(c0, c1);
+                for (let r = minR; r <= maxR; r++) {
+                    const row = this.grid[r];
+                    if (!row) continue;
+                    for (let c = minC; c <= maxC; c++) {
+                        if (c >= 0 && c < row.cells.length) this.paint(r, c);
+                    }
+                }
+            },
             dragPaint(ri, ci) {
-                if (this.painting) this.paint(ri, ci);
+                if (this.painting) {
+                    this.paint(ri, ci);
+                    this.lastPaintCell = { ri, ci };
+                }
             },
             endPaint() {
                 this.painting = false;

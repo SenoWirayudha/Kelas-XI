@@ -300,11 +300,22 @@ class SeatController extends Controller
             'rows'          => 'required|array|min:1|max:26',
             'rows.*.label'  => 'required|string|max:2',
             'rows.*.cells'  => 'required|array|min:1|max:60',
-            'rows.*.cells.*.type'  => 'required|in:' . implode(',', $allowedTypes),
+            'rows.*.cells.*.type'  => 'required|string|max:20',
             'rows.*.cells.*.group' => 'nullable|string|max:20',
         ]);
 
         $rowsPayload = $validated['rows'];
+
+        // ---- Normalize stale cell types (e.g. a type deleted mid-session) to empty ----
+        foreach ($rowsPayload as &$row) {
+            foreach ($row['cells'] as &$cell) {
+                if (!in_array($cell['type'], $allowedTypes, true)) {
+                    $cell['type'] = 'empty';
+                    $cell['group'] = null;
+                }
+            }
+        }
+        unset($row, $cell);
 
         // ---- Validate paired grouping: every paired cell must have a group with >= 2 cells ----
         $groupCounts = [];
