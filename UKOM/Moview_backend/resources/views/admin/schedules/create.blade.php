@@ -85,9 +85,15 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Jam Tayang <span class="text-red-500">*</span></label>
-                    <input type="time" name="show_time" required
+                    <input type="text" name="show_time" required
                            value="{{ old('show_time') }}"
+                           placeholder="17:30"
+                           inputmode="numeric" maxlength="5"
+                           pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
+                           title="Format 24 jam, contoh: 17:30"
+                           oninput="this.value = this.value.replace(/\D/g,'').slice(0,4).replace(/^(\d{2})/, '$1:')"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <p class="text-xs text-gray-400 mt-1">Format 24 jam (WIB), contoh: 17:30</p>
                 </div>
             </div>
 

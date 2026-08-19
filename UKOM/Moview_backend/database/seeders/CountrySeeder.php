@@ -35,7 +35,7 @@ class CountrySeeder extends Seeder
         'Tonga', 'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda',
         'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay', 'Uzbekistan',
         'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe', 'Hong Kong',
-        'Macau', 'Puerto Rico', 'United States Minor Outlying Islands',
+        'Macau', 'Puerto Rico', 'United States Minor Outlying Islands', 'Faroe Islands', 'Guam', 'Aruba',
     ];
 
     public function run(): void

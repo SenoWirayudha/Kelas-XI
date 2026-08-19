@@ -412,10 +412,209 @@
 
                 <button type="button"
                         @click="addRow()"
-                        class="w-full px-4 py-3 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg border-2 border-dashed border-blue-300 transition-colors duration-200 flex items-center justify-center">
+                        class="w-full px-4 py-3 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg border-2 border-dashed border-blue-300 transition-colors duration-200 flex items-center justify-center mb-3">
                     <i class="fas fa-plus mr-2"></i>
                     Add Release Date
                 </button>
+
+                <button type="button"
+                        @click="importOpen = true; importText = ''; importRows = []; importWarnings = []; importError = ''"
+                        class="w-full px-4 py-3 text-sm font-medium text-purple-700 hover:bg-purple-50 rounded-lg border-2 border-dashed border-purple-300 transition-colors duration-200 flex items-center justify-center">
+                    <i class="fas fa-paste mr-2"></i>
+                    Import dari Teks
+                </button>
+
+                <!-- Import dari Teks Modal (inside releaseManager Alpine scope) -->
+                <div x-show="importOpen" x-cloak class="fixed inset-0 z-[130] flex items-center justify-center p-4">
+                    <div class="absolute inset-0 bg-black bg-opacity-50" @click="importOpen = false"></div>
+                    <div class="relative bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">
+                                    <i class="fas fa-paste mr-2 text-purple-600"></i>Import Release Dates dari Teks
+                                </h3>
+                                <p class="text-sm text-gray-500 mt-1">
+                                    Paste teks mentah (format flat), lalu tekan Parse untuk melihat preview. Belum ada yang disimpan ke database.
+                                </p>
+                            </div>
+                            <button type="button" @click="importOpen = false" class="text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+
+                        <div class="px-6 py-5 space-y-4 overflow-y-auto">
+                            <!-- Paste area -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Teks mentah</label>
+                                <textarea x-model="importText"
+                                          rows="5"
+                                          class="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                          placeholder="Contoh: Farewell My Concubine Premiere 20 May 1993 France, Cannes Film Festival 16 Sep 1993 Canada ..."></textarea>
+                                <div class="mt-2 flex items-center justify-between">
+                                    <p class="text-xs text-gray-400">
+                                        Format: <code>&lt;judul&gt;</code> Premiere / Theatrical / Streaming lalu <code>tanggal negara</code> berulang.
+                                        Negara dan Festival Name dipisah koma: <code>France, Cannes</code> → Festival Name "Cannes" (optional).
+                                    </p>
+                                    <button type="button"
+                                            @click="importText = exampleText"
+                                            class="text-xs text-purple-600 hover:text-purple-800 font-medium">
+                                        <i class="fas fa-arrow-circle-down mr-1"></i>Contoh
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Parse button -->
+                            <div class="flex items-center gap-3">
+                                <button type="button"
+                                        @click="runParse()"
+                                        :disabled="importParsing || !importText.trim()"
+                                        class="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i class="fas fa-play mr-2"></i>Parse
+                                </button>
+                                <span x-show="importParsing" class="text-sm text-gray-500"><i class="fas fa-spinner fa-spin mr-1"></i>Memproses...</span>
+                                <span x-show="importError" class="text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i><span x-text="importError"></span></span>
+                            </div>
+
+                            <!-- Preview table -->
+                            <template x-if="importParsed">
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h4 class="text-sm font-semibold text-gray-800">
+                                            Preview (<span x-text="importRows.length"></span> baris)
+                                        </h4>
+                                        <span x-show="importWarnings.length" class="text-xs text-amber-600 font-medium">
+                                            <i class="fas fa-exclamation-triangle mr-1"></i><span x-text="importWarnings.length"></span> baris gagal parse
+                                        </span>
+                                    </div>
+
+                                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                                        <table class="min-w-full divide-y divide-gray-200">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Tipe</th>
+                                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">Negara</th>
+                                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Festival/Platform</th>
+                                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">Tanggal</th>
+                                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-10"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="bg-white divide-y divide-gray-200">
+                                                <template x-for="(row, i) in importRows" :key="i">
+                                                    <tr>
+                                                        <td class="px-3 py-2">
+                                                            <select x-model="row.type" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                                                                <option value="premiere">Premiere</option>
+                                                                <option value="theatrical">Theatrical</option>
+                                                                <option value="streaming">Streaming</option>
+                                                            </select>
+                                                        </td>
+                                                        <td class="px-3 py-2">
+                                                            <div class="relative">
+                                                                <button type="button"
+                                                                        @click="toggleImportCountry(i)"
+                                                                        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-left flex items-center justify-between bg-white cursor-pointer">
+                                                                    <span class="flex items-center min-w-0">
+                                                                        <span x-show="row.country_code" class="mr-2 text-base leading-none" x-text="flagEmoji(row.country_code)"></span>
+                                                                        <span x-text="countryName(row.country_code)" class="text-gray-800 truncate"></span>
+                                                                        <span x-show="!row.country_code" class="text-gray-400">Pilih negara...</span>
+                                                                    </span>
+                                                                    <i class="fas fa-chevron-down text-gray-400 text-xs" :class="row.open ? 'rotate-180' : ''"></i>
+                                                                </button>
+                                                                <input type="hidden" :name="`preview_countries[${i}]`" :value="row.country_code || ''">
+                                                                <div x-show="row.open"
+                                                                     x-cloak
+                                                                     x-transition
+                                                                     @click.outside="row.open = false"
+                                                                     class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden">
+                                                                    <div class="p-2 border-b border-gray-200 bg-gray-50 relative">
+                                                                        <i class="fas fa-search text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 text-sm"></i>
+                                                                        <input type="text"
+                                                                               x-model="row.query"
+                                                                               class="w-full pl-8 pr-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                               placeholder="Search country...">
+                                                                    </div>
+                                                                    <div class="max-h-40 overflow-y-auto p-1">
+                                                                        <template x-for="c in filteredCountries(row.query)" :key="c.code">
+                                                                            <button type="button"
+                                                                                    @click="selectImportCountry(i, c.code); row.open = false"
+                                                                                    class="w-full flex items-center px-3 py-1.5 rounded hover:bg-blue-50 text-sm text-left"
+                                                                                    :class="row.country_code === c.code ? 'bg-blue-50 text-blue-700' : 'text-gray-700'">
+                                                                                <span class="mr-2 text-base" x-text="flagEmoji(c.code)"></span>
+                                                                                <span x-text="c.name"></span>
+                                                                            </button>
+                                                                        </template>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td class="px-3 py-2">
+                                                            <input type="text"
+                                                                   x-model="row.name"
+                                                                   :placeholder="row.type === 'theatrical' ? '(tidak diperlukan)' : 'Nama festival / platform'"
+                                                                   :disabled="row.type === 'theatrical'"
+                                                                   class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:text-gray-400">
+                                                        </td>
+                                                        <td class="px-3 py-2">
+                                                            <input type="date" x-model="row.release_date" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                                                        </td>
+                                                        <td class="px-3 py-2 text-right">
+                                                            <button type="button"
+                                                                    @click="importRows.splice(i, 1)"
+                                                                    class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                                                                    title="Hapus baris">
+                                                                <i class="fas fa-trash-alt"></i>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                                <tr x-show="importRows.length === 0">
+                                                    <td colspan="5" class="px-3 py-6 text-center text-sm text-gray-400">
+                                                        Belum ada baris. Tempel teks lalu tekan Parse.
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <!-- Warnings -->
+                                    <template x-if="importWarnings.length > 0">
+                                        <div class="mt-3 border border-amber-300 bg-amber-50 rounded-lg p-3">
+                                            <p class="text-xs font-semibold text-amber-800 mb-2">
+                                                <i class="fas fa-exclamation-triangle mr-1"></i>Baris gagal parse — perlu ditambah manual:
+                                            </p>
+                                            <ul class="space-y-1">
+                                                <template x-for="(w, wi) in importWarnings" :key="wi">
+                                                    <li class="text-xs text-amber-700 flex items-start">
+                                                        <span class="font-medium mr-2 w-20 shrink-0 uppercase" x-text="w.type"></span>
+                                                        <span class="italic mr-2 truncate" x-text="w.raw"></span>
+                                                        <span x-text="w.reason"></span>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+
+                        <div class="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+                            <p class="text-xs text-gray-500">
+                                Simpan hanya setelah kamu review baris di atas — belum menyentuh database.
+                            </p>
+                            <div class="flex space-x-3">
+                                <button type="button" @click="importOpen = false" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                                    Batal
+                                </button>
+                                <button type="button"
+                                        @click="saveImport()"
+                                        :disabled="importRows.length === 0"
+                                        class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i class="fas fa-save mr-2"></i>Simpan Semua ke Daftar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -453,6 +652,75 @@ function releaseManager(cfg) {
     return {
         countries: cfg.countries || [],
         rows: cfg.rows && cfg.rows.length ? cfg.rows.map(normalizeRow) : [],
+        // Import dari teks state
+        importOpen: false,
+        importText: '',
+        importRows: [],
+        importWarnings: [],
+        importError: '',
+        importParsing: false,
+        importParsed: false,
+        exampleText: 'Farewell My Concubine Premiere 20 May 1993 France, Cannes Film Festival 16 Sep 1993 Canada 04 Nov 1993 Argentina 02 Dec 1993 Germany Netherlands 10 Dec 1993 Taiwan 31 Dec 1993 Portugal 07 Jan 1994 UK 11 Feb 1994 Japan Theatrical 01 Jan 1993 Hong Kong 26 Jul 1993 China 16 Sep 1993 USA 26 Oct 1993 France 24 Dec 1993 South Korea 03 Feb 1994 Australia',
+        async runParse() {
+            const text = (this.importText || '').trim();
+            if (!text) return;
+            this.importParsing = true;
+            this.importError = '';
+            this.importParsed = false;
+            this.importRows = [];
+            this.importWarnings = [];
+            try {
+                const resp = await fetch('{{ route('admin.films.parse-releases') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ text })
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    this.importError = data.message || 'Gagal memparse teks.';
+                    return;
+                }
+                this.importRows = (data.rows || []).map(r => Object.assign(emptyRow(), {
+                    type: r.type,
+                    country_code: r.country_code || '',
+                    name: r.name || '',
+                    release_date: r.release_date || ''
+                }));
+                this.importWarnings = data.warnings || [];
+                this.importParsed = true;
+            } catch (e) {
+                this.importError = 'Terjadi kesalahan saat menghubungi server.';
+            } finally {
+                this.importParsing = false;
+            }
+        },
+        saveImport() {
+            this.importRows.forEach(r => {
+                this.rows.push(Object.assign(emptyRow(), {
+                    type: r.type,
+                    country_code: r.country_code || '',
+                    name: r.name || '',
+                    release_date: r.release_date || ''
+                }));
+            });
+            this.importOpen = false;
+            this.importParsed = false;
+            this.importRows = [];
+            this.importWarnings = [];
+            if (window.showToast) {
+                window.showToast('Baris release ditambahkan ke daftar. Simpan film untuk menyimpannya.', 'success');
+            }
+        },
+        toggleImportCountry(index) {
+            this.importRows.forEach((row, i) => { if (i !== index) row.open = false; });
+            this.importRows[index].open = !this.importRows[index].open;
+        },
+        selectImportCountry(index, code) {
+            this.importRows[index].country_code = code;
+        },
         addRow() {
             this.rows.push(emptyRow());
         },

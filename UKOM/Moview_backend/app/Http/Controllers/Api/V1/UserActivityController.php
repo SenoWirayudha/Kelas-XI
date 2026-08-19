@@ -611,7 +611,8 @@ class UserActivityController extends Controller
                     'movies.release_year as year',
                     'movie_media.media_path',
                     'ratings.rating as user_rating',
-                    'movie_likes.created_at as liked_at'
+                    'movie_likes.created_at as liked_at',
+                    DB::raw(\App\Models\Movie::primaryReleaseDateSql() . ' as primary_release_date')
                 )
                 ->orderBy('movie_likes.created_at', 'desc')
                 ->get();
@@ -640,7 +641,8 @@ class UserActivityController extends Controller
                     'countries' => $meta['countries'],
                     'languages' => $meta['languages'],
                     'themes' => $meta['themes'],
-                    'liked_at' => $like->liked_at
+                    'liked_at' => $like->liked_at,
+                    'primary_release_date' => $like->primary_release_date
                 ];
             });
 
@@ -675,7 +677,8 @@ class UserActivityController extends Controller
                     'movies.title',
                     'movies.release_year as year',
                     'movie_media.media_path',
-                    'watchlists.created_at as added_at'
+                    'watchlists.created_at as added_at',
+                    DB::raw(\App\Models\Movie::primaryReleaseDateSql() . ' as primary_release_date')
                 )
                 ->orderBy('watchlists.created_at', 'desc')
                 ->get();
@@ -704,7 +707,8 @@ class UserActivityController extends Controller
                     'countries' => $meta['countries'],
                     'languages' => $meta['languages'],
                     'themes' => $meta['themes'],
-                    'added_at' => $item->added_at
+                    'added_at' => $item->added_at,
+                    'primary_release_date' => $item->primary_release_date
                 ];
             });
 
