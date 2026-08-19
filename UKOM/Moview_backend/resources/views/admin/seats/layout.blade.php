@@ -29,7 +29,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6"
          x-data="seatGridBuilder(@js($gridPayload), {
              row_direction: @js($studio->row_direction ?? 'front_to_back'),
-             seat_prices: @js($studio->seat_prices ?? ['couple' => 1.5, 'premium' => 2.0, 'wheelchair' => 1.0])
+             seat_types: @js($seatTypeDefinitions)
          })">
 
         {{-- ===== LEFT: Visual Builder Controls ===== --}}
@@ -44,8 +44,8 @@
 
                 <p class="text-xs text-gray-500 mb-4 leading-relaxed">
                     Klik sel pada preview untuk toggle tipe kursi. Baris boleh tidak sama panjang
-                    (sel ujung kiri/kanan dikosongkan). Sweetbox/Couple dibuat dengan klik 2 sel
-                    berdekatan setelah memilih tool <b>Couple</b>.
+                    (sel ujung kiri/kanan dikosongkan). Tipe berpasangan dilukis dengan klik
+                    2+ sel berdekatan — sel berdekatan otomatis menjadi satu grup. Klik ganda = kosongkan sel.
                 </p>
 
                 {{-- Dimensions --}}
@@ -68,31 +68,27 @@
                     </button>
                 </div>
 
-                {{-- Tools --}}
+                {{-- Tools (dynamic from seat type definitions) --}}
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Alat (klik sel untuk melukis)</label>
                     <div class="grid grid-cols-2 gap-2">
-                        <template x-for="t in tools" :key="t.id">
+                        <template x-for="t in tools" :key="t.key">
                             <button type="button"
-                                    @click="tool = t.id; couplePending = null"
+                                    @click="tool = t.key"
                                     class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition"
-                                    :class="tool === t.id
+                                    :class="tool === t.key
                                         ? 'bg-blue-600 border-blue-600 text-white'
                                         : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'">
                                 <span class="inline-block w-4 h-4 rounded border"
-                                      :style="`background:${t.color}; border-color:${t.border}`"></span>
+                                      :style="`background:${shade(t.color,55)}; border-color:${t.color}`"></span>
                                 <span x-text="t.label"></span>
                             </button>
                         </template>
                     </div>
-                    <div class="mt-2 text-xs text-gray-400" x-show="couplePending" x-cloak>
-                        <i class="fas fa-hand-pointer text-rose-500 mr-1"></i>
-                        Pilih sel pasangan (berdekatan) untuk melengkapi sweetbox/couple.
-                    </div>
                 </div>
 
                 {{-- Row direction --}}
-                <div class="mb-4">
+                <div class="mb-5">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Urutan Label Baris</label>
                     <select x-model="rowDirection"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
@@ -101,37 +97,123 @@
                     </select>
                 </div>
 
-                {{-- Price multipliers --}}
-                <div class="mb-5 border-t border-gray-100 pt-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Multiplier Harga (× ticket_price)
-                        <span class="text-xs text-gray-400 font-normal">· regular = 1.0</span>
-                    </label>
-                    <div class="space-y-2">
-                        <div class="flex items-center gap-2">
-                            <span class="w-24 text-xs text-gray-600">Sweetbox/Couple</span>
-                            <input type="number" step="0.1" min="0" max="20" x-model.number="seatPrices.couple"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="w-24 text-xs text-gray-600">Premiere/Sofa</span>
-                            <input type="number" step="0.1" min="0" max="20" x-model.number="seatPrices.premium"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="w-24 text-xs text-gray-600">Aksesibilitas</span>
-                            <input type="number" step="0.1" min="0" max="20" x-model.number="seatPrices.wheelchair"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        </div>
-                    </div>
-                </div>
-
                 <button @click="save()" type="button"
                         :disabled="saving"
                         class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition flex items-center justify-center gap-2">
                     <i class="fas fa-save"></i>
                     <span x-text="saving ? 'Menyimpan...' : 'Simpan Layout'"></span>
                 </button>
+            </div>
+
+            {{-- Type Manager --}}
+            <div class="bg-white rounded-xl shadow p-5" x-data="seatTypeManager()">
+                <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <i class="fas fa-palette text-blue-500"></i> Tipe Kursi Studio
+                </h3>
+                <p class="text-xs text-gray-400 mb-3">
+                    Definisi tipe kursi custom per studio. Builtin (Regular/Lorong/Entrance/Rusak) tidak bisa dihapus.
+                </p>
+
+                <div class="space-y-2">
+                    <template x-for="d in defList" :key="d.key">
+                        <div class="flex items-center gap-2 p-2 rounded-lg border border-gray-100 bg-gray-50"
+                             :class="{ 'opacity-80': isBuiltin(d) }">
+                            <span class="inline-block w-5 h-5 rounded border flex-shrink-0"
+                                  :style="`background:${shade(d.color,55)}; border-color:${d.color}`"></span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-gray-800" x-text="d.label"></div>
+                                <div class="text-xs text-gray-500">
+                                    <template x-if="d.purchase_mode">
+                                        <span x-text="d.purchase_mode === 'paired' ? 'Berpasangan' : 'Individual'"></span>
+                                    </template>
+                                    <template x-if="d.purchase_mode && d.price_multiplier !== null">
+                                        <span x-text="' · × ' + d.price_multiplier"></span>
+                                    </template>
+                                    <template x-if="!d.purchase_mode">
+                                        <span>Bukan kursi</span>
+                                    </template>
+                                    <template x-if="isBuiltin(d)">
+                                        <span class="text-gray-400"> · builtin</span>
+                                    </template>
+                                </div>
+                            </div>
+                            <button type="button" @click="startEdit(d)"
+                                    class="text-blue-600 hover:text-blue-800 text-xs font-medium px-2 py-1 rounded hover:bg-blue-50">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" @click="remove(d)" :disabled="isBuiltin(d)"
+                                    class="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <button @click="startAdd()" type="button"
+                        class="mt-3 w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-semibold rounded-lg transition border border-blue-200">
+                    <i class="fas fa-plus mr-1"></i> Tambah Tipe Baru
+                </button>
+
+                {{-- Add / Edit form --}}
+                <div x-show="formOpen" x-cloak class="mt-3 border-t border-gray-100 pt-3">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3"
+                        x-text="editingKey ? 'Edit Tipe Kursi' : 'Tambah Tipe Kursi'"></h4>
+
+                    <div class="space-y-3">
+                        <template x-if="!editingKey || !isBuiltin(defList.find(d => d.key === editingKey))">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Key (slug, unik)</label>
+                                <input type="text" x-model="form.key" :readonly="editingKey"
+                                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                       placeholder="contoh: velvet">
+                            </div>
+                        </template>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nama Tipe</label>
+                            <input type="text" x-model="form.label"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                   placeholder="contoh: Velvet">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Warna</label>
+                            <div class="flex items-center gap-2">
+                                <input type="color" x-model="form.color"
+                                       class="w-10 h-10 border border-gray-300 rounded cursor-pointer">
+                                <span class="text-xs text-gray-500" x-text="form.color"></span>
+                            </div>
+                        </div>
+                        <template x-if="!editingKey || !isBuiltin(defList.find(d => d.key === editingKey))">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Mekanisme Pembelian</label>
+                                <select x-model="form.purchase_mode"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                    <option value="individual">Individual (1 sel = 1 tiket)</option>
+                                    <option value="paired">Berpasangan (grup sel dibeli sekaligus)</option>
+                                </select>
+                            </div>
+                        </template>
+                        <template x-if="!editingKey || !isBuiltin(defList.find(d => d.key === editingKey))">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Multiplier Harga <span class="text-xs text-gray-400 font-normal">(× harga tiket)</span>
+                                </label>
+                                <input type="number" step="0.1" min="0" max="20" x-model.number="form.price_multiplier"
+                                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="mt-4 flex items-center gap-2">
+                        <button @click="submit()" :disabled="saving" type="button"
+                                class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition">
+                            <span x-text="saving ? 'Menyimpan...' : 'Simpan'"></span>
+                        </button>
+                        <button @click="closeForm()" type="button"
+                                class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 text-sm hover:bg-gray-50">
+                            Batal
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {{-- Generate Form (fast-start) --}}
@@ -322,28 +404,18 @@
                     ▬▬▬ LAYAR / SCREEN ▬▬▬
                 </div>
 
-                {{-- Legend --}}
+                {{-- Legend (dynamic from seat type definitions) --}}
                 <div class="flex items-center flex-wrap gap-3 mb-4 text-xs text-gray-500">
+                    <template x-for="d in defList" :key="d.key">
+                        <span class="flex items-center gap-1">
+                            <span class="inline-block w-6 h-6 rounded text-center leading-6 font-bold border"
+                                  :style="`background:${shade(d.color,55)}; border-color:${d.color}; color:${shade(d.color,-45)}`"
+                                  x-text="swatchText(d)"></span>
+                            <span x-text="d.label"></span>
+                        </span>
+                    </template>
                     <span class="flex items-center gap-1">
-                        <span class="inline-block w-6 h-6 bg-blue-100 border border-blue-300 rounded text-blue-700 text-center leading-6 font-bold">A</span> Regular
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <span class="inline-block w-6 h-6 bg-rose-100 border border-rose-400 rounded text-rose-700 text-center leading-6 font-bold">C</span> Sweetbox/Couple
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <span class="inline-block w-6 h-6 bg-purple-100 border border-purple-400 rounded text-purple-700 text-center leading-6 font-bold">P</span> Premiere/Sofa
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <span class="inline-block w-6 h-6 bg-green-100 border border-green-500 rounded text-green-700 text-center leading-6 font-bold">W</span> Aksesibilitas
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <span class="inline-block w-6 h-6 bg-gray-200 border border-gray-400 rounded text-gray-500 text-center leading-6 font-bold">X</span> Rusak
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <span class="inline-block w-6 h-6 bg-gray-50 border border-dashed border-gray-300 rounded text-gray-300 text-center leading-6">≡</span> Lorong
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <span class="inline-block w-6 h-6 bg-yellow-50 border border-dashed border-yellow-300 rounded text-yellow-500 text-center leading-6"><i class="fas fa-door-open"></i></span> Entrance
+                        <span class="inline-block w-6 h-6 border border-dashed border-gray-300 rounded text-gray-300 text-center leading-6">≡</span> Kosong
                     </span>
                 </div>
 
@@ -357,7 +429,8 @@
                                         @click="paint(dr.idx, ci)"
                                         @dblclick="clearCell(dr.idx, ci)"
                                         class="flex-shrink-0 h-7 rounded text-xs font-semibold transition select-none"
-                                        :class="cellClasses(cell, ci, dr.row.cells)"
+                                        :class="cellBaseClass(cell)"
+                                        :style="cellStyle(cell)"
                                         :title="cellTitle(cell, dr.row.label, dr.idx, ci)"
                                         x-text="cellText(cell, dr.row.label, ci, dr.row.cells)"></button>
                             </template>
@@ -379,190 +452,268 @@
 
 @push('scripts')
 <script>
-function seatGridBuilder(initialGrid, config) {
-    return {
-        rows: 8,
-        cols: 15,
-        grid: [],
-        tool: 'seat',
-        rowDirection: config.row_direction || 'front_to_back',
-        seatPrices: Object.assign({ couple: 1.5, premium: 2.0, wheelchair: 1.0 }, config.seat_prices || {}),
-        couplePending: null,
-        coupleCounter: 0,
-        saving: false,
-        tools: [
-            { id: 'seat',       label: 'Regular',        color: '#DBEAFE', border: '#93C5FD' },
-            { id: 'couple',     label: 'Sweetbox/Couple', color: '#FFE4E6', border: '#FB7185' },
-            { id: 'premium',    label: 'Premiere/Sofa',   color: '#EDE9FE', border: '#A78BFA' },
-            { id: 'wheelchair', label: 'Aksesibilitas',   color: '#DCFCE7', border: '#22C55E' },
-            { id: 'unavailable',label: 'Rusak',           color: '#E5E7EB', border: '#9CA3AF' },
-            { id: 'aisle',      label: 'Lorong',          color: '#F9FAFB', border: '#D1D5DB' },
-            { id: 'entrance',   label: 'Entrance',        color: '#FEFCE8', border: '#FDE047' },
-            { id: 'empty',      label: 'Kosong',          color: '#FFFFFF', border: '#E5E7EB' },
-        ],
-        init() {
-            if (Array.isArray(initialGrid) && initialGrid.length > 0) {
-                this.grid = initialGrid.map(r => ({ label: r.label, cells: r.cells.map(c => ({ type: c.type, group: c.group || null })) }));
-                this.rows = this.grid.length;
-                this.cols = Math.max(...this.grid.map(r => r.cells.length));
-            } else {
-                this.applyDims();
-            }
-        },
-        get displayRows() {
-            // Render in visual order: if A is front, screen is on top → A at bottom near front.
-            // row_direction front_to_back = A near screen (bottom of grid); back_to_front = A at top.
-            const visual = this.grid.map((row, idx) => ({ row, idx }));
-            return this.rowDirection === 'front_to_back' ? visual.reverse() : visual;
-        },
-        applyDims() {
-            const r = Math.min(Math.max(parseInt(this.rows) || 1, 1), 26);
-            const c = Math.min(Math.max(parseInt(this.cols) || 1, 1), 60);
-            const newGrid = [];
-            for (let i = 0; i < r; i++) {
-                const cells = [];
-                for (let j = 0; j < c; j++) cells.push({ type: 'seat', group: null });
-                newGrid.push({ label: String.fromCharCode(65 + i), cells });
-            }
-            this.grid = newGrid;
-            this.couplePending = null;
-        },
-        seatCount() {
-            let n = 0;
-            for (const row of this.grid) for (const cell of row.cells) {
-                if (['seat','couple','premium','wheelchair'].includes(cell.type)) n++;
-            }
-            return n;
-        },
-        paint(ri, ci) {
-            const cell = this.grid[ri].cells[ci];
-            if (this.tool === 'couple') {
-                if (this.couplePending === null) {
-                    this.coupleCounter++;
-                    cell.type = 'couple';
-                    cell.group = 'SB' + this.coupleCounter;
-                    this.couplePending = { ri, ci };
-                } else {
-                    const p = this.couplePending;
-                    const adjacent = (p.ri === ri && Math.abs(p.ci - ci) === 1);
-                    if (adjacent) {
-                        cell.type = 'couple';
-                        cell.group = this.grid[p.ri].cells[p.ci].group;
-                        this.couplePending = null;
-                    } else {
-                        this.coupleCounter++;
-                        cell.type = 'couple';
-                        cell.group = 'SB' + this.coupleCounter;
-                        this.couplePending = { ri, ci };
+    function shade(hex, percent) {
+        const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+        if (!m) return '#ffffff';
+        let num = parseInt(m[1], 16);
+        let amt = Math.round(2.55 * percent);
+        let r = (num >> 16) + amt, g = ((num >> 8) & 0xff) + amt, b = (num & 0xff) + amt;
+        r = Math.max(0, Math.min(255, r)); g = Math.max(0, Math.min(255, g)); b = Math.max(0, Math.min(255, b));
+        return '#' + (0x1000000 + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    }
+
+    document.addEventListener('alpine:init', () => {
+        Alpine.store('seatTypes', { defs: @js($seatTypeDefinitions) });
+    });
+
+    function seatTypeManager() {
+        return {
+            defList: Alpine.store('seatTypes').defs,
+            formOpen: false,
+            editingKey: null,
+            form: { key: '', label: '', color: '#8B5CF6', price_multiplier: 1.0, purchase_mode: 'individual' },
+            saving: false,
+            isBuiltin(def) { return !!def && !!def.is_builtin; },
+            find(key) { return this.defList.find(d => d.key === key); },
+            startAdd() {
+                this.editingKey = null;
+                this.form = { key: '', label: '', color: '#8B5CF6', price_multiplier: 1.0, purchase_mode: 'individual' };
+                this.formOpen = true;
+            },
+            startEdit(def) {
+                this.editingKey = def.key;
+                this.form = {
+                    key: def.key,
+                    label: def.label,
+                    color: def.color || '#8B5CF6',
+                    price_multiplier: def.price_multiplier ?? 1.0,
+                    purchase_mode: def.purchase_mode || 'individual',
+                };
+                this.formOpen = true;
+            },
+            closeForm() { this.formOpen = false; this.editingKey = null; },
+            async submit() {
+                if (this.saving) return;
+                this.saving = true;
+                const isEdit = this.editingKey !== null;
+                const base = @js(route('admin.seat-types.index', $studio->id));
+                try {
+                    const res = await fetch(base + (isEdit ? '/' + encodeURIComponent(this.editingKey) : ''), {
+                        method: isEdit ? 'PUT' : 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        },
+                        body: JSON.stringify(this.form),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Gagal menyimpan tipe kursi.');
+                    Alpine.store('seatTypes').defs = data.data;
+                    this.defList = data.data;
+                    this.closeForm();
+                    window.__toast(data.message, 'success');
+                } catch (e) {
+                    window.__toast(e.message, 'error');
+                } finally {
+                    this.saving = false;
+                }
+            },
+            remove(def) {
+                const base = @js(route('admin.seat-types.index', $studio->id));
+                window.confirmAction('Hapus tipe kursi "' + def.label + '"?', async () => {
+                    try {
+                        const res = await fetch(base + '/' + encodeURIComponent(def.key), {
+                            method: 'DELETE',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            },
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.message || 'Gagal menghapus tipe kursi.');
+                        Alpine.store('seatTypes').defs = data.data;
+                        this.defList = data.data;
+                        window.__toast(data.message, 'success');
+                    } catch (e) {
+                        window.__toast(e.message, 'error');
                     }
+                }, { danger: true, confirmText: 'Ya, Hapus' });
+            },
+        };
+    }
+
+    function seatGridBuilder(initialGrid, config) {
+        return {
+            rows: 8,
+            cols: 15,
+            grid: [],
+            tool: 'seat',
+            rowDirection: config.row_direction || 'front_to_back',
+            groupCounter: 0,
+            saving: false,
+
+            get defList() { return Alpine.store('seatTypes').defs || []; },
+            get defs() {
+                const m = {};
+                for (const d of this.defList) m[d.key] = d;
+                return m;
+            },
+            get sellableKeys() {
+                const s = new Set();
+                for (const d of this.defList) if (d.purchase_mode) s.add(d.key);
+                return s;
+            },
+            get tools() {
+                return this.defList
+                    .map(d => ({ key: d.key, label: d.label, color: d.color || '#64748B' }))
+                    .concat([{ key: 'empty', label: 'Kosong', color: '#E5E7EB' }]);
+            },
+            init() {
+                if (Array.isArray(initialGrid) && initialGrid.length > 0) {
+                    this.grid = initialGrid.map(r => ({ label: r.label, cells: r.cells.map(c => ({ type: c.type, group: c.group || null })) }));
+                    this.rows = this.grid.length;
+                    this.cols = Math.max(...this.grid.map(r => r.cells.length));
+                } else {
+                    this.applyDims();
                 }
-                return;
-            }
-            cell.type = this.tool;
-            cell.group = null;
-            this.couplePending = null;
-        },
-        clearCell(ri, ci) {
-            this.grid[ri].cells[ci].type = 'empty';
-            this.grid[ri].cells[ci].group = null;
-            if (this.couplePending && this.couplePending.ri === ri && this.couplePending.ci === ci) {
-                this.couplePending = null;
-            }
-        },
-        // Auto-numbering: skip placeholders (aisle/entrance/empty), CGV-style continuous numbering.
-        cellNumber(rowCells, ci) {
-            let n = 0;
-            for (let j = 0; j <= ci; j++) {
-                const t = rowCells[j].type;
-                if (['seat','couple','premium','wheelchair','unavailable'].includes(t)) n++;
-            }
-            return n;
-        },
-        cellText(cell, rowLabel, ci, rowCells) {
-            switch (cell.type) {
-                case 'seat':      return rowLabel + this.cellNumber(rowCells, ci);
-                case 'couple':    return rowLabel + this.cellNumber(rowCells, ci);
-                case 'premium':   return 'P' + this.cellNumber(rowCells, ci);
-                case 'wheelchair': return 'W' + this.cellNumber(rowCells, ci);
-                case 'unavailable': return 'X' + this.cellNumber(rowCells, ci);
-                case 'aisle':     return '≡';
-                case 'entrance':  return '🚪';
-                case 'empty':     return '';
-            }
-        },
-        cellTitle(cell, rowLabel, ri, ci) {
-            const t = this.tools.find(t => t.id === cell.type);
-            let label = t ? t.label : cell.type;
-            if (cell.type === 'couple' && cell.group) label += ' (' + cell.group + ')';
-            return `${rowLabel} · ${label}`;
-        },
-        cellClasses(cell, ci, rowCells) {
-            const base = 'w-8 ';
-            switch (cell.type) {
-                case 'seat':       return base + 'bg-blue-100 border border-blue-300 text-blue-800';
-                case 'couple':     return base + 'bg-rose-100 border border-rose-400 text-rose-700';
-                case 'premium':    return base + 'bg-purple-100 border border-purple-400 text-purple-700';
-                case 'wheelchair': return base + 'bg-green-100 border border-green-500 text-green-700';
-                case 'unavailable':return base + 'bg-gray-200 border border-gray-400 text-gray-500 line-through';
-                case 'aisle':      return base + 'bg-gray-50 border border-dashed border-gray-300 text-gray-300';
-                case 'entrance':   return base + 'bg-yellow-50 border border-dashed border-yellow-300 text-yellow-500';
-                case 'empty':      return 'w-8';
-            }
-            return 'w-8';
-        },
-        save() {
-            if (this.saving) return;
-            // Reject orphaned couple cells before submit
-            const counts = {};
-            for (const row of this.grid) for (const cell of row.cells) {
-                if (cell.type === 'couple') {
-                    const g = cell.group;
-                    if (!g) { alert('Ada sel couple tanpa group.'); return; }
-                    counts[g] = (counts[g] || 0) + 1;
+            },
+            get displayRows() {
+                // Render in visual order: if A is front, screen is on top → A at bottom near front.
+                const visual = this.grid.map((row, idx) => ({ row, idx }));
+                return this.rowDirection === 'front_to_back' ? visual.reverse() : visual;
+            },
+            applyDims() {
+                const r = Math.min(Math.max(parseInt(this.rows) || 1, 1), 26);
+                const c = Math.min(Math.max(parseInt(this.cols) || 1, 1), 60);
+                const newGrid = [];
+                for (let i = 0; i < r; i++) {
+                    const cells = [];
+                    for (let j = 0; j < c; j++) cells.push({ type: 'seat', group: null });
+                    newGrid.push({ label: String.fromCharCode(65 + i), cells });
                 }
-            }
-            for (const g in counts) {
-                if (counts[g] !== 2) {
-                    alert('Sweetbox/couple group ' + g + ' harus berisi tepat 2 sel. Klik 2 sel berdekatan untuk melengkapinya.');
+                this.grid = newGrid;
+            },
+            seatCount() {
+                let n = 0;
+                for (const row of this.grid) for (const cell of row.cells) {
+                    if (this.sellableKeys.has(cell.type)) n++;
+                }
+                return n;
+            },
+            paint(ri, ci) {
+                const cell = this.grid[ri].cells[ci];
+                const def = this.defs[this.tool];
+                if (def && def.purchase_mode === 'paired') {
+                    // Join an adjacent cell of the same type (if any) → same group.
+                    const row = this.grid[ri].cells;
+                    const left = ci > 0 ? row[ci - 1] : null;
+                    const right = ci < row.length - 1 ? row[ci + 1] : null;
+                    const neighbor = (left && left.type === this.tool) ? left : (right && right.type === this.tool) ? right : null;
+                    cell.type = this.tool;
+                    cell.group = neighbor ? neighbor.group : 'G' + (++this.groupCounter);
                     return;
                 }
-            }
-
-            const payload = {
-                row_direction: this.rowDirection,
-                seat_prices: {
-                    couple: parseFloat(this.seatPrices.couple) || 1.0,
-                    premium: parseFloat(this.seatPrices.premium) || 1.0,
-                    wheelchair: parseFloat(this.seatPrices.wheelchair) || 1.0,
-                },
-                rows: this.grid.map(row => ({
-                    label: row.label,
-                    cells: row.cells.map(c => ({ type: c.type, group: c.group || null })),
-                })),
-            };
-
-            this.saving = true;
-            fetch('{{ route('admin.seats.save-layout', $studio->id) }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
-                body: JSON.stringify(payload),
-            }).then(res => {
-                if (res.ok) {
-                    window.__toast('Layout berhasil disimpan.', 'success');
-                    setTimeout(() => window.location.reload(), 600);
-                } else {
-                    return res.json().then(data => { throw new Error(data.message || 'Gagal menyimpan layout.'); });
+                cell.type = this.tool;
+                cell.group = null;
+            },
+            clearCell(ri, ci) {
+                this.grid[ri].cells[ci].type = 'empty';
+                this.grid[ri].cells[ci].group = null;
+            },
+            // Auto-numbering: skip placeholders (aisle/entrance/empty), CGV-style continuous numbering.
+            cellNumber(rowCells, ci) {
+                let n = 0;
+                for (let j = 0; j <= ci; j++) {
+                    const t = rowCells[j].type;
+                    if (this.sellableKeys.has(t) || t === 'unavailable') n++;
                 }
-            }).catch(err => {
-                this.saving = false;
-                window.__toast(err.message, 'error');
-            });
-        }
-    };
-}
+                return n;
+            },
+            cellText(cell, rowLabel, ci, rowCells) {
+                if (cell.type === 'empty') return '';
+                if (cell.type === 'aisle') return '≡';
+                if (cell.type === 'entrance') return '🚪';
+                if (cell.type === 'unavailable') return 'X' + this.cellNumber(rowCells, ci);
+                return rowLabel + this.cellNumber(rowCells, ci);
+            },
+            cellTitle(cell, rowLabel, ri, ci) {
+                const def = this.defs[cell.type];
+                let label = def ? def.label : (cell.type === 'empty' ? 'Kosong' : cell.type);
+                if (cell.group) label += ' (grup ' + cell.group + ')';
+                return `${rowLabel} · ${label}`;
+            },
+            cellBaseClass(cell) {
+                return cell.type === 'empty'
+                    ? 'w-8'
+                    : 'w-8 border';
+            },
+            cellStyle(cell) {
+                const def = this.defs[cell.type];
+                if (!def) return {};
+                return {
+                    backgroundColor: shade(def.color, 55),
+                    borderColor: def.color,
+                    color: shade(def.color, -45),
+                    borderStyle: (cell.type === 'aisle' || cell.type === 'entrance') ? 'dashed' : 'solid',
+                };
+            },
+            swatchText(d) {
+                if (d.key === 'aisle') return '≡';
+                if (d.key === 'entrance') return '🚪';
+                if (d.key === 'unavailable') return 'X';
+                if (d.label) return d.label.charAt(0).toUpperCase();
+                return d.key.charAt(0).toUpperCase();
+            },
+            save() {
+                if (this.saving) return;
+                // Reject orphaned paired groups before submit
+                const counts = {};
+                for (const row of this.grid) for (const cell of row.cells) {
+                    const def = this.defs[cell.type];
+                    if (def && def.purchase_mode === 'paired') {
+                        const g = cell.group;
+                        if (!g) { alert('Ada sel berpasangan tanpa grup.'); return; }
+                        counts[g] = (counts[g] || 0) + 1;
+                    }
+                }
+                for (const g in counts) {
+                    if (counts[g] < 2) {
+                        alert('Grup ' + g + ' harus berisi minimal 2 sel. Klik sel berdekatan untuk melengkapinya.');
+                        return;
+                    }
+                }
+
+                const payload = {
+                    row_direction: this.rowDirection,
+                    rows: this.grid.map(row => ({
+                        label: row.label,
+                        cells: row.cells.map(c => ({ type: c.type, group: c.group || null })),
+                    })),
+                };
+
+                this.saving = true;
+                fetch(@js(route('admin.seats.save-layout', $studio->id)), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body: JSON.stringify(payload),
+                }).then(res => {
+                    if (res.ok) {
+                        window.__toast('Layout berhasil disimpan.', 'success');
+                        setTimeout(() => window.location.reload(), 600);
+                    } else {
+                        return res.json().then(data => { throw new Error(data.message || 'Gagal menyimpan layout.'); });
+                    }
+                }).catch(err => {
+                    this.saving = false;
+                    window.__toast(err.message, 'error');
+                });
+            }
+        };
+    }
 </script>
 @endpush
