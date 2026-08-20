@@ -518,12 +518,19 @@ class EditProfileFragment : Fragment() {
         sharedPrefs.edit().apply {
             putBoolean("isLoggedIn", false)
             remove("userEmail")
+            remove("username")
+            remove("authToken")
+            remove("userId")
             apply()
         }
         
-        // Navigate to login screen and clear back stack
+        // Navigate to login and clear the ENTIRE back stack so the hardware
+        // back button exits the app instead of returning to the logged-out session.
         val navController = findNavController()
-        navController.navigate(R.id.action_editProfile_to_login)
+        val navOptions = androidx.navigation.NavOptions.Builder()
+            .setPopUpTo(navController.graph.startDestinationId, true)
+            .build()
+        navController.navigate(R.id.loginFragment, null, navOptions)
     }
 
     override fun onDestroyView() {
