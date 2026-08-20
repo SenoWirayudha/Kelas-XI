@@ -1,19 +1,27 @@
 package com.komputerkit.moview.ui.cinema
 
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ActivitySeatSelectionBinding
 import com.komputerkit.moview.ui.cinema.adapter.SeatAdapter
 import com.komputerkit.moview.ui.cinema.model.BookingData
 import com.komputerkit.moview.ui.cinema.model.Seat
+import com.komputerkit.moview.ui.cinema.model.SeatStatus
+import com.komputerkit.moview.ui.cinema.model.SeatType
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -119,6 +127,7 @@ class SeatSelectionActivity : AppCompatActivity() {
                 currentColumns = spanCount
                 currentRows = state.rows.coerceAtLeast(1)
                 seatAdapter.submitSeats(state.seats)
+                buildLegend(state.seatTypes, state.seats)
                 updateMiniMapSeats()
                 binding.seatMiniMap.alpha = 1f
                 binding.seatMiniMap.visibility = View.VISIBLE
@@ -147,6 +156,73 @@ class SeatSelectionActivity : AppCompatActivity() {
         updateMiniMapSeats()
         updateMiniMapViewport()
         showMiniMap()
+    }
+
+    /**
+     * Builds the legend dynamically from the studio's seat type definitions:
+     * one entry per sellable type actually present in the layout (e.g. Regular,
+     * Magnify), with a swatch in the type's color. "Tidak Tersedia" and
+     * "Pilihanmu" stay static in the XML.
+     */
+    private fun buildLegend(seatTypes: List<SeatType>, seats: List<Seat>) {
+        val container = binding.legendTypes
+        container.removeAllViews()
+
+        // Types that are sellable AND actually appear as available seats in this layout.
+        val presentKeys = seats
+            .filter { it.type.isSellable && it.status != SeatStatus.UNAVAILABLE }
+            .map { it.type.key.lowercase(Locale.ENGLISH) }
+            .toSet()
+        val typesToShow = seatTypes.filter { it.isSellable && it.key.lowercase(Locale.ENGLISH) in presentKeys }
+
+        val density = resources.displayMetrics.density
+        val swatchSize = (20 * density).toInt()
+        val swatchMarginEnd = (6 * density).toInt()
+        val labelMarginEnd = (18 * density).toInt()
+        val textColor = ContextCompat.getColor(this, R.color.text_secondary)
+
+        typesToShow.forEach { type ->
+            val swatch = View(this).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = 6 * density
+                    val base = parseHexColor(type.color)
+                    setColor(lighten(base, 0.78f))
+                    setStroke((2 * density).toInt(), base)
+                }
+                layoutParams = LinearLayout.LayoutParams(swatchSize, swatchSize).apply {
+                    marginEnd = swatchMarginEnd
+                }
+            }
+            val label = TextView(this).apply {
+                text = type.label
+                textSize = 12f
+                setTextColor(textColor)
+                setPadding(0, 0, labelMarginEnd, 0)
+            }
+            container.addView(swatch)
+            container.addView(label)
+        }
+    }
+
+    private fun parseHexColor(hex: String): Int {
+        val value = hex.removePrefix("#")
+        return if (value.length == 6) {
+            try {
+                Color.parseColor("#$value")
+            } catch (_: IllegalArgumentException) {
+                Color.parseColor("#64748B")
+            }
+        } else {
+            Color.parseColor("#64748B")
+        }
+    }
+
+    private fun lighten(color: Int, amount: Float): Int {
+        val r = Color.red(color) + ((255 - Color.red(color)) * amount).toInt()
+        val g = Color.green(color) + ((255 - Color.green(color)) * amount).toInt()
+        val b = Color.blue(color) + ((255 - Color.blue(color)) * amount).toInt()
+        return Color.rgb(r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255))
     }
 
     private fun updateMiniMapViewport() {
