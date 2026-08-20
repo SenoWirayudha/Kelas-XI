@@ -5,6 +5,7 @@
     android:layout_height="32dp"
     android:layout_margin="4dp"
     android:background="@drawable/bg_seat_available"
+    android:fontFamily="@font/font_family_inter"
     android:gravity="center"
     android:textColor="@color/text_primary"
     android:textSize="9sp"

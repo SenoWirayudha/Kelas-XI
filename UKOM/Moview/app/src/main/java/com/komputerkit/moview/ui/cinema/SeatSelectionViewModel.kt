@@ -92,7 +92,9 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun buildGrid(rows: Int, columns: Int, seats: List<SeatLayoutSeatDto>, seatTypes: List<SeatType>): List<Seat> {
-        val typeByKey = seatTypes.associateBy { it.key }
+        // Match case-insensitively: definition keys can be mixed-case (e.g. "Magnify")
+        // while seat_type comes through the same case from the backend.
+        val typeByKey = seatTypes.associateBy { it.key.lowercase() }
         val minRowIndex = seats.minOfOrNull { it.row_index } ?: 0
         val minColumnIndex = seats.minOfOrNull { it.column } ?: 0
 
