@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">Moview</string>
     <string name="filter_search_hint">Search</string>
+    <string name="hero_image_description">Hero image</string>
+    <string name="toggle_password_visibility">Toggle password visibility</string>
     <!-- Replace with your actual Web Client ID from Firebase Console -->
     <string name="default_web_client_id">700958718358-co3b1fggq687clu8bh37td87lqdvlok0.apps.googleusercontent.com</string>
 </resources>

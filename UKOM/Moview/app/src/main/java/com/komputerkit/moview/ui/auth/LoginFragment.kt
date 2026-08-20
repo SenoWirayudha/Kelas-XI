@@ -2,6 +2,7 @@ package com.komputerkit.moview.ui.auth
 
 import android.app.Activity
 import android.content.Context
+import android.graphics.Color
 import android.os.Bundle
 import android.text.InputType
 import android.util.Log
@@ -10,6 +11,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -20,6 +25,8 @@ import com.google.android.gms.common.api.ApiException
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentLoginBinding
 import com.komputerkit.moview.data.repository.AuthRepository
+import com.komputerkit.moview.util.ServerConfig
+import com.komputerkit.moview.util.loadBackdrop
 import kotlinx.coroutines.launch
 
 class LoginFragment : Fragment() {
@@ -31,6 +38,8 @@ class LoginFragment : Fragment() {
     private val authRepository = AuthRepository()
 
     private lateinit var googleSignInClient: GoogleSignInClient
+    private var originalStatusBarColor = 0
+    private var originalLightStatusBars = false
 
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -77,9 +86,45 @@ class LoginFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Hero image: backdrop id 490 of film id 100 (bright & vivid, no dark overlay)
+        binding.ivHero.loadBackdrop(
+            ServerConfig.resolveStorageUrl("movies/100/backdrop/8oNbq20Y52DRycx5JyAei9VA9YyifDiQX4DRXLxx.webp")
+        )
+
+        setupImmersiveStatusBar()
         setupGoogleSignIn()
         setupClickListeners()
         setupEmailValidation()
+    }
+
+    // Edge-to-edge: let the bright hero bleed behind the status bar (transparent).
+    // The hero has no dark overlay, so use dark status bar icons for readability.
+    private fun setupImmersiveStatusBar() {
+        val window = requireActivity().window
+        originalStatusBarColor = window.statusBarColor
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        originalLightStatusBars = controller.isAppearanceLightStatusBars
+        controller.isAppearanceLightStatusBars = true
+
+        // Keep the bottom of the page above the navigation bar so the link is reachable.
+        // The hero itself bleeds behind the status bar (no top padding).
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val bottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, bottom)
+            insets
+        }
+        binding.root.requestApplyInsets()
+    }
+
+    private fun restoreStatusBar() {
+        val window = requireActivity().window
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        window.statusBarColor = originalStatusBarColor
+        WindowInsetsControllerCompat(window, window.decorView)
+            .isAppearanceLightStatusBars = originalLightStatusBars
     }
 
     private fun setupGoogleSignIn() {
@@ -133,7 +178,7 @@ class LoginFragment : Fragment() {
 
     private fun showGoogleLoading(isLoading: Boolean) {
         binding.btnGoogleSignIn.isEnabled = !isLoading
-        binding.btnGoogleSignIn.text = if (isLoading) "Menghubungkan..." else "Continue with Google"
+        binding.btnGoogleSignIn.text = if (isLoading) "Menghubungkan..." else "Login dengan Google"
     }
     
     private fun setupEmailValidation() {
@@ -242,6 +287,7 @@ class LoginFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        restoreStatusBar()
         super.onDestroyView()
         _binding = null
     }

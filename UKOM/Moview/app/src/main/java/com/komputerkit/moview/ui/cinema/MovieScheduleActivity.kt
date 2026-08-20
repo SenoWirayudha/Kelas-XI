@@ -1,19 +1,26 @@
 package com.komputerkit.moview.ui.cinema
 
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ActivityMovieScheduleBinding
 import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.ui.cinema.adapter.CinemaScheduleAdapter
@@ -47,6 +54,8 @@ class MovieScheduleActivity : AppCompatActivity() {
     private var movieTrailerUrl = ""
     private var cities: List<String> = emptyList()
     private var isPreorderMovie: Boolean = false
+    private var originalStatusBarColor = 0
+    private var originalLightStatusBars = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,6 +78,7 @@ class MovieScheduleActivity : AppCompatActivity() {
         viewModel.setPreorderMode(isPreorderMovie)
 
         populateMovieInfo()
+        setupImmersiveStatusBar()
         updateBuyButton()  // start disabled
         if (movieId > 0) fetchMovieDetails(movieId)
         setupDates()
@@ -77,6 +87,48 @@ class MovieScheduleActivity : AppCompatActivity() {
         setupClickListeners()
         observeViewModel()
         viewModel.loadCities()
+    }
+
+    // Edge-to-edge: let the backdrop bleed behind the status bar (transparent).
+    // The top of the backdrop already has a dark scrim (gradient_backdrop_top),
+    // so the default light status bar icons stay readable over it.
+    private fun setupImmersiveStatusBar() {
+        val window = window
+        originalStatusBarColor = window.statusBarColor
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        originalLightStatusBars = controller.isAppearanceLightStatusBars
+        controller.isAppearanceLightStatusBars = false
+
+        // Push the sticky back button below the status bar so it isn't overlapped
+        // by the clock/icons, and keep the buy button above the navigation bar.
+        // This composes with the sticky-header fix: the button stays pinned at the
+        // top of the screen, just offset below the insets.
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val top = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
+            val bottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+
+            val backLp = binding.btnBackContainer.layoutParams as ViewGroup.MarginLayoutParams
+            backLp.topMargin = top + resources.getDimensionPixelSize(R.dimen.back_button_margin)
+            binding.btnBackContainer.layoutParams = backLp
+
+            val buyLp = binding.btnBuyTicket.layoutParams as ViewGroup.MarginLayoutParams
+            buyLp.bottomMargin = bottom + resources.getDimensionPixelSize(R.dimen.back_button_margin)
+            binding.btnBuyTicket.layoutParams = buyLp
+
+            insets
+        }
+        binding.root.requestApplyInsets()
+    }
+
+    private fun restoreStatusBar() {
+        val window = window
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        window.statusBarColor = originalStatusBarColor
+        WindowInsetsControllerCompat(window, window.decorView)
+            .isAppearanceLightStatusBars = originalLightStatusBars
     }
 
     private fun populateMovieInfo() {
@@ -339,6 +391,11 @@ class MovieScheduleActivity : AppCompatActivity() {
                 }
             } catch (_: Exception) {}
         }
+    }
+
+    override fun onDestroy() {
+        restoreStatusBar()
+        super.onDestroy()
     }
 
     private fun extractPrice(priceRange: String): Int {

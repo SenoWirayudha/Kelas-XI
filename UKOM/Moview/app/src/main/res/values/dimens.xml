@@ -14,4 +14,7 @@
     <dimen name="backdrop_overlap">50dp</dimen>
     <!-- Film Detail backdrop height: header area (actionBarSize + status) + content area -->
     <dimen name="backdrop_height">306dp</dimen>
+
+    <!-- Movie Schedule floating controls -->
+    <dimen name="back_button_margin">16dp</dimen>
 </resources>

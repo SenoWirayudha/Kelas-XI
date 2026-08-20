@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -17,10 +19,19 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        val localProps = Properties()
+        val localPropsFile = rootProject.file("local.properties")
+        if (localPropsFile.exists()) {
+            localPropsFile.inputStream().use { stream ->
+                localProps.load(stream)
+            }
+        }
         val midtransClientKey =
-            (project.findProperty("MIDTRANS_CLIENT_KEY") as String?) ?: ""
+            (localProps.getProperty("MIDTRANS_CLIENT_KEY")
+                ?: project.findProperty("MIDTRANS_CLIENT_KEY") as String?) ?: ""
         val midtransMerchantBaseUrl =
-            (project.findProperty("MIDTRANS_MERCHANT_BASE_URL") as String?) ?: ""
+            (localProps.getProperty("MIDTRANS_MERCHANT_BASE_URL")
+                ?: project.findProperty("MIDTRANS_MERCHANT_BASE_URL") as String?) ?: ""
 
         buildConfigField("String", "MIDTRANS_CLIENT_KEY", "\"$midtransClientKey\"")
         buildConfigField("String", "MIDTRANS_MERCHANT_BASE_URL", "\"$midtransMerchantBaseUrl\"")

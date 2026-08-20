@@ -17,6 +17,7 @@
     <color name="dark_background">#0F1419</color>
     <color name="dark_surface">#1A1F29</color>
     <color name="dark_card">#1E2530</color>
+    <color name="input_border">#3A3F49</color>
     <color name="text_primary">#FFFFFF</color>
     <color name="text_secondary">#8899A6</color>
     <color name="colorAccent">#135bec</color>

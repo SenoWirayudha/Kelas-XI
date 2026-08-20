@@ -1,18 +1,25 @@
 package com.komputerkit.moview.ui.auth
 
 import android.content.Context
+import android.graphics.Color
 import android.os.Bundle
 import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentSignUpBinding
 import com.komputerkit.moview.data.repository.AuthRepository
+import com.komputerkit.moview.util.ServerConfig
+import com.komputerkit.moview.util.loadBackdrop
 import kotlinx.coroutines.launch
 
 class SignUpFragment : Fragment() {
@@ -22,6 +29,8 @@ class SignUpFragment : Fragment() {
     
     private var isPasswordVisible = false
     private val authRepository = AuthRepository()
+    private var originalStatusBarColor = 0
+    private var originalLightStatusBars = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -34,9 +43,45 @@ class SignUpFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
+        // Hero image: backdrop id 493 of film id 40, same treatment as Login
+        binding.ivHero.loadBackdrop(
+            ServerConfig.resolveStorageUrl("movies/40/backdrop/OB6fhfbBWeN6aLrVKoPQseKywhkoMhoYrpob4GWr.webp")
+        )
+
+        setupImmersiveStatusBar()
         setupClickListeners()
         setupValidation()
+    }
+
+    // Edge-to-edge: let the bright hero bleed behind the status bar (transparent).
+    // The hero has no dark overlay, so use dark status bar icons for readability.
+    private fun setupImmersiveStatusBar() {
+        val window = requireActivity().window
+        originalStatusBarColor = window.statusBarColor
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        originalLightStatusBars = controller.isAppearanceLightStatusBars
+        controller.isAppearanceLightStatusBars = true
+
+        // Keep the bottom of the page above the navigation bar so the link is reachable.
+        // The hero itself bleeds behind the status bar (no top padding).
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val bottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, bottom)
+            insets
+        }
+        binding.root.requestApplyInsets()
+    }
+
+    private fun restoreStatusBar() {
+        val window = requireActivity().window
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        window.statusBarColor = originalStatusBarColor
+        WindowInsetsControllerCompat(window, window.decorView)
+            .isAppearanceLightStatusBars = originalLightStatusBars
     }
     
     private fun setupClickListeners() {
@@ -182,7 +227,7 @@ class SignUpFragment : Fragment() {
             binding.tvSignupStatus.visibility = View.VISIBLE
             binding.btnSignUp.isEnabled = false
         } else {
-            binding.btnSignUp.text = "Sign Up"
+            binding.btnSignUp.text = "Daftar"
             binding.progressBar.visibility = View.GONE
             binding.tvSignupStatus.visibility = View.GONE
             binding.btnSignUp.isEnabled = true
@@ -190,6 +235,7 @@ class SignUpFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        restoreStatusBar()
         super.onDestroyView()
         _binding = null
     }
