@@ -1004,28 +1004,28 @@ class MovieApiController extends Controller
                 ->filter(fn($r) => $r->type === MovieRelease::TYPE_THEATRICAL
                     && $r->country_code === 'ID'
                     && $r->release_date->format('Y-m-d') >= $today)
-                ->sortBy(fn($r) => $r->release_date)
+                ->sortBy(fn($r) => $r->release_date->format('Y-m-d') . '|' . str_pad((string) $r->id, 8, '0', STR_PAD_LEFT))
                 ->first();
 
             $idStreaming = $movie->movieReleases
                 ->filter(fn($r) => $r->type === MovieRelease::TYPE_STREAMING
                     && $r->country_code === 'ID'
                     && $r->release_date->format('Y-m-d') >= $today)
-                ->sortBy(fn($r) => $r->release_date)
+                ->sortBy(fn($r) => $r->release_date->format('Y-m-d') . '|' . str_pad((string) $r->id, 8, '0', STR_PAD_LEFT))
                 ->first();
 
             $otherTheatrical = $movie->movieReleases
                 ->filter(fn($r) => $r->type === MovieRelease::TYPE_THEATRICAL
                     && $r->country_code !== 'ID'
                     && $r->release_date->format('Y-m-d') >= $today)
-                ->sortBy(fn($r) => $r->release_date)
+                ->sortBy(fn($r) => $r->release_date->format('Y-m-d') . '|' . str_pad((string) $r->id, 8, '0', STR_PAD_LEFT))
                 ->first();
 
             $otherStreaming = $movie->movieReleases
                 ->filter(fn($r) => $r->type === MovieRelease::TYPE_STREAMING
                     && $r->country_code !== 'ID'
                     && $r->release_date->format('Y-m-d') >= $today)
-                ->sortBy(fn($r) => $r->release_date)
+                ->sortBy(fn($r) => $r->release_date->format('Y-m-d') . '|' . str_pad((string) $r->id, 8, '0', STR_PAD_LEFT))
                 ->first();
 
             if ($idTheatrical) {
