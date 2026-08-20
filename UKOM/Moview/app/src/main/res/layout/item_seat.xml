@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/tv_seat"
-    android:layout_width="32dp"
-    android:layout_height="32dp"
-    android:layout_margin="4dp"
+    android:layout_width="28dp"
+    android:layout_height="28dp"
+    android:layout_margin="3dp"
     android:background="@drawable/bg_seat_available"
     android:fontFamily="@font/font_family_inter"
     android:gravity="center"
