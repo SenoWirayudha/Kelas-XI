@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -54,8 +55,6 @@ class MovieScheduleActivity : AppCompatActivity() {
     private var movieTrailerUrl = ""
     private var cities: List<String> = emptyList()
     private var isPreorderMovie: Boolean = false
-    private var originalStatusBarColor = 0
-    private var originalLightStatusBars = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,15 +92,6 @@ class MovieScheduleActivity : AppCompatActivity() {
     // The top of the backdrop already has a dark scrim (gradient_backdrop_top),
     // so the default light status bar icons stay readable over it.
     private fun setupImmersiveStatusBar() {
-        val window = window
-        originalStatusBarColor = window.statusBarColor
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = Color.TRANSPARENT
-
-        val controller = WindowInsetsControllerCompat(window, window.decorView)
-        originalLightStatusBars = controller.isAppearanceLightStatusBars
-        controller.isAppearanceLightStatusBars = false
-
         // Push the sticky back button below the status bar so it isn't overlapped
         // by the clock/icons, and keep the buy button above the navigation bar.
         // This composes with the sticky-header fix: the button stays pinned at the
@@ -120,15 +110,34 @@ class MovieScheduleActivity : AppCompatActivity() {
 
             insets
         }
-        binding.root.requestApplyInsets()
+        applyImmersiveStatusBar(true)
     }
 
-    private fun restoreStatusBar() {
+    // Applied on onResume and restored on onPause, because restoring in onDestroy would
+    // run after the next window's onResume and clobber its edge-to-edge state.
+    private fun applyImmersiveStatusBar(immersive: Boolean) {
         val window = window
-        WindowCompat.setDecorFitsSystemWindows(window, true)
-        window.statusBarColor = originalStatusBarColor
-        WindowInsetsControllerCompat(window, window.decorView)
-            .isAppearanceLightStatusBars = originalLightStatusBars
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        if (immersive) {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            window.statusBarColor = Color.TRANSPARENT
+            controller.isAppearanceLightStatusBars = false
+        } else {
+            WindowCompat.setDecorFitsSystemWindows(window, true)
+            window.statusBarColor =
+                ContextCompat.getColor(this, R.color.dark_background)
+            controller.isAppearanceLightStatusBars = false
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyImmersiveStatusBar(true)
+    }
+
+    override fun onPause() {
+        applyImmersiveStatusBar(false)
+        super.onPause()
     }
 
     private fun populateMovieInfo() {
@@ -394,7 +403,6 @@ class MovieScheduleActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        restoreStatusBar()
         super.onDestroy()
     }
 

@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.view.ViewCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -29,8 +30,6 @@ class SignUpFragment : Fragment() {
     
     private var isPasswordVisible = false
     private val authRepository = AuthRepository()
-    private var originalStatusBarColor = 0
-    private var originalLightStatusBars = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -56,16 +55,10 @@ class SignUpFragment : Fragment() {
 
     // Edge-to-edge: let the bright hero bleed behind the status bar (transparent).
     // The hero has no dark overlay, so use dark status bar icons for readability.
+    // Applied on onResume and restored on onPause, because a fragment's onDestroyView
+    // runs AFTER the next fragment's onViewCreated — restoring there would clobber the
+    // incoming page's edge-to-edge state.
     private fun setupImmersiveStatusBar() {
-        val window = requireActivity().window
-        originalStatusBarColor = window.statusBarColor
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = Color.TRANSPARENT
-
-        val controller = WindowInsetsControllerCompat(window, window.decorView)
-        originalLightStatusBars = controller.isAppearanceLightStatusBars
-        controller.isAppearanceLightStatusBars = true
-
         // Keep the bottom of the page above the navigation bar so the link is reachable.
         // The hero itself bleeds behind the status bar (no top padding).
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
@@ -73,15 +66,32 @@ class SignUpFragment : Fragment() {
             v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, bottom)
             insets
         }
-        binding.root.requestApplyInsets()
+        applyImmersiveStatusBar(true)
     }
 
-    private fun restoreStatusBar() {
+    private fun applyImmersiveStatusBar(immersive: Boolean) {
         val window = requireActivity().window
-        WindowCompat.setDecorFitsSystemWindows(window, true)
-        window.statusBarColor = originalStatusBarColor
-        WindowInsetsControllerCompat(window, window.decorView)
-            .isAppearanceLightStatusBars = originalLightStatusBars
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        if (immersive) {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            window.statusBarColor = Color.TRANSPARENT
+            controller.isAppearanceLightStatusBars = true
+        } else {
+            WindowCompat.setDecorFitsSystemWindows(window, true)
+            window.statusBarColor =
+                ContextCompat.getColor(requireContext(), R.color.dark_background)
+            controller.isAppearanceLightStatusBars = false
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyImmersiveStatusBar(true)
+    }
+
+    override fun onPause() {
+        applyImmersiveStatusBar(false)
+        super.onPause()
     }
     
     private fun setupClickListeners() {
@@ -235,7 +245,6 @@ class SignUpFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        restoreStatusBar()
         super.onDestroyView()
         _binding = null
     }

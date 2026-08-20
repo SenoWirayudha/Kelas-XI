@@ -789,26 +789,43 @@ class MovieDetailFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        restoreStatusBar()
         super.onDestroyView()
         _binding = null
     }
 
-    private var originalStatusBarColor = 0
-
     private fun setupImmersiveHeader() {
-        val window = requireActivity().window
-        originalStatusBarColor = window.statusBarColor
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = Color.TRANSPARENT
-
         // Push the back button below the status bar so it isn't overlapped by clock/icons
         ViewCompat.setOnApplyWindowInsetsListener(binding.toolbar) { v, insets ->
             val top = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
             v.setPadding(v.paddingLeft, top, v.paddingRight, v.paddingBottom)
             insets
         }
-        binding.toolbar.requestApplyInsets()
+        applyImmersiveStatusBar(true)
+    }
+
+    // Applied on onResume and restored on onPause, because a fragment's onDestroyView
+    // runs AFTER the next fragment's onViewCreated — restoring there would clobber the
+    // incoming page's edge-to-edge state.
+    private fun applyImmersiveStatusBar(immersive: Boolean) {
+        val window = requireActivity().window
+        if (immersive) {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            window.statusBarColor = Color.TRANSPARENT
+        } else {
+            WindowCompat.setDecorFitsSystemWindows(window, true)
+            window.statusBarColor =
+                ContextCompat.getColor(requireContext(), R.color.dark_background)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyImmersiveStatusBar(true)
+    }
+
+    override fun onPause() {
+        applyImmersiveStatusBar(false)
+        super.onPause()
     }
 
     private var headerSolid = false
@@ -903,11 +920,5 @@ class MovieDetailFragment : Fragment() {
                 if (!headerTitleVisible && _binding != null) binding.tvHeaderTitle.visibility = View.GONE
             }, 200)
         }
-    }
-
-    private fun restoreStatusBar() {
-        val window = requireActivity().window
-        WindowCompat.setDecorFitsSystemWindows(window, true)
-        window.statusBarColor = originalStatusBarColor
     }
 }
