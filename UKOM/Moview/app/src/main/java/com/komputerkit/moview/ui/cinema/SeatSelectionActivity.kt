@@ -176,16 +176,16 @@ class SeatSelectionActivity : AppCompatActivity() {
         val typesToShow = seatTypes.filter { it.isSellable && it.key.lowercase(Locale.ENGLISH) in presentKeys }
 
         val density = resources.displayMetrics.density
-        val swatchSize = (20 * density).toInt()
-        val swatchMarginEnd = (6 * density).toInt()
-        val labelMarginEnd = (18 * density).toInt()
+        val swatchSize = (16 * density).toInt()
+        val swatchMarginEnd = (4 * density).toInt()
+        val labelMarginEnd = (12 * density).toInt()
         val textColor = ContextCompat.getColor(this, R.color.text_secondary)
 
         typesToShow.forEach { type ->
             val swatch = View(this).apply {
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
-                    cornerRadius = 6 * density
+                    cornerRadius = 5 * density
                     val base = parseHexColor(type.color)
                     setColor(lighten(base, 0.78f))
                     setStroke((2 * density).toInt(), base)
@@ -196,7 +196,7 @@ class SeatSelectionActivity : AppCompatActivity() {
             }
             val label = TextView(this).apply {
                 text = type.label
-                textSize = 12f
+                textSize = 11f
                 setTextColor(textColor)
                 setPadding(0, 0, labelMarginEnd, 0)
             }

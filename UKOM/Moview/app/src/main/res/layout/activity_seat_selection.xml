@@ -109,60 +109,53 @@
             app:tint="@color/text_secondary" />
     </LinearLayout>
 
-    <!-- ── LEGEND (single row, scrollable if too wide) ─────────────── -->
-    <HorizontalScrollView
+    <!-- ── LEGEND (single centered row, compact so it fits one line) ── -->
+    <LinearLayout
         android:id="@+id/legend"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:scrollbars="none"
-        android:fillViewport="false"
+        android:orientation="horizontal"
+        android:gravity="center_vertical|center_horizontal"
         app:layout_constraintTop_toBottomOf="@id/banner_info"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- Dynamic seat types (from seat_type_definitions), filled in Kotlin -->
         <LinearLayout
+            android:id="@+id/legend_types"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical" />
 
-            <!-- Dynamic seat types (from seat_type_definitions), filled in Kotlin -->
-            <LinearLayout
-                android:id="@+id/legend_types"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical" />
+        <!-- Booked -->
+        <View
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:background="@drawable/bg_seat_booked"
+            android:layout_marginEnd="4dp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tidak Tersedia"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp"
+            android:layout_marginEnd="12dp" />
 
-            <!-- Booked -->
-            <View
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:background="@drawable/bg_seat_booked"
-                android:layout_marginEnd="6dp" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Tidak Tersedia"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:layout_marginEnd="18dp" />
-
-            <!-- Selected -->
-            <View
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:background="@drawable/bg_seat_selected"
-                android:layout_marginEnd="6dp" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Pilihanmu"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-    </HorizontalScrollView>
+        <!-- Selected -->
+        <View
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:background="@drawable/bg_seat_selected"
+            android:layout_marginEnd="4dp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pilihanmu"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+    </LinearLayout>
 
     <!-- ── SEAT GRID (HORIZONTAL ONLY) ────────────────────────────── -->
     <FrameLayout
