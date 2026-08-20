@@ -249,6 +249,22 @@ class PaymentController extends Controller
                     $enabledPayments = [$preferredPaymentMethod];
                 }
 
+                // Aggregate ticket items by per-seat price so item_details sum
+                // exactly to gross_amount (seats can have different prices by type).
+                $ticketItems = collect($seatIds)
+                    ->map(fn($seatId) => (int) round($schedule->ticket_price * $studio->priceMultiplierFor($lockedById->get($seatId)->seat_type)))
+                    ->countBy()
+                    ->map(function ($qty, $price) use ($schedule, $seatCodes) {
+                        return [
+                            'id' => 'TICKET-' . $schedule->id . '-' . $price,
+                            'price' => (int) $price,
+                            'quantity' => (int) $qty,
+                            'name' => 'Tiket ' . ($schedule->movie->title ?? 'Movie') . ' (' . implode(', ', $seatCodes) . ')',
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
                 $payload = [
                     'transaction_details' => [
                         'order_id' => $orderCode,
@@ -260,20 +276,12 @@ class PaymentController extends Controller
                         'phone' => $rawPhone,
                     ],
                     'enabled_payments' => $enabledPayments,
-                    'item_details' => [
-                        [
-                            'id' => 'TICKET-' . $schedule->id,
-                            'price' => $ticketPrice,
-                            'quantity' => $seatCount,
-                            'name' => 'Tiket ' . ($schedule->movie->title ?? 'Movie') . ' (' . implode(', ', $seatCodes) . ')',
-                        ],
-                        [
-                            'id' => 'SERVICE-FEE',
-                            'price' => $serviceFeePerSeat,
-                            'quantity' => $seatCount,
-                            'name' => 'Biaya Layanan',
-                        ],
-                    ],
+                    'item_details' => array_merge($ticketItems, [[
+                        'id' => 'SERVICE-FEE',
+                        'price' => $serviceFeePerSeat,
+                        'quantity' => $seatCount,
+                        'name' => 'Biaya Layanan',
+                    ]]),
                     'metadata' => [
                         'user_id' => $user->id,
                         'schedule_id' => $schedule->id,
