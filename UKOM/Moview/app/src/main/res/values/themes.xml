@@ -12,8 +12,10 @@
         <item name="colorSecondaryVariant">@color/teal_700</item>
         <item name="colorOnSecondary">@color/black</item>
         
-        <!-- Status bar color -->
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <!-- Status bar color: blend with the standard dark app background.
+             Hero pages (login/register/schedule/detail) override this to
+             transparent at runtime for their edge-to-edge images. -->
+        <item name="android:statusBarColor">@color/dark_background</item>
 
         <!-- Global font family -->
         <item name="android:fontFamily">@font/font_family_inter</item>
