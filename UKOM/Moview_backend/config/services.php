@@ -30,6 +30,13 @@ return [
         'reset_base_url' => env('RESET_PASSWORD_BASE_URL', config('app.url')),
     ],
 
+    // Static hero images on the auth pages — credits are looked up from these ids.
+    'auth_hero' => [
+        'login_movie_id' => env('LOGIN_HERO_MOVIE_ID'),
+        'register_movie_id' => env('REGISTER_HERO_MOVIE_ID'),
+        'forgot_movie_id' => env('FORGOT_HERO_MOVIE_ID'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

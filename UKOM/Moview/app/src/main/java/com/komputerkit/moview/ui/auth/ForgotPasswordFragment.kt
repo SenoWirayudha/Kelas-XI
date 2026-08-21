@@ -61,6 +61,21 @@ class ForgotPasswordFragment : Fragment() {
         binding.btnBackToLogin.setOnClickListener {
             findNavController().navigateUp()
         }
+
+        loadHeroCredit()
+    }
+
+    /** "Scene from [Title] ([Year])" in the hero's bottom-left corner. */
+    private fun loadHeroCredit() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            authRepository.authHeroCredits().onSuccess { credits ->
+                val credit = credits.forgot ?: return@onSuccess
+                if (credit.title != null && credit.year != null) {
+                    binding.tvHeroCredit.text = "Scene from ${credit.title} (${credit.year})"
+                    binding.tvHeroCredit.visibility = View.VISIBLE
+                }
+            }
+        }
     }
 
     // Edge-to-edge pattern shared with Login/SignUp: applied on onResume and

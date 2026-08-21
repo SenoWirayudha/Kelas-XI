@@ -380,6 +380,19 @@ data class ForgotPasswordRequest(
     val email: String
 )
 
+// Auth hero credits ("Scene from [Title] ([Year])")
+data class AuthHeroCreditsDto(
+    val login: HeroCreditDto?,
+    val register: HeroCreditDto?,
+    val forgot: HeroCreditDto?
+)
+
+data class HeroCreditDto(
+    val movie_id: Int?,
+    val title: String?,
+    val year: Int?
+)
+
 data class RegisterRequest(
     val username: String,
     val email: String,

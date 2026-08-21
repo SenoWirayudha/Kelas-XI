@@ -89,6 +89,7 @@ class LoginFragment : Fragment() {
         binding.ivHero.loadBackdrop(
             ServerConfig.resolveStorageUrl("movies/100/backdrop/8oNbq20Y52DRycx5JyAei9VA9YyifDiQX4DRXLxx.webp")
         )
+        loadHeroCredit()
 
         // Keep the bottom of the page above the navigation bar so the link is reachable.
         // The hero itself bleeds behind the status bar (no top padding).
@@ -141,6 +142,19 @@ class LoginFragment : Fragment() {
             .requestId()
             .build()
         googleSignInClient = GoogleSignIn.getClient(requireActivity(), gso)
+    }
+
+    /** "Scene from [Title] ([Year])" in the hero's bottom-left corner. */
+    private fun loadHeroCredit() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            authRepository.authHeroCredits().onSuccess { credits ->
+                val credit = credits.login ?: return@onSuccess
+                if (credit.title != null && credit.year != null) {
+                    binding.tvHeroCredit.text = "Scene from ${credit.title} (${credit.year})"
+                    binding.tvHeroCredit.visibility = View.VISIBLE
+                }
+            }
+        }
     }
 
     private fun setupClickListeners() {

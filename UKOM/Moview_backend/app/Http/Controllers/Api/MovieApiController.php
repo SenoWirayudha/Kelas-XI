@@ -14,6 +14,43 @@ use Illuminate\Support\Facades\DB;
 
 class MovieApiController extends Controller
 {
+    /**
+     * GET /api/v1/auth-hero-credits
+     *
+     * Title + year for the static hero images on the auth pages (Login,
+     * Register, Forgot Password). The movie ids come from env config so the
+     * same credit is shown to everyone (the hero images are hardcoded).
+     */
+    public function authHeroCredits()
+    {
+        $pages = [
+            'login' => (int) config('services.auth_hero.login_movie_id'),
+            'register' => (int) config('services.auth_hero.register_movie_id'),
+            'forgot' => (int) config('services.auth_hero.forgot_movie_id'),
+        ];
+
+        $data = [];
+        foreach ($pages as $page => $movieId) {
+            $movie = $movieId > 0 ? Movie::find($movieId) : null;
+
+            $year = null;
+            if ($movie && ($date = $movie->primary_release_date)) {
+                $year = \Carbon\Carbon::parse($date)->year;
+            }
+
+            $data[$page] = [
+                'movie_id' => $movie?->id,
+                'title' => $movie?->title,
+                'year' => $year,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+        ]);
+    }
+
     private function topFilmIdsThisWeek(int $limit)
     {
         return DB::table('ratings')

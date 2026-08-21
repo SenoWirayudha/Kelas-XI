@@ -26,6 +26,9 @@ interface MovieApiService {
 
     @POST("forgot-password")
     suspend fun forgotPassword(@Body request: ForgotPasswordRequest): SimpleResponse
+
+    @GET("auth-hero-credits")
+    suspend fun getAuthHeroCredits(): ApiResponse<AuthHeroCreditsDto>
     
     @POST("logout")
     suspend fun logout(): ApiResponse<Any>

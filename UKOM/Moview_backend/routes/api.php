@@ -49,6 +49,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/movies/upcoming', [MovieApiController::class, 'upcoming']);
     Route::get('/movies/coming-soon', [MovieApiController::class, 'comingSoon']);
     Route::get('/academy-award-nominees', [MovieApiController::class, 'academyAwardNominees']);
+    Route::get('/auth-hero-credits', [MovieApiController::class, 'authHeroCredits']);
     
     // Movies
     Route::get('/movies', [MovieApiController::class, 'index']);

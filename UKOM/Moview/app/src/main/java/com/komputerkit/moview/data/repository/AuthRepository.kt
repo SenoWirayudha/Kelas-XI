@@ -1,5 +1,6 @@
 package com.komputerkit.moview.data.repository
 
+import com.komputerkit.moview.data.api.AuthHeroCreditsDto
 import com.komputerkit.moview.data.api.ForgotPasswordRequest
 import com.komputerkit.moview.data.api.GoogleLoginRequest
 import com.komputerkit.moview.data.api.LoginRequest
@@ -81,6 +82,21 @@ class AuthRepository {
                 Result.success(Unit)
             } else {
                 Result.failure(Exception(response.message ?: "Gagal mengirim link reset"))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    /** Title + year for the static auth hero images (login/register/forgot). */
+    suspend fun authHeroCredits(): Result<AuthHeroCreditsDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getAuthHeroCredits()
+            if (response.success && response.data != null) {
+                Result.success(response.data)
+            } else {
+                Result.failure(Exception("Failed to load hero credits"))
             }
         } catch (e: Exception) {
             e.printStackTrace()

@@ -47,6 +47,7 @@ class SignUpFragment : Fragment() {
         binding.ivHero.loadBackdrop(
             ServerConfig.resolveStorageUrl("movies/40/backdrop/OB6fhfbBWeN6aLrVKoPQseKywhkoMhoYrpob4GWr.webp")
         )
+        loadHeroCredit()
 
         setupImmersiveStatusBar()
         setupClickListeners()
@@ -105,6 +106,19 @@ class SignUpFragment : Fragment() {
         
         binding.tvLogin.setOnClickListener {
             findNavController().popBackStack()
+        }
+    }
+
+    /** "Scene from [Title] ([Year])" in the hero's bottom-left corner. */
+    private fun loadHeroCredit() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            authRepository.authHeroCredits().onSuccess { credits ->
+                val credit = credits.register ?: return@onSuccess
+                if (credit.title != null && credit.year != null) {
+                    binding.tvHeroCredit.text = "Scene from ${credit.title} (${credit.year})"
+                    binding.tvHeroCredit.visibility = View.VISIBLE
+                }
+            }
         }
     }
     
