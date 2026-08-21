@@ -21,14 +21,49 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+
         setupNavigation()
         checkLoginStatus()
         loadUnreadNotificationCount()
         handleMovieDetailIntent(intent)
+
+        // --- DEBUG: runtime font verification (auto-removed after confirmed, keep log only) ---
+        binding.root.post { verifyFontsAtRuntime() }
+    }
+
+    private fun verifyFontsAtRuntime() {
+        val tag = "FontCheck"
+        try {
+            val chip = com.google.android.material.chip.Chip(this)
+            chip.text = "FontCheckChip"
+            val inter = androidx.core.content.res.ResourcesCompat.getFont(this, R.font.font_family_inter)
+            val sansDefault = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
+            val sansMedium = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+            val chipTf = chip.typeface
+            val chipMatchesInter = inter != null && chipTf != null && chipTf.toString() == inter.toString()
+            val chipMatchesSans = chipTf?.toString() == sansDefault.toString() || chipTf?.toString() == sansMedium.toString()
+            android.util.Log.d(tag, "Probe Chip typeface=${chipTf} paintTf=${chip.paint.typeface} text=${chip.text}")
+            android.util.Log.d(tag, "Probe Chip vs Inter match=$chipMatchesInter inter=$inter isSansFallback=$chipMatchesSans sansDefault=$sansDefault")
+            android.util.Log.d(tag, "RESULT Chip isInter=${chipMatchesInter && !chipMatchesSans}")
+            val a = obtainStyledAttributes(intArrayOf(com.google.android.material.R.attr.chipStyle))
+            android.util.Log.d(tag, "Theme chipStyle resId=${a.getResourceId(0, 0)}")
+            a.recycle()
+            val b = obtainStyledAttributes(intArrayOf(com.google.android.material.R.attr.snackbarStyle))
+            android.util.Log.d(tag, "Theme snackbarStyle resId=${b.getResourceId(0, 0)}")
+            b.recycle()
+        } catch (e: Exception) {
+            android.util.Log.e(tag, "Probe Chip failed", e)
+        }
+        try {
+            val c = obtainStyledAttributes(intArrayOf(android.R.attr.fontFamily))
+            android.util.Log.d(tag, "Theme android:fontFamily=${c.getString(0)}")
+            c.recycle()
+        } catch (e: Exception) {
+            android.util.Log.e(tag, "Probe fontFamily failed", e)
+        }
     }
 
     override fun onNewIntent(intent: android.content.Intent) {

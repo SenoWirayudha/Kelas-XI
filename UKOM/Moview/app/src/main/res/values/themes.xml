@@ -6,50 +6,92 @@
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorPrimaryVariant">@color/purple_700</item>
         <item name="colorOnPrimary">@color/white</item>
-        
+
         <!-- Secondary brand color -->
         <item name="colorSecondary">@color/teal_200</item>
         <item name="colorSecondaryVariant">@color/teal_700</item>
         <item name="colorOnSecondary">@color/black</item>
-        
+
         <!-- Status bar color: blend with the standard dark app background.
              Hero pages (login/register/schedule/detail) override this to
              transparent at runtime for their edge-to-edge images. -->
         <item name="android:statusBarColor">@color/dark_background</item>
 
-        <!-- Global font family -->
+        <!-- ================================================================
+             Global font — BOTH attributes required (different API levels).
+             This covers TextView, EditText, Button, etc. that inherit
+             directly from theme fontFamily.
+             ================================================================ -->
         <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
 
-        <!-- Material chips resolve text via textAppearanceLabelLarge, which defaults
-             to Roboto (M3.Sys.Typescale.LabelLarge). Override it to keep Inter. -->
-        <item name="textAppearanceLabelLarge">@style/TextAppearance.Moview.LabelLarge</item>
+        <!-- All Material text appearances funnel through one TextAppearance
+             so even components that inflate their own style get Inter. -->
+        <item name="textAppearanceBody1">@style/FontInterTextAppearance</item>
+        <item name="textAppearanceBody2">@style/FontInterTextAppearance</item>
+        <item name="textAppearanceButton">@style/FontInterTextAppearance</item>
+        <item name="textAppearanceCaption">@style/FontInterTextAppearance</item>
+        <item name="textAppearanceHeadline6">@style/FontInterTextAppearance</item>
+        <item name="textAppearanceSubtitle1">@style/FontInterTextAppearance</item>
+        <item name="textAppearanceSubtitle2">@style/FontInterTextAppearance</item>
+        <!-- M3 attribute kept for forward-compat -->
+        <item name="textAppearanceLabelLarge">@style/FontInterTextAppearance</item>
+
+        <!-- Widget-level overrides so components that ignore fontFamily pick it up -->
+        <item name="android:textViewStyle">@style/Widget.App.TextView</item>
+        <item name="chipStyle">@style/Widget.App.Chip</item>
+        <item name="snackbarStyle">@style/Widget.App.Snackbar</item>
+        <item name="snackbarButtonStyle">@style/Widget.App.Snackbar.Button</item>
+        <item name="materialButtonStyle">@style/Widget.App.Button</item>
     </style>
 
-    <!-- Chip label style: same size/weight as Material LabelLarge but using Inter. -->
-    <style name="TextAppearance.Moview.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+    <!-- ================================================================
+         Single source of truth for font.
+         Every widget/textAppearance that should be Inter references this.
+         ================================================================ -->
+    <style name="FontInterTextAppearance">
         <item name="android:fontFamily">@font/font_family_inter</item>
         <item name="fontFamily">@font/font_family_inter</item>
     </style>
 
-    <!-- Centralized chip styles — forces Inter font on ALL Material chips.
-         Every Chip in the app should use one of these styles instead of
-         Widget.MaterialComponents.Chip.* directly. -->
+    <!-- TextView — plain TextViews inherit this via android:textViewStyle -->
+    <style name="Widget.App.TextView" parent="android:Widget.TextView">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+
+    <!-- Button -->
+    <style name="Widget.App.Button" parent="Widget.MaterialComponents.Button">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+
+    <!-- Snackbar — the message TextView inside Snackbar -->
+    <style name="Widget.App.Snackbar" parent="Widget.MaterialComponents.Snackbar">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+    <style name="Widget.App.Snackbar.Button" parent="Widget.MaterialComponents.Button.TextButton.Snackbar">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+
+    <!-- Chip — centralized chooser so no Chip uses the raw M2 default.
+         App code should use Widget.App.Chip.* ; chipStyle guarantees the
+         bare <Chip> (no style attr) also gets Inter. -->
+    <style name="Widget.App.Chip" parent="Widget.MaterialComponents.Chip.Choice">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
     <style name="Widget.App.Chip.Choice" parent="Widget.MaterialComponents.Chip.Choice">
         <item name="android:fontFamily">@font/font_family_inter</item>
         <item name="fontFamily">@font/font_family_inter</item>
     </style>
-
     <style name="Widget.App.Chip.Action" parent="Widget.MaterialComponents.Chip.Action">
         <item name="android:fontFamily">@font/font_family_inter</item>
         <item name="fontFamily">@font/font_family_inter</item>
     </style>
-
     <style name="Widget.App.Chip.Filter" parent="Widget.MaterialComponents.Chip.Filter">
-        <item name="android:fontFamily">@font/font_family_inter</item>
-        <item name="fontFamily">@font/font_family_inter</item>
-    </style>
-
-    <style name="Widget.App.Chip" parent="Widget.MaterialComponents.Chip.Choice">
         <item name="android:fontFamily">@font/font_family_inter</item>
         <item name="fontFamily">@font/font_family_inter</item>
     </style>
@@ -59,28 +101,28 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
     </style>
-    
+
     <!-- Circle Image View for avatars -->
     <style name="CircleImageView">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item>
     </style>
-    
+
     <!-- Rounded Corner 8dp for service logos -->
     <style name="RoundedCorner8dp">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">8dp</item>
     </style>
-    
+
     <!-- Bottom Sheet Dialog Theme -->
     <style name="BottomSheetDialogTheme" parent="Theme.MaterialComponents.BottomSheetDialog">
         <item name="bottomSheetStyle">@style/ModalBottomSheetStyle</item>
     </style>
-    
+
     <style name="ModalBottomSheetStyle" parent="Widget.Design.BottomSheet.Modal">
         <item name="android:background">@android:color/transparent</item>
     </style>
-    
+
     <!-- Tab Text Style for Crew Detail -->
     <style name="TabTextStyle" parent="TextAppearance.Design.Tab">
         <item name="android:textSize">14sp</item>
