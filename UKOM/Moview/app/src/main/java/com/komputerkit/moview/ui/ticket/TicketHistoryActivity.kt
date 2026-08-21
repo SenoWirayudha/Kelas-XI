@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -14,6 +13,8 @@ import com.komputerkit.moview.data.repository.MovieRepository
 import com.google.android.material.tabs.TabLayoutMediator
 import com.komputerkit.moview.databinding.ActivityTicketHistoryBinding
 import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.showSnackbar
 import kotlinx.coroutines.launch
 
 class TicketHistoryActivity : AppCompatActivity() {
@@ -62,7 +63,7 @@ class TicketHistoryActivity : AppCompatActivity() {
     private fun observeViewModel() {
         viewModel.errorMessage.observe(this) { message ->
             if (!message.isNullOrBlank()) {
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                showSnackbar(message, SnackbarType.ERROR)
             }
         }
     }
@@ -70,7 +71,7 @@ class TicketHistoryActivity : AppCompatActivity() {
     private fun loadTicketHistory() {
         val userId = getSharedPreferences("MoviewPrefs", MODE_PRIVATE).getInt("userId", 0)
         if (userId <= 0) {
-            Toast.makeText(this, "User belum login.", Toast.LENGTH_SHORT).show()
+            showSnackbar("User belum login.", SnackbarType.ERROR)
             return
         }
 
@@ -99,7 +100,7 @@ class TicketHistoryActivity : AppCompatActivity() {
         }
 
         if (item.movieId <= 0) {
-            Toast.makeText(this, "Film tidak ditemukan.", Toast.LENGTH_SHORT).show()
+            showSnackbar("Film tidak ditemukan.", SnackbarType.ERROR)
             return
         }
 
@@ -135,7 +136,7 @@ class TicketHistoryActivity : AppCompatActivity() {
 
     fun onTicketMovieClicked(item: TicketHistoryItem) {
         if (item.movieId <= 0) {
-            Toast.makeText(this, "Film tidak ditemukan.", Toast.LENGTH_SHORT).show()
+            showSnackbar("Film tidak ditemukan.", SnackbarType.ERROR)
             return
         }
 

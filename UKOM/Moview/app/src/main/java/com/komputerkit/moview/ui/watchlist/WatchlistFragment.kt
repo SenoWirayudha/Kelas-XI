@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -13,6 +12,8 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import com.komputerkit.moview.data.model.WatchlistItem
 import com.komputerkit.moview.databinding.FragmentWatchlistBinding
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
@@ -76,7 +77,7 @@ class WatchlistFragment : Fragment() {
             },
             onItemLongClick = { item ->
                 // TODO: Show bottom sheet action panel
-                Toast.makeText(requireContext(), "Long press on ${item.movie.title}", Toast.LENGTH_SHORT).show()
+                showSnackbar("Long press on ${item.movie.title}", SnackbarType.INFO)
             },
             onLogFilm = { item ->
                 val action = WatchlistFragmentDirections.actionWatchlistToLogFilm(item.movie.id)

@@ -4,13 +4,14 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentUpcomingBinding
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.ui.home.TheatricalMovieAdapter
 import com.komputerkit.moview.ui.social.GridSpacingItemDecoration
 import com.komputerkit.moview.util.ScrollStateHelper
@@ -82,7 +83,7 @@ class UpcomingFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         }
 
         viewModel.error.observe(viewLifecycleOwner) { error ->
-            error?.let { Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show() }
+            error?.let { showSnackbar(it, SnackbarType.ERROR) }
         }
 
         viewModel.loadMovies()

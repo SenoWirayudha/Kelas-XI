@@ -8,7 +8,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -16,6 +15,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentHomeNewBinding
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.ui.cinema.MovieScheduleActivity
 
 class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
@@ -135,12 +136,12 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                         android.util.Log.d("HomeFragment", "Navigation command executed!")
                     } else {
                         android.util.Log.e("HomeFragment", "ERROR: Invalid reviewId: $reviewId")
-                        Toast.makeText(requireContext(), "Cannot open this activity (invalid ID)", Toast.LENGTH_SHORT).show()
+                        showSnackbar("Cannot open this activity (invalid ID)", SnackbarType.ERROR)
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("HomeFragment", "!!! EXCEPTION IN CALLBACK !!!", e)
                     e.printStackTrace()
-                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    showSnackbar("Error: ${e.message}", SnackbarType.ERROR)
                 }
                 
                 android.util.Log.d("HomeFragment", "========================================")
@@ -308,7 +309,7 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
                 android.util.Log.e("HomeFragment", "Error loading data: $it")
-                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+                showSnackbar(it, SnackbarType.ERROR)
             }
         }
         

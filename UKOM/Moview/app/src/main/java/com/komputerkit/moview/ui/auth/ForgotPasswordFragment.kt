@@ -5,7 +5,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -124,12 +125,12 @@ class ForgotPasswordFragment : Fragment() {
         val email = binding.etEmail.text.toString().trim()
 
         if (email.isEmpty()) {
-            Toast.makeText(requireContext(), "Please enter email", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please enter email", SnackbarType.ERROR)
             return
         }
 
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            Toast.makeText(requireContext(), "Please enter valid email", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please enter valid email", SnackbarType.ERROR)
             return
         }
 
@@ -142,11 +143,10 @@ class ForgotPasswordFragment : Fragment() {
                 showConfirmation()
             }.onFailure { error ->
                 showLoading(false)
-                Toast.makeText(
-                    requireContext(),
+                showSnackbar(
                     error.message ?: "Gagal mengirim link reset. Coba lagi.",
-                    Toast.LENGTH_SHORT
-                ).show()
+                    SnackbarType.ERROR
+                )
             }
         }
     }

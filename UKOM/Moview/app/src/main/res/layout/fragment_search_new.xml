@@ -85,10 +85,9 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_all"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="All"
                 android:checked="true"
                 android:textColor="@color/chip_text_selector"
@@ -96,40 +95,36 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_movies"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Movies"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_cast_crew"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Cast &amp; Crew"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_production_houses"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Production Houses"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_people"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="People"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector" />

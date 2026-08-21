@@ -3,13 +3,14 @@ package com.komputerkit.moview
 import android.content.Context
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
 
@@ -46,7 +47,7 @@ class MainActivity : AppCompatActivity() {
                     Bundle().apply { putInt("movieId", movieId) }
                 )
             } catch (e: Exception) {
-                Toast.makeText(this, "Gagal membuka detail film", Toast.LENGTH_SHORT).show()
+                showSnackbar("Gagal membuka detail film", SnackbarType.ERROR)
             }
             return
         }
@@ -67,7 +68,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 )
             } catch (e: Exception) {
-                Toast.makeText(this, "Gagal membuka halaman review/log", Toast.LENGTH_SHORT).show()
+                showSnackbar("Gagal membuka halaman review/log", SnackbarType.ERROR)
             }
             return
         }
@@ -84,7 +85,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 )
             } catch (e: Exception) {
-                Toast.makeText(this, "Gagal membuka ganti poster/backdrop", Toast.LENGTH_SHORT).show()
+                showSnackbar("Gagal membuka ganti poster/backdrop", SnackbarType.ERROR)
             }
         }
     }

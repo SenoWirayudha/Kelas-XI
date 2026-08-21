@@ -3,7 +3,6 @@ package com.komputerkit.moview.ui.ticket
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Bundle
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
@@ -14,6 +13,8 @@ import com.komputerkit.moview.R
 import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.databinding.ActivityTicketQrBinding
 import com.komputerkit.moview.util.ServerConfig
+import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.showSnackbar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,7 +42,7 @@ class TicketQrActivity : AppCompatActivity() {
         val userId = getSharedPreferences("MoviewPrefs", MODE_PRIVATE).getInt("userId", 0)
 
         if (orderId <= 0 || ticketCode.isBlank() || userId <= 0) {
-            Toast.makeText(this, "Data tiket tidak valid.", Toast.LENGTH_SHORT).show()
+            showSnackbar("Data tiket tidak valid.", SnackbarType.ERROR)
             finish()
             return
         }
@@ -57,11 +58,10 @@ class TicketQrActivity : AppCompatActivity() {
                 }
 
                 if (!response.success || response.data == null) {
-                    Toast.makeText(
-                        this@TicketQrActivity,
+                    showSnackbar(
                         response.message ?: "Gagal memuat detail QR tiket.",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                        SnackbarType.ERROR
+                    )
                     finish()
                     return@launch
                 }
@@ -90,11 +90,10 @@ class TicketQrActivity : AppCompatActivity() {
 
                 binding.ivQr.setImageBitmap(generateQrBitmap(data.ticket_code, 700))
             } catch (e: Exception) {
-                Toast.makeText(
-                    this@TicketQrActivity,
+                showSnackbar(
                     e.message ?: "Terjadi kesalahan saat memuat QR tiket.",
-                    Toast.LENGTH_SHORT
-                ).show()
+                    SnackbarType.ERROR
+                )
                 finish()
             }
         }

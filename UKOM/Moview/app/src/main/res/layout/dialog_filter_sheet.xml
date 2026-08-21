@@ -56,10 +56,9 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_genre"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Genre"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector"
@@ -69,10 +68,9 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_theme"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Theme"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector"
@@ -82,10 +80,9 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_language"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Language"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector"
@@ -95,10 +92,9 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_country"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Country"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector"
@@ -108,10 +104,9 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_production_house"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Production House"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector"
@@ -121,10 +116,9 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_release_year"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Release Year"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector"
@@ -134,10 +128,9 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_rating"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Rating"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector"
@@ -147,10 +140,9 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_year"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Year"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector"
@@ -160,10 +152,9 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_date"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
+                style="@style/Widget.App.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/font_family_inter"
                 android:text="Date"
                 android:textColor="@color/chip_text_selector"
                 app:chipBackgroundColor="@color/chip_background_selector"

@@ -5,13 +5,14 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentFriendActivitiesBinding
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.ScrollStateHelper
 
 class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
@@ -49,7 +50,7 @@ class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListene
         if (userId > 0) {
             viewModel.loadFriendsActivities(userId)
         } else {
-            Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please login first", SnackbarType.ERROR)
         }
     }
 
@@ -81,7 +82,7 @@ class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListene
                         findNavController().navigate(action)
                     } catch (e: Exception) {
                         android.util.Log.e("FriendActivitiesFragment", "Navigation error", e)
-                        Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        showSnackbar("Error: ${e.message}", SnackbarType.ERROR)
                     }
                 }
             },
@@ -178,7 +179,7 @@ class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListene
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
                 android.util.Log.e("FriendActivitiesFragment", "Error: $it")
-                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+                showSnackbar(it, SnackbarType.ERROR)
             }
         }
     }

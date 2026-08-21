@@ -9,7 +9,6 @@ import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -28,6 +27,8 @@ import com.komputerkit.moview.ui.cinema.adapter.CinemaScheduleAdapter
 import com.komputerkit.moview.ui.cinema.adapter.DateTabAdapter
 import com.komputerkit.moview.ui.cinema.model.*
 import com.komputerkit.moview.util.ServerConfig
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import kotlinx.coroutines.launch
 
 class MovieScheduleActivity : AppCompatActivity() {
@@ -323,7 +324,7 @@ class MovieScheduleActivity : AppCompatActivity() {
         Log.d(logTag, "applyCinemaFilter() query='$query'")
         viewModel.setSearchQuery(query)
         if (query.isBlank()) {
-            Toast.makeText(this, "Menampilkan semua bioskop", Toast.LENGTH_SHORT).show()
+            showSnackbar("Menampilkan semua bioskop", SnackbarType.INFO)
         }
     }
 

@@ -782,6 +782,7 @@
 
                             <com.google.android.material.chip.Chip
                                 android:id="@+id/chip_genre_1"
+                                style="@style/Widget.App.Chip"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Science Fiction"
@@ -791,6 +792,7 @@
 
                             <com.google.android.material.chip.Chip
                                 android:id="@+id/chip_genre_2"
+                                style="@style/Widget.App.Chip"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Adventure"
@@ -800,6 +802,7 @@
 
                             <com.google.android.material.chip.Chip
                                 android:id="@+id/chip_genre_3"
+                                style="@style/Widget.App.Chip"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Drama"

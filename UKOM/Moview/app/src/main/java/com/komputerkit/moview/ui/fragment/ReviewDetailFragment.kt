@@ -15,7 +15,6 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.PopupMenu
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -26,6 +25,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.komputerkit.moview.R
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.data.model.Comment
 import com.komputerkit.moview.databinding.BottomSheetCommentsBinding
 import com.komputerkit.moview.databinding.FragmentReviewDetailBinding
@@ -265,20 +266,20 @@ class ReviewDetailFragment : Fragment() {
             if (success) {
                 val isReview = viewModel.review.value?.reviewId ?: 0 > 0
                 val message = if (isReview) "Review deleted successfully" else "Log entry deleted successfully"
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                showSnackbar(message, SnackbarType.SUCCESS)
                 findNavController().navigateUp()
             } else {
-                Toast.makeText(requireContext(), "Failed to delete", Toast.LENGTH_SHORT).show()
+                showSnackbar("Failed to delete", SnackbarType.ERROR)
             }
         }
         
         viewModel.flagStatus.observe(viewLifecycleOwner) { success ->
             if (success) {
-                Toast.makeText(requireContext(), "Review reported successfully", Toast.LENGTH_SHORT).show()
+                showSnackbar("Review reported successfully", SnackbarType.SUCCESS)
                 // Hide menu after reporting
                 binding.btnMoreOptions.visibility = View.GONE
             } else {
-                Toast.makeText(requireContext(), "Failed to report review", Toast.LENGTH_SHORT).show()
+                showSnackbar("Failed to report review", SnackbarType.ERROR)
             }
         }
     }
@@ -364,7 +365,7 @@ class ReviewDetailFragment : Fragment() {
                 if (review.userId != currentUserId) {
                     viewModel.toggleLike()
                 } else {
-                    Toast.makeText(requireContext(), "You can't like your own review", Toast.LENGTH_SHORT).show()
+                    showSnackbar("You can't like your own review", SnackbarType.ERROR)
                 }
             }
         }
@@ -377,7 +378,7 @@ class ReviewDetailFragment : Fragment() {
                 if (review.userId != currentUserId) {
                     viewModel.toggleLike()
                 } else {
-                    Toast.makeText(requireContext(), "You can't like your own review", Toast.LENGTH_SHORT).show()
+                    showSnackbar("You can't like your own review", SnackbarType.ERROR)
                 }
             }
         }
@@ -589,7 +590,7 @@ class ReviewDetailFragment : Fragment() {
             if (commentText.isNotEmpty()) {
                 viewModel.addComment(commentText)
                 addCommentSheet.dismiss()
-                Toast.makeText(requireContext(), "Comment posted", Toast.LENGTH_SHORT).show()
+                showSnackbar("Comment posted", SnackbarType.SUCCESS)
                 
                 // Refresh comments list after a delay to ensure server has processed
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -644,7 +645,7 @@ class ReviewDetailFragment : Fragment() {
         val end = editText.selectionEnd
         
         if (start == end) {
-            Toast.makeText(requireContext(), "Please select text first", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please select text first", SnackbarType.ERROR)
             return
         }
         
@@ -676,7 +677,7 @@ class ReviewDetailFragment : Fragment() {
         val end = editText.selectionEnd
         
         if (start == end) {
-            Toast.makeText(requireContext(), "Please select text first", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please select text first", SnackbarType.ERROR)
             return
         }
         
@@ -723,7 +724,7 @@ class ReviewDetailFragment : Fragment() {
                 var linkText = etLinkText.text.toString().trim()
                 
                 if (url.isEmpty()) {
-                    Toast.makeText(requireContext(), "Please enter URL", Toast.LENGTH_SHORT).show()
+                    showSnackbar("Please enter URL", SnackbarType.ERROR)
                     return@setPositiveButton
                 }
                 
@@ -890,7 +891,7 @@ class ReviewDetailFragment : Fragment() {
             .setMessage("Report this comment as inappropriate?")
             .setPositiveButton("Report") { _, _ ->
                 viewModel.flagComment(comment.id)
-                Toast.makeText(requireContext(), "Comment reported", Toast.LENGTH_SHORT).show()
+                showSnackbar("Comment reported", SnackbarType.SUCCESS)
             }
             .setNegativeButton("Cancel", null)
             .show()

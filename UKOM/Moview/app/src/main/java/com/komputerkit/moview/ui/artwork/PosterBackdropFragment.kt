@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -15,6 +14,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.ArtworkType
 import com.komputerkit.moview.databinding.FragmentPosterBackdropBinding
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 
 class PosterBackdropFragment : Fragment() {
 
@@ -128,10 +129,10 @@ class PosterBackdropFragment : Fragment() {
                 findNavController().previousBackStackEntry?.savedStateHandle?.set(
                     "artwork_saved", true
                 )
-                Toast.makeText(requireContext(), "Artwork saved successfully!", Toast.LENGTH_SHORT).show()
+                showSnackbar("Artwork saved successfully!", SnackbarType.SUCCESS)
                 findNavController().navigateUp()
             } else {
-                Toast.makeText(requireContext(), "Failed to save artwork", Toast.LENGTH_SHORT).show()
+                showSnackbar("Failed to save artwork", SnackbarType.ERROR)
             }
         }
     }

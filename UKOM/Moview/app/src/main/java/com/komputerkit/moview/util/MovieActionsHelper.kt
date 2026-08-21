@@ -12,7 +12,7 @@ import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
-import android.widget.Toast
+import com.google.android.material.snackbar.Snackbar
 import androidx.core.content.ContextCompat
 import androidx.navigation.Navigation
 import androidx.fragment.app.FragmentActivity
@@ -25,6 +25,8 @@ import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.databinding.BottomSheetMovieActionsBinding
 import com.komputerkit.moview.databinding.DialogFullPosterBinding
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import kotlinx.coroutines.launch
 
 /**
@@ -277,10 +279,10 @@ currentRating = ratingResponse.rating ?: 0f
                                 } else {
                                     binding.layoutRewatch.visibility = View.GONE
                                 }
-                                Toast.makeText(context, "Removed from watched", Toast.LENGTH_SHORT).show()
+                                (context as? android.app.Activity)?.showSnackbar("Removed from watched", SnackbarType.SUCCESS)
                                 onRatingSaved?.invoke()
                             } else {
-                                Toast.makeText(context, "Failed to unwatch", Toast.LENGTH_SHORT).show()
+                                (context as? android.app.Activity)?.showSnackbar("Failed to unwatch", SnackbarType.ERROR)
                             }
                         }
                     } else {
@@ -305,17 +307,17 @@ currentRating = ratingResponse.rating ?: 0f
                                 } else {
                                     binding.layoutRewatch.visibility = View.GONE
                                 }
-                                Toast.makeText(context, "Marked as watched", Toast.LENGTH_SHORT).show()
+                                (context as? android.app.Activity)?.showSnackbar("Marked as watched", SnackbarType.SUCCESS)
                                 onRatingSaved?.invoke()
                             } else {
-                                Toast.makeText(context, "Failed to save", Toast.LENGTH_SHORT).show()
+                                (context as? android.app.Activity)?.showSnackbar("Failed to save", SnackbarType.ERROR)
                             }
                         }
                     }
                 }
             } else {
                 Log.e("MovieActionsHelper", "Cannot save: userId=$userId, lifecycleOwner=$actualLifecycleOwner")
-                Toast.makeText(context, "Please login first", Toast.LENGTH_SHORT).show()
+                (context as? android.app.Activity)?.showSnackbar("Please login first", SnackbarType.ERROR)
             }
         }
 
@@ -339,7 +341,7 @@ currentRating = ratingResponse.rating ?: 0f
                                 likeText.text = "Liked"
                                 
                                 // Don't auto-save rating - user should set rating separately
-                                Toast.makeText(context, "Added to likes", Toast.LENGTH_SHORT).show()
+                                (context as? android.app.Activity)?.showSnackbar("Added to likes", SnackbarType.SUCCESS)
                                 
                                 // Trigger callback to refresh data
                                 onRatingSaved?.invoke()
@@ -351,19 +353,19 @@ currentRating = ratingResponse.rating ?: 0f
                                     context.getColor(R.color.text_secondary)
                                 )
                                 likeText.text = "Like"
-                                Toast.makeText(context, "Removed from likes", Toast.LENGTH_SHORT).show()
+                                (context as? android.app.Activity)?.showSnackbar("Removed from likes", SnackbarType.SUCCESS)
                                 
                                 // Trigger callback to refresh data
                                 onRatingSaved?.invoke()
                             }
                             null -> {
-                                Toast.makeText(context, "Failed to update like", Toast.LENGTH_SHORT).show()
+                                (context as? android.app.Activity)?.showSnackbar("Failed to update like", SnackbarType.ERROR)
                             }
                         }
                     }
                 }
             } else {
-                Toast.makeText(context, "Please login first", Toast.LENGTH_SHORT).show()
+                (context as? android.app.Activity)?.showSnackbar("Please login first", SnackbarType.ERROR)
             }
         }
 
@@ -385,7 +387,7 @@ currentRating = ratingResponse.rating ?: 0f
                                     context.getColor(R.color.orange)
                                 )
                                 watchlistText.text = "In Watchlist"
-                                Toast.makeText(context, "Added to watchlist", Toast.LENGTH_SHORT).show()
+                                (context as? android.app.Activity)?.showSnackbar("Added to watchlist", SnackbarType.SUCCESS)
                             }
                             false -> {
                                 // Removed from watchlist
@@ -394,16 +396,16 @@ currentRating = ratingResponse.rating ?: 0f
                                     context.getColor(R.color.text_secondary)
                                 )
                                 watchlistText.text = "Watchlist"
-                                Toast.makeText(context, "Removed from watchlist", Toast.LENGTH_SHORT).show()
+                                (context as? android.app.Activity)?.showSnackbar("Removed from watchlist", SnackbarType.SUCCESS)
                             }
                             null -> {
-                                Toast.makeText(context, "Failed to update watchlist", Toast.LENGTH_SHORT).show()
+                                (context as? android.app.Activity)?.showSnackbar("Failed to update watchlist", SnackbarType.ERROR)
                             }
                         }
                     }
                 }
             } else {
-                Toast.makeText(context, "Please login first", Toast.LENGTH_SHORT).show()
+                (context as? android.app.Activity)?.showSnackbar("Please login first", SnackbarType.ERROR)
             }
         }
 
@@ -815,16 +817,16 @@ currentRating = ratingResponse.rating ?: 0f
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 updateWatchedButtonState(context, binding, true)
                             }
-                            Toast.makeText(context, "Rated: $ratingToSave stars", Toast.LENGTH_SHORT).show()
+                            (context as? android.app.Activity)?.showSnackbar("Rated: $ratingToSave stars", SnackbarType.SUCCESS)
                             // Trigger callback to refresh data
                             onRatingSaved?.invoke()
                         } else {
-                            Toast.makeText(context, "Failed to save rating", Toast.LENGTH_SHORT).show()
+                            (context as? android.app.Activity)?.showSnackbar("Failed to save rating", SnackbarType.ERROR)
                         }
                     }
                 } else {
                     Log.e("MovieActionsHelper", "Cannot save rating: userId=$userId, lifecycleOwner=$lifecycleOwner")
-                    Toast.makeText(context, "Rated: $newRating stars (please login to save)", Toast.LENGTH_SHORT).show()
+                    (context as? android.app.Activity)?.showSnackbar("Rated: $newRating stars (please login to save)", SnackbarType.SUCCESS)
                 }
             }
         }

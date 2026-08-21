@@ -8,6 +8,8 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 
 class StarRatingTestActivity : Activity() {
 
@@ -96,7 +98,7 @@ class StarRatingTestActivity : Activity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun toast(message: String) {
-        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
+        showSnackbar(message, SnackbarType.INFO)
     }
 
     private fun params(): LinearLayout.LayoutParams =

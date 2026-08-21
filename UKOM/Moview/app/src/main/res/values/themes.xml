@@ -31,6 +31,29 @@
         <item name="fontFamily">@font/font_family_inter</item>
     </style>
 
+    <!-- Centralized chip styles — forces Inter font on ALL Material chips.
+         Every Chip in the app should use one of these styles instead of
+         Widget.MaterialComponents.Chip.* directly. -->
+    <style name="Widget.App.Chip.Choice" parent="Widget.MaterialComponents.Chip.Choice">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+
+    <style name="Widget.App.Chip.Action" parent="Widget.MaterialComponents.Chip.Action">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+
+    <style name="Widget.App.Chip.Filter" parent="Widget.MaterialComponents.Chip.Filter">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+
+    <style name="Widget.App.Chip" parent="Widget.MaterialComponents.Chip.Choice">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+
     <!-- Theme without action bar for main activity -->
     <style name="Theme.Moview.NoActionBar">
         <item name="windowActionBar">false</item>

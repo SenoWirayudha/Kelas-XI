@@ -6,7 +6,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -15,6 +14,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentProfileNewBinding
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.ui.ticket.TicketHistoryActivity
 import com.komputerkit.moview.util.TmdbImageUrl
 import com.komputerkit.moview.util.loadProfilePhoto
@@ -340,10 +341,10 @@ class ProfileFragment : Fragment() {
                 when (it) {
                     is FollowActionResult.Success -> {
                         val message = if (it.isFollowing) "Following" else "Unfollowed"
-                        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                        showSnackbar(message, SnackbarType.SUCCESS)
                     }
                     is FollowActionResult.Error -> {
-                        Toast.makeText(requireContext(), it.message, Toast.LENGTH_SHORT).show()
+                        showSnackbar(it.message, SnackbarType.ERROR)
                     }
                 }
                 // Clear the result after processing
@@ -462,7 +463,7 @@ class ProfileFragment : Fragment() {
         val currentUserId = prefs.getInt("userId", 0)
         
         if (currentUserId == 0 || targetUserId == 0) {
-            Toast.makeText(requireContext(), "Unable to follow user", Toast.LENGTH_SHORT).show()
+            showSnackbar("Unable to follow user", SnackbarType.ERROR)
             return
         }
         

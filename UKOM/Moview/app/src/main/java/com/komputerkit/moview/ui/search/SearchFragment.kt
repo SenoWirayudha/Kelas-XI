@@ -7,7 +7,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
-import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -19,6 +18,8 @@ import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.komputerkit.moview.databinding.FragmentSearchNewBinding
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -250,7 +251,7 @@ class SearchFragment : Fragment() {
                 
                 // Show error if any
                 state.error?.let { error ->
-                    Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
+                    showSnackbar(error, SnackbarType.ERROR)
                 }
             }
         }

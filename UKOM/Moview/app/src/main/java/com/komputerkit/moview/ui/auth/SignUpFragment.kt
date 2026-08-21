@@ -7,7 +7,8 @@ import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import androidx.core.view.ViewCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -164,32 +165,32 @@ class SignUpFragment : Fragment() {
         
         // Validate inputs
         if (username.isEmpty()) {
-            Toast.makeText(requireContext(), "Please enter username", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please enter username", SnackbarType.ERROR)
             return
         }
         
         if (!isValidUsername(username)) {
-            Toast.makeText(requireContext(), "Username must be at least 3 characters", Toast.LENGTH_SHORT).show()
+            showSnackbar("Username must be at least 3 characters", SnackbarType.ERROR)
             return
         }
         
         if (email.isEmpty()) {
-            Toast.makeText(requireContext(), "Please enter email", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please enter email", SnackbarType.ERROR)
             return
         }
         
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            Toast.makeText(requireContext(), "Please enter valid email", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please enter valid email", SnackbarType.ERROR)
             return
         }
         
         if (password.isEmpty()) {
-            Toast.makeText(requireContext(), "Please enter password", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please enter password", SnackbarType.ERROR)
             return
         }
         
         if (password.length < 6) {
-            Toast.makeText(requireContext(), "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
+            showSnackbar("Password must be at least 6 characters", SnackbarType.ERROR)
             return
         }
         
@@ -205,7 +206,7 @@ class SignUpFragment : Fragment() {
                 saveLoginState(loginData.email, loginData.username, loginData.token, loginData.userId)
                 
                 showLoading(false)
-                Toast.makeText(requireContext(), "Welcome to Moview, ${loginData.username}!", Toast.LENGTH_SHORT).show()
+                showSnackbar("Welcome to Moview, ${loginData.username}!", SnackbarType.SUCCESS)
                 
                 // Navigate to home
                 findNavController().navigate(R.id.action_signUp_to_home)
@@ -217,7 +218,7 @@ class SignUpFragment : Fragment() {
                     error.message?.contains("Validation failed") == true -> "Please check your inputs"
                     else -> "Registration failed. Please try again."
                 }
-                Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_SHORT).show()
+                showSnackbar(errorMessage, SnackbarType.ERROR)
             }
         }
     }

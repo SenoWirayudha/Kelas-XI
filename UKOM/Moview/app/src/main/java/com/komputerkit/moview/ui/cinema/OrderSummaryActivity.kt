@@ -2,7 +2,6 @@ package com.komputerkit.moview.ui.cinema
 
 import android.os.Bundle
 import android.os.CountDownTimer
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
@@ -15,6 +14,8 @@ import com.komputerkit.moview.databinding.ActivityOrderSummaryBinding
 import com.komputerkit.moview.ui.cinema.model.BookingData
 import com.komputerkit.moview.ui.ticket.TicketHistoryActivity
 import com.komputerkit.moview.util.ServerConfig
+import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.showSnackbar
 import com.midtrans.sdk.corekit.callback.TransactionFinishedCallback
 import com.midtrans.sdk.corekit.core.MidtransSDK
 import com.midtrans.sdk.corekit.core.themes.CustomColorTheme
@@ -113,7 +114,7 @@ class OrderSummaryActivity : AppCompatActivity() {
             binding.layoutSyncStatus.visibility = if (state.isSyncingPayment && shouldSyncOnResume) View.VISIBLE else View.GONE
 
             state.error?.let {
-                Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+                showSnackbar(it, SnackbarType.ERROR)
                 viewModel.clearError()
             }
 
@@ -126,7 +127,7 @@ class OrderSummaryActivity : AppCompatActivity() {
             }
 
             state.syncMessage?.let {
-                Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+                showSnackbar(it, SnackbarType.INFO)
                 viewModel.clearSyncMessage()
             }
 
@@ -198,20 +199,20 @@ class OrderSummaryActivity : AppCompatActivity() {
     private fun launchSnapPayment(snapToken: String) {
         val clientKey = BuildConfig.MIDTRANS_CLIENT_KEY
         if (clientKey.isBlank()) {
-            Toast.makeText(this, "MIDTRANS_CLIENT_KEY belum diisi", Toast.LENGTH_LONG).show()
+            showSnackbar("MIDTRANS_CLIENT_KEY belum diisi", SnackbarType.ERROR)
             return
         }
 
         runCatching {
             MidtransSDK.getInstance().startPaymentUiFlow(this, snapToken)
         }.onFailure {
-            Toast.makeText(this, "Gagal membuka Snap UI", Toast.LENGTH_SHORT).show()
+            showSnackbar("Gagal membuka Snap UI", SnackbarType.ERROR)
         }
     }
 
     private fun handleTransactionResult(result: TransactionResult?) {
         if (result == null) {
-            Toast.makeText(this, "Pembayaran dibatalkan", Toast.LENGTH_SHORT).show()
+            showSnackbar("Pembayaran dibatalkan", SnackbarType.ERROR)
             return
         }
 
@@ -233,19 +234,19 @@ class OrderSummaryActivity : AppCompatActivity() {
 
         when (status) {
             TransactionResult.STATUS_SUCCESS -> {
-                Toast.makeText(this, "Pembayaran berhasil", Toast.LENGTH_SHORT).show()
+                showSnackbar("Pembayaran berhasil", SnackbarType.SUCCESS)
             }
             TransactionResult.STATUS_PENDING -> {
-                Toast.makeText(this, "Pembayaran pending", Toast.LENGTH_SHORT).show()
+                showSnackbar("Pembayaran pending", SnackbarType.INFO)
             }
             TransactionResult.STATUS_FAILED -> {
-                Toast.makeText(this, "Pembayaran gagal", Toast.LENGTH_SHORT).show()
+                showSnackbar("Pembayaran gagal", SnackbarType.ERROR)
             }
             TransactionResult.STATUS_INVALID -> {
-                Toast.makeText(this, "Transaksi tidak valid", Toast.LENGTH_SHORT).show()
+                showSnackbar("Transaksi tidak valid", SnackbarType.ERROR)
             }
             else -> {
-                Toast.makeText(this, "Status transaksi: $status", Toast.LENGTH_SHORT).show()
+                showSnackbar("Status transaksi: $status", SnackbarType.INFO)
             }
         }
     }

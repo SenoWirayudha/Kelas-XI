@@ -9,7 +9,8 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -53,7 +54,7 @@ class LoginFragment : Fragment() {
 
                 if (email.isBlank() || googleId.isBlank()) {
                     showGoogleLoading(false)
-                    Toast.makeText(requireContext(), "Gagal mendapatkan data akun Google", Toast.LENGTH_SHORT).show()
+                    showSnackbar("Gagal mendapatkan data akun Google", SnackbarType.ERROR)
                     return@registerForActivityResult
                 }
 
@@ -66,7 +67,7 @@ class LoginFragment : Fragment() {
                     12501 -> "Login dibatalkan"
                     else -> "Google Sign-In gagal (code ${e.statusCode})"
                 }
-                Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
+                showSnackbar(msg, SnackbarType.ERROR)
             }
         } else {
             showGoogleLoading(false)
@@ -196,11 +197,11 @@ class LoginFragment : Fragment() {
             result.onSuccess { loginData ->
                 saveLoginState(loginData.email, loginData.username, loginData.token, loginData.userId)
                 showGoogleLoading(false)
-                Toast.makeText(requireContext(), "Selamat datang, ${loginData.username}!", Toast.LENGTH_SHORT).show()
+                showSnackbar("Selamat datang, ${loginData.username}!", SnackbarType.SUCCESS)
                 findNavController().navigate(R.id.action_login_to_home)
             }.onFailure { error ->
                 showGoogleLoading(false)
-                Toast.makeText(requireContext(), error.message ?: "Google login gagal", Toast.LENGTH_SHORT).show()
+                showSnackbar(error.message ?: "Google login gagal", SnackbarType.ERROR)
             }
         }
     }
@@ -229,17 +230,17 @@ class LoginFragment : Fragment() {
         
         // Validate inputs
         if (email.isEmpty()) {
-            Toast.makeText(requireContext(), "Please enter email", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please enter email", SnackbarType.ERROR)
             return
         }
         
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            Toast.makeText(requireContext(), "Please enter valid email", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please enter valid email", SnackbarType.ERROR)
             return
         }
         
         if (password.isEmpty()) {
-            Toast.makeText(requireContext(), "Please enter password", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please enter password", SnackbarType.ERROR)
             return
         }
         
@@ -255,7 +256,7 @@ class LoginFragment : Fragment() {
                 saveLoginState(loginData.email, loginData.username, loginData.token, loginData.userId)
                 
                 showLoading(false)
-                Toast.makeText(requireContext(), "Welcome, ${loginData.username}!", Toast.LENGTH_SHORT).show()
+                showSnackbar("Welcome, ${loginData.username}!", SnackbarType.SUCCESS)
                 
                 // Navigate to home
                 findNavController().navigate(R.id.action_login_to_home)
@@ -267,7 +268,7 @@ class LoginFragment : Fragment() {
                     error.message?.contains("suspended") == true -> "Your account has been suspended"
                     else -> "Login failed. Please try again."
                 }
-                Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_SHORT).show()
+                showSnackbar(errorMessage, SnackbarType.ERROR)
             }
         }
     }

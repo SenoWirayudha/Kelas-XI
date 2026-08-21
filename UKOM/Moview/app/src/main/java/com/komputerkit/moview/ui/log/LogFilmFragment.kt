@@ -12,7 +12,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -20,6 +19,8 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.komputerkit.moview.R
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.databinding.FragmentLogFilmBinding
 import com.komputerkit.moview.util.loadPoster
 import java.text.SimpleDateFormat
@@ -125,7 +126,7 @@ class LogFilmFragment : Fragment() {
         
         viewModel.saveSuccess.observe(viewLifecycleOwner) { success ->
             if (success == true) {
-                Toast.makeText(requireContext(), "Rating saved!", Toast.LENGTH_SHORT).show()
+                showSnackbar("Rating saved!", SnackbarType.SUCCESS)
             }
         }
         
@@ -133,7 +134,7 @@ class LogFilmFragment : Fragment() {
             if (result == null) return@observe
             
             if (!result.success) {
-                Toast.makeText(requireContext(), "Gagal menyimpan, coba lagi", Toast.LENGTH_SHORT).show()
+                showSnackbar("Gagal menyimpan, coba lagi", SnackbarType.ERROR)
                 return@observe
             }
             
@@ -142,7 +143,7 @@ class LogFilmFragment : Fragment() {
             } else {
                 if (result.reviewId != null) "Review saved successfully!" else "Log saved successfully!"
             }
-            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+            showSnackbar(message, SnackbarType.SUCCESS)
             
             if (args.isEditMode) {
                 findNavController().navigateUp()
@@ -298,7 +299,7 @@ class LogFilmFragment : Fragment() {
         val end = editText.selectionEnd
         
         if (start == end) {
-            Toast.makeText(requireContext(), "Please select text first", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please select text first", SnackbarType.ERROR)
             return
         }
         
@@ -331,7 +332,7 @@ class LogFilmFragment : Fragment() {
         val end = editText.selectionEnd
         
         if (start == end) {
-            Toast.makeText(requireContext(), "Please select text first", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please select text first", SnackbarType.ERROR)
             return
         }
         
@@ -379,7 +380,7 @@ class LogFilmFragment : Fragment() {
                 var title = etTitle.text.toString().trim()
                 
                 if (url.isEmpty()) {
-                    Toast.makeText(requireContext(), "Please enter URL", Toast.LENGTH_SHORT).show()
+                    showSnackbar("Please enter URL", SnackbarType.ERROR)
                     return@setPositiveButton
                 }
                 

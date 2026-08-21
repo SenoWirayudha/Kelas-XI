@@ -24,6 +24,8 @@ import com.bumptech.glide.Glide
 import com.komputerkit.moview.util.loadProfilePhoto
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentEditProfileBinding
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.TmdbImageUrl
 import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.launch
@@ -186,11 +188,7 @@ class EditProfileFragment : Fragment() {
                     savedStateHandle.remove<String>("selected_backdrop_path")
                     
                     // Show success message
-                    android.widget.Toast.makeText(
-                        requireContext(),
-                        "Backdrop updated successfully",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    showSnackbar("Backdrop updated successfully", SnackbarType.SUCCESS)
                 }
             }
         }
@@ -389,11 +387,7 @@ class EditProfileFragment : Fragment() {
         binding.ivProfile.setImageResource(R.drawable.ic_default_profile)
         
         // Show confirmation
-        android.widget.Toast.makeText(
-            requireContext(),
-            "Profile photo reset to default",
-            android.widget.Toast.LENGTH_SHORT
-        ).show()
+        showSnackbar("Profile photo reset to default", SnackbarType.SUCCESS)
     }
     
     private fun startCropActivity(sourceUri: android.net.Uri) {
@@ -435,11 +429,7 @@ class EditProfileFragment : Fragment() {
             findNavController().navigate(action)
         } else {
             // No favorite movies yet
-            android.widget.Toast.makeText(
-                requireContext(),
-                "Please add a favorite movie first",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            showSnackbar("Please add a favorite movie first", SnackbarType.ERROR)
         }
     }
 
@@ -467,11 +457,7 @@ class EditProfileFragment : Fragment() {
         lifecycleScope.launch {
             // Wait if photo is still uploading
             if (viewModel.uiState.value.isLoading) {
-                android.widget.Toast.makeText(
-                    requireContext(),
-                    "Please wait, photo is still uploading...",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+                showSnackbar("Please wait, photo is still uploading...", SnackbarType.INFO)
                 return@launch
             }
             
@@ -488,22 +474,14 @@ class EditProfileFragment : Fragment() {
                     findNavController().previousBackStackEntry?.savedStateHandle?.set("profile_photo_url", profilePhotoUrl)
                     
                     // Show success message
-                    android.widget.Toast.makeText(
-                        requireContext(),
-                        "Profile updated successfully",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    showSnackbar("Profile updated successfully", SnackbarType.SUCCESS)
                     
                     findNavController().navigateUp()
                 }
             } else {
                 // Show error toast - safely access context
                 context?.let { ctx ->
-                    android.widget.Toast.makeText(
-                        ctx,
-                        "Failed to save profile",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    showSnackbar("Failed to save profile", SnackbarType.ERROR)
                 }
             }
         }

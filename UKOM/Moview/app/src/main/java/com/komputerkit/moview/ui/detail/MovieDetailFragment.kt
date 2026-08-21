@@ -6,7 +6,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
@@ -24,6 +23,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.komputerkit.moview.util.loadPoster
 import com.komputerkit.moview.util.loadBackdrop
 import com.komputerkit.moview.R
+import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.FragmentMovieDetailBinding
 import com.komputerkit.moview.util.MovieActionsHelper
@@ -731,7 +732,7 @@ class MovieDetailFragment : Fragment() {
         val trailerUrl = currentMovie?.trailerUrl
         
         if (trailerUrl.isNullOrEmpty()) {
-            Toast.makeText(requireContext(), "Trailer not available", Toast.LENGTH_SHORT).show()
+            showSnackbar("Trailer not available", SnackbarType.INFO)
             return
         }
         
@@ -765,7 +766,7 @@ class MovieDetailFragment : Fragment() {
                 startActivity(intent)
             }
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Cannot open trailer: ${e.message}", Toast.LENGTH_SHORT).show()
+            showSnackbar("Cannot open trailer: ${e.message}", SnackbarType.ERROR)
         }
     }
     
