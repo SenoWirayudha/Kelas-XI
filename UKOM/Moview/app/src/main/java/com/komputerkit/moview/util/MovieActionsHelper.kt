@@ -636,17 +636,15 @@ currentRating = ratingResponse.rating ?: 0f
                     val newScale = (currentScale * detector.scaleFactor).coerceIn(minScale, maxScale)
                     if (newScale == currentScale) return true
 
-                    // Keep the focal point (midpoint of the two fingers) stationary so the
-                    // content stays under the fingers while zooming, instead of scaling
-                    // around the view center which makes the image slide = jitter.
-                    // ImageView pivot defaults to the view center.
+                    // Keep focal point stationary: translation correct = (focus - pivot) * (1 - scaleFactor).
+                    // Before: (old - new) = old * (1 - scaleFactor) → 2× overshoot at 2× zoom → bounce.
                     val pivotX = imageView.pivotX
                     val pivotY = imageView.pivotY
                     val focusX = detector.focusX
                     val focusY = detector.focusY
-                    val scaleDelta = currentScale - newScale
-                    imageView.translationX += (focusX - pivotX) * scaleDelta
-                    imageView.translationY += (focusY - pivotY) * scaleDelta
+                    val factor = detector.scaleFactor
+                    imageView.translationX += (focusX - pivotX) * (1f - factor)
+                    imageView.translationY += (focusY - pivotY) * (1f - factor)
 
                     currentScale = newScale
                     imageView.scaleX = newScale
