@@ -604,18 +604,15 @@ currentRating = ratingResponse.rating ?: 0f
      */
     @android.annotation.SuppressLint("ClickableViewAccessibility")
     private fun setupPosterInteraction(imageView: ImageView, dialog: Dialog) {
-        // Use MATRIX scaleType so we control zoom via Matrix, not view scaleX/scaleY.
-        // View-scale approach jittered because (focus-pivot) translation accumulated error
-        // and ViewPropertyAnimator fought manual writes.
-        imageView.scaleType = ImageView.ScaleType.MATRIX
+        // Keep XML fitCenter for correct initial centering; switch to MATRIX on first zoom.
         val matrix = android.graphics.Matrix()
         val tempValues = FloatArray(9)
         val minScale = 1f
         val maxScale = 3f
         val doubleTapScale = 2f
         var currentScale = 1f
-        // Base fit scale that makes drawable fitInside the view (fitCenter equivalent)
         var baseScale = 1f
+        var matrixInitialized = false
 
         fun getMatrixScale(): Float {
             matrix.getValues(tempValues)
@@ -652,6 +649,27 @@ currentRating = ratingResponse.rating ?: 0f
             matrix.postTranslate(dx, dy)
         }
 
+        fun ensureMatrixInitialized(): Boolean {
+            if (matrixInitialized) return true
+            val d = imageView.drawable ?: return false
+            if (imageView.width == 0 || imageView.height == 0) return false
+            val vw = imageView.width.toFloat()
+            val vh = imageView.height.toFloat()
+            val dw = d.intrinsicWidth.toFloat()
+            val dh = d.intrinsicHeight.toFloat()
+            if (dw == 0f || dh == 0f) return false
+            val scale = minOf(vw / dw, vh / dh)
+            baseScale = scale
+            currentScale = 1f
+            matrix.reset()
+            matrix.postScale(scale, scale)
+            matrix.postTranslate((vw - dw * scale) / 2f, (vh - dh * scale) / 2f)
+            imageView.scaleType = ImageView.ScaleType.MATRIX
+            imageView.imageMatrix = matrix
+            matrixInitialized = true
+            return true
+        }
+
         fun resetMatrixToFitCenter() {
             val d = imageView.drawable ?: return
             if (imageView.width == 0 || imageView.height == 0) {
@@ -669,7 +687,9 @@ currentRating = ratingResponse.rating ?: 0f
             matrix.reset()
             matrix.postScale(scale, scale)
             matrix.postTranslate((vw - dw * scale) / 2f, (vh - dh * scale) / 2f)
+            imageView.scaleType = ImageView.ScaleType.MATRIX
             imageView.imageMatrix = matrix
+            matrixInitialized = true
         }
 
         fun animateMatrixTo(targetScale: Float, focusX: Float? = null, focusY: Float? = null) {
@@ -698,20 +718,11 @@ currentRating = ratingResponse.rating ?: 0f
             anim.start()
         }
 
-        // Initialize after drawable is set; also handle async Glide load
-        imageView.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                imageView.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                resetMatrixToFitCenter()
-            }
-        })
-        // Also reset when drawable changes (Glide loads)
-        imageView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> }
-
         val scaleDetector = ScaleGestureDetector(
             imageView.context,
             object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
                 override fun onScale(detector: ScaleGestureDetector): Boolean {
+                    if (!matrixInitialized && !ensureMatrixInitialized()) return true
                     val factor = detector.scaleFactor
                     val newScale = (currentScale * factor).coerceIn(minScale, maxScale)
                     val actualFactor = newScale / currentScale
@@ -729,6 +740,7 @@ currentRating = ratingResponse.rating ?: 0f
             imageView.context,
             object : GestureDetector.SimpleOnGestureListener() {
                 override fun onDoubleTap(e: MotionEvent): Boolean {
+                    if (!matrixInitialized) ensureMatrixInitialized()
                     if (currentScale > minScale + 0.1f) {
                         // animate back to fit
                         val anim = android.animation.ValueAnimator.ofFloat(0f, 1f)
@@ -819,9 +831,6 @@ currentRating = ratingResponse.rating ?: 0f
             }
             true
         }
-
-        // Ensure initial fit after Glide sets drawable (post delayed reset if needed)
-        imageView.post { if (imageView.drawable != null) resetMatrixToFitCenter() }
     }
 
     private fun updateWatchedButtonState(
