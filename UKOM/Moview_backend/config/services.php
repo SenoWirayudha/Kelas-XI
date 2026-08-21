@@ -20,6 +20,14 @@ return [
 
     'resend' => [
         'key' => env('RESEND_API_KEY'),
+        'from_email' => env('RESEND_FROM_EMAIL', 'onboarding@resend.dev'),
+        'from_name' => env('RESEND_FROM_NAME', 'Moview'),
+    ],
+
+    'forgot_password' => [
+        // Base URL used in reset emails. Must be reachable from wherever the
+        // email is opened (phone browser via `adb reverse tcp:8000` → 127.0.0.1).
+        'reset_base_url' => env('RESET_PASSWORD_BASE_URL', config('app.url')),
     ],
 
     'ses' => [

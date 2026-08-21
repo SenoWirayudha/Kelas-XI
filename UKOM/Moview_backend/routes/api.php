@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\V1\MovieMediaController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\ForgotPasswordController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\UserActivityController;
 use App\Http\Controllers\Api\V1\NotificationController;
@@ -29,6 +30,10 @@ Route::prefix('v1')->group(function () {
     Route::post('/google-login', [AuthController::class, 'googleLogin']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    // Password reset (public)
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'forgot'])->middleware('throttle:10,1');
+    Route::post('/reset-password', [ForgotPasswordController::class, 'reset'])->middleware('throttle:10,1');
     
     // Home Screen
     Route::get('/home', [MovieApiController::class, 'home']);
