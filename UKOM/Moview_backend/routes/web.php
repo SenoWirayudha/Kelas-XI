@@ -23,6 +23,12 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Public password reset page (linked from the forgot-password email).
+// The form posts to POST /api/v1/reset-password from the page's JS.
+Route::get('/reset-password/{token}', function (string $token) {
+    return view('auth.reset-password', ['token' => $token]);
+})->name('password.reset');
+
 // Admin Authentication
 Route::get('/admin/login', [AuthController::class, 'showLoginForm'])->name('admin.login');
 Route::post('/admin/login', [AuthController::class, 'login'])->name('admin.login.post');
