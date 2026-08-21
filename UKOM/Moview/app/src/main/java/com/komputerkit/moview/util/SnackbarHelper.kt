@@ -27,8 +27,12 @@ private fun showAppSnackbar(anchor: View, message: String, type: SnackbarType) {
 
     val snackbarView = snackbar.view
     val params = snackbarView.layoutParams as? LinearLayout.LayoutParams
-    params?.gravity = Gravity.BOTTOM
-    params?.setMargins(24, 0, 24, 24)
+        ?: LinearLayout.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+    params.gravity = Gravity.BOTTOM
+    params.setMargins(24, 0, 24, 24)
     snackbarView.layoutParams = params
 
     val bgColor = when (type) {
