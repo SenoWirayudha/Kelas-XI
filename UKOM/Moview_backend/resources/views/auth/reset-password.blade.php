@@ -69,23 +69,22 @@
         <h1>Buat Password Baru</h1>
         <p class="subtitle">Masukkan password baru untuk akun Moview-mu.</p>
 
-        <form id="reset-form" method="post" action="#" onsubmit="return submitReset(event)">
+        <div id="reset-form">
             <label for="password">Password baru</label>
             <input type="password" id="password" name="password" minlength="6" required autocomplete="new-password">
 
             <label for="password_confirmation">Konfirmasi password</label>
             <input type="password" id="password_confirmation" name="password_confirmation" minlength="6" required autocomplete="new-password">
 
-            <button type="submit" id="btn-submit">Simpan Password Baru</button>
-        </form>
+            <button type="button" id="btn-submit" onclick="submitReset()">Simpan Password Baru</button>
+        </div>
 
         <div id="message" class="message"></div>
     </div>
 
     <script>
-        function submitReset(event) {
-            event.preventDefault();
-            var form = document.getElementById('reset-form');
+        function submitReset() {
+            var container = document.getElementById('reset-form');
             var button = document.getElementById('btn-submit');
             var message = document.getElementById('message');
             var token = {{ json_encode($token) }};
@@ -106,7 +105,7 @@
             .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
             .then(function (result) {
                 if (result.ok && result.data.success) {
-                    form.style.display = 'none';
+                    container.style.display = 'none';
                     message.className = 'message success';
                     message.innerHTML = '<strong>Password berhasil diubah!</strong><br>Kembali ke app dan login dengan password barumu.';
                 } else {
@@ -122,8 +121,6 @@
                 button.disabled = false;
                 button.textContent = 'Simpan Password Baru';
             });
-
-            return false;
         }
     </script>
 </body>
