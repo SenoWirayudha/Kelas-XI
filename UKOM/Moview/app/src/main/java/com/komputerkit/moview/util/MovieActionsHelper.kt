@@ -502,6 +502,9 @@ currentRating = ratingResponse.rating ?: 0f
         binding.tvMovieTitle.text = movie.title ?: "Movie"
         binding.progressLoading.visibility = View.VISIBLE
 
+        binding.btnClose.setOnClickListener { dialog.dismiss() }
+        setupPosterInteraction(binding.ivFullPoster, dialog)
+
         // Load high resolution poster
         val posterUrl = movie.posterUrl?.let { url ->
             when {
@@ -522,6 +525,7 @@ currentRating = ratingResponse.rating ?: 0f
                 ) {
                     binding.progressLoading.visibility = View.GONE
                     binding.ivFullPoster.setImageDrawable(resource)
+                    binding.ivFullPoster.post { (binding.ivFullPoster.getTag(R.id.iv_full_poster) as? Runnable)?.run() }
                 }
 
                 override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {
@@ -533,9 +537,6 @@ currentRating = ratingResponse.rating ?: 0f
                     binding.ivFullPoster.setBackgroundColor(0xFF1E2530.toInt())
                 }
             })
-
-        binding.btnClose.setOnClickListener { dialog.dismiss() }
-        setupPosterInteraction(binding.ivFullPoster, dialog)
 
         dialog.show()
     }
@@ -557,6 +558,9 @@ currentRating = ratingResponse.rating ?: 0f
         binding.tvMovieTitle.visibility = if (title.isEmpty()) View.GONE else View.VISIBLE
         binding.progressLoading.visibility = View.VISIBLE
 
+        binding.btnClose.setOnClickListener { dialog.dismiss() }
+        setupPosterInteraction(binding.ivFullPoster, dialog)
+
         val fullPosterUrl = when {
             posterUrl.contains("w500") -> posterUrl.replace("w500", "original")
             posterUrl.contains("w342") -> posterUrl.replace("w342", "original")
@@ -574,6 +578,7 @@ currentRating = ratingResponse.rating ?: 0f
                 ) {
                     binding.progressLoading.visibility = View.GONE
                     binding.ivFullPoster.setImageDrawable(resource)
+                    binding.ivFullPoster.post { (binding.ivFullPoster.getTag(R.id.iv_full_poster) as? Runnable)?.run() }
                 }
 
                 override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {
@@ -585,9 +590,6 @@ currentRating = ratingResponse.rating ?: 0f
                     binding.ivFullPoster.setBackgroundColor(0xFF1E2530.toInt())
                 }
             })
-
-        binding.btnClose.setOnClickListener { dialog.dismiss() }
-        setupPosterInteraction(binding.ivFullPoster, dialog)
 
         dialog.show()
     }
@@ -658,7 +660,10 @@ currentRating = ratingResponse.rating ?: 0f
             val dw = d.intrinsicWidth.toFloat()
             val dh = d.intrinsicHeight.toFloat()
             if (dw == 0f || dh == 0f) return false
-            val scale = minOf(vw / dw, vh / dh)
+            val inset = 24f * imageView.context.resources.displayMetrics.density
+            val availW = (vw - 2 * inset).coerceAtLeast(1f)
+            val availH = (vh - 2 * inset).coerceAtLeast(1f)
+            val scale = minOf(availW / dw, availH / dh)
             baseScale = scale
             currentScale = 1f
             matrix.reset()
@@ -669,6 +674,14 @@ currentRating = ratingResponse.rating ?: 0f
             matrixInitialized = true
             return true
         }
+
+        // Expose re-fit for Glide: when real poster replaces placeholder, recompute if still at 1×
+        imageView.setTag(R.id.iv_full_poster, Runnable {
+            if (currentScale <= 1.01f) {
+                matrixInitialized = false
+                ensureMatrixInitialized()
+            }
+        })
 
         fun resetMatrixToFitCenter() {
             val d = imageView.drawable ?: return
@@ -681,7 +694,10 @@ currentRating = ratingResponse.rating ?: 0f
             val dw = d.intrinsicWidth.toFloat()
             val dh = d.intrinsicHeight.toFloat()
             if (dw == 0f || dh == 0f) return
-            val scale = minOf(vw / dw, vh / dh)
+            val inset = 24f * imageView.context.resources.displayMetrics.density
+            val availW = (vw - 2 * inset).coerceAtLeast(1f)
+            val availH = (vh - 2 * inset).coerceAtLeast(1f)
+            val scale = minOf(availW / dw, availH / dh)
             baseScale = scale
             currentScale = 1f
             matrix.reset()
