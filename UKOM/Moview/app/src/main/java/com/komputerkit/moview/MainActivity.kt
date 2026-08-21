@@ -110,7 +110,10 @@ class MainActivity : AppCompatActivity() {
         // Hide bottom navigation on login screen and child screens that should be full-screen
         navController.addOnDestinationChangedListener { _, destination, arguments ->
             when (destination.id) {
-                R.id.loginFragment, R.id.signUpFragment, R.id.editProfileFragment -> {
+                R.id.loginFragment,
+                R.id.signUpFragment,
+                R.id.forgotPasswordFragment,
+                R.id.editProfileFragment -> {
                     binding.bottomNavigation.visibility = View.GONE
                 }
                 R.id.navigation_search -> {

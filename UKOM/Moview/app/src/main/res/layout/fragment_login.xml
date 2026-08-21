@@ -34,20 +34,18 @@
             app:layout_constraintEnd_toEndOf="@id/iv_hero"
             app:layout_constraintStart_toStartOf="@id/iv_hero" />
 
-        <!-- Film credit for the hero still (bottom-left corner) -->
+        <!-- Film credit for the hero still (small, raised clear of the app logo) -->
         <TextView
             android:id="@+id/tv_hero_credit"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
-            android:layout_marginBottom="10dp"
-            android:shadowColor="@android:color/black"
-            android:shadowDx="1"
-            android:shadowDy="1"
-            android:shadowRadius="3"
-            android:textColor="#CCFFFFFF"
-            android:textSize="11sp"
+            android:layout_marginBottom="26dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#B3FFFFFF"
+            android:textSize="9sp"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="@id/iv_hero"
             app:layout_constraintEnd_toEndOf="@id/iv_hero"
