@@ -17,56 +17,17 @@
              transparent at runtime for their edge-to-edge images. -->
         <item name="android:statusBarColor">@color/dark_background</item>
 
-        <!-- ================================================================
-             Global font — BOTH attributes required (different API levels).
-             This covers TextView, EditText, Button, etc. that inherit
-             directly from theme fontFamily.
-             ================================================================ -->
+        <!-- Global font — BOTH attributes required (different API levels). -->
         <item name="android:fontFamily">@font/font_family_inter</item>
         <item name="fontFamily">@font/font_family_inter</item>
 
-        <!-- All Material text appearances funnel through one TextAppearance
-             so even components that inflate their own style get Inter. -->
-        <item name="textAppearanceBody1">@style/FontInterTextAppearance</item>
-        <item name="textAppearanceBody2">@style/FontInterTextAppearance</item>
-        <item name="textAppearanceButton">@style/FontInterTextAppearance</item>
-        <item name="textAppearanceCaption">@style/FontInterTextAppearance</item>
-        <item name="textAppearanceHeadline6">@style/FontInterTextAppearance</item>
-        <item name="textAppearanceSubtitle1">@style/FontInterTextAppearance</item>
-        <item name="textAppearanceSubtitle2">@style/FontInterTextAppearance</item>
-        <!-- M3 attribute kept for forward-compat -->
-        <item name="textAppearanceLabelLarge">@style/FontInterTextAppearance</item>
-
-        <!-- Widget-level overrides so components that ignore fontFamily pick it up -->
-        <item name="android:textViewStyle">@style/Widget.App.TextView</item>
+        <!-- Widget-level overrides — only widgets that ignore theme fontFamily -->
         <item name="chipStyle">@style/Widget.App.Chip</item>
         <item name="snackbarStyle">@style/Widget.App.Snackbar</item>
         <item name="snackbarButtonStyle">@style/Widget.App.Snackbar.Button</item>
-        <item name="materialButtonStyle">@style/Widget.App.Button</item>
     </style>
 
-    <!-- ================================================================
-         Single source of truth for font.
-         Every widget/textAppearance that should be Inter references this.
-         ================================================================ -->
-    <style name="FontInterTextAppearance">
-        <item name="android:fontFamily">@font/font_family_inter</item>
-        <item name="fontFamily">@font/font_family_inter</item>
-    </style>
-
-    <!-- TextView — plain TextViews inherit this via android:textViewStyle -->
-    <style name="Widget.App.TextView" parent="android:Widget.TextView">
-        <item name="android:fontFamily">@font/font_family_inter</item>
-        <item name="fontFamily">@font/font_family_inter</item>
-    </style>
-
-    <!-- Button -->
-    <style name="Widget.App.Button" parent="Widget.MaterialComponents.Button">
-        <item name="android:fontFamily">@font/font_family_inter</item>
-        <item name="fontFamily">@font/font_family_inter</item>
-    </style>
-
-    <!-- Snackbar — the message TextView inside Snackbar -->
+    <!-- Snackbar -->
     <style name="Widget.App.Snackbar" parent="Widget.MaterialComponents.Snackbar">
         <item name="android:fontFamily">@font/font_family_inter</item>
         <item name="fontFamily">@font/font_family_inter</item>
@@ -123,8 +84,10 @@
         <item name="android:background">@android:color/transparent</item>
     </style>
 
-    <!-- Tab Text Style for Crew Detail -->
+    <!-- Tab Text Style for Crew Detail — add Inter while keeping color from TabLayout attrs -->
     <style name="TabTextStyle" parent="TextAppearance.Design.Tab">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
         <item name="android:textSize">14sp</item>
         <item name="android:textStyle">bold</item>
         <item name="textAllCaps">false</item>
