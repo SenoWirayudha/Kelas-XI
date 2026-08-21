@@ -94,6 +94,10 @@ class FilterSheetDialog(
     }
 
     private fun setupCategoryChips() {
+        // Force Inter — same reason as Search chips (style's fontFamily not picked up by Chip)
+        val inter = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.font_family_inter)
+        listOf(binding.chipGenre, binding.chipTheme, binding.chipLanguage, binding.chipCountry, binding.chipProductionHouse, binding.chipReleaseYear, binding.chipRating, binding.chipYear, binding.chipDate).forEach { it.typeface = inter }
+
         binding.chipGenre.setOnClickListener { selectCategory(Category.GENRE) }
         binding.chipTheme.setOnClickListener { selectCategory(Category.THEME) }
         binding.chipLanguage.setOnClickListener { selectCategory(Category.LANGUAGE) }

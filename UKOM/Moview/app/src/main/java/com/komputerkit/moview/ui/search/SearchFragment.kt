@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
+import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentSearchNewBinding
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
@@ -65,6 +66,10 @@ class SearchFragment : Fragment() {
     }
     
     private fun setupFilterChips() {
+        // Force Inter — XML style alone is ignored by Chip's internal TextAppearance (phone default shows instead)
+        val inter = androidx.core.content.res.ResourcesCompat.getFont(requireContext(), R.font.font_family_inter)
+        listOf(binding.chipAll, binding.chipMovies, binding.chipCastCrew, binding.chipProductionHouses, binding.chipPeople).forEach { it.typeface = inter }
+
         binding.chipAll.setOnClickListener {
             viewModel.setFilter(SearchFilter.ALL)
         }

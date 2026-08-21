@@ -37,24 +37,36 @@
         <item name="fontFamily">@font/font_family_inter</item>
     </style>
 
+    <!-- Chip text appearance — Chip renders its label via android:textAppearance, not the
+         Chip view's android:fontFamily. The phone's default font was showing because
+         Chip was using the stock TextAppearance.MaterialComponents.Chip (Roboto). -->
+    <style name="TextAppearance.App.Chip" parent="TextAppearance.MaterialComponents.Chip">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+
     <!-- Chip — centralized chooser so no Chip uses the raw M2 default.
          App code should use Widget.App.Chip.* ; chipStyle guarantees the
          bare <Chip> (no style attr) also gets Inter. -->
     <style name="Widget.App.Chip" parent="Widget.MaterialComponents.Chip.Choice">
         <item name="android:fontFamily">@font/font_family_inter</item>
         <item name="fontFamily">@font/font_family_inter</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Chip</item>
     </style>
     <style name="Widget.App.Chip.Choice" parent="Widget.MaterialComponents.Chip.Choice">
         <item name="android:fontFamily">@font/font_family_inter</item>
         <item name="fontFamily">@font/font_family_inter</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Chip</item>
     </style>
     <style name="Widget.App.Chip.Action" parent="Widget.MaterialComponents.Chip.Action">
         <item name="android:fontFamily">@font/font_family_inter</item>
         <item name="fontFamily">@font/font_family_inter</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Chip</item>
     </style>
     <style name="Widget.App.Chip.Filter" parent="Widget.MaterialComponents.Chip.Filter">
         <item name="android:fontFamily">@font/font_family_inter</item>
         <item name="fontFamily">@font/font_family_inter</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Chip</item>
     </style>
 
     <!-- Theme without action bar for main activity -->

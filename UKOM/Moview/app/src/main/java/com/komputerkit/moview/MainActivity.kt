@@ -37,17 +37,32 @@ class MainActivity : AppCompatActivity() {
     private fun verifyFontsAtRuntime() {
         val tag = "FontCheck"
         try {
-            val chip = com.google.android.material.chip.Chip(this)
-            chip.text = "FontCheckChip"
             val inter = androidx.core.content.res.ResourcesCompat.getFont(this, R.font.font_family_inter)
             val sansDefault = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
             val sansMedium = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+            // Bare Chip (uses chipStyle from theme)
+            val chip = com.google.android.material.chip.Chip(this)
+            chip.text = "FontCheckChip"
             val chipTf = chip.typeface
-            val chipMatchesInter = inter != null && chipTf != null && chipTf.toString() == inter.toString()
-            val chipMatchesSans = chipTf?.toString() == sansDefault.toString() || chipTf?.toString() == sansMedium.toString()
-            android.util.Log.d(tag, "Probe Chip typeface=${chipTf} paintTf=${chip.paint.typeface} text=${chip.text}")
-            android.util.Log.d(tag, "Probe Chip vs Inter match=$chipMatchesInter inter=$inter isSansFallback=$chipMatchesSans sansDefault=$sansDefault")
-            android.util.Log.d(tag, "RESULT Chip isInter=${chipMatchesInter && !chipMatchesSans}")
+            val chipPaintTf = chip.paint.typeface
+            val chipTfIsInter = inter != null && chipTf != null && chipTf.toString() == inter.toString()
+            val chipPaintIsInter = inter != null && chipPaintTf != null && chipPaintTf.toString() == inter.toString()
+            val chipIsSans = chipTf?.toString() == sansDefault.toString() || chipTf?.toString() == sansMedium.toString()
+            android.util.Log.d(tag, "Probe Chip typeface=$chipTf paintTf=$chipPaintTf text=${chip.text}")
+            android.util.Log.d(tag, "Probe Chip vs Inter tf=$chipTfIsInter paint=$chipPaintIsInter inter=$inter isSans=$chipIsSans sansDefault=$sansDefault")
+            android.util.Log.d(tag, "RESULT Chip isInter=${chipTfIsInter && chipPaintIsInter && !chipIsSans} (need both tf+paint)")
+
+            // XML-inflated Choice Chip (same as search filter chips)
+            val choiceChip = layoutInflater.inflate(R.layout.item_search_studio, null) as? com.google.android.material.chip.Chip
+            if (choiceChip != null) {
+                val ct = choiceChip.typeface
+                val pt = choiceChip.paint.typeface
+                val ctIsInter = inter != null && ct != null && ct.toString() == inter.toString()
+                val ptIsInter = inter != null && pt != null && pt.toString() == inter.toString()
+                android.util.Log.d(tag, "Probe ChoiceChip typeface=$ct paintTf=$pt text=${choiceChip.text} isInter tf=$ctIsInter paint=$ptIsInter")
+                android.util.Log.d(tag, "RESULT ChoiceChip isInter=${ctIsInter && ptIsInter}")
+            }
+
             val a = obtainStyledAttributes(intArrayOf(com.google.android.material.R.attr.chipStyle))
             android.util.Log.d(tag, "Theme chipStyle resId=${a.getResourceId(0, 0)}")
             a.recycle()
