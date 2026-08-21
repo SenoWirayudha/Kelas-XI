@@ -376,6 +376,10 @@ data class GoogleLoginRequest(
     val google_id: String
 )
 
+data class ForgotPasswordRequest(
+    val email: String
+)
+
 data class RegisterRequest(
     val username: String,
     val email: String,

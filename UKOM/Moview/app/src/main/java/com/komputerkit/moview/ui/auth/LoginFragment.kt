@@ -159,6 +159,10 @@ class LoginFragment : Fragment() {
         binding.tvSignUp.setOnClickListener {
             findNavController().navigate(R.id.action_login_to_signUp)
         }
+
+        binding.tvForgotPassword.setOnClickListener {
+            findNavController().navigate(R.id.action_login_to_forgotPassword)
+        }
     }
 
     private fun performGoogleSignIn() {

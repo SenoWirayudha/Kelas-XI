@@ -1,5 +1,6 @@
 package com.komputerkit.moview.data.repository
 
+import com.komputerkit.moview.data.api.ForgotPasswordRequest
 import com.komputerkit.moview.data.api.GoogleLoginRequest
 import com.komputerkit.moview.data.api.LoginRequest
 import com.komputerkit.moview.data.api.RegisterRequest
@@ -66,6 +67,24 @@ class AuthRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    /**
+     * Requests a password reset link. The backend always answers generically,
+     * so success here only means "request accepted" — never "email exists".
+     */
+    suspend fun forgotPassword(email: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.forgotPassword(ForgotPasswordRequest(email))
+            if (response.success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception(response.message ?: "Gagal mengirim link reset"))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
         }
     }
     
