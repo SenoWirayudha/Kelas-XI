@@ -26,6 +26,7 @@ import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.databinding.BottomSheetMovieActionsBinding
 import com.komputerkit.moview.databinding.DialogFullPosterBinding
 import com.komputerkit.moview.util.showSnackbar
+import com.komputerkit.moview.util.showSnackbarWithDialog
 import com.komputerkit.moview.util.SnackbarType
 import kotlinx.coroutines.launch
 
@@ -218,7 +219,8 @@ currentRating = ratingResponse.rating ?: 0f
             movie,
             userId,
             onRatingSaved,
-            onRatingChanged = { newRating -> currentRating = newRating }
+            onRatingChanged = { newRating -> currentRating = newRating },
+            bottomSheetDialog = bottomSheetDialog
         )
         // Setup click listeners
         binding.btnWatched.setOnClickListener {
@@ -279,10 +281,10 @@ currentRating = ratingResponse.rating ?: 0f
                                 } else {
                                     binding.layoutRewatch.visibility = View.GONE
                                 }
-                                (context as? android.app.Activity)?.showSnackbar("Removed from watched", SnackbarType.SUCCESS)
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Removed from watched", bottomSheetDialog, SnackbarType.SUCCESS)
                                 onRatingSaved?.invoke()
                             } else {
-                                (context as? android.app.Activity)?.showSnackbar("Failed to unwatch", SnackbarType.ERROR)
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to unwatch", bottomSheetDialog, SnackbarType.ERROR)
                             }
                         }
                     } else {
@@ -307,17 +309,17 @@ currentRating = ratingResponse.rating ?: 0f
                                 } else {
                                     binding.layoutRewatch.visibility = View.GONE
                                 }
-                                (context as? android.app.Activity)?.showSnackbar("Marked as watched", SnackbarType.SUCCESS)
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Marked as watched", bottomSheetDialog, SnackbarType.SUCCESS)
                                 onRatingSaved?.invoke()
                             } else {
-                                (context as? android.app.Activity)?.showSnackbar("Failed to save", SnackbarType.ERROR)
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to save", bottomSheetDialog, SnackbarType.ERROR)
                             }
                         }
                     }
                 }
             } else {
                 Log.e("MovieActionsHelper", "Cannot save: userId=$userId, lifecycleOwner=$actualLifecycleOwner")
-                (context as? android.app.Activity)?.showSnackbar("Please login first", SnackbarType.ERROR)
+                (context as? android.app.Activity)?.showSnackbarWithDialog("Please login first", bottomSheetDialog, SnackbarType.ERROR)
             }
         }
 
@@ -341,7 +343,7 @@ currentRating = ratingResponse.rating ?: 0f
                                 likeText.text = "Liked"
                                 
                                 // Don't auto-save rating - user should set rating separately
-                                (context as? android.app.Activity)?.showSnackbar("Added to likes", SnackbarType.SUCCESS)
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Added to likes", bottomSheetDialog, SnackbarType.SUCCESS)
                                 
                                 // Trigger callback to refresh data
                                 onRatingSaved?.invoke()
@@ -353,19 +355,19 @@ currentRating = ratingResponse.rating ?: 0f
                                     context.getColor(R.color.text_secondary)
                                 )
                                 likeText.text = "Like"
-                                (context as? android.app.Activity)?.showSnackbar("Removed from likes", SnackbarType.SUCCESS)
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Removed from likes", bottomSheetDialog, SnackbarType.SUCCESS)
                                 
                                 // Trigger callback to refresh data
                                 onRatingSaved?.invoke()
                             }
                             null -> {
-                                (context as? android.app.Activity)?.showSnackbar("Failed to update like", SnackbarType.ERROR)
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to update like", bottomSheetDialog, SnackbarType.ERROR)
                             }
                         }
                     }
                 }
             } else {
-                (context as? android.app.Activity)?.showSnackbar("Please login first", SnackbarType.ERROR)
+                (context as? android.app.Activity)?.showSnackbarWithDialog("Please login first", bottomSheetDialog, SnackbarType.ERROR)
             }
         }
 
@@ -387,7 +389,7 @@ currentRating = ratingResponse.rating ?: 0f
                                     context.getColor(R.color.orange)
                                 )
                                 watchlistText.text = "In Watchlist"
-                                (context as? android.app.Activity)?.showSnackbar("Added to watchlist", SnackbarType.SUCCESS)
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Added to watchlist", bottomSheetDialog, SnackbarType.SUCCESS)
                             }
                             false -> {
                                 // Removed from watchlist
@@ -396,16 +398,16 @@ currentRating = ratingResponse.rating ?: 0f
                                     context.getColor(R.color.text_secondary)
                                 )
                                 watchlistText.text = "Watchlist"
-                                (context as? android.app.Activity)?.showSnackbar("Removed from watchlist", SnackbarType.SUCCESS)
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Removed from watchlist", bottomSheetDialog, SnackbarType.SUCCESS)
                             }
                             null -> {
-                                (context as? android.app.Activity)?.showSnackbar("Failed to update watchlist", SnackbarType.ERROR)
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to update watchlist", bottomSheetDialog, SnackbarType.ERROR)
                             }
                         }
                     }
                 }
             } else {
-                (context as? android.app.Activity)?.showSnackbar("Please login first", SnackbarType.ERROR)
+                (context as? android.app.Activity)?.showSnackbarWithDialog("Please login first", bottomSheetDialog, SnackbarType.ERROR)
             }
         }
 
@@ -794,7 +796,8 @@ currentRating = ratingResponse.rating ?: 0f
         movie: Movie,
         userId: Int,
         onRatingSaved: (() -> Unit)?,
-        onRatingChanged: (Float) -> Unit
+        onRatingChanged: (Float) -> Unit,
+        bottomSheetDialog: BottomSheetDialog? = null
     ) {
         binding.starRating.apply {
             starSizeDp = 44f
@@ -817,16 +820,16 @@ currentRating = ratingResponse.rating ?: 0f
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 updateWatchedButtonState(context, binding, true)
                             }
-                            (context as? android.app.Activity)?.showSnackbar("Rated: $ratingToSave stars", SnackbarType.SUCCESS)
+                            (context as? android.app.Activity)?.showSnackbarWithDialog("Rated: $ratingToSave stars", bottomSheetDialog, SnackbarType.SUCCESS)
                             // Trigger callback to refresh data
                             onRatingSaved?.invoke()
                         } else {
-                            (context as? android.app.Activity)?.showSnackbar("Failed to save rating", SnackbarType.ERROR)
+                            (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to save rating", bottomSheetDialog, SnackbarType.ERROR)
                         }
                     }
                 } else {
                     Log.e("MovieActionsHelper", "Cannot save rating: userId=$userId, lifecycleOwner=$lifecycleOwner")
-                    (context as? android.app.Activity)?.showSnackbar("Rated: $newRating stars (please login to save)", SnackbarType.SUCCESS)
+                    (context as? android.app.Activity)?.showSnackbarWithDialog("Rated: $newRating stars (please login to save)", bottomSheetDialog, SnackbarType.SUCCESS)
                 }
             }
         }
