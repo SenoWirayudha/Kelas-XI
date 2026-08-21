@@ -11,6 +11,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -48,11 +49,19 @@ class ForgotPasswordFragment : Fragment() {
         // Keep the bottom of the page above the navigation bar.
         // The hero itself bleeds behind the status bar (no top padding).
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
-            val bottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
-            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, bottom)
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, bars.bottom)
+            // Keep the back button clear of the status bar overlaying the hero.
+            val lp = binding.btnBackContainer.layoutParams as ConstraintLayout.LayoutParams
+            lp.topMargin = bars.top + (8 * resources.displayMetrics.density).toInt()
+            binding.btnBackContainer.layoutParams = lp
             insets
         }
         applyImmersiveStatusBar(true)
+
+        binding.btnBack.setOnClickListener {
+            findNavController().navigateUp()
+        }
 
         binding.btnSend.setOnClickListener {
             performForgotPassword()
@@ -87,12 +96,17 @@ class ForgotPasswordFragment : Fragment() {
         if (immersive) {
             WindowCompat.setDecorFitsSystemWindows(window, false)
             window.statusBarColor = Color.TRANSPARENT
+            window.navigationBarColor = Color.TRANSPARENT
             controller.isAppearanceLightStatusBars = true
+            controller.isAppearanceLightNavigationBars = false
         } else {
             WindowCompat.setDecorFitsSystemWindows(window, true)
             window.statusBarColor =
                 ContextCompat.getColor(requireContext(), R.color.dark_background)
+            window.navigationBarColor =
+                ContextCompat.getColor(requireContext(), R.color.dark_background)
             controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = false
         }
     }
 
@@ -156,6 +170,7 @@ class ForgotPasswordFragment : Fragment() {
      * registered) to avoid user enumeration.
      */
     private fun showConfirmation() {
+        binding.tvSubtitle.visibility = View.GONE
         binding.cardEmail.visibility = View.GONE
         binding.btnSend.visibility = View.GONE
         binding.layoutConfirmation.visibility = View.VISIBLE
