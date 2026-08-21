@@ -164,41 +164,17 @@ class ForgotPasswordController extends Controller
     {
         $username = $user->username ?: 'there';
 
-        $apiKey = (string) config('services.resend.key');
-        if ($apiKey === '') {
-            Log::info('Google sign-in notice (RESEND_API_KEY not set, not sending email)', [
-                'email' => $email,
-            ]);
-            return;
-        }
-
-        try {
-            $response = Http::withToken($apiKey)
-                ->acceptJson()
-                ->timeout(15)
-                ->post('https://api.resend.com/emails', [
-                    'from' => config('services.resend.from_name') . ' <' . config('services.resend.from_email') . '>',
-                    'to' => [$email],
-                    'subject' => 'Login dengan Google — Moview',
-                    'html' => view('emails.google-account-notice', compact('username'))->render(),
-                ]);
-
-            if (!$response->successful()) {
-                Log::error('Resend send failed', [
-                    'email' => $email,
-                    'status' => $response->status(),
-                    'body' => mb_substr($response->body(), 0, 500),
-                ]);
-            }
-        } catch (\Throwable $e) {
-            Log::error('Resend send exception', ['email' => $email, 'error' => $e->getMessage()]);
-        }
+        $this->sendViaBrevo(
+            $email,
+            'Login dengan Google — Moview',
+            view('emails.google-account-notice', compact('username'))->render()
+        );
     }
 
     /**
-     * Sends the reset link via the Resend HTTP API. If RESEND_API_KEY is not
-     * configured, the link is written to the log instead so local testing
-     * still works end-to-end.
+     * Sends the reset link via the Brevo transactional email API. If
+     * BREVO_API_KEY is not configured, the link is written to the log
+     * instead so local testing still works end-to-end.
      */
     private function sendResetEmail(User $user, string $email, string $plainToken): void
     {
@@ -207,35 +183,54 @@ class ForgotPasswordController extends Controller
         $username = $user->username ?: 'there';
         $ttl = PasswordResetToken::TTL_MINUTES;
 
-        $apiKey = (string) config('services.resend.key');
+        $this->sendViaBrevo(
+            $email,
+            'Reset Password — Moview',
+            view('emails.reset-password', compact('link', 'username', 'ttl'))->render(),
+            ['link' => $link]
+        );
+    }
+
+    /**
+     * Brevo /v3/smtp/email sender shared by both email types. Failures are
+     * logged but never surfaced to the client (the API response stays generic).
+     */
+    private function sendViaBrevo(string $toEmail, string $subject, string $html, array $logContext = []): void
+    {
+        $apiKey = (string) config('services.brevo.key');
         if ($apiKey === '') {
-            Log::info('Password reset link (RESEND_API_KEY not set, not sending email)', [
-                'email' => $email,
-                'link' => $link,
-            ]);
+            Log::info('Brevo email not sent (BREVO_API_KEY not set)', array_merge([
+                'email' => $toEmail,
+                'subject' => $subject,
+            ], $logContext));
             return;
         }
 
         try {
-            $response = Http::withToken($apiKey)
-                ->acceptJson()
+            $response = Http::withHeaders([
+                'api-key' => $apiKey,
+                'accept' => 'application/json',
+            ])
                 ->timeout(15)
-                ->post('https://api.resend.com/emails', [
-                    'from' => config('services.resend.from_name') . ' <' . config('services.resend.from_email') . '>',
-                    'to' => [$email],
-                    'subject' => 'Reset Password — Moview',
-                    'html' => view('emails.reset-password', compact('link', 'username', 'ttl'))->render(),
+                ->post('https://api.brevo.com/v3/smtp/email', [
+                    'sender' => [
+                        'name' => config('services.brevo.from_name'),
+                        'email' => config('services.brevo.from_email'),
+                    ],
+                    'to' => [['email' => $toEmail]],
+                    'subject' => $subject,
+                    'htmlContent' => $html,
                 ]);
 
             if (!$response->successful()) {
-                Log::error('Resend send failed', [
-                    'email' => $email,
+                Log::error('Brevo send failed', [
+                    'email' => $toEmail,
                     'status' => $response->status(),
                     'body' => mb_substr($response->body(), 0, 500),
                 ]);
             }
         } catch (\Throwable $e) {
-            Log::error('Resend send exception', ['email' => $email, 'error' => $e->getMessage()]);
+            Log::error('Brevo send exception', ['email' => $toEmail, 'error' => $e->getMessage()]);
         }
     }
 }

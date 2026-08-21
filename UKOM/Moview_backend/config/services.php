@@ -18,10 +18,10 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
-    'resend' => [
-        'key' => env('RESEND_API_KEY'),
-        'from_email' => env('RESEND_FROM_EMAIL', 'onboarding@resend.dev'),
-        'from_name' => env('RESEND_FROM_NAME', 'Moview'),
+    'brevo' => [
+        'key' => env('BREVO_API_KEY'),
+        'from_email' => env('BREVO_FROM_EMAIL'),
+        'from_name' => env('BREVO_FROM_NAME', 'Moview'),
     ],
 
     'forgot_password' => [
