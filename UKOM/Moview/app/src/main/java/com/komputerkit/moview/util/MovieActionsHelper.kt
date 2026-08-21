@@ -604,66 +604,155 @@ currentRating = ratingResponse.rating ?: 0f
      */
     @android.annotation.SuppressLint("ClickableViewAccessibility")
     private fun setupPosterInteraction(imageView: ImageView, dialog: Dialog) {
+        // Use MATRIX scaleType so we control zoom via Matrix, not view scaleX/scaleY.
+        // View-scale approach jittered because (focus-pivot) translation accumulated error
+        // and ViewPropertyAnimator fought manual writes.
+        imageView.scaleType = ImageView.ScaleType.MATRIX
+        val matrix = android.graphics.Matrix()
+        val tempValues = FloatArray(9)
         val minScale = 1f
         val maxScale = 3f
         val doubleTapScale = 2f
         var currentScale = 1f
+        // Base fit scale that makes drawable fitInside the view (fitCenter equivalent)
+        var baseScale = 1f
 
-        // --- helpers ---
-        fun clampTranslation() {
-            val maxTx = imageView.width  * (currentScale - 1f) / 2f
-            val maxTy = imageView.height * (currentScale - 1f) / 2f
-            imageView.translationX = imageView.translationX.coerceIn(-maxTx, maxTx)
-            imageView.translationY = imageView.translationY.coerceIn(-maxTy, maxTy)
+        fun getMatrixScale(): Float {
+            matrix.getValues(tempValues)
+            return tempValues[android.graphics.Matrix.MSCALE_X]
         }
 
-        fun animateTo(scale: Float, tx: Float = imageView.translationX, ty: Float = imageView.translationY) {
-            imageView.animate().cancel()
-            imageView.animate().scaleX(scale).scaleY(scale).translationX(tx).translationY(ty)
-                .setDuration(200).start()
-            currentScale = scale
+        fun clampMatrix() {
+            val d = imageView.drawable ?: return
+            if (imageView.width == 0 || imageView.height == 0) return
+            val viewW = imageView.width.toFloat()
+            val viewH = imageView.height.toFloat()
+            val rect = android.graphics.RectF(0f, 0f, d.intrinsicWidth.toFloat(), d.intrinsicHeight.toFloat())
+            matrix.mapRect(rect)
+            val totalScale = getMatrixScale() / baseScale
+            // When zoomed to 1x (fit), keep centered; when zoomed, keep edges from showing background
+            var dx = 0f
+            var dy = 0f
+            if (rect.width() <= viewW) {
+                dx = (viewW - rect.width()) / 2f - rect.left
+            } else {
+                if (rect.left > 0f) dx = -rect.left
+                if (rect.right < viewW) dx = viewW - rect.right
+            }
+            if (rect.height() <= viewH) {
+                dy = (viewH - rect.height()) / 2f - rect.top
+            } else {
+                if (rect.top > 0f) dy = -rect.top
+                if (rect.bottom < viewH) dy = viewH - rect.bottom
+            }
+            // Don't fight swipe-dismiss translation when at minScale; keep image centered
+            if (totalScale <= 1.01f) {
+                // keep centered, swipe uses view.translationY not matrix
+            }
+            matrix.postTranslate(dx, dy)
         }
 
-        // --- pinch zoom (ScaleGestureDetector only) ---
+        fun resetMatrixToFitCenter() {
+            val d = imageView.drawable ?: return
+            if (imageView.width == 0 || imageView.height == 0) {
+                imageView.post { resetMatrixToFitCenter() }
+                return
+            }
+            val vw = imageView.width.toFloat()
+            val vh = imageView.height.toFloat()
+            val dw = d.intrinsicWidth.toFloat()
+            val dh = d.intrinsicHeight.toFloat()
+            if (dw == 0f || dh == 0f) return
+            val scale = minOf(vw / dw, vh / dh)
+            baseScale = scale
+            currentScale = 1f
+            matrix.reset()
+            matrix.postScale(scale, scale)
+            matrix.postTranslate((vw - dw * scale) / 2f, (vh - dh * scale) / 2f)
+            imageView.imageMatrix = matrix
+        }
+
+        fun animateMatrixTo(targetScale: Float, focusX: Float? = null, focusY: Float? = null) {
+            val startScale = currentScale
+            val viewW = imageView.width.toFloat()
+            val viewH = imageView.height.toFloat()
+            val fx = focusX ?: viewW / 2f
+            val fy = focusY ?: viewH / 2f
+            val anim = android.animation.ValueAnimator.ofFloat(0f, 1f)
+            val startMatrix = android.graphics.Matrix(matrix)
+            anim.duration = 220
+            anim.interpolator = android.view.animation.DecelerateInterpolator()
+            anim.addUpdateListener { va ->
+                val t = va.animatedValue as Float
+                val s = startScale + (targetScale - startScale) * t
+                val factor = s / getMatrixScale() * baseScale
+                // interpolate from startMatrix towards target
+                matrix.set(startMatrix)
+                // scale delta from start to current interpolated scale
+                val scaleFactor = s / startScale
+                matrix.postScale(scaleFactor, scaleFactor, fx, fy)
+                clampMatrix()
+                imageView.imageMatrix = matrix
+                if (t >= 1f) currentScale = targetScale
+            }
+            anim.start()
+        }
+
+        // Initialize after drawable is set; also handle async Glide load
+        imageView.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                imageView.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                resetMatrixToFitCenter()
+            }
+        })
+        // Also reset when drawable changes (Glide loads)
+        imageView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> }
+
         val scaleDetector = ScaleGestureDetector(
             imageView.context,
             object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
                 override fun onScale(detector: ScaleGestureDetector): Boolean {
-                    // Cancel any running settle animation so its frame writes don't
-                    // fight our manual scale/translation values.
-                    imageView.animate().cancel()
-
-                    val newScale = (currentScale * detector.scaleFactor).coerceIn(minScale, maxScale)
-                    if (newScale == currentScale) return true
-
-                    // Keep focal point stationary: translation correct = (focus - pivot) * (1 - scaleFactor).
-                    // Before: (old - new) = old * (1 - scaleFactor) → 2× overshoot at 2× zoom → bounce.
-                    val pivotX = imageView.pivotX
-                    val pivotY = imageView.pivotY
-                    val focusX = detector.focusX
-                    val focusY = detector.focusY
                     val factor = detector.scaleFactor
-                    imageView.translationX += (focusX - pivotX) * (1f - factor)
-                    imageView.translationY += (focusY - pivotY) * (1f - factor)
-
+                    val newScale = (currentScale * factor).coerceIn(minScale, maxScale)
+                    val actualFactor = newScale / currentScale
+                    if (actualFactor == 1f) return true
+                    matrix.postScale(actualFactor, actualFactor, detector.focusX, detector.focusY)
                     currentScale = newScale
-                    imageView.scaleX = newScale
-                    imageView.scaleY = newScale
-                    clampTranslation()
+                    clampMatrix()
+                    imageView.imageMatrix = matrix
                     return true
                 }
             }
         )
 
-        // --- double-tap only via GestureDetector ---
         val gestureDetector = GestureDetector(
             imageView.context,
             object : GestureDetector.SimpleOnGestureListener() {
                 override fun onDoubleTap(e: MotionEvent): Boolean {
                     if (currentScale > minScale + 0.1f) {
-                        animateTo(minScale, 0f, 0f)
+                        // animate back to fit
+                        val anim = android.animation.ValueAnimator.ofFloat(0f, 1f)
+                        val startMatrix = android.graphics.Matrix(matrix)
+                        val startScale = currentScale
+                        anim.duration = 220
+                        anim.interpolator = android.view.animation.DecelerateInterpolator()
+                        anim.addUpdateListener { va ->
+                            val t = va.animatedValue as Float
+                            matrix.set(startMatrix)
+                            val s = startScale + (1f - startScale) * t
+                            val f = s / startScale
+                            matrix.postScale(f, f, imageView.width / 2f, imageView.height / 2f)
+                            if (t >= 0.99f) resetMatrixToFitCenter() else {
+                                clampMatrix()
+                                imageView.imageMatrix = matrix
+                            }
+                        }
+                        anim.addUpdateListener { }
+                        anim.start()
+                        // reset will be called at end; ensure currentScale updated
+                        imageView.postDelayed({ currentScale = 1f }, 230)
                     } else {
-                        animateTo(doubleTapScale)
+                        animateMatrixTo(doubleTapScale, e.x, e.y)
                     }
                     return true
                 }
@@ -671,95 +760,68 @@ currentRating = ratingResponse.rating ?: 0f
         )
         gestureDetector.setIsLongpressEnabled(false)
 
-        // --- manual touch tracking for smooth pan + swipe-down dismiss ---
-        var lastRawX = 0f
-        var lastRawY = 0f
-        var swipeStartRawY = 0f
-        var swipeStartTransY = 0f
-        var isPanning = false
-        var isSwipeDismiss = false
-        var skipNextMove = false
+        var lastX = 0f
+        var lastY = 0f
+        var swipeStartY = 0f
+        var isSwipe = false
+        var swipeBaseTransY = 0f
 
         imageView.setOnTouchListener { v, event ->
             scaleDetector.onTouchEvent(event)
             gestureDetector.onTouchEvent(event)
 
             if (scaleDetector.isInProgress) {
-                isPanning = false
-                isSwipeDismiss = false
-                skipNextMove = true
+                isSwipe = false
                 return@setOnTouchListener true
             }
 
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    lastRawX = event.rawX
-                    lastRawY = event.rawY
-                    swipeStartRawY = event.rawY
-                    swipeStartTransY = imageView.translationY
-                    isPanning = false
-                    isSwipeDismiss = false
-                    skipNextMove = false
-                }
-                MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_POINTER_UP -> {
-                    // Pinch is starting/ending: cancel any settle animation and sync our
-                    // tracked scale with the value actually rendered, so a mid-animation
-                    // pinch doesn't jump.
-                    imageView.animate().cancel()
-                    currentScale = imageView.scaleX
-                    skipNextMove = true
+                    lastX = event.x
+                    lastY = event.y
+                    swipeStartY = event.rawY
+                    swipeBaseTransY = v.translationY
+                    isSwipe = false
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    if (event.pointerCount > 1) {
-                        return@setOnTouchListener true
-                    }
-
-                    if (skipNextMove) {
-                        lastRawX = event.rawX
-                        lastRawY = event.rawY
-                        skipNextMove = false
-                        return@setOnTouchListener true
-                    }
-
-                    val dx = event.rawX - lastRawX
-                    val dy = event.rawY - lastRawY
-                    lastRawX = event.rawX
-                    lastRawY = event.rawY
-
-                    val isZoomed = currentScale > minScale + 0.1f
-
-                    if (isZoomed) {
-                        imageView.translationX += dx
-                        imageView.translationY += dy
-                        clampTranslation()
-                        isPanning = true
+                    if (event.pointerCount != 1) return@setOnTouchListener true
+                    val dx = event.x - lastX
+                    val dy = event.y - lastY
+                    lastX = event.x
+                    lastY = event.y
+                    if (currentScale > 1.01f) {
+                        matrix.postTranslate(dx, dy)
+                        clampMatrix()
+                        imageView.imageMatrix = matrix
                     } else {
-                        // Swipe-down to dismiss
-                        val totalDy = event.rawY - swipeStartRawY
-                        if (!isSwipeDismiss && kotlin.math.abs(totalDy) > 12f) {
-                            isSwipeDismiss = true
-                        }
-                        if (isSwipeDismiss && totalDy > 0f) {
-                            v.translationY = swipeStartTransY + totalDy
+                        val totalDy = event.rawY - swipeStartY
+                        if (!isSwipe && kotlin.math.abs(totalDy) > 12f) isSwipe = true
+                        if (isSwipe && totalDy > 0f) {
+                            v.translationY = swipeBaseTransY + totalDy
+                            // fade background with swipe
+                            val progress = (totalDy / (v.height * 0.5f)).coerceIn(0f, 1f)
+                            dialog.window?.decorView?.alpha = 1f - progress * 0.5f
                         }
                     }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (currentScale <= minScale + 0.1f) {
-                        val totalDy = event.rawY - swipeStartRawY
-                        if (isSwipeDismiss && totalDy > 180f) {
+                    if (currentScale <= 1.01f && isSwipe) {
+                        val totalDy = event.rawY - swipeStartY
+                        if (totalDy > 180f) {
                             dialog.dismiss()
-                        } else if (isSwipeDismiss) {
+                        } else {
                             v.animate().translationY(0f).setDuration(200).start()
+                            dialog.window?.decorView?.animate()?.alpha(1f)?.setDuration(200)?.start()
                         }
                     }
-                    isPanning = false
-                    isSwipeDismiss = false
-                    skipNextMove = false
+                    isSwipe = false
                 }
             }
             true
         }
+
+        // Ensure initial fit after Glide sets drawable (post delayed reset if needed)
+        imageView.post { if (imageView.drawable != null) resetMatrixToFitCenter() }
     }
 
     private fun updateWatchedButtonState(
