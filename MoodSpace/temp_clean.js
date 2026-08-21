@@ -21,7 +21,7 @@ const clean = `export const forgotPassword = async ({ email }) => {
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
   await createPasswordReset({ userId: user.id, purpose: 'reset', tokenHash, expiresAt })
 
-  if (env.RESEND_API_KEY) {
+  if (env.BREVO_API_KEY) {
     sendPasswordResetEmail({ to: user.email, username: user.username || 'pengguna', token: rawToken }).catch(() => {})
   }
 

@@ -201,8 +201,8 @@ export const changePassword = async (userId, currentPassword, newPassword, verif
   const auth = await findPasswordAuthByUserId(userId)
   if (!auth) throw unauthorized('Password not set for this account')
 
-  // Verify 6-digit code jika RESEND_API_KEY terisi
-  if (env.RESEND_API_KEY) {
+  // Verify 6-digit code jika BREVO_API_KEY terisi
+  if (env.BREVO_API_KEY) {
     if (!verificationCode) throw new AppError('Kode verifikasi wajib diisi', 400)
     const codeHash = hashToken(verificationCode)
     const record = await findValidResetToken({ tokenHash: codeHash, purpose: 'change' })
@@ -250,7 +250,7 @@ export const forgotPassword = async ({ email }) => {
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
   await createPasswordReset({ userId: user.id, purpose: 'reset', tokenHash, expiresAt })
 
-  if (env.RESEND_API_KEY) {
+  if (env.BREVO_API_KEY) {
     sendPasswordResetEmail({ to: user.email, username: user.username || 'pengguna', token: rawToken }).catch(() => {})
   }
 
@@ -298,7 +298,7 @@ export const sendVerificationCode = async (userId) => {
   await createPasswordReset({ userId, purpose: 'change', tokenHash: codeHash, expiresAt })
 
   // Kirim email (non-blocking)
-  if (auth.email && env.RESEND_API_KEY) {
+  if (auth.email && env.BREVO_API_KEY) {
     sendVerificationCodeEmail({ to: auth.email, code }).catch(() => {})
   }
 

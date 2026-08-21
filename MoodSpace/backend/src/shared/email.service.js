@@ -1,7 +1,16 @@
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 import { env } from '../config/env.js'
 
 const BASE_URL = env.CLIENT_ORIGIN.split(',')[0].trim()
+
+const transporter = nodemailer.createTransport({
+  host: 'smtp-relay.brevo.com',
+  port: 587,
+  auth: {
+    user: env.EMAIL_FROM,
+    pass: env.BREVO_API_KEY,
+  },
+})
 
 const PASSWORD_CHANGE_TEMPLATE = (username, ip) => ({
   subject: 'Password MoodSpace Anda Telah Diubah',
@@ -34,11 +43,10 @@ const PASSWORD_CHANGE_TEMPLATE = (username, ip) => ({
 })
 
 export const sendPasswordChangeEmail = async ({ to, username, ip }) => {
-  if (!env.RESEND_API_KEY) return
-  const resend = new Resend(env.RESEND_API_KEY)
+  if (!env.BREVO_API_KEY) return
   const { subject, html } = PASSWORD_CHANGE_TEMPLATE(username, ip)
   try {
-    await resend.emails.send({ from: env.EMAIL_FROM, to, subject, html })
+    await transporter.sendMail({ from: env.EMAIL_FROM, to, subject, html })
   } catch (err) {
     console.error('[EMAIL] sendPasswordChangeEmail failed:', err)
   }
@@ -82,14 +90,13 @@ const PASSWORD_RESET_TEMPLATE = ({ username, token }) => ({
 })
 
 export const sendPasswordResetEmail = async ({ to, username, token }) => {
-  if (!env.RESEND_API_KEY) {
-    console.warn('[EMAIL] RESEND_API_KEY not set — cannot send password reset email to', to)
+  if (!env.BREVO_API_KEY) {
+    console.warn('[EMAIL] BREVO_API_KEY not set — cannot send password reset email to', to)
     return
   }
-  const resend = new Resend(env.RESEND_API_KEY)
   const { subject, html } = PASSWORD_RESET_TEMPLATE({ username, token })
   try {
-    await resend.emails.send({ from: env.EMAIL_FROM, to, subject, html })
+    await transporter.sendMail({ from: env.EMAIL_FROM, to, subject, html })
   } catch (err) {
     console.error('[EMAIL] sendPasswordResetEmail failed:', err.message, { to, type: 'password_reset' })
   }
@@ -124,11 +131,10 @@ const VERIFICATION_CODE_TEMPLATE = ({ username, code }) => ({
 })
 
 export const sendVerificationCodeEmail = async ({ to, code }) => {
-  if (!env.RESEND_API_KEY) return
-  const resend = new Resend(env.RESEND_API_KEY)
+  if (!env.BREVO_API_KEY) return
   const { subject, html } = VERIFICATION_CODE_TEMPLATE({ username: to.split('@')[0], code })
   try {
-    await resend.emails.send({ from: env.EMAIL_FROM, to, subject, html })
+    await transporter.sendMail({ from: env.EMAIL_FROM, to, subject, html })
   } catch (err) {
     console.error('[EMAIL] sendVerificationCodeEmail failed:', err)
   }
