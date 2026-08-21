@@ -352,6 +352,9 @@ class AuthController extends Controller
                     ->where('id', $user->id)
                     ->update([
                         'remember_token' => $token,
+                        // Backfill the id but keep the original auth_provider:
+                        // an existing account may have a real manual password.
+                        'google_id' => $user->google_id ?? $request->google_id,
                         'updated_at' => now()
                     ]);
             } else {
@@ -374,6 +377,8 @@ class AuthController extends Controller
                     'username' => $finalUsername,
                     'email' => $request->email,
                     'password' => Hash::make(uniqid() . time()),
+                    'google_id' => $request->google_id,
+                    'auth_provider' => 'google',
                     'role' => 'user',
                     'status' => 'active',
                     'remember_token' => $token,

@@ -56,21 +56,29 @@ class ForgotPasswordController extends Controller
         $user = User::where('email', $email)->first();
 
         if ($user) {
-            // Invalidate any previous tokens for this email.
-            PasswordResetToken::where('email', $email)->delete();
+            if ($user->auth_provider === 'google') {
+                // Google-only account: no password reset possible — send the
+                // "use Google Sign-In" notice instead of a reset link.
+                $this->sendGoogleNoticeEmail($user, $email);
+            } else {
+                // Invalidate any previous tokens for this email.
+                PasswordResetToken::where('email', $email)->delete();
 
-            $plainToken = Str::random(64);
+                $plainToken = Str::random(64);
 
-            PasswordResetToken::create([
-                'email' => $email,
-                'token' => PasswordResetToken::hash($plainToken),
-                'expires_at' => now()->addMinutes(PasswordResetToken::TTL_MINUTES),
-                'created_at' => now(),
-            ]);
+                PasswordResetToken::create([
+                    'email' => $email,
+                    'token' => PasswordResetToken::hash($plainToken),
+                    'expires_at' => now()->addMinutes(PasswordResetToken::TTL_MINUTES),
+                    'created_at' => now(),
+                ]);
 
-            $this->sendResetEmail($user, $email, $plainToken);
+                $this->sendResetEmail($user, $email, $plainToken);
+            }
         }
 
+        // Identical generic response in every case (registered or not,
+        // Google-only or not) to prevent user enumeration.
         return response()->json([
             'success' => true,
             'message' => 'Jika email kamu terdaftar, link reset password sudah dikirim. Cek inbox atau folder spam.',
@@ -146,6 +154,45 @@ class ForgotPasswordController extends Controller
             'success' => true,
             'message' => 'Password berhasil diubah. Kembali ke app dan login dengan password barumu.',
         ]);
+    }
+
+    /**
+     * Tells a Google-only account holder to sign in with Google instead of
+     * expecting a reset link (no link included).
+     */
+    private function sendGoogleNoticeEmail(User $user, string $email): void
+    {
+        $username = $user->username ?: 'there';
+
+        $apiKey = (string) config('services.resend.key');
+        if ($apiKey === '') {
+            Log::info('Google sign-in notice (RESEND_API_KEY not set, not sending email)', [
+                'email' => $email,
+            ]);
+            return;
+        }
+
+        try {
+            $response = Http::withToken($apiKey)
+                ->acceptJson()
+                ->timeout(15)
+                ->post('https://api.resend.com/emails', [
+                    'from' => config('services.resend.from_name') . ' <' . config('services.resend.from_email') . '>',
+                    'to' => [$email],
+                    'subject' => 'Login dengan Google — Moview',
+                    'html' => view('emails.google-account-notice', compact('username'))->render(),
+                ]);
+
+            if (!$response->successful()) {
+                Log::error('Resend send failed', [
+                    'email' => $email,
+                    'status' => $response->status(),
+                    'body' => mb_substr($response->body(), 0, 500),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Resend send exception', ['email' => $email, 'error' => $e->getMessage()]);
+        }
     }
 
     /**
