@@ -102,7 +102,6 @@ class LoginFragment : Fragment() {
 
         setupGoogleSignIn()
         setupClickListeners()
-        setupEmailValidation()
     }
 
     // Edge-to-edge: let the bright hero bleed behind the status bar (transparent).
@@ -116,12 +115,17 @@ class LoginFragment : Fragment() {
         if (immersive) {
             WindowCompat.setDecorFitsSystemWindows(window, false)
             window.statusBarColor = Color.TRANSPARENT
+            window.navigationBarColor = Color.TRANSPARENT
             controller.isAppearanceLightStatusBars = true
+            controller.isAppearanceLightNavigationBars = false
         } else {
             WindowCompat.setDecorFitsSystemWindows(window, true)
             window.statusBarColor =
                 ContextCompat.getColor(requireContext(), R.color.dark_background)
+            window.navigationBarColor =
+                ContextCompat.getColor(requireContext(), R.color.dark_background)
             controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = false
         }
     }
 
@@ -206,23 +210,6 @@ class LoginFragment : Fragment() {
         binding.btnGoogleSignIn.text = if (isLoading) "Menghubungkan..." else "Login dengan Google"
     }
     
-    private fun setupEmailValidation() {
-        binding.etEmail.setOnFocusChangeListener { _, hasFocus ->
-            if (!hasFocus) {
-                val email = binding.etEmail.text.toString()
-                if (isValidEmail(email)) {
-                    binding.ivEmailCheck.visibility = View.VISIBLE
-                } else {
-                    binding.ivEmailCheck.visibility = View.GONE
-                }
-            }
-        }
-    }
-    
-    private fun isValidEmail(email: String): Boolean {
-        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
-    }
-    
     private fun togglePasswordVisibility() {
         isPasswordVisible = !isPasswordVisible
         if (isPasswordVisible) {
@@ -246,7 +233,7 @@ class LoginFragment : Fragment() {
             return
         }
         
-        if (!isValidEmail(email)) {
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             Toast.makeText(requireContext(), "Please enter valid email", Toast.LENGTH_SHORT).show()
             return
         }

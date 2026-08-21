@@ -146,15 +146,6 @@
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_secondary"
                     android:textSize="16sp" />
-
-                <ImageView
-                    android:id="@+id/iv_email_check"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_check"
-                    android:visibility="gone"
-                    app:tint="@color/accent_blue"
-                    tools:visibility="visible" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

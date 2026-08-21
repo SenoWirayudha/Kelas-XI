@@ -170,6 +170,8 @@ class ForgotPasswordFragment : Fragment() {
      * registered) to avoid user enumeration.
      */
     private fun showConfirmation() {
+        binding.cardIcon.visibility = View.GONE
+        binding.tvTitle.visibility = View.GONE
         binding.tvSubtitle.visibility = View.GONE
         binding.cardEmail.visibility = View.GONE
         binding.btnSend.visibility = View.GONE

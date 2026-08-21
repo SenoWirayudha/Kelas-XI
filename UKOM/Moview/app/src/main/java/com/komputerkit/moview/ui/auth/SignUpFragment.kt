@@ -76,12 +76,17 @@ class SignUpFragment : Fragment() {
         if (immersive) {
             WindowCompat.setDecorFitsSystemWindows(window, false)
             window.statusBarColor = Color.TRANSPARENT
+            window.navigationBarColor = Color.TRANSPARENT
             controller.isAppearanceLightStatusBars = true
+            controller.isAppearanceLightNavigationBars = false
         } else {
             WindowCompat.setDecorFitsSystemWindows(window, true)
             window.statusBarColor =
                 ContextCompat.getColor(requireContext(), R.color.dark_background)
+            window.navigationBarColor =
+                ContextCompat.getColor(requireContext(), R.color.dark_background)
             controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = false
         }
     }
 
@@ -133,25 +138,10 @@ class SignUpFragment : Fragment() {
                 }
             }
         }
-        
-        binding.etEmail.setOnFocusChangeListener { _, hasFocus ->
-            if (!hasFocus) {
-                val email = binding.etEmail.text.toString()
-                if (isValidEmail(email)) {
-                    binding.ivEmailCheck.visibility = View.VISIBLE
-                } else {
-                    binding.ivEmailCheck.visibility = View.GONE
-                }
-            }
-        }
     }
     
     private fun isValidUsername(username: String): Boolean {
         return username.length >= 3
-    }
-    
-    private fun isValidEmail(email: String): Boolean {
-        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
     }
     
     private fun togglePasswordVisibility() {
@@ -188,7 +178,7 @@ class SignUpFragment : Fragment() {
             return
         }
         
-        if (!isValidEmail(email)) {
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             Toast.makeText(requireContext(), "Please enter valid email", Toast.LENGTH_SHORT).show()
             return
         }
