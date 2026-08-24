@@ -1025,10 +1025,8 @@ class MovieApiController extends Controller
                 'genres:id,name',
             ])
             ->where('status', 'published')
-            ->whereHas('movieReleases', function ($q) use ($today) {
-                $q->whereIn('type', [MovieRelease::TYPE_THEATRICAL, MovieRelease::TYPE_STREAMING])
-                  ->where('release_date', '>', $today);
-            });
+            ->whereUnreleased()
+            ->whereHasFuturePublicRelease();
 
         $movies = $query->get();
 

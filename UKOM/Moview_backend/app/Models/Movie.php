@@ -287,4 +287,36 @@ class Movie extends Model
 
         return $publicRelease ? 'released' : 'coming_soon';
     }
+
+    /**
+     * Scope: movies that have NOT yet had a public release (no theatrical/streaming date <= today).
+     * This is the exact inverse of getReleaseStatusAttribute()'s "released" check, reused
+     * by comingSoon() so the two stay in sync (re-release fix).
+     */
+    public function scopeWhereUnreleased(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('movieReleases', function (Builder $q) {
+            $q->whereIn('type', [MovieRelease::TYPE_THEATRICAL, MovieRelease::TYPE_STREAMING])
+              ->where('release_date', '<=', now()->toDateString());
+        });
+    }
+
+    public function scopeWhereReleased(Builder $query): Builder
+    {
+        return $query->whereHas('movieReleases', function (Builder $q) {
+            $q->whereIn('type', [MovieRelease::TYPE_THEATRICAL, MovieRelease::TYPE_STREAMING])
+              ->where('release_date', '<=', now()->toDateString());
+        });
+    }
+
+    /**
+     * Scope: movies that have at least one future theatrical/streaming release (date > today).
+     */
+    public function scopeWhereHasFuturePublicRelease(Builder $query): Builder
+    {
+        return $query->whereHas('movieReleases', function (Builder $q) {
+            $q->whereIn('type', [MovieRelease::TYPE_THEATRICAL, MovieRelease::TYPE_STREAMING])
+              ->where('release_date', '>', now()->toDateString());
+        });
+    }
 }
