@@ -89,7 +89,7 @@
                         android:textSize="24sp"
                         android:textStyle="bold"
                         app:autoSizeMaxTextSize="24sp"
-                        app:autoSizeMinTextSize="14sp"
+                        app:autoSizeMinTextSize="20sp"
                         app:autoSizeStepGranularity="1sp"
                         app:autoSizeTextType="uniform"
                         tools:text="Basri &amp; Salma in a Never-Ending Comedy" />
@@ -917,7 +917,7 @@
             android:textStyle="bold"
             android:visibility="gone"
             app:autoSizeMaxTextSize="18sp"
-            app:autoSizeMinTextSize="12sp"
+            app:autoSizeMinTextSize="14sp"
             app:autoSizeStepGranularity="1sp"
             app:autoSizeTextType="uniform"
             tools:text="Interstellar" />

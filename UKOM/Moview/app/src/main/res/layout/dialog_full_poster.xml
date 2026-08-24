@@ -32,7 +32,7 @@
         android:textSize="18sp"
         android:textStyle="bold"
         app:autoSizeMaxTextSize="18sp"
-        app:autoSizeMinTextSize="12sp"
+        app:autoSizeMinTextSize="14sp"
         app:autoSizeStepGranularity="1sp"
         app:autoSizeTextType="uniform"
         app:layout_constraintBottom_toBottomOf="@id/btn_close"

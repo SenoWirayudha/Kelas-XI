@@ -54,16 +54,16 @@
 
 <!-- Film Hero Section -->
 <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
-    <div class="relative h-96">
+    <div class="relative min-h-[24rem]">
         <img src="{{ $activeBackdrop ? asset('storage/' . $activeBackdrop->media_path) : 'https://via.placeholder.com/1920x1080' }}" alt="{{ $movie->title }}" class="w-full h-full object-cover">
         <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
         <div class="absolute bottom-0 left-0 right-0 p-8 text-white">
             <div class="flex items-end space-x-6">
                 <img src="{{ $activePoster ? asset('storage/' . $activePoster->media_path) : 'https://via.placeholder.com/500x750' }}" alt="{{ $movie->title }}" class="w-48 h-72 object-cover rounded-lg shadow-2xl">
                 <div class="flex-1 pb-4 min-w-0">
-                    <h1 class="font-bold mb-2 break-words text-balance leading-tight" style="font-size: clamp(1.75rem, 4vw, 3rem);">{{ $movie->title }}</h1>
+                    <h1 id="film-title-hero" class="font-bold mb-2 break-words leading-tight" style="font-size: clamp(1.75rem, 4vw, 3rem); overflow-wrap: anywhere;">{{ $movie->title }}</h1>
                     @if($movie->original_title)
-                        <p class="font-medium mb-2 break-words text-gray-300" style="font-size: clamp(1.1rem, 2.5vw, 1.5rem);">{{ $movie->original_title }}</p>
+                        <p id="film-original-title" class="font-medium mb-2 break-words text-gray-300" style="font-size: clamp(1.1rem, 2.5vw, 1.5rem);">{{ $movie->original_title }}</p>
                     @endif
                     <div class="flex items-center space-x-4 text-lg mb-3">
                         <span>{{ $movie->release_year }}</span>
@@ -1189,6 +1189,37 @@ function deleteMedia(movieId, mediaId) {
         }
     });
 }
+
+// Hero title auto-shrink: ukuran font hero diukur beneran vs container, bukan cuma clamp vw.
+// Jika scrollHeight > 2 baris atau keluar dari hero (h-96), kecilkan step 1px sampai muat, min 28px.
+function fitHeroTitle() {
+    const h1 = document.getElementById('film-title-hero');
+    const hero = h1 ? h1.closest('.relative.h-96, .relative.min-h-\\[24rem\\]') : null;
+    if (!h1 || !hero) return;
+    // reset ke max clamp dulu
+    h1.style.fontSize = 'clamp(1.75rem, 4vw, 3rem)';
+    let size = parseFloat(getComputedStyle(h1).fontSize);
+    const min = 28; // 1.75rem
+    const lineH = parseFloat(getComputedStyle(h1).lineHeight) || size * 1.1;
+    const maxH = lineH * 2 + 4; // 2 baris
+    let guard = 40;
+    while (guard-- > 0 && size > min && h1.scrollHeight > maxH + 1) {
+        size -= 1;
+        h1.style.fontSize = size + 'px';
+    }
+    // Jika masih overflow keluar hero (absolute bottom content nabrak atas), kecilkan lagi
+    const content = h1.closest('.absolute.bottom-0');
+    if (content && hero) {
+        let cGuard = 20;
+        while (cGuard-- > 0 && size > min && content.getBoundingClientRect().top < hero.getBoundingClientRect().top + 8) {
+            size -= 1;
+            h1.style.fontSize = size + 'px';
+        }
+    }
+}
+document.addEventListener('DOMContentLoaded', fitHeroTitle);
+window.addEventListener('resize', fitHeroTitle);
+window.addEventListener('load', fitHeroTitle);
 
 // Delete cast/crew
 function deleteCastCrew(movieId, moviePersonId) {

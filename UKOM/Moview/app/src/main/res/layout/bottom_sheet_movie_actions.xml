@@ -29,7 +29,7 @@
         android:textSize="20sp"
         android:textStyle="bold"
         app:autoSizeMaxTextSize="20sp"
-        app:autoSizeMinTextSize="14sp"
+        app:autoSizeMinTextSize="16sp"
         app:autoSizeStepGranularity="1sp"
         app:autoSizeTextType="uniform" />
 

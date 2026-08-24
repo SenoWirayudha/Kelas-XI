@@ -168,7 +168,7 @@
                         android:textSize="28sp"
                         android:textStyle="bold"
                         app:autoSizeMaxTextSize="28sp"
-                        app:autoSizeMinTextSize="16sp"
+                        app:autoSizeMinTextSize="20sp"
                         app:autoSizeStepGranularity="1sp"
                         app:autoSizeTextType="uniform"
                         tools:text="Basri &amp; Salma in a Never-Ending Comedy" />

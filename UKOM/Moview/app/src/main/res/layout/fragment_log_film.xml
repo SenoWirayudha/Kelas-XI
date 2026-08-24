@@ -62,7 +62,7 @@
             android:textSize="32sp"
             android:textStyle="bold"
             app:autoSizeMaxTextSize="32sp"
-            app:autoSizeMinTextSize="16sp"
+            app:autoSizeMinTextSize="20sp"
             app:autoSizeStepGranularity="1sp"
             app:autoSizeTextType="uniform"
             app:layout_constraintEnd_toEndOf="parent"

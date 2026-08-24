@@ -76,7 +76,7 @@
                     android:textSize="24sp"
                     android:textStyle="bold"
                     app:autoSizeMaxTextSize="24sp"
-                    app:autoSizeMinTextSize="14sp"
+                    app:autoSizeMinTextSize="18sp"
                     app:autoSizeStepGranularity="1sp"
                     app:autoSizeTextType="uniform"
                     tools:text="Christopher Nolan" />
