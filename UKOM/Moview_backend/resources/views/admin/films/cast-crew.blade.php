@@ -27,8 +27,8 @@
             <i class="fas fa-film text-gray-400"></i>
         </div>
     @endif
-    <div>
-        <h3 class="text-xl font-bold">{{ $movie->title }}</h3>
+    <div class="min-w-0 flex-1">
+        <h3 class="font-bold break-words" style="font-size: clamp(1.1rem, 2.5vw, 1.25rem); line-height: 1.2;">{{ $movie->title }}</h3>
         <p class="text-gray-600">{{ $movie->release_year ?? 'TBA' }} • {{ $movie->movieGenres->pluck('genre.name')->implode(', ') ?: 'No genres' }}</p>
     </div>
 </div>

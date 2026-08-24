@@ -60,10 +60,10 @@
         <div class="absolute bottom-0 left-0 right-0 p-8 text-white">
             <div class="flex items-end space-x-6">
                 <img src="{{ $activePoster ? asset('storage/' . $activePoster->media_path) : 'https://via.placeholder.com/500x750' }}" alt="{{ $movie->title }}" class="w-48 h-72 object-cover rounded-lg shadow-2xl">
-                <div class="flex-1 pb-4">
-                    <h1 class="text-5xl font-bold mb-2">{{ $movie->title }}</h1>
+                <div class="flex-1 pb-4 min-w-0">
+                    <h1 class="font-bold mb-2 break-words text-balance leading-tight" style="font-size: clamp(1.75rem, 4vw, 3rem);">{{ $movie->title }}</h1>
                     @if($movie->original_title)
-                        <p class="text-2xl text-gray-300 font-medium mb-2">{{ $movie->original_title }}</p>
+                        <p class="font-medium mb-2 break-words text-gray-300" style="font-size: clamp(1.1rem, 2.5vw, 1.5rem);">{{ $movie->original_title }}</p>
                     @endif
                     <div class="flex items-center space-x-4 text-lg mb-3">
                         <span>{{ $movie->release_year }}</span>

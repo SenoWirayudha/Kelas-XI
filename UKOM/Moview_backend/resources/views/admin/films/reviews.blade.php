@@ -24,8 +24,8 @@
         $poster = $movie->posters()->where('is_default', true)->first() ?? $movie->posters()->first();
     @endphp
     <img src="{{ $poster ? asset('storage/' . $poster->media_path) : 'https://via.placeholder.com/100x150' }}" alt="{{ $movie->title }}" class="w-16 h-24 object-cover rounded">
-    <div class="flex-1">
-        <h3 class="text-xl font-bold">{{ $movie->title }}</h3>
+    <div class="flex-1 min-w-0">
+        <h3 class="font-bold break-words" style="font-size: clamp(1.1rem, 2.5vw, 1.25rem); line-height: 1.2;">{{ $movie->title }}</h3>
         <p class="text-gray-600">{{ $movie->release_year }} • {{ $movie->movieGenres->pluck('genre.name')->implode(', ') }}</p>
     </div>
     <div class="text-right">

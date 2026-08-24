@@ -163,12 +163,15 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
+                        android:maxLines="2"
                         android:textColor="@color/text_primary"
                         android:textSize="28sp"
                         android:textStyle="bold"
-                        android:maxLines="2"
-                        android:ellipsize="end"
-                        tools:text="Perfect Days" />
+                        app:autoSizeMaxTextSize="28sp"
+                        app:autoSizeMinTextSize="16sp"
+                        app:autoSizeStepGranularity="1sp"
+                        app:autoSizeTextType="uniform"
+                        tools:text="Basri &amp; Salma in a Never-Ending Comedy" />
 
                     <!-- Year & Rating -->
                     <LinearLayout

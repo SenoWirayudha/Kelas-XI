@@ -82,12 +82,17 @@
 
                     <TextView
                         android:id="@+id/tv_title"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:maxLines="2"
                         android:textColor="@color/white"
                         android:textSize="24sp"
                         android:textStyle="bold"
-                        tools:text="Interstellar" />
+                        app:autoSizeMaxTextSize="24sp"
+                        app:autoSizeMinTextSize="14sp"
+                        app:autoSizeStepGranularity="1sp"
+                        app:autoSizeTextType="uniform"
+                        tools:text="Basri &amp; Salma in a Never-Ending Comedy" />
 
                     <TextView
                         android:id="@+id/tv_original_title"
@@ -905,13 +910,16 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
-            android:ellipsize="end"
             android:maxLines="1"
             android:maxWidth="260dp"
             android:textColor="@color/white"
             android:textSize="18sp"
             android:textStyle="bold"
             android:visibility="gone"
+            app:autoSizeMaxTextSize="18sp"
+            app:autoSizeMinTextSize="12sp"
+            app:autoSizeStepGranularity="1sp"
+            app:autoSizeTextType="uniform"
             tools:text="Interstellar" />
 
     </androidx.appcompat.widget.Toolbar>
