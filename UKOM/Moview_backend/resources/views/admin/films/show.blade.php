@@ -54,7 +54,7 @@
 
 <!-- Film Hero Section -->
 <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
-    <div class="relative min-h-[24rem]">
+    <div class="relative h-96">
         <img src="{{ $activeBackdrop ? asset('storage/' . $activeBackdrop->media_path) : 'https://via.placeholder.com/1920x1080' }}" alt="{{ $movie->title }}" class="w-full h-full object-cover">
         <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
         <div class="absolute bottom-0 left-0 right-0 p-8 text-white">
@@ -63,7 +63,7 @@
                 <div class="flex-1 pb-4 min-w-0">
                     <h1 id="film-title-hero" class="font-bold mb-2 break-words leading-tight" style="font-size: clamp(1.75rem, 4vw, 3rem); overflow-wrap: anywhere;">{{ $movie->title }}</h1>
                     @if($movie->original_title)
-                        <p id="film-original-title" class="font-medium mb-2 break-words text-gray-300" style="font-size: clamp(1.1rem, 2.5vw, 1.5rem);">{{ $movie->original_title }}</p>
+                        <p id="film-original-title" class="font-normal mb-2 break-words text-gray-300" style="font-size: clamp(0.95rem, 1.8vw, 1.15rem);">{{ $movie->original_title }}</p>
                     @endif
                     <div class="flex items-center space-x-4 text-lg mb-3">
                         <span>{{ $movie->release_year }}</span>
