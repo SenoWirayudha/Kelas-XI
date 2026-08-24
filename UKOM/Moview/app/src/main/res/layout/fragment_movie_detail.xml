@@ -96,13 +96,18 @@
 
                     <TextView
                         android:id="@+id/tv_original_title"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
+                        android:maxLines="1"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:visibility="gone"
-                        tools:text="Interstellar"
+                        app:autoSizeMaxTextSize="14sp"
+                        app:autoSizeMinTextSize="11sp"
+                        app:autoSizeStepGranularity="1sp"
+                        app:autoSizeTextType="uniform"
+                        tools:text="Basri &amp; Salma dalam Komedi yang Tak Pernah Berakhir"
                         tools:visibility="visible" />
 
                     <LinearLayout
