@@ -361,8 +361,9 @@ class FilmController extends Controller
         ])->findOrFail($id);
 
         $countryNameByCode = Country::pluck('name', 'code')->all();
+        $relatedMovies = $movie->getRelatedMoviesOrdered();
 
-        return view('admin.films.show', compact('movie', 'countryNameByCode'));
+        return view('admin.films.show', compact('movie', 'countryNameByCode', 'relatedMovies'));
     }
 
     public function edit($id)
