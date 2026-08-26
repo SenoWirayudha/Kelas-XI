@@ -778,74 +778,70 @@
             </div>
             <!-- End Metadata Section -->
         </div>
+    <!-- Related Films — paling bawah, di luar area metadata, width konsisten dengan left column -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-bold mb-2 flex items-center">
+            <i class="fas fa-link text-blue-600 mr-2"></i>
+            Related Films
+            <span class="ml-2 text-sm font-normal text-gray-500">({{ isset($relatedMovies) ? $relatedMovies->count() : 0 }})</span>
+        </h2>
+        <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang saling terkait (mis. Vengeance Trilogy). Urutan sesuai sort_order — simetris.</p>
+        @if(isset($relatedMovies) && $relatedMovies->count() > 0)
+            <div class="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1" style="scrollbar-width: thin;">
+                @foreach($relatedMovies as $rm)
+                    <a href="{{ route('admin.films.show', $rm->id) }}" class="group flex-shrink-0 w-28 bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                        <div class="aspect-[2/3] bg-gray-100 overflow-hidden">
+                            @if($rm->default_poster_path)
+                                <img src="{{ asset('storage/' . $rm->default_poster_path) }}" alt="{{ $rm->title }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
+                            @else
+                                <div class="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400"><i class="fas fa-film text-xl"></i></div>
+                            @endif
+                        </div>
+                        <div class="p-2">
+                            <p class="text-xs font-medium text-gray-800 truncate" title="{{ $rm->title }}">{{ $rm->title }}</p>
+                            <p class="text-[11px] text-gray-500">{{ $rm->release_year ?? '' }}</p>
+                            <p class="text-[11px] text-blue-600">#{{ $loop->iteration }}</p>
+                        </div>
+                    </a>
+                @endforeach
+            </div>
+        @else
+            <p class="text-gray-500 text-sm">Belum ada related film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-blue-600 hover:underline">Edit Film → Related Films (paling bawah)</a>.</p>
+        @endif
     </div>
 
-    <!-- Related Films — paling bawah, di luar area metadata, width konsisten dengan left column (lg:col-span-2) -->
-    <div class="lg:col-span-2">
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-bold mb-2 flex items-center">
-                <i class="fas fa-link text-blue-600 mr-2"></i>
-                Related Films
-                <span class="ml-2 text-sm font-normal text-gray-500">({{ isset($relatedMovies) ? $relatedMovies->count() : 0 }})</span>
-            </h2>
-            <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang saling terkait (mis. Vengeance Trilogy). Urutan sesuai sort_order — simetris.</p>
-            @if(isset($relatedMovies) && $relatedMovies->count() > 0)
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    @foreach($relatedMovies as $rm)
-                        <a href="{{ route('admin.films.show', $rm->id) }}" class="group bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                            <div class="aspect-[2/3] bg-gray-100 overflow-hidden">
-                                @if($rm->default_poster_path)
-                                    <img src="{{ asset('storage/' . $rm->default_poster_path) }}" alt="{{ $rm->title }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
-                                @else
-                                    <div class="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400"><i class="fas fa-film text-2xl"></i></div>
-                                @endif
-                            </div>
-                            <div class="p-2">
-                                <p class="text-sm font-medium text-gray-800 truncate" title="{{ $rm->title }}">{{ $rm->title }}</p>
-                                <p class="text-xs text-gray-500">{{ $rm->release_year ?? '' }}</p>
-                                <p class="text-xs text-blue-600">#{{ $loop->iteration }}</p>
-                            </div>
-                        </a>
-                    @endforeach
-                </div>
-            @else
-                <p class="text-gray-500 text-sm">Belum ada related film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-blue-600 hover:underline">Edit Film → Related Films (paling bawah)</a>.</p>
-            @endif
-        </div>
+    <!-- Similar Films — paling bawah setelah Related -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-bold mb-2 flex items-center">
+            <i class="fas fa-clone text-purple-600 mr-2"></i>
+            Similar Films
+            <span class="ml-2 text-sm font-normal text-gray-500">({{ isset($similarMovies) ? $similarMovies->count() : 0 }})</span>
+        </h2>
+        <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang mirip (manual). Urutan sesuai sort_order — simetris.</p>
+        @if(isset($similarMovies) && $similarMovies->count() > 0)
+            <div class="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1" style="scrollbar-width: thin;">
+                @foreach($similarMovies as $sm)
+                    <a href="{{ route('admin.films.show', $sm->id) }}" class="group flex-shrink-0 w-28 bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                        <div class="aspect-[2/3] bg-gray-100 overflow-hidden">
+                            @if($sm->default_poster_path)
+                                <img src="{{ asset('storage/' . $sm->default_poster_path) }}" alt="{{ $sm->title }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
+                            @else
+                                <div class="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400"><i class="fas fa-film text-xl"></i></div>
+                            @endif
+                        </div>
+                        <div class="p-2">
+                            <p class="text-xs font-medium text-gray-800 truncate" title="{{ $sm->title }}">{{ $sm->title }}</p>
+                            <p class="text-[11px] text-gray-500">{{ $sm->release_year ?? '' }}</p>
+                            <p class="text-[11px] text-purple-600">#{{ $loop->iteration }}</p>
+                        </div>
+                    </a>
+                @endforeach
+            </div>
+        @else
+            <p class="text-gray-500 text-sm">Belum ada similar film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-purple-600 hover:underline">Edit Film → Similar Films (paling bawah)</a>.</p>
+        @endif
     </div>
 
-    <!-- Similar Films — paling bawah setelah Related, di luar metadata -->
-    <div class="lg:col-span-2">
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-bold mb-2 flex items-center">
-                <i class="fas fa-clone text-purple-600 mr-2"></i>
-                Similar Films
-                <span class="ml-2 text-sm font-normal text-gray-500">({{ isset($similarMovies) ? $similarMovies->count() : 0 }})</span>
-            </h2>
-            <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang mirip (manual). Urutan sesuai sort_order — simetris.</p>
-            @if(isset($similarMovies) && $similarMovies->count() > 0)
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    @foreach($similarMovies as $sm)
-                        <a href="{{ route('admin.films.show', $sm->id) }}" class="group bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                            <div class="aspect-[2/3] bg-gray-100 overflow-hidden">
-                                @if($sm->default_poster_path)
-                                    <img src="{{ asset('storage/' . $sm->default_poster_path) }}" alt="{{ $sm->title }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
-                                @else
-                                    <div class="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400"><i class="fas fa-film text-2xl"></i></div>
-                                @endif
-                            </div>
-                            <div class="p-2">
-                                <p class="text-sm font-medium text-gray-800 truncate" title="{{ $sm->title }}">{{ $sm->title }}</p>
-                                <p class="text-xs text-gray-500">{{ $sm->release_year ?? '' }}</p>
-                                <p class="text-xs text-purple-600">#{{ $loop->iteration }}</p>
-                            </div>
-                        </a>
-                    @endforeach
-                </div>
-            @else
-                <p class="text-gray-500 text-sm">Belum ada similar film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-purple-600 hover:underline">Edit Film → Similar Films (paling bawah)</a>.</p>
-            @endif
-        </div>
     </div>
 
     <!-- Sidebar -->
@@ -868,6 +864,10 @@
                 <div class="flex justify-between items-center">
                     <span class="text-gray-600">Last Updated:</span>
                     <span class="text-sm">Jan 20, 2024</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">Primary Release Date:</span>
+                    <span class="text-sm font-medium">{{ $movie->primary_release_date ? \Carbon\Carbon::parse($movie->primary_release_date)->format('d M Y') : '-' }} <span class="text-xs text-gray-400">({{ $movie->release_status ?? '-' }})</span></span>
                 </div>
             </div>
         </div>
