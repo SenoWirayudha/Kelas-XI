@@ -44,11 +44,17 @@ class MovieDetailViewModel(application: Application) : AndroidViewModel(applicat
             try {
                 val movie = repository.getMovieDetail(movieId)
                 if (movie != null) {
-                    // Apply custom media (films-type) for this user
+                    // Apply custom media (films-type) for this user — reuse batchDisplayMedia for related/similar in ONE call (no N+1)
                     val userId = prefs.getInt("userId", 0)
                     val resolved = if (userId > 0) {
-                        val customMedia = repository.batchCustomMedia(userId, listOf(movieId), "films")
-                        listOf(movie).applyCustomMedia(customMedia).first()
+                        val relatedIds = movie.relatedMovies.map { it.id }
+                        val similarIds = movie.similarMovies.map { it.id }
+                        val allIds = (listOf(movieId) + relatedIds + similarIds).distinct()
+                        val batch = if (allIds.isNotEmpty()) repository.batchCustomMedia(userId, allIds, "films") else emptyMap()
+                        val main = listOf(movie).applyCustomMedia(batch).first()
+                        val withRelated = main.relatedMovies.applyCustomMedia(batch)
+                        val withSimilar = main.similarMovies.applyCustomMedia(batch)
+                        main.copy(relatedMovies = withRelated, similarMovies = withSimilar)
                     } else movie
                     _movie.value = resolved
                     // Load streaming services
