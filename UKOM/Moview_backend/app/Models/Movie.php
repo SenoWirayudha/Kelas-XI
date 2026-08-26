@@ -320,7 +320,7 @@ class Movie extends Model
         });
     }
 
-    // ---- Related Movies (symmetric, canonical movie_id < related_movie_id) ----
+    // ---- Symmetric pivots (Related / Similar) — canonical movie_id < related_movie_id ----
 
     public function relatedMovieLinksAsFirst()
     {
@@ -332,12 +332,19 @@ class Movie extends Model
         return $this->hasMany(RelatedMovie::class, 'related_movie_id');
     }
 
-    /**
-     * Ordered list of related movie IDs (both directions), sorted by sort_order of the pair.
-     */
-    public function getRelatedMovieIdsOrdered(): array
+    public function similarMovieLinksAsFirst()
     {
-        return DB::table('related_movies')
+        return $this->hasMany(SimilarMovie::class, 'movie_id');
+    }
+
+    public function similarMovieLinksAsSecond()
+    {
+        return $this->hasMany(SimilarMovie::class, 'related_movie_id');
+    }
+
+    private function getSymmetricIds(string $table): array
+    {
+        return DB::table($table)
             ->where('movie_id', $this->id)
             ->orWhere('related_movie_id', $this->id)
             ->orderBy('sort_order')
@@ -347,18 +354,33 @@ class Movie extends Model
             ->toArray();
     }
 
-    /**
-     * Related Movie models in sort_order (preserves order via FIELD).
-     */
-    public function getRelatedMoviesOrdered()
+    private function getSymmetricMovies(string $table)
     {
-        $ids = $this->getRelatedMovieIdsOrdered();
+        $ids = $this->getSymmetricIds($table);
         if (empty($ids)) return collect();
-        $ordered = implode(',', $ids);
-        // Use FIELD to preserve sort_order; fallback to sortBy if FIELD not available (PG)
         return Movie::whereIn('id', $ids)
             ->get()
             ->sortBy(fn($m) => array_search($m->id, $ids))
             ->values();
+    }
+
+    public function getRelatedMovieIdsOrdered(): array
+    {
+        return $this->getSymmetricIds('related_movies');
+    }
+
+    public function getRelatedMoviesOrdered()
+    {
+        return $this->getSymmetricMovies('related_movies');
+    }
+
+    public function getSimilarMovieIdsOrdered(): array
+    {
+        return $this->getSymmetricIds('similar_movies');
+    }
+
+    public function getSimilarMoviesOrdered()
+    {
+        return $this->getSymmetricMovies('similar_movies');
     }
 }

@@ -1038,6 +1038,19 @@ class MovieRepository {
                             genre = null,
                             description = null
                         )
+                    } ?: emptyList(),
+                    similarMovies = movie.similar_movies?.map { sm ->
+                        Movie(
+                            id = sm.id,
+                            title = sm.title,
+                            originalTitle = sm.original_title,
+                            posterUrl = sm.poster_path,
+                            backdropUrl = sm.backdrop_path,
+                            releaseYear = sm.year,
+                            averageRating = null,
+                            genre = null,
+                            description = null
+                        )
                     } ?: emptyList()
                 )
             } else {

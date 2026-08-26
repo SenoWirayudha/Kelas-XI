@@ -618,7 +618,7 @@
             </div>
         </div>
 
-        <!-- Related Films (paling bawah, setelah Release Dates, sebelum Similar) -->
+        <!-- Related Films (paling bawah, setelah Release Dates) -->
         <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-lg font-semibold mb-2 flex items-center">
                 <i class="fas fa-link text-blue-600 mr-2"></i>
@@ -629,9 +629,10 @@
                 Pilih film yang saling terkait (mis. Vengeance Trilogy). Relasi simetris — cukup input dari satu sisi, film tujuan otomatis menampilkan film ini. Urutan drag menentukan urutan tampil (tanpa label Part).
             </p>
             <div
-                x-data="relatedFilmsManager({
+                x-data="symmetricFilmsManager({
                     movies: {{ \Illuminate\Support\Js::from($allMovies->map(fn($m) => ['id' => (int)$m->id, 'name' => $m->title . ' (' . $m->release_year . ')'])->values()->all()) }},
-                    selected: {{ \Illuminate\Support\Js::from(array_values((old('related_movies') !== null ? old('related_movies') : $existingRelatedIds ?? []))) }}
+                    selected: {{ \Illuminate\Support\Js::from(array_values((old('related_movies') !== null ? old('related_movies') : $existingRelatedIds ?? []))) }},
+                    inputName: 'related_movies[]'
                 })"
                 class="space-y-3"
             >
@@ -678,7 +679,74 @@
                     </div>
                     <!-- Hidden inputs in order -->
                     <template x-for="id in selected" :key="'input-'+id">
-                        <input type="hidden" name="related_movies[]" :value="id">
+                        <input type="hidden" :name="inputName" :value="id">
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Similar Films (paling bawah, setelah Related Films) -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-2 flex items-center">
+                <i class="fas fa-clone text-purple-600 mr-2"></i>
+                Similar Films
+            </h3>
+            <p class="text-sm text-gray-500 mb-4">
+                <i class="fas fa-info-circle mr-1"></i>
+                Pilih film yang mirip (manual). Relasi simetris, urutan drag menentukan urutan tampil. Skip saran genre untuk sekarang.
+            </p>
+            <div
+                x-data="symmetricFilmsManager({
+                    movies: {{ \Illuminate\Support\Js::from($allMovies->map(fn($m) => ['id' => (int)$m->id, 'name' => $m->title . ' (' . $m->release_year . ')'])->values()->all()) }},
+                    selected: {{ \Illuminate\Support\Js::from(array_values((old('similar_movies') !== null ? old('similar_movies') : $existingSimilarIds ?? []))) }},
+                    inputName: 'similar_movies[]'
+                })"
+                class="space-y-3"
+            >
+                <!-- Search input -->
+                <div class="relative">
+                    <i class="fas fa-search text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 text-sm"></i>
+                    <input type="text" x-model="query" placeholder="Search film to add as similar..."
+                           class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <!-- Search results -->
+                <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg" x-show="filteredMovies.length > 0">
+                    <template x-for="m in filteredMovies" :key="m.id">
+                        <button type="button" @click="add(m.id)"
+                                class="w-full text-left px-3 py-2 hover:bg-purple-50 text-sm flex items-center justify-between"
+                                :class="selected.includes(m.id) ? 'bg-purple-50 text-purple-700' : 'text-gray-700'">
+                            <span x-text="m.name"></span>
+                            <i class="fas fa-plus text-xs" x-show="!selected.includes(m.id)"></i>
+                            <i class="fas fa-check text-xs" x-show="selected.includes(m.id)"></i>
+                        </button>
+                    </template>
+                </div>
+                <p x-show="query.trim() && filteredMovies.length === 0" class="text-sm text-gray-400 text-center py-2">No results</p>
+
+                <!-- Selected list with drag -->
+                <div class="border border-gray-200 rounded-lg p-3 bg-gray-50/50 min-h-[60px]">
+                    <p class="text-xs font-semibold text-gray-600 mb-2">Urutan tampil (<span x-text="selected.length"></span> film) — drag untuk urutkan:</p>
+                    <template x-if="selected.length === 0">
+                        <p class="text-sm text-gray-400 text-center py-4">Belum ada similar film. Cari dan klik film di atas.</p>
+                    </template>
+                    <div class="space-y-2">
+                        <template x-for="(id, idx) in selected" :key="id">
+                            <div class="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2"
+                                 draggable="true"
+                                 @dragstart="dragStart(idx, $event)"
+                                 @dragover.prevent
+                                 @drop="drop(idx, $event)"
+                                 @dragenter.prevent>
+                                <i class="fas fa-grip-lines text-gray-400 cursor-move" title="Drag untuk urutkan"></i>
+                                <span class="text-sm font-medium text-gray-800 flex-1 truncate" x-text="movieName(id)"></span>
+                                <span class="text-xs text-gray-500" x-text="'#' + (idx+1)"></span>
+                                <button type="button" @click="remove(id)" class="text-red-400 hover:text-red-600 p-1" title="Hapus"><i class="fas fa-times"></i></button>
+                            </div>
+                        </template>
+                    </div>
+                    <!-- Hidden inputs in order -->
+                    <template x-for="id in selected" :key="'input-'+id">
+                        <input type="hidden" :name="inputName" :value="id">
                     </template>
                 </div>
             </div>
@@ -822,10 +890,11 @@ function emptyRow() {
 function normalizeRow(row) {
     return Object.assign({}, emptyRow(), row || {});
 }
-function relatedFilmsManager(cfg) {
+function symmetricFilmsManager(cfg) {
     return {
         movies: cfg.movies || [],
         selected: cfg.selected ? cfg.selected.slice() : [],
+        inputName: cfg.inputName || 'related_movies[]',
         query: '',
         dragIdx: null,
         get filteredMovies() {

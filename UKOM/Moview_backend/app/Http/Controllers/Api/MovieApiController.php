@@ -430,6 +430,16 @@ class MovieApiController extends Controller
                         'backdrop_path' => $rm->default_backdrop_path ? url('storage/' . $rm->default_backdrop_path) : null,
                     ];
                 })->values(),
+                'similar_movies' => $movie->getSimilarMoviesOrdered()->map(function ($sm) {
+                    return [
+                        'id' => $sm->id,
+                        'title' => $sm->title,
+                        'original_title' => $sm->original_title,
+                        'year' => $sm->release_year,
+                        'poster_path' => $sm->default_poster_path ? url('storage/' . $sm->default_poster_path) : null,
+                        'backdrop_path' => $sm->default_backdrop_path ? url('storage/' . $sm->default_backdrop_path) : null,
+                    ];
+                })->values(),
             ]
         ]);
     }

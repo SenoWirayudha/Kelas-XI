@@ -258,7 +258,8 @@ class FilmController extends Controller
         $existingReleases = [];
         $allMovies = Movie::where('status', 'published')->orderBy('title')->get(['id', 'title', 'release_year']);
         $existingRelatedIds = [];
-        return view('admin.films.form', compact('genres', 'services', 'countries', 'languages', 'productionHouses', 'themes', 'releaseCountries', 'existingReleases', 'allMovies', 'existingRelatedIds'));
+        $existingSimilarIds = [];
+        return view('admin.films.form', compact('genres', 'services', 'countries', 'languages', 'productionHouses', 'themes', 'releaseCountries', 'existingReleases', 'allMovies', 'existingRelatedIds', 'existingSimilarIds'));
     }
 
     public function store(Request $request)
@@ -291,6 +292,8 @@ class FilmController extends Controller
             'releases.*.release_date' => 'nullable|date',
             'related_movies' => 'nullable|array',
             'related_movies.*' => 'exists:movies,id',
+            'similar_movies' => 'nullable|array',
+            'similar_movies.*' => 'exists:movies,id',
         ]);
 
         $movie = Movie::create($validated);
@@ -340,6 +343,7 @@ class FilmController extends Controller
         $this->syncReleases($movie, $request->input('releases', []));
 
         $this->syncRelatedMovies($movie, $request->input('related_movies', []));
+        $this->syncSimilarMovies($movie, $request->input('similar_movies', []));
 
         return redirect()->route('admin.films.show', $movie->id)
             ->with('success', 'Film berhasil ditambahkan!');
@@ -362,8 +366,9 @@ class FilmController extends Controller
 
         $countryNameByCode = Country::pluck('name', 'code')->all();
         $relatedMovies = $movie->getRelatedMoviesOrdered();
+        $similarMovies = $movie->getSimilarMoviesOrdered();
 
-        return view('admin.films.show', compact('movie', 'countryNameByCode', 'relatedMovies'));
+        return view('admin.films.show', compact('movie', 'countryNameByCode', 'relatedMovies', 'similarMovies'));
     }
 
     public function edit($id)
@@ -388,8 +393,9 @@ class FilmController extends Controller
         })->all();
         $allMovies = Movie::where('status', 'published')->where('id', '!=', $film->id)->orderBy('title')->get(['id', 'title', 'release_year']);
         $existingRelatedIds = $film->getRelatedMovieIdsOrdered();
+        $existingSimilarIds = $film->getSimilarMovieIdsOrdered();
 
-        return view('admin.films.form', compact('film', 'genres', 'services', 'countries', 'languages', 'productionHouses', 'themes', 'releaseCountries', 'existingReleases', 'allMovies', 'existingRelatedIds'));
+        return view('admin.films.form', compact('film', 'genres', 'services', 'countries', 'languages', 'productionHouses', 'themes', 'releaseCountries', 'existingReleases', 'allMovies', 'existingRelatedIds', 'existingSimilarIds'));
     }
 
     public function update(Request $request, $id)
@@ -422,6 +428,8 @@ class FilmController extends Controller
             'releases.*.release_date' => 'nullable|date',
             'related_movies' => 'nullable|array',
             'related_movies.*' => 'exists:movies,id',
+            'similar_movies' => 'nullable|array',
+            'similar_movies.*' => 'exists:movies,id',
         ]);
 
         $movie = Movie::findOrFail($id);
@@ -478,29 +486,29 @@ class FilmController extends Controller
         $this->syncReleases($movie, $request->input('releases', []));
 
         $this->syncRelatedMovies($movie, $request->input('related_movies', []));
+        $this->syncSimilarMovies($movie, $request->input('similar_movies', []));
 
         return redirect()->route('admin.films.show', $movie->id)
             ->with('success', 'Film berhasil diperbarui!');
     }
 
     /**
-     * Sync symmetric related_movies (canonical 1-row per pair, movie_id < related_movie_id).
+     * Generic symmetric sync for related/similar pivot tables.
      */
-    private function syncRelatedMovies(Movie $movie, array $relatedIds)
+    private function syncSymmetricMovies(Movie $movie, array $ids, string $table)
     {
-        $relatedIds = array_values(array_unique(array_map('intval', $relatedIds)));
-        $relatedIds = array_filter($relatedIds, fn($id) => $id !== (int) $movie->id && $id > 0);
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $ids = array_filter($ids, fn($id) => $id !== (int) $movie->id && $id > 0);
 
-        // Remove all existing links involving this movie (both directions, canonical)
-        \Illuminate\Support\Facades\DB::table('related_movies')
+        \Illuminate\Support\Facades\DB::table($table)
             ->where('movie_id', $movie->id)
             ->orWhere('related_movie_id', $movie->id)
             ->delete();
 
-        foreach (array_values($relatedIds) as $index => $relatedId) {
+        foreach (array_values($ids) as $index => $relatedId) {
             $a = min((int) $movie->id, (int) $relatedId);
             $b = max((int) $movie->id, (int) $relatedId);
-            \Illuminate\Support\Facades\DB::table('related_movies')->insert([
+            \Illuminate\Support\Facades\DB::table($table)->insert([
                 'movie_id' => $a,
                 'related_movie_id' => $b,
                 'sort_order' => $index,
@@ -508,6 +516,16 @@ class FilmController extends Controller
                 'updated_at' => now(),
             ]);
         }
+    }
+
+    private function syncRelatedMovies(Movie $movie, array $relatedIds)
+    {
+        $this->syncSymmetricMovies($movie, $relatedIds, 'related_movies');
+    }
+
+    private function syncSimilarMovies(Movie $movie, array $similarIds)
+    {
+        $this->syncSymmetricMovies($movie, $similarIds, 'similar_movies');
     }
 
     /**

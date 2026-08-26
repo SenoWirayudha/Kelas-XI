@@ -267,7 +267,8 @@ data class MovieDetailDto(
     val details: MovieDetailsDto?,
     val release_status: String? = null,
     val movie_releases: List<MovieReleaseDto>? = null,
-    val related_movies: List<RelatedMovieDto>? = null
+    val related_movies: List<RelatedMovieDto>? = null,
+    val similar_movies: List<RelatedMovieDto>? = null
 )
 
 data class RelatedMovieDto(
