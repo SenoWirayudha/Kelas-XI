@@ -319,4 +319,46 @@ class Movie extends Model
               ->where('release_date', '>', now()->toDateString());
         });
     }
+
+    // ---- Related Movies (symmetric, canonical movie_id < related_movie_id) ----
+
+    public function relatedMovieLinksAsFirst()
+    {
+        return $this->hasMany(RelatedMovie::class, 'movie_id');
+    }
+
+    public function relatedMovieLinksAsSecond()
+    {
+        return $this->hasMany(RelatedMovie::class, 'related_movie_id');
+    }
+
+    /**
+     * Ordered list of related movie IDs (both directions), sorted by sort_order of the pair.
+     */
+    public function getRelatedMovieIdsOrdered(): array
+    {
+        return DB::table('related_movies')
+            ->where('movie_id', $this->id)
+            ->orWhere('related_movie_id', $this->id)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(fn($r) => (int) $r->movie_id === (int) $this->id ? (int) $r->related_movie_id : (int) $r->movie_id)
+            ->toArray();
+    }
+
+    /**
+     * Related Movie models in sort_order (preserves order via FIELD).
+     */
+    public function getRelatedMoviesOrdered()
+    {
+        $ids = $this->getRelatedMovieIdsOrdered();
+        if (empty($ids)) return collect();
+        $ordered = implode(',', $ids);
+        // Use FIELD to preserve sort_order; fallback to sortBy if FIELD not available (PG)
+        return Movie::whereIn('id', $ids)
+            ->get()
+            ->sortBy(fn($m) => array_search($m->id, $ids))
+            ->values();
+    }
 }

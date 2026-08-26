@@ -420,6 +420,16 @@ class MovieApiController extends Controller
                             'release_date' => $release->release_date ? $release->release_date->format('Y-m-d') : null,
                         ];
                     }),
+                'related_movies' => $movie->getRelatedMoviesOrdered()->map(function ($rm) {
+                    return [
+                        'id' => $rm->id,
+                        'title' => $rm->title,
+                        'original_title' => $rm->original_title,
+                        'year' => $rm->release_year,
+                        'poster_path' => $rm->default_poster_path ? url('storage/' . $rm->default_poster_path) : null,
+                        'backdrop_path' => $rm->default_backdrop_path ? url('storage/' . $rm->default_backdrop_path) : null,
+                    ];
+                })->values(),
             ]
         ]);
     }

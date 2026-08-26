@@ -256,7 +256,9 @@ class FilmController extends Controller
         $themes = Theme::all();
         $releaseCountries = Country::orderBy('name')->get(['id', 'name', 'code']);
         $existingReleases = [];
-        return view('admin.films.form', compact('genres', 'services', 'countries', 'languages', 'productionHouses', 'themes', 'releaseCountries', 'existingReleases'));
+        $allMovies = Movie::where('status', 'published')->orderBy('title')->get(['id', 'title', 'release_year']);
+        $existingRelatedIds = [];
+        return view('admin.films.form', compact('genres', 'services', 'countries', 'languages', 'productionHouses', 'themes', 'releaseCountries', 'existingReleases', 'allMovies', 'existingRelatedIds'));
     }
 
     public function store(Request $request)
@@ -287,6 +289,8 @@ class FilmController extends Controller
             'releases.*.country_code' => 'nullable|string|size:2',
             'releases.*.name' => 'nullable|string|max:255',
             'releases.*.release_date' => 'nullable|date',
+            'related_movies' => 'nullable|array',
+            'related_movies.*' => 'exists:movies,id',
         ]);
 
         $movie = Movie::create($validated);
@@ -335,6 +339,8 @@ class FilmController extends Controller
 
         $this->syncReleases($movie, $request->input('releases', []));
 
+        $this->syncRelatedMovies($movie, $request->input('related_movies', []));
+
         return redirect()->route('admin.films.show', $movie->id)
             ->with('success', 'Film berhasil ditambahkan!');
     }
@@ -379,8 +385,10 @@ class FilmController extends Controller
                     : $release->release_date,
             ];
         })->all();
+        $allMovies = Movie::where('status', 'published')->where('id', '!=', $film->id)->orderBy('title')->get(['id', 'title', 'release_year']);
+        $existingRelatedIds = $film->getRelatedMovieIdsOrdered();
 
-        return view('admin.films.form', compact('film', 'genres', 'services', 'countries', 'languages', 'productionHouses', 'themes', 'releaseCountries', 'existingReleases'));
+        return view('admin.films.form', compact('film', 'genres', 'services', 'countries', 'languages', 'productionHouses', 'themes', 'releaseCountries', 'existingReleases', 'allMovies', 'existingRelatedIds'));
     }
 
     public function update(Request $request, $id)
@@ -411,6 +419,8 @@ class FilmController extends Controller
             'releases.*.country_code' => 'nullable|string|size:2',
             'releases.*.name' => 'nullable|string|max:255',
             'releases.*.release_date' => 'nullable|date',
+            'related_movies' => 'nullable|array',
+            'related_movies.*' => 'exists:movies,id',
         ]);
 
         $movie = Movie::findOrFail($id);
@@ -466,8 +476,37 @@ class FilmController extends Controller
 
         $this->syncReleases($movie, $request->input('releases', []));
 
+        $this->syncRelatedMovies($movie, $request->input('related_movies', []));
+
         return redirect()->route('admin.films.show', $movie->id)
             ->with('success', 'Film berhasil diperbarui!');
+    }
+
+    /**
+     * Sync symmetric related_movies (canonical 1-row per pair, movie_id < related_movie_id).
+     */
+    private function syncRelatedMovies(Movie $movie, array $relatedIds)
+    {
+        $relatedIds = array_values(array_unique(array_map('intval', $relatedIds)));
+        $relatedIds = array_filter($relatedIds, fn($id) => $id !== (int) $movie->id && $id > 0);
+
+        // Remove all existing links involving this movie (both directions, canonical)
+        \Illuminate\Support\Facades\DB::table('related_movies')
+            ->where('movie_id', $movie->id)
+            ->orWhere('related_movie_id', $movie->id)
+            ->delete();
+
+        foreach (array_values($relatedIds) as $index => $relatedId) {
+            $a = min((int) $movie->id, (int) $relatedId);
+            $b = max((int) $movie->id, (int) $relatedId);
+            \Illuminate\Support\Facades\DB::table('related_movies')->insert([
+                'movie_id' => $a,
+                'related_movie_id' => $b,
+                'sort_order' => $index,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     /**

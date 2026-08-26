@@ -46,6 +46,7 @@ data class Movie(
     val productionCompanies: List<String> = emptyList(),
     val releaseStatus: String? = null,  // "released" / "coming_soon"
     val movieReleases: List<MovieRelease> = emptyList(),
+    val relatedMovies: List<Movie> = emptyList(),
     val favoriteId: Int? = null
 )
 

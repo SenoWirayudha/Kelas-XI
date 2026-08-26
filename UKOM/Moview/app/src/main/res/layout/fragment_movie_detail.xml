@@ -875,6 +875,36 @@
 
             </LinearLayout>
 
+            <!-- Related Films — paling bawah setelah semua section, hide jika kosong -->
+            <LinearLayout
+                android:id="@+id/layout_related"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:layout_marginTop="24dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="RELATED FILMS"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.08" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_related"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal"
+                    android:clipToPadding="false"
+                    tools:listitem="@layout/item_similar_movie" />
+
+            </LinearLayout>
+
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>

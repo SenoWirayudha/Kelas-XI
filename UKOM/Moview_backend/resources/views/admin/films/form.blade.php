@@ -618,6 +618,72 @@
             </div>
         </div>
 
+        <!-- Related Films (paling bawah, setelah Release Dates, sebelum Similar) -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-2 flex items-center">
+                <i class="fas fa-link text-blue-600 mr-2"></i>
+                Related Films
+            </h3>
+            <p class="text-sm text-gray-500 mb-4">
+                <i class="fas fa-info-circle mr-1"></i>
+                Pilih film yang saling terkait (mis. Vengeance Trilogy). Relasi simetris — cukup input dari satu sisi, film tujuan otomatis menampilkan film ini. Urutan drag menentukan urutan tampil (tanpa label Part).
+            </p>
+            <div
+                x-data="relatedFilmsManager({
+                    movies: {{ \Illuminate\Support\Js::from($allMovies->map(fn($m) => ['id' => (int)$m->id, 'name' => $m->title . ' (' . $m->release_year . ')'])->values()->all()) }},
+                    selected: {{ \Illuminate\Support\Js::from(array_values((old('related_movies') !== null ? old('related_movies') : $existingRelatedIds ?? []))) }}
+                })"
+                class="space-y-3"
+            >
+                <!-- Search input -->
+                <div class="relative">
+                    <i class="fas fa-search text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 text-sm"></i>
+                    <input type="text" x-model="query" placeholder="Search film to add as related..."
+                           class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <!-- Search results -->
+                <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg" x-show="filteredMovies.length > 0">
+                    <template x-for="m in filteredMovies" :key="m.id">
+                        <button type="button" @click="add(m.id)"
+                                class="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm flex items-center justify-between"
+                                :class="selected.includes(m.id) ? 'bg-blue-50 text-blue-700' : 'text-gray-700'">
+                            <span x-text="m.name"></span>
+                            <i class="fas fa-plus text-xs" x-show="!selected.includes(m.id)"></i>
+                            <i class="fas fa-check text-xs" x-show="selected.includes(m.id)"></i>
+                        </button>
+                    </template>
+                </div>
+                <p x-show="query.trim() && filteredMovies.length === 0" class="text-sm text-gray-400 text-center py-2">No results</p>
+
+                <!-- Selected list with drag -->
+                <div class="border border-gray-200 rounded-lg p-3 bg-gray-50/50 min-h-[60px]">
+                    <p class="text-xs font-semibold text-gray-600 mb-2">Urutan tampil (<span x-text="selected.length"></span> film) — drag untuk urutkan:</p>
+                    <template x-if="selected.length === 0">
+                        <p class="text-sm text-gray-400 text-center py-4">Belum ada related film. Cari dan klik film di atas.</p>
+                    </template>
+                    <div class="space-y-2">
+                        <template x-for="(id, idx) in selected" :key="id">
+                            <div class="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2"
+                                 draggable="true"
+                                 @dragstart="dragStart(idx, $event)"
+                                 @dragover.prevent
+                                 @drop="drop(idx, $event)"
+                                 @dragenter.prevent>
+                                <i class="fas fa-grip-lines text-gray-400 cursor-move" title="Drag untuk urutkan"></i>
+                                <span class="text-sm font-medium text-gray-800 flex-1 truncate" x-text="movieName(id)"></span>
+                                <span class="text-xs text-gray-500" x-text="'#' + (idx+1)"></span>
+                                <button type="button" @click="remove(id)" class="text-red-400 hover:text-red-600 p-1" title="Hapus"><i class="fas fa-times"></i></button>
+                            </div>
+                        </template>
+                    </div>
+                    <!-- Hidden inputs in order -->
+                    <template x-for="id in selected" :key="'input-'+id">
+                        <input type="hidden" name="related_movies[]" :value="id">
+                    </template>
+                </div>
+            </div>
+        </div>
+
         <!-- Form Actions -->
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center">
@@ -755,6 +821,41 @@ function emptyRow() {
 }
 function normalizeRow(row) {
     return Object.assign({}, emptyRow(), row || {});
+}
+function relatedFilmsManager(cfg) {
+    return {
+        movies: cfg.movies || [],
+        selected: cfg.selected ? cfg.selected.slice() : [],
+        query: '',
+        dragIdx: null,
+        get filteredMovies() {
+            const q = (this.query || '').trim().toLowerCase();
+            let list = this.movies.filter(m => !this.selected.includes(m.id));
+            if (q) list = list.filter(m => m.name.toLowerCase().includes(q));
+            return list.slice(0, 20);
+        },
+        movieName(id) {
+            const m = this.movies.find(x => x.id === id);
+            return m ? m.name : '#' + id;
+        },
+        add(id) {
+            if (!this.selected.includes(id)) this.selected.push(id);
+            this.query = '';
+        },
+        remove(id) {
+            this.selected = this.selected.filter(x => x !== id);
+        },
+        dragStart(idx, e) {
+            this.dragIdx = idx;
+            e.dataTransfer.effectAllowed = 'move';
+        },
+        drop(idx, e) {
+            if (this.dragIdx === null || this.dragIdx === idx) return;
+            const item = this.selected.splice(this.dragIdx, 1)[0];
+            this.selected.splice(idx, 0, item);
+            this.dragIdx = null;
+        }
+    };
 }
 </script>
 @endsection

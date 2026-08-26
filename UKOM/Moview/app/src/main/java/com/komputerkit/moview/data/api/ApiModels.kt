@@ -266,7 +266,17 @@ data class MovieDetailDto(
     val theatrical_services: List<TheatricalServiceDto>?,
     val details: MovieDetailsDto?,
     val release_status: String? = null,
-    val movie_releases: List<MovieReleaseDto>? = null
+    val movie_releases: List<MovieReleaseDto>? = null,
+    val related_movies: List<RelatedMovieDto>? = null
+)
+
+data class RelatedMovieDto(
+    val id: Int,
+    val title: String?,
+    val original_title: String? = null,
+    val year: Int?,
+    val poster_path: String?,
+    val backdrop_path: String? = null
 )
 
 data class MovieReleaseDto(

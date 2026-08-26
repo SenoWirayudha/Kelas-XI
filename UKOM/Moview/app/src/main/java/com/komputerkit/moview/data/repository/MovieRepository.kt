@@ -1025,6 +1025,19 @@ class MovieRepository {
                             name = release.name,
                             releaseDate = release.release_date
                         )
+                    } ?: emptyList(),
+                    relatedMovies = movie.related_movies?.map { rm ->
+                        Movie(
+                            id = rm.id,
+                            title = rm.title,
+                            originalTitle = rm.original_title,
+                            posterUrl = rm.poster_path,
+                            backdropUrl = rm.backdrop_path,
+                            releaseYear = rm.year,
+                            averageRating = null,
+                            genre = null,
+                            description = null
+                        )
                     } ?: emptyList()
                 )
             } else {

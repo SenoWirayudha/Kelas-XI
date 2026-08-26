@@ -46,6 +46,7 @@ class MovieDetailFragment : Fragment() {
     private lateinit var watchedByAdapter: MovieDetailUserPreviewAdapter
     private lateinit var wantToWatchAdapter: MovieDetailUserPreviewAdapter
     private var releaseAdapter: MovieReleaseAdapter? = null
+    private lateinit var relatedAdapter: com.komputerkit.moview.ui.detail.SimilarMovieAdapter
 
     private var currentMovie: com.komputerkit.moview.data.model.Movie? = null
     private var isDescriptionExpanded = false
@@ -143,6 +144,21 @@ class MovieDetailFragment : Fragment() {
 
         binding.rvWantToWatchPreview.apply {
             adapter = wantToWatchAdapter
+            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        }
+
+        relatedAdapter = com.komputerkit.moview.ui.detail.SimilarMovieAdapter(
+            onMovieClick = { movie ->
+                val action = MovieDetailFragmentDirections.actionMovieDetailSelf(movie.id)
+                findNavController().navigate(action)
+            },
+            onLongPressGoToFilm = { movie ->
+                val action = MovieDetailFragmentDirections.actionMovieDetailSelf(movie.id)
+                findNavController().navigate(action)
+            }
+        )
+        binding.rvRelated.apply {
+            adapter = relatedAdapter
             layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         }
     }
@@ -268,6 +284,30 @@ class MovieDetailFragment : Fragment() {
             
             // Update Rilis tab with release dates
             updateRilisTab(movie)
+
+            // Related Films — paling bawah setelah semua section, hide jika kosong
+            if (movie.relatedMovies.isNotEmpty()) {
+                if (!::relatedAdapter.isInitialized) {
+                    relatedAdapter = com.komputerkit.moview.ui.detail.SimilarMovieAdapter(
+                        onMovieClick = { m ->
+                            val action = MovieDetailFragmentDirections.actionMovieDetailSelf(m.id)
+                            findNavController().navigate(action)
+                        },
+                        onLongPressGoToFilm = { m ->
+                            val action = MovieDetailFragmentDirections.actionMovieDetailSelf(m.id)
+                            findNavController().navigate(action)
+                        }
+                    )
+                    binding.rvRelated.apply {
+                        adapter = relatedAdapter
+                        layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+                    }
+                }
+                relatedAdapter.submitList(movie.relatedMovies)
+                binding.layoutRelated.visibility = View.VISIBLE
+            } else {
+                binding.layoutRelated.visibility = View.GONE
+            }
             
             // Restore selected tab after data is loaded
             binding.tabLayout.post {
