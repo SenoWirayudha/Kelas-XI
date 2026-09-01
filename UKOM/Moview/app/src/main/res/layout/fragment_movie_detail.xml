@@ -44,26 +44,26 @@
 
             </FrameLayout>
 
-            <!-- Movie Info Section -->
+            <!-- Movie Info Section — poster fixed independent, tidak derive dari backdrop -->
             <LinearLayout
                 android:id="@+id/layout_movie_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:padding="16dp"
-                android:layout_marginTop="-28dp">
+                android:layout_marginTop="-32dp">
 
-                <!-- Poster — proporsional dengan backdrop 210dp (was 120x180 on 306dp) -->
+                <!-- Poster — fixed 110×165 (2:3), independent dari backdrop 210dp -->
                 <com.google.android.material.card.MaterialCardView
-                    android:layout_width="100dp"
-                    android:layout_height="150dp"
+                    android:layout_width="110dp"
+                    android:layout_height="165dp"
                     app:cardCornerRadius="8dp"
                     app:cardElevation="8dp">
 
                     <ImageView
                         android:id="@+id/iv_poster"
-                        android:layout_width="100dp"
-                        android:layout_height="150dp"
+                        android:layout_width="110dp"
+                        android:layout_height="165dp"
                         android:scaleType="centerCrop"
                         android:contentDescription="Poster"
                         tools:src="@tools:sample/backgrounds/scenic" />
@@ -86,9 +86,9 @@
                         android:layout_height="wrap_content"
                         android:maxLines="3"
                         android:textColor="@color/white"
-                        android:textSize="24sp"
+                        android:textSize="22sp"
                         android:textStyle="bold"
-                        app:autoSizeMaxTextSize="24sp"
+                        app:autoSizeMaxTextSize="22sp"
                         app:autoSizeMinTextSize="16sp"
                         app:autoSizeStepGranularity="1sp"
                         app:autoSizeTextType="uniform"
@@ -101,10 +101,10 @@
                         android:layout_marginTop="4dp"
                         android:maxLines="2"
                         android:textColor="@color/text_secondary"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         android:visibility="gone"
-                        app:autoSizeMaxTextSize="14sp"
-                        app:autoSizeMinTextSize="11sp"
+                        app:autoSizeMaxTextSize="13sp"
+                        app:autoSizeMinTextSize="10sp"
                         app:autoSizeStepGranularity="1sp"
                         app:autoSizeTextType="uniform"
                         tools:text="Basri &amp; Salma dalam Komedi yang Tak Pernah Berakhir"
@@ -121,7 +121,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="#1E88E5"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:clickable="true"
                             android:focusable="true"
                             android:background="?attr/selectableItemBackground"
@@ -143,7 +143,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="@color/text_secondary"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             tools:text="2h 49m" />
 
                         <TextView
@@ -170,7 +170,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:textColor="@color/text_secondary"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         tools:text="Sci-Fi, Adventure, Drama" />
 
                     <TextView
@@ -179,7 +179,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:textColor="#1E88E5"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         android:textStyle="bold"
                         android:clickable="true"
                         android:focusable="true"
@@ -193,16 +193,16 @@
                         android:id="@+id/btn_watch_trailer"
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="32dp"
                         android:layout_marginTop="8dp"
                         android:text="Watch Trailer"
                         android:textColor="#1E88E5"
-                        android:textSize="12sp"
+                        android:textSize="13sp"
                         android:paddingHorizontal="12dp"
                         android:paddingVertical="0dp"
                         app:icon="@drawable/ic_play"
                         app:iconGravity="textStart"
-                        app:iconSize="16dp"
+                        app:iconSize="14dp"
                         app:iconPadding="4dp"
                         app:iconTint="#1E88E5"
                         app:strokeColor="#1E88E5"
@@ -286,7 +286,7 @@
                             android:layout_marginStart="8dp"
                             android:text="WATCHED"
                             android:textColor="@color/text_secondary"
-                            android:textSize="11sp"
+                            android:textSize="10sp"
                             android:textStyle="bold"
                             android:letterSpacing="0.04" />
 
@@ -296,7 +296,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
                             android:textColor="@color/white"
-                            android:textSize="15sp"
+                            android:textSize="14sp"
                             android:textStyle="bold"
                             tools:text="12.4k" />
 
@@ -338,7 +338,7 @@
                             android:layout_marginStart="8dp"
                             android:text="REVIEWS"
                             android:textColor="@color/text_secondary"
-                            android:textSize="11sp"
+                            android:textSize="10sp"
                             android:textStyle="bold"
                             android:letterSpacing="0.04" />
 
@@ -348,7 +348,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
                             android:textColor="@color/white"
-                            android:textSize="15sp"
+                            android:textSize="14sp"
                             android:textStyle="bold"
                             tools:text="3.4k" />
 
@@ -386,7 +386,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="@color/white"
-                            android:textSize="48sp"
+                            android:textSize="36sp"
                             android:textStyle="bold"
                             tools:text="4.5" />
 
@@ -401,35 +401,35 @@
                                 android:layout_height="wrap_content"
                                 android:text="★"
                                 android:textColor="#FFD700"
-                                android:textSize="16sp" />
+                                android:textSize="14sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="★"
                                 android:textColor="#FFD700"
-                                android:textSize="16sp" />
+                                android:textSize="14sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="★"
                                 android:textColor="#FFD700"
-                                android:textSize="16sp" />
+                                android:textSize="14sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="★"
                                 android:textColor="#FFD700"
-                                android:textSize="16sp" />
+                                android:textSize="14sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="★"
                                 android:textColor="#FFD700"
-                                android:textSize="16sp" />
+                                android:textSize="14sp" />
 
                         </LinearLayout>
 
@@ -586,7 +586,7 @@
                     android:layout_height="wrap_content"
                     android:text="Where to Watch"
                     android:textColor="@color/white"
-                    android:textSize="18sp"
+                    android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <androidx.recyclerview.widget.RecyclerView
