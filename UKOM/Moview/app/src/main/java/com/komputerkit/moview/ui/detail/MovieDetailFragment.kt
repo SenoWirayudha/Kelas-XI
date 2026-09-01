@@ -920,6 +920,15 @@ class MovieDetailFragment : Fragment() {
             if (hasBackdrop) {
                 setHeaderSolid(scrollY >= backdropHeight)
                 setHeaderTitleVisible(scrollY >= backdropHeight)
+                // Parallax / collapsing: backdrop moves slower than scroll, fades slightly, poster content rises smoothly
+                val progress = (scrollY.toFloat() / backdropHeight).coerceIn(0f, 1f)
+                binding.frameBackdrop.translationY = scrollY * 0.35f
+                binding.frameBackdrop.alpha = 1f - progress * 0.35f
+                // Poster scale subtle parallax (shrink a bit as it moves up)
+                val posterScale = 1f - progress * 0.04f
+                binding.layoutMovieInfo.scaleX = posterScale
+                binding.layoutMovieInfo.scaleY = posterScale
+                binding.layoutMovieInfo.alpha = 1f - progress * 0.2f
             } else {
                 // Empty backdrop: header is already a solid block (classic toolbar),
                 // only the title reacts to scrolling.

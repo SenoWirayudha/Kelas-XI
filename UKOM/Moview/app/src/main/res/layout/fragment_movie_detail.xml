@@ -35,10 +35,10 @@
                     android:contentDescription="Backdrop"
                     tools:src="@tools:sample/backgrounds/scenic" />
 
-                <!-- Gradient Fade ONLY at Bottom (30-40% height) -->
+                <!-- Gradient Fade ONLY at Bottom (shorter for 210dp backdrop) -->
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="100dp"
+                    android:layout_height="60dp"
                     android:layout_gravity="bottom"
                     android:background="@drawable/bg_gradient_bottom" />
 
@@ -51,19 +51,19 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:padding="16dp"
-                android:layout_marginTop="-50dp">
+                android:layout_marginTop="-28dp">
 
-                <!-- Poster -->
+                <!-- Poster — proporsional dengan backdrop 210dp (was 120x180 on 306dp) -->
                 <com.google.android.material.card.MaterialCardView
-                    android:layout_width="120dp"
-                    android:layout_height="180dp"
+                    android:layout_width="100dp"
+                    android:layout_height="150dp"
                     app:cardCornerRadius="8dp"
                     app:cardElevation="8dp">
 
                     <ImageView
                         android:id="@+id/iv_poster"
-                        android:layout_width="120dp"
-                        android:layout_height="180dp"
+                        android:layout_width="100dp"
+                        android:layout_height="150dp"
                         android:scaleType="centerCrop"
                         android:contentDescription="Poster"
                         tools:src="@tools:sample/backgrounds/scenic" />
@@ -244,20 +244,20 @@
 
             </LinearLayout>
 
-            <!-- Stats: Watched & Reviews -->
+            <!-- Stats: Watched & Reviews — compact thin row (icon + label + count horizontal) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:paddingHorizontal="16dp"
-                android:layout_marginTop="16dp">
+                android:layout_marginTop="12dp">
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/card_watched"
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginEnd="6dp"
                     android:clickable="true"
                     android:focusable="true"
                     app:cardBackgroundColor="@color/dark_surface"
@@ -269,39 +269,36 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:padding="12dp"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="10dp"
                         android:gravity="center_vertical">
 
                         <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
                             android:src="@drawable/ic_eye"
                             app:tint="@color/text_secondary" />
 
-                        <LinearLayout
+                        <TextView
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:layout_marginStart="12dp">
+                            android:layout_marginStart="8dp"
+                            android:text="WATCHED"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.04" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="WATCHED"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="10sp" />
-
-                            <TextView
-                                android:id="@+id/tv_watched_count"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textColor="@color/white"
-                                android:textSize="18sp"
-                                android:textStyle="bold"
-                                tools:text="12.4k" />
-
-                        </LinearLayout>
+                        <TextView
+                            android:id="@+id/tv_watched_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:textColor="@color/white"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            tools:text="12.4k" />
 
                     </LinearLayout>
 
@@ -312,7 +309,7 @@
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="6dp"
                     android:clickable="true"
                     android:focusable="true"
                     app:cardBackgroundColor="@color/dark_surface"
@@ -324,39 +321,36 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:padding="12dp"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="10dp"
                         android:gravity="center_vertical">
 
                         <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
                             android:src="@drawable/ic_review"
                             app:tint="@color/text_secondary" />
 
-                        <LinearLayout
+                        <TextView
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:layout_marginStart="12dp">
+                            android:layout_marginStart="8dp"
+                            android:text="REVIEWS"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.04" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="REVIEWS"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="10sp" />
-
-                            <TextView
-                                android:id="@+id/tv_review_count"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textColor="@color/white"
-                                android:textSize="18sp"
-                                android:textStyle="bold"
-                                tools:text="3.4k" />
-
-                        </LinearLayout>
+                        <TextView
+                            android:id="@+id/tv_review_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:textColor="@color/white"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            tools:text="3.4k" />
 
                     </LinearLayout>
 

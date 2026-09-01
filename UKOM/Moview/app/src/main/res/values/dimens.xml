@@ -11,9 +11,9 @@
     <dimen name="reply_indent">56dp</dimen>
 
     <!-- Film Detail backdrop overlap for poster/title section -->
-    <dimen name="backdrop_overlap">50dp</dimen>
+    <dimen name="backdrop_overlap">28dp</dimen>
     <!-- Film Detail backdrop height: header area (actionBarSize + status) + content area -->
-    <dimen name="backdrop_height">306dp</dimen>
+    <dimen name="backdrop_height">210dp</dimen>
 
     <!-- Movie Schedule floating controls -->
     <dimen name="back_button_margin">16dp</dimen>
