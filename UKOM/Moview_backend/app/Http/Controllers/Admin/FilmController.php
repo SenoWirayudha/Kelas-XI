@@ -285,7 +285,7 @@ class FilmController extends Controller
                     $query->orderByRaw(Movie::primaryReleaseDateSql() . ' ' . $dir);
                     break;
                 case 'rating':
-                    $query->withCount(['ratings as avg_rating' => fn($q) => $q->select(DB::raw('COALESCE(AVG(score), 0)'))]);
+                    $query->withCount(['ratings as avg_rating' => fn($q) => $q->select(DB::raw('COALESCE(AVG(rating), 0)'))]);
                     $query->orderBy('avg_rating', $dir);
                     break;
                 case 'title':
