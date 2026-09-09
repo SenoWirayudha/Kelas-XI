@@ -202,17 +202,19 @@ class MovieDetailFragment : Fragment() {
             }
 
             binding.tvYear.text = movie.releaseYear?.toString() ?: "-"
-            if (movie.duration.isNullOrBlank()) {
-                binding.tvDuration.visibility = View.GONE
-                binding.tvSepDuration1.visibility = View.GONE
-                binding.tvSepDuration2.visibility = View.GONE
-            } else {
+            val hasDuration = !movie.duration.isNullOrBlank()
+            if (hasDuration) {
                 binding.tvDuration.visibility = View.VISIBLE
                 binding.tvSepDuration1.visibility = View.VISIBLE
                 binding.tvSepDuration2.visibility = View.VISIBLE
                 binding.tvDuration.text = movie.duration
+            } else {
+                // Tanpa durasi: tampilkan "2026 • R" (year + separator + rating)
+                binding.tvDuration.visibility = View.GONE
+                binding.tvSepDuration1.visibility = View.VISIBLE
+                binding.tvSepDuration2.visibility = View.GONE
             }
-            binding.tvPgRating.text = movie.pgRating ?: "Not Rated"
+            binding.tvPgRating.text = movie.pgRating ?: "NR"
             binding.tvGenre.text = movie.genre ?: "Unknown Genre"
             binding.tvDirector.text = movie.director ?: "Unknown Director"
             binding.tvDescription.text = movie.description ?: "No description available."
@@ -923,7 +925,7 @@ class MovieDetailFragment : Fragment() {
                 // Backdrop parallax: zoom-out 1.12→1.0 + translate + fade on scroll
                 val progress = (scrollY.toFloat() / backdropHeight).coerceIn(0f, 1f)
                 // Zoom-out dari 1.12 (awal) ke 1.0 (full scroll) — selalu >= 1.0 jadi ga ada gap
-                val backdropScale = 1.12f - progress * 0.12f
+                val backdropScale = 1.10f - progress * 0.10f
                 binding.ivBackdrop.scaleX = backdropScale
                 binding.ivBackdrop.scaleY = backdropScale
                 binding.frameBackdrop.translationY = scrollY * 0.35f

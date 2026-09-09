@@ -34,8 +34,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:scaleType="centerCrop"
-                    android:scaleX="1.12"
-                    android:scaleY="1.12"
+                    android:scaleX="1.10"
+                    android:scaleY="1.10"
                     android:contentDescription="Backdrop"
                     tools:src="@tools:sample/backgrounds/scenic" />
 
