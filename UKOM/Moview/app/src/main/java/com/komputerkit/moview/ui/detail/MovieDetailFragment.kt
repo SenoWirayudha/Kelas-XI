@@ -214,7 +214,12 @@ class MovieDetailFragment : Fragment() {
                 binding.tvSepDuration1.visibility = View.VISIBLE
                 binding.tvSepDuration2.visibility = View.GONE
             }
-            binding.tvPgRating.text = movie.pgRating ?: "NR"
+            val pgText = when {
+                movie.pgRating.isNullOrBlank() -> "NR"
+                movie.pgRating.equals("Not Rated", ignoreCase = true) -> "NR"
+                else -> movie.pgRating
+            }
+            binding.tvPgRating.text = pgText
             binding.tvGenre.text = movie.genre ?: "Unknown Genre"
             binding.tvDirector.text = movie.director ?: "Unknown Director"
             binding.tvDescription.text = movie.description ?: "No description available."
