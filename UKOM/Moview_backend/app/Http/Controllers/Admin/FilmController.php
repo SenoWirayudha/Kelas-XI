@@ -13,6 +13,7 @@ use App\Models\Language;
 use App\Models\ProductionHouse;
 use App\Models\Theme;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class FilmController extends Controller
 {
@@ -172,6 +173,17 @@ class FilmController extends Controller
         $status = $request->input('status');
         $releaseType = $request->input('release_type');
         $releaseStatus = $request->input('release_status');
+        $sortBy = $request->input('sort_by', '');
+        $sortOrder = $request->input('sort_order', 'desc');
+        $filterGenre = $request->input('filter_genre');
+        $filterTheme = $request->input('filter_theme');
+        $filterCountry = $request->input('filter_country');
+        $filterLanguage = $request->input('filter_language');
+        $filterProductionHouse = $request->input('filter_production_house');
+        $filterService = $request->input('filter_service');
+        $filterDirector = $request->input('filter_director');
+        $filterCast = $request->input('filter_cast');
+        $filterCrew = $request->input('filter_crew');
         
         // Build query
         $query = Movie::with([
@@ -180,9 +192,7 @@ class FilmController extends Controller
             'movieReleases'
         ]);
 
-        // Apply search filter (same pattern as the API search: multi-field
-        // title + original_title, relevance ranking exact -> starts-with ->
-        // substring -> trigram similarity >= 0.4 -> synopsis)
+        // Apply search filter
         if ($search !== null && trim($search) !== '') {
             $search = trim($search);
             $search = preg_replace('/\s+/u', ' ', $search);
@@ -211,9 +221,6 @@ class FilmController extends Controller
                     [$search, $startsWith, $startsWith, $like, $like, $search, $search, $search, $search, $like]
                 )
                 ->orderByRaw('relevance DESC, movies.created_at DESC');
-        } else {
-            // Default ordering when not searching
-            $query->orderBy('created_at', 'desc');
         }
 
         // Apply status filter
@@ -221,29 +228,101 @@ class FilmController extends Controller
             $query->where('status', $status);
         }
 
-        // Apply release type filter (theatrical / streaming platform)
+        // Apply release type filter
         if (in_array($releaseType, ['theatrical', 'streaming'])) {
             $query->whereHas('movieServices.service', function ($q) use ($releaseType) {
                 $q->where('type', $releaseType);
             });
         }
 
-        // Apply release status filter (already released / coming soon)
+        // Apply release status filter
         if (in_array($releaseStatus, ['released', 'coming_soon'])) {
             $query->whereHas('movieServices', function ($q) use ($releaseStatus) {
                 $q->where('is_coming_soon', $releaseStatus === 'coming_soon' ? 1 : 0);
             });
         }
 
+        // Apply entity filters
+        if ($filterGenre) {
+            $query->whereHas('movieGenres.genre', fn($q) => $q->where('genres.id', $filterGenre));
+        }
+        if ($filterTheme) {
+            $query->whereHas('movieThemes.theme', fn($q) => $q->where('themes.id', $filterTheme));
+        }
+        if ($filterCountry) {
+            $query->whereHas('movieCountries.country', fn($q) => $q->where('countries.id', $filterCountry));
+        }
+        if ($filterLanguage) {
+            $query->whereHas('movieLanguages.language', fn($q) => $q->where('languages.id', $filterLanguage));
+        }
+        if ($filterProductionHouse) {
+            $query->whereHas('movieProductionHouses.productionHouse', fn($q) => $q->where('production_houses.id', $filterProductionHouse));
+        }
+        if ($filterService) {
+            $query->whereHas('movieServices.service', fn($q) => $q->where('services.id', $filterService));
+        }
+        if ($filterDirector) {
+            $query->whereHas('moviePersons', function ($q) use ($filterDirector) {
+                $q->where('movie_persons.person_id', $filterDirector)
+                  ->where('movie_persons.job', 'Director');
+            });
+        }
+        if ($filterCast) {
+            $query->whereHas('cast.person', fn($q) => $q->where('persons.id', $filterCast));
+        }
+        if ($filterCrew) {
+            $query->whereHas('crew.person', fn($q) => $q->where('persons.id', $filterCrew));
+        }
+
+        // Apply sorting (only when not searching, or override search ordering)
+        if ($sortBy && !$search) {
+            $dir = in_array($sortOrder, ['asc', 'desc']) ? $sortOrder : 'desc';
+            switch ($sortBy) {
+                case 'release_year':
+                    $query->orderBy('release_year', $dir);
+                    break;
+                case 'primary_date':
+                    $query->orderByRaw(Movie::primaryReleaseDateSql() . ' ' . $dir);
+                    break;
+                case 'rating':
+                    $query->withCount(['ratings as avg_rating' => fn($q) => $q->select(DB::raw('COALESCE(AVG(score), 0)'))]);
+                    $query->orderBy('avg_rating', $dir);
+                    break;
+                case 'title':
+                    $query->orderBy('title', $dir);
+                    break;
+                default:
+                    $query->orderBy('created_at', $dir);
+                    break;
+            }
+        } elseif (!$search) {
+            $query->orderBy('created_at', 'desc');
+        }
+
         // Paginate results
         $films = $query->paginate(15)->withQueryString();
 
-        // Global stats (independent of current page)
+        // Global stats
         $totalFilms = Movie::count();
         $totalPublished = Movie::where('status', 'published')->count();
         $totalDraft = Movie::where('status', 'draft')->count();
 
-        return view('admin.films.index', compact('films', 'totalFilms', 'totalPublished', 'totalDraft'));
+        // Filter options for dropdowns
+        $allGenres = Genre::orderBy('name')->get();
+        $allThemes = Theme::orderBy('name')->get();
+        $allCountries = Country::orderBy('name')->get();
+        $allLanguages = Language::orderBy('name')->get();
+        $allProductionHouses = ProductionHouse::orderBy('name')->get();
+        $allServices = Service::orderBy('name')->get();
+        $allDirectors = Person::where('primary_role', 'Director')->orderBy('full_name')->get();
+        $allCast = Person::where('primary_role', 'Actor')->orderBy('full_name')->get();
+        $allCrew = Person::where('primary_role', '!=', 'Actor')->orderBy('full_name')->get();
+
+        return view('admin.films.index', compact(
+            'films', 'totalFilms', 'totalPublished', 'totalDraft',
+            'allGenres', 'allThemes', 'allCountries', 'allLanguages',
+            'allProductionHouses', 'allServices', 'allDirectors', 'allCast', 'allCrew'
+        ));
     }
 
     public function create()

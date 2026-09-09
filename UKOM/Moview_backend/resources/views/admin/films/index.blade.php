@@ -6,6 +6,12 @@
 
 @section('content')
 <!-- Search & Filters -->
+@php
+    $allFilterKeys = ['status', 'release_type', 'release_status', 'sort_by',
+        'filter_genre', 'filter_theme', 'filter_country', 'filter_language',
+        'filter_production_house', 'filter_service', 'filter_director', 'filter_cast', 'filter_crew'];
+    $activeFilterCount = collect($allFilterKeys)->filter(fn($k) => request($k))->count();
+@endphp
 <div class="bg-white rounded-lg shadow p-6 mb-6" x-data="{ filterOpen: false }">
     <form method="GET" action="{{ route('admin.films.index') }}" id="filterForm">
         <div class="mb-4 flex justify-between items-center flex-wrap gap-4">
@@ -22,17 +28,13 @@
                         @click="filterOpen = true" 
                         class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap">
                     <i class="fas fa-filter mr-2"></i>Filter
-                    @if(request()->hasAny(['status', 'release_type', 'release_status']))
+                    @if($activeFilterCount > 0)
                         <span class="ml-1 px-2 py-0.5 rounded-full bg-blue-400 text-white text-xs font-bold">
-                            @php
-                                $activeFilterCount = collect(['status', 'release_type', 'release_status'])
-                                    ->filter(fn($k) => request($k))->count();
-                            @endphp
                             {{ $activeFilterCount }}
                         </span>
                     @endif
                 </button>
-                @if(request()->hasAny(['search', 'status', 'release_type', 'release_status']))
+                @if($activeFilterCount > 0 || request('search'))
                     <a href="{{ route('admin.films.index') }}" 
                        class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors whitespace-nowrap">
                         <i class="fas fa-times mr-2"></i>Clear
@@ -48,45 +50,175 @@
         <!-- Filter Modal -->
         <div x-show="filterOpen" x-cloak class="fixed inset-0 z-[120] flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-black bg-opacity-50" @click="filterOpen = false"></div>
-            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-2xl">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <h3 class="text-lg font-semibold text-gray-900">
-                        <i class="fas fa-filter mr-2 text-blue-600"></i>Filter Films
+                        <i class="fas fa-filter mr-2 text-blue-600"></i>Filter & Sort Films
                     </h3>
                     <button type="button" @click="filterOpen = false" class="text-gray-400 hover:text-gray-600">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
-                <div class="px-6 py-5 space-y-5 max-h-[60vh] overflow-y-auto">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Publication Status</label>
-                        <select name="status"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">All Status</option>
-                            <option value="published" {{ request('status') == 'published' ? 'selected' : '' }}>Published</option>
-                            <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Draft</option>
-                        </select>
+                <div class="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+
+                    <!-- SORT SECTION -->
+                    <div class="border-b border-gray-200 pb-4">
+                        <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                            <i class="fas fa-sort mr-1"></i>Sort By
+                        </h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Sort Field</label>
+                                <select name="sort_by" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Default (Newest)</option>
+                                    <option value="release_year" {{ request('sort_by') == 'release_year' ? 'selected' : '' }}>Release Year</option>
+                                    <option value="primary_date" {{ request('sort_by') == 'primary_date' ? 'selected' : '' }}>Primary Release Date</option>
+                                    <option value="rating" {{ request('sort_by') == 'rating' ? 'selected' : '' }}>Average Rating</option>
+                                    <option value="title" {{ request('sort_by') == 'title' ? 'selected' : '' }}>Title (A–Z)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Order</label>
+                                <select name="sort_order" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="desc" {{ request('sort_order', 'desc') == 'desc' ? 'selected' : '' }}>Newest / Highest / Z–A</option>
+                                    <option value="asc" {{ request('sort_order') == 'asc' ? 'selected' : '' }}>Oldest / Lowest / A–Z</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- STATUS & RELEASE -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Release Type</label>
-                        <select name="release_type"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">All Types</option>
-                            <option value="theatrical" {{ request('release_type') == 'theatrical' ? 'selected' : '' }}>Theatrical</option>
-                            <option value="streaming" {{ request('release_type') == 'streaming' ? 'selected' : '' }}>Streaming</option>
-                        </select>
-                        <p class="text-xs text-gray-400 mt-1">Based on the release platform (theater / streaming service).</p>
+                        <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                            <i class="fas fa-info-circle mr-1"></i>Status & Release
+                        </h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Publication</label>
+                                <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All</option>
+                                    <option value="published" {{ request('status') == 'published' ? 'selected' : '' }}>Published</option>
+                                    <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Draft</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Release Type</label>
+                                <select name="release_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All</option>
+                                    <option value="theatrical" {{ request('release_type') == 'theatrical' ? 'selected' : '' }}>Theatrical</option>
+                                    <option value="streaming" {{ request('release_type') == 'streaming' ? 'selected' : '' }}>Streaming</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Release Status</label>
+                                <select name="release_status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All</option>
+                                    <option value="released" {{ request('release_status') == 'released' ? 'selected' : '' }}>Released</option>
+                                    <option value="coming_soon" {{ request('release_status') == 'coming_soon' ? 'selected' : '' }}>Coming Soon</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- CONTENT FILTERS -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Release Status</label>
-                        <select name="release_status"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">All</option>
-                            <option value="released" {{ request('release_status') == 'released' ? 'selected' : '' }}>Already Released</option>
-                            <option value="coming_soon" {{ request('release_status') == 'coming_soon' ? 'selected' : '' }}>Coming Soon</option>
-                        </select>
-                        <p class="text-xs text-gray-400 mt-1">Filters films with at least one release slot matching.</p>
+                        <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                            <i class="fas fa-film mr-1"></i>Content
+                        </h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Genre</label>
+                                <select name="filter_genre" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All Genres</option>
+                                    @foreach($allGenres as $g)
+                                        <option value="{{ $g->id }}" {{ request('filter_genre') == $g->id ? 'selected' : '' }}>{{ $g->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Theme</label>
+                                <select name="filter_theme" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All Themes</option>
+                                    @foreach($allThemes as $t)
+                                        <option value="{{ $t->id }}" {{ request('filter_theme') == $t->id ? 'selected' : '' }}>{{ $t->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Service</label>
+                                <select name="filter_service" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All Services</option>
+                                    @foreach($allServices as $s)
+                                        <option value="{{ $s->id }}" {{ request('filter_service') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Country</label>
+                                <select name="filter_country" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All Countries</option>
+                                    @foreach($allCountries as $c)
+                                        <option value="{{ $c->id }}" {{ request('filter_country') == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Language</label>
+                                <select name="filter_language" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All Languages</option>
+                                    @foreach($allLanguages as $l)
+                                        <option value="{{ $l->id }}" {{ request('filter_language') == $l->id ? 'selected' : '' }}>{{ $l->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Production House</label>
+                                <select name="filter_production_house" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All</option>
+                                    @foreach($allProductionHouses as $ph)
+                                        <option value="{{ $ph->id }}" {{ request('filter_production_house') == $ph->id ? 'selected' : '' }}>{{ $ph->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- PEOPLE FILTERS -->
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                            <i class="fas fa-users mr-1"></i>People
+                        </h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Director</label>
+                                <select name="filter_director" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All Directors</option>
+                                    @foreach($allDirectors as $d)
+                                        <option value="{{ $d->id }}" {{ request('filter_director') == $d->id ? 'selected' : '' }}>{{ $d->full_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Cast</label>
+                                <select name="filter_cast" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All Cast</option>
+                                    @foreach($allCast as $c)
+                                        <option value="{{ $c->id }}" {{ request('filter_cast') == $c->id ? 'selected' : '' }}>{{ $c->full_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Crew</label>
+                                <select name="filter_crew" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All Crew</option>
+                                    @foreach($allCrew as $cr)
+                                        <option value="{{ $cr->id }}" {{ request('filter_crew') == $cr->id ? 'selected' : '' }}>{{ $cr->full_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
                 <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
                     <a href="{{ route('admin.films.index') }}" 
@@ -95,7 +227,7 @@
                         <i class="fas fa-times mr-2"></i>Clear
                     </a>
                     <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                        <i class="fas fa-check mr-2"></i>Apply Filters
+                        <i class="fas fa-check mr-2"></i>Apply
                     </button>
                 </div>
             </div>
@@ -104,7 +236,25 @@
 </div>
 
 <!-- Active Filters Display -->
-@if(request()->hasAny(['search', 'status', 'release_type', 'release_status']))
+@php
+    $filterLabels = [
+        'status' => 'Status: ' . ucfirst(request('status')),
+        'release_type' => 'Type: ' . ucfirst(request('release_type')),
+        'release_status' => 'Release: ' . (request('release_status') == 'coming_soon' ? 'Coming Soon' : 'Already Released'),
+        'sort_by' => 'Sort: ' . str_replace('_', ' ', ucfirst(request('sort_by'))) . ' (' . strtoupper(request('sort_order', 'desc')) . ')',
+        'filter_genre' => 'Genre: ' . ($allGenres->firstWhere('id', request('filter_genre'))->name ?? ''),
+        'filter_theme' => 'Theme: ' . ($allThemes->firstWhere('id', request('filter_theme'))->name ?? ''),
+        'filter_country' => 'Country: ' . ($allCountries->firstWhere('id', request('filter_country'))->name ?? ''),
+        'filter_language' => 'Language: ' . ($allLanguages->firstWhere('id', request('filter_language'))->name ?? ''),
+        'filter_production_house' => 'Production: ' . ($allProductionHouses->firstWhere('id', request('filter_production_house'))->name ?? ''),
+        'filter_service' => 'Service: ' . ($allServices->firstWhere('id', request('filter_service'))->name ?? ''),
+        'filter_director' => 'Director: ' . ($allDirectors->firstWhere('id', request('filter_director'))->full_name ?? ''),
+        'filter_cast' => 'Cast: ' . ($allCast->firstWhere('id', request('filter_cast'))->full_name ?? ''),
+        'filter_crew' => 'Crew: ' . ($allCrew->firstWhere('id', request('filter_crew'))->full_name ?? ''),
+    ];
+    $activePills = collect($filterLabels)->filter(fn($v, $k) => request($k))->values();
+@endphp
+@if(request('search') || $activePills->isNotEmpty())
 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
     <div class="flex items-center flex-wrap gap-2">
         <span class="text-sm font-semibold text-blue-900">
@@ -118,30 +268,16 @@
                 </a>
             </span>
         @endif
-        @if(request('status'))
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
-                Status: {{ ucfirst(request('status')) }}
-                <a href="{{ request()->fullUrlWithQuery(['status' => null]) }}" class="ml-2 hover:text-blue-200">
-                    <i class="fas fa-times"></i>
-                </a>
-            </span>
-        @endif
-        @if(request('release_type'))
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
-                Type: {{ ucfirst(request('release_type')) }}
-                <a href="{{ request()->fullUrlWithQuery(['release_type' => null]) }}" class="ml-2 hover:text-blue-200">
-                    <i class="fas fa-times"></i>
-                </a>
-            </span>
-        @endif
-        @if(request('release_status'))
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
-                Release: {{ request('release_status') == 'coming_soon' ? 'Coming Soon' : 'Already Released' }}
-                <a href="{{ request()->fullUrlWithQuery(['release_status' => null]) }}" class="ml-2 hover:text-blue-200">
-                    <i class="fas fa-times"></i>
-                </a>
-            </span>
-        @endif
+        @foreach($filterLabels as $key => $label)
+            @if(request($key))
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white">
+                    {{ $label }}
+                    <a href="{{ request()->fullUrlWithQuery([$key => null]) }}" class="ml-2 hover:text-blue-200">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </span>
+            @endif
+        @endforeach
         <span class="text-sm text-blue-700 ml-auto">
             Showing {{ $films->total() }} result{{ $films->total() != 1 ? 's' : '' }}
         </span>
