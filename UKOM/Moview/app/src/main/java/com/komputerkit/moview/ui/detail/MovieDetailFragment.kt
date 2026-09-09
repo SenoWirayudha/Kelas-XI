@@ -922,10 +922,10 @@ class MovieDetailFragment : Fragment() {
                 setHeaderTitleVisible(scrollY >= backdropHeight)
                 // Backdrop parallax: zoom out + translate + fade on scroll
                 val progress = (scrollY.toFloat() / backdropHeight).coerceIn(0f, 1f)
-                // Backdrop scale: mulai 1.0 → zoom out ke 0.92 saat scroll
+                // Backdrop scale: zoom out cuma di ImageView (bukan FrameLayout) biar ga ada space kosong kiri-kanan
                 val backdropScale = 1f - progress * 0.08f
-                binding.frameBackdrop.scaleX = backdropScale
-                binding.frameBackdrop.scaleY = backdropScale
+                binding.ivBackdrop.scaleX = backdropScale
+                binding.ivBackdrop.scaleY = backdropScale
                 binding.frameBackdrop.translationY = scrollY * 0.35f
                 binding.frameBackdrop.alpha = 1f - progress * 0.35f
             } else {
