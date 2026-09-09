@@ -32,6 +32,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:scaleType="centerCrop"
+                    android:scaleX="1.12"
+                    android:scaleY="1.12"
                     android:contentDescription="Backdrop"
                     tools:src="@tools:sample/backgrounds/scenic" />
 
@@ -84,12 +86,13 @@
                         android:id="@+id/tv_title"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:maxLines="3"
+                        android:ellipsize="end"
+                        android:maxLines="2"
                         android:textColor="@color/white"
-                        android:textSize="22sp"
+                        android:textSize="19sp"
                         android:textStyle="bold"
-                        app:autoSizeMaxTextSize="22sp"
-                        app:autoSizeMinTextSize="16sp"
+                        app:autoSizeMaxTextSize="19sp"
+                        app:autoSizeMinTextSize="14sp"
                         app:autoSizeStepGranularity="1sp"
                         app:autoSizeTextType="uniform"
                         tools:text="Everything Everywhere All At Once" />
@@ -98,16 +101,18 @@
                         android:id="@+id/tv_original_title"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:maxLines="2"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp"
+                        android:textSize="11sp"
+                        android:alpha="0.85"
                         android:visibility="gone"
-                        app:autoSizeMaxTextSize="13sp"
+                        app:autoSizeMaxTextSize="11sp"
                         app:autoSizeMinTextSize="10sp"
                         app:autoSizeStepGranularity="1sp"
                         app:autoSizeTextType="uniform"
-                        tools:text="Basri &amp; Salma dalam Komedi yang Tak Pernah Berakhir"
+                        tools:text="호프"
                         tools:visibility="visible" />
 
                     <LinearLayout
@@ -171,15 +176,17 @@
                         android:layout_marginTop="4dp"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp"
-                        tools:text="Sci-Fi, Adventure, Drama" />
+                        android:visibility="gone"
+                        tools:text="Sci-Fi, Adventure, Drama"
+                        tools:visibility="gone" />
 
                     <TextView
                         android:id="@+id/tv_director"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="4dp"
                         android:textColor="#1E88E5"
-                        android:textSize="13sp"
+                        android:textSize="12sp"
                         android:textStyle="bold"
                         android:clickable="true"
                         android:focusable="true"

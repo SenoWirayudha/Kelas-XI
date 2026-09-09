@@ -915,16 +915,23 @@ class MovieDetailFragment : Fragment() {
 
     private fun setupHeaderScrollBehavior() {
         val backdropHeight = resources.getDimensionPixelSize(R.dimen.backdrop_height)
+        val collapsedHeight = (120 * resources.displayMetrics.density).toInt() // collapse target ~120dp
+        // Backdrop base zoom already 1.12x via XML scaleX/Y, here we handle collapse height
         binding.scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             val hasBackdrop = binding.frameBackdrop.visibility == View.VISIBLE
             if (hasBackdrop) {
                 setHeaderSolid(scrollY >= backdropHeight)
                 setHeaderTitleVisible(scrollY >= backdropHeight)
-                // Parallax / collapsing: backdrop moves slower than scroll, fades slightly, poster content rises smoothly
+                // Backdrop collapse: tinggi shrink seiring scroll (Letterboxd style) + base zoom 1.12x sudah di XML
+                val newHeight = (backdropHeight - scrollY * 0.85f).coerceAtLeast(collapsedHeight.toFloat()).toInt()
+                val lp = binding.frameBackdrop.layoutParams
+                if (lp.height != newHeight) {
+                    lp.height = newHeight
+                    binding.frameBackdrop.layoutParams = lp
+                }
+                // Keep content parallax as before (poster section)
                 val progress = (scrollY.toFloat() / backdropHeight).coerceIn(0f, 1f)
-                binding.frameBackdrop.translationY = scrollY * 0.35f
                 binding.frameBackdrop.alpha = 1f - progress * 0.35f
-                // Poster scale subtle parallax (shrink a bit as it moves up)
                 val posterScale = 1f - progress * 0.04f
                 binding.layoutMovieInfo.scaleX = posterScale
                 binding.layoutMovieInfo.scaleY = posterScale
