@@ -178,10 +178,19 @@
                         tools:visibility="gone" />
 
                     <TextView
+                        android:id="@+id/tv_director_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Directed by"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="10sp" />
+
+                    <TextView
                         android:id="@+id/tv_director"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="1dp"
                         android:textColor="#1E88E5"
                         android:textSize="13sp"
                         android:textStyle="bold"
