@@ -117,8 +117,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginTop="4dp"
-                        android:paddingStart="2dp">
+                        android:layout_marginTop="4dp">
 
                         <TextView
                             android:id="@+id/tv_year"
@@ -129,7 +128,6 @@
                             android:clickable="true"
                             android:focusable="true"
                             android:background="?attr/selectableItemBackground"
-                            android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:textStyle="bold"
                             tools:text="2014" />
@@ -190,7 +188,6 @@
                         android:clickable="true"
                         android:focusable="true"
                         android:background="?attr/selectableItemBackground"
-                        android:paddingStart="4dp"
                         android:paddingEnd="4dp"
                         tools:text="Christopher Nolan" />
 
