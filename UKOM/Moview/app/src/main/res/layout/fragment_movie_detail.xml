@@ -25,13 +25,17 @@
             <FrameLayout
                 android:id="@+id/frame_backdrop"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/backdrop_height">
+                android:layout_height="@dimen/backdrop_height"
+                android:clipChildren="false"
+                android:clipToPadding="false">
 
                 <ImageView
                     android:id="@+id/iv_backdrop"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:scaleType="centerCrop"
+                    android:scaleX="1.12"
+                    android:scaleY="1.12"
                     android:contentDescription="Backdrop"
                     tools:src="@tools:sample/backgrounds/scenic" />
 

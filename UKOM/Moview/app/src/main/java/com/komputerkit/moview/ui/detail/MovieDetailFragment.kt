@@ -920,8 +920,12 @@ class MovieDetailFragment : Fragment() {
             if (hasBackdrop) {
                 setHeaderSolid(scrollY >= backdropHeight)
                 setHeaderTitleVisible(scrollY >= backdropHeight)
-                // Backdrop parallax: translate + fade on scroll (tanpa zoom-out scale biar ga ada gap)
+                // Backdrop parallax: zoom-out 1.12→1.0 + translate + fade on scroll
                 val progress = (scrollY.toFloat() / backdropHeight).coerceIn(0f, 1f)
+                // Zoom-out dari 1.12 (awal) ke 1.0 (full scroll) — selalu >= 1.0 jadi ga ada gap
+                val backdropScale = 1.12f - progress * 0.12f
+                binding.ivBackdrop.scaleX = backdropScale
+                binding.ivBackdrop.scaleY = backdropScale
                 binding.frameBackdrop.translationY = scrollY * 0.35f
                 binding.frameBackdrop.alpha = 1f - progress * 0.35f
             } else {
