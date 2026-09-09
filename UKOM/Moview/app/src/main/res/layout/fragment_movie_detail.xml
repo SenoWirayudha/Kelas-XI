@@ -32,15 +32,13 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:scaleType="centerCrop"
-                    android:scaleX="1.12"
-                    android:scaleY="1.12"
                     android:contentDescription="Backdrop"
                     tools:src="@tools:sample/backgrounds/scenic" />
 
                 <!-- Gradient Fade ONLY at Bottom (shorter for 210dp backdrop) -->
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="60dp"
+                    android:layout_height="70dp"
                     android:layout_gravity="bottom"
                     android:background="@drawable/bg_gradient_bottom" />
 
@@ -53,7 +51,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:padding="16dp"
-                android:layout_marginTop="-32dp">
+                android:layout_marginTop="-38dp">
 
                 <!-- Poster — fixed 110×165 (2:3), independent dari backdrop 210dp -->
                 <com.google.android.material.card.MaterialCardView
@@ -119,7 +117,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginTop="4dp">
+                        android:layout_marginTop="4dp"
+                        android:paddingStart="2dp">
 
                         <TextView
                             android:id="@+id/tv_year"
@@ -379,7 +378,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:padding="20dp">
+                    android:padding="16dp">
 
                     <!-- Rating Display -->
                     <LinearLayout
@@ -393,7 +392,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="@color/white"
-                            android:textSize="36sp"
+                            android:textSize="30sp"
                             android:textStyle="bold"
                             tools:text="4.5" />
 
@@ -401,42 +400,42 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal"
-                            android:layout_marginTop="4dp">
+                            android:layout_marginTop="3dp">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="★"
                                 android:textColor="#FFD700"
-                                android:textSize="14sp" />
+                                android:textSize="13sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="★"
                                 android:textColor="#FFD700"
-                                android:textSize="14sp" />
+                                android:textSize="13sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="★"
                                 android:textColor="#FFD700"
-                                android:textSize="14sp" />
+                                android:textSize="13sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="★"
                                 android:textColor="#FFD700"
-                                android:textSize="14sp" />
+                                android:textSize="13sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="★"
                                 android:textColor="#FFD700"
-                                android:textSize="14sp" />
+                                android:textSize="13sp" />
 
                         </LinearLayout>
 
@@ -448,12 +447,12 @@
                         android:layout_weight="1"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:layout_marginStart="24dp">
+                        android:layout_marginStart="18dp">
 
                         <com.komputerkit.moview.ui.common.RatingDistributionChart
                             android:id="@+id/rating_chart"
                             android:layout_width="match_parent"
-                            android:layout_height="110dp"
+                            android:layout_height="95dp"
                             android:layout_gravity="center_vertical" />
 
                     </LinearLayout>
