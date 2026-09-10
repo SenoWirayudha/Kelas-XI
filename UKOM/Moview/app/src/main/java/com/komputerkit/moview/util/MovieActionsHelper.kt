@@ -102,6 +102,9 @@ object MovieActionsHelper {
         var currentRating = 0f
         var watchInfo: com.komputerkit.moview.data.api.WatchCountDto? = null
         var isWatchedState = false  // tracks current watched toggle state
+        var isInitialDataLoaded = false
+        var userInteractedWithLike = false
+        var userInteractedWithWatchlist = false
         
         // Load existing rating FIRST before setting default UI state
         if (userId > 0 && actualLifecycleOwner != null) {
@@ -165,42 +168,48 @@ currentRating = ratingResponse.rating ?: 0f
                     }
                     
                     // Update like button state
-                    val likeIcon = (binding.btnLike.getChildAt(0) as com.google.android.material.card.MaterialCardView)
-                        .getChildAt(0) as ImageView
-                    val likeText = binding.btnLike.getChildAt(1) as android.widget.TextView
-                    
-                    if (isLiked) {
-                        likeIcon.setImageResource(R.drawable.ic_heart_filled)
-                        likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
-                            context.getColor(R.color.red)
-                        )
-                        likeText.text = "Liked"
-                    } else {
-                        likeIcon.setImageResource(R.drawable.ic_heart)
-                        likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
-                            context.getColor(R.color.text_secondary)
-                        )
-                        likeText.text = "Like"
+                    if (!userInteractedWithLike) {
+                        val likeIcon = (binding.btnLike.getChildAt(0) as com.google.android.material.card.MaterialCardView)
+                            .getChildAt(0) as ImageView
+                        val likeText = binding.btnLike.getChildAt(1) as android.widget.TextView
+                        
+                        if (isLiked) {
+                            likeIcon.setImageResource(R.drawable.ic_heart_filled)
+                            likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                context.getColor(R.color.red)
+                            )
+                            likeText.text = "Liked"
+                        } else {
+                            likeIcon.setImageResource(R.drawable.ic_heart)
+                            likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                context.getColor(R.color.text_secondary)
+                            )
+                            likeText.text = "Like"
+                        }
                     }
                     
                     // Update watchlist button state
-                    val watchlistIcon = (binding.btnWatchlist.getChildAt(0) as com.google.android.material.card.MaterialCardView)
-                        .getChildAt(0) as ImageView
-                    val watchlistText = binding.btnWatchlist.getChildAt(1) as android.widget.TextView
-                    
-                    if (isInWatchlist) {
-                        watchlistIcon.setImageResource(R.drawable.ic_bookmark_filled)
-                        watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
-                            context.getColor(R.color.orange)
-                        )
-                        watchlistText.text = "In Watchlist"
-                    } else {
-                        watchlistIcon.setImageResource(R.drawable.ic_bookmark)
-                        watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
-                            context.getColor(R.color.text_secondary)
-                        )
-                        watchlistText.text = "Watchlist"
+                    if (!userInteractedWithWatchlist) {
+                        val watchlistIcon = (binding.btnWatchlist.getChildAt(0) as com.google.android.material.card.MaterialCardView)
+                            .getChildAt(0) as ImageView
+                        val watchlistText = binding.btnWatchlist.getChildAt(1) as android.widget.TextView
+                        
+                        if (isInWatchlist) {
+                            watchlistIcon.setImageResource(R.drawable.ic_bookmark_filled)
+                            watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                context.getColor(R.color.orange)
+                            )
+                            watchlistText.text = "In Watchlist"
+                        } else {
+                            watchlistIcon.setImageResource(R.drawable.ic_bookmark)
+                            watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                context.getColor(R.color.text_secondary)
+                            )
+                            watchlistText.text = "Watchlist"
+                        }
                     }
+                    
+                    isInitialDataLoaded = true
                 }
             }
         } else {
@@ -209,6 +218,7 @@ currentRating = ratingResponse.rating ?: 0f
             binding.starRating.rating = 0f
             updateWatchedButtonState(context, binding, false)
             binding.btnShowYourActivity.visibility = View.GONE
+            isInitialDataLoaded = true
         }
 
         // Setup star rating (pass currentRating via closure)
@@ -325,6 +335,7 @@ currentRating = ratingResponse.rating ?: 0f
 
         binding.btnLike.setOnClickListener {
             if (userId > 0 && actualLifecycleOwner != null) {
+                userInteractedWithLike = true
                 actualLifecycleOwner.lifecycleScope.launch {
                     val isLiked = repository.toggleLike(userId, movie.id)
                     
@@ -373,6 +384,7 @@ currentRating = ratingResponse.rating ?: 0f
 
         binding.btnWatchlist.setOnClickListener {
             if (userId > 0 && actualLifecycleOwner != null) {
+                userInteractedWithWatchlist = true
                 actualLifecycleOwner.lifecycleScope.launch {
                     val isInWatchlist = repository.toggleWatchlist(userId, movie.id)
                     

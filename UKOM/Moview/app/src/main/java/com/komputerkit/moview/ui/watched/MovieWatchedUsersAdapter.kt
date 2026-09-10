@@ -48,8 +48,8 @@ class MovieWatchedUsersAdapter(
 
             val rating = item.rating ?: 0f
             binding.starRating.apply {
-                starSizeDp = 17f
-                starGapDp = 0f
+                starSizeDp = 12f
+                starGapDp = 1f
                 displayMode = true
                 setColors(
                     ContextCompat.getColor(binding.root.context, R.color.star_green),

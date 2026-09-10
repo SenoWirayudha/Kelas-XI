@@ -7,13 +7,13 @@
     android:layout_height="wrap_content"
     android:background="@color/dark_surface"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="8dp">
+    android:paddingVertical="6dp">
 
     <androidx.cardview.widget.CardView
         android:id="@+id/card_avatar"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        app:cardCornerRadius="18dp"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        app:cardCornerRadius="15dp"
         app:cardElevation="0dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
@@ -35,7 +35,7 @@
         android:layout_marginStart="10dp"
         android:layout_marginEnd="12dp"
         android:textColor="@color/text_primary"
-        android:textSize="15sp"
+        android:textSize="13sp"
         android:maxLines="1"
         android:ellipsize="end"
         app:layout_constraintStart_toEndOf="@id/card_avatar"
@@ -58,13 +58,14 @@
             android:id="@+id/star_rating"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
             android:contentDescription="Star rating" />
 
         <ImageView
             android:id="@+id/iv_like"
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:layout_marginStart="8dp"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_marginStart="6dp"
             android:src="@drawable/ic_heart_filled"
             android:contentDescription="Liked"
             android:visibility="gone"
@@ -72,9 +73,9 @@
 
         <ImageView
             android:id="@+id/iv_review"
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:layout_marginStart="8dp"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_marginStart="6dp"
             android:src="@drawable/ic_review"
             android:contentDescription="Has review"
             android:visibility="gone"

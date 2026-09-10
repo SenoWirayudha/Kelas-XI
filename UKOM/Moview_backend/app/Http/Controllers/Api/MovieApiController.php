@@ -621,7 +621,7 @@ class MovieApiController extends Controller
                         'username' => $item->username,
                         'profile_photo' => $profilePhoto,
                     ],
-                    'rating' => $item->rating !== null ? (int) $item->rating : null,
+                    'rating' => $item->rating !== null ? (float) $item->rating : null,
                     'review_id' => $item->review_id !== null ? (int) $item->review_id : null,
                     'has_like' => (bool) $item->has_like,
                     'has_review' => (bool) $item->has_review,
