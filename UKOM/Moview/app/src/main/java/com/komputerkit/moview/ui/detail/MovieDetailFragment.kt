@@ -226,6 +226,13 @@ class MovieDetailFragment : Fragment() {
             binding.tvWatchedCount.text = movie.watchedCount ?: "0"
             binding.tvReviewCount.text = movie.reviewCount ?: "0"
             binding.tvAverageRating.text = String.format("%.1f", movie.averageRating ?: 0.0)
+            // User rating label: tampilkan "Your rating: X.X" kalau user sudah rating
+            if (movie.userRating > 0f) {
+                binding.tvRatingLabel.text = String.format("Your rating: %.1f", movie.userRating)
+                binding.tvRatingLabel.visibility = View.VISIBLE
+            } else {
+                binding.tvRatingLabel.visibility = View.GONE
+            }
             
             // Rating distribution (10 buckets 0.5-5.0, vertical chart)
             binding.ratingChart.setDistribution(movie.ratingDistribution)

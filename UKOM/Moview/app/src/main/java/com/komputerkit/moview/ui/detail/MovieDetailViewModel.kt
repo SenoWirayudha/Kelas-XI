@@ -60,6 +60,17 @@ class MovieDetailViewModel(application: Application) : AndroidViewModel(applicat
                     // Load streaming services
                     _streamingServices.value = listOf("Netflix", "Prime", "YouTube", "MAX", "Disney+")
 
+                    // Load user rating for this movie
+                    if (userId > 0) {
+                        try {
+                            val ratingResponse = repository.getRating(userId, movieId)
+                            val userRating = ratingResponse?.rating ?: 0f
+                            if (userRating > 0f) {
+                                _movie.value = resolved.copy(userRating = userRating)
+                            }
+                        } catch (_: Exception) { }
+                    }
+
                     loadSocialPreviews(movieId, userId)
                 } else {
                     _error.value = "Movie not found"
