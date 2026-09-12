@@ -17,7 +17,8 @@ data class ReviewItem(
     val rating: Float,
     val content: String,
     val timestamp: String,
-    val isSpoiler: Boolean = false
+    val isSpoiler: Boolean = false,
+    val isLiked: Boolean = false
 )
 
 class ReviewsListViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,7 +39,12 @@ class ReviewsListViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             _isLoading.value = true
             val userId = prefs.getInt("userId", 0)
+            android.util.Log.d("ReviewsListVM", "loadReviews: movieId=$movieId, userId=$userId")
             val dtos = repository.getMovieReviews(movieId)
+            android.util.Log.d("ReviewsListVM", "Got ${dtos.size} reviews")
+            dtos.forEach { dto ->
+                android.util.Log.d("ReviewsListVM", "Review #${dto.id}: is_liked=${dto.is_liked}, rating=${dto.rating}")
+            }
             _reviews.postValue(dtos.map { dto ->
                 ReviewItem(
                     id = dto.id,
@@ -48,7 +54,8 @@ class ReviewsListViewModel(application: Application) : AndroidViewModel(applicat
                     rating = dto.rating?.toFloat() ?: 0f,
                     content = dto.content ?: "",
                     timestamp = formatTimeAgo(dto.created_at),
-                    isSpoiler = dto.is_spoiler
+                    isSpoiler = dto.is_spoiler,
+                    isLiked = dto.is_liked
                 )
             })
             // Check if the current user has watched this movie

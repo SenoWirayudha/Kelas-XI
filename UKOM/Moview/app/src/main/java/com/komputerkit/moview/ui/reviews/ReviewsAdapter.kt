@@ -57,6 +57,20 @@ class ReviewsAdapter(
             binding.starRating.rating = review.rating
             binding.starRating.visibility = if (review.rating > 0f) View.VISIBLE else View.GONE
 
+            // Like icon - always visible, styled by liked state
+            if (review.isLiked) {
+                binding.ivLike.setImageResource(R.drawable.ic_heart_filled)
+                binding.ivLike.imageTintList = android.content.res.ColorStateList.valueOf(
+                    ContextCompat.getColor(binding.root.context, R.color.red)
+                )
+            } else {
+                binding.ivLike.setImageResource(R.drawable.ic_heart)
+                binding.ivLike.imageTintList = android.content.res.ColorStateList.valueOf(
+                    ContextCompat.getColor(binding.root.context, R.color.text_secondary)
+                )
+            }
+            binding.ivLike.visibility = View.VISIBLE
+
             // Determine spoiler state
             val showSpoiler = review.isSpoiler && !userHasWatched
             if (showSpoiler) {

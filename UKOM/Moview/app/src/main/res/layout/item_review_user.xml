@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="12dp"
+    android:layout_marginBottom="8dp"
     app:cardBackgroundColor="@color/dark_card"
     app:cardCornerRadius="12dp"
     app:cardElevation="0dp"
@@ -13,13 +13,13 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:padding="12dp">
 
         <!-- User Avatar -->
         <ImageView
             android:id="@+id/ivUserPhoto"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:contentDescription="@string/app_name"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
@@ -30,11 +30,11 @@
             android:id="@+id/tvUsername"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginStart="10dp"
             android:layout_marginEnd="8dp"
             android:fontFamily="@font/font_family_inter"
             android:textColor="@android:color/white"
-            android:textSize="16sp"
+            android:textSize="13sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/ivUserPhoto"
             app:layout_constraintTop_toTopOf="@id/ivUserPhoto"
@@ -45,10 +45,10 @@
             android:id="@+id/tvTimestamp"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginTop="2dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="1dp"
             android:textColor="#8899A6"
-            android:textSize="13sp"
+            android:textSize="11sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/ivUserPhoto"
             app:layout_constraintTop_toBottomOf="@id/tvUsername"
@@ -59,22 +59,36 @@
             android:id="@+id/star_rating"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="8dp"
             android:contentDescription="Star rating"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/ivUserPhoto" />
+
+        <!-- Like Icon -->
+        <ImageView
+            android:id="@+id/iv_like"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="8dp"
+            android:src="@drawable/ic_heart_filled"
+            android:contentDescription="Liked"
+            android:visibility="gone"
+            app:tint="@color/red"
+            app:layout_constraintStart_toEndOf="@id/star_rating"
+            app:layout_constraintTop_toTopOf="@id/star_rating"
+            app:layout_constraintBottom_toBottomOf="@id/star_rating" />
 
         <!-- Review Content -->
         <TextView
             android:id="@+id/tvReviewText"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="6dp"
             android:ellipsize="end"
-            android:lineSpacingExtra="4dp"
-            android:maxLines="4"
+            android:lineSpacingExtra="3dp"
+            android:maxLines="3"
             android:textColor="@android:color/white"
-            android:textSize="14sp"
+            android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/star_rating"
@@ -85,7 +99,7 @@
             android:id="@+id/card_spoiler_overlay"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="6dp"
             android:visibility="gone"
             app:cardBackgroundColor="#1A1828"
             app:cardCornerRadius="8dp"
@@ -99,7 +113,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:padding="12dp">
+                android:padding="10dp">
 
                 <ImageView
                     android:layout_width="20dp"

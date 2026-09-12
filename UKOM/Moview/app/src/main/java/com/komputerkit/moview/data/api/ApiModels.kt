@@ -537,6 +537,7 @@ data class MovieReviewDto(
     val title: String?,
     val content: String?,
     val is_spoiler: Boolean = false,
+    val is_liked: Boolean = false,
     val created_at: String
 )
 

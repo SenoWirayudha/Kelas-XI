@@ -467,6 +467,7 @@ class MovieApiController extends Controller
                 'reviews.title',
                 'reviews.content',
                 'reviews.is_spoiler',
+                'reviews.is_liked',
                 'reviews.created_at'
             )
             ->paginate($perPage);
@@ -492,6 +493,7 @@ class MovieApiController extends Controller
                     'title' => $review->title,
                     'content' => $review->content,
                     'is_spoiler' => (bool) $review->is_spoiler,
+                    'is_liked' => (bool) $review->is_liked,
                     'created_at' => $review->created_at,
                 ];
             }),
