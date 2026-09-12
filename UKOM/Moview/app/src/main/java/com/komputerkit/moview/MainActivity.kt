@@ -164,7 +164,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.loginFragment,
                 R.id.signUpFragment,
                 R.id.forgotPasswordFragment,
-                R.id.editProfileFragment -> {
+                R.id.editProfileFragment,
+                R.id.logFilmFragment -> {
                     binding.bottomNavigation.visibility = View.GONE
                 }
                 R.id.navigation_search -> {

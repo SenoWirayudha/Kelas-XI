@@ -8,6 +8,7 @@ import android.text.Spanned
 import android.text.style.StyleSpan
 import android.text.style.UnderlineSpan
 import android.text.style.URLSpan
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -52,12 +53,11 @@ class LogFilmFragment : Fragment() {
         
         viewModel.loadMovie(args.movieId, requireContext())
         
+        setupAppBar()
+        
         // Handle edit mode (editing existing review)
-        // Note: For rewatch, we DON'T use edit mode - user creates new log/review
         if (args.isEditMode) {
-            binding.btnLogFilm.text = "EDIT REVIEW"
             args.existingReviewText?.let { htmlText ->
-                // Convert HTML to Spannable for visual editing
                 val spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
                     Html.fromHtml(htmlText, Html.FROM_HTML_MODE_COMPACT)
                 } else {
@@ -70,10 +70,8 @@ class LogFilmFragment : Fragment() {
                 currentRating = args.existingRating
                 binding.starRating.rating = args.existingRating
             }
-            // Load watched date if available
             args.watchedDate?.let { watchedDate ->
                 selectedDate = watchedDate
-                // Format and display the date
                 try {
                     val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
                     val outputFormat = java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault())
@@ -93,9 +91,30 @@ class LogFilmFragment : Fragment() {
         setupStarRating()
     }
     
+    private fun setupAppBar() {
+        val tv = TypedValue()
+        val toolbarHeight = if (requireContext().theme.resolveAttribute(android.R.attr.actionBarSize, tv, true)) {
+            TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics)
+        } else {
+            56 * resources.displayMetrics.density.toInt()
+        }
+        binding.scrollView.viewTreeObserver.addOnScrollChangedListener {
+            val scrollY = binding.scrollView.scrollY
+            val titleAlpha = (scrollY.toFloat() / toolbarHeight).coerceIn(0f, 1f)
+            binding.tvToolbarTitle.alpha = titleAlpha
+        }
+        binding.btnBack.setOnClickListener {
+            findNavController().navigateUp()
+        }
+        binding.btnPost.setOnClickListener {
+            saveLog()
+        }
+    }
+    
     private fun setupObservers() {
         viewModel.movie.observe(viewLifecycleOwner) { movie ->
             binding.tvTitle.text = movie.title
+            binding.tvToolbarTitle.text = movie.title
             binding.tvInfo.text = "${movie.releaseYear} • ${movie.genre}"
             
             binding.ivPoster.loadPoster(movie.posterUrl, movie.title)
@@ -168,10 +187,6 @@ class LogFilmFragment : Fragment() {
     }
     
     private fun setupClickListeners() {
-        binding.btnBack.setOnClickListener {
-            findNavController().navigateUp()
-        }
-        
         binding.cardPoster.setOnClickListener {
             viewModel.movie.value?.let { movie ->
                 val action = LogFilmFragmentDirections.actionLogFilmToMovieDetail(movie.id)
@@ -205,10 +220,6 @@ class LogFilmFragment : Fragment() {
         
         binding.btnLink.setOnClickListener {
             showAddLinkDialog()
-        }
-        
-        binding.btnLogFilm.setOnClickListener {
-            saveLog()
         }
     }
     
