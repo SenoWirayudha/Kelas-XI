@@ -1,6 +1,7 @@
 package com.komputerkit.moview.ui.log
 
 import android.app.DatePickerDialog
+import android.graphics.Color
 import android.os.Bundle
 import android.text.Html
 import android.text.SpannableStringBuilder
@@ -12,9 +13,15 @@ import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import android.widget.LinearLayout
+import androidx.core.view.doOnLayout
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -38,6 +45,8 @@ class LogFilmFragment : Fragment() {
     
     private var currentRating = 0f
     private var selectedDate: String? = null
+    private var isFocusMode = false
+    private var scrollListener: ViewTreeObserver.OnScrollChangedListener? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -54,8 +63,9 @@ class LogFilmFragment : Fragment() {
         viewModel.loadMovie(args.movieId, requireContext())
         
         setupAppBar()
+        setupFocusMode()
+        setupKeyboardInset()
         
-        // Handle edit mode (editing existing review)
         if (args.isEditMode) {
             args.existingReviewText?.let { htmlText ->
                 val spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
@@ -98,16 +108,215 @@ class LogFilmFragment : Fragment() {
         } else {
             56 * resources.displayMetrics.density.toInt()
         }
-        binding.scrollView.viewTreeObserver.addOnScrollChangedListener {
-            val scrollY = binding.scrollView.scrollY
-            val titleAlpha = (scrollY.toFloat() / toolbarHeight).coerceIn(0f, 1f)
-            binding.tvToolbarTitle.alpha = titleAlpha
+        scrollListener = ViewTreeObserver.OnScrollChangedListener {
+            val b = _binding ?: return@OnScrollChangedListener
+            if (!isFocusMode) {
+                val scrollY = b.scrollView.scrollY
+                val titleAlpha = (scrollY.toFloat() / toolbarHeight).coerceIn(0f, 1f)
+                b.tvToolbarTitle.alpha = titleAlpha
+            }
         }
+        binding.scrollView.viewTreeObserver.addOnScrollChangedListener(scrollListener)
         binding.btnBack.setOnClickListener {
-            findNavController().navigateUp()
+            if (!isFocusMode) {
+                findNavController().navigateUp()
+            }
         }
         binding.btnPost.setOnClickListener {
             saveLog()
+        }
+    }
+    
+    private var backCallback: androidx.activity.OnBackPressedCallback? = null
+
+    private fun setupFocusMode() {
+        binding.etReview.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus && !isFocusMode) {
+                enterFocusMode()
+            }
+        }
+        binding.etReview.setOnClickListener {
+            android.util.Log.d("LogFilm", "etReview CLICKED, isFocusMode=$isFocusMode")
+            if (!isFocusMode) {
+                enterFocusMode()
+            }
+        }
+        binding.btnFocusBack.setOnClickListener {
+            android.util.Log.d("LogFilm", "btn_focus_back CLICKED, isFocusMode=$isFocusMode")
+            if (isFocusMode) {
+                exitFocusMode()
+            }
+        }
+        binding.focusBackBar.setOnClickListener {
+            android.util.Log.d("LogFilm", "focus_back_bar CLICKED, isFocusMode=$isFocusMode")
+            if (isFocusMode) {
+                exitFocusMode()
+            }
+        }
+        backCallback = object : androidx.activity.OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                exitFocusMode()
+            }
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback!!)
+    }
+    
+    private fun enterFocusMode() {
+        android.util.Log.d("LogFilm", ">>> enterFocusMode() called")
+        isFocusMode = true
+        backCallback?.isEnabled = true
+        val duration = 200L
+        val density = resources.displayMetrics.density
+
+        binding.btnPost.animate().alpha(0f).setDuration(duration / 2).withEndAction {
+            binding.btnPost.visibility = View.INVISIBLE
+            binding.btnPost.alpha = 1f
+        }.start()
+
+        listOf(
+            binding.cardPoster, binding.tvTitle, binding.tvInfo,
+            binding.layoutStars, binding.tvRateLabel, binding.layoutActions,
+            binding.layoutReviewHeader
+        ).forEach { v ->
+            v.animate()
+                .alpha(0f)
+                .translationY(-15f * density)
+                .setDuration(duration)
+                .withEndAction { v.visibility = View.GONE; v.translationY = 0f }
+                .start()
+        }
+
+        binding.appBar.animate()
+            .alpha(0f)
+            .translationY(-binding.appBar.height.toFloat())
+            .setDuration(duration)
+            .withEndAction {
+                binding.appBar.visibility = View.GONE
+                binding.appBar.alpha = 1f
+                binding.appBar.translationY = 0f
+            }.start()
+
+        binding.focusBackBar.alpha = 0f
+        binding.focusBackBar.visibility = View.VISIBLE
+        binding.focusBackBar.animate().alpha(1f).setDuration(duration).start()
+
+        binding.scrollView.post {
+            val scrollContent = binding.scrollView.getChildAt(0) as? ViewGroup
+            val cardInnerLayout = (binding.cardReview.getChildAt(0) as? ViewGroup)
+
+            val actionBarSizePx = resources.getDimensionPixelSize(
+                resources.getIdentifier("action_bar_size", "dimen", "android").takeIf { it != 0 }
+                    ?: return@post
+            )
+
+            (binding.cardReview.layoutParams as ViewGroup.MarginLayoutParams).let {
+                it.topMargin = 0; it.bottomMargin = 0; it.leftMargin = 0; it.rightMargin = 0
+            }
+
+            scrollContent?.let { sc ->
+                sc.layoutParams = sc.layoutParams.apply { height = ViewGroup.LayoutParams.MATCH_PARENT }
+                sc.setPadding(sc.paddingLeft, actionBarSizePx, sc.paddingRight, sc.paddingBottom)
+            }
+            binding.cardReview.layoutParams = binding.cardReview.layoutParams.apply { height = ViewGroup.LayoutParams.MATCH_PARENT }
+            cardInnerLayout?.layoutParams = cardInnerLayout?.layoutParams?.apply { height = ViewGroup.LayoutParams.MATCH_PARENT }
+
+            (binding.etReview.layoutParams as? LinearLayout.LayoutParams)?.let {
+                it.height = 0
+                it.weight = 1f
+                binding.etReview.minimumHeight = 0
+                binding.etReview.requestLayout()
+            }
+        }
+
+        binding.etReview.postDelayed({
+            if (!isFocusMode) return@postDelayed
+            binding.etReview.requestFocus()
+            val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(binding.etReview, InputMethodManager.SHOW_IMPLICIT)
+        }, 250L)
+    }
+    
+    private fun exitFocusMode() {
+        android.util.Log.d("LogFilm", "<<< exitFocusMode() called")
+        isFocusMode = false
+        backCallback?.isEnabled = false
+        val duration = 200L
+        val density = resources.displayMetrics.density
+
+        val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(binding.etReview.windowToken, 0)
+        binding.etReview.clearFocus()
+
+        binding.btnPost.visibility = View.VISIBLE
+        binding.btnPost.alpha = 0f
+        binding.btnPost.animate().alpha(1f).setDuration(duration).start()
+
+        val scrollContent = binding.scrollView.getChildAt(0) as? ViewGroup
+        val cardInnerLayout = (binding.cardReview.getChildAt(0) as? ViewGroup)
+
+        scrollContent?.let { sc ->
+            sc.layoutParams = sc.layoutParams.apply { height = ViewGroup.LayoutParams.WRAP_CONTENT }
+            sc.setPadding(sc.paddingLeft, 0, sc.paddingRight, sc.paddingBottom)
+        }
+        binding.cardReview.layoutParams = binding.cardReview.layoutParams.apply { height = ViewGroup.LayoutParams.WRAP_CONTENT }
+        cardInnerLayout?.layoutParams = cardInnerLayout?.layoutParams?.apply { height = ViewGroup.LayoutParams.WRAP_CONTENT }
+
+        (binding.etReview.layoutParams as? LinearLayout.LayoutParams)?.let {
+            it.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            it.weight = 0f
+        }
+        binding.etReview.minimumHeight = (150 * density).toInt()
+
+        val cardMargins = binding.cardReview.layoutParams as ViewGroup.MarginLayoutParams
+        val margin20 = (20 * density).toInt()
+        cardMargins.topMargin = margin20
+        cardMargins.bottomMargin = 0
+        cardMargins.leftMargin = margin20
+        cardMargins.rightMargin = margin20
+        binding.cardReview.requestLayout()
+
+        binding.focusBackBar.animate().alpha(0f).setDuration(duration / 2).withEndAction {
+            binding.focusBackBar.visibility = View.GONE
+            binding.focusBackBar.alpha = 1f
+        }.start()
+
+        binding.appBar.alpha = 0f
+        binding.appBar.visibility = View.VISIBLE
+        binding.appBar.translationY = -binding.appBar.height.toFloat()
+        binding.appBar.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(duration)
+            .start()
+
+        val viewsToShow = listOf(
+            binding.cardPoster, binding.tvTitle, binding.tvInfo,
+            binding.layoutStars, binding.tvRateLabel, binding.layoutActions,
+            binding.layoutReviewHeader
+        )
+        viewsToShow.forEach { v ->
+            v.alpha = 0f
+            v.translationY = 30f * density
+            v.visibility = View.VISIBLE
+            v.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(duration)
+                .start()
+        }
+    }
+    
+    private fun setupKeyboardInset() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+            val keyboardHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            val bottomPadding = if (isFocusMode) 0 else keyboardHeight
+            binding.scrollView.setPadding(
+                binding.scrollView.paddingLeft,
+                binding.scrollView.paddingTop,
+                binding.scrollView.paddingRight,
+                bottomPadding
+            )
+            insets
         }
     }
     
@@ -124,12 +333,10 @@ class LogFilmFragment : Fragment() {
             updateLikedButton(isLiked)
         }
         
-        // Icon watch state from ratings table
         viewModel.isWatched.observe(viewLifecycleOwner) { isWatched ->
             updateWatchedButton(isWatched)
         }
         
-        // Label REWATCHED from diary count (watchCount > 0)
         viewModel.isRewatch.observe(viewLifecycleOwner) { isRewatch ->
             if (isRewatch && !args.isEditMode) {
                 binding.tvWatchedLabel.text = "REWATCHED"
@@ -289,7 +496,6 @@ class LogFilmFragment : Fragment() {
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                 selectedDate = dateFormat.format(selectedCalendar.time)
                 
-                // Update button label
                 val displayFormat = SimpleDateFormat("MMM d", Locale.US)
                 val displayDate = displayFormat.format(selectedCalendar.time)
                 binding.tvWatchedDate.text = displayDate.uppercase()
@@ -299,7 +505,6 @@ class LogFilmFragment : Fragment() {
             calendar.get(Calendar.DAY_OF_MONTH)
         )
         
-        // Set max date to today
         datePickerDialog.datePicker.maxDate = System.currentTimeMillis()
         datePickerDialog.show()
     }
@@ -316,15 +521,12 @@ class LogFilmFragment : Fragment() {
         
         val spannable = editText.text as? SpannableStringBuilder ?: SpannableStringBuilder(editText.text)
         
-        // Check if style already exists
         val existingSpans = spannable.getSpans(start, end, StyleSpan::class.java)
         val hasStyle = existingSpans.any { it.style == style }
         
         if (hasStyle) {
-            // Remove the style
             existingSpans.filter { it.style == style }.forEach { spannable.removeSpan(it) }
         } else {
-            // Add the style
             spannable.setSpan(
                 StyleSpan(style),
                 start,
@@ -349,14 +551,11 @@ class LogFilmFragment : Fragment() {
         
         val spannable = editText.text as? SpannableStringBuilder ?: SpannableStringBuilder(editText.text)
         
-        // Check if underline already exists
         val existingSpans = spannable.getSpans(start, end, UnderlineSpan::class.java)
         
         if (existingSpans.isNotEmpty()) {
-            // Remove underline
             existingSpans.forEach { spannable.removeSpan(it) }
         } else {
-            // Add underline
             spannable.setSpan(
                 UnderlineSpan(),
                 start,
@@ -378,7 +577,6 @@ class LogFilmFragment : Fragment() {
         val start = editText.selectionStart
         val end = editText.selectionEnd
         
-        // Pre-fill title with selected text if any
         if (start != end) {
             etTitle.setText(editText.text.substring(start, end))
         }
@@ -395,7 +593,6 @@ class LogFilmFragment : Fragment() {
                     return@setPositiveButton
                 }
                 
-                // Ensure URL has https:// prefix
                 val fullUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
                     "https://$url"
                 } else {
@@ -409,7 +606,6 @@ class LogFilmFragment : Fragment() {
                 val spannable = editText.text as? SpannableStringBuilder ?: SpannableStringBuilder(editText.text)
                 
                 if (start != end) {
-                    // Replace selected text with link
                     spannable.replace(start, end, title)
                     spannable.setSpan(
                         URLSpan(fullUrl),
@@ -420,7 +616,6 @@ class LogFilmFragment : Fragment() {
                     editText.setText(spannable)
                     editText.setSelection(start + title.length)
                 } else {
-                    // Insert link at cursor position
                     spannable.insert(start, title)
                     spannable.setSpan(
                         URLSpan(fullUrl),
@@ -448,7 +643,6 @@ class LogFilmFragment : Fragment() {
             Html.toHtml(spannable)
         }
         
-        // Clean up extra HTML tags added by Android
         return html
             .replace("<p dir=\"ltr\">", "")
             .replace("</p>", "")
@@ -457,29 +651,35 @@ class LogFilmFragment : Fragment() {
     }
     
     private fun saveLog() {
-        // Convert Spannable to HTML before saving
         val reviewHtml = spannableToHtml(binding.etReview.text ?: "")
         val containsSpoilers = binding.cbSpoilers.isChecked
         
         if (args.isEditMode) {
             if (args.reviewId > 0) {
-                // Update existing review
                 viewModel.updateReview(args.reviewId, reviewHtml, containsSpoilers, currentRating, selectedDate)
             } else {
-                // Create new review from log entry
                 viewModel.saveLog(reviewHtml, containsSpoilers, selectedDate, isRewatch = false)
             }
         } else {
-            // Check if this is a rewatch (user already has diary entries)
             val isRewatch = viewModel.isRewatch.value == true
-            
-            // Create new log/review (or rewatch if already watched)
             viewModel.saveLog(reviewHtml, containsSpoilers, selectedDate, isRewatch = isRewatch)
         }
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
+        android.util.Log.d("LogFilm", "!!! onDestroyView() called — cleaning up listeners")
+        scrollListener?.let { listener ->
+            try {
+                _binding?.scrollView?.viewTreeObserver?.removeOnScrollChangedListener(listener)
+            } catch (_: Exception) {}
+        }
+        scrollListener = null
+        _binding?.root?.let { root ->
+            try {
+                ViewCompat.setOnApplyWindowInsetsListener(root, null)
+            } catch (_: Exception) {}
+        }
         _binding = null
+        super.onDestroyView()
     }
 }

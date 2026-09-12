@@ -394,7 +394,7 @@
                         android:minHeight="150dp"
                         android:padding="12dp"
                         android:textColor="@color/text_primary"
-                        android:textColorHint="#4A5568"
+                        android:textColorHint="#8899AA"
                         android:textSize="13sp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
@@ -418,5 +418,32 @@
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
+
+    <!-- Focus mode sticky back bar (hidden by default) — MUST be last child for touch priority -->
+    <LinearLayout
+        android:id="@+id/focus_back_bar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:layout_gravity="top|start"
+        android:background="@color/dark_background"
+        android:clickable="true"
+        android:elevation="4dp"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="4dp"
+        android:visibility="gone">
+
+        <ImageButton
+            android:id="@+id/btn_focus_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Back"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_back"
+            app:tint="@color/text_primary" />
+
+    </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
