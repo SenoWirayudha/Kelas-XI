@@ -128,7 +128,7 @@ object MovieActionsHelper {
                     watchInfo = watchInfoResult
 
                     val watchCount = watchInfoResult?.watch_count ?: 0
-                    binding.btnShowYourActivity.visibility = if (watchCount > 0) View.VISIBLE else View.GONE
+                    binding.btnShowYourActivity.visibility = if (watchCount > 0) View.VISIBLE else View.INVISIBLE
 
                     // Load rating if exists
                     if (ratingResponse != null) {
