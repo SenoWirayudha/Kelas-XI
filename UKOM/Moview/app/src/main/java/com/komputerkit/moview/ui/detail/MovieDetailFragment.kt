@@ -51,7 +51,8 @@ class MovieDetailFragment : Fragment() {
 
     private var currentMovie: com.komputerkit.moview.data.model.Movie? = null
     private var isDescriptionExpanded = false
-    private var selectedTabPosition = 0  // Track selected tab
+    private var selectedTabPosition = 0
+    private var isCastCrewListView = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -668,6 +669,22 @@ class MovieDetailFragment : Fragment() {
             override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
             override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
         })
+
+        // Toggle cast/crew view mode
+        binding.btnToggleView.setOnClickListener {
+            isCastCrewListView = !isCastCrewListView
+            binding.btnToggleView.setImageResource(if (isCastCrewListView) R.drawable.ic_grid else R.drawable.ic_list)
+            val activeTab = binding.tabLayout.selectedTabPosition
+            val rv = if (activeTab == 0) binding.rvCast else binding.rvCrew
+            rv.animate().alpha(0f).setDuration(120L).withEndAction {
+                if (activeTab == 0) showCastTab() else showCrewTab()
+                rv.alpha = 0f
+                rv.animate().alpha(1f).setDuration(150L).start()
+            }.start()
+        }
+
+        // Show toggle on initial Cast tab
+        binding.btnToggleView.visibility = View.VISIBLE
     }
     
     private fun showCastTab() {
@@ -676,16 +693,17 @@ class MovieDetailFragment : Fragment() {
         binding.tvCrewPlaceholder.visibility = View.GONE
         binding.layoutDetails.visibility = View.GONE
         binding.layoutRilis.visibility = View.GONE
+        binding.btnToggleView.visibility = View.VISIBLE
+        updateCastLayoutManager()
     }
     
     private fun showCrewTab() {
         binding.rvCast.visibility = View.GONE
         binding.layoutDetails.visibility = View.GONE
         binding.layoutRilis.visibility = View.GONE
+        binding.btnToggleView.visibility = View.VISIBLE
         
-        // Show crew or placeholder
         currentMovie?.let { movie ->
-            android.util.Log.d("MovieDetail", "showCrewTab - Crew size: ${movie.crew.size}")
             if (movie.crew.isNotEmpty()) {
                 binding.rvCrew.visibility = View.VISIBLE
                 binding.tvCrewPlaceholder.visibility = View.GONE
@@ -694,10 +712,28 @@ class MovieDetailFragment : Fragment() {
                 binding.tvCrewPlaceholder.visibility = View.VISIBLE
             }
         } ?: run {
-            android.util.Log.d("MovieDetail", "showCrewTab - currentMovie is null")
             binding.rvCrew.visibility = View.GONE
             binding.tvCrewPlaceholder.visibility = View.VISIBLE
         }
+        updateCrewLayoutManager()
+    }
+    
+    private fun updateCastLayoutManager() {
+        if (isCastCrewListView) {
+            binding.rvCast.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL, false)
+        } else {
+            binding.rvCast.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        }
+        castAdapter.isListView = isCastCrewListView
+    }
+    
+    private fun updateCrewLayoutManager() {
+        if (isCastCrewListView) {
+            binding.rvCrew.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL, false)
+        } else {
+            binding.rvCrew.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        }
+        crewAdapter.isListView = isCastCrewListView
     }
     
     private fun showDetailsTab() {
@@ -706,6 +742,7 @@ class MovieDetailFragment : Fragment() {
         binding.tvCrewPlaceholder.visibility = View.GONE
         binding.layoutDetails.visibility = View.VISIBLE
         binding.layoutRilis.visibility = View.GONE
+        binding.btnToggleView.visibility = View.GONE
     }
 
     private fun showRilisTab() {
@@ -714,6 +751,7 @@ class MovieDetailFragment : Fragment() {
         binding.tvCrewPlaceholder.visibility = View.GONE
         binding.layoutDetails.visibility = View.GONE
         binding.layoutRilis.visibility = View.VISIBLE
+        binding.btnToggleView.visibility = View.GONE
     }
     
     private fun updateRilisTab(movie: com.komputerkit.moview.data.model.Movie) {

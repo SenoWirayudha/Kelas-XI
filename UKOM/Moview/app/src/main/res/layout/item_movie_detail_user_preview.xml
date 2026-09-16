@@ -2,22 +2,22 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="60dp"
+    android:layout_width="44dp"
     android:layout_height="wrap_content"
-    android:layout_marginEnd="8dp"
+    android:layout_marginEnd="6dp"
     android:orientation="vertical"
     android:gravity="center_horizontal">
 
     <FrameLayout
         android:id="@+id/layout_avatar_container"
-        android:layout_width="52dp"
-        android:layout_height="52dp">
+        android:layout_width="40dp"
+        android:layout_height="40dp">
 
         <androidx.cardview.widget.CardView
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_gravity="center"
-            app:cardCornerRadius="24dp"
+            app:cardCornerRadius="18dp"
             app:cardElevation="0dp">
 
             <ImageView
@@ -31,13 +31,13 @@
 
         <ImageView
             android:id="@+id/iv_badge_action"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
             android:layout_gravity="end|top"
             android:src="@drawable/ic_review"
             android:contentDescription="Has review"
             android:background="@drawable/circle_background_dark"
-            android:padding="4dp"
+            android:padding="3dp"
             app:tint="@color/text_secondary" />
     </FrameLayout>
 
@@ -45,7 +45,7 @@
         android:id="@+id/star_rating"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         android:visibility="gone"
         android:contentDescription="Star rating"
         tools:visibility="visible" />

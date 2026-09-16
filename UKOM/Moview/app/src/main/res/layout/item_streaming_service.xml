@@ -6,26 +6,28 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="8dp">
+    android:paddingHorizontal="6dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="4dp">
 
     <!-- Logo Container with Badge -->
     <FrameLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
+        android:layout_width="44dp"
+        android:layout_height="44dp">
 
         <com.google.android.material.card.MaterialCardView
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:layout_gravity="center"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="0dp"
             app:cardBackgroundColor="#1A1F2E">
 
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/iv_service_logo"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_margin="8dp"
+                android:layout_margin="6dp"
                 android:scaleType="fitCenter"
                 android:contentDescription="Streaming Service"
                 app:shapeAppearanceOverlay="@style/RoundedCorner8dp"
@@ -39,22 +41,22 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
-            android:layout_marginEnd="2dp"
-            android:layout_marginBottom="2dp"
-            app:cardCornerRadius="6dp"
-            app:cardElevation="4dp"
+            android:layout_marginEnd="-2dp"
+            android:layout_marginBottom="-2dp"
+            app:cardCornerRadius="4dp"
+            app:cardElevation="1dp"
             app:cardBackgroundColor="#1E88E5">
 
             <TextView
                 android:id="@+id/tv_availability_type"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="3dp"
+                android:paddingHorizontal="4dp"
+                android:paddingVertical="1dp"
                 android:textColor="@color/white"
-                android:textSize="8sp"
+                android:textSize="7sp"
                 android:textStyle="bold"
-                android:letterSpacing="0.08"
+                android:letterSpacing="0.05"
                 tools:text="RENT" />
 
         </com.google.android.material.card.MaterialCardView>
@@ -64,11 +66,11 @@
     <!-- Service Name -->
     <TextView
         android:id="@+id/tv_service_name"
-        android:layout_width="72dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="4dp"
         android:textColor="@color/white"
-        android:textSize="11sp"
+        android:textSize="9sp"
         android:textStyle="bold"
         android:gravity="center"
         android:maxLines="1"
@@ -80,9 +82,9 @@
         android:id="@+id/tv_release_date"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="1dp"
         android:textColor="@color/text_secondary"
-        android:textSize="9sp"
+        android:textSize="8sp"
         android:gravity="center"
         android:visibility="gone"
         tools:text="Jan 15"

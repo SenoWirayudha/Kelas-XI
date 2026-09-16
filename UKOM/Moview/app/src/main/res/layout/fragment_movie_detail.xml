@@ -684,6 +684,19 @@
 
                 </com.google.android.material.tabs.TabLayout>
 
+                <ImageButton
+                    android:id="@+id/btn_toggle_view"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="end|center_vertical"
+                    android:layout_marginTop="4dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_list"
+                    android:contentDescription="Toggle view"
+                    app:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:visibility="gone" />
+
                 <!-- Cast Tab Content -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_cast"
