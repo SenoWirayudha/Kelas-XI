@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="44dp"
+    android:layout_width="50dp"
     android:layout_height="wrap_content"
     android:layout_marginEnd="6dp"
     android:orientation="vertical"
@@ -10,14 +10,14 @@
 
     <FrameLayout
         android:id="@+id/layout_avatar_container"
-        android:layout_width="40dp"
-        android:layout_height="40dp">
+        android:layout_width="46dp"
+        android:layout_height="46dp">
 
         <androidx.cardview.widget.CardView
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
             android:layout_gravity="center"
-            app:cardCornerRadius="18dp"
+            app:cardCornerRadius="21dp"
             app:cardElevation="0dp">
 
             <ImageView
@@ -31,8 +31,8 @@
 
         <ImageView
             android:id="@+id/iv_badge_action"
-            android:layout_width="14dp"
-            android:layout_height="14dp"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
             android:layout_gravity="end|top"
             android:src="@drawable/ic_review"
             android:contentDescription="Has review"

@@ -48,7 +48,7 @@ class MovieDetailUserPreviewAdapter(
             binding.ivAvatar.loadProfilePhoto(item.profilePhoto)
             val rating = item.rating ?: 0f
             binding.starRating.apply {
-                starSizeDp = 11f
+                starSizeDp = 8f
                 starGapDp = 0f
                 displayMode = true
                 setColors(
