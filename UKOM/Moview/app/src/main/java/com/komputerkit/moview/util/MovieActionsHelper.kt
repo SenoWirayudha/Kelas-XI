@@ -81,7 +81,7 @@ object MovieActionsHelper {
         
         // Remove white background/border from bottom sheet
         bottomSheetDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        bottomSheetDialog.window?.setDimAmount(0f)
+        bottomSheetDialog.window?.setDimAmount(0.4f)
 
         // Set movie data
         binding.tvMovieTitle.text = movie.title
