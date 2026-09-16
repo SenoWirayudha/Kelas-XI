@@ -75,7 +75,7 @@ object MovieActionsHelper {
         onWatchedTap: ((reviewId: Int, isLog: Boolean) -> Unit)? = null,
         onShowYourActivityTap: ((movieId: Int, userId: Int) -> Unit)? = null
     ) {
-        val bottomSheetDialog = BottomSheetDialog(context)
+        val bottomSheetDialog = BottomSheetDialog(context, R.style.BottomSheetDialogTheme)
         val binding = BottomSheetMovieActionsBinding.inflate(LayoutInflater.from(context))
         bottomSheetDialog.setContentView(binding.root)
         
