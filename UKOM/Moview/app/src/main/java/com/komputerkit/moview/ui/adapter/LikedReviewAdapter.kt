@@ -46,8 +46,8 @@ class LikedReviewAdapter(
             
             // Set rating stars
             binding.starRating.apply {
-                starSizeDp = 12f
-                starGapDp = 1f
+                starSizeDp = 8f
+                starGapDp = 0f
                 displayMode = true
                 setColors(
                     ContextCompat.getColor(context, R.color.star_green),

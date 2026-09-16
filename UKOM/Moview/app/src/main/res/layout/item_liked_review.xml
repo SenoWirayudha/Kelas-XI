@@ -4,21 +4,20 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:paddingEnd="16dp">
+    android:paddingEnd="12dp">
 
-    <!-- Profile Photo with Badge (Using FrameLayout for overlay) -->
     <FrameLayout
         android:id="@+id/frame_profile"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="46dp"
+        android:layout_height="46dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Circular Profile Photo -->
         <androidx.cardview.widget.CardView
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            app:cardCornerRadius="28dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_gravity="center"
+            app:cardCornerRadius="21dp"
             app:cardElevation="0dp">
 
             <ImageView
@@ -30,11 +29,10 @@
                 tools:src="@color/dark_card" />
         </androidx.cardview.widget.CardView>
 
-        <!-- Review Badge Icon (Bottom right corner) -->
         <ImageView
             android:id="@+id/iv_badge"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
             android:layout_gravity="bottom|end"
             android:background="@drawable/circle_background"
             android:contentDescription="Review Badge"
@@ -43,12 +41,11 @@
             app:tint="@color/text_primary" />
     </FrameLayout>
 
-    <!-- Rating Stars Container -->
     <LinearLayout
         android:id="@+id/layout_stars"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="4dp"
         android:gravity="center"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="@id/frame_profile"

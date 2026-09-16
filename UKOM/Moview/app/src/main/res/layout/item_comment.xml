@@ -5,16 +5,17 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@color/dark_background"
-    android:paddingHorizontal="24dp"
-    android:paddingVertical="16dp">
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="10dp">
 
     <!-- Profile Photo -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_profile"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        app:cardCornerRadius="20dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
+        android:layout_marginTop="2dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
@@ -27,11 +28,24 @@
             tools:src="@color/dark_card" />
     </androidx.cardview.widget.CardView>
 
+    <!-- 3-dot menu - pinned to right corner -->
+    <ImageView
+        android:id="@+id/iv_menu"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:contentDescription="Menu"
+        android:src="@drawable/ic_more_vert"
+        android:visibility="gone"
+        app:tint="@color/text_secondary"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="visible" />
+
     <!-- Content -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="10dp"
         android:orientation="vertical"
         app:layout_constraintEnd_toStartOf="@id/layout_actions"
         app:layout_constraintStart_toEndOf="@id/card_profile"
@@ -48,7 +62,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="@color/text_primary"
-                android:textSize="15sp"
+                android:textSize="13sp"
                 android:textStyle="bold"
                 tools:text="Alex Cinephile" />
 
@@ -56,43 +70,32 @@
                 android:id="@+id/tv_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="6dp"
                 android:textColor="@color/text_secondary"
-                android:textSize="13sp"
+                android:textSize="11sp"
                 tools:text="2h ago" />
-
-            <ImageView
-                android:id="@+id/iv_menu"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_marginStart="8dp"
-                android:contentDescription="Menu"
-                android:src="@drawable/ic_more_vert"
-                android:visibility="gone"
-                app:tint="@color/text_secondary"
-                tools:visibility="visible" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/tv_comment_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:lineSpacingExtra="2dp"
+            android:layout_marginTop="3dp"
+            android:lineSpacingExtra="1dp"
             android:textColor="@color/text_primary"
-            android:textSize="14sp"
-            tools:text="I totally agree with this take! The cinematography was stunning, especially in the desert sequences. It felt like I was actually there." />
+            android:textSize="13sp"
+            tools:text="I totally agree with this take! The cinematography was stunning." />
 
         <TextView
             android:id="@+id/tv_reply_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="4dp"
             android:background="?attr/selectableItemBackground"
-            android:padding="4dp"
+            android:padding="2dp"
             android:text="Reply"
             android:textColor="@color/text_secondary"
-            android:textSize="13sp"
+            android:textSize="12sp"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -101,7 +104,7 @@
         android:id="@+id/layout_actions"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="8dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:visibility="gone"
@@ -110,8 +113,8 @@
 
         <ImageView
             android:id="@+id/iv_like_icon"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
             android:contentDescription="Like"
             android:src="@drawable/ic_heart_outline"
             app:tint="@color/text_secondary" />
@@ -120,19 +123,19 @@
             android:id="@+id/tv_like_count"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
+            android:layout_marginStart="3dp"
             android:textColor="@color/text_secondary"
-            android:textSize="13sp"
+            android:textSize="11sp"
             tools:text="45" />
     </LinearLayout>
 
-    <!-- Nested Replies Indicator (optional) -->
+    <!-- Nested Replies Indicator -->
     <View
         android:id="@+id/reply_line"
         android:layout_width="2dp"
         android:layout_height="0dp"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="40dp"
         android:background="@color/text_secondary"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
