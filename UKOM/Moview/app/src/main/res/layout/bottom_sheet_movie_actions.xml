@@ -385,8 +385,9 @@
         android:text="Close"
         android:textColor="@color/text_primary"
         android:textStyle="bold"
+        android:textSize="13sp"
         android:backgroundTint="#2E3A47"
-        android:paddingVertical="14dp"
+        android:paddingVertical="10dp"
         app:cornerRadius="8dp" />
 
 </LinearLayout>
