@@ -83,6 +83,10 @@ object MovieActionsHelper {
         bottomSheetDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         bottomSheetDialog.window?.setDimAmount(0.4f)
 
+        // Allow bottom sheet to expand fully beyond default 65%
+        bottomSheetDialog.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+        bottomSheetDialog.behavior.skipCollapsed = true
+
         // Set movie data
         binding.tvMovieTitle.text = movie.title
         binding.tvMovieYear.text = movie.releaseYear?.toString() ?: ""
