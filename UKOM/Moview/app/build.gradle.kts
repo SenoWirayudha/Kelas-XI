@@ -32,9 +32,15 @@ android {
         val midtransMerchantBaseUrl =
             (localProps.getProperty("MIDTRANS_MERCHANT_BASE_URL")
                 ?: project.findProperty("MIDTRANS_MERCHANT_BASE_URL") as String?) ?: ""
+        // NGROK_URL kosong = fallback ke 10.0.2.2 / 127.0.0.1 (adb reverse tetap jalan)
+        // Isi misal: https://abcd-1234.ngrok-free.app (tanpa trailing slash)
+        val ngrokUrl =
+            (localProps.getProperty("NGROK_URL")
+                ?: project.findProperty("NGROK_URL") as String?)?.trim()?.trimEnd('/') ?: ""
 
         buildConfigField("String", "MIDTRANS_CLIENT_KEY", "\"$midtransClientKey\"")
         buildConfigField("String", "MIDTRANS_MERCHANT_BASE_URL", "\"$midtransMerchantBaseUrl\"")
+        buildConfigField("String", "NGROK_URL", "\"$ngrokUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -11,6 +11,7 @@ import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.util.TmdbImageUrl
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.applyCustomMedia
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class MovieDetailViewModel(application: Application) : AndroidViewModel(application) {
@@ -35,9 +36,12 @@ class MovieDetailViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _wantToWatchPreview = MutableLiveData<List<MovieDetailUserPreviewItem>>(emptyList())
     val wantToWatchPreview: LiveData<List<MovieDetailUserPreviewItem>> = _wantToWatchPreview
+
+    private var loadJob: Job? = null
     
     fun loadMovieDetails(movieId: Int) {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             

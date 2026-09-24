@@ -110,13 +110,18 @@ object MovieActionsHelper {
         var isInitialDataLoaded = false
         var userInteractedWithLike = false
         var userInteractedWithWatchlist = false
+        var userInteractedWithRating = false
+        var userInteractedWithWatched = false
+        var loadGeneration = 0
         
         // Load existing rating FIRST before setting default UI state
         if (userId > 0 && actualLifecycleOwner != null) {
+            loadGeneration++
+            val myGeneration = loadGeneration
             actualLifecycleOwner.lifecycleScope.launch {
-                Log.d("MovieActionsHelper", "Loading rating for userId=$userId, movieId=${movie.id}")
+                Log.d("MovieActionsHelper", "Loading rating for userId=$userId, movieId=${movie.id} gen=$myGeneration")
                 val ratingResponse = repository.getRating(userId, movie.id)
-                Log.d("MovieActionsHelper", "getRating response: rating=${ratingResponse?.rating}, is_watched=${ratingResponse?.is_watched}")
+                Log.d("MovieActionsHelper", "getRating response: rating=${ratingResponse?.rating}, is_watched=${ratingResponse?.is_watched} gen=$myGeneration")
                 
                 // Load like status
                 val isLiked = repository.checkLike(userId, movie.id)
@@ -126,31 +131,43 @@ object MovieActionsHelper {
                 
                 // Load watch count (rewatch count)
                 val watchInfoResult = repository.getWatchInfo(userId, movie.id)
-                Log.d("MovieActionsHelper", "Watch info for movie ${movie.id}: $watchInfoResult")
+                Log.d("MovieActionsHelper", "Watch info for movie ${movie.id}: $watchInfoResult gen=$myGeneration")
                 
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (myGeneration != loadGeneration) {
+                        Log.d("MovieActionsHelper", "Stale load gen=$myGeneration current=$loadGeneration - skipping overwrite")
+                        return@withContext
+                    }
                     // Store for use in click listener
                     watchInfo = watchInfoResult
 
                     val watchCount = watchInfoResult?.watch_count ?: 0
                     binding.btnShowYourActivity.visibility = if (watchCount > 0) View.VISIBLE else View.GONE
 
-                    // Load rating if exists
-                    if (ratingResponse != null) {
-currentRating = ratingResponse.rating ?: 0f
-                        binding.starRating.rating = currentRating
-                        Log.d("MovieActionsHelper", "Loaded rating: ${ratingResponse.rating} stars for movie ${movie.id}")
+                    // Load rating if exists - guard: don't overwrite if user already changed rating
+                    if (!userInteractedWithRating) {
+                        if (ratingResponse != null) {
+                            currentRating = ratingResponse.rating ?: 0f
+                            binding.starRating.rating = currentRating
+                            Log.d("MovieActionsHelper", "Loaded rating: ${ratingResponse.rating} stars for movie ${movie.id}")
+                        } else {
+                            binding.starRating.rating = 0f
+                            Log.d("MovieActionsHelper", "No rating found for movie ${movie.id}")
+                        }
                     } else {
-                        binding.starRating.rating = 0f
-                        Log.d("MovieActionsHelper", "No rating found for movie ${movie.id}")
+                        Log.d("MovieActionsHelper", "Skip rating overwrite - userInteractedWithRating=true gen=$myGeneration")
                     }
                     
-                    // Icon watch state: from ratings table (is_watched), label from entry_type
-                    val isWatched = ratingResponse?.is_watched ?: false
-                    isWatchedState = isWatched
-                    val entryType = watchInfoResult?.entry_type ?: "none"
-                    updateWatchedButtonState(context, binding, isWatched, entryType)
-                    Log.d("MovieActionsHelper", "Watch icon state: isWatched=$isWatched, entryType=$entryType")
+                    // Icon watch state: from ratings table (is_watched), label from entry_type - guard
+                    if (!userInteractedWithWatched && !userInteractedWithRating) {
+                        val isWatched = ratingResponse?.is_watched ?: false
+                        isWatchedState = isWatched
+                        val entryType = watchInfoResult?.entry_type ?: "none"
+                        updateWatchedButtonState(context, binding, isWatched, entryType)
+                        Log.d("MovieActionsHelper", "Watch icon state: isWatched=$isWatched, entryType=$entryType")
+                    } else {
+                        Log.d("MovieActionsHelper", "Skip watched overwrite - userInteracted gen=$myGeneration")
+                    }
                     
                     // Text "Review and log again": from diary entries count
                     if (watchCount > 0) {
@@ -234,7 +251,11 @@ currentRating = ratingResponse.rating ?: 0f
             movie,
             userId,
             onRatingSaved,
-            onRatingChanged = { newRating -> currentRating = newRating },
+            onRatingChanged = { newRating ->
+                userInteractedWithRating = true
+                userInteractedWithWatched = true
+                currentRating = newRating
+            },
             bottomSheetDialog = bottomSheetDialog
         )
         // Setup click listeners
@@ -272,63 +293,71 @@ currentRating = ratingResponse.rating ?: 0f
                         return@setOnClickListener
                     }
                 }
-                actualLifecycleOwner.lifecycleScope.launch {
-                    if (isWatchedState) {
-                        // Already watched → toggle OFF: delete from ratings
-                        Log.d("MovieActionsHelper", "Unwatching: userId=$userId, movieId=${movie.id}")
-                        val success = repository.deleteRating(userId, movie.id)
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            if (success) {
-                                isWatchedState = false
-                                val updatedInfo = repository.getWatchInfo(userId, movie.id)
-                                watchInfo = updatedInfo
-                                updateWatchedButtonState(context, binding, false, "none")
-                                // Reset stars
-                                currentRating = 0f
-                                binding.starRating.rating = 0f
-                                val updatedWatchCount = updatedInfo?.watch_count ?: 0
-                                binding.btnShowYourActivity.visibility = if (updatedWatchCount > 0) View.VISIBLE else View.GONE
-                                binding.tvReviewLogText.text = if (updatedWatchCount > 0) "Review and log again" else "Review and log"
-                                val updatedRewatchCount = updatedInfo?.rewatch_count ?: 0
-                                if (updatedRewatchCount > 0) {
-                                    binding.layoutRewatch.visibility = View.VISIBLE
-                                    binding.tvRewatchCount.text = "Rewatch × $updatedRewatchCount"
-                                } else {
-                                    binding.layoutRewatch.visibility = View.GONE
+                if (binding.btnWatched.isEnabled) {
+                    binding.btnWatched.isEnabled = false
+                    userInteractedWithWatched = true
+                    userInteractedWithRating = true
+                    actualLifecycleOwner.lifecycleScope.launch {
+                        try {
+                            if (isWatchedState) {
+                                // Already watched → toggle OFF: delete from ratings
+                                Log.d("MovieActionsHelper", "Unwatching: userId=$userId, movieId=${movie.id}")
+                                val success = repository.deleteRating(userId, movie.id)
+                                val updatedInfo = if (success) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { repository.getWatchInfo(userId, movie.id) } else null
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    if (success) {
+                                        isWatchedState = false
+                                        watchInfo = updatedInfo
+                                        updateWatchedButtonState(context, binding, false, "none")
+                                        // Reset stars
+                                        currentRating = 0f
+                                        binding.starRating.rating = 0f
+                                        val updatedWatchCount = updatedInfo?.watch_count ?: 0
+                                        binding.btnShowYourActivity.visibility = if (updatedWatchCount > 0) View.VISIBLE else View.GONE
+                                        binding.tvReviewLogText.text = if (updatedWatchCount > 0) "Review and log again" else "Review and log"
+                                        val updatedRewatchCount = updatedInfo?.rewatch_count ?: 0
+                                        if (updatedRewatchCount > 0) {
+                                            binding.layoutRewatch.visibility = View.VISIBLE
+                                            binding.tvRewatchCount.text = "Rewatch × $updatedRewatchCount"
+                                        } else {
+                                            binding.layoutRewatch.visibility = View.GONE
+                                        }
+                                        (context as? android.app.Activity)?.showSnackbarWithDialog("Removed from watched", bottomSheetDialog, SnackbarType.SUCCESS)
+                                        onRatingSaved?.invoke()
+                                    } else {
+                                        (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to unwatch", bottomSheetDialog, SnackbarType.ERROR)
+                                    }
                                 }
-                                (context as? android.app.Activity)?.showSnackbarWithDialog("Removed from watched", bottomSheetDialog, SnackbarType.SUCCESS)
-                                onRatingSaved?.invoke()
                             } else {
-                                (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to unwatch", bottomSheetDialog, SnackbarType.ERROR)
-                            }
-                        }
-                    } else {
-                        // Not yet watched → mark as watched
-                        val ratingValue = currentRating
-                        Log.d("MovieActionsHelper", "Saving rating: userId=$userId, movieId=${movie.id}, rating=$ratingValue")
-                        val success = repository.saveRating(userId, movie.id, ratingValue)
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            if (success) {
-                                isWatchedState = true
-                                // Reload watch info to get updated entry_type
-                                val updatedInfo = repository.getWatchInfo(userId, movie.id)
-                                watchInfo = updatedInfo
-                                updateWatchedButtonState(context, binding, true, updatedInfo?.entry_type ?: "none")
-                                val updatedWatchCount = updatedInfo?.watch_count ?: 0
-                                binding.btnShowYourActivity.visibility = if (updatedWatchCount > 0) View.VISIBLE else View.GONE
-                                binding.tvReviewLogText.text = if (updatedWatchCount > 0) "Review and log again" else "Review and log"
-                                val updatedRewatchCount = updatedInfo?.rewatch_count ?: 0
-                                if (updatedRewatchCount > 0) {
-                                    binding.layoutRewatch.visibility = View.VISIBLE
-                                    binding.tvRewatchCount.text = "Rewatch × $updatedRewatchCount"
-                                } else {
-                                    binding.layoutRewatch.visibility = View.GONE
+                                // Not yet watched → mark as watched
+                                val ratingValue = currentRating
+                                Log.d("MovieActionsHelper", "Saving rating: userId=$userId, movieId=${movie.id}, rating=$ratingValue")
+                                val success = repository.saveRating(userId, movie.id, ratingValue)
+                                val updatedInfo = if (success) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { repository.getWatchInfo(userId, movie.id) } else null
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    if (success) {
+                                        isWatchedState = true
+                                        watchInfo = updatedInfo
+                                        updateWatchedButtonState(context, binding, true, updatedInfo?.entry_type ?: "none")
+                                        val updatedWatchCount = updatedInfo?.watch_count ?: 0
+                                        binding.btnShowYourActivity.visibility = if (updatedWatchCount > 0) View.VISIBLE else View.GONE
+                                        binding.tvReviewLogText.text = if (updatedWatchCount > 0) "Review and log again" else "Review and log"
+                                        val updatedRewatchCount = updatedInfo?.rewatch_count ?: 0
+                                        if (updatedRewatchCount > 0) {
+                                            binding.layoutRewatch.visibility = View.VISIBLE
+                                            binding.tvRewatchCount.text = "Rewatch × $updatedRewatchCount"
+                                        } else {
+                                            binding.layoutRewatch.visibility = View.GONE
+                                        }
+                                        (context as? android.app.Activity)?.showSnackbarWithDialog("Marked as watched", bottomSheetDialog, SnackbarType.SUCCESS)
+                                        onRatingSaved?.invoke()
+                                    } else {
+                                        (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to save", bottomSheetDialog, SnackbarType.ERROR)
+                                    }
                                 }
-                                (context as? android.app.Activity)?.showSnackbarWithDialog("Marked as watched", bottomSheetDialog, SnackbarType.SUCCESS)
-                                onRatingSaved?.invoke()
-                            } else {
-                                (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to save", bottomSheetDialog, SnackbarType.ERROR)
                             }
+                        } finally {
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { binding.btnWatched.isEnabled = true }
                         }
                     }
                 }
@@ -340,46 +369,44 @@ currentRating = ratingResponse.rating ?: 0f
 
         binding.btnLike.setOnClickListener {
             if (userId > 0 && actualLifecycleOwner != null) {
+                if (!binding.btnLike.isEnabled) return@setOnClickListener
+                binding.btnLike.isEnabled = false
                 userInteractedWithLike = true
                 actualLifecycleOwner.lifecycleScope.launch {
-                    val isLiked = repository.toggleLike(userId, movie.id)
-                    
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        val likeIcon = (binding.btnLike.getChildAt(0) as com.google.android.material.card.MaterialCardView)
-                            .getChildAt(0) as ImageView
-                        val likeText = binding.btnLike.getChildAt(1) as android.widget.TextView
+                    try {
+                        val isLiked = repository.toggleLike(userId, movie.id)
                         
-                        when (isLiked) {
-                            true -> {
-                                // Now liked - just update UI, don't override rating
-                                likeIcon.setImageResource(R.drawable.ic_heart_filled)
-                                likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
-                                    context.getColor(R.color.red)
-                                )
-                                likeText.text = "Liked"
-                                
-                                // Don't auto-save rating - user should set rating separately
-                                (context as? android.app.Activity)?.showSnackbarWithDialog("Added to likes", bottomSheetDialog, SnackbarType.SUCCESS)
-                                
-                                // Trigger callback to refresh data
-                                onRatingSaved?.invoke()
-                            }
-                            false -> {
-                                // Now unliked - keep watched status
-                                likeIcon.setImageResource(R.drawable.ic_heart)
-                                likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
-                                    context.getColor(R.color.text_secondary)
-                                )
-                                likeText.text = "Like"
-                                (context as? android.app.Activity)?.showSnackbarWithDialog("Removed from likes", bottomSheetDialog, SnackbarType.SUCCESS)
-                                
-                                // Trigger callback to refresh data
-                                onRatingSaved?.invoke()
-                            }
-                            null -> {
-                                (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to update like", bottomSheetDialog, SnackbarType.ERROR)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            val likeIcon = (binding.btnLike.getChildAt(0) as com.google.android.material.card.MaterialCardView)
+                                .getChildAt(0) as ImageView
+                            val likeText = binding.btnLike.getChildAt(1) as android.widget.TextView
+                            
+                            when (isLiked) {
+                                true -> {
+                                    likeIcon.setImageResource(R.drawable.ic_heart_filled)
+                                    likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                        context.getColor(R.color.red)
+                                    )
+                                    likeText.text = "Liked"
+                                    (context as? android.app.Activity)?.showSnackbarWithDialog("Added to likes", bottomSheetDialog, SnackbarType.SUCCESS)
+                                    onRatingSaved?.invoke()
+                                }
+                                false -> {
+                                    likeIcon.setImageResource(R.drawable.ic_heart)
+                                    likeIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                        context.getColor(R.color.text_secondary)
+                                    )
+                                    likeText.text = "Like"
+                                    (context as? android.app.Activity)?.showSnackbarWithDialog("Removed from likes", bottomSheetDialog, SnackbarType.SUCCESS)
+                                    onRatingSaved?.invoke()
+                                }
+                                null -> {
+                                    (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to update like", bottomSheetDialog, SnackbarType.ERROR)
+                                }
                             }
                         }
+                    } finally {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { binding.btnLike.isEnabled = true }
                     }
                 }
             } else {
@@ -389,38 +416,42 @@ currentRating = ratingResponse.rating ?: 0f
 
         binding.btnWatchlist.setOnClickListener {
             if (userId > 0 && actualLifecycleOwner != null) {
+                if (!binding.btnWatchlist.isEnabled) return@setOnClickListener
+                binding.btnWatchlist.isEnabled = false
                 userInteractedWithWatchlist = true
                 actualLifecycleOwner.lifecycleScope.launch {
-                    val isInWatchlist = repository.toggleWatchlist(userId, movie.id)
-                    
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        val watchlistIcon = (binding.btnWatchlist.getChildAt(0) as com.google.android.material.card.MaterialCardView)
-                            .getChildAt(0) as ImageView
-                        val watchlistText = binding.btnWatchlist.getChildAt(1) as android.widget.TextView
+                    try {
+                        val isInWatchlist = repository.toggleWatchlist(userId, movie.id)
                         
-                        when (isInWatchlist) {
-                            true -> {
-                                // Now in watchlist
-                                watchlistIcon.setImageResource(R.drawable.ic_bookmark_filled)
-                                watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
-                                    context.getColor(R.color.orange)
-                                )
-                                watchlistText.text = "In Watchlist"
-                                (context as? android.app.Activity)?.showSnackbarWithDialog("Added to watchlist", bottomSheetDialog, SnackbarType.SUCCESS)
-                            }
-                            false -> {
-                                // Removed from watchlist
-                                watchlistIcon.setImageResource(R.drawable.ic_bookmark)
-                                watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
-                                    context.getColor(R.color.text_secondary)
-                                )
-                                watchlistText.text = "Watchlist"
-                                (context as? android.app.Activity)?.showSnackbarWithDialog("Removed from watchlist", bottomSheetDialog, SnackbarType.SUCCESS)
-                            }
-                            null -> {
-                                (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to update watchlist", bottomSheetDialog, SnackbarType.ERROR)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            val watchlistIcon = (binding.btnWatchlist.getChildAt(0) as com.google.android.material.card.MaterialCardView)
+                                .getChildAt(0) as ImageView
+                            val watchlistText = binding.btnWatchlist.getChildAt(1) as android.widget.TextView
+                            
+                            when (isInWatchlist) {
+                                true -> {
+                                    watchlistIcon.setImageResource(R.drawable.ic_bookmark_filled)
+                                    watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                        context.getColor(R.color.orange)
+                                    )
+                                    watchlistText.text = "In Watchlist"
+                                    (context as? android.app.Activity)?.showSnackbarWithDialog("Added to watchlist", bottomSheetDialog, SnackbarType.SUCCESS)
+                                }
+                                false -> {
+                                    watchlistIcon.setImageResource(R.drawable.ic_bookmark)
+                                    watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+                                        context.getColor(R.color.text_secondary)
+                                    )
+                                    watchlistText.text = "Watchlist"
+                                    (context as? android.app.Activity)?.showSnackbarWithDialog("Removed from watchlist", bottomSheetDialog, SnackbarType.SUCCESS)
+                                }
+                                null -> {
+                                    (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to update watchlist", bottomSheetDialog, SnackbarType.ERROR)
+                                }
                             }
                         }
+                    } finally {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { binding.btnWatchlist.isEnabled = true }
                     }
                 }
             } else {
@@ -909,24 +940,27 @@ currentRating = ratingResponse.rating ?: 0f
                 ContextCompat.getColor(binding.root.context, R.color.text_secondary)
             )
             setEditable(true) { newRating ->
-                onRatingChanged(newRating) // Update local variable in parent scope
+                onRatingChanged(newRating)
 
-                // Save rating immediately when star is tapped (direct value, no conversion)
                 if (userId > 0 && lifecycleOwner != null) {
+                    if (!binding.starRating.isEnabled) return@setEditable
+                    binding.starRating.isEnabled = false
                     val ratingToSave = newRating
                     lifecycleOwner.lifecycleScope.launch {
-                        Log.d("MovieActionsHelper", "Star tapped: userId=$userId, movieId=${movie.id}, rating=$ratingToSave")
-                        val success = repository.saveRating(userId, movie.id, ratingToSave)
-                        if (success) {
-                            // Update button to "Watched" (green) immediately after rating
-                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                updateWatchedButtonState(context, binding, true)
+                        try {
+                            Log.d("MovieActionsHelper", "Star tapped: userId=$userId, movieId=${movie.id}, rating=$ratingToSave")
+                            val success = repository.saveRating(userId, movie.id, ratingToSave)
+                            if (success) {
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    updateWatchedButtonState(context, binding, true)
+                                }
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Rated: $ratingToSave stars", bottomSheetDialog, SnackbarType.SUCCESS)
+                                onRatingSaved?.invoke()
+                            } else {
+                                (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to save rating", bottomSheetDialog, SnackbarType.ERROR)
                             }
-                            (context as? android.app.Activity)?.showSnackbarWithDialog("Rated: $ratingToSave stars", bottomSheetDialog, SnackbarType.SUCCESS)
-                            // Trigger callback to refresh data
-                            onRatingSaved?.invoke()
-                        } else {
-                            (context as? android.app.Activity)?.showSnackbarWithDialog("Failed to save rating", bottomSheetDialog, SnackbarType.ERROR)
+                        } finally {
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { binding.starRating.isEnabled = true }
                         }
                     }
                 } else {

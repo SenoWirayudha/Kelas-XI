@@ -10,6 +10,7 @@ import com.komputerkit.moview.data.api.SaveReviewResult
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.applyCustomMedia
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class LogFilmViewModel : ViewModel() {
@@ -38,6 +39,7 @@ class LogFilmViewModel : ViewModel() {
     val saveResult: LiveData<SaveReviewResult?> = _saveResult
     
     private var currentUserId: Int = -1
+    private var loadJob: Job? = null
     
     fun loadMovie(movieId: Int, context: Context) {
         // Get user ID from SharedPreferences - use same name as Login
@@ -46,7 +48,8 @@ class LogFilmViewModel : ViewModel() {
         
         Log.d("LogFilmViewModel", "Retrieved userId from SharedPreferences: $currentUserId")
         
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             // Load movie details from API
             val movieDetail = repository.getMovieDetail(movieId)
             if (movieDetail != null) {

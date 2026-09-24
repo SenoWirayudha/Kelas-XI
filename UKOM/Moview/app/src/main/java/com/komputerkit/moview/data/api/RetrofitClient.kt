@@ -25,10 +25,19 @@ object RetrofitClient {
             .build()
         chain.proceed(request)
     }
+
+    // Bypass ngrok free interstitial page (tanpa ini bisa 302 ke HTML warning)
+    private val ngrokInterceptor = Interceptor { chain ->
+        val request = chain.request().newBuilder()
+            .header("ngrok-skip-browser-warning", "true")
+            .build()
+        chain.proceed(request)
+    }
     
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
         .addInterceptor(connectionCloseInterceptor)
+        .addInterceptor(ngrokInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
