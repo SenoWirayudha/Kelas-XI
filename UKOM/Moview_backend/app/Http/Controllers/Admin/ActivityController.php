@@ -42,6 +42,7 @@ class ActivityController extends Controller
             ->leftJoin('movies', 'user_activities.film_id', '=', 'movies.id')
             ->select(
                 'user_activities.id',
+                'user_activities.user_id',
                 'user_activities.type',
                 'user_activities.meta',
                 'user_activities.created_at',
@@ -82,6 +83,7 @@ class ActivityController extends Controller
             ->join('movies', 'ratings.film_id', '=', 'movies.id')
             ->select(
                 'ratings.id',
+                'ratings.user_id',
                 DB::raw("'watched' as type"),
                 DB::raw('NULL as meta'),
                 'ratings.created_at',
@@ -118,6 +120,7 @@ class ActivityController extends Controller
             ->join('movies', 'diaries.film_id', '=', 'movies.id')
             ->select(
                 'diaries.id',
+                'diaries.user_id',
                 DB::raw("'logged' as type"),
                 DB::raw('NULL as meta'),
                 'diaries.created_at',
@@ -155,6 +158,7 @@ class ActivityController extends Controller
             ->join('movies', 'reviews.film_id', '=', 'movies.id')
             ->select(
                 'reviews.id',
+                'reviews.user_id',
                 DB::raw("'reviewed' as type"),
                 DB::raw('NULL as meta'),
                 'reviews.created_at',
@@ -192,6 +196,7 @@ class ActivityController extends Controller
             ->join('movies', 'watchlists.film_id', '=', 'movies.id')
             ->select(
                 'watchlists.id',
+                'watchlists.user_id',
                 DB::raw("'watchlist' as type"),
                 DB::raw('NULL as meta'),
                 'watchlists.created_at',
