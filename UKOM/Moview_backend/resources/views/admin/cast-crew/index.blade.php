@@ -93,61 +93,6 @@
     </form>
 </div>
 
-<!-- Cast & Crew Grid -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
-    @forelse($people as $person)
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition">
-        <div class="relative">
-            @if($person->photo_path)
-                <img src="{{ asset('storage/' . $person->photo_path) }}" alt="{{ $person->full_name }}" class="w-full h-80 object-cover">
-            @else
-                <div class="w-full h-80 bg-gray-200 flex items-center justify-center">
-                    <i class="fas fa-user text-gray-400 text-6xl"></i>
-                </div>
-            @endif
-            <div class="absolute top-2 right-2">
-                <span class="px-3 py-1 text-xs font-semibold rounded-full 
-                    {{ $person->primary_role === 'Actor' ? 'bg-purple-500 text-white' : 
-                       ($person->primary_role === 'Director' ? 'bg-blue-500 text-white' : 
-                       ($person->primary_role === 'Writer' ? 'bg-green-500 text-white' : 'bg-orange-500 text-white')) }}">
-                    {{ $person->primary_role }}
-                </span>
-            </div>
-        </div>
-        <div class="p-4">
-            <h3 class="font-bold text-lg mb-1">{{ $person->full_name }}</h3>
-            <p class="text-gray-600 text-sm mb-3">{{ $person->movie_persons_count }} films</p>
-            
-            <div class="flex space-x-2">
-                <a href="{{ route('admin.cast-crew.show', $person->id) }}" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm text-center">
-                    <i class="fas fa-eye mr-1"></i> View
-                </a>
-                <a href="{{ route('admin.cast-crew.edit', $person->id) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded text-sm">
-                    <i class="fas fa-edit"></i>
-                </a>
-                <form method="POST" action="{{ route('admin.cast-crew.destroy', $person->id) }}" onsubmit="return requireConfirm(event, 'Are you sure you want to delete this person?', { form: this })">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-    @empty
-    <div class="col-span-full bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
-        <i class="fas fa-user-friends text-gray-300 text-6xl mb-4"></i>
-        <h3 class="text-xl font-semibold text-gray-600 mb-2">No People Found</h3>
-        <p class="text-gray-500 mb-4">There are no cast or crew members in the database yet.</p>
-        <a href="{{ route('admin.cast-crew.add') }}" class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg">
-            <i class="fas fa-plus mr-2"></i>
-            Add Your First Person
-        </a>
-    </div>
-    @endforelse
-</div>
-
 <!-- Table View Alternative -->
 <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
     <div class="p-6 border-b">
