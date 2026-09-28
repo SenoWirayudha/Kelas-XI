@@ -2,7 +2,7 @@
 
 @section('title', 'User Activity Log')
 @section('page-title', 'User Activity Log')
-@section('page-subtitle', 'Monitor all user activities'))
+@section('page-subtitle', 'Monitor all user activities')
 
 @section('content')
 <!-- Stats Cards -->
@@ -264,9 +264,13 @@
                         @endphp
                         @if($targetUser)
                             <div class="flex items-center">
+                                @if($targetUser->profilePhotoUrl())
+                                    <img src="{{ $targetUser->profilePhotoUrl() }}" alt="{{ $targetUser->username }}" class="w-6 h-6 rounded-full object-cover mr-2">
+                                @else
                                 <div class="w-6 h-6 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold mr-2">
                                     {{ substr($targetUser->username, 0, 1) }}
                                 </div>
+                                @endif
                                 <span class="text-sm font-medium text-gray-900">{{ $targetUser->username }}</span>
                             </div>
                         @else

@@ -122,9 +122,13 @@
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-start justify-between mb-3">
                     <div class="flex items-center space-x-3">
+                        @if($review->user?->profilePhotoUrl())
+                            <img src="{{ $review->user->profilePhotoUrl() }}" alt="{{ $review->user->username }}" class="w-12 h-12 rounded-full object-cover">
+                        @else
                         <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
                             {{ substr($review->user->username ?? 'U', 0, 1) }}
                         </div>
+                        @endif
                         <div>
                             <p class="font-bold">{{ $review->user->username ?? 'Unknown User' }}</p>
                             <p class="text-sm text-gray-500">{{ $review->created_at->format('M d, Y') }}</p>

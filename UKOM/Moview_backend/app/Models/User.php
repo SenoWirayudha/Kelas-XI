@@ -50,6 +50,26 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the user profile associated with the user
+     */
+    public function userProfile()
+    {
+        return $this->hasOne(UserProfile::class, 'user_id');
+    }
+
+    /**
+     * Get the user profile photo URL
+     */
+    public function profilePhotoUrl()
+    {
+        $profile = $this->userProfile;
+        if ($profile && $profile->profile_photo) {
+            return asset('storage/' . $profile->profile_photo);
+        }
+        return null;
+    }
+
+    /**
      * Get reviews written by the user
      */
     public function reviews()

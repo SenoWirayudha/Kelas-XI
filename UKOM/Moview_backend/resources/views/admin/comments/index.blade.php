@@ -142,9 +142,13 @@
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
+                            @if($comment->user?->profilePhotoUrl())
+                                <img src="{{ $comment->user->profilePhotoUrl() }}" alt="{{ $comment->user->username }}" class="w-10 h-10 rounded-full object-cover">
+                            @else
                             <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
                                 {{ substr($comment->user->username ?? 'U', 0, 1) }}
                             </div>
+                            @endif
                             <div class="ml-3">
                                 <p class="text-sm font-medium text-gray-900">{{ $comment->user->username ?? 'Unknown' }}</p>
                                 <p class="text-sm text-gray-500">{{ $comment->user->email ?? '' }}</p>

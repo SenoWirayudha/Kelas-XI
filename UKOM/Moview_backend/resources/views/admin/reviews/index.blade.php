@@ -151,9 +151,13 @@
                 
                 <div class="flex items-center space-x-3 mb-3 text-sm text-gray-600">
                     <div class="flex items-center">
+                        @if($review->user?->profilePhotoUrl())
+                            <img src="{{ $review->user->profilePhotoUrl() }}" alt="{{ $review->user->username }}" class="w-8 h-8 rounded-full object-cover mr-2">
+                        @else
                         <div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs mr-2">
                             {{ substr($review->user->username ?? 'U', 0, 1) }}
                         </div>
+                        @endif
                         <span class="font-medium">{{ $review->user->username ?? 'Unknown User' }}</span>
                     </div>
                     <span>•</span>
