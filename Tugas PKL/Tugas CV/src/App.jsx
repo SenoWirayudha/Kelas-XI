@@ -5,7 +5,7 @@ import MoodspaceImg from './assets/moodspace.png';
 import RoteImg from './assets/Rote.png';
 import FilmReviewImg from './assets/film andro.png'
 import FilmReviewWebImg from './assets/film web.png'
-import CapcutLogo from './assets/CapCut.png'
+import AELogo from './assets/AE.webp'
 import DavinciLogo from './assets/DaVinci_Resolve_Studio.png'
 import CanvaLogo from './assets/Canva.png'
 import AmLogo from './assets/Alight_Motion.png'
@@ -40,6 +40,7 @@ const projects = [
     description:
       'MoodSpace adalah platform kreatif yang menggabungkan konsep Pinterest dan Canva dalam satu tempat. Di sini kamu bisa mencari inspirasi, menyimpan aset, lalu langsung mengedit dan menghasilkan karya digital tanpa berpindah aplikasi.',
     image: MoodspaceImg,
+    websiteUrl: 'https://moodspace-app.vercel.app/',
   },
   {
     title: 'Website Informasi Kabupaten Rote Ndao',
@@ -81,7 +82,7 @@ const hardSkills = [
 ]
 
 const tools = [
-  { label: 'CapCut', icon: CapcutLogo },
+  { label: 'After Effects', icon: AELogo },
   { label: 'Alight Motion', icon: AmLogo },
   { label: 'DaVinci Resolve', icon: DavinciLogo },
   { label: 'Canva', icon: CanvaLogo },
@@ -420,10 +421,10 @@ function App() {
         </div>
         {/* Floating Tool Icons */}
 <div className="pointer-events-none absolute inset-0 overflow-hidden">
-  {/* CapCut - kiri atas */}
+  {/* After Effects - kiri atas */}
   <div className="absolute left-[10%] top-[17%] animate-float1 md:left-[12%] md:top-[22%]">
     <div className="floating-tool-chip rounded-2xl p-2 md:p-2.5">
-      <img src={CapcutLogo} alt="CapCut" className="floating-tool-icon h-7 w-7 rounded-lg object-cover md:h-8 md:w-8" />
+      <img src={AELogo} alt="After Effects" className="floating-tool-icon h-7 w-7 rounded-lg object-cover md:h-8 md:w-8" />
     </div>
   </div>
 
