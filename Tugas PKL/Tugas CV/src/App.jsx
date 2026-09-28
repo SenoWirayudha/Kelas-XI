@@ -12,6 +12,7 @@ import AmLogo from './assets/Alight_Motion.png'
 import IGLogo from './assets/instagram.jpg'
 import TTLogo from './assets/tiktok.jpg'
 import LBLogo from './assets/letterboxd.png'
+import LILogo from './assets/linkedin.webp'
 
 const education = [
   {
@@ -92,6 +93,7 @@ const socialLinks = [
   { name: 'Instagram', short: 'IG', icon: IGLogo, href: 'https://www.instagram.com/sennyudzzz?igsh=ZndsaHBzemd0ZHBx' },
   { name: 'TikTok', short: 'TT', icon: TTLogo, href: 'https://www.tiktok.com/@senngefilm?_r=1&_t=ZS-95C0ka99KEP' },
   { name: 'Letterboxd', short: 'LB', icon: LBLogo, href: 'https://boxd.it/bb4B3' },
+  { name: 'LinkedIn', short: 'LI', icon: LILogo, href: 'https://www.linkedin.com/in/seno-wirayudha-9ab0b143b/' },
 ]
 
 function IconListItem({ item, tone = 'rose' }) {
