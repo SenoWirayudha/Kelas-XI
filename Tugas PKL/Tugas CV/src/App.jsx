@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import emailjs from '@emailjs/browser'
 import FotoImg from './assets/fotoku.png'
-import dvdImg from './assets/DVD.png'; 
+import MoodspaceImg from './assets/moodspace.png';
 import RoteImg from './assets/Rote.png';
 import FilmReviewImg from './assets/film andro.png'
 import FilmReviewWebImg from './assets/film web.png'
@@ -36,10 +36,10 @@ const projects = [
     images: [FilmReviewImg, FilmReviewWebImg],
   },
   {
-    title: 'E-commerce DVD Store',
+    title: 'MoodSpace: Jelajahi Ide & Edit Karyamu',
     description:
-      'Membuat konsep website e-commerce sederhana untuk jual beli DVD film dengan fitur payment manual, ulasan, dan rating. Berkontribusi dalam perancangan ide desain UI dan tampilan website secara keseluruhan.',
-    image: dvdImg,
+      'MoodSpace adalah platform kreatif yang menggabungkan konsep Pinterest dan Canva dalam satu tempat. Di sini kamu bisa mencari inspirasi, menyimpan aset, lalu langsung mengedit dan menghasilkan karya digital tanpa berpindah aplikasi.',
+    image: MoodspaceImg,
   },
   {
     title: 'Website Informasi Kabupaten Rote Ndao',
