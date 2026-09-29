@@ -45,7 +45,7 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
                 if (response.success && response.data != null) {
                     val dto = response.data
                     val seatTypes = (dto.seat_type_definitions ?: emptyList()).map { it.toSeatType() }
-                    val mapped = buildGrid(dto.rows, dto.columns, dto.seats, seatTypes)
+                    val mapped = buildGrid(dto.rows, dto.columns, dto.seats, seatTypes, dto.row_direction ?: "front_to_back")
                     val normalizedRows = mapped.maxOfOrNull { it.positionY } ?: 0
                     val normalizedColumns = mapped.maxOfOrNull { it.positionX } ?: 0
                     _uiState.postValue(
@@ -91,7 +91,7 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
         )
     }
 
-    private fun buildGrid(rows: Int, columns: Int, seats: List<SeatLayoutSeatDto>, seatTypes: List<SeatType>): List<Seat> {
+    private fun buildGrid(rows: Int, columns: Int, seats: List<SeatLayoutSeatDto>, seatTypes: List<SeatType>, rowDirection: String): List<Seat> {
         // Match case-insensitively: definition keys can be mixed-case (e.g. "Magnify")
         // while seat_type comes through the same case from the backend.
         val typeByKey = seatTypes.associateBy { it.key.lowercase() }
@@ -114,7 +114,8 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
         val result = mutableListOf<Seat>()
 
         // Matrix-based rendering: iterate rows first, then columns.
-        for (rowIndex in 0 until rowCount) {
+        val rowOrder = if (rowDirection == "back_to_front") (rowCount - 1 downTo 0) else (0 until rowCount)
+        for (rowIndex in rowOrder) {
             for (columnIndex in 0 until columnCount) {
                 val dto = seatByPosition[Pair(rowIndex, columnIndex)]?.third
                 if (dto == null) {

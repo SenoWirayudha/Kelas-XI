@@ -37,6 +37,7 @@ class SeatSelectionActivity : AppCompatActivity() {
     private val sharedPool = RecyclerView.RecycledViewPool()
     private var currentColumns: Int = 1
     private var currentRows: Int = 1
+    private var currentRowReverse: Boolean = false
     private val miniMapHandler = Handler(Looper.getMainLooper())
     private val miniMapHideRunnable = Runnable { fadeOutMiniMap() }
 
@@ -126,6 +127,7 @@ class SeatSelectionActivity : AppCompatActivity() {
                 }
                 currentColumns = spanCount
                 currentRows = state.rows.coerceAtLeast(1)
+                currentRowReverse = state.rowDirection == "back_to_front"
                 seatAdapter.submitSeats(state.seats)
                 buildLegend(state.seatTypes, state.seats)
                 updateMiniMapSeats()
@@ -253,7 +255,8 @@ class SeatSelectionActivity : AppCompatActivity() {
         binding.seatMiniMap.updateSeats(
             rows = currentRows,
             columns = currentColumns,
-            seats = seatsSnapshot
+            seats = seatsSnapshot,
+            reverseRows = currentRowReverse
         )
     }
 

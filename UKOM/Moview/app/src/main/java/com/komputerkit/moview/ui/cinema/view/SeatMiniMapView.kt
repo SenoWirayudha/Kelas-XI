@@ -21,6 +21,7 @@ class SeatMiniMapView @JvmOverloads constructor(
     private var rows: Int = 1
     private var columns: Int = 1
     private var seats: List<Seat> = emptyList()
+    private var reverseRows: Boolean = false
 
     private var horizontalOffsetPx: Int = 0
     private var horizontalRangePx: Int = 1
@@ -73,13 +74,14 @@ class SeatMiniMapView @JvmOverloads constructor(
     private val cellRect = RectF()
     private val viewportRect = RectF()
 
-    fun updateSeats(rows: Int, columns: Int, seats: List<Seat>) {
+    fun updateSeats(rows: Int, columns: Int, seats: List<Seat>, reverseRows: Boolean = false) {
         val nextRows = rows.coerceAtLeast(1)
         val nextColumns = columns.coerceAtLeast(1)
-        if (this.rows == nextRows && this.columns == nextColumns && this.seats === seats) return
+        if (this.rows == nextRows && this.columns == nextColumns && this.seats === seats && this.reverseRows == reverseRows) return
         this.rows = nextRows
         this.columns = nextColumns
         this.seats = seats
+        this.reverseRows = reverseRows
         invalidate()
     }
 
@@ -151,7 +153,7 @@ class SeatMiniMapView @JvmOverloads constructor(
         for (seat in seats) {
             if (seat.type.key == "aisle" || seat.type.key == "entrance") continue
             val x = (seat.positionX - 1).coerceAtLeast(0)
-            val y = (seat.positionY - 1).coerceAtLeast(0)
+            val y = if (reverseRows) (rows - seat.positionY).coerceAtLeast(0) else (seat.positionY - 1).coerceAtLeast(0)
 
             val left = mapRect.left + offsetX + (x * seatWidth)
             val top = mapRect.top + offsetY + (y * seatHeight)
