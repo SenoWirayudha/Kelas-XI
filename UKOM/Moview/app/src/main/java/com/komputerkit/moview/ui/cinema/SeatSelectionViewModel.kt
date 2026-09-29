@@ -114,7 +114,7 @@ class SeatSelectionViewModel(application: Application) : AndroidViewModel(applic
         val result = mutableListOf<Seat>()
 
         // Matrix-based rendering: iterate rows first, then columns.
-        val rowOrder = if (rowDirection == "back_to_front") (rowCount - 1 downTo 0) else (0 until rowCount)
+        val rowOrder = if (rowDirection == "front_to_back") (rowCount - 1 downTo 0) else (0 until rowCount)
         for (rowIndex in rowOrder) {
             for (columnIndex in 0 until columnCount) {
                 val dto = seatByPosition[Pair(rowIndex, columnIndex)]?.third

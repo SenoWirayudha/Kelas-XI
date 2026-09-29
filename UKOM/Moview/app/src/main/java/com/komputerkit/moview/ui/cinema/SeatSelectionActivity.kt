@@ -127,7 +127,7 @@ class SeatSelectionActivity : AppCompatActivity() {
                 }
                 currentColumns = spanCount
                 currentRows = state.rows.coerceAtLeast(1)
-                currentRowReverse = state.rowDirection == "back_to_front"
+                currentRowReverse = state.rowDirection == "front_to_back"
                 seatAdapter.submitSeats(state.seats)
                 buildLegend(state.seatTypes, state.seats)
                 updateMiniMapSeats()
