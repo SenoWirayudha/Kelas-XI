@@ -596,9 +596,10 @@
                 }
             },
             get displayRows() {
-                // Render in visual order: if A is front, screen is on top → A at bottom near front.
+                // Screen is at the top: "A di depan" (front_to_back) = A nearest the screen (top);
+                // "A di belakang" (back_to_front) = A farthest (bottom).
                 const visual = this.grid.map((row, idx) => ({ row, idx }));
-                return this.rowDirection === 'front_to_back' ? visual.reverse() : visual;
+                return this.rowDirection === 'front_to_back' ? visual : visual.reverse();
             },
             applyDims() {
                 const r = Math.min(Math.max(parseInt(this.rows) || 1, 1), 26);
