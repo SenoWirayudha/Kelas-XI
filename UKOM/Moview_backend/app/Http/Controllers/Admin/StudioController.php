@@ -9,7 +9,11 @@ use Illuminate\Http\Request;
 
 class StudioController extends Controller
 {
-    private array $studioTypes = ['Regular 2D', '2D', '3D', 'IMAX'];
+    private array $studioTypes = [
+        'Regular 2D', '2D', '3D', 'IMAX',
+        'Starium 2D', '4DX2D', 'ScreenX 2D', 'ScreenX Gold ScreenX 2D',
+        'Satin 2D', 'Gold Class 2D', 'Velvet 2D', '(Mini) ScreenX 2D',
+    ];
 
     public function index(Request $request)
     {
