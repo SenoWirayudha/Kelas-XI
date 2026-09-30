@@ -53,7 +53,7 @@ class SeatAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val seat = seats[position]
 
-        if (seat.type.key == "aisle" || seat.type.key == "entrance") {
+        if (seat.type.key == "aisle" || seat.type.key == "entrance" || seat.type.key == "unavailable") {
             holder.tv.text = ""
             holder.tv.setBackgroundResource(android.R.color.transparent)
             holder.tv.isEnabled = false

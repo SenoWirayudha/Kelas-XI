@@ -151,7 +151,7 @@ class SeatMiniMapView @JvmOverloads constructor(
         val gap = dp(0.5f)
 
         for (seat in seats) {
-            if (seat.type.key == "aisle" || seat.type.key == "entrance") continue
+            if (seat.type.key == "aisle" || seat.type.key == "entrance" || seat.type.key == "unavailable") continue
             val x = (seat.positionX - 1).coerceAtLeast(0)
             val y = if (reverseRows) (rows - seat.positionY).coerceAtLeast(0) else (seat.positionY - 1).coerceAtLeast(0)
 
