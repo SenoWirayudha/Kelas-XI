@@ -57,42 +57,13 @@
                 android:background="@drawable/bg_brand_badge" />
         </LinearLayout>
 
-        <!-- Row 2: studio type + price -->
+        <!-- Row 2: studio sections (one per studio, inflated at runtime) -->
         <LinearLayout
+            android:id="@+id/sections_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="8dp">
-
-            <TextView
-                android:id="@+id/tv_studio_type"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="REGULAR 2D"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:textAllCaps="true"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tv_price_range"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Rp35.000 - Rp40.000"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <!-- Row 3: show times -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_show_times"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:nestedScrollingEnabled="false"
-            android:overScrollMode="never" />
+            android:layout_marginTop="8dp"
+            android:orientation="vertical" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

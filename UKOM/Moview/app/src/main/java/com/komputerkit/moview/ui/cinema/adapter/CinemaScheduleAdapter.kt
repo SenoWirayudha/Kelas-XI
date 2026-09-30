@@ -1,9 +1,11 @@
 package com.komputerkit.moview.ui.cinema.adapter
 
+import android.content.Context
 import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -13,17 +15,21 @@ import com.komputerkit.moview.ui.cinema.model.CinemaSchedule
 import com.komputerkit.moview.ui.cinema.model.ShowTime
 
 class CinemaScheduleAdapter(
-    private var items: List<CinemaSchedule>,
+    items: List<CinemaSchedule>,
     private val onTimeClick: (cinema: CinemaSchedule, time: ShowTime) -> Unit
 ) : RecyclerView.Adapter<CinemaScheduleAdapter.ViewHolder>() {
 
+    // One card per cinema: each card holds the per-studio sections of that cinema.
+    private var cards: List<List<CinemaSchedule>> = emptyList()
+
+    init {
+        updateList(items)
+    }
+
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val headerRow: View = view.findViewById(R.id.header_cinema_row)
         val tvName: TextView = view.findViewById(R.id.tv_cinema_name)
-        val tvType: TextView = view.findViewById(R.id.tv_studio_type)
-        val tvPrice: TextView = view.findViewById(R.id.tv_price_range)
         val tvBadge: TextView = view.findViewById(R.id.tv_brand_badge)
-        val rvTimes: RecyclerView = view.findViewById(R.id.rv_show_times)
+        val sectionsContainer: LinearLayout = view.findViewById(R.id.sections_container)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -33,15 +39,11 @@ class CinemaScheduleAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val cinema = items[position]
-        // One cinema can have several studio cards; show the cinema header
-        // only on the first card of each consecutive run of the same cinema.
-        val showCinemaHeader = position == 0 || items[position - 1].cinemaName != cinema.cinemaName
-        holder.headerRow.visibility = if (showCinemaHeader) View.VISIBLE else View.GONE
-        holder.tvName.text = cinema.cinemaName
-        holder.tvType.text = cinema.studioType
-        holder.tvPrice.text = cinema.priceRange
+        val sections = cards[position]
+        val cinema = sections.first()
         val context = holder.itemView.context
+
+        holder.tvName.text = cinema.cinemaName
         val badgeColor = when (cinema.brand) {
             CinemaBrand.XXI -> context.getColor(R.color.brand_xxi)
             CinemaBrand.CGV -> context.getColor(R.color.brand_cgv)
@@ -61,17 +63,38 @@ class CinemaScheduleAdapter(
             holder.tvBadge.backgroundTintList = ColorStateList.valueOf(badgeColor)
         }
 
-        holder.rvTimes.layoutManager =
-            LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-        holder.rvTimes.adapter = ShowTimeAdapter(cinema.showTimes) { time ->
-            onTimeClick(cinema, time)
+        holder.sectionsContainer.removeAllViews()
+        sections.forEachIndexed { index, section ->
+            val sectionView = LayoutInflater.from(context)
+                .inflate(R.layout.item_studio_section, holder.sectionsContainer, false)
+
+            sectionView.findViewById<TextView>(R.id.tv_section_studio_type).text =
+                section.studioType
+            sectionView.findViewById<TextView>(R.id.tv_section_price).text = section.priceRange
+
+            val rvTimes = sectionView.findViewById<RecyclerView>(R.id.rv_section_times)
+            rvTimes.layoutManager =
+                LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+            rvTimes.adapter = ShowTimeAdapter(section.showTimes) { time ->
+                onTimeClick(section, time)
+            }
+
+            val lp = sectionView.layoutParams as LinearLayout.LayoutParams
+            lp.topMargin = dpToPx(context, if (index == 0) 0 else 16)
+            sectionView.layoutParams = lp
+
+            holder.sectionsContainer.addView(sectionView)
         }
     }
 
-    override fun getItemCount() = items.size
+    override fun getItemCount() = cards.size
 
     fun updateList(newList: List<CinemaSchedule>) {
-        items = newList
+        // Input is sorted by (cinemaName, studioType); groupBy keeps encounter order.
+        cards = newList.groupBy { it.cinemaName }.values.toList()
         notifyDataSetChanged()
     }
+
+    private fun dpToPx(context: Context, dp: Int): Int =
+        (dp * context.resources.displayMetrics.density + 0.5f).toInt()
 }
