@@ -166,6 +166,15 @@ class Movie extends Model
         return $this->hasMany(MovieService::class, 'movie_id');
     }
 
+    /**
+     * Country availability for streaming services
+     * (1 film -> 1 service -> many countries). Empty = no restriction.
+     */
+    public function movieServiceCountries()
+    {
+        return $this->hasMany(MovieServiceCountry::class, 'movie_id');
+    }
+
     public function schedules()
     {
         return $this->hasMany(Schedule::class, 'movie_id');

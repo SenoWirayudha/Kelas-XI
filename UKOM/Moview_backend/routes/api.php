@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\MovieApiController;
 use App\Http\Controllers\Api\FilmListController;
+use App\Http\Controllers\Api\GeoController;
 use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\SeatController;
@@ -140,6 +141,9 @@ Route::prefix('v1')->group(function () {
     // Film List by Category
     Route::get('/films/category', [FilmListController::class, 'getFilmsByCategory']);
     Route::get('/filters/options', [FilmListController::class, 'getFilterOptions']);
+
+    // Country detection (IP geolocation / Accept-Language fallback)
+    Route::get('/geo/country', [GeoController::class, 'country']);
     
     // Search
     Route::get('/search', [MovieApiController::class, 'search']);

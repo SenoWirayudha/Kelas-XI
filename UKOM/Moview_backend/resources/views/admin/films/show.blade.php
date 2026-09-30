@@ -882,6 +882,7 @@
                 </button>
             </div>
             <div class="space-y-3">
+                @php $seenServiceIds = []; @endphp
                 @forelse($movie->movieServices as $movieService)
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div class="flex items-center space-x-3">
@@ -906,6 +907,24 @@
                                 <p class="text-xs text-gray-600 mt-1">
                                     <i class="fas fa-calendar mr-1"></i>
                                     {{ \Carbon\Carbon::parse($movieService->release_date)->format('d M Y') }}
+                                </p>
+                            @endif
+                            @if($movieService->service->type === 'streaming' && !in_array($movieService->service_id, $seenServiceIds))
+                                @php
+                                    $seenServiceIds[] = $movieService->service_id;
+                                    $serviceCountries = $movie->movieServiceCountries
+                                        ->where('service_id', $movieService->service_id)
+                                        ->map(fn($msc) => $msc->country)
+                                        ->filter()
+                                        ->values();
+                                @endphp
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <i class="fas fa-globe mr-1"></i>
+                                    @if($serviceCountries->isEmpty())
+                                        Available in all countries
+                                    @else
+                                        Available in {{ $serviceCountries->pluck('code')->implode(', ') }} ({{ $serviceCountries->count() }} countr{{ $serviceCountries->count() === 1 ? 'y' : 'ies' }})
+                                    @endif
                                 </p>
                             @endif
                         </div>
@@ -934,68 +953,212 @@
                         @method('PUT')
                         
                         <div class="space-y-4 mb-6">
-                            <!-- Service Selection with Multiple Availability Types -->
                             @php
                                 $allServices = \App\Models\Service::all();
+                                $streamingServicesList = $allServices->where('type', 'streaming');
+                                $theatricalServicesList = $allServices->where('type', 'theatrical');
+                                $allCountries = \App\Models\Country::orderBy('name')
+                                    ->get(['id', 'code', 'name'])
+                                    ->map(fn($c) => ['id' => $c->id, 'code' => $c->code, 'name' => $c->name]);
+                                $existingCountriesByService = $movie->movieServiceCountries->groupBy('service_id');
                             @endphp
-                            
-                            @foreach($allServices as $service)
-                            <div class="border rounded-lg p-4 hover:bg-gray-50">
-                                <div class="font-medium mb-3">
-                                    {{ $service->name }}
-                                    <span class="text-xs text-gray-500">({{ ucfirst($service->type) }})</span>
+                            <script>
+                                window.allServiceCountries = @json($allCountries);
+                                window.cinemaCountryPicker = function (selected) {
+                                    return {
+                                        selected: selected || [],
+                                        search: '',
+                                        open: false,
+                                        get filtered() {
+                                            const q = this.search.toLowerCase();
+                                            return (window.allServiceCountries || []).filter(c =>
+                                                !this.selected.some(s => s.id === c.id) &&
+                                                (!q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
+                                            ).slice(0, 50);
+                                        },
+                                        add(c) { this.selected.push(c); this.search = ''; this.open = false; },
+                                        remove(id) { this.selected = this.selected.filter(s => s.id !== id); }
+                                    };
+                                };
+                            </script>
+
+                            <!-- STREAMING group -->
+                            <div>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-xs font-bold uppercase tracking-wide bg-blue-100 text-blue-800 px-2 py-1 rounded">Streaming</span>
+                                    <span class="text-xs text-gray-500">Country availability applies to the whole service</span>
                                 </div>
-                                
-                                @if($service->type === 'streaming')
-                                    <!-- For streaming services, show multiple availability options -->
+                                <div class="space-y-4">
+                                    @foreach($streamingServicesList as $service)
                                     @php
+                                        $selectedCountryRows = ($existingCountriesByService->get($service->id) ?? collect())
+                                            ->pluck('country_id')
+                                            ->map(fn($cid) => $allCountries->firstWhere('id', $cid))
+                                            ->filter()
+                                            ->map(fn($c) => ['id' => $c['id'], 'code' => $c['code'], 'name' => $c['name']])
+                                            ->values()
+                                            ->all();
                                         $availabilityTypes = ['stream', 'rent', 'buy'];
                                         $existingEntries = $movie->movieServices->where('service_id', $service->id);
                                     @endphp
-                                    
-                                    <div class="space-y-2 pl-4">
-                                        @foreach($availabilityTypes as $availType)
-                                        @php
-                                            $existingEntry = $existingEntries->firstWhere('availability_type', $availType);
-                                            $isChecked = $existingEntry !== null;
-                                        @endphp
-                                        <div class="flex items-start space-x-3 p-2 bg-gray-50 rounded">
-                                            <input type="checkbox" 
-                                                   name="services[{{ $service->id }}][{{ $availType }}][enabled]" 
+                                    <div class="border rounded-lg p-4 hover:bg-gray-50"
+                                         x-data="window.cinemaCountryPicker(@js($selectedCountryRows))">
+                                        <div class="font-medium mb-3">
+                                            {{ $service->name }}
+                                            <span class="text-xs text-gray-500">(streaming)</span>
+                                        </div>
+
+                                        <div class="space-y-2 pl-4">
+                                            @foreach($availabilityTypes as $availType)
+                                            @php
+                                                $existingEntry = $existingEntries->firstWhere('availability_type', $availType);
+                                                $isChecked = $existingEntry !== null;
+                                            @endphp
+                                            <div class="flex items-start space-x-3 p-2 bg-gray-50 rounded">
+                                                <input type="checkbox"
+                                                       name="services[{{ $service->id }}][{{ $availType }}][enabled]"
+                                                       value="1"
+                                                       {{ $isChecked ? 'checked' : '' }}
+                                                       id="service_{{ $service->id }}_{{ $availType }}"
+                                                       class="mt-1">
+                                                <div class="flex-1">
+                                                    <label for="service_{{ $service->id }}_{{ $availType }}" class="font-medium cursor-pointer text-sm">
+                                                        {{ ucfirst($availType) }}
+                                                    </label>
+
+                                                    <input type="hidden"
+                                                           name="services[{{ $service->id }}][{{ $availType }}][availability_type]"
+                                                           value="{{ $availType }}">
+
+                                                    <div class="mt-1 space-y-2">
+                                                        <div>
+                                                            <label class="block text-xs text-gray-700 mb-1">
+                                                                Release Date <span class="text-gray-500">(Optional)</span>
+                                                            </label>
+                                                            <input type="date"
+                                                                   name="services[{{ $service->id }}][{{ $availType }}][release_date]"
+                                                                   value="{{ $existingEntry->release_date ?? '' }}"
+                                                                   class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                                        </div>
+                                                        <div class="flex items-center space-x-2">
+                                                            <input type="hidden"
+                                                                   name="services[{{ $service->id }}][{{ $availType }}][is_coming_soon]"
+                                                                   value="0">
+                                                            <input type="checkbox"
+                                                                   name="services[{{ $service->id }}][{{ $availType }}][is_coming_soon]"
+                                                                   value="1"
+                                                                   {{ ($existingEntry->is_coming_soon ?? 0) ? 'checked' : '' }}
+                                                                   id="coming_soon_{{ $service->id }}_{{ $availType }}"
+                                                                   class="rounded">
+                                                            <label for="coming_soon_{{ $service->id }}_{{ $availType }}" class="text-xs text-gray-700 cursor-pointer">
+                                                                <i class="fas fa-clock text-blue-500 mr-1"></i>
+                                                                Coming Soon
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            @endforeach
+                                        </div>
+
+                                        <!-- Country availability (streaming only) -->
+                                        <div class="mt-3 pl-4">
+                                            <label class="block text-xs text-gray-700 mb-1">
+                                                <i class="fas fa-globe text-blue-500 mr-1"></i>Available Countries
+                                            </label>
+                                            <div class="flex flex-wrap gap-1 mb-1">
+                                                <template x-for="c in selected" :key="c.id">
+                                                    <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
+                                                        <span x-text="c.code + ' · ' + c.name"></span>
+                                                        <button type="button" @click="remove(c.id)"
+                                                                class="text-blue-400 hover:text-blue-700 font-bold leading-none"
+                                                                aria-label="Remove country">&times;</button>
+                                                    </span>
+                                                </template>
+                                                <span x-show="selected.length === 0" class="text-xs text-gray-500">
+                                                    No selection = available in all countries
+                                                </span>
+                                            </div>
+                                            <div class="relative">
+                                                <input type="text" x-model="search" @focus="open = true"
+                                                       @click.outside="open = false"
+                                                       placeholder="Search country to add..."
+                                                       class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                                <div x-show="open && search.length > 0" x-cloak
+                                                     class="absolute z-20 left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg">
+                                                    <template x-for="c in filtered" :key="c.id">
+                                                        <div class="px-3 py-1.5 text-sm hover:bg-blue-50 cursor-pointer flex justify-between"
+                                                             @click="add(c)">
+                                                            <span x-text="c.name"></span>
+                                                            <span class="text-gray-400" x-text="c.code"></span>
+                                                        </div>
+                                                    </template>
+                                                    <div x-show="filtered.length === 0" class="px-3 py-1.5 text-sm text-gray-400">
+                                                        No match
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <template x-for="c in selected" :key="'input-' + c.id">
+                                                <input type="hidden" name="services[{{ $service->id }}][countries][]" :value="c.id">
+                                            </template>
+                                        </div>
+                                    </div>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <!-- THEATRICAL group -->
+                            <div>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-xs font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-2 py-1 rounded">Theatrical</span>
+                                    <span class="text-xs text-gray-500">Cinema availability (no country restriction)</span>
+                                </div>
+                                <div class="space-y-4">
+                                    @foreach($theatricalServicesList as $service)
+                                    @php
+                                        $existingEntry = $movie->movieServices->firstWhere('service_id', $service->id);
+                                        $isChecked = $existingEntry !== null;
+                                    @endphp
+                                    <div class="border rounded-lg p-4 hover:bg-gray-50">
+                                        <div class="font-medium mb-3">
+                                            {{ $service->name }}
+                                            <span class="text-xs text-gray-500">(theatrical)</span>
+                                        </div>
+                                        <div class="flex items-start space-x-3 pl-4">
+                                            <input type="checkbox"
+                                                   name="services[{{ $service->id }}][theatrical][enabled]"
                                                    value="1"
                                                    {{ $isChecked ? 'checked' : '' }}
-                                                   id="service_{{ $service->id }}_{{ $availType }}"
+                                                   id="service_{{ $service->id }}_theatrical"
                                                    class="mt-1">
                                             <div class="flex-1">
-                                                <label for="service_{{ $service->id }}_{{ $availType }}" class="font-medium cursor-pointer text-sm">
-                                                    {{ ucfirst($availType) }}
+                                                <label for="service_{{ $service->id }}_theatrical" class="font-medium cursor-pointer text-sm">
+                                                    Enable
                                                 </label>
-                                                
-                                                <input type="hidden" 
-                                                       name="services[{{ $service->id }}][{{ $availType }}][availability_type]" 
-                                                       value="{{ $availType }}">
-                                                
-                                                <div class="mt-1 space-y-2">
+
+                                                <input type="hidden"
+                                                       name="services[{{ $service->id }}][theatrical][availability_type]"
+                                                       value="stream">
+
+                                                <div class="mt-2 space-y-2">
                                                     <div>
-                                                        <label class="block text-xs text-gray-700 mb-1">
-                                                            Release Date <span class="text-gray-500">(Optional)</span>
-                                                        </label>
-                                                        <input type="date" 
-                                                               name="services[{{ $service->id }}][{{ $availType }}][release_date]"
+                                                        <label class="block text-sm text-gray-700 mb-1">Release Date</label>
+                                                        <input type="date"
+                                                               name="services[{{ $service->id }}][theatrical][release_date]"
                                                                value="{{ $existingEntry->release_date ?? '' }}"
-                                                               class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                                                     </div>
                                                     <div class="flex items-center space-x-2">
-                                                        <input type="hidden" 
-                                                               name="services[{{ $service->id }}][{{ $availType }}][is_coming_soon]" 
+                                                        <input type="hidden"
+                                                               name="services[{{ $service->id }}][theatrical][is_coming_soon]"
                                                                value="0">
-                                                        <input type="checkbox" 
-                                                               name="services[{{ $service->id }}][{{ $availType }}][is_coming_soon]"
+                                                        <input type="checkbox"
+                                                               name="services[{{ $service->id }}][theatrical][is_coming_soon]"
                                                                value="1"
                                                                {{ ($existingEntry->is_coming_soon ?? 0) ? 'checked' : '' }}
-                                                               id="coming_soon_{{ $service->id }}_{{ $availType }}"
+                                                               id="coming_soon_{{ $service->id }}_theatrical"
                                                                class="rounded">
-                                                        <label for="coming_soon_{{ $service->id }}_{{ $availType }}" class="text-xs text-gray-700 cursor-pointer">
+                                                        <label for="coming_soon_{{ $service->id }}_theatrical" class="text-sm text-gray-700 cursor-pointer">
                                                             <i class="fas fa-clock text-blue-500 mr-1"></i>
                                                             Coming Soon
                                                         </label>
@@ -1003,59 +1166,10 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        @endforeach
                                     </div>
-                                @else
-                                    <!-- For theatrical services, single entry -->
-                                    @php
-                                        $existingEntry = $movie->movieServices->firstWhere('service_id', $service->id);
-                                        $isChecked = $existingEntry !== null;
-                                    @endphp
-                                    <div class="flex items-start space-x-3 pl-4">
-                                        <input type="checkbox" 
-                                               name="services[{{ $service->id }}][theatrical][enabled]" 
-                                               value="1"
-                                               {{ $isChecked ? 'checked' : '' }}
-                                               id="service_{{ $service->id }}_theatrical"
-                                               class="mt-1">
-                                        <div class="flex-1">
-                                            <label for="service_{{ $service->id }}_theatrical" class="font-medium cursor-pointer text-sm">
-                                                Enable
-                                            </label>
-                                            
-                                            <input type="hidden" 
-                                                   name="services[{{ $service->id }}][theatrical][availability_type]" 
-                                                   value="stream">
-                                            
-                                            <div class="mt-2 space-y-2">
-                                                <div>
-                                                    <label class="block text-sm text-gray-700 mb-1">Release Date</label>
-                                                    <input type="date" 
-                                                           name="services[{{ $service->id }}][theatrical][release_date]"
-                                                           value="{{ $existingEntry->release_date ?? '' }}"
-                                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                                                </div>
-                                                <div class="flex items-center space-x-2">
-                                                    <input type="hidden" 
-                                                           name="services[{{ $service->id }}][theatrical][is_coming_soon]" 
-                                                           value="0">
-                                                    <input type="checkbox" 
-                                                           name="services[{{ $service->id }}][theatrical][is_coming_soon]"
-                                                           value="1"
-                                                           {{ ($existingEntry->is_coming_soon ?? 0) ? 'checked' : '' }}
-                                                           id="coming_soon_{{ $service->id }}_theatrical"
-                                                           class="rounded">
-                                                    <label for="coming_soon_{{ $service->id }}_theatrical" class="text-sm text-gray-700 cursor-pointer">
-                                                        <i class="fas fa-clock text-blue-500 mr-1"></i>
-                                                        Coming Soon
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endif
+                                    @endforeach
+                                </div>
                             </div>
-                            @endforeach
                         </div>
 
                         <div class="flex justify-end space-x-3">

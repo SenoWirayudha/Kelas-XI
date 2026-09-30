@@ -266,7 +266,7 @@ class MovieApiController extends Controller
      */
     public function show($id)
     {
-        $movie = Movie::with(['genres', 'moviePersons.person', 'movieServices.service', 'movieThemes.theme', 'movieReleases'])
+        $movie = Movie::with(['genres', 'moviePersons.person', 'movieServices.service', 'movieThemes.theme', 'movieReleases', 'movieServiceCountries.country'])
             ->find($id);
         
         if (!$movie) {
@@ -307,22 +307,33 @@ class MovieApiController extends Controller
             ->where('job', '!=', 'Director')
             ->groupBy('job');
         
+        // Country availability per streaming service (movie_service_countries).
+        // Empty list = no restriction (available in all countries).
+        $countriesByService = $movie->movieServiceCountries
+            ->groupBy('service_id')
+            ->map(fn($rows) => $rows
+                ->map(fn($msc) => $msc->country ? ['code' => $msc->country->code, 'name' => $msc->country->name] : null)
+                ->filter()
+                ->values());
+
         // Separate streaming services by type
         $streamingServices = $movie->movieServices
             ->filter(function ($ms) {
                 return $ms->service && $ms->service->type === 'streaming';
             })
-            ->map(function ($ms) {
+            ->map(function ($ms) use ($countriesByService) {
                 return [
                     'id' => $ms->service->id,
+                    'type' => 'streaming',
                     'name' => $ms->service->name,
                     'logo_url' => $ms->service->logo_path ? url('storage/' . $ms->service->logo_path) : null,
                     'availability_type' => $ms->availability_type,
                     'release_date' => $ms->release_date,
                     'is_coming_soon' => (bool) $ms->is_coming_soon,
+                    'countries' => $countriesByService->get($ms->service_id, collect())->values(),
                 ];
             })->values();
-        
+
         $theatricalServices = $movie->movieServices
             ->filter(function ($ms) {
                 return $ms->service && $ms->service->type === 'theatrical';
@@ -330,6 +341,7 @@ class MovieApiController extends Controller
             ->map(function ($ms) {
                 return [
                     'id' => $ms->service->id,
+                    'type' => 'theatrical',
                     'name' => $ms->service->name,
                     'logo_url' => $ms->service->logo_path ? url('storage/' . $ms->service->logo_path) : null,
                     'release_date' => $ms->release_date,
