@@ -10,12 +10,13 @@ class Studio extends Model
 
     protected $fillable = [
         'cinema_id', 'studio_name', 'studio_type', 'total_seats',
-        'seat_type_definitions', 'row_direction',
+        'seat_type_definitions', 'row_direction', 'seat_number_direction',
     ];
 
     protected $casts = [
         'seat_type_definitions' => 'array',
         'row_direction'         => 'string',
+        'seat_number_direction' => 'string',
     ];
 
     /**
