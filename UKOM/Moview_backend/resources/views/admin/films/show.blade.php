@@ -67,9 +67,9 @@
                     @endif
                     <div class="flex items-center space-x-4 text-lg mb-3">
                         <span>{{ $movie->release_year }}</span>
-                        <span>•</span>
+                        <span>â€¢</span>
                         <span>{{ $movie->duration }} min</span>
-                        <span>•</span>
+                        <span>â€¢</span>
                         <span class="px-2 py-1 border border-white rounded">{{ $movie->age_rating ?? 'NR' }}</span>
                     </div>
                     <div class="flex items-center space-x-6 mb-4">
@@ -227,7 +227,7 @@
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold">Cast & Crew</h2>
                 <a href="{{ route('admin.films.cast-crew', $movie->id) }}" class="text-blue-600 hover:text-blue-800">
-                    Manage →
+                    Manage â†’
                 </a>
             </div>
             
@@ -745,7 +745,7 @@
                                                     </span>
                                                 @endif
                                                 @if($release->name)
-                                                    <span class="text-sm text-gray-500">— {{ $release->name }}</span>
+                                                    <span class="text-sm text-gray-500">â€” {{ $release->name }}</span>
                                                 @endif
                                             </div>
                                             <span class="text-sm font-medium text-gray-800">
@@ -778,14 +778,14 @@
             </div>
             <!-- End Metadata Section -->
         </div>
-    <!-- Related Films — paling bawah, di luar area metadata, width konsisten dengan left column -->
+    <!-- Related Films â€” paling bawah, di luar area metadata, width konsisten dengan left column -->
     <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-xl font-bold mb-2 flex items-center">
             <i class="fas fa-link text-blue-600 mr-2"></i>
             Related Films
             <span class="ml-2 text-sm font-normal text-gray-500">({{ isset($relatedMovies) ? $relatedMovies->count() : 0 }})</span>
         </h2>
-        <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang saling terkait (mis. Vengeance Trilogy). Urutan sesuai sort_order — simetris.</p>
+        <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang saling terkait (mis. Vengeance Trilogy). Urutan sesuai sort_order â€” simetris.</p>
         @if(isset($relatedMovies) && $relatedMovies->count() > 0)
             <div class="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1" style="scrollbar-width: thin;">
                 @foreach($relatedMovies as $rm)
@@ -806,18 +806,18 @@
                 @endforeach
             </div>
         @else
-            <p class="text-gray-500 text-sm">Belum ada related film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-blue-600 hover:underline">Edit Film → Related Films (paling bawah)</a>.</p>
+            <p class="text-gray-500 text-sm">Belum ada related film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-blue-600 hover:underline">Edit Film â†’ Related Films (paling bawah)</a>.</p>
         @endif
     </div>
 
-    <!-- Similar Films — paling bawah setelah Related -->
+    <!-- Similar Films â€” paling bawah setelah Related -->
     <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-xl font-bold mb-2 flex items-center">
             <i class="fas fa-clone text-purple-600 mr-2"></i>
             Similar Films
             <span class="ml-2 text-sm font-normal text-gray-500">({{ isset($similarMovies) ? $similarMovies->count() : 0 }})</span>
         </h2>
-        <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang mirip (manual). Urutan sesuai sort_order — simetris.</p>
+        <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang mirip (manual). Urutan sesuai sort_order â€” simetris.</p>
         @if(isset($similarMovies) && $similarMovies->count() > 0)
             <div class="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1" style="scrollbar-width: thin;">
                 @foreach($similarMovies as $sm)
@@ -838,7 +838,7 @@
                 @endforeach
             </div>
         @else
-            <p class="text-gray-500 text-sm">Belum ada similar film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-purple-600 hover:underline">Edit Film → Similar Films (paling bawah)</a>.</p>
+            <p class="text-gray-500 text-sm">Belum ada similar film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-purple-600 hover:underline">Edit Film â†’ Similar Films (paling bawah)</a>.</p>
         @endif
     </div>
 
@@ -873,7 +873,7 @@
         </div>
 
         <!-- Streaming Services -->
-        <div class="bg-white rounded-lg shadow p-6" x-data="{ showServiceModal: false, editingService: null }">
+        <div class="bg-white rounded-lg shadow p-6" x-data="serviceModal">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="font-bold text-lg">Available On</h3>
                 <button @click="showServiceModal = true; editingService = null" 
@@ -882,7 +882,6 @@
                 </button>
             </div>
             <div class="space-y-3">
-                @php $seenServiceIds = []; @endphp
                 @forelse($movie->movieServices as $movieService)
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div class="flex items-center space-x-3">
@@ -909,21 +908,22 @@
                                     {{ \Carbon\Carbon::parse($movieService->release_date)->format('d M Y') }}
                                 </p>
                             @endif
-                            @if($movieService->service->type === 'streaming' && !in_array($movieService->service_id, $seenServiceIds))
+                            @if($movieService->service->type === 'streaming')
                                 @php
-                                    $seenServiceIds[] = $movieService->service_id;
                                     $serviceCountries = $movie->movieServiceCountries
                                         ->where('service_id', $movieService->service_id)
+                                        ->where('availability_type', $movieService->availability_type)
                                         ->map(fn($msc) => $msc->country)
                                         ->filter()
                                         ->values();
                                 @endphp
                                 <p class="text-xs text-gray-500 mt-1">
                                     <i class="fas fa-globe mr-1"></i>
+                                    {{ ucfirst($movieService->availability_type) }}:
                                     @if($serviceCountries->isEmpty())
-                                        Available in all countries
+                                        available in all countries
                                     @else
-                                        Available in {{ $serviceCountries->pluck('code')->implode(', ') }} ({{ $serviceCountries->count() }} countr{{ $serviceCountries->count() === 1 ? 'y' : 'ies' }})
+                                        available in {{ $serviceCountries->pluck('code')->implode(', ') }}
                                     @endif
                                 </p>
                             @endif
@@ -943,9 +943,58 @@
                 <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-bold">Manage Available Services</h3>
-                        <button @click="showServiceModal = false" class="text-gray-500 hover:text-gray-700">
-                            <i class="fas fa-times text-xl"></i>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button type="button"
+                                    @click="openAddService()"
+                                    class="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded">
+                                <i class="fas fa-plus mr-1"></i> Add Service
+                            </button>
+                            <button @click="showServiceModal = false" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Add/Edit Service (separate form â€” a form cannot nest) -->
+                    <div x-show="serviceForm.open" x-cloak class="mb-4 p-4 border border-blue-200 bg-blue-50 rounded-lg">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-bold text-sm" x-text="serviceForm.mode === 'add' ? 'Add Service' : 'Edit Service'"></h4>
+                            <button type="button" @click="serviceForm.open = false" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <form id="serviceAdminForm" enctype="multipart/form-data" @submit.prevent="saveService()" class="space-y-3">
+                            <input type="hidden" name="_method" value="PUT" x-show="serviceForm.mode === 'edit'"
+                                   :disabled="serviceForm.mode !== 'edit'">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Name *</label>
+                                <input type="text" name="name" x-model="serviceForm.name" required maxlength="100"
+                                       class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Type *</label>
+                                <select name="type" x-model="serviceForm.type"
+                                        class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                    <option value="streaming">Streaming</option>
+                                    <option value="theatrical">Theatrical</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">
+                                    Logo <span class="text-gray-500">(JPG/PNG/WEBP, max 2 MB)</span>
+                                </label>
+                                <input type="file" name="logo" accept="image/jpeg,image/png,image/webp" class="text-sm">
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button type="button" @click="serviceForm.open = false"
+                                        class="px-3 py-1 border border-gray-300 rounded text-sm">Cancel</button>
+                                <button type="submit" :disabled="serviceForm.saving"
+                                        class="px-3 py-1 bg-blue-600 text-white rounded text-sm disabled:opacity-50">
+                                    <i class="fas fa-save mr-1"></i>
+                                    <span x-text="serviceForm.saving ? 'Saving...' : 'Save Service'"></span>
+                                </button>
+                            </div>
+                        </form>
                     </div>
 
                     <form action="{{ route('admin.films.services.update', $movie->id) }}" method="POST">
@@ -960,7 +1009,6 @@
                                 $allCountries = \App\Models\Country::orderBy('name')
                                     ->get(['id', 'code', 'name'])
                                     ->map(fn($c) => ['id' => $c->id, 'code' => $c->code, 'name' => $c->name]);
-                                $existingCountriesByService = $movie->movieServiceCountries->groupBy('service_id');
                             @endphp
                             <script>
                                 window.allServiceCountries = @json($allCountries);
@@ -986,121 +1034,132 @@
                             <div>
                                 <div class="flex items-center gap-2 mb-2">
                                     <span class="text-xs font-bold uppercase tracking-wide bg-blue-100 text-blue-800 px-2 py-1 rounded">Streaming</span>
-                                    <span class="text-xs text-gray-500">Country availability applies to the whole service</span>
+                                    <span class="text-xs text-gray-500">Country availability is set per availability type (Stream/Rent/Buy)</span>
                                 </div>
-                                <div class="space-y-4">
+                                <div class="space-y-4" id="streamingServiceRows">
                                     @foreach($streamingServicesList as $service)
                                     @php
-                                        $selectedCountryRows = ($existingCountriesByService->get($service->id) ?? collect())
-                                            ->pluck('country_id')
-                                            ->map(fn($cid) => $allCountries->firstWhere('id', $cid))
-                                            ->filter()
-                                            ->map(fn($c) => ['id' => $c['id'], 'code' => $c['code'], 'name' => $c['name']])
-                                            ->values()
-                                            ->all();
                                         $availabilityTypes = ['stream', 'rent', 'buy'];
                                         $existingEntries = $movie->movieServices->where('service_id', $service->id);
+                                        $existingCountriesByType = $movie->movieServiceCountries
+                                            ->where('service_id', $service->id)
+                                            ->groupBy('availability_type');
                                     @endphp
-                                    <div class="border rounded-lg p-4 hover:bg-gray-50"
-                                         x-data="window.cinemaCountryPicker(@js($selectedCountryRows))">
-                                        <div class="font-medium mb-3">
-                                            {{ $service->name }}
-                                            <span class="text-xs text-gray-500">(streaming)</span>
+                                    <div class="border rounded-lg p-4 hover:bg-gray-50">
+                                        <div class="font-medium mb-3 flex items-center justify-between" data-service-row="{{ $service->id }}">
+                                            <div>
+                                                <span data-service-name>{{ $service->name }}</span>
+                                                <span class="text-xs text-gray-500">(streaming)</span>
+                                            </div>
+                                            <button type="button"
+                                                    @click="openEditService({{ $service->id }}, 'streaming')"
+                                                    class="text-xs text-blue-600 hover:text-blue-800" title="Edit service">
+                                                <i class="fas fa-pen"></i>
+                                            </button>
                                         </div>
 
-                                        <div class="space-y-2 pl-4">
+                                        <div class="space-y-3 pl-4">
                                             @foreach($availabilityTypes as $availType)
                                             @php
                                                 $existingEntry = $existingEntries->firstWhere('availability_type', $availType);
                                                 $isChecked = $existingEntry !== null;
+                                                $selectedForType = ($existingCountriesByType->get($availType) ?? collect())
+                                                    ->map(fn($msc) => $msc->country)
+                                                    ->filter()
+                                                    ->map(fn($c) => ['id' => $c['id'] ?? $c->id, 'code' => $c['code'] ?? $c->code, 'name' => $c['name'] ?? $c->name])
+                                                    ->values()
+                                                    ->all();
                                             @endphp
-                                            <div class="flex items-start space-x-3 p-2 bg-gray-50 rounded">
-                                                <input type="checkbox"
-                                                       name="services[{{ $service->id }}][{{ $availType }}][enabled]"
-                                                       value="1"
-                                                       {{ $isChecked ? 'checked' : '' }}
-                                                       id="service_{{ $service->id }}_{{ $availType }}"
-                                                       class="mt-1">
-                                                <div class="flex-1">
-                                                    <label for="service_{{ $service->id }}_{{ $availType }}" class="font-medium cursor-pointer text-sm">
-                                                        {{ ucfirst($availType) }}
-                                                    </label>
+                                            <div class="border border-gray-200 rounded p-3"
+                                                 x-data="window.cinemaCountryPicker(@js($selectedForType))">
+                                                <div class="flex items-start space-x-3">
+                                                    <input type="checkbox"
+                                                           name="services[{{ $service->id }}][{{ $availType }}][enabled]"
+                                                           value="1"
+                                                           {{ $isChecked ? 'checked' : '' }}
+                                                           id="service_{{ $service->id }}_{{ $availType }}"
+                                                           class="mt-1">
+                                                    <div class="flex-1">
+                                                        <label for="service_{{ $service->id }}_{{ $availType }}" class="font-medium cursor-pointer text-sm">
+                                                            {{ ucfirst($availType) }}
+                                                        </label>
 
-                                                    <input type="hidden"
-                                                           name="services[{{ $service->id }}][{{ $availType }}][availability_type]"
-                                                           value="{{ $availType }}">
+                                                        <input type="hidden"
+                                                               name="services[{{ $service->id }}][{{ $availType }}][availability_type]"
+                                                               value="{{ $availType }}">
 
-                                                    <div class="mt-1 space-y-2">
-                                                        <div>
-                                                            <label class="block text-xs text-gray-700 mb-1">
-                                                                Release Date <span class="text-gray-500">(Optional)</span>
-                                                            </label>
-                                                            <input type="date"
-                                                                   name="services[{{ $service->id }}][{{ $availType }}][release_date]"
-                                                                   value="{{ $existingEntry->release_date ?? '' }}"
-                                                                   class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
-                                                        </div>
-                                                        <div class="flex items-center space-x-2">
-                                                            <input type="hidden"
-                                                                   name="services[{{ $service->id }}][{{ $availType }}][is_coming_soon]"
-                                                                   value="0">
-                                                            <input type="checkbox"
-                                                                   name="services[{{ $service->id }}][{{ $availType }}][is_coming_soon]"
-                                                                   value="1"
-                                                                   {{ ($existingEntry->is_coming_soon ?? 0) ? 'checked' : '' }}
-                                                                   id="coming_soon_{{ $service->id }}_{{ $availType }}"
-                                                                   class="rounded">
-                                                            <label for="coming_soon_{{ $service->id }}_{{ $availType }}" class="text-xs text-gray-700 cursor-pointer">
-                                                                <i class="fas fa-clock text-blue-500 mr-1"></i>
-                                                                Coming Soon
-                                                            </label>
+                                                        <div class="mt-1 space-y-2">
+                                                            <div>
+                                                                <label class="block text-xs text-gray-700 mb-1">
+                                                                    Available From <span class="text-gray-500">(Optional)</span>
+                                                                </label>
+                                                                <input type="date"
+                                                                       name="services[{{ $service->id }}][{{ $availType }}][release_date]"
+                                                                       value="{{ $existingEntry->release_date ?? '' }}"
+                                                                       class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                                            </div>
+                                                            <div class="flex items-center space-x-2">
+                                                                <input type="hidden"
+                                                                       name="services[{{ $service->id }}][{{ $availType }}][is_coming_soon]"
+                                                                       value="0">
+                                                                <input type="checkbox"
+                                                                       name="services[{{ $service->id }}][{{ $availType }}][is_coming_soon]"
+                                                                       value="1"
+                                                                       {{ ($existingEntry->is_coming_soon ?? 0) ? 'checked' : '' }}
+                                                                       id="coming_soon_{{ $service->id }}_{{ $availType }}"
+                                                                       class="rounded">
+                                                                <label for="coming_soon_{{ $service->id }}_{{ $availType }}" class="text-xs text-gray-700 cursor-pointer">
+                                                                    <i class="fas fa-clock text-blue-500 mr-1"></i>
+                                                                    Coming Soon
+                                                                </label>
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                </div>
+
+                                                <!-- Country availability for this availability type -->
+                                                <div class="mt-3">
+                                                    <label class="block text-xs text-gray-700 mb-1">
+                                                        <i class="fas fa-globe text-blue-500 mr-1"></i>Available Countries
+                                                    </label>
+                                                    <div class="flex flex-wrap gap-1 mb-1">
+                                                        <template x-for="c in selected" :key="c.id">
+                                                            <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
+                                                                <span x-text="c.code + ' Â· ' + c.name"></span>
+                                                                <button type="button" @click="remove(c.id)"
+                                                                        class="text-blue-400 hover:text-blue-700 font-bold leading-none"
+                                                                        aria-label="Remove country">&times;</button>
+                                                            </span>
+                                                        </template>
+                                                        <span x-show="selected.length === 0" class="text-xs text-gray-500">
+                                                            No selection = available in all countries
+                                                        </span>
+                                                    </div>
+                                                    <div class="relative">
+                                                        <input type="text" x-model="search" @focus="open = true"
+                                                               @click.outside="open = false"
+                                                               placeholder="Search country to add..."
+                                                               class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                                        <div x-show="open && search.length > 0" x-cloak
+                                                             class="absolute z-20 left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg">
+                                                            <template x-for="c in filtered" :key="c.id">
+                                                                <div class="px-3 py-1.5 text-sm hover:bg-blue-50 cursor-pointer flex justify-between"
+                                                                     @click="add(c)">
+                                                                    <span x-text="c.name"></span>
+                                                                    <span class="text-gray-400" x-text="c.code"></span>
+                                                                </div>
+                                                            </template>
+                                                            <div x-show="filtered.length === 0" class="px-3 py-1.5 text-sm text-gray-400">
+                                                                No match
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <template x-for="c in selected" :key="'input-' + c.id">
+                                                        <input type="hidden" name="services[{{ $service->id }}][{{ $availType }}][countries][]" :value="c.id">
+                                                    </template>
                                                 </div>
                                             </div>
                                             @endforeach
-                                        </div>
-
-                                        <!-- Country availability (streaming only) -->
-                                        <div class="mt-3 pl-4">
-                                            <label class="block text-xs text-gray-700 mb-1">
-                                                <i class="fas fa-globe text-blue-500 mr-1"></i>Available Countries
-                                            </label>
-                                            <div class="flex flex-wrap gap-1 mb-1">
-                                                <template x-for="c in selected" :key="c.id">
-                                                    <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
-                                                        <span x-text="c.code + ' · ' + c.name"></span>
-                                                        <button type="button" @click="remove(c.id)"
-                                                                class="text-blue-400 hover:text-blue-700 font-bold leading-none"
-                                                                aria-label="Remove country">&times;</button>
-                                                    </span>
-                                                </template>
-                                                <span x-show="selected.length === 0" class="text-xs text-gray-500">
-                                                    No selection = available in all countries
-                                                </span>
-                                            </div>
-                                            <div class="relative">
-                                                <input type="text" x-model="search" @focus="open = true"
-                                                       @click.outside="open = false"
-                                                       placeholder="Search country to add..."
-                                                       class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
-                                                <div x-show="open && search.length > 0" x-cloak
-                                                     class="absolute z-20 left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg">
-                                                    <template x-for="c in filtered" :key="c.id">
-                                                        <div class="px-3 py-1.5 text-sm hover:bg-blue-50 cursor-pointer flex justify-between"
-                                                             @click="add(c)">
-                                                            <span x-text="c.name"></span>
-                                                            <span class="text-gray-400" x-text="c.code"></span>
-                                                        </div>
-                                                    </template>
-                                                    <div x-show="filtered.length === 0" class="px-3 py-1.5 text-sm text-gray-400">
-                                                        No match
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <template x-for="c in selected" :key="'input-' + c.id">
-                                                <input type="hidden" name="services[{{ $service->id }}][countries][]" :value="c.id">
-                                            </template>
                                         </div>
                                     </div>
                                     @endforeach
@@ -1113,16 +1172,23 @@
                                     <span class="text-xs font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-2 py-1 rounded">Theatrical</span>
                                     <span class="text-xs text-gray-500">Cinema availability (no country restriction)</span>
                                 </div>
-                                <div class="space-y-4">
+                                <div class="space-y-4" id="theatricalServiceRows">
                                     @foreach($theatricalServicesList as $service)
                                     @php
                                         $existingEntry = $movie->movieServices->firstWhere('service_id', $service->id);
                                         $isChecked = $existingEntry !== null;
                                     @endphp
                                     <div class="border rounded-lg p-4 hover:bg-gray-50">
-                                        <div class="font-medium mb-3">
-                                            {{ $service->name }}
-                                            <span class="text-xs text-gray-500">(theatrical)</span>
+                                        <div class="font-medium mb-3 flex items-center justify-between" data-service-row="{{ $service->id }}">
+                                            <div>
+                                                <span data-service-name>{{ $service->name }}</span>
+                                                <span class="text-xs text-gray-500">(theatrical)</span>
+                                            </div>
+                                            <button type="button"
+                                                    @click="openEditService({{ $service->id }}, 'theatrical')"
+                                                    class="text-xs text-blue-600 hover:text-blue-800" title="Edit service">
+                                                <i class="fas fa-pen"></i>
+                                            </button>
                                         </div>
                                         <div class="flex items-start space-x-3 pl-4">
                                             <input type="checkbox"
@@ -1185,6 +1251,119 @@
                             </button>
                         </div>
                     </form>
+
+                    <!-- Row templates used when a new service is added (Alpine auto-inits inserted nodes) -->
+                    <template id="tplServiceRowStreaming">
+                        <div class="border rounded-lg p-4 hover:bg-gray-50">
+                            <div class="font-medium mb-3 flex items-center justify-between" data-service-row="__ID__">
+                                <div>
+                                    <span data-service-name>__NAME__</span>
+                                    <span class="text-xs text-gray-500">(streaming)</span>
+                                </div>
+                                <button type="button" @click="openEditService(__ID__, 'streaming')"
+                                        class="text-xs text-blue-600 hover:text-blue-800" title="Edit service">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                            </div>
+                            <div class="space-y-3 pl-4">
+                                <template x-for="t in ['stream','rent','buy']" :key="t">
+                                    <div class="border border-gray-200 rounded p-3" x-data="window.cinemaCountryPicker([])">
+                                        <div class="flex items-start space-x-3">
+                                            <input type="checkbox" :name="'services[__ID__][' + t + '][enabled]'" value="1" class="mt-1">
+                                            <div class="flex-1">
+                                                <label class="font-medium cursor-pointer text-sm" x-text="t.charAt(0).toUpperCase() + t.slice(1)"></label>
+                                                <input type="hidden" :name="'services[__ID__][' + t + '][availability_type]'" :value="t">
+                                                <div class="mt-1 space-y-2">
+                                                    <div>
+                                                        <label class="block text-xs text-gray-700 mb-1">Available From <span class="text-gray-500">(Optional)</span></label>
+                                                        <input type="date" :name="'services[__ID__][' + t + '][release_date]'" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                                    </div>
+                                                    <div class="flex items-center space-x-2">
+                                                        <input type="hidden" :name="'services[__ID__][' + t + '][is_coming_soon]'" value="0">
+                                                        <input type="checkbox" :name="'services[__ID__][' + t + '][is_coming_soon]'" value="1" class="rounded">
+                                                        <label class="text-xs text-gray-700 cursor-pointer">
+                                                            <i class="fas fa-clock text-blue-500 mr-1"></i> Coming Soon
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <label class="block text-xs text-gray-700 mb-1">
+                                                <i class="fas fa-globe text-blue-500 mr-1"></i>Available Countries
+                                            </label>
+                                            <div class="flex flex-wrap gap-1 mb-1">
+                                                <template x-for="c in selected" :key="c.id">
+                                                    <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
+                                                        <span x-text="c.code + ' Â· ' + c.name"></span>
+                                                        <button type="button" @click="remove(c.id)"
+                                                                class="text-blue-400 hover:text-blue-700 font-bold leading-none">&times;</button>
+                                                    </span>
+                                                </template>
+                                                <span x-show="selected.length === 0" class="text-xs text-gray-500">
+                                                    No selection = available in all countries
+                                                </span>
+                                            </div>
+                                            <div class="relative">
+                                                <input type="text" x-model="search" @focus="open = true"
+                                                       @click.outside="open = false" placeholder="Search country to add..."
+                                                       class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                                <div x-show="open && search.length > 0" x-cloak
+                                                     class="absolute z-20 left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg">
+                                                    <template x-for="c in filtered" :key="c.id">
+                                                        <div class="px-3 py-1.5 text-sm hover:bg-blue-50 cursor-pointer flex justify-between" @click="add(c)">
+                                                            <span x-text="c.name"></span>
+                                                            <span class="text-gray-400" x-text="c.code"></span>
+                                                        </div>
+                                                    </template>
+                                                    <div x-show="filtered.length === 0" class="px-3 py-1.5 text-sm text-gray-400">No match</div>
+                                                </div>
+                                            </div>
+                                            <template x-for="c in selected" :key="'input-' + c.id">
+                                                <input type="hidden" :name="'services[__ID__][' + t + '][countries][]'" :value="c.id">
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template id="tplServiceRowTheatrical">
+                        <div class="border rounded-lg p-4 hover:bg-gray-50">
+                            <div class="font-medium mb-3 flex items-center justify-between" data-service-row="__ID__">
+                                <div>
+                                    <span data-service-name>__NAME__</span>
+                                    <span class="text-xs text-gray-500">(theatrical)</span>
+                                </div>
+                                <button type="button" @click="openEditService(__ID__, 'theatrical')"
+                                        class="text-xs text-blue-600 hover:text-blue-800" title="Edit service">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                            </div>
+                            <div class="flex items-start space-x-3 pl-4">
+                                <input type="checkbox" name="services[__ID__][theatrical][enabled]" value="1" class="mt-1">
+                                <div class="flex-1">
+                                    <label class="font-medium cursor-pointer text-sm">Enable</label>
+                                    <input type="hidden" name="services[__ID__][theatrical][availability_type]" value="stream">
+                                    <div class="mt-2 space-y-2">
+                                        <div>
+                                            <label class="block text-sm text-gray-700 mb-1">Release Date</label>
+                                            <input type="date" name="services[__ID__][theatrical][release_date]"
+                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <input type="hidden" name="services[__ID__][theatrical][is_coming_soon]" value="0">
+                                            <input type="checkbox" name="services[__ID__][theatrical][is_coming_soon]" value="1" class="rounded">
+                                            <label class="text-sm text-gray-700 cursor-pointer">
+                                                <i class="fas fa-clock text-blue-500 mr-1"></i> Coming Soon
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
@@ -1261,6 +1440,79 @@
 
 @push('scripts')
 <script>
+// Service modal (availability editing + Add/Edit Service)
+document.addEventListener('alpine:init', () => {
+    Alpine.data('serviceModal', () => ({
+        showServiceModal: false,
+        editingService: null,
+        serviceForm: { open: false, mode: 'add', id: null, name: '', type: 'streaming', origType: null, saving: false },
+
+        openAddService(type) {
+            this.serviceForm = { open: true, mode: 'add', id: null, name: '', type: type || 'streaming', origType: null, saving: false };
+        },
+        openEditService(id, type) {
+            const row = document.querySelector('[data-service-row="' + id + '"]');
+            const name = row ? (row.querySelector('[data-service-name]')?.textContent || '').trim() : '';
+            this.serviceForm = { open: true, mode: 'edit', id: id, name: name, type: type, origType: type, saving: false };
+        },
+        async saveService() {
+            const f = this.serviceForm;
+            if (!f.name.trim()) {
+                if (window.showToast) window.showToast('Service name is required', 'error');
+                return;
+            }
+            f.saving = true;
+            try {
+                const fd = new FormData(document.getElementById('serviceAdminForm'));
+                if (f.mode === 'add') fd.delete('_method');
+                const url = f.mode === 'add'
+                    ? @json(route('admin.services.store'))
+                    : @json(route('admin.services.update', '__ID__')).replace('__ID__', f.id);
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    body: fd
+                });
+                let data = {};
+                try { data = await res.json(); } catch (e) {}
+                if (!res.ok || !data.success) {
+                    if (window.showToast) window.showToast(data.message || 'Failed to save service', 'error');
+                    return;
+                }
+                if (f.mode === 'add') this.insertServiceRow(data.service);
+                else this.updateServiceRow(data.service);
+                if (window.showToast) window.showToast(data.message, 'success');
+                f.open = false;
+            } catch (e) {
+                if (window.showToast) window.showToast('Error: ' + e.message, 'error');
+            } finally {
+                f.saving = false;
+            }
+        },
+        insertServiceRow(service) {
+            const streaming = service.type === 'streaming';
+            const tpl = document.getElementById(streaming ? 'tplServiceRowStreaming' : 'tplServiceRowTheatrical');
+            const container = document.getElementById(streaming ? 'streamingServiceRows' : 'theatricalServiceRows');
+            if (!tpl || !container) { location.reload(); return; }
+            const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const html = tpl.innerHTML
+                .split('__ID__').join(service.id)
+                .split('__NAME__').join(esc(service.name));
+            container.insertAdjacentHTML('beforeend', html);
+        },
+        updateServiceRow(service) {
+            if (service.type !== this.serviceForm.origType) { location.reload(); return; }
+            const row = document.querySelector('[data-service-row="' + service.id + '"]');
+            if (!row) { location.reload(); return; }
+            const nameEl = row.querySelector('[data-service-name]');
+            if (nameEl) nameEl.textContent = service.name;
+        }
+    }));
+});
+
 // Media Manager Alpine.js component
 document.addEventListener('alpine:init', () => {
     Alpine.data('mediaManager', () => ({

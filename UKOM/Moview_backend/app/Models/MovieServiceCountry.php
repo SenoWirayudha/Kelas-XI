@@ -12,7 +12,7 @@ class MovieServiceCountry extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['movie_id', 'service_id', 'country_id'];
+    protected $fillable = ['movie_id', 'service_id', 'country_id', 'availability_type', 'available_from', 'is_coming_soon'];
 
     public function movie()
     {

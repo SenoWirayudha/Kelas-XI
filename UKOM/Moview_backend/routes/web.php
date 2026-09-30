@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\StudioController;
 use App\Http\Controllers\Admin\SeatController;
 use App\Http\Controllers\Admin\SeatTypeController;
 use App\Http\Controllers\Admin\ScheduleController;
+use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\TicketScannerController;
 
@@ -65,6 +66,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     
     // Services Management
     Route::put('/films/{id}/services', [FilmController::class, 'updateServices'])->name('films.services.update');
+    Route::post('/services', [ServiceController::class, 'store'])->name('services.store');
+    Route::put('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
     
     // Quick-add metadata (used by the film form)
     Route::post('/production-houses', [FilmController::class, 'storeProductionHouse'])->name('production-houses.store');

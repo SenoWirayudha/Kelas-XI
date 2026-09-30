@@ -829,54 +829,55 @@ class FilmController extends Controller
     public function updateServices(Request $request, $id)
     {
         $movie = Movie::findOrFail($id);
-        
-        // Debug: Log the incoming request data
-        \Log::info('Services Update Request:', $request->all());
-        
+
         // Delete all existing services for this movie
         $movie->movieServices()->delete();
-
-        // Add selected services
-        $createdServiceIds = [];
-        if ($request->has('services')) {
-            foreach ($request->services as $serviceId => $availabilityTypes) {
-                // Loop through each availability type (stream, rent, buy, theatrical)
-                foreach ($availabilityTypes as $availType => $data) {
-                    if (isset($data['enabled'])) {
-                        $isComingSoon = isset($data['is_coming_soon']) && $data['is_coming_soon'] == '1' ? 1 : 0;
-
-                        \Log::info("Creating service: Service ID: $serviceId, Type: $availType, Coming Soon: $isComingSoon", $data);
-
-                        $movie->movieServices()->create([
-                            'service_id' => $serviceId,
-                            'availability_type' => $data['availability_type'] ?? $availType,
-                            'release_date' => !empty($data['release_date']) ? $data['release_date'] : null,
-                            'is_coming_soon' => $isComingSoon,
-                        ]);
-                        $createdServiceIds[(int) $serviceId] = true;
-                    }
-                }
-            }
-        }
-
-        // Sync country availability (movie_service_countries) for streaming services.
-        // 1 film -> 1 service -> many countries; empty selection = no restriction (available everywhere).
         $movie->movieServiceCountries()->delete();
+
+        // Add selected services.
+        // Country availability is stored per (movie, service, availability_type):
+        // rows present = available ONLY in those countries; no rows = unrestricted.
         $streamingServiceIds = Service::where('type', 'streaming')->pluck('id')->flip()->all();
         $validCountryIds = array_flip(Country::pluck('id')->all());
-        foreach (array_keys($createdServiceIds) as $serviceId) {
-            if (!isset($streamingServiceIds[$serviceId])) {
-                continue;
-            }
-            $countryIds = $request->input("services.$serviceId.countries", []);
-            foreach (array_unique(array_map('intval', (array) $countryIds)) as $countryId) {
-                if (!isset($validCountryIds[$countryId])) {
+
+        if ($request->has('services')) {
+            foreach ($request->services as $serviceId => $availabilityTypes) {
+                if (!is_array($availabilityTypes)) {
                     continue;
                 }
-                $movie->movieServiceCountries()->create([
-                    'service_id' => $serviceId,
-                    'country_id' => $countryId,
-                ]);
+                foreach ($availabilityTypes as $availType => $data) {
+                    if (!is_array($data) || !isset($data['enabled'])) {
+                        continue;
+                    }
+                    $isComingSoon = isset($data['is_coming_soon']) && $data['is_coming_soon'] == '1' ? 1 : 0;
+                    $releaseDate = !empty($data['release_date']) ? $data['release_date'] : null;
+                    $type = $data['availability_type'] ?? $availType;
+
+                    $movie->movieServices()->create([
+                        'service_id' => $serviceId,
+                        'availability_type' => $type,
+                        'release_date' => $releaseDate,
+                        'is_coming_soon' => $isComingSoon,
+                    ]);
+
+                    // Sync countries for this availability type (streaming only).
+                    if (!isset($streamingServiceIds[(int) $serviceId])) {
+                        continue;
+                    }
+                    $countryIds = $data['countries'] ?? [];
+                    foreach (array_unique(array_map('intval', (array) $countryIds)) as $countryId) {
+                        if (!isset($validCountryIds[$countryId])) {
+                            continue;
+                        }
+                        $movie->movieServiceCountries()->create([
+                            'service_id' => $serviceId,
+                            'country_id' => $countryId,
+                            'availability_type' => $type,
+                            'available_from' => $releaseDate,
+                            'is_coming_soon' => $isComingSoon,
+                        ]);
+                    }
+                }
             }
         }
 

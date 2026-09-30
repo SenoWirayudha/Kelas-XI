@@ -6,7 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class Service extends Model
 {
-    protected $fillable = ['name', 'type', 'logo'];
+    // services table has created_at but no updated_at column.
+    public const UPDATED_AT = null;
+
+    protected $fillable = ['name', 'type', 'logo_path'];
 
     public function movieServices()
     {

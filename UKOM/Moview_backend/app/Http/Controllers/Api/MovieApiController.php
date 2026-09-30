@@ -307,30 +307,59 @@ class MovieApiController extends Controller
             ->where('job', '!=', 'Director')
             ->groupBy('job');
         
-        // Country availability per streaming service (movie_service_countries).
-        // Empty list = no restriction (available in all countries).
-        $countriesByService = $movie->movieServiceCountries
-            ->groupBy('service_id')
-            ->map(fn($rows) => $rows
-                ->map(fn($msc) => $msc->country ? ['code' => $msc->country->code, 'name' => $msc->country->name] : null)
-                ->filter()
-                ->values());
+        // Country availability per (service, availability_type) from movie_service_countries.
+        // Rows present = available ONLY in those countries; no rows = unrestricted (empty list).
+        $pivotRows = $movie->movieServiceCountries
+            ->groupBy(fn ($msc) => $msc->service_id . '|' . $msc->availability_type);
 
-        // Separate streaming services by type
+        // Streaming services grouped by service, with per-type availability entries.
         $streamingServices = $movie->movieServices
             ->filter(function ($ms) {
                 return $ms->service && $ms->service->type === 'streaming';
             })
-            ->map(function ($ms) use ($countriesByService) {
+            ->groupBy('service_id')
+            ->map(function ($rows, $serviceId) use ($pivotRows) {
+                $service = $rows->first()->service;
+
+                $availabilities = $rows->map(function ($ms) use ($pivotRows, $serviceId) {
+                    $countryRows = $pivotRows->get($serviceId . '|' . $ms->availability_type);
+
+                    if ($countryRows && $countryRows->isNotEmpty()) {
+                        return $countryRows->map(fn($msc) => [
+                            'availability_type' => $ms->availability_type,
+                            'available_from' => $msc->available_from ?? $ms->release_date,
+                            'is_coming_soon' => (bool) ($msc->is_coming_soon ?: $ms->is_coming_soon),
+                            'countries' => $msc->country
+                                ? [['code' => $msc->country->code, 'name' => $msc->country->name]]
+                                : [],
+                        ])->values();
+                    }
+
+                    return [[
+                        'availability_type' => $ms->availability_type,
+                        'available_from' => $ms->release_date,
+                        'is_coming_soon' => (bool) $ms->is_coming_soon,
+                        'countries' => [],
+                    ]];
+                })->flatten(1)->values();
+
+                // Back-compat flat fields (first availability + union of all countries).
+                $first = $availabilities->first();
+                $unionCountries = $availabilities
+                    ->flatMap(fn($a) => $a['countries'])
+                    ->unique(fn($c) => $c['code'])
+                    ->values();
+
                 return [
-                    'id' => $ms->service->id,
+                    'id' => $service->id,
                     'type' => 'streaming',
-                    'name' => $ms->service->name,
-                    'logo_url' => $ms->service->logo_path ? url('storage/' . $ms->service->logo_path) : null,
-                    'availability_type' => $ms->availability_type,
-                    'release_date' => $ms->release_date,
-                    'is_coming_soon' => (bool) $ms->is_coming_soon,
-                    'countries' => $countriesByService->get($ms->service_id, collect())->values(),
+                    'name' => $service->name,
+                    'logo_url' => $service->logo_path ? url('storage/' . $service->logo_path) : null,
+                    'availabilities' => $availabilities,
+                    'availability_type' => $first['availability_type'],
+                    'release_date' => $first['available_from'],
+                    'is_coming_soon' => $first['is_coming_soon'],
+                    'countries' => $unionCountries,
                 ];
             })->values();
 
