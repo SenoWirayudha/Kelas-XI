@@ -29,6 +29,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6"
          x-data="seatGridBuilder(@js($gridPayload), {
              row_direction: @js($studio->row_direction ?? 'front_to_back'),
+             seat_number_direction: @js($studio->seat_number_direction ?? 'ltr'),
              seat_types: @js($seatTypeDefinitions)
          })">
 
@@ -94,6 +95,16 @@
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                         <option value="front_to_back">A di depan (dekat layar)</option>
                         <option value="back_to_front">A di belakang (jauh dari layar)</option>
+                    </select>
+                </div>
+
+                {{-- Seat number direction --}}
+                <div class="mb-5">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Arah Penomoran Kursi</label>
+                    <select x-model="seatNumberDirection"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option value="ltr">Kiri ke kanan (kolom kiri = nomor 1)</option>
+                        <option value="rtl">Kanan ke kiri (kolom kanan = nomor 1)</option>
                     </select>
                 </div>
 
@@ -551,6 +562,7 @@
             grid: [],
             tool: 'seat',
             rowDirection: config.row_direction || 'front_to_back',
+            seatNumberDirection: config.seat_number_direction || 'ltr',
             groupCounter: 0,
             painting: false,
             saving: false,
@@ -682,11 +694,20 @@
                 this.grid[ri].cells[ci].group = null;
             },
             // Auto-numbering: skip placeholders (aisle/entrance/empty), CGV-style continuous numbering.
+            // Numbered cells = sellable + unavailable, same set the backend counts.
             cellNumber(rowCells, ci) {
                 let n = 0;
                 for (let j = 0; j <= ci; j++) {
                     const t = rowCells[j].type;
                     if (this.sellableKeys.has(t) || t === 'unavailable') n++;
+                }
+                if (this.seatNumberDirection === 'rtl') {
+                    let total = 0;
+                    for (let j = 0; j < rowCells.length; j++) {
+                        const t = rowCells[j].type;
+                        if (this.sellableKeys.has(t) || t === 'unavailable') total++;
+                    }
+                    return total - n + 1;
                 }
                 return n;
             },
@@ -749,6 +770,7 @@
 
                 const payload = {
                     row_direction: this.rowDirection,
+                    seat_number_direction: this.seatNumberDirection,
                     rows: this.grid.map(row => ({
                         label: row.label,
                         cells: row.cells.map(c => ({ type: c.type, group: c.group || null })),
