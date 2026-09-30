@@ -38,8 +38,133 @@ class Studio extends Model
         static::creating(function (Studio $studio) {
             if (empty($studio->seat_type_definitions)) {
                 $studio->seat_type_definitions = self::defaultDefinitions();
+
+                // Inherit shared seat types from studios of the same cinema
+                // (first studio by id wins on divergent keys; no duplicates).
+                if ($studio->cinema_id) {
+                    $map = [];
+                    foreach ($studio->seat_type_definitions as $d) {
+                        $map[$d['key']] = $d;
+                    }
+                    $taken = [];
+                    foreach (self::where('cinema_id', $studio->cinema_id)->orderBy('id')->get() as $peer) {
+                        foreach (($peer->seat_type_definitions ?? []) as $d) {
+                            $k = $d['key'] ?? null;
+                            if ($k === null || isset($taken[$k])) {
+                                continue;
+                            }
+                            $taken[$k] = true;
+                            $map[$k] = $d;
+                        }
+                    }
+                    $studio->seat_type_definitions = array_values($map);
+                }
             }
         });
+    }
+
+    /**
+     * Other studios inside the same cinema (ordered by id), excluding self.
+     */
+    public function cinemaPeers()
+    {
+        if (!$this->cinema_id) {
+            return collect();
+        }
+        return static::where('cinema_id', $this->cinema_id)
+            ->where('id', '!=', $this->id)
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * All studios inside the same cinema (including self), ordered by id.
+     */
+    public function cinemaStudioIds(): array
+    {
+        if (!$this->cinema_id) {
+            return [$this->id];
+        }
+        return static::where('cinema_id', $this->cinema_id)
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
+    }
+
+    /**
+     * Upsert a seat type definition (matched by key, case-insensitive) into
+     * every other studio of the same cinema. Never appends a second entry
+     * with the same key. Other cinemas are never touched.
+     */
+    public function syncDefinitionToPeers(array $definition): void
+    {
+        foreach ($this->cinemaPeers() as $peer) {
+            $defs = $peer->seat_type_definitions ?? [];
+            $replaced = false;
+            foreach ($defs as $i => $d) {
+                if (strcasecmp((string) $d['key'], (string) $definition['key']) === 0) {
+                    $defs[$i] = $definition;
+                    $replaced = true;
+                    break;
+                }
+            }
+            if (!$replaced) {
+                $defs[] = $definition;
+            }
+            $peer->update(['seat_type_definitions' => array_values($defs)]);
+        }
+    }
+
+    /**
+     * Rename propagation: drop the old key entry from every peer (when
+     * present) and upsert the new definition. Peers without either key are
+     * left untouched.
+     */
+    public function syncRenamedDefinitionToPeers(array $definition, string $oldKey): void
+    {
+        foreach ($this->cinemaPeers() as $peer) {
+            $defs = $peer->seat_type_definitions ?? [];
+            $hadOld = false;
+            $out = [];
+            $newPlaced = false;
+            foreach ($defs as $d) {
+                if (($d['key'] ?? null) === $oldKey) {
+                    $hadOld = true;
+                    continue;
+                }
+                if (strcasecmp((string) $d['key'], (string) $definition['key']) === 0) {
+                    $out[] = $definition;
+                    $newPlaced = true;
+                    continue;
+                }
+                $out[] = $d;
+            }
+            if ($hadOld && !$newPlaced) {
+                $out[] = $definition;
+            }
+            if ($hadOld || $newPlaced) {
+                $peer->update(['seat_type_definitions' => array_values($out)]);
+            }
+        }
+    }
+
+    /**
+     * Remove a definition from every studio of the same cinema (including
+     * self). Callers must have verified the key is unused cinema-wide.
+     */
+    public function removeDefinitionAcrossCinema(string $key): void
+    {
+        $ids = $this->cinema_id ? $this->cinemaStudioIds() : [$this->id];
+        foreach (static::whereIn('id', $ids)->orderBy('id')->get() as $studio) {
+            $defs = $studio->seat_type_definitions ?? [];
+            $out = array_values(array_filter(
+                $defs,
+                fn($d) => ($d['key'] ?? null) !== $key
+            ));
+            if (count($out) !== count($defs)) {
+                $studio->update(['seat_type_definitions' => $out]);
+            }
+        }
     }
 
     /**

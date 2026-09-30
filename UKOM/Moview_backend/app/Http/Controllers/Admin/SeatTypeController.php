@@ -47,7 +47,39 @@ class SeatTypeController extends Controller
             'is_builtin'       => false,
         ];
 
+        // Cinema scope: when another studio of the same cinema already defines
+        // this key, import that canonical definition instead of creating a
+        // divergent duplicate. Otherwise the new definition is shared with all
+        // studios of this cinema (other cinemas are never touched).
+        $peerWithKey = $studio->cinemaPeers()->first(function ($peer) use ($validated) {
+            foreach (($peer->seat_type_definitions ?? []) as $d) {
+                if (strcasecmp((string) ($d['key'] ?? ''), $validated['key']) === 0) {
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        if ($peerWithKey) {
+            $canonical = $definitions[count($definitions) - 1];
+            foreach ($peerWithKey->seat_type_definitions as $d) {
+                if (strcasecmp((string) ($d['key'] ?? ''), $validated['key']) === 0) {
+                    $canonical = $d;
+                    break;
+                }
+            }
+            $definitions[count($definitions) - 1] = $canonical;
+            $studio->update(['seat_type_definitions' => array_values($definitions)]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Tipe kursi '{$canonical['label']}' sudah tersedia di bioskop ini dan ditambahkan ke studio ini.",
+                'data'    => $studio->fresh()->seat_type_definitions,
+            ], 201);
+        }
+
         $studio->update(['seat_type_definitions' => array_values($definitions)]);
+        $studio->syncDefinitionToPeers($definitions[count($definitions) - 1]);
 
         return response()->json([
             'success' => true,
@@ -96,14 +128,25 @@ class SeatTypeController extends Controller
             ];
         }
 
-        // Key rename: update seats referencing the old key
-        if (($definitions[$index]['key'] ?? null) !== $key) {
-            Seat::where('studio_id', $studio->id)
+        // Key rename: update seats.seat_type across every studio of this
+        // cinema so no seat loses its type reference, then sync the
+        // definition change (rename included) to the sibling studios.
+        $finalDef  = $definitions[$index];
+        $renamed   = ($finalDef['key'] ?? null) !== $key;
+
+        if ($renamed) {
+            Seat::whereIn('studio_id', $studio->cinemaStudioIds())
                 ->where('seat_type', $key)
-                ->update(['seat_type' => $definitions[$index]['key']]);
+                ->update(['seat_type' => $finalDef['key']]);
         }
 
         $studio->update(['seat_type_definitions' => array_values($definitions)]);
+
+        if ($renamed) {
+            $studio->syncRenamedDefinitionToPeers($finalDef, $key);
+        } else {
+            $studio->syncDefinitionToPeers($finalDef);
+        }
 
         return response()->json([
             'success' => true,
@@ -134,13 +177,13 @@ class SeatTypeController extends Controller
             abort(422, 'Tipe kursi builtin tidak dapat dihapus.');
         }
 
-        $used = Seat::where('studio_id', $studio->id)->where('seat_type', $key)->exists();
+        // Cinema-wide usage check: never orphan seats of sibling studios.
+        $used = Seat::whereIn('studio_id', $studio->cinemaStudioIds())->where('seat_type', $key)->exists();
         if ($used) {
             abort(422, "Tipe kursi '{$key}' masih dipakai oleh kursi. Ubah tipe kursi tersebut terlebih dahulu.");
         }
 
-        unset($definitions[$index]);
-        $studio->update(['seat_type_definitions' => array_values($definitions)]);
+        $studio->removeDefinitionAcrossCinema($key);
 
         return response()->json([
             'success' => true,
