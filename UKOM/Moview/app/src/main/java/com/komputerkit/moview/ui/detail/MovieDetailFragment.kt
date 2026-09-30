@@ -553,6 +553,7 @@ class MovieDetailFragment : Fragment() {
 
         if (hasStreaming) {
             val adapter = streamingPreviewAdapter ?: MovieServiceAdapter().also { streamingPreviewAdapter = it }
+            adapter.geoCountry = viewModel.geoCountry.value
             binding.rvStreamingPreview.apply {
                 this.adapter = adapter
                 layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)

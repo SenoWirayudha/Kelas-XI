@@ -39,10 +39,8 @@ class StreamingAvailabilityFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         adapter = StreamingAvailabilityAdapter()
-        binding.rvServices.apply {
-            this.adapter = adapter
-            layoutManager = LinearLayoutManager(requireContext())
-        }
+        binding.rvServices.adapter = adapter
+        binding.rvServices.layoutManager = LinearLayoutManager(requireContext())
 
         binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
@@ -90,7 +88,7 @@ class StreamingAvailabilityFragment : Fragment() {
             movie.streamingServices,
             selectedCountry
         )
-        adapter.submitList(filtered)
+        adapter.submitList(filtered, selectedCountry)
         binding.tvEmpty.text = "No streaming services available"
         binding.tvEmpty.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
     }

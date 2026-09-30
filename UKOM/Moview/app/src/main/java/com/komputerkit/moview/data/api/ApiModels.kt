@@ -329,6 +329,14 @@ data class StreamingServiceDto(
     val release_date: String?,
     val is_coming_soon: Boolean = false,
     val type: String? = null,
+    val countries: List<CountryAvailabilityDto>? = null,
+    val availabilities: List<AvailabilityEntryDto>? = null
+)
+
+data class AvailabilityEntryDto(
+    val availability_type: String,
+    val available_from: String? = null,
+    val is_coming_soon: Boolean = false,
     val countries: List<CountryAvailabilityDto>? = null
 )
 

@@ -18,7 +18,10 @@ import java.util.Locale
 class MovieServiceAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<ServiceItem>()
-    
+
+    /** User geo country used for the preview flag (null hides the flag). */
+    var geoCountry: String? = null
+
     sealed class ServiceItem {
         data class Streaming(val service: StreamingServiceDto) : ServiceItem()
         data class Theatrical(val service: TheatricalServiceDto) : ServiceItem()
@@ -65,7 +68,7 @@ class MovieServiceAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
-            is ServiceItem.Streaming -> (holder as StreamingViewHolder).bind(item.service)
+            is ServiceItem.Streaming -> (holder as StreamingViewHolder).bind(item.service, geoCountry)
             is ServiceItem.Theatrical -> (holder as TheatricalViewHolder).bind(item.service)
         }
     }
@@ -74,15 +77,53 @@ class MovieServiceAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     
     class StreamingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val ivLogo: ImageView = itemView.findViewById(R.id.iv_service_logo)
+        private val ivCountryFlag: ImageView = itemView.findViewById(R.id.iv_country_flag)
         private val tvServiceName: TextView = itemView.findViewById(R.id.tv_service_name)
         private val tvAvailabilityType: TextView = itemView.findViewById(R.id.tv_availability_type)
+        private val tvTypeStatus: TextView = itemView.findViewById(R.id.tv_type_status)
         private val badgeAvailability: View = itemView.findViewById(R.id.badge_availability)
         private val tvDate: TextView? = itemView.findViewById(R.id.tv_release_date)
-        
-        fun bind(service: StreamingServiceDto) {
+
+        fun bind(service: StreamingServiceDto, geoCountry: String?) {
             // Set service name
             tvServiceName.text = service.name
-            
+
+            // Availability type + status below the name (grouped entries)
+            val entries = com.komputerkit.moview.util.StreamingAvailabilityUtils.entries(service)
+            val types = entries
+                .map { it.availability_type.uppercase(Locale.ROOT) }
+                .distinct()
+                .joinToString(" · ")
+            val status = if (entries.none { it.is_coming_soon }) "AVAILABLE" else "COMING SOON"
+            tvTypeStatus.text = "$types · $status"
+            tvTypeStatus.visibility = View.VISIBLE
+
+            // Country flag on the top-right corner of the icon
+            val flagCode = com.komputerkit.moview.util.StreamingAvailabilityUtils
+                .selectCountry(service, geoCountry)
+            if (flagCode == null) {
+                ivCountryFlag.visibility = View.GONE
+            } else {
+                val context = itemView.context
+                val flagRes = context.resources.getIdentifier(
+                    "flag_${flagCode.lowercase(Locale.ENGLISH)}", "drawable", context.packageName
+                )
+                if (flagRes != 0) {
+                    Glide.with(context)
+                        .load(flagRes)
+                        .apply(
+                            com.bumptech.glide.request.RequestOptions()
+                                .placeholder(0)
+                                .error(0)
+                                .circleCrop()
+                        )
+                        .into(ivCountryFlag)
+                } else {
+                    ivCountryFlag.setImageResource(R.drawable.ic_globe_flag)
+                }
+                ivCountryFlag.visibility = View.VISIBLE
+            }
+
             // Set availability type badge
             if (service.is_coming_soon) {
                 tvAvailabilityType.text = "COMING SOON"

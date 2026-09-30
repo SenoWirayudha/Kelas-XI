@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:minHeight="26dp"
+    android:paddingVertical="3dp">
+
+    <ImageView
+        android:id="@+id/iv_row_flag"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:scaleType="centerCrop"
+        android:contentDescription="Country"
+        tools:src="@android:drawable/emoji_symbol" />
+
+    <TextView
+        android:id="@+id/tv_row_country"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:textColor="@color/white"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end"
+        tools:text="Indonesia" />
+
+    <TextView
+        android:id="@+id/tv_row_meta"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text_secondary"
+        android:textSize="11sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        tools:text="STREAM · Available · Oct 05, 2026" />
+
+</LinearLayout>

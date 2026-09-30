@@ -35,6 +35,19 @@
 
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Country flag (top-right corner of the service icon) -->
+        <ImageView
+            android:id="@+id/iv_country_flag"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="-1dp"
+            android:layout_marginEnd="-1dp"
+            android:elevation="2dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            android:contentDescription="Available country" />
+
         <!-- Availability Type Badge -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/badge_availability"
@@ -76,6 +89,20 @@
         android:maxLines="1"
         android:ellipsize="end"
         tools:text="Netflix" />
+
+    <!-- Availability type + status below the service name -->
+    <TextView
+        android:id="@+id/tv_type_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="7sp"
+        android:gravity="center"
+        android:maxLines="2"
+        android:ellipsize="end"
+        tools:text="STREAM · AVAILABLE"
+        tools:visibility="visible" />
 
     <!-- Release Date (for upcoming) -->
     <TextView
