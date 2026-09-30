@@ -431,6 +431,18 @@
         <action
             android:id="@+id/action_movieDetail_to_filmList"
             app:destination="@id/filmListFragment" />
+        <action
+            android:id="@+id/action_movieDetail_to_streamingAvailability"
+            app:destination="@id/streamingAvailabilityFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/streamingAvailabilityFragment"
+        android:name="com.komputerkit.moview.ui.detail.StreamingAvailabilityFragment"
+        android:label="Streaming Availability">
+        <argument
+            android:name="movieId"
+            app:argType="integer" />
     </fragment>
 
     <fragment

@@ -327,7 +327,9 @@ data class StreamingServiceDto(
     val logo_url: String?,
     val availability_type: String,
     val release_date: String?,
-    val is_coming_soon: Boolean = false
+    val is_coming_soon: Boolean = false,
+    val type: String? = null,
+    val countries: List<CountryAvailabilityDto>? = null
 )
 
 data class TheatricalServiceDto(
@@ -335,7 +337,19 @@ data class TheatricalServiceDto(
     val name: String,
     val logo_url: String?,
     val release_date: String?,
-    val is_coming_soon: Boolean = false
+    val is_coming_soon: Boolean = false,
+    val type: String? = null
+)
+
+data class CountryAvailabilityDto(
+    val code: String? = null,
+    val name: String? = null
+)
+
+data class GeoCountryDto(
+    val country_code: String?,
+    val country_name: String? = null,
+    val source: String? = null
 )
 
 data class MovieDetailsDto(

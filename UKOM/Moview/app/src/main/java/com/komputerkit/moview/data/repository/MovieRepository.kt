@@ -499,7 +499,32 @@ class MovieRepository {
             com.komputerkit.moview.data.api.FilterOptionsDto()
         }
     }
-    
+
+    companion object {
+        @Volatile
+        private var cachedCountryCode: String? = null
+        @Volatile
+        private var geoCountryLoaded = false
+    }
+
+    /**
+     * Detect user country (ISO code) via backend IP geolocation.
+     * Cached per process; returns null when detection is unavailable
+     * (callers should then treat availability as unrestricted).
+     */
+    suspend fun getGeoCountry(): String? {
+        if (geoCountryLoaded) return cachedCountryCode
+        cachedCountryCode = try {
+            val response = apiService.getGeoCountry()
+            if (response.success) response.data?.country_code else null
+        } catch (e: Exception) {
+            android.util.Log.w("MovieRepository", "geo country detection failed: ${e.message}")
+            null
+        }
+        geoCountryLoaded = true
+        return cachedCountryCode
+    }
+
     suspend fun getReviewDetail(userId: Int, reviewId: Int): com.komputerkit.moview.data.api.ReviewDetailDto? = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getReviewDetail(userId, reviewId)

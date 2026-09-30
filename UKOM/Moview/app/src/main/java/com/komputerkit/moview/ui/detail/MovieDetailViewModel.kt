@@ -24,6 +24,9 @@ class MovieDetailViewModel(application: Application) : AndroidViewModel(applicat
     
     private val _streamingServices = MutableLiveData<List<String>>()
     val streamingServices: LiveData<List<String>> = _streamingServices
+
+    private val _geoCountry = MutableLiveData<String?>(null)
+    val geoCountry: LiveData<String?> = _geoCountry
     
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
@@ -44,7 +47,10 @@ class MovieDetailViewModel(application: Application) : AndroidViewModel(applicat
         loadJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            
+
+            // Detect user country in parallel (cached after first success)
+            viewModelScope.launch { _geoCountry.value = repository.getGeoCountry() }
+
             try {
                 val movie = repository.getMovieDetail(movieId)
                 if (movie != null) {

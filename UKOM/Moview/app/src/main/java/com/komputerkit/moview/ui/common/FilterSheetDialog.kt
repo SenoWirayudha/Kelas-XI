@@ -39,7 +39,8 @@ class FilterSheetDialog(
     private val options: FilterSheetOptions,
     private val initial: FilterSheetResult,
     private val onApply: (FilterSheetResult) -> Unit,
-    private val initialCategory: Category = Category.GENRE
+    private val initialCategory: Category = Category.GENRE,
+    private val enabledCategories: Set<Category>? = null
 ) {
 
     enum class Category(val label: String) {
@@ -98,6 +99,20 @@ class FilterSheetDialog(
         val inter = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.font_family_inter)
         listOf(binding.chipGenre, binding.chipTheme, binding.chipLanguage, binding.chipCountry, binding.chipProductionHouse, binding.chipReleaseYear, binding.chipRating, binding.chipYear, binding.chipDate).forEach { it.typeface = inter }
 
+        // Hide categories that the caller did not enable (null = all enabled)
+        fun enable(category: Category, view: View) {
+            view.isVisible = enabledCategories?.contains(category) ?: true
+        }
+        enable(Category.GENRE, binding.chipGenre)
+        enable(Category.THEME, binding.chipTheme)
+        enable(Category.LANGUAGE, binding.chipLanguage)
+        enable(Category.COUNTRY, binding.chipCountry)
+        enable(Category.RELEASE_YEAR, binding.chipReleaseYear)
+        enable(Category.RATING, binding.chipRating)
+        enable(Category.YEAR, binding.chipYear)
+        enable(Category.DATE, binding.chipDate)
+        enable(Category.PRODUCTION_HOUSE, binding.chipProductionHouse)
+
         binding.chipGenre.setOnClickListener { selectCategory(Category.GENRE) }
         binding.chipTheme.setOnClickListener { selectCategory(Category.THEME) }
         binding.chipLanguage.setOnClickListener { selectCategory(Category.LANGUAGE) }
@@ -105,13 +120,14 @@ class FilterSheetDialog(
         binding.chipReleaseYear.setOnClickListener { selectCategory(Category.RELEASE_YEAR) }
         binding.chipRating.setOnClickListener { selectCategory(Category.RATING) }
         binding.chipYear.setOnClickListener { selectCategory(Category.YEAR) }
-        binding.chipDate.isVisible = options.dateOptions.isNotEmpty()
+        binding.chipDate.isVisible = (enabledCategories?.contains(Category.DATE) ?: true) && options.dateOptions.isNotEmpty()
         binding.chipDate.setOnClickListener { selectCategory(Category.DATE) }
-        binding.chipProductionHouse.isVisible = options.productionHouses.isNotEmpty()
+        binding.chipProductionHouse.isVisible = (enabledCategories?.contains(Category.PRODUCTION_HOUSE) ?: true) && options.productionHouses.isNotEmpty()
         binding.chipProductionHouse.setOnClickListener { selectCategory(Category.PRODUCTION_HOUSE) }
     }
 
     private fun selectCategory(category: Category) {
+        if (enabledCategories != null && category !in enabledCategories) return
         activeCategory = category
         when (category) {
             Category.GENRE -> binding.chipGenre.isChecked = true

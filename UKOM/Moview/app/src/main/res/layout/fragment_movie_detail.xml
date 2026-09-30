@@ -613,7 +613,7 @@
                     tools:listitem="@layout/item_movie_detail_user_preview" />
             </LinearLayout>
 
-            <!-- Where to Watch -->
+            <!-- Where to Watch: theatrical block + streaming block -->
             <LinearLayout
                 android:id="@+id/layout_where_to_watch"
                 android:layout_width="match_parent"
@@ -639,6 +639,52 @@
                     android:orientation="horizontal"
                     tools:itemCount="5"
                     tools:listitem="@layout/item_streaming_service" />
+
+                <!-- Streaming preview (country filtered) with link to full availability page -->
+                <LinearLayout
+                    android:id="@+id/layout_streaming_section"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="18dp"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:id="@+id/tv_streaming_title"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Streaming"
+                            android:textColor="@color/white"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <ImageView
+                            android:id="@+id/btn_streaming_detail"
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:layout_marginStart="4dp"
+                            android:padding="4dp"
+                            android:src="@drawable/ic_arrow_right"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Open streaming availability"
+                            app:tint="@color/white" />
+                    </LinearLayout>
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_streaming_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
+                        tools:itemCount="5"
+                        tools:listitem="@layout/item_streaming_service" />
+                </LinearLayout>
 
             </LinearLayout>
 

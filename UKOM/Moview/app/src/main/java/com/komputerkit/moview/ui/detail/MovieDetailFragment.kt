@@ -46,6 +46,7 @@ class MovieDetailFragment : Fragment() {
     private lateinit var watchedByAdapter: MovieDetailUserPreviewAdapter
     private lateinit var wantToWatchAdapter: MovieDetailUserPreviewAdapter
     private var releaseAdapter: MovieReleaseAdapter? = null
+    private var streamingPreviewAdapter: MovieServiceAdapter? = null
     private lateinit var relatedAdapter: com.komputerkit.moview.ui.detail.SimilarMovieAdapter
     private lateinit var similarAdapter: com.komputerkit.moview.ui.detail.SimilarMovieAdapter
 
@@ -181,6 +182,11 @@ class MovieDetailFragment : Fragment() {
     }
     
     private fun setupObservers() {
+        // Re-filter streaming preview once country detection arrives
+        viewModel.geoCountry.observe(viewLifecycleOwner) {
+            viewModel.movie.value?.let { movie -> updateWhereToWatch(movie) }
+        }
+
         viewModel.movie.observe(viewLifecycleOwner) { movie ->
             currentMovie = movie
             
@@ -502,8 +508,10 @@ class MovieDetailFragment : Fragment() {
     
     private fun updateWhereToWatch(movie: com.komputerkit.moview.data.model.Movie) {
         val hasTheatrical = movie.theatricalServices.isNotEmpty()
-        val hasStreaming = movie.streamingServices.isNotEmpty()
-        
+        val previewServices = com.komputerkit.moview.util.StreamingAvailabilityUtils
+            .filterForPreview(movie.streamingServices, viewModel.geoCountry.value)
+        val hasStreaming = previewServices.isNotEmpty()
+
         if (hasTheatrical) {
             // Determine if upcoming or now showing
             val now = java.util.Date()
@@ -518,13 +526,13 @@ class MovieDetailFragment : Fragment() {
                     }
                 } ?: false
             }
-            
+
             binding.tvWhereToWatchTitle.text = if (hasUpcoming) {
                 "Upcoming in Theaters"
             } else {
                 "Now Showing in Theaters"
             }
-            
+
             // Initialize adapter if needed
             if (!::movieServiceAdapter.isInitialized) {
                 movieServiceAdapter = MovieServiceAdapter()
@@ -534,30 +542,29 @@ class MovieDetailFragment : Fragment() {
                 adapter = movieServiceAdapter
                 layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
             }
-            
+
             movieServiceAdapter.submitTheatricalServices(movie.theatricalServices)
-            binding.layoutWhereToWatch.visibility = View.VISIBLE
-            
-        } else if (hasStreaming) {
-            binding.tvWhereToWatchTitle.text = "Where to Watch"
-            
-            // Initialize adapter if needed
-            if (!::movieServiceAdapter.isInitialized) {
-                movieServiceAdapter = MovieServiceAdapter()
-            }
-            // Always re-attach adapter and layout manager
-            binding.rvStreaming.apply {
-                adapter = movieServiceAdapter
+            binding.tvWhereToWatchTitle.visibility = View.VISIBLE
+            binding.rvStreaming.visibility = View.VISIBLE
+        } else {
+            binding.tvWhereToWatchTitle.visibility = View.GONE
+            binding.rvStreaming.visibility = View.GONE
+        }
+
+        if (hasStreaming) {
+            val adapter = streamingPreviewAdapter ?: MovieServiceAdapter().also { streamingPreviewAdapter = it }
+            binding.rvStreamingPreview.apply {
+                this.adapter = adapter
                 layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
             }
-            
-            movieServiceAdapter.submitStreamingServices(movie.streamingServices)
-            binding.layoutWhereToWatch.visibility = View.VISIBLE
-            
+            adapter.submitStreamingServices(previewServices)
+            binding.layoutStreamingSection.visibility = View.VISIBLE
         } else {
-            // No services available
-            binding.layoutWhereToWatch.visibility = View.GONE
+            binding.layoutStreamingSection.visibility = View.GONE
         }
+
+        binding.layoutWhereToWatch.visibility =
+            if (hasTheatrical || hasStreaming) View.VISIBLE else View.GONE
     }
     
     private fun setupClickListeners() {
@@ -624,6 +631,12 @@ class MovieDetailFragment : Fragment() {
         
         binding.btnOpenActions.setOnClickListener {
             showMovieActionsBottomSheet()
+        }
+
+        binding.btnStreamingDetail.setOnClickListener {
+            val movie = viewModel.movie.value ?: return@setOnClickListener
+            val action = MovieDetailFragmentDirections.actionMovieDetailToStreamingAvailability(movie.id)
+            findNavController().navigate(action)
         }
 
         binding.btnWatchedByMore.setOnClickListener {

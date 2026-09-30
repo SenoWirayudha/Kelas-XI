@@ -103,6 +103,9 @@ interface MovieApiService {
 
     @GET("filters/options")
     suspend fun getFilterOptions(): ApiResponse<FilterOptionsDto>
+
+    @GET("geo/country")
+    suspend fun getGeoCountry(): ApiResponse<GeoCountryDto>
     
     @GET("movies/{id}/media")
     suspend fun getMovieMedia(
