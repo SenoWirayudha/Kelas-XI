@@ -297,6 +297,7 @@ class SeatController extends Controller
 
         $validated = $request->validate([
             'row_direction' => 'required|in:front_to_back,back_to_front',
+            'seat_number_direction' => 'nullable|string|in:ltr,rtl',
             'rows'          => 'required|array|min:1|max:26',
             'rows.*.label'  => 'required|string|max:2',
             'rows.*.cells'  => 'required|array|min:1|max:60',
@@ -305,6 +306,16 @@ class SeatController extends Controller
         ]);
 
         $rowsPayload = $validated['rows'];
+
+        // Guard: numbering direction may only change while the studio has no orders.
+        // Existing orders/tickets reference seat_code live, so renumbering booked
+        // seats would relabel or move them. row_direction is intentionally unguarded.
+        $seatDirection = $validated['seat_number_direction'] ?? $studio->seat_number_direction ?? 'ltr';
+        if ($seatDirection !== ($studio->seat_number_direction ?? 'ltr')
+            && !empty($this->bookedSeatIdsForStudio($studio))) {
+            abort(422, 'Arah penomoran kursi tidak dapat diubah karena studio ini sudah memiliki pesanan.');
+        }
+        $isRtl = $seatDirection === 'rtl';
 
         // ---- Normalize stale cell types (e.g. a type deleted mid-session) to empty ----
         foreach ($rowsPayload as &$row) {
@@ -340,7 +351,7 @@ class SeatController extends Controller
 
         $totalActualSeats = 0;
 
-        DB::transaction(function () use ($studio, $rowsPayload, $validated, &$totalActualSeats) {
+        DB::transaction(function () use ($studio, $rowsPayload, $validated, $seatDirection, $isRtl, &$totalActualSeats) {
             // Preserve booked seats + their couple partners
             $keepSeatIds = $this->bookedSeatIdsForStudio($studio);
             if (!empty($keepSeatIds)) {
@@ -379,6 +390,15 @@ class SeatController extends Controller
                 $rowLabel = strtoupper($row['label']);
                 $positionX = 0;
                 $seatCounter = 1;
+                // rtl: T = numbered cells (sellable + unavailable) in this row.
+                $numberedTotal = 0;
+                if ($isRtl) {
+                    foreach ($row['cells'] as $rc) {
+                        if ($studio->isNumberedKey($rc['type'])) {
+                            $numberedTotal++;
+                        }
+                    }
+                }
                 foreach ($row['cells'] as $cell) {
                     $type  = $cell['type'];
                     $group = $cell['group'] ?? null;
@@ -390,8 +410,10 @@ class SeatController extends Controller
                     $isUnavailable = $type === 'unavailable';
                     $isSellable    = $studio->isSellableKey($type);
 
-                    $seatNumber  = $isPlaceholder ? (200 + $positionX) : $seatCounter;
-                    $seatCode    = $isPlaceholder ? '' : $rowLabel . $seatCounter;
+                    $seatNumber  = $isPlaceholder
+                        ? (200 + $positionX)
+                        : ($isRtl ? ($numberedTotal - $seatCounter + 1) : $seatCounter);
+                    $seatCode    = $isPlaceholder ? '' : $rowLabel . $seatNumber;
                     $attrs       = [
                         'seat_code'  => $seatCode,
                         'seat_type'  => $type,
@@ -439,8 +461,9 @@ class SeatController extends Controller
             }
 
             $studio->update([
-                'total_seats'   => $totalActualSeats,
-                'row_direction' => $validated['row_direction'],
+                'total_seats'          => $totalActualSeats,
+                'row_direction'        => $validated['row_direction'],
+                'seat_number_direction' => $seatDirection,
             ]);
         });
 

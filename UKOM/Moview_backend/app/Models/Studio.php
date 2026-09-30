@@ -106,6 +106,19 @@ class Studio extends Model
     }
 
     /**
+     * Cell types that consume a display seat number during layout numbering
+     * (sellable seats + unavailable; aisle/entrance/empty are skipped).
+     * Shared by saveLayout rtl numbering; mirrored by the builder preview.
+     */
+    public function isNumberedKey(?string $seatType): bool
+    {
+        if ($seatType === null || $seatType === 'empty') {
+            return false;
+        }
+        return $this->isSellableKey($seatType) || $seatType === 'unavailable';
+    }
+
+    /**
      * Price multiplier for a seat type key (relative to schedule ticket_price).
      */
     public function priceMultiplierFor(string $seatType): float
