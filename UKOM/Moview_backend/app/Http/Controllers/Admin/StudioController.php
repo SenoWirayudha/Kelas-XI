@@ -20,7 +20,7 @@ class StudioController extends Controller
         $cinemas = Cinema::orderBy('cinema_name')->get(['id', 'cinema_name', 'city']);
 
         $query = Studio::with('cinema')
-            ->withCount(['seats as seat_layout_count' => fn($q) => $q->where('seat_type', 'seat')])
+            ->withCount(['seats as seat_layout_count' => fn($q) => $q->whereNotIn('seat_type', Studio::PLACEHOLDER_TYPE_KEYS)])
             ->orderBy('studio_name');
 
         if ($request->filled('cinema_id')) {

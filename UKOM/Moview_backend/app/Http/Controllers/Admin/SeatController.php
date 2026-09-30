@@ -492,7 +492,7 @@ class SeatController extends Controller
             ->when(!empty($bookedSeatIds), fn($q) => $q->whereNotIn('id', $bookedSeatIds))
             ->delete();
 
-        $studio->update(['total_seats' => Seat::where('studio_id', $studio->id)->where('seat_type', 'seat')->count()]);
+        $studio->update(['total_seats' => Seat::where('studio_id', $studio->id)->whereNotIn('seat_type', Studio::PLACEHOLDER_TYPE_KEYS)->count()]);
 
         return redirect()->route('admin.seats.layout', $studioId)
             ->with('success', "Berhasil menghapus {$deleted} kursi.");
