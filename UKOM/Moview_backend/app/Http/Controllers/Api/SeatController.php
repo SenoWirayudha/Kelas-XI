@@ -76,6 +76,7 @@ class SeatController extends Controller
             'data'    => [
                 'studio_id'             => $schedule->studio_id,
                 'row_direction'         => $studio->row_direction ?? 'front_to_back',
+                'seat_number_direction' => $studio->seat_number_direction ?? 'ltr',
                 'rows'                  => $rows,
                 'columns'               => $columns,
                 'seat_type_definitions' => $studio->seat_type_definitions ?? [],
