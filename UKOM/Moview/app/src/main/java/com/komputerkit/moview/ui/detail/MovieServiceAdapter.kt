@@ -79,9 +79,7 @@ class MovieServiceAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private val ivLogo: ImageView = itemView.findViewById(R.id.iv_service_logo)
         private val ivCountryFlag: ImageView = itemView.findViewById(R.id.iv_country_flag)
         private val tvServiceName: TextView = itemView.findViewById(R.id.tv_service_name)
-        private val tvAvailabilityType: TextView = itemView.findViewById(R.id.tv_availability_type)
         private val tvTypeStatus: TextView = itemView.findViewById(R.id.tv_type_status)
-        private val badgeAvailability: View = itemView.findViewById(R.id.badge_availability)
         private val tvDate: TextView? = itemView.findViewById(R.id.tv_release_date)
 
         fun bind(service: StreamingServiceDto, geoCountry: String?) {
@@ -109,45 +107,13 @@ class MovieServiceAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     "flag_${flagCode.lowercase(Locale.ENGLISH)}", "drawable", context.packageName
                 )
                 if (flagRes != 0) {
-                    Glide.with(context)
-                        .load(flagRes)
-                        .apply(
-                            com.bumptech.glide.request.RequestOptions()
-                                .placeholder(0)
-                                .error(0)
-                                .circleCrop()
-                        )
-                        .into(ivCountryFlag)
+                    ivCountryFlag.setImageResource(flagRes)
                 } else {
                     ivCountryFlag.setImageResource(R.drawable.ic_globe_flag)
                 }
                 ivCountryFlag.visibility = View.VISIBLE
             }
 
-            // Set availability type badge
-            if (service.is_coming_soon) {
-                tvAvailabilityType.text = "COMING SOON"
-                (badgeAvailability as? com.google.android.material.card.MaterialCardView)?.setCardBackgroundColor(
-                    itemView.context.getColor(android.R.color.holo_purple)
-                )
-            } else {
-                tvAvailabilityType.text = when (service.availability_type.lowercase()) {
-                    "stream" -> "STREAM"
-                    "rent" -> "RENT"
-                    "buy" -> "BUY"
-                    else -> service.availability_type.uppercase()
-                }
-                
-                // Set badge color based on type
-                val badgeColor = when (service.availability_type.lowercase()) {
-                    "stream" -> itemView.context.getColor(android.R.color.holo_green_dark)
-                    "rent" -> itemView.context.getColor(android.R.color.holo_orange_dark)
-                    "buy" -> itemView.context.getColor(android.R.color.holo_blue_dark)
-                    else -> itemView.context.getColor(android.R.color.darker_gray)
-                }
-                (badgeAvailability as? com.google.android.material.card.MaterialCardView)?.setCardBackgroundColor(badgeColor)
-            }
-            
             if (service.logo_url != null) {
                 ivLogo.loadLogo(service.logo_url)
             } else {

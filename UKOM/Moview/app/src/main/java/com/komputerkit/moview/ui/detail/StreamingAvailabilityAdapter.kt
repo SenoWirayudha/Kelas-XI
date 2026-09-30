@@ -48,21 +48,6 @@ class StreamingAvailabilityAdapter(
             binding.tvServiceName.text = service.name
 
             val rows = StreamingAvailabilityUtils.rowsFor(service, selectedCountry)
-            val entries = StreamingAvailabilityUtils.entries(service)
-
-            // Service header badge: the distinct availability types of the service
-            val types = entries
-                .map { it.availability_type.lowercase(Locale.ROOT) }
-                .distinct()
-            binding.tvAvailabilityType.text = types.joinToString(" · ").uppercase(Locale.ROOT)
-            binding.badgeAvailability.setCardBackgroundColor(
-                when (types.firstOrNull() ?: "stream") {
-                    "stream" -> context.getColor(android.R.color.holo_green_dark)
-                    "rent" -> context.getColor(android.R.color.holo_orange_dark)
-                    "buy" -> context.getColor(android.R.color.holo_blue_dark)
-                    else -> context.getColor(android.R.color.darker_gray)
-                }
-            )
 
             if (!service.logo_url.isNullOrEmpty()) {
                 binding.ivServiceLogo.loadLogo(service.logo_url)

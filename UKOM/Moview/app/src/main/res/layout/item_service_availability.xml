@@ -27,47 +27,25 @@
                 android:layout_width="44dp"
                 android:layout_height="44dp">
 
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_gravity="center"
-                    app:cardCornerRadius="10dp"
-                    app:cardElevation="0dp"
-                    app:cardBackgroundColor="#111522">
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center"
+                app:cardCornerRadius="10dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="#111522">
 
-                    <com.google.android.material.imageview.ShapeableImageView
-                        android:id="@+id/iv_service_logo"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:layout_margin="6dp"
-                        android:scaleType="fitCenter"
-                        android:contentDescription="Streaming Service"
-                        app:shapeAppearanceOverlay="@style/RoundedCorner8dp"
-                        tools:src="@tools:sample/avatars" />
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/badge_availability"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom|end"
-                    app:cardCornerRadius="4dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="#1E88E5">
-
-                    <TextView
-                        android:id="@+id/tv_availability_type"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingHorizontal="4dp"
-                        android:paddingVertical="1dp"
-                        android:textColor="@color/white"
-                        android:textSize="7sp"
-                        android:textStyle="bold"
-                        android:letterSpacing="0.05"
-                        tools:text="STREAM" />
-                </com.google.android.material.card.MaterialCardView>
-            </FrameLayout>
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/iv_service_logo"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_margin="6dp"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="Streaming Service"
+                    app:shapeAppearanceOverlay="@style/RoundedCorner8dp"
+                    tools:src="@tools:sample/avatars" />
+            </com.google.android.material.card.MaterialCardView>
+        </FrameLayout>
 
             <TextView
                 android:id="@+id/tv_service_name"

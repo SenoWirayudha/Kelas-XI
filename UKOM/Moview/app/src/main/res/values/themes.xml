@@ -87,6 +87,12 @@
         <item name="cornerSize">8dp</item>
     </style>
 
+    <!-- Rounded Corner 3dp for country flags -->
+    <style name="RoundedCorner3dp">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">3dp</item>
+    </style>
+
     <!-- Bottom Sheet Dialog Theme -->
     <style name="BottomSheetDialogTheme" parent="Theme.MaterialComponents.BottomSheetDialog">
         <item name="bottomSheetStyle">@style/ModalBottomSheetStyle</item>
