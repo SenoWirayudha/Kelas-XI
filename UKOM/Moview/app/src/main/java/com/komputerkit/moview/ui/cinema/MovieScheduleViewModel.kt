@@ -251,8 +251,9 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
 
     private fun mapSchedulesToCinemas(schedules: List<ScheduleDto>): List<CinemaSchedule> {
         return schedules
-            .groupBy { it.cinema_name }
-            .map { (cinemaName, rows) ->
+            .groupBy { it.cinema_name to it.studio_name }
+            .map { (groupKey, rows) ->
+                val (cinemaName, studioName) = groupKey
                 val sortedRows = rows.sortedWith(compareBy({ it.show_date }, { it.show_time }))
                 val first = sortedRows.first()
 
@@ -260,7 +261,7 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
                     cinemaId = cinemaName,
                     cinemaName = cinemaName,
                     serviceName = first.service_name?.trim().orEmpty(),
-                    studioType = first.studio_type?.takeIf { it.isNotBlank() } ?: first.studio_name,
+                    studioType = first.studio_type?.takeIf { it.isNotBlank() } ?: studioName,
                     priceRange = formatRupiah(first.ticket_price.toInt()),
                     brand = detectBrand(cinemaName),
                     showTimes = sortedRows.map {
@@ -272,7 +273,7 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
                     }
                 )
             }
-            .sortedBy { it.cinemaName }
+            .sortedWith(compareBy({ it.cinemaName }, { it.studioType }))
     }
 
     private fun formatShowTime(rawTime: String): String {

@@ -18,6 +18,7 @@ class CinemaScheduleAdapter(
 ) : RecyclerView.Adapter<CinemaScheduleAdapter.ViewHolder>() {
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val headerRow: View = view.findViewById(R.id.header_cinema_row)
         val tvName: TextView = view.findViewById(R.id.tv_cinema_name)
         val tvType: TextView = view.findViewById(R.id.tv_studio_type)
         val tvPrice: TextView = view.findViewById(R.id.tv_price_range)
@@ -33,6 +34,10 @@ class CinemaScheduleAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val cinema = items[position]
+        // One cinema can have several studio cards; show the cinema header
+        // only on the first card of each consecutive run of the same cinema.
+        val showCinemaHeader = position == 0 || items[position - 1].cinemaName != cinema.cinemaName
+        holder.headerRow.visibility = if (showCinemaHeader) View.VISIBLE else View.GONE
         holder.tvName.text = cinema.cinemaName
         holder.tvType.text = cinema.studioType
         holder.tvPrice.text = cinema.priceRange

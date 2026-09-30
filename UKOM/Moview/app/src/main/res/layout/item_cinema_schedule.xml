@@ -18,8 +18,9 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Row 1: cinema name + favorite + brand badge -->
+        <!-- Row 1: cinema name + favorite + brand badge (hidden for continuation studio cards) -->
         <LinearLayout
+            android:id="@+id/header_cinema_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
