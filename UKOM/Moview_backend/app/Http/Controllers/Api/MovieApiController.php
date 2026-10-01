@@ -9,6 +9,7 @@ use App\Models\MovieRelease;
 use App\Models\Person;
 use App\Models\Rating;
 use App\Models\Review;
+use App\Services\AvailabilityResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -325,20 +326,39 @@ class MovieApiController extends Controller
                     $countryRows = $pivotRows->get($serviceId . '|' . $ms->availability_type);
 
                     if ($countryRows && $countryRows->isNotEmpty()) {
-                        return $countryRows->map(fn($msc) => [
-                            'availability_type' => $ms->availability_type,
-                            'available_from' => $msc->available_from ?? $ms->release_date,
-                            'is_coming_soon' => (bool) ($msc->is_coming_soon ?: $ms->is_coming_soon),
-                            'countries' => $msc->country
-                                ? [['code' => $msc->country->code, 'name' => $msc->country->name]]
-                                : [],
-                        ])->values();
+                        return $countryRows->map(function ($msc) use ($ms) {
+                            // Tri-state resolution: NULL = inherit type default, 0/1 = override.
+                            $resolved = AvailabilityResolver::resolve(
+                                $msc->is_coming_soon === null ? null : (bool) $msc->is_coming_soon,
+                                $msc->available_from,
+                                (bool) $ms->is_coming_soon,
+                                $ms->release_date
+                            );
+
+                            return [
+                                'availability_type' => $ms->availability_type,
+                                'available_from' => $resolved['available_from'],
+                                'is_coming_soon' => $resolved['is_coming_soon'],
+                                'status' => $resolved['status'],
+                                'countries' => $msc->country
+                                    ? [['code' => $msc->country->code, 'name' => $msc->country->name]]
+                                    : [],
+                            ];
+                        })->values();
                     }
+
+                    $resolved = AvailabilityResolver::resolve(
+                        null,
+                        null,
+                        (bool) $ms->is_coming_soon,
+                        $ms->release_date
+                    );
 
                     return [[
                         'availability_type' => $ms->availability_type,
-                        'available_from' => $ms->release_date,
-                        'is_coming_soon' => (bool) $ms->is_coming_soon,
+                        'available_from' => $resolved['available_from'],
+                        'is_coming_soon' => $resolved['is_coming_soon'],
+                        'status' => $resolved['status'],
                         'countries' => [],
                     ]];
                 })->flatten(1)->values();
@@ -359,6 +379,7 @@ class MovieApiController extends Controller
                     'availability_type' => $first['availability_type'],
                     'release_date' => $first['available_from'],
                     'is_coming_soon' => $first['is_coming_soon'],
+                    'status' => $first['status'],
                     'countries' => $unionCountries,
                 ];
             })->values();

@@ -1012,11 +1012,36 @@
                             @endphp
                             <script>
                                 window.allServiceCountries = @json($allCountries);
-                                window.cinemaCountryPicker = function (selected) {
+                                // Mirror of App\Services\AvailabilityResolver::status() for live preview only.
+                                window.moviewAvailabilityStatus = function (dateStr, comingSoon) {
+                                    if (dateStr) {
+                                        var t = new Date();
+                                        var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+                                        var today = t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate());
+                                        return dateStr > today ? 'Coming Soon' : 'Available';
+                                    }
+                                    return comingSoon ? 'Coming Soon' : 'Available';
+                                };
+                                window.cinemaCountryPicker = function (selected, defaults) {
                                     return {
                                         selected: selected || [],
+                                        defaults: defaults || {},
+                                        defDate: (defaults && defaults.date) || '',
+                                        defCs: !!(defaults && defaults.cs),
+                                        ov: {},
+                                        ovDate: {},
+                                        ovCs: {},
                                         search: '',
                                         open: false,
+                                        init() {
+                                            (this.selected || []).forEach(c => {
+                                                if (c.override) {
+                                                    this.ov[c.id] = true;
+                                                    this.ovDate[c.id] = c.date || '';
+                                                    this.ovCs[c.id] = !!c.cs;
+                                                }
+                                            });
+                                        },
                                         get filtered() {
                                             const q = this.search.toLowerCase();
                                             return (window.allServiceCountries || []).filter(c =>
@@ -1025,7 +1050,21 @@
                                             ).slice(0, 50);
                                         },
                                         add(c) { this.selected.push(c); this.search = ''; this.open = false; },
-                                        remove(id) { this.selected = this.selected.filter(s => s.id !== id); }
+                                        remove(id) {
+                                            this.selected = this.selected.filter(s => s.id !== id);
+                                            delete this.ov[id]; delete this.ovDate[id]; delete this.ovCs[id];
+                                        },
+                                        toggleOverride(c, checked) {
+                                            if (!checked) return;
+                                            if (this.ovDate[c.id] === undefined) this.ovDate[c.id] = this.defDate;
+                                            if (this.ovCs[c.id] === undefined) this.ovCs[c.id] = this.defCs;
+                                        },
+                                        chipStatus(c) {
+                                            const on = !!this.ov[c.id];
+                                            const date = on ? (this.ovDate[c.id] || '') : this.defDate;
+                                            const cs = on ? !!this.ovCs[c.id] : this.defCs;
+                                            return 'Status: ' + window.moviewAvailabilityStatus(date, cs);
+                                        }
                                     };
                                 };
                             </script>
@@ -1064,14 +1103,20 @@
                                                 $existingEntry = $existingEntries->firstWhere('availability_type', $availType);
                                                 $isChecked = $existingEntry !== null;
                                                 $selectedForType = ($existingCountriesByType->get($availType) ?? collect())
-                                                    ->map(fn($msc) => $msc->country)
-                                                    ->filter()
-                                                    ->map(fn($c) => ['id' => $c['id'] ?? $c->id, 'code' => $c['code'] ?? $c->code, 'name' => $c['name'] ?? $c->name])
+                                                    ->filter(fn($msc) => $msc->country)
+                                                    ->map(fn($msc) => [
+                                                        'id' => $msc->country['id'] ?? $msc->country->id,
+                                                        'code' => $msc->country['code'] ?? $msc->country->code,
+                                                        'name' => $msc->country['name'] ?? $msc->country->name,
+                                                        'override' => $msc->is_coming_soon !== null,
+                                                        'date' => $msc->available_from,
+                                                        'cs' => (bool) $msc->is_coming_soon,
+                                                    ])
                                                     ->values()
                                                     ->all();
                                             @endphp
                                             <div class="border border-gray-200 rounded p-3"
-                                                 x-data="window.cinemaCountryPicker(@js($selectedForType))">
+                                                 x-data="window.cinemaCountryPicker(@js($selectedForType), { dateId: 'avail_date_{{ $service->id }}_{{ $availType }}', csId: 'coming_soon_{{ $service->id }}_{{ $availType }}', date: @js($existingEntry->release_date ?? ''), cs: {{ ($existingEntry->is_coming_soon ?? 0) ? 'true' : 'false' }} })">
                                                 <div class="flex items-start space-x-3">
                                                     <input type="checkbox"
                                                            name="services[{{ $service->id }}][{{ $availType }}][enabled]"
@@ -1094,8 +1139,10 @@
                                                                     Available From <span class="text-gray-500">(Optional)</span>
                                                                 </label>
                                                                 <input type="date"
+                                                                       id="avail_date_{{ $service->id }}_{{ $availType }}"
                                                                        name="services[{{ $service->id }}][{{ $availType }}][release_date]"
                                                                        value="{{ $existingEntry->release_date ?? '' }}"
+                                                                       x-model="defDate"
                                                                        class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
                                                             </div>
                                                             <div class="flex items-center space-x-2">
@@ -1107,12 +1154,15 @@
                                                                        value="1"
                                                                        {{ ($existingEntry->is_coming_soon ?? 0) ? 'checked' : '' }}
                                                                        id="coming_soon_{{ $service->id }}_{{ $availType }}"
+                                                                       x-model="defCs"
                                                                        class="rounded">
                                                                 <label for="coming_soon_{{ $service->id }}_{{ $availType }}" class="text-xs text-gray-700 cursor-pointer">
                                                                     <i class="fas fa-clock text-blue-500 mr-1"></i>
                                                                     Coming Soon
                                                                 </label>
                                                             </div>
+                                                            <div class="text-xs text-gray-500"
+                                                                 x-text="'Status: ' + moviewAvailabilityStatus(defDate, defCs)"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1123,17 +1173,51 @@
                                                         <i class="fas fa-globe text-blue-500 mr-1"></i>Available Countries
                                                     </label>
                                                     <div class="flex flex-wrap gap-1 mb-1">
-                                                        <template x-for="c in selected" :key="c.id">
-                                                            <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
-                                                                <span x-text="c.code + ' Â· ' + c.name"></span>
-                                                                <button type="button" @click="remove(c.id)"
-                                                                        class="text-blue-400 hover:text-blue-700 font-bold leading-none"
-                                                                        aria-label="Remove country">&times;</button>
-                                                            </span>
-                                                        </template>
                                                         <span x-show="selected.length === 0" class="text-xs text-gray-500">
                                                             No selection = available in all countries
                                                         </span>
+                                                        <span x-show="selected.length > 0" class="text-xs text-amber-600">
+                                                            Selected = this type only applies to the chosen countries
+                                                        </span>
+                                                    </div>
+                                                    <div class="space-y-1 mb-1">
+                                                        <template x-for="c in selected" :key="c.id">
+                                                            <div class="border border-gray-200 rounded px-2 py-1">
+                                                                <div class="flex items-center justify-between gap-2">
+                                                                    <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
+                                                                        <span x-text="c.code + ' · ' + c.name"></span>
+                                                                        <button type="button" @click="remove(c.id)"
+                                                                                class="text-blue-400 hover:text-blue-700 font-bold leading-none"
+                                                                                aria-label="Remove country">&times;</button>
+                                                                    </span>
+                                                                    <label class="text-xs text-gray-700 cursor-pointer whitespace-nowrap">
+                                                                        <input type="checkbox" class="rounded"
+                                                                               x-model="ov[c.id]"
+                                                                               @change="toggleOverride(c, $event.target.checked)">
+                                                                        Atur manual
+                                                                    </label>
+                                                                </div>
+                                                                <template x-if="ov[c.id]">
+                                                                    <div class="flex flex-wrap items-center gap-2 mt-1">
+                                                                        <input type="date"
+                                                                               class="px-2 py-1 border border-gray-300 rounded text-sm"
+                                                                               :name="'services[{{ $service->id }}][{{ $availType }}][overrides][' + c.id + '][available_from]'"
+                                                                               x-model="ovDate[c.id]">
+                                                                        <input type="hidden"
+                                                                               :name="'services[{{ $service->id }}][{{ $availType }}][overrides][' + c.id + '][is_coming_soon]'"
+                                                                               value="0">
+                                                                        <input type="checkbox" class="rounded"
+                                                                               :name="'services[{{ $service->id }}][{{ $availType }}][overrides][' + c.id + '][is_coming_soon]'"
+                                                                               value="1"
+                                                                               x-model="ovCs[c.id]">
+                                                                        <label class="text-xs text-gray-700 cursor-pointer">
+                                                                            <i class="fas fa-clock text-blue-500 mr-1"></i> Coming Soon
+                                                                        </label>
+                                                                        <span class="text-xs text-gray-500" x-text="chipStatus(c)"></span>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </template>
                                                     </div>
                                                     <div class="relative">
                                                         <input type="text" x-model="search" @focus="open = true"
@@ -1267,7 +1351,7 @@
                             </div>
                             <div class="space-y-3 pl-4">
                                 <template x-for="t in ['stream','rent','buy']" :key="t">
-                                    <div class="border border-gray-200 rounded p-3" x-data="window.cinemaCountryPicker([])">
+                                    <div class="border border-gray-200 rounded p-3" x-data="window.cinemaCountryPicker([], { dateId: 'avail_date___ID__' + '_' + t, csId: 'coming_soon___ID__' + '_' + t })">
                                         <div class="flex items-start space-x-3">
                                             <input type="checkbox" :name="'services[__ID__][' + t + '][enabled]'" value="1" class="mt-1">
                                             <div class="flex-1">
@@ -1276,15 +1360,23 @@
                                                 <div class="mt-1 space-y-2">
                                                     <div>
                                                         <label class="block text-xs text-gray-700 mb-1">Available From <span class="text-gray-500">(Optional)</span></label>
-                                                        <input type="date" :name="'services[__ID__][' + t + '][release_date]'" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                                        <input type="date" :id="'avail_date___ID__' + '_' + t"
+                                                               :name="'services[__ID__][' + t + '][release_date]'"
+                                                               x-model="defDate"
+                                                               class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
                                                     </div>
                                                     <div class="flex items-center space-x-2">
                                                         <input type="hidden" :name="'services[__ID__][' + t + '][is_coming_soon]'" value="0">
-                                                        <input type="checkbox" :name="'services[__ID__][' + t + '][is_coming_soon]'" value="1" class="rounded">
+                                                        <input type="checkbox" :name="'services[__ID__][' + t + '][is_coming_soon]'" value="1"
+                                                               :id="'coming_soon___ID__' + '_' + t"
+                                                               x-model="defCs"
+                                                               class="rounded">
                                                         <label class="text-xs text-gray-700 cursor-pointer">
                                                             <i class="fas fa-clock text-blue-500 mr-1"></i> Coming Soon
                                                         </label>
                                                     </div>
+                                                    <div class="text-xs text-gray-500"
+                                                         x-text="'Status: ' + moviewAvailabilityStatus(defDate, defCs)"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1293,16 +1385,50 @@
                                                 <i class="fas fa-globe text-blue-500 mr-1"></i>Available Countries
                                             </label>
                                             <div class="flex flex-wrap gap-1 mb-1">
-                                                <template x-for="c in selected" :key="c.id">
-                                                    <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
-                                                        <span x-text="c.code + ' Â· ' + c.name"></span>
-                                                        <button type="button" @click="remove(c.id)"
-                                                                class="text-blue-400 hover:text-blue-700 font-bold leading-none">&times;</button>
-                                                    </span>
-                                                </template>
                                                 <span x-show="selected.length === 0" class="text-xs text-gray-500">
                                                     No selection = available in all countries
                                                 </span>
+                                                <span x-show="selected.length > 0" class="text-xs text-amber-600">
+                                                    Selected = this type only applies to the chosen countries
+                                                </span>
+                                            </div>
+                                            <div class="space-y-1 mb-1">
+                                                <template x-for="c in selected" :key="c.id">
+                                                    <div class="border border-gray-200 rounded px-2 py-1">
+                                                        <div class="flex items-center justify-between gap-2">
+                                                            <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
+                                                                <span x-text="c.code + ' · ' + c.name"></span>
+                                                                <button type="button" @click="remove(c.id)"
+                                                                        class="text-blue-400 hover:text-blue-700 font-bold leading-none">&times;</button>
+                                                            </span>
+                                                            <label class="text-xs text-gray-700 cursor-pointer whitespace-nowrap">
+                                                                <input type="checkbox" class="rounded"
+                                                                       x-model="ov[c.id]"
+                                                                       @change="toggleOverride(c, $event.target.checked)">
+                                                                Atur manual
+                                                            </label>
+                                                        </div>
+                                                        <template x-if="ov[c.id]">
+                                                            <div class="flex flex-wrap items-center gap-2 mt-1">
+                                                                <input type="date"
+                                                                       class="px-2 py-1 border border-gray-300 rounded text-sm"
+                                                                       :name="'services[__ID__][' + t + '][overrides][' + c.id + '][available_from]'"
+                                                                       x-model="ovDate[c.id]">
+                                                                <input type="hidden"
+                                                                       :name="'services[__ID__][' + t + '][overrides][' + c.id + '][is_coming_soon]'"
+                                                                       value="0">
+                                                                <input type="checkbox" class="rounded"
+                                                                       :name="'services[__ID__][' + t + '][overrides][' + c.id + '][is_coming_soon]'"
+                                                                       value="1"
+                                                                       x-model="ovCs[c.id]">
+                                                                <label class="text-xs text-gray-700 cursor-pointer">
+                                                                    <i class="fas fa-clock text-blue-500 mr-1"></i> Coming Soon
+                                                                </label>
+                                                                <span class="text-xs text-gray-500" x-text="chipStatus(c)"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
                                             </div>
                                             <div class="relative">
                                                 <input type="text" x-model="search" @focus="open = true"

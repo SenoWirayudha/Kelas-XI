@@ -13,7 +13,9 @@ use App\Models\Language;
 use App\Models\ProductionHouse;
 use App\Models\Theme;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class FilmController extends Controller
 {
@@ -830,15 +832,82 @@ class FilmController extends Controller
     {
         $movie = Movie::findOrFail($id);
 
-        // Delete all existing services for this movie
+        // ------------------------------------------------------------------
+        // Validation: per enabled (service, type) block.
+        // ------------------------------------------------------------------
+        $errors = [];
+        $validCountryIds = array_flip(Country::pluck('id')->all());
+
+        if ($request->has('services')) {
+            foreach ($request->services as $serviceId => $availabilityTypes) {
+                if (!is_array($availabilityTypes)) {
+                    continue;
+                }
+                foreach ($availabilityTypes as $availType => $data) {
+                    if (!is_array($data) || !isset($data['enabled'])) {
+                        continue;
+                    }
+                    $label = "Service ID {$serviceId} [{$availType}]";
+
+                    // Type default: is_coming_soon must be 0/1 when present.
+                    if (isset($data['is_coming_soon']) && !in_array((string) $data['is_coming_soon'], ['0', '1'], true)) {
+                        $errors[] = "{$label}: Coming Soon harus bernilai 0 atau 1.";
+                    }
+
+                    // Type default: date format YYYY-MM-DD when filled.
+                    if (!empty($data['release_date']) && !Carbon::hasFormat((string) $data['release_date'], 'Y-m-d')) {
+                        $errors[] = "{$label}: format tanggal Available From tidak valid (YYYY-MM-DD).";
+                    }
+
+                    // Countries: must exist, no duplicates within this type.
+                    $countryIds = array_map('intval', (array) ($data['countries'] ?? []));
+                    if (count($countryIds) !== count(array_unique($countryIds))) {
+                        $errors[] = "{$label}: negara tidak boleh duplikat dalam satu tipe.";
+                    }
+                    foreach (array_unique($countryIds) as $countryId) {
+                        if (!isset($validCountryIds[$countryId])) {
+                            $errors[] = "{$label}: negara (id {$countryId}) tidak valid.";
+                        }
+                    }
+
+                    // Per-country overrides ("Atur manual"): only for selected countries.
+                    foreach ((array) ($data['overrides'] ?? []) as $countryId => $override) {
+                        $countryId = (int) $countryId;
+                        if (!in_array($countryId, array_unique($countryIds), true)) {
+                            $errors[] = "{$label}: override negara (id {$countryId}) harus negara yang dipilih pada tipe ini.";
+                            continue;
+                        }
+                        if (!is_array($override)) {
+                            $errors[] = "{$label}: data override negara (id {$countryId}) tidak valid.";
+                            continue;
+                        }
+                        if (!array_key_exists('is_coming_soon', $override)
+                            || !in_array((string) $override['is_coming_soon'], ['0', '1'], true)) {
+                            $errors[] = "{$label} (negara {$countryId}): Coming Soon harus bernilai 0 atau 1.";
+                        }
+                        if (!empty($override['available_from']) && !Carbon::hasFormat((string) $override['available_from'], 'Y-m-d')) {
+                            $errors[] = "{$label} (negara {$countryId}): format tanggal tidak valid (YYYY-MM-DD).";
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages(['services' => implode(' ', $errors)]);
+        }
+
+        // ------------------------------------------------------------------
+        // Save: delete + recreate. Tri-state invariant:
+        //   override active  => is_coming_soon stored as 0/1 (non-NULL),
+        //                       available_from from the override input (NULL = no date)
+        //   no override      => is_coming_soon = NULL, available_from = NULL (inherit
+        //                       both from the type default in movie_services)
+        // ------------------------------------------------------------------
         $movie->movieServices()->delete();
         $movie->movieServiceCountries()->delete();
 
-        // Add selected services.
-        // Country availability is stored per (movie, service, availability_type):
-        // rows present = available ONLY in those countries; no rows = unrestricted.
         $streamingServiceIds = Service::where('type', 'streaming')->pluck('id')->flip()->all();
-        $validCountryIds = array_flip(Country::pluck('id')->all());
 
         if ($request->has('services')) {
             foreach ($request->services as $serviceId => $availabilityTypes) {
@@ -869,13 +938,24 @@ class FilmController extends Controller
                         if (!isset($validCountryIds[$countryId])) {
                             continue;
                         }
-                        $movie->movieServiceCountries()->create([
-                            'service_id' => $serviceId,
-                            'country_id' => $countryId,
-                            'availability_type' => $type,
-                            'available_from' => $releaseDate,
-                            'is_coming_soon' => $isComingSoon,
-                        ]);
+                        $override = $data['overrides'][$countryId] ?? null;
+                        if (is_array($override)) {
+                            $movie->movieServiceCountries()->create([
+                                'service_id' => $serviceId,
+                                'country_id' => $countryId,
+                                'availability_type' => $type,
+                                'available_from' => !empty($override['available_from']) ? $override['available_from'] : null,
+                                'is_coming_soon' => $override['is_coming_soon'] == '1' ? 1 : 0,
+                            ]);
+                        } else {
+                            $movie->movieServiceCountries()->create([
+                                'service_id' => $serviceId,
+                                'country_id' => $countryId,
+                                'availability_type' => $type,
+                                'available_from' => null,
+                                'is_coming_soon' => null,
+                            ]);
+                        }
                     }
                 }
             }
