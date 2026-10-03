@@ -6,13 +6,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import com.komputerkit.moview.databinding.FragmentFilmListBinding
 import com.komputerkit.moview.data.model.Movie
-import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
@@ -20,9 +20,7 @@ import com.komputerkit.moview.ui.common.MovieFilterState
 import com.komputerkit.moview.ui.common.MovieFilterUtils
 import com.komputerkit.moview.ui.common.MovieSortMode
 import com.komputerkit.moview.ui.common.RatingSource
-import com.komputerkit.moview.util.applyCustomMedia
 import com.komputerkit.moview.util.ScrollStateHelper
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 class FilmListFragment : Fragment() {
@@ -32,7 +30,7 @@ class FilmListFragment : Fragment() {
     private val args: FilmListFragmentArgs by navArgs()
 
     private lateinit var adapter: FilmGridAdapter
-    private val repository = MovieRepository()
+    private val viewModel: FilmListViewModel by viewModels()
     private var savedScrollState: Pair<Int, Int>? = null
 
     private var allFilms: List<Movie> = emptyList()
@@ -57,7 +55,23 @@ class FilmListFragment : Fragment() {
         setupToolbar()
         setupFilterChips()
         setupRecyclerView()
-        loadFilms()
+        observeState()
+        viewModel.load(args.categoryType, args.categoryValue, userId())
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.silentRefresh(userId())
+    }
+
+    private fun userId(): Int = requireContext()
+        .getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        .getInt("userId", 0)
+
+    private fun observeState() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.uiState.collect { state -> render(state) }
+        }
     }
 
     private fun setupToolbar() {
@@ -212,66 +226,47 @@ class FilmListFragment : Fragment() {
         applyCurrentFilters()
     }
 
-    private fun loadFilms() {
-        val b = _binding ?: return
-        b.progressBar.visibility = View.VISIBLE
-        b.tvEmpty.visibility = View.GONE
-
-        val userId = requireContext()
-            .getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
-            .getInt("userId", 0)
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val rawFilms = repository.getFilmsByCategory(args.categoryType, args.categoryValue)
-
-                val films = if (userId > 0 && rawFilms.isNotEmpty()) {
-                    val customMedia = repository.batchCustomMedia(userId, rawFilms.map { it.id }, "films")
-                    rawFilms.applyCustomMedia(customMedia)
-                } else {
-                    rawFilms
-                }
-
-                allFilms = films
-                if (genreOptions.isEmpty()) {
-                    val options = repository.getFilterOptions()
-                    genreOptions = options.genres
-                    themeOptions = options.themes
-                    countryOptions = options.countries
-                    languageOptions = options.languages
-                }
-                applyCurrentFilters()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _binding?.let { bindingNow ->
-                    bindingNow.progressBar.visibility = View.GONE
-                    bindingNow.tvEmpty.visibility = View.VISIBLE
-                    bindingNow.tvEmpty.text = "Failed to load films. Please try again."
-                }
-                e.printStackTrace()
-            }
-        }
+    private fun applyCurrentFilters() {
+        render(viewModel.uiState.value)
     }
 
-    private fun applyCurrentFilters() {
+    private fun render(state: FilmListUiState) {
         val b = _binding ?: return
+        allFilms = state.items
+        genreOptions = state.filterOptions.genres
+        themeOptions = state.filterOptions.themes
+        countryOptions = state.filterOptions.countries
+        languageOptions = state.filterOptions.languages
+
+        b.progressBar.visibility = if (state.status == FilmListStatus.LOADING) View.VISIBLE else View.GONE
+
         val filtered = MovieFilterUtils.applyFilters(allFilms, filterState)
-        b.progressBar.visibility = View.GONE
-        if (filtered.isEmpty()) {
-            b.tvEmpty.visibility = View.VISIBLE
-            b.tvEmpty.text = "No films found for ${args.categoryName}"
-        } else {
-            b.tvEmpty.visibility = View.GONE
-            adapter.submitList(filtered)
-            ScrollStateHelper.restore(b.rvFilms, savedScrollState)
-            savedScrollState = null
+        when {
+            state.status == FilmListStatus.ERROR && state.items.isEmpty() -> {
+                b.tvEmpty.visibility = View.VISIBLE
+                b.tvEmpty.text = "Failed to load films. Please try again."
+            }
+            filtered.isEmpty() && state.status != FilmListStatus.LOADING -> {
+                b.tvEmpty.visibility = View.VISIBLE
+                b.tvEmpty.text = "No films found for ${args.categoryName}"
+            }
+            filtered.isEmpty() -> {
+                b.tvEmpty.visibility = View.GONE
+            }
+            else -> {
+                b.tvEmpty.visibility = View.GONE
+                adapter.submitList(filtered) {
+                    val current = _binding ?: return@submitList
+                    ScrollStateHelper.restore(current.rvFilms, savedScrollState)
+                    savedScrollState = null
+                }
+            }
         }
     }
 
     override fun onStop() {
         super.onStop()
-        savedScrollState = ScrollStateHelper.save(binding.rvFilms)
+        _binding?.let { savedScrollState = ScrollStateHelper.save(it.rvFilms) }
     }
 
     override fun onDestroyView() {
