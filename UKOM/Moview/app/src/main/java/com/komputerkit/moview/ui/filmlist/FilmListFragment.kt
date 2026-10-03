@@ -22,6 +22,7 @@ import com.komputerkit.moview.ui.common.MovieSortMode
 import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.applyCustomMedia
 import com.komputerkit.moview.util.ScrollStateHelper
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 class FilmListFragment : Fragment() {
@@ -56,11 +57,6 @@ class FilmListFragment : Fragment() {
         setupToolbar()
         setupFilterChips()
         setupRecyclerView()
-        loadFilms()
-    }
-
-    override fun onResume() {
-        super.onResume()
         loadFilms()
     }
 
@@ -217,8 +213,9 @@ class FilmListFragment : Fragment() {
     }
 
     private fun loadFilms() {
-        binding.progressBar.visibility = View.VISIBLE
-        binding.tvEmpty.visibility = View.GONE
+        val b = _binding ?: return
+        b.progressBar.visibility = View.VISIBLE
+        b.tvEmpty.visibility = View.GONE
 
         val userId = requireContext()
             .getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
@@ -244,25 +241,30 @@ class FilmListFragment : Fragment() {
                     languageOptions = options.languages
                 }
                 applyCurrentFilters()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                binding.progressBar.visibility = View.GONE
-                binding.tvEmpty.visibility = View.VISIBLE
-                binding.tvEmpty.text = "Failed to load films. Please try again."
+                _binding?.let { bindingNow ->
+                    bindingNow.progressBar.visibility = View.GONE
+                    bindingNow.tvEmpty.visibility = View.VISIBLE
+                    bindingNow.tvEmpty.text = "Failed to load films. Please try again."
+                }
                 e.printStackTrace()
             }
         }
     }
 
     private fun applyCurrentFilters() {
+        val b = _binding ?: return
         val filtered = MovieFilterUtils.applyFilters(allFilms, filterState)
-        binding.progressBar.visibility = View.GONE
+        b.progressBar.visibility = View.GONE
         if (filtered.isEmpty()) {
-            binding.tvEmpty.visibility = View.VISIBLE
-            binding.tvEmpty.text = "No films found for ${args.categoryName}"
+            b.tvEmpty.visibility = View.VISIBLE
+            b.tvEmpty.text = "No films found for ${args.categoryName}"
         } else {
-            binding.tvEmpty.visibility = View.GONE
+            b.tvEmpty.visibility = View.GONE
             adapter.submitList(filtered)
-            ScrollStateHelper.restore(binding.rvFilms, savedScrollState)
+            ScrollStateHelper.restore(b.rvFilms, savedScrollState)
             savedScrollState = null
         }
     }

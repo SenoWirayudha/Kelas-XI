@@ -20,6 +20,7 @@ import com.komputerkit.moview.data.model.NotificationType
 import com.komputerkit.moview.data.model.NotificationSection
 import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.TmdbImageUrl
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -495,6 +496,8 @@ class MovieRepository {
             } else {
                 com.komputerkit.moview.data.api.FilterOptionsDto()
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             com.komputerkit.moview.data.api.FilterOptionsDto()
         }
@@ -1109,6 +1112,8 @@ class MovieRepository {
             } else {
                 emptyList()
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -2129,6 +2134,8 @@ class MovieRepository {
             if (response.success && response.data != null) {
                 response.data.mapKeys { it.key.toInt() }
             } else emptyMap()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             emptyMap()
