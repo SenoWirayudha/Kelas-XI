@@ -55,6 +55,11 @@ class MovieDetailFragment : Fragment() {
     private var selectedTabPosition = 0
     private var isCastCrewListView = false
 
+    // Scroll-to-top khusus artwork_saved: dikonsumsi sekali pada emission movie berikutnya
+    private var pendingScrollToTop = false
+    // Pulihkan posisi scroll: hanya sekali per pembuatan view, setelah bind+layout pertama
+    private var pendingScrollRestore = false
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -66,7 +71,11 @@ class MovieDetailFragment : Fragment() {
     
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
+        // Reset flag scroll untuk view baru ini (restore hanya sekali per view)
+        pendingScrollToTop = false
+        pendingScrollRestore = true
+
         setupImmersiveHeader()
         setupHeaderScrollBehavior()
         setupRecyclerViews()
@@ -82,6 +91,10 @@ class MovieDetailFragment : Fragment() {
             ?.observe(viewLifecycleOwner) { saved ->
                 if (saved) {
                     findNavController().currentBackStackEntry?.savedStateHandle?.set("artwork_saved", false)
+                    // Jangan scrollTo langsung di sini — reload memicu emission movie,
+                    // jadi tandai dulu; dikonsumsi sekali di observer movie
+                    pendingScrollToTop = true
+                    pendingScrollRestore = false
                     viewModel.loadMovieDetails(args.movieId)
                 }
             }
@@ -189,13 +202,6 @@ class MovieDetailFragment : Fragment() {
 
         viewModel.movie.observe(viewLifecycleOwner) { movie ->
             currentMovie = movie
-            
-            // Scroll to top when new movie data is loaded
-            binding.scrollView.post {
-                if (_binding != null) {
-                    binding.scrollView.scrollTo(0, 0)
-                }
-            }
             
             binding.tvTitle.text = movie.title ?: "Unknown Title"
             binding.tvHeaderTitle.text = movie.title ?: "Unknown Title"
@@ -374,6 +380,38 @@ class MovieDetailFragment : Fragment() {
             binding.tabLayout.post {
                 if (_binding != null) {
                     binding.tabLayout.getTabAt(selectedTabPosition)?.select()
+                }
+            }
+
+            // Scroll handling — hanya dijalankan setelah konten selesai di-bind:
+            // 1) pendingScrollToTop : scroll-to-top khusus artwork_saved, konsumsi sekali
+            // 2) pendingScrollRestore: pulihkan posisi tersimpan, sekali per view baru
+            if (pendingScrollToTop) {
+                pendingScrollToTop = false
+                pendingScrollRestore = false
+                binding.scrollView.post {
+                    if (_binding != null) {
+                        binding.scrollView.scrollTo(0, 0)
+                    }
+                }
+            } else if (pendingScrollRestore) {
+                val target = viewModel.savedScrollY
+                if (target > 0) {
+                    binding.scrollView.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {
+                        override fun onLayoutChange(
+                            v: View, left: Int, top: Int, right: Int, bottom: Int,
+                            oldLeft: Int, oldTop: Int, oldRight: Int, oldBottom: Int
+                        ) {
+                            v.removeOnLayoutChangeListener(this)
+                            if (_binding != null && pendingScrollRestore) {
+                                pendingScrollRestore = false
+                                binding.scrollView.scrollTo(0, target)
+                            }
+                        }
+                    })
+                    binding.scrollView.requestLayout()
+                } else {
+                    pendingScrollRestore = false
                 }
             }
         }
@@ -933,6 +971,14 @@ class MovieDetailFragment : Fragment() {
         }
         
         return null
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Simpan posisi scroll agar dipulihkan saat view dibuat ulang (pola Home/Profile/Search)
+        _binding?.let {
+            viewModel.savedScrollY = it.scrollView.scrollY
+        }
     }
 
     override fun onDestroyView() {

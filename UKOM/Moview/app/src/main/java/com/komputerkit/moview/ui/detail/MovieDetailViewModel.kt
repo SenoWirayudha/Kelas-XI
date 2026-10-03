@@ -21,6 +21,9 @@ class MovieDetailViewModel(application: Application) : AndroidViewModel(applicat
     
     private val _movie = MutableLiveData<Movie>()
     val movie: LiveData<Movie> = _movie
+
+    // Posisi scroll NestedScrollView film detail — disimpan onStop, dipulihkan sekali per view baru
+    var savedScrollY: Int = 0
     
     private val _streamingServices = MutableLiveData<List<String>>()
     val streamingServices: LiveData<List<String>> = _streamingServices
