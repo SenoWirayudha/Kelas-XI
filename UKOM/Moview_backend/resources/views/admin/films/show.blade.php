@@ -67,9 +67,9 @@
                     @endif
                     <div class="flex items-center space-x-4 text-lg mb-3">
                         <span>{{ $movie->release_year }}</span>
-                        <span>â€¢</span>
+                        <span>•</span>
                         <span>{{ $movie->duration }} min</span>
-                        <span>â€¢</span>
+                        <span>•</span>
                         <span class="px-2 py-1 border border-white rounded">{{ $movie->age_rating ?? 'NR' }}</span>
                     </div>
                     <div class="flex items-center space-x-6 mb-4">
@@ -227,7 +227,7 @@
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold">Cast & Crew</h2>
                 <a href="{{ route('admin.films.cast-crew', $movie->id) }}" class="text-blue-600 hover:text-blue-800">
-                    Manage â†’
+                    Manage →
                 </a>
             </div>
             
@@ -745,7 +745,7 @@
                                                     </span>
                                                 @endif
                                                 @if($release->name)
-                                                    <span class="text-sm text-gray-500">â€” {{ $release->name }}</span>
+                                                    <span class="text-sm text-gray-500">— {{ $release->name }}</span>
                                                 @endif
                                             </div>
                                             <span class="text-sm font-medium text-gray-800">
@@ -778,14 +778,14 @@
             </div>
             <!-- End Metadata Section -->
         </div>
-    <!-- Related Films â€” paling bawah, di luar area metadata, width konsisten dengan left column -->
+    <!-- Related Films — paling bawah, di luar area metadata, width konsisten dengan left column -->
     <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-xl font-bold mb-2 flex items-center">
             <i class="fas fa-link text-blue-600 mr-2"></i>
             Related Films
             <span class="ml-2 text-sm font-normal text-gray-500">({{ isset($relatedMovies) ? $relatedMovies->count() : 0 }})</span>
         </h2>
-        <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang saling terkait (mis. Vengeance Trilogy). Urutan sesuai sort_order â€” simetris.</p>
+        <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang saling terkait (mis. Vengeance Trilogy). Urutan sesuai sort_order — simetris.</p>
         @if(isset($relatedMovies) && $relatedMovies->count() > 0)
             <div class="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1" style="scrollbar-width: thin;">
                 @foreach($relatedMovies as $rm)
@@ -806,18 +806,18 @@
                 @endforeach
             </div>
         @else
-            <p class="text-gray-500 text-sm">Belum ada related film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-blue-600 hover:underline">Edit Film â†’ Related Films (paling bawah)</a>.</p>
+            <p class="text-gray-500 text-sm">Belum ada related film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-blue-600 hover:underline">Edit Film → Related Films (paling bawah)</a>.</p>
         @endif
     </div>
 
-    <!-- Similar Films â€” paling bawah setelah Related -->
+    <!-- Similar Films — paling bawah setelah Related -->
     <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-xl font-bold mb-2 flex items-center">
             <i class="fas fa-clone text-purple-600 mr-2"></i>
             Similar Films
             <span class="ml-2 text-sm font-normal text-gray-500">({{ isset($similarMovies) ? $similarMovies->count() : 0 }})</span>
         </h2>
-        <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang mirip (manual). Urutan sesuai sort_order â€” simetris.</p>
+        <p class="text-sm text-gray-500 mb-4"><i class="fas fa-info-circle mr-1"></i>Film yang mirip (manual). Urutan sesuai sort_order — simetris.</p>
         @if(isset($similarMovies) && $similarMovies->count() > 0)
             <div class="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1" style="scrollbar-width: thin;">
                 @foreach($similarMovies as $sm)
@@ -838,7 +838,7 @@
                 @endforeach
             </div>
         @else
-            <p class="text-gray-500 text-sm">Belum ada similar film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-purple-600 hover:underline">Edit Film â†’ Similar Films (paling bawah)</a>.</p>
+            <p class="text-gray-500 text-sm">Belum ada similar film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-purple-600 hover:underline">Edit Film → Similar Films (paling bawah)</a>.</p>
         @endif
     </div>
 
