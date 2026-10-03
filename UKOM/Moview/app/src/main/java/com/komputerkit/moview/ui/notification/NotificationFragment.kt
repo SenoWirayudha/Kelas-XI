@@ -44,8 +44,9 @@ class NotificationFragment : Fragment() {
     
     override fun onResume() {
         super.onResume()
-        // Refresh notifications when fragment resumes (e.g., after switching accounts)
-        viewModel.refresh()
+        // Refresh notifications when fragment resumes (e.g., after switching accounts);
+        // guarded — tampil tanpa spinner bila data sudah pernah dimuat
+        viewModel.loadNotifications()
     }
     
     private fun setupRecyclerView() {

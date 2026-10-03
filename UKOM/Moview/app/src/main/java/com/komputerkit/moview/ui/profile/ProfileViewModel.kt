@@ -10,12 +10,18 @@ import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.applyCustomMedia
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
     
     private val repository = MovieRepository()
     private val prefs = application.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+
+    private var loadedKey: String? = null
+    private var loadJob: Job? = null
     
     var savedScrollY: Int = 0
     
@@ -49,7 +55,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val _followActionResult = MutableLiveData<FollowActionResult?>()
     val followActionResult: LiveData<FollowActionResult?> = _followActionResult
     
-    fun loadProfileData(userId: Int) {
+    fun loadProfileData(userId: Int, force: Boolean = false) {
         val targetUserId = if (userId > 0) userId else prefs.getInt("userId", 0)
         
         Log.d("ProfileViewModel", "=== START Loading profile for userId: $targetUserId ===")
@@ -62,8 +68,12 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             _userName.postValue(username)
             return
         }
-        
-        viewModelScope.launch {
+
+        val key = "profile|$targetUserId"
+        if (force) loadJob?.cancel()
+        if (loadJob?.isActive == true) return
+        if (!force && key == loadedKey && _favoriteMovies.value != null) return
+        loadJob = viewModelScope.launch {
             try {
                 Log.d("ProfileViewModel", "Calling API getUserProfile...")
                 val profileData = repository.getUserProfile(targetUserId)
@@ -144,6 +154,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                         // subquery in getDiary, so no batchCustomMedia call is needed here.
                         _recentActivity.postValue(diaryEntries.take(4))
                         Log.d("ProfileViewModel", "Loaded ${diaryEntries.take(4).size} recent diary entries")
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         Log.e("ProfileViewModel", "Error loading recent activity", e)
                         _recentActivity.postValue(emptyList())
@@ -158,6 +170,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     _favoriteMovies.postValue(emptyList())
                     _recentActivity.postValue(emptyList())
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "!!! EXCEPTION loading profile !!!", e)
                 Log.e("ProfileViewModel", "Error message: ${e.message}")
@@ -168,6 +182,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                 _favoriteMovies.postValue(emptyList())
                 _recentActivity.postValue(emptyList())
             }
+            loadedKey = key
         }
     }
     

@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Notification
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.resolveMediaUrl
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class NotificationViewModel(application: Application) : AndroidViewModel(application) {
@@ -24,22 +25,42 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
     
     private val _unreadCount = MutableLiveData<Int>(0)
     val unreadCount: LiveData<Int> = _unreadCount
-    
+
+    private var loadedKey: String? = null
+    private var loadJob: kotlinx.coroutines.Job? = null
+    private var refreshJob: kotlinx.coroutines.Job? = null
+
     fun refresh() {
-        loadNotifications()
+        loadNotifications(force = true)
     }
-    
-    fun loadNotifications() {
+
+    fun loadNotifications(force: Boolean = false) {
         val userId = prefs.getInt("userId", 0)
         android.util.Log.d("NotificationViewModel", "Loading notifications for userId: $userId")
         if (userId == 0) {
             android.util.Log.e("NotificationViewModel", "User ID is 0, cannot load notifications")
             return
         }
-        
-        viewModelScope.launch {
+
+        val key = "notifications|$userId"
+        if (force) loadJob?.cancel()
+        if (loadJob?.isActive == true) return
+        if (force) {
+            loadJob = startLoad(userId, key, spinner = true)
+            return
+        }
+        if (key == loadedKey && _notifications.value != null) {
+            if (refreshJob?.isActive == true) return
+            refreshJob = startLoad(userId, key, spinner = false)
+            return
+        }
+        loadJob = startLoad(userId, key, spinner = true)
+    }
+
+    private fun startLoad(userId: Int, key: String, spinner: Boolean): kotlinx.coroutines.Job {
+        return viewModelScope.launch {
+            if (spinner) _isLoading.value = true
             try {
-                _isLoading.postValue(true)
                 val notifications = repository.getNotificationsAsync(userId)
                 android.util.Log.d("NotificationViewModel", "Received ${notifications.size} notifications")
 
@@ -54,12 +75,17 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
                 } else notifications
                 _notifications.postValue(resolved)
                 _unreadCount.postValue(resolved.count { !it.isRead })
+                loadedKey = key
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 android.util.Log.e("NotificationViewModel", "Error loading notifications", e)
                 e.printStackTrace()
-                _notifications.postValue(emptyList())
+                if (spinner) {
+                    _notifications.postValue(emptyList())
+                }
             } finally {
-                _isLoading.postValue(false)
+                if (spinner && isActive) _isLoading.postValue(false)
             }
         }
     }

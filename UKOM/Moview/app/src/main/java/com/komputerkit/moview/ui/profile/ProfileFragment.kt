@@ -143,7 +143,7 @@ class ProfileFragment : Fragment() {
             savedStateHandle.getLiveData<Boolean>("profile_updated").observe(viewLifecycleOwner) { updated ->
                 if (updated == true) {
                     // Reload profile data from API (use targetUserId which is set in onViewCreated/onResume)
-                    viewModel.loadProfileData(targetUserId)
+                    viewModel.loadProfileData(targetUserId, force = true)
                     
                     // Get the profile photo URL directly from savedStateHandle
                     val photoUrl = savedStateHandle.get<String>("profile_photo_url")

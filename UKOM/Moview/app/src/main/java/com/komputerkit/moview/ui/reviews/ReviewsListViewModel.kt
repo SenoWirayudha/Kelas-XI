@@ -7,6 +7,9 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.repository.MovieRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 data class ReviewItem(
@@ -35,34 +38,69 @@ class ReviewsListViewModel(application: Application) : AndroidViewModel(applicat
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
+    private var loadedKey: String? = null
+    private var loadJob: Job? = null
+    private var refreshJob: Job? = null
+
     fun loadReviews(movieId: Int) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            val userId = prefs.getInt("userId", 0)
-            android.util.Log.d("ReviewsListVM", "loadReviews: movieId=$movieId, userId=$userId")
-            val dtos = repository.getMovieReviews(movieId)
-            android.util.Log.d("ReviewsListVM", "Got ${dtos.size} reviews")
-            dtos.forEach { dto ->
-                android.util.Log.d("ReviewsListVM", "Review #${dto.id}: is_liked=${dto.is_liked}, rating=${dto.rating}")
+        val key = "reviews|$movieId"
+        if (loadJob?.isActive == true) return
+        if (key == loadedKey && _reviews.value != null) {
+            if (refreshJob?.isActive == true) return
+            refreshJob = viewModelScope.launch {
+                try {
+                    fetchReviews(movieId)
+                    loadedKey = key
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    android.util.Log.e("ReviewsListVM", "Silent refresh failed", e)
+                }
             }
-            _reviews.postValue(dtos.map { dto ->
-                ReviewItem(
-                    id = dto.id,
-                    userId = dto.user.id,
-                    username = "@${dto.user.username}",
-                    userAvatar = dto.user.profile_photo ?: "",
-                    rating = dto.rating?.toFloat() ?: 0f,
-                    content = dto.content ?: "",
-                    timestamp = formatTimeAgo(dto.created_at),
-                    isSpoiler = dto.is_spoiler,
-                    isLiked = dto.is_liked
-                )
-            })
-            // Check if the current user has watched this movie
-            val ratingResponse = if (userId > 0) repository.getRating(userId, movieId) else null
-            _userHasWatched.postValue(ratingResponse?.is_watched ?: false)
-            _isLoading.postValue(false)
+            return
         }
+        loadJob = viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                fetchReviews(movieId)
+                loadedKey = key
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e("ReviewsListVM", "Error loading reviews", e)
+                if (_reviews.value == null) {
+                    _reviews.postValue(emptyList())
+                }
+            } finally {
+                if (isActive) _isLoading.postValue(false)
+            }
+        }
+    }
+
+    private suspend fun fetchReviews(movieId: Int) {
+        val userId = prefs.getInt("userId", 0)
+        android.util.Log.d("ReviewsListVM", "loadReviews: movieId=$movieId, userId=$userId")
+        val dtos = repository.getMovieReviews(movieId)
+        android.util.Log.d("ReviewsListVM", "Got ${dtos.size} reviews")
+        dtos.forEach { dto ->
+            android.util.Log.d("ReviewsListVM", "Review #${dto.id}: is_liked=${dto.is_liked}, rating=${dto.rating}")
+        }
+        _reviews.postValue(dtos.map { dto ->
+            ReviewItem(
+                id = dto.id,
+                userId = dto.user.id,
+                username = "@${dto.user.username}",
+                userAvatar = dto.user.profile_photo ?: "",
+                rating = dto.rating?.toFloat() ?: 0f,
+                content = dto.content ?: "",
+                timestamp = formatTimeAgo(dto.created_at),
+                isSpoiler = dto.is_spoiler,
+                isLiked = dto.is_liked
+            )
+        })
+        // Check if the current user has watched this movie
+        val ratingResponse = if (userId > 0) repository.getRating(userId, movieId) else null
+        _userHasWatched.postValue(ratingResponse?.is_watched ?: false)
     }
 
     private fun formatTimeAgo(dateString: String): String {

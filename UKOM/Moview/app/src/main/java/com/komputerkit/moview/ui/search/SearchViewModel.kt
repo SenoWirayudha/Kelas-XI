@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -47,6 +48,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
     
     private var searchJob: Job? = null
+    private var lastLoadedQuery: String? = null
+    private var lastLoadedFilter: SearchFilter? = null
 
     var savedScrollY: Int = 0
     
@@ -56,17 +59,30 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     
     fun setFilter(filter: SearchFilter) {
         _uiState.value = _uiState.value.copy(activeFilter = filter)
-        
+
         // Re-perform search with new filter if query exists
         val currentQuery = _uiState.value.query
-        if (currentQuery.isNotBlank()) {
-            viewModelScope.launch {
-                performSearch(currentQuery)
-            }
+        if (currentQuery.isBlank()) return
+        // Lewati bila query+filter ini sudah berhasil dimuat
+        if (lastLoadedQuery != null && currentQuery.trim() == lastLoadedQuery && lastLoadedFilter == filter) return
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            performSearch(currentQuery)
         }
     }
-    
+
     fun onQueryChanged(query: String) {
+        // Guard: lewati bila query+filter yang sama sudah berhasil dimuat
+        if (lastLoadedQuery != null &&
+            query.trim() == lastLoadedQuery &&
+            _uiState.value.activeFilter == lastLoadedFilter
+        ) {
+            if (_uiState.value.query != query) {
+                _uiState.value = _uiState.value.copy(query = query)
+            }
+            return
+        }
+
         // Cancel previous search
         searchJob?.cancel()
         
@@ -98,7 +114,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         // Immediate search without debounce
         searchJob?.cancel()
         if (query.isNotBlank()) {
-            viewModelScope.launch {
+            searchJob = viewModelScope.launch {
                 performSearch(query)
             }
         }
@@ -106,11 +122,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     
     private suspend fun performSearch(query: String) {
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-        
+
         try {
-            // Simulate API delay
-            delay(300)
-            
             val filter = _uiState.value.activeFilter
             
             // Search based on active filter
@@ -131,7 +144,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             } else emptyList()
             
             val isEmpty = movies.isEmpty() && castCrew.isEmpty() && productionHouses.isEmpty() && users.isEmpty()
-            
+
+            lastLoadedQuery = query.trim()
+            lastLoadedFilter = filter
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
                 movieResults = movies,
@@ -149,6 +164,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 isLoading = false,
                 error = e.message ?: "Search failed"
             )
+        } finally {
+            // Reset isLoading hanya bila tidak ada pencarian pengganti yang menunggu
+            if (searchJob?.isActive != true && _uiState.value.isLoading) {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
         }
     }
     
@@ -175,6 +195,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 val customMedia = repository.batchCustomMedia(userId, movies.map { it.id }, "films")
                 movies.applyCustomMedia(customMedia)
             } else movies
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -193,6 +215,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     avatarUrl = dto.avatar_url ?: ""
                 )
             } ?: emptyList()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -208,6 +232,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     name = dto.name
                 )
             } ?: emptyList()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -227,6 +253,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     reviewsCount = dto.reviews_count
                 )
             } ?: emptyList()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()

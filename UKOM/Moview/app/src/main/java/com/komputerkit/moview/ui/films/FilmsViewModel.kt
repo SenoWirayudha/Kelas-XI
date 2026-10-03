@@ -14,12 +14,19 @@ import com.komputerkit.moview.ui.common.MovieFilterUtils
 import com.komputerkit.moview.ui.common.MovieSortMode
 import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.applyCustomMedia
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class FilmsViewModel(application: Application) : AndroidViewModel(application) {
     
     private val repository = MovieRepository()
     private val prefs = application.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+
+    private var loadedKey: String? = null
+    private var loadJob: Job? = null
+    private var refreshJob: Job? = null
     
     private val _films = MutableLiveData<List<Movie>>()
     val films: LiveData<List<Movie>> = _films
@@ -46,30 +53,53 @@ class FilmsViewModel(application: Application) : AndroidViewModel(application) {
     fun loadFilms(userId: Int = 0) {
         val targetUserId = if (userId > 0) userId else prefs.getInt("userId", 0)
         if (targetUserId == 0) return
-        
-        _isLoading.value = true
-        viewModelScope.launch {
-            try {
-                val rawFilms = repository.getUserFilms(targetUserId)
-                Log.d("FilmsViewModel", "Loaded ${rawFilms.size} films for user $targetUserId")
-                rawFilms.forEach { film ->
-                    Log.d("FilmsViewModel", "Film: ${film.title}, isLiked=${film.isLiked}, rating=${film.userRating}")
+
+        val key = "films|$targetUserId"
+        if (loadJob?.isActive == true) return
+        if (key == loadedKey && _films.value != null) {
+            if (refreshJob?.isActive == true) return
+            refreshJob = viewModelScope.launch {
+                try {
+                    fetchFilms(targetUserId)
+                    loadedKey = key
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
-                val customMedia = repository.batchCustomMedia(targetUserId, rawFilms.map { it.id }, "films")
-                allFilms = rawFilms.applyCustomMedia(customMedia)
-                val options = repository.getFilterOptions()
-                _genres.postValue(options.genres)
-                _countries.postValue(options.countries)
-                _languages.postValue(options.languages)
-                _themes.postValue(options.themes)
-                _films.postValue(MovieFilterUtils.applyFilters(allFilms, filterState))
+            }
+            return
+        }
+        loadJob = viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                fetchFilms(targetUserId)
+                loadedKey = key
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
                 _films.postValue(emptyList())
             } finally {
-                _isLoading.postValue(false)
+                if (isActive) _isLoading.postValue(false)
             }
         }
+    }
+
+    private suspend fun fetchFilms(targetUserId: Int) {
+        val rawFilms = repository.getUserFilms(targetUserId)
+        Log.d("FilmsViewModel", "Loaded ${rawFilms.size} films for user $targetUserId")
+        rawFilms.forEach { film ->
+            Log.d("FilmsViewModel", "Film: ${film.title}, isLiked=${film.isLiked}, rating=${film.userRating}")
+        }
+        val customMedia = repository.batchCustomMedia(targetUserId, rawFilms.map { it.id }, "films")
+        allFilms = rawFilms.applyCustomMedia(customMedia)
+        val options = repository.getFilterOptions()
+        _genres.postValue(options.genres)
+        _countries.postValue(options.countries)
+        _languages.postValue(options.languages)
+        _themes.postValue(options.themes)
+        _films.postValue(MovieFilterUtils.applyFilters(allFilms, filterState))
     }
     
     private fun applyCurrentFilters() {

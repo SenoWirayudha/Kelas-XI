@@ -13,12 +13,19 @@ import com.komputerkit.moview.ui.common.MovieFilterUtils
 import com.komputerkit.moview.ui.common.MovieSortMode
 import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.applyCustomMedia
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class LikesViewModel(application: Application) : AndroidViewModel(application) {
     
     private val repository = MovieRepository()
     private val prefs = application.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+
+    private var loadedKey: String? = null
+    private var loadJob: Job? = null
+    private var refreshJob: Job? = null
     
     private var allLikes: List<Movie> = emptyList()
     
@@ -47,26 +54,49 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
             _likes.value = emptyList()
             return
         }
-        
-        _isLoading.value = true
-        viewModelScope.launch {
+
+        val key = "likes|$userId"
+        if (loadJob?.isActive == true) return
+        if (key == loadedKey && _likes.value != null) {
+            if (refreshJob?.isActive == true) return
+            refreshJob = viewModelScope.launch {
+                try {
+                    fetchLikes(userId)
+                    loadedKey = key
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            return
+        }
+        loadJob = viewModelScope.launch {
+            _isLoading.value = true
             try {
-                val rawLikes = repository.getUserLikes(userId)
-                val customMedia = repository.batchCustomMedia(userId, rawLikes.map { it.id }, "films")
-                allLikes = rawLikes.applyCustomMedia(customMedia)
-                val options = repository.getFilterOptions()
-                _genres.postValue(options.genres)
-                _countries.postValue(options.countries)
-                _languages.postValue(options.languages)
-                _themes.postValue(options.themes)
-                _likes.postValue(MovieFilterUtils.applyFilters(allLikes, filterState))
+                fetchLikes(userId)
+                loadedKey = key
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
                 _likes.postValue(emptyList())
             } finally {
-                _isLoading.postValue(false)
+                if (isActive) _isLoading.postValue(false)
             }
         }
+    }
+
+    private suspend fun fetchLikes(userId: Int) {
+        val rawLikes = repository.getUserLikes(userId)
+        val customMedia = repository.batchCustomMedia(userId, rawLikes.map { it.id }, "films")
+        allLikes = rawLikes.applyCustomMedia(customMedia)
+        val options = repository.getFilterOptions()
+        _genres.postValue(options.genres)
+        _countries.postValue(options.countries)
+        _languages.postValue(options.languages)
+        _themes.postValue(options.themes)
+        _likes.postValue(MovieFilterUtils.applyFilters(allLikes, filterState))
     }
     
     private fun applyCurrentFilters() {

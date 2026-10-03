@@ -14,12 +14,19 @@ import com.komputerkit.moview.ui.common.MovieFilterUtils
 import com.komputerkit.moview.ui.common.MovieSortMode
 import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.applyCustomMedia
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class WatchlistViewModel(application: Application) : AndroidViewModel(application) {
     
     private val repository = MovieRepository()
     private val prefs = application.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+
+    private var loadedKey: String? = null
+    private var loadJob: Job? = null
+    private var refreshJob: Job? = null
     
     private val _watchlistItems = MutableLiveData<List<WatchlistItem>>()
     val watchlistItems: LiveData<List<WatchlistItem>> = _watchlistItems
@@ -45,35 +52,58 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
     
     fun loadWatchlist(userId: Int) {
         if (userId == 0) return
-        
-        _isLoading.value = true
-        viewModelScope.launch {
-            try {
-                val rawMovies = repository.getUserWatchlist(userId)
-                val customMedia = repository.batchCustomMedia(userId, rawMovies.map { it.id }, "films")
-                val movies = rawMovies.applyCustomMedia(customMedia)
-                allMovies = movies
-                allItems = movies.map { movie ->
-                    WatchlistItem(
-                        id = movie.id,
-                        movie = movie,
-                        addedDate = movie.activityAtRaw ?: "",
-                        isWatched = false
-                    )
+
+        val key = "watchlist|$userId"
+        if (loadJob?.isActive == true) return
+        if (key == loadedKey && _watchlistItems.value != null) {
+            if (refreshJob?.isActive == true) return
+            refreshJob = viewModelScope.launch {
+                try {
+                    fetchWatchlist(userId)
+                    loadedKey = key
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
-                val options = repository.getFilterOptions()
-                _genres.postValue(options.genres)
-                _countries.postValue(options.countries)
-                _languages.postValue(options.languages)
-                _themes.postValue(options.themes)
-                applyCurrentFilters()
+            }
+            return
+        }
+        loadJob = viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                fetchWatchlist(userId)
+                loadedKey = key
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
                 _watchlistItems.postValue(emptyList())
             } finally {
-                _isLoading.postValue(false)
+                if (isActive) _isLoading.postValue(false)
             }
         }
+    }
+
+    private suspend fun fetchWatchlist(userId: Int) {
+        val rawMovies = repository.getUserWatchlist(userId)
+        val customMedia = repository.batchCustomMedia(userId, rawMovies.map { it.id }, "films")
+        val movies = rawMovies.applyCustomMedia(customMedia)
+        allMovies = movies
+        allItems = movies.map { movie ->
+            WatchlistItem(
+                id = movie.id,
+                movie = movie,
+                addedDate = movie.activityAtRaw ?: "",
+                isWatched = false
+            )
+        }
+        val options = repository.getFilterOptions()
+        _genres.postValue(options.genres)
+        _countries.postValue(options.countries)
+        _languages.postValue(options.languages)
+        _themes.postValue(options.themes)
+        applyCurrentFilters()
     }
     
     private fun applyCurrentFilters() {

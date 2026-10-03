@@ -12,11 +12,18 @@ import com.komputerkit.moview.ui.common.MovieFilterUtils
 import com.komputerkit.moview.ui.common.MovieSortMode
 import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.applyCustomMedia
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class FilmographyViewModel : ViewModel() {
 
     private val repository = MovieRepository()
+
+    private var loadedKey: String? = null
+    private var loadJob: Job? = null
+    private var refreshJob: Job? = null
 
     private val _films = MutableLiveData<List<Movie>>()
     val films: LiveData<List<Movie>> = _films
@@ -44,41 +51,64 @@ class FilmographyViewModel : ViewModel() {
         if (userId == 0) {
             Log.e("FG", "userId=0 – cannot apply custom media!")
         }
-        viewModelScope.launch {
+        val key = "filmography|$filterType|$filterValue|$userId"
+        if (loadJob?.isActive == true) return
+        if (key == loadedKey && _films.value != null) {
+            if (refreshJob?.isActive == true) return
+            refreshJob = viewModelScope.launch {
+                try {
+                    fetchFilmography(filterType, filterValue, userId)
+                    loadedKey = key
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e("FG", "Silent refresh failed: ${e.message}", e)
+                }
+            }
+            return
+        }
+        loadJob = viewModelScope.launch {
             _isLoading.value = true
             try {
-                val rawFilms = repository.getFilmsByCategory(filterType, filterValue)
-                Log.i("FG", "rawFilms count=${rawFilms.size}")
-                rawFilms.take(3).forEach { Log.i("FG", "  BEFORE id=${it.id} poster=${it.posterUrl}") }
-
-                if (userId > 0 && rawFilms.isNotEmpty()) {
-                    val filmIds = rawFilms.map { it.id }
-                    Log.i("FG", "calling batchCustomMedia userId=$userId ids=$filmIds")
-                    val customMedia = repository.batchCustomMedia(userId, filmIds, "films")
-                    Log.i("FG", "batchCustomMedia returned ${customMedia.size} entries")
-                    customMedia.forEach { (id, entry) ->
-                        Log.i("FG", "  [$id] is_default=${entry.poster?.is_default} path=${entry.poster?.path}")
-                    }
-                    val result = rawFilms.applyCustomMedia(customMedia)
-                    result.take(3).forEach { Log.i("FG", "  AFTER id=${it.id} poster=${it.posterUrl}") }
-                    allFilms = result
-                } else {
-                    allFilms = rawFilms
-                }
-
-                val options = repository.getFilterOptions()
-                _genres.postValue(options.genres)
-                _countries.postValue(options.countries)
-                _languages.postValue(options.languages)
-                _themes.postValue(options.themes)
-                _films.postValue(MovieFilterUtils.applyFilters(allFilms, filterState))
+                fetchFilmography(filterType, filterValue, userId)
+                loadedKey = key
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e("FG", "Exception: ${e.message}", e)
                 _films.postValue(emptyList())
             } finally {
-                _isLoading.postValue(false)
+                if (isActive) _isLoading.postValue(false)
             }
         }
+    }
+
+    private suspend fun fetchFilmography(filterType: String, filterValue: String, userId: Int) {
+        val rawFilms = repository.getFilmsByCategory(filterType, filterValue)
+        Log.i("FG", "rawFilms count=${rawFilms.size}")
+        rawFilms.take(3).forEach { Log.i("FG", "  BEFORE id=${it.id} poster=${it.posterUrl}") }
+
+        if (userId > 0 && rawFilms.isNotEmpty()) {
+            val filmIds = rawFilms.map { it.id }
+            Log.i("FG", "calling batchCustomMedia userId=$userId ids=$filmIds")
+            val customMedia = repository.batchCustomMedia(userId, filmIds, "films")
+            Log.i("FG", "batchCustomMedia returned ${customMedia.size} entries")
+            customMedia.forEach { (id, entry) ->
+                Log.i("FG", "  [$id] is_default=${entry.poster?.is_default} path=${entry.poster?.path}")
+            }
+            val result = rawFilms.applyCustomMedia(customMedia)
+            result.take(3).forEach { Log.i("FG", "  AFTER id=${it.id} poster=${it.posterUrl}") }
+            allFilms = result
+        } else {
+            allFilms = rawFilms
+        }
+
+        val options = repository.getFilterOptions()
+        _genres.postValue(options.genres)
+        _countries.postValue(options.countries)
+        _languages.postValue(options.languages)
+        _themes.postValue(options.themes)
+        _films.postValue(MovieFilterUtils.applyFilters(allFilms, filterState))
     }
 
     private fun applyCurrentFilters() {

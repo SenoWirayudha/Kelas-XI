@@ -37,6 +37,8 @@ class SearchFragment : Fragment() {
     private lateinit var productionHouseAdapter: SearchStudioAdapter
     private lateinit var userAdapter: SearchUserAdapter
 
+    private var syncingQuery = false
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -58,6 +60,7 @@ class SearchFragment : Fragment() {
         setupFilterChips()
         setupRecyclerViews()
         observeUiState()
+        syncQueryFromState()
 
         // Restore scroll position saved before navigating away
         binding.searchScroll.post {
@@ -98,7 +101,9 @@ class SearchFragment : Fragment() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 val query = s?.toString() ?: ""
-                viewModel.onQueryChanged(query)
+                if (!syncingQuery) {
+                    viewModel.onQueryChanged(query)
+                }
                 binding.btnClear.isVisible = query.isNotEmpty()
             }
         })
@@ -116,18 +121,36 @@ class SearchFragment : Fragment() {
         
         // Clear button
         binding.btnClear.setOnClickListener {
-            binding.etSearch.text?.clear()
+            setQueryText("")
             viewModel.clearSearch()
         }
-        
+
         // Cancel button
         binding.btnCancel.setOnClickListener {
             if (viewModel.uiState.value.isSelectMovieMode) {
                 findNavController().navigateUp()
             } else {
-                binding.etSearch.text?.clear()
+                setQueryText("")
                 viewModel.clearSearch()
             }
+        }
+    }
+
+    private fun setQueryText(text: String) {
+        if (binding.etSearch.text.toString() == text) return
+        syncingQuery = true
+        binding.etSearch.setText(text)
+        binding.etSearch.setSelection(text.length)
+        syncingQuery = false
+        binding.btnClear.isVisible = text.isNotEmpty()
+    }
+
+    private fun syncQueryFromState() {
+        val vmQuery = viewModel.uiState.value.query
+        val viewText = binding.etSearch.text?.toString() ?: ""
+        when {
+            vmQuery.isNotEmpty() && vmQuery != viewText -> setQueryText(vmQuery)
+            vmQuery.isEmpty() && viewText.isNotEmpty() -> viewModel.onQueryChanged(viewText)
         }
     }
     

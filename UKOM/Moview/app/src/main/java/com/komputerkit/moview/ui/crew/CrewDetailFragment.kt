@@ -15,6 +15,9 @@ import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentCrewDetailBinding
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.resolveMediaUrl
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 // Data classes for crew detail
@@ -34,6 +37,9 @@ class CrewDetailFragment : Fragment() {
     private var roles: List<Role> = emptyList()
     private var selectedRole: Role? = null
     private var bio: String = ""
+
+    private var loadedPersonId: Int? = null
+    private var loadingJob: Job? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -81,10 +87,17 @@ class CrewDetailFragment : Fragment() {
     }
 
     private fun loadCrewData() {
+        // Sudah pernah dimuat: render ulang dari cache tanpa refetch / "Loading..."
+        if (loadedPersonId == args.personId && roles.isNotEmpty()) {
+            setupTabs()
+            return
+        }
+        if (loadingJob?.isActive == true) return
+
         // Show loading state
         binding.tvName.text = "Loading..."
-        
-        lifecycleScope.launch {
+
+        loadingJob = viewLifecycleOwner.lifecycleScope.launch {
             val personDetail = repository.getPersonDetail(args.personId)
             
             if (personDetail != null) {
@@ -129,7 +142,8 @@ class CrewDetailFragment : Fragment() {
                         ))
                     }
                 }
-                
+
+                loadedPersonId = args.personId
                 setupTabs()
             } else {
                 binding.tvName.text = "Failed to load person details"
@@ -161,9 +175,10 @@ class CrewDetailFragment : Fragment() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
         
-        // Select first tab (Bio) by default
-        binding.tabLayout.selectTab(binding.tabLayout.getTabAt(0))
-        showRoleContent(roles[0])
+        // Select first tab (Bio) by default, atau pulihkan tab yang terpilih sebelumnya
+        val restoreIndex = roles.indexOfFirst { it.name == selectedRole?.name }.takeIf { it >= 0 } ?: 0
+        binding.tabLayout.selectTab(binding.tabLayout.getTabAt(restoreIndex))
+        showRoleContent(roles[restoreIndex])
     }
 
     private fun showRoleContent(role: Role) {
