@@ -6,12 +6,18 @@
 
 @section('content')
 <div class="max-w-6xl">
-    <!-- Back Button -->
-    <div class="mb-6">
+    <!-- Back Button & Status Badge -->
+    <div class="mb-6 flex items-center justify-between">
         <a href="{{ route('admin.films.index') . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" class="text-blue-600 hover:text-blue-800 flex items-center">
             <i class="fas fa-arrow-left mr-2"></i>
             Back to Films
         </a>
+        @if(isset($film))
+            <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium {{ $film->status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
+                <i class="fas {{ $film->status === 'published' ? 'fa-circle-check' : 'fa-file' }} mr-2"></i>
+                {{ $film->status === 'published' ? 'Published' : 'Draft' }}
+            </span>
+        @endif
     </div>
 
     <form method="POST" action="{{ isset($film) ? route('admin.films.update', $film->id) : route('admin.films.store') }}" class="space-y-6">
@@ -761,20 +767,45 @@
                     Cancel
                 </button>
                 <div class="flex space-x-3">
-                    <button type="submit" 
-                            name="status"
-                            value="draft"
-                            class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
-                        <i class="fas fa-file mr-2"></i>
-                        Save as Draft
-                    </button>
-                    <button type="submit" 
-                            name="status"
-                            value="published"
-                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                        <i class="fas fa-check-circle mr-2"></i>
-                        {{ isset($film) ? 'Update & Publish' : 'Publish Film' }}
-                    </button>
+                    @if(!isset($film))
+                        <button type="submit"
+                                name="status"
+                                value="draft"
+                                class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                            <i class="fas fa-file mr-2"></i>
+                            Save as Draft
+                        </button>
+                        <button type="submit"
+                                name="status"
+                                value="published"
+                                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Publish Film
+                        </button>
+                    @elseif($film->status === 'published')
+                        <button type="submit"
+                                name="status"
+                                value="published"
+                                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-save mr-2"></i>
+                            Save Changes
+                        </button>
+                    @else
+                        <button type="submit"
+                                name="status"
+                                value="draft"
+                                class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                            <i class="fas fa-file mr-2"></i>
+                            Save Draft
+                        </button>
+                        <button type="submit"
+                                name="status"
+                                value="published"
+                                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Update &amp; Publish
+                        </button>
+                    @endif
                 </div>
             </div>
         </div>
