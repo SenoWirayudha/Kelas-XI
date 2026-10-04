@@ -15,6 +15,9 @@ import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentCrewDetailBinding
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.resolveMediaUrl
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -37,6 +40,8 @@ class CrewDetailFragment : Fragment() {
     private var roles: List<Role> = emptyList()
     private var selectedRole: Role? = null
     private var bio: String = ""
+    private var dateOfBirth: String? = null
+    private var nationality: String? = null
 
     private var loadedPersonId: Int? = null
     private var loadingJob: Job? = null
@@ -112,6 +117,8 @@ class CrewDetailFragment : Fragment() {
                     .into(binding.ivProfile)
                 
                 bio = personDetail.bio ?: "No biography available."
+                dateOfBirth = personDetail.date_of_birth
+                nationality = personDetail.nationality
 
                 // Fetch user-specific type=films custom posters in one batch
                 val allFilmIds = personDetail.filmography.values.flatten().map { it.id }.distinct()
@@ -188,12 +195,77 @@ class CrewDetailFragment : Fragment() {
             // Show bio section
             binding.bioSection.visibility = View.VISIBLE
             binding.rvFilmography.visibility = View.GONE
+            renderPersonInfo()
             binding.tvBio.text = bio
         } else {
             // Show filmography grid
             binding.bioSection.visibility = View.GONE
             binding.rvFilmography.visibility = View.VISIBLE
             filmographyAdapter.submitList(role.films)
+        }
+    }
+
+    /**
+     * Born & Nationality di atas teks bio. Baris kosong disembunyikan;
+     * jika keduanya kosong, blok tidak tampil (tanpa celah).
+     */
+    private fun renderPersonInfo() {
+        val bornValue = dateOfBirth?.let { formatDob(it) }
+        if (bornValue != null) {
+            binding.tvBornValue.text = bornValue
+            binding.rowBorn.visibility = View.VISIBLE
+        } else {
+            binding.rowBorn.visibility = View.GONE
+        }
+
+        val nationalValue = nationality?.trim()?.takeIf { it.isNotEmpty() }
+        if (nationalValue != null) {
+            binding.tvNationalityValue.text = nationalValue
+            binding.rowNationality.visibility = View.VISIBLE
+        } else {
+            binding.rowNationality.visibility = View.GONE
+        }
+
+        binding.personInfoSection.visibility =
+            if (bornValue != null || nationalValue != null) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * Format tanggal DOB apa adanya, tanpa menggeser tanggal:
+     * - "yyyy-MM-dd" (10 karakter): parse & format langsung — tanpa konversi zona waktu.
+     * - ISO bertanda zona (bentuk aktual API persons, mis. "1970-11-10T17:00:00.000000Z"
+     *   = UTC dari tanggal tersimpan): diformat di zona penyimpanan backend
+     *   (Asia/Jakarta, tetap — BUKAN zona/locale perangkat) agar tanggal yang
+     *   disimpan admin tampil persis seperti yang disimpan.
+     * Locale mengikuti sumber hardcode Indonesia yang dipakai header bulan Diary.
+     * Tanggal tidak valid → null (baris disembunyikan, tanpa crash).
+     */
+    private fun formatDob(raw: String): String? {
+        val s = raw.trim()
+        if (s.isEmpty()) return null
+        return try {
+            val output = SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("id-ID"))
+            when {
+                Regex("\\d{4}-\\d{2}-\\d{2}").matches(s) -> {
+                    val parser = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
+                    output.format(parser.parse(s) ?: return null)
+                }
+                Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?([Zz]|[+-]\\d{2}:?\\d{2})").matches(s) -> {
+                    val normalized = s.replace(Regex("\\.\\d+"), "")
+                    val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX", Locale.US).apply { isLenient = false }
+                    val instant = parser.parse(normalized) ?: return null
+                    output.timeZone = TimeZone.getTimeZone("Asia/Jakarta")
+                    output.format(instant)
+                }
+                Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?").matches(s) -> {
+                    val normalized = s.replace(Regex("\\.\\d+"), "")
+                    val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply { isLenient = false }
+                    output.format(parser.parse(normalized) ?: return null)
+                }
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 

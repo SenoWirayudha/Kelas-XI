@@ -110,15 +110,82 @@
                     android:layout_height="wrap_content"
                     android:visibility="visible">
 
-                    <TextView
-                        android:id="@+id/tv_bio"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:padding="24dp"
-                        android:textColor="@color/text_primary"
-                        android:textSize="15sp"
-                        android:lineSpacingExtra="4dp"
-                        tools:text="Christopher Edward Nolan (born 30 July 1970) is a British-American filmmaker known for making personal, conceptually focused blockbuster movies..." />
+                        android:orientation="vertical"
+                        android:padding="24dp">
+
+                        <!-- Person info: Born & Nationality (baris kosong disembunyikan dari kode) -->
+                        <LinearLayout
+                            android:id="@+id/person_info_section"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="@dimen/list_row_gap"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <LinearLayout
+                                android:id="@+id/row_born"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="@dimen/list_row_padding_v"
+                                android:orientation="horizontal"
+                                android:visibility="gone">
+
+                                <TextView
+                                    android:id="@+id/tv_born_label"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Born"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="@dimen/list_row_meta_text" />
+
+                                <TextView
+                                    android:id="@+id/tv_born_value"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="@dimen/list_row_padding_v"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="@dimen/list_row_meta_text"
+                                    tools:text="12 Mar 1985" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:id="@+id/row_nationality"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:visibility="gone">
+
+                                <TextView
+                                    android:id="@+id/tv_nationality_label"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Nationality"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="@dimen/list_row_meta_text" />
+
+                                <TextView
+                                    android:id="@+id/tv_nationality_value"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="@dimen/list_row_padding_v"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="@dimen/list_row_meta_text"
+                                    tools:text="Indonesia" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tv_bio"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/text_primary"
+                            android:textSize="15sp"
+                            android:lineSpacingExtra="4dp"
+                            tools:text="Christopher Edward Nolan (born 30 July 1970) is a British-American filmmaker known for making personal, conceptually focused blockbuster movies..." />
+                    </LinearLayout>
                 </ScrollView>
 
                 <!-- Filmography Grid (visible when role tab selected) -->
