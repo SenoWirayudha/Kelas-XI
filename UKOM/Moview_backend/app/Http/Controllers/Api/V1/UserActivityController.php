@@ -1789,9 +1789,11 @@ class UserActivityController extends Controller
                 $diaryUpdateData['watched_at'] = $watchedAt;
             }
             
+            // Update ONLY the diary entry linked to this review (never other
+            // entries of the same film, e.g. independent log-only rows).
             DB::table('diaries')
                 ->where('user_id', $userId)
-                ->where('film_id', $review->film_id)
+                ->where('review_id', $reviewId)
                 ->update($diaryUpdateData);
             
             return response()->json([
