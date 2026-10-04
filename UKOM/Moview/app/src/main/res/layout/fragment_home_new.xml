@@ -71,9 +71,13 @@
                     android:id="@+id/btn_see_all"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp"
+                    android:background="?attr/selectableItemBackground"
                     android:text="See All"
                     android:textColor="@color/accent_blue"
-                    android:textSize="14sp" />
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
 
             </LinearLayout>
 
@@ -81,9 +85,9 @@
                 android:id="@+id/rv_popular_movies"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingStart="16dp"
+                android:paddingHorizontal="16dp"
                 android:clipToPadding="false"
-                tools:listitem="@layout/item_popular_movie" />
+                tools:listitem="@layout/item_movie_card" />
 
             <!-- New From Friends Section -->
             <LinearLayout

@@ -6,14 +6,14 @@
     android:layout_height="wrap_content"
     android:background="@color/dark_background"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="12dp">
+    android:paddingVertical="8dp">
 
     <!-- Profile Photo -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_avatar"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        app:cardCornerRadius="28dp"
+        android:layout_width="@dimen/user_avatar_size"
+        android:layout_height="@dimen/user_avatar_size"
+        app:cardCornerRadius="@dimen/user_avatar_radius"
         app:cardElevation="0dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -37,7 +37,7 @@
         android:ellipsize="end"
         android:maxLines="1"
         android:textColor="@color/text_primary"
-        android:textSize="16sp"
+        android:textSize="15sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/card_avatar"

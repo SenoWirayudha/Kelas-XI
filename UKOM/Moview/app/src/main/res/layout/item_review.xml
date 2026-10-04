@@ -6,13 +6,13 @@
     android:layout_height="wrap_content"
     android:background="@color/dark_background"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="16dp">
+    android:paddingVertical="@dimen/list_row_padding_v">
 
     <!-- Movie Poster -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_poster"
-        android:layout_width="100dp"
-        android:layout_height="150dp"
+        android:layout_width="@dimen/poster_thumb_width"
+        android:layout_height="@dimen/poster_thumb_height"
         app:cardBackgroundColor="@color/dark_card"
         app:cardCornerRadius="8dp"
         app:cardElevation="0dp"
@@ -34,11 +34,11 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginEnd="60dp"
+        android:layout_marginEnd="16dp"
         android:ellipsize="end"
         android:maxLines="2"
         android:textColor="@color/text_primary"
-        android:textSize="18sp"
+        android:textSize="@dimen/list_row_title_text"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/card_poster"
@@ -64,7 +64,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="@color/text_secondary"
-            android:textSize="14sp"
+            android:textSize="@dimen/list_row_meta_text"
             tools:text="1994" />
 
         <com.komputerkit.moview.ui.common.StarRatingView
@@ -119,7 +119,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="0dp"
         android:ellipsize="end"
         android:lineSpacingExtra="2dp"
@@ -164,14 +164,21 @@
     </LinearLayout>
 
     <!-- Divider -->
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/content_bottom_barrier"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="bottom"
+        app:constraint_referenced_ids="card_poster,tv_review_preview,layout_spoiler_overlay" />
+
     <View
         android:layout_width="0dp"
         android:layout_height="1dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="@dimen/list_row_padding_v"
         android:background="#1A8899A6"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/card_poster" />
+        app:layout_constraintTop_toBottomOf="@id/content_bottom_barrier" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

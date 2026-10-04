@@ -96,11 +96,8 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 LinearLayoutManager.HORIZONTAL,
                 false
             )
-            // Inside NestedScrollView, horizontal RecyclerView can measure to zero height.
-            // Give it a stable height so cards always render when data exists.
-            layoutParams = layoutParams.apply {
-                height = (260 * resources.displayMetrics.density).toInt()
-            }
+            // Tinggi mengikuti isi (wrap_content). Pengukuran setelah data masuk
+            // dijaga oleh rvPopularMovies.post { requestLayout() } di observeViewModel.
             isNestedScrollingEnabled = false
             overScrollMode = RecyclerView.OVER_SCROLL_NEVER
         }

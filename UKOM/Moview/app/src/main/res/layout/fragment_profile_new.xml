@@ -305,7 +305,7 @@
                 <com.komputerkit.moview.ui.common.RatingDistributionChart
                     android:id="@+id/rating_chart"
                     android:layout_width="match_parent"
-                    android:layout_height="120dp" />
+                    android:layout_height="@dimen/rating_chart_height" />
 
                 <!-- Total Ratings -->
                 <TextView
