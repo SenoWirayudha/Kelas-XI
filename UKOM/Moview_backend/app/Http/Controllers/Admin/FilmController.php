@@ -336,7 +336,10 @@ class FilmController extends Controller
         $productionHouses = ProductionHouse::all();
         $themes = Theme::all();
         $releaseCountries = Country::orderBy('name')->get(['id', 'name', 'code']);
-        $existingReleases = [];
+        $existingReleases = old('releases', []);
+        if (!is_array($existingReleases)) {
+            $existingReleases = [];
+        }
         $allMovies = Movie::where('status', 'published')->orderBy('title')->get(['id', 'title', 'release_year']);
         $existingRelatedIds = [];
         $existingSimilarIds = [];
@@ -462,16 +465,19 @@ class FilmController extends Controller
         $productionHouses = ProductionHouse::all();
         $themes = Theme::all();
         $releaseCountries = Country::orderBy('name')->get(['id', 'name', 'code']);
-        $existingReleases = $film->movieReleases->map(function ($release) {
-            return [
-                'type' => $release->type,
-                'country_code' => $release->country_code,
-                'name' => $release->name,
-                'release_date' => $release->release_date instanceof \Carbon\CarbonInterface
-                    ? $release->release_date->format('Y-m-d')
-                    : $release->release_date,
-            ];
-        })->all();
+        $existingReleases = old('releases');
+        if (!is_array($existingReleases)) {
+            $existingReleases = $film->movieReleases->map(function ($release) {
+                return [
+                    'type' => $release->type,
+                    'country_code' => $release->country_code,
+                    'name' => $release->name,
+                    'release_date' => $release->release_date instanceof \Carbon\CarbonInterface
+                        ? $release->release_date->format('Y-m-d')
+                        : $release->release_date,
+                ];
+            })->all();
+        }
         $allMovies = Movie::where('status', 'published')->where('id', '!=', $film->id)->orderBy('title')->get(['id', 'title', 'release_year']);
         $existingRelatedIds = $film->getRelatedMovieIdsOrdered();
         $existingSimilarIds = $film->getSimilarMovieIdsOrdered();

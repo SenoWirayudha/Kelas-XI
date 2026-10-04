@@ -306,10 +306,20 @@
                 Multiple releases per film — premiere/festival, theatrical, streaming. Satu baris per rilis. Tanggal premiere paling awal dipakai sebagai primary release date.
             </p>
 
+            @php
+                $releaseErrorIndexes = [];
+                foreach ($errors->messages() as $errorKey => $messages) {
+                    if (preg_match('/^releases\.(\d+)\./', (string) $errorKey, $m)) {
+                        $releaseErrorIndexes[] = (int) $m[1];
+                    }
+                }
+                $releaseErrorIndexes = array_values(array_unique($releaseErrorIndexes));
+            @endphp
             <div
                 x-data="releaseManager({
                     countries: {{ \Illuminate\Support\Js::from($releaseCountries->map(fn ($c) => ['id' => (int) $c->id, 'name' => $c->name, 'code' => $c->code])->all()) }},
-                    rows: {{ \Illuminate\Support\Js::from($existingReleases) }}
+                    rows: {{ \Illuminate\Support\Js::from($existingReleases) }},
+                    errorIndexes: {{ \Illuminate\Support\Js::from($releaseErrorIndexes) }}
                 })"
             >
                 <!-- Skeleton Release Dates: tampil dari HTML awal sampai Alpine selesai render -->
@@ -343,8 +353,9 @@
                         if (fb) fb.style.display = '';
                     }, 15000);
                 </script>
-                <template x-for="(row, index) in rows" :key="index">
-                    <div class="border border-gray-200 rounded-lg p-4 mb-3 bg-gray-50/50">
+                <template x-for="(row, index) in visibleRows" :key="index">
+                    <div class="border border-gray-200 rounded-lg p-4 mb-3 bg-gray-50/50"
+                         :class="hasError(index) ? 'ring-2 ring-red-500 border-red-300' : ''">
                         <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
                             <!-- Type -->
                             <div class="md:col-span-3">
@@ -374,33 +385,34 @@
                                     </button>
                                     <input type="hidden" :name="`releases[${index}][country_code]`" :value="row.country_code || ''">
 
-                                    <div x-show="row.open"
-                                         x-cloak
-                                         x-transition
-                                         @click.outside="row.open = false"
-                                         class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden">
-                                        <div class="p-2 border-b border-gray-200 bg-gray-50 relative">
-                                            <i class="fas fa-search text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 text-sm"></i>
-                                            <input type="text"
-                                                   x-model="row.query"
-                                                   class="w-full pl-8 pr-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                   placeholder="Search country...">
+                                    <template x-if="row.open">
+                                        <div x-cloak
+                                             x-transition
+                                             @click.outside="row.open = false"
+                                             class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden">
+                                            <div class="p-2 border-b border-gray-200 bg-gray-50 relative">
+                                                <i class="fas fa-search text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 text-sm"></i>
+                                                <input type="text"
+                                                       x-model="row.query"
+                                                       class="w-full pl-8 pr-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                       placeholder="Search country...">
+                                            </div>
+                                            <div class="max-h-48 overflow-y-auto p-1">
+                                                <template x-for="c in filteredCountries(row.query)" :key="c.code">
+                                                    <button type="button"
+                                                            @click="selectCountry(index, c.code); row.open = false"
+                                                            class="w-full flex items-center px-3 py-1.5 rounded hover:bg-blue-50 text-sm text-left"
+                                                            :class="row.country_code === c.code ? 'bg-blue-50 text-blue-700' : 'text-gray-700'">
+                                                        <span class="mr-2 text-base" x-text="flagEmoji(c.code)"></span>
+                                                        <span x-text="c.name"></span>
+                                                    </button>
+                                                </template>
+                                                <p x-show="filteredCountries(row.query).length === 0" class="text-sm text-gray-400 text-center py-2">
+                                                    No countries found
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div class="max-h-48 overflow-y-auto p-1">
-                                            <template x-for="c in filteredCountries(row.query)" :key="c.code">
-                                                <button type="button"
-                                                        @click="selectCountry(index, c.code); row.open = false"
-                                                        class="w-full flex items-center px-3 py-1.5 rounded hover:bg-blue-50 text-sm text-left"
-                                                        :class="row.country_code === c.code ? 'bg-blue-50 text-blue-700' : 'text-gray-700'">
-                                                    <span class="mr-2 text-base" x-text="flagEmoji(c.code)"></span>
-                                                    <span x-text="c.name"></span>
-                                                </button>
-                                            </template>
-                                            <p x-show="filteredCountries(row.query).length === 0" class="text-sm text-gray-400 text-center py-2">
-                                                No countries found
-                                            </p>
-                                        </div>
-                                    </div>
+                                    </template>
                                 </div>
                             </div>
 
@@ -442,6 +454,28 @@
                         </div>
                     </div>
                 </template>
+
+                <!-- Baris di luar batch: tetap ikut terkirim via hidden input (index asli dipertahankan) -->
+                <template x-for="entry in hiddenRows" :key="'hidden-' + entry.i">
+                    <div x-cloak>
+                        <input type="hidden" :name="`releases[${entry.i}][type]`" :value="entry.row.type">
+                        <input type="hidden" :name="`releases[${entry.i}][country_code]`" :value="entry.row.country_code || ''">
+                        <input type="hidden" :name="`releases[${entry.i}][name]`" :value="entry.row.name || ''">
+                        <input type="hidden" :name="`releases[${entry.i}][release_date]`" :value="entry.row.release_date || ''">
+                    </div>
+                </template>
+
+                <div x-show="rows.length > 0" x-cloak class="flex items-center justify-between mb-3 text-sm text-gray-600">
+                    <span>
+                        Menampilkan <span x-text="Math.min(visibleCount, rows.length)"></span> dari <span x-text="rows.length"></span> rilis
+                    </span>
+                    <button type="button"
+                            x-show="rows.length > visibleCount"
+                            @click="visibleCount += 20"
+                            class="px-3 py-1.5 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50">
+                        Tampilkan 20 lagi
+                    </button>
+                </div>
 
                 <template x-if="ready && rows.length === 0">
                     <p class="text-sm text-gray-400 text-center py-3">
@@ -849,13 +883,31 @@
 function releaseManager(cfg) {
     return {
         ready: false,
+        visibleCount: 20,
+        errorIndexes: cfg.errorIndexes || [],
         init() {
+            if (this.errorIndexes.length) {
+                this.visibleCount = Math.max(20, Math.max.apply(null, this.errorIndexes) + 1);
+            }
             // Sembunyikan skeleton SETELAH render baris selesai (nextTick), bukan saat init awal,
             // agar skeleton menutupi periode render berat tanpa berkedip.
             this.$nextTick(() => {
                 this.ready = true;
                 if (typeof window.__moviewReleaseReady === 'function') window.__moviewReleaseReady();
             });
+        },
+        get visibleRows() {
+            return this.rows.slice(0, this.visibleCount);
+        },
+        get hiddenRows() {
+            const out = [];
+            for (let i = this.visibleCount; i < this.rows.length; i++) {
+                out.push({ i: i, row: this.rows[i] });
+            }
+            return out;
+        },
+        hasError(index) {
+            return this.errorIndexes.indexOf(index) !== -1;
         },
         countries: cfg.countries || [],
         rows: cfg.rows && cfg.rows.length ? cfg.rows.map(normalizeRow) : [],
@@ -917,6 +969,7 @@ function releaseManager(cfg) {
             this.importParsed = false;
             this.importRows = [];
             this.importWarnings = [];
+            this.visibleCount = Math.max(this.visibleCount, this.rows.length);
             if (window.showToast) {
                 window.showToast('Baris release ditambahkan ke daftar. Simpan film untuk menyimpannya.', 'success');
             }
@@ -929,7 +982,16 @@ function releaseManager(cfg) {
             this.importRows[index].country_code = code;
         },
         addRow() {
+            const i = this.rows.length;
             this.rows.push(emptyRow());
+            if (i >= this.visibleCount) this.visibleCount = i + 1;
+            this.$nextTick(() => {
+                const el = document.querySelector('[name="releases[' + i + '][release_date]"]');
+                if (el) {
+                    el.scrollIntoView({ block: 'center' });
+                    el.focus();
+                }
+            });
         },
         removeRow(index) {
             this.rows.splice(index, 1);
