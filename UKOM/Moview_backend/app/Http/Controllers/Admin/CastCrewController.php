@@ -75,14 +75,19 @@ class CastCrewController extends Controller
             ->with('success', 'Cast/Crew berhasil diupdate!');
     }
 
-    // Get all persons for dropdown
+    // Get persons for the person-picker (max 20, case-insensitive, %/_ escaped)
     public function getPersons(Request $request)
     {
-        $search = $request->get('search', '');
-        
-        $persons = Person::when($search, function($query, $search) {
-            return $query->where('full_name', 'like', "%{$search}%");
-        })->limit(20)->get();
+        $search = trim((string) $request->get('search', ''));
+
+        $persons = Person::when($search !== '', function ($query) use ($search) {
+                $escaped = str_replace(['|', '%', '_'], ['||', '|%', '|_'], $search);
+                $query->whereRaw("LOWER(full_name) LIKE LOWER(?) ESCAPE '|'", ["%{$escaped}%"]);
+            })
+            ->orderBy('full_name')
+            ->orderBy('id')
+            ->limit(20)
+            ->get(['id', 'full_name', 'primary_role', 'photo_path']);
 
         return response()->json($persons);
     }

@@ -128,12 +128,12 @@ document.getElementById('editModal')?.addEventListener('click', function(e) {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Select Person <span class="text-red-500">*</span></label>
-                        <select name="person_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">Choose a person...</option>
-                            @foreach($allPersons as $person)
-                                <option value="{{ $person->id }}">{{ $person->full_name }} ({{ $person->primary_role }})</option>
-                            @endforeach
-                        </select>
+                        <x-admin.person-picker
+                            name="person_id"
+                            placeholder="Cari nama orang..."
+                            :add-url="route('admin.cast-crew.add')"
+                            :taken-ids="$takenPersonIds"
+                        />
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Character Name</label>
@@ -239,12 +239,12 @@ document.getElementById('editModal')?.addEventListener('click', function(e) {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Select Person <span class="text-red-500">*</span></label>
-                        <select name="person_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
-                            <option value="">Choose a person...</option>
-                            @foreach($allPersons as $person)
-                                <option value="{{ $person->id }}">{{ $person->full_name }} ({{ $person->primary_role }})</option>
-                            @endforeach
-                        </select>
+                        <x-admin.person-picker
+                            name="person_id"
+                            placeholder="Cari nama orang..."
+                            :add-url="route('admin.cast-crew.add')"
+                            :taken-ids="$takenPersonIds"
+                        />
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Job/Role</label>

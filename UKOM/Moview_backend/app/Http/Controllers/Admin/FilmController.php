@@ -842,10 +842,10 @@ class FilmController extends Controller
         // Get all crew (directors, writers, etc)
         $crew = $movie->moviePersons()->where('role_type', 'crew')->with('person')->get();
         
-        // Get all available persons for dropdown
-        $allPersons = Person::orderBy('full_name')->get();
-        
-        return view('admin.films.cast-crew', compact('movie', 'cast', 'crew', 'allPersons'));
+        // Person ids already linked to this movie (cast + crew), for picker markers
+        $takenPersonIds = $movie->moviePersons()->pluck('person_id')->map(fn ($v) => (int) $v)->values()->all();
+
+        return view('admin.films.cast-crew', compact('movie', 'cast', 'crew', 'takenPersonIds'));
     }
 
     public function reviews($id)
