@@ -1471,7 +1471,32 @@ class UserActivityController extends Controller
                 ->where('user_id', $userId)
                 ->where('film_id', $movieId)
                 ->exists();
-            
+
+            // Optional explicit diary-entry edit (backward compatible).
+            // When diary_id is absent/empty/0, the legacy behavior below is untouched.
+            $diaryIdRaw = $request->input('diary_id');
+            if ($diaryIdRaw !== null && $diaryIdRaw !== '') {
+                if (!is_numeric($diaryIdRaw) || (int) $diaryIdRaw < 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid diary_id'
+                    ], 422);
+                }
+                $diaryId = (int) $diaryIdRaw;
+                if ($diaryId > 0) {
+                    return $this->saveReviewForDiaryEntry(
+                        (int) $userId,
+                        (int) $movieId,
+                        $diaryId,
+                        $reviewText,
+                        $rating,
+                        $containsSpoilers,
+                        $request->filled('watched_at') ? $watchedAt : null,
+                        $isLiked
+                    );
+                }
+            }
+
             $reviewId = null;
             
             // Handle review creation/update based on review text and rewatch status
@@ -1587,6 +1612,115 @@ class UserActivityController extends Controller
                 'message' => 'Failed to save: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Edit an existing diary entry explicitly via diary_id.
+     * - Empty review text: update that entry in place (no new rows, review_id stays null).
+     * - With review text: create the review, link it to THIS entry and refresh the
+     *   snapshot columns on the same row. Exactly one diary row, never a new one.
+     * - is_rewatched on the entry is preserved from the DB; client is_rewatch is ignored.
+     */
+    private function saveReviewForDiaryEntry(
+        int $userId,
+        int $movieId,
+        int $diaryId,
+        ?string $reviewText,
+        float $rating,
+        bool $containsSpoilers,
+        ?string $watchedAt,
+        bool $isLiked
+    ) {
+        return DB::transaction(function () use ($userId, $movieId, $diaryId, $reviewText, $rating, $containsSpoilers, $watchedAt, $isLiked) {
+            $diary = DB::table('diaries')
+                ->where('id', $diaryId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$diary) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Diary entry not found'
+                ], 404);
+            }
+            if ((int) $diary->user_id !== $userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Diary entry does not belong to this user'
+                ], 403);
+            }
+            if ((int) $diary->film_id !== $movieId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Diary entry does not belong to this movie'
+                ], 422);
+            }
+            if ($diary->review_id !== null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Diary entry already has a review'
+                ], 422);
+            }
+
+            $now = now();
+            $isRewatched = (int) ($diary->is_rewatched ?? 0); // preserved from DB
+
+            $diaryUpdate = [
+                'rating' => $rating,
+                'is_liked' => $isLiked ? 1 : 0,
+                'updated_at' => $now,
+            ];
+            if ($watchedAt) {
+                $diaryUpdate['watched_at'] = $watchedAt;
+            }
+
+            if (empty($reviewText)) {
+                // No review text: update this entry only, no new diary row.
+                DB::table('diaries')->where('id', $diary->id)->update($diaryUpdate);
+                \Log::info("Updated diary entry id={$diary->id} in place (diary_id edit, no review text)");
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Log updated successfully',
+                    'review_id' => null,
+                    'diary_id' => (int) $diary->id,
+                ]);
+            }
+
+            // Create the review, same shape as a first-watch review insert.
+            $reviewId = DB::table('reviews')->insertGetId([
+                'user_id' => $userId,
+                'film_id' => $movieId,
+                'content' => $reviewText,
+                'rating' => $rating,
+                'is_spoiler' => $containsSpoilers ? 1 : 0,
+                'is_liked' => $isLiked ? 1 : 0,
+                'is_rewatched' => $isRewatched, // snapshot follows the edited entry
+                'watched_at' => $watchedAt ?: $diary->watched_at,
+                'status' => 'published',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            $diaryUpdate['note'] = $reviewText; // same pattern as a diary created with review
+            $diaryUpdate['review_id'] = $reviewId;
+            DB::table('diaries')->where('id', $diary->id)->update($diaryUpdate);
+
+            // Same side effect as any diary saved with a review (idempotent updateOrCreate).
+            // No notification/event exists in saveReview; friend activity and profile
+            // counters are derived queries, so a linked review shows up exactly like a
+            // brand-new review while the untouched log row never fires a second time.
+            UserChangeMedia::propagateFilmsToContext($userId, $movieId, (int) $diary->id, 'reviews');
+
+            \Log::info("Linked review id=$reviewId to diary entry id={$diary->id} (diary_id edit, single entry)");
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Review saved successfully',
+                'review_id' => $reviewId,
+                'diary_id' => (int) $diary->id,
+            ]);
+        });
     }
 
     public function updateReview(Request $request, $userId, $reviewId)
