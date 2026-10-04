@@ -149,14 +149,18 @@ val ratingValue = _rating.value ?: 0f
         }
     }
     
-    fun saveLog(reviewText: String, containsSpoilers: Boolean, watchedAt: String? = null, isRewatch: Boolean = false) {
-        val movieId = _movie.value?.id ?: return
-        
+    fun saveLog(reviewText: String, containsSpoilers: Boolean, watchedAt: String? = null, isRewatch: Boolean = false, rating: Float? = null, diaryId: Int = 0) {
+        val movieId = _movie.value?.id
+        if (movieId == null) {
+            _saveResult.postValue(SaveReviewResult(false, message = "Film belum dimuat, coba lagi"))
+            return
+        }
+
         viewModelScope.launch {
             if (currentUserId > 0) {
-val ratingValue = _rating.value ?: 0f
-                Log.d("LogFilmViewModel", "Saving log/review: userId=$currentUserId, movieId=$movieId, rating=$ratingValue, hasReview=${reviewText.isNotBlank()}, isRewatch=$isRewatch")
-                
+val ratingValue = rating ?: (_rating.value ?: 0f)
+                Log.d("LogFilmViewModel", "Saving log/review: userId=$currentUserId, movieId=$movieId, rating=$ratingValue, hasReview=${reviewText.isNotBlank()}, isRewatch=$isRewatch, diaryId=$diaryId")
+
                 // Save to review endpoint (handles both review and log + diaries table)
                 val result = repository.saveReview(
                     userId = currentUserId,
@@ -165,7 +169,8 @@ val ratingValue = _rating.value ?: 0f
                     rating = ratingValue,
                     containsSpoilers = containsSpoilers,
                     watchedAt = watchedAt,
-                    isRewatch = isRewatch
+                    isRewatch = isRewatch,
+                    diaryId = diaryId
                 )
                 
                 if (result.success) {
@@ -188,7 +193,7 @@ val ratingValue = _rating.value ?: 0f
             if (currentUserId > 0) {
                 Log.d("LogFilmViewModel", "Updating review: userId=$currentUserId, reviewId=$reviewId, rating=$rating")
                 
-                val success = repository.updateReview(
+                val result = repository.updateReview(
                     userId = currentUserId,
                     reviewId = reviewId,
                     reviewText = reviewText,
@@ -196,17 +201,17 @@ val ratingValue = _rating.value ?: 0f
                     containsSpoilers = containsSpoilers,
                     watchedAt = watchedAt
                 )
-                
-                if (success) {
+
+                if (result.success) {
                     Log.d("LogFilmViewModel", "Update review success")
                 } else {
-                    Log.e("LogFilmViewModel", "Failed to update review")
+                    Log.e("LogFilmViewModel", "Failed to update review: ${result.message}")
                 }
-                
-                _saveResult.postValue(SaveReviewResult(success))
+
+                _saveResult.postValue(result)
             } else {
                 Log.e("LogFilmViewModel", "Cannot update: userId not found ($currentUserId)")
-                _saveResult.postValue(SaveReviewResult(false))
+                _saveResult.postValue(SaveReviewResult(false, message = "User tidak ditemukan"))
             }
         }
     }

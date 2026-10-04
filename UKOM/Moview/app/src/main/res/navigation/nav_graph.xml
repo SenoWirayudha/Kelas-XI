@@ -351,6 +351,10 @@
             app:argType="integer"
             android:defaultValue="0" />
         <argument
+            android:name="diaryId"
+            app:argType="integer"
+            android:defaultValue="0" />
+        <argument
             android:name="existingReviewText"
             app:argType="string"
             app:nullable="true"

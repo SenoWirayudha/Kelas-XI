@@ -801,16 +801,16 @@ class MovieRepository {
         rating: Float,
         containsSpoilers: Boolean,
         watchedAt: String? = null
-    ): Boolean = withContext(Dispatchers.IO) {
+    ): SaveReviewResult = withContext(Dispatchers.IO) {
         try {
             android.util.Log.d("MovieRepository", "updateReview: userId=$userId, reviewId=$reviewId, rating=$rating, watchedAt=$watchedAt")
             val response = apiService.updateReview(userId, reviewId, reviewText, rating, if (containsSpoilers) 1 else 0, watchedAt)
             android.util.Log.d("MovieRepository", "updateReview response: success=${response.success}")
-            response.success
+            SaveReviewResult(success = response.success, message = response.message)
         } catch (e: Exception) {
             android.util.Log.e("MovieRepository", "Error updating review: ${e.message}", e)
             e.printStackTrace()
-            false
+            SaveReviewResult(false, message = e.message)
         }
     }
     
@@ -1893,21 +1893,23 @@ class MovieRepository {
         rating: Float,
         containsSpoilers: Boolean,
         watchedAt: String? = null,
-        isRewatch: Boolean = false
+        isRewatch: Boolean = false,
+        diaryId: Int = 0
     ): SaveReviewResult = withContext(Dispatchers.IO) {
         try {
-            android.util.Log.d("MovieRepository", "saveReview: userId=$userId, filmId=$filmId, rating=$rating, spoilers=$containsSpoilers, watchedAt=$watchedAt, isRewatch=$isRewatch")
-            val response = apiService.saveReview(userId, filmId, reviewText, rating, if (containsSpoilers) 1 else 0, watchedAt, if (isRewatch) 1 else 0)
+            android.util.Log.d("MovieRepository", "saveReview: userId=$userId, filmId=$filmId, rating=$rating, spoilers=$containsSpoilers, watchedAt=$watchedAt, isRewatch=$isRewatch, diaryId=$diaryId")
+            val response = apiService.saveReview(userId, filmId, reviewText, rating, if (containsSpoilers) 1 else 0, watchedAt, if (isRewatch) 1 else 0, diaryId.takeIf { it > 0 })
             android.util.Log.d("MovieRepository", "saveReview response: success=${response.success}, reviewId=${response.review_id}, diaryId=${response.diary_id}")
             SaveReviewResult(
                 success = response.success,
                 diaryId = response.diary_id ?: 0,
-                reviewId = response.review_id
+                reviewId = response.review_id,
+                message = response.message
             )
         } catch (e: Exception) {
             android.util.Log.e("MovieRepository", "saveReview exception: ${e.message}", e)
             e.printStackTrace()
-            SaveReviewResult(false, 0, null)
+            SaveReviewResult(false, 0, null, e.message)
         }
     }
 

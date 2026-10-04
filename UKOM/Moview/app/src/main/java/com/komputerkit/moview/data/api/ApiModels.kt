@@ -22,7 +22,8 @@ data class SaveReviewResponse(
 data class SaveReviewResult(
     val success: Boolean,
     val diaryId: Int = 0,
-    val reviewId: Int? = null
+    val reviewId: Int? = null,
+    val message: String? = null
 )
 
 data class PaginatedResponse<T>(

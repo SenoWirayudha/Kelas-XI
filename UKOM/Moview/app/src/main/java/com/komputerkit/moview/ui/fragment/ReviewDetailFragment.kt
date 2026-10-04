@@ -839,7 +839,10 @@ class ReviewDetailFragment : Fragment() {
                 reviewId = review.reviewId,
                 existingReviewText = review.reviewText,
                 existingRating = review.rating.toFloat(),
-                watchedDate = review.watchedAt
+                watchedDate = review.watchedAt,
+                // For a log entry (reviewId == 0) carry the diary row so saveLog can
+                // update it in place instead of creating a new entry.
+                diaryId = if (review.reviewId > 0) 0 else (viewModel.diaryId.value ?: 0)
             )
             findNavController().navigate(action)
         }

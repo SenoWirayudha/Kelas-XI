@@ -320,7 +320,8 @@ interface MovieApiService {
         @Field("rating") rating: Float,
         @Field("contains_spoilers") containsSpoilers: Int,
         @Field("watched_at") watchedAt: String? = null,
-        @Field("is_rewatch") isRewatch: Int = 0
+        @Field("is_rewatch") isRewatch: Int = 0,
+        @Field("diary_id") diaryId: Int? = null
     ): SaveReviewResponse
     
     @PUT("users/{userId}/reviews/{reviewId}")

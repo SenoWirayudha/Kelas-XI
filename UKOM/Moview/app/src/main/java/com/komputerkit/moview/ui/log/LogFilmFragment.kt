@@ -45,6 +45,7 @@ class LogFilmFragment : Fragment() {
     
     private var currentRating = 0f
     private var selectedDate: String? = null
+    private var isSaving = false
     private var isFocusMode = false
     private var scrollListener: ViewTreeObserver.OnScrollChangedListener? = null
 
@@ -347,7 +348,16 @@ class LogFilmFragment : Fragment() {
         }
         
         viewModel.rating.observe(viewLifecycleOwner) { rating ->
-            binding.starRating.rating = rating
+            if (args.isEditMode) {
+                // Edit prefill (diary entry or review) is authoritative; only adopt the
+                // ratings-table value when the entry has no rating of its own.
+                if (args.existingRating <= 0f) {
+                    currentRating = rating
+                    binding.starRating.rating = rating
+                }
+            } else {
+                binding.starRating.rating = rating
+            }
         }
         
         viewModel.saveSuccess.observe(viewLifecycleOwner) { success ->
@@ -358,9 +368,13 @@ class LogFilmFragment : Fragment() {
         
         viewModel.saveResult.observe(viewLifecycleOwner) { result ->
             if (result == null) return@observe
-            
+
+            isSaving = false
+            binding.btnPost.isEnabled = true
+            binding.btnPost.alpha = 1f
+
             if (!result.success) {
-                showSnackbar("Gagal menyimpan, coba lagi", SnackbarType.ERROR)
+                showSnackbar(result.message ?: "Gagal menyimpan, coba lagi", SnackbarType.ERROR)
                 return@observe
             }
             
@@ -651,14 +665,21 @@ class LogFilmFragment : Fragment() {
     }
     
     private fun saveLog() {
+        if (isSaving) return
         val reviewHtml = spannableToHtml(binding.etReview.text ?: "")
         val containsSpoilers = binding.cbSpoilers.isChecked
-        
+
+        isSaving = true
+        binding.btnPost.isEnabled = false
+        binding.btnPost.alpha = 0.5f
+
         if (args.isEditMode) {
             if (args.reviewId > 0) {
                 viewModel.updateReview(args.reviewId, reviewHtml, containsSpoilers, currentRating, selectedDate)
             } else {
-                viewModel.saveLog(reviewHtml, containsSpoilers, selectedDate, isRewatch = false)
+                // Editing an existing log entry: identify it via diary_id and never use
+                // the auto is_rewatch flag derived from the watch count.
+                viewModel.saveLog(reviewHtml, containsSpoilers, selectedDate, isRewatch = false, rating = currentRating, diaryId = args.diaryId)
             }
         } else {
             val isRewatch = viewModel.isRewatch.value == true
