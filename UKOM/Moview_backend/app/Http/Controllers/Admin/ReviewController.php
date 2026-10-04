@@ -22,14 +22,15 @@ class ReviewController extends Controller
         
         // Apply search filter
         if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('content', 'like', "%{$search}%")
-                  ->orWhere('title', 'like', "%{$search}%")
-                  ->orWhereHas('user', function($userQuery) use ($search) {
-                      $userQuery->where('username', 'like', "%{$search}%");
+            $like = '%' . str_replace(['|', '%', '_'], ['||', '|%', '|_'], $search) . '%';
+            $query->where(function($q) use ($like) {
+                $q->whereRaw("LOWER(content) LIKE LOWER(?) ESCAPE '|'", [$like])
+                  ->orWhereRaw("LOWER(title) LIKE LOWER(?) ESCAPE '|'", [$like])
+                  ->orWhereHas('user', function($userQuery) use ($like) {
+                      $userQuery->whereRaw("LOWER(username) LIKE LOWER(?) ESCAPE '|'", [$like]);
                   })
-                  ->orWhereHas('movie', function($movieQuery) use ($search) {
-                      $movieQuery->where('title', 'like', "%{$search}%");
+                  ->orWhereHas('movie', function($movieQuery) use ($like) {
+                      $movieQuery->whereRaw("LOWER(title) LIKE LOWER(?) ESCAPE '|'", [$like]);
                   });
             });
         }

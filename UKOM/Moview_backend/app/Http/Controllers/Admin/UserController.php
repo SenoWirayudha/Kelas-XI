@@ -20,9 +20,10 @@ class UserController extends Controller
         
         // Apply search filter
         if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('username', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+            $like = '%' . str_replace(['|', '%', '_'], ['||', '|%', '|_'], $search) . '%';
+            $query->where(function($q) use ($like) {
+                $q->whereRaw("LOWER(username) LIKE LOWER(?) ESCAPE '|'", [$like])
+                  ->orWhereRaw("LOWER(email) LIKE LOWER(?) ESCAPE '|'", [$like]);
             });
         }
         

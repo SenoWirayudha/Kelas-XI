@@ -13,7 +13,7 @@ class CinemaController extends Controller
     {
         $cinemas = Cinema::with('service')
             ->orderBy('cinema_name')
-            ->paginate(20);
+            ->paginate(20)->withQueryString();
 
         return view('admin.cinemas.index', compact('cinemas'));
     }

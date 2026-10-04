@@ -20,10 +20,11 @@ class CommentController extends Controller
         
         // Apply search filter (search in content or username)
         if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('content', 'like', "%{$search}%")
-                  ->orWhereHas('user', function($userQuery) use ($search) {
-                      $userQuery->where('username', 'like', "%{$search}%");
+            $like = '%' . str_replace(['|', '%', '_'], ['||', '|%', '|_'], $search) . '%';
+            $query->where(function($q) use ($like) {
+                $q->whereRaw("LOWER(content) LIKE LOWER(?) ESCAPE '|'", [$like])
+                  ->orWhereHas('user', function($userQuery) use ($like) {
+                      $userQuery->whereRaw("LOWER(username) LIKE LOWER(?) ESCAPE '|'", [$like]);
                   });
             });
         }

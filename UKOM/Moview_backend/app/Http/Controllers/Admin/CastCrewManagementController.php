@@ -15,7 +15,10 @@ class CastCrewManagementController extends Controller
 
         // Search by name
         if ($request->has('search') && $request->search) {
-            $query->where('full_name', 'like', '%' . $request->search . '%');
+            $query->whereRaw(
+                "LOWER(full_name) LIKE LOWER(?) ESCAPE '|'",
+                ['%' . str_replace(['|', '%', '_'], ['||', '|%', '|_'], $request->search) . '%']
+            );
         }
 
         // Filter by role (primary_role)
@@ -38,7 +41,7 @@ class CastCrewManagementController extends Controller
                 break;
         }
 
-        $people = $query->withCount('moviePersons')->paginate(20);
+        $people = $query->withCount('moviePersons')->paginate(20)->withQueryString();
 
         // Count stats
         $totalPeople = Person::count();

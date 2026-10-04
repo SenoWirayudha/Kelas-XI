@@ -24,7 +24,10 @@ class OrderController extends Controller
 
         // Optional search by order code
         if ($request->filled('search')) {
-            $query->where('order_code', 'like', '%' . $request->search . '%');
+            $query->whereRaw(
+                "LOWER(order_code) LIKE LOWER(?) ESCAPE '|'",
+                ['%' . str_replace(['|', '%', '_'], ['||', '|%', '|_'], $request->search) . '%']
+            );
         }
 
         $orders = $query->paginate(25)->withQueryString();

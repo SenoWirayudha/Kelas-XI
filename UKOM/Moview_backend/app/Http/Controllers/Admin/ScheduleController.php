@@ -17,7 +17,7 @@ class ScheduleController extends Controller
         $schedules = Schedule::with(['movie', 'studio.cinema'])
             ->orderBy('show_date', 'desc')
             ->orderBy('show_time', 'desc')
-            ->paginate(20);
+            ->paginate(20)->withQueryString();
 
         return view('admin.schedules.index', compact('schedules'));
     }
