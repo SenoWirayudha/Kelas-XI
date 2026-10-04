@@ -1268,7 +1268,7 @@
                                                                         <span x-text="c.code + ' · ' + c.name"></span>
                                                                         <button type="button" @click="remove(c.id)"
                                                                                 class="text-blue-400 hover:text-blue-700 font-bold leading-none"
-                                                                                aria-label="Remove country">&times;</button>
+                                                                                aria-label="Remove country"><i class="fas fa-xmark"></i></button>
                                                                     </span>
                                                                     <label class="text-xs text-gray-700 cursor-pointer whitespace-nowrap">
                                                                         <input type="checkbox" class="rounded"
@@ -1542,7 +1542,7 @@
                                                                     <span x-text="c.code + ' · ' + c.name"></span>
                                                                     <button type="button" @click="remove(c.id)"
                                                                             class="text-blue-400 hover:text-blue-700 font-bold leading-none"
-                                                                            aria-label="Remove country">&times;</button>
+                                                                            aria-label="Remove country"><i class="fas fa-xmark"></i></button>
                                                                 </span>
                                                                 <label class="text-xs text-gray-700 cursor-pointer whitespace-nowrap">
                                                                     <input type="checkbox" class="rounded"

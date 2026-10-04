@@ -673,7 +673,7 @@
                                 <i class="fas fa-grip-lines text-gray-400 cursor-move" title="Drag untuk urutkan"></i>
                                 <span class="text-sm font-medium text-gray-800 flex-1 truncate" x-text="movieName(id)"></span>
                                 <span class="text-xs text-gray-500" x-text="'#' + (idx+1)"></span>
-                                <button type="button" @click="remove(id)" class="text-red-400 hover:text-red-600 p-1" title="Hapus"><i class="fas fa-times"></i></button>
+                                <button type="button" @click="remove(id)" class="text-red-400 hover:text-red-600 p-1" title="Hapus" aria-label="Hapus related film"><i class="fas fa-xmark"></i></button>
                             </div>
                         </template>
                     </div>
@@ -740,7 +740,7 @@
                                 <i class="fas fa-grip-lines text-gray-400 cursor-move" title="Drag untuk urutkan"></i>
                                 <span class="text-sm font-medium text-gray-800 flex-1 truncate" x-text="movieName(id)"></span>
                                 <span class="text-xs text-gray-500" x-text="'#' + (idx+1)"></span>
-                                <button type="button" @click="remove(id)" class="text-red-400 hover:text-red-600 p-1" title="Hapus"><i class="fas fa-times"></i></button>
+                                <button type="button" @click="remove(id)" class="text-red-400 hover:text-red-600 p-1" title="Hapus" aria-label="Hapus similar film"><i class="fas fa-xmark"></i></button>
                             </div>
                         </template>
                     </div>
