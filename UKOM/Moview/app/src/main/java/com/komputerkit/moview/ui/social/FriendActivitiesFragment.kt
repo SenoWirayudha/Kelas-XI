@@ -11,6 +11,8 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentFriendActivitiesBinding
+import com.komputerkit.moview.ui.common.LoadingFooterAdapter
+import com.komputerkit.moview.ui.common.PagedList
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.ScrollStateHelper
@@ -22,6 +24,7 @@ class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListene
     
     private val viewModel: FriendActivitiesViewModel by viewModels()
     private lateinit var adapter: FriendActivityGridAdapter
+    private var listFooter: LoadingFooterAdapter? = null
     private var userId: Int = 0
     private var savedScrollState: Pair<Int, Int>? = null
 
@@ -124,14 +127,18 @@ class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListene
             }
         )
         
-        binding.rvFriendActivities.apply {
-            val gridLayoutManager = GridLayoutManager(requireContext(), 3)
-            layoutManager = gridLayoutManager
-            adapter = this@FriendActivitiesFragment.adapter
-            
-            // Add spacing between items — 12dp to match home "New from Friends" section gap
-            val spacingPx = (12 * resources.displayMetrics.density).toInt()
-            addItemDecoration(GridSpacingItemDecoration(3, spacingPx, false))
+        binding.rvFriendActivities.layoutManager = GridLayoutManager(requireContext(), 3)
+
+        // Add spacing between items — 12dp to match home "New from Friends" section gap
+        val spacingPx = (12 * resources.displayMetrics.density).toInt()
+        binding.rvFriendActivities.addItemDecoration(GridSpacingItemDecoration(3, spacingPx, false))
+
+        listFooter = PagedList.setup(
+            binding.rvFriendActivities,
+            adapter,
+            prefetchThreshold = 6
+        ) {
+            if (userId > 0) viewModel.loadMore(userId)
         }
     }
     
@@ -145,6 +152,9 @@ class FriendActivitiesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListene
     }
 
     private fun observeViewModel() {
+        viewModel.isLoadingMore.observe(viewLifecycleOwner) { loading ->
+            listFooter?.setVisible(loading)
+        }
         viewModel.activities.observe(viewLifecycleOwner) { activities ->
             android.util.Log.d("FriendActivitiesFragment", "Activities received: ${activities.size}")
             

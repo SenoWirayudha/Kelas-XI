@@ -15,6 +15,8 @@ import com.komputerkit.moview.databinding.FragmentFilmsBinding
 import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
+import com.komputerkit.moview.ui.common.LoadingFooterAdapter
+import com.komputerkit.moview.ui.common.PagedList
 import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.ScrollStateHelper
 
@@ -26,6 +28,8 @@ class FilmsFragment : Fragment() {
     private val args: FilmsFragmentArgs by navArgs()
     private val viewModel: FilmsViewModel by viewModels()
     private lateinit var filmGridAdapter: FilmGridAdapter
+    private var listFooter: LoadingFooterAdapter? = null
+    private var targetUserId = 0
     private var savedScrollState: Pair<Int, Int>? = null
     private var genreOptions: List<String> = emptyList()
     private var countryOptions: List<String> = emptyList()
@@ -47,7 +51,7 @@ class FilmsFragment : Fragment() {
         // Get userId from args or use current user
         val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         val currentUserId = prefs.getInt("userId", 0)
-        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        targetUserId = if (args.userId > 0) args.userId else currentUserId
         
         setupRecyclerView()
         setupObservers()
@@ -88,15 +92,22 @@ class FilmsFragment : Fragment() {
             }
         )
         
-        binding.rvFilms.apply {
-            adapter = filmGridAdapter
-            layoutManager = GridLayoutManager(requireContext(), 4)
+        binding.rvFilms.layoutManager = GridLayoutManager(requireContext(), 4)
+        listFooter = PagedList.setup(
+            binding.rvFilms,
+            filmGridAdapter,
+            prefetchThreshold = 8
+        ) {
+            viewModel.loadMore(targetUserId)
         }
     }
     
     private fun setupObservers() {
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
             binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
+        viewModel.isLoadingMore.observe(viewLifecycleOwner) { loading ->
+            listFooter?.setVisible(loading)
         }
         viewModel.films.observe(viewLifecycleOwner) { films ->
             Log.d("FilmsFragment", "Observer received ${films.size} films")

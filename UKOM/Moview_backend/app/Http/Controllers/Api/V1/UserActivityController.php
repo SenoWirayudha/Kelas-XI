@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserChangeMedia;
+use App\Support\PaginatesList;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class UserActivityController extends Controller
 {
+    use PaginatesList;
+
     private function getMovieFilterMetadata(int $movieId): array
     {
         $genres = DB::table('movie_genres')
@@ -57,7 +60,7 @@ class UserActivityController extends Controller
     /**
      * Get user films (rated/watched movies)
      */
-    public function getFilms($userId)
+    public function getFilms($userId, Request $request)
     {
         try {
             // Get films from ratings and likes (union of both)
@@ -119,9 +122,11 @@ class UserActivityController extends Controller
                 );
 
             // Combine both queries
-            $films = $ratedFilms->union($likedOnlyFilms)
-                ->orderBy('activity_date', 'desc')
-                ->get();
+            $filmsQuery = $ratedFilms->union($likedOnlyFilms)
+                ->orderBy('activity_date', 'desc');
+
+            $paginated = $this->paginateList($request, $filmsQuery);
+            $films = $paginated ? $paginated['items'] : $filmsQuery->get();
 
             // Build poster URLs with base URL
             $filmsData = $films->map(function($film) {
@@ -154,10 +159,15 @@ class UserActivityController extends Controller
                 ];
             });
 
-            return response()->json([
+            $payload = [
                 'success' => true,
                 'data' => $filmsData
-            ]);
+            ];
+            if ($paginated) {
+                $payload['pagination'] = $paginated['pagination'];
+            }
+
+            return response()->json($payload);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -169,10 +179,10 @@ class UserActivityController extends Controller
     /**
      * Get user diary entries (logs and reviews)
      */
-    public function getDiary($userId)
+    public function getDiary($userId, Request $request)
     {
         try {
-            $diaries = DB::table('diaries')
+            $diariesQuery = DB::table('diaries')
                 ->join('movies', 'diaries.film_id', '=', 'movies.id')
                 ->leftJoin('reviews', function($join) {
                     $join->on('diaries.review_id', '=', 'reviews.id');
@@ -210,8 +220,10 @@ class UserActivityController extends Controller
                     DB::raw("CASE WHEN reviews.content IS NOT NULL THEN 'review' ELSE 'log' END as type")
                 )
                 ->orderBy('diaries.watched_at', 'desc')
-                ->orderBy('diaries.created_at', 'desc')
-                ->get();
+                ->orderBy('diaries.created_at', 'desc');
+
+            $paginated = $this->paginateList($request, $diariesQuery);
+            $diaries = $paginated ? $paginated['items'] : $diariesQuery->get();
 
             // Build poster URLs with base URL
             $diariesData = $diaries->map(function($diary) {
@@ -243,10 +255,15 @@ class UserActivityController extends Controller
                 ];
             });
 
-            return response()->json([
+            $payload = [
                 'success' => true,
                 'data' => $diariesData
-            ]);
+            ];
+            if ($paginated) {
+                $payload['pagination'] = $paginated['pagination'];
+            }
+
+            return response()->json($payload);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -590,10 +607,10 @@ class UserActivityController extends Controller
     /**
      * Get user liked movies
      */
-    public function getLikes($userId)
+    public function getLikes($userId, Request $request)
     {
         try {
-            $likes = DB::table('movie_likes')
+            $likesQuery = DB::table('movie_likes')
                 ->join('movies', 'movie_likes.film_id', '=', 'movies.id')
                 ->leftJoin('movie_media', function($join) {
                     $join->on('movies.id', '=', 'movie_media.movie_id')
@@ -614,8 +631,10 @@ class UserActivityController extends Controller
                     'movie_likes.created_at as liked_at',
                     DB::raw(\App\Models\Movie::primaryReleaseDateSql() . ' as primary_release_date')
                 )
-                ->orderBy('movie_likes.created_at', 'desc')
-                ->get();
+                ->orderBy('movie_likes.created_at', 'desc');
+
+            $paginated = $this->paginateList($request, $likesQuery);
+            $likes = $paginated ? $paginated['items'] : $likesQuery->get();
 
             // Build full poster URLs
             $likesData = $likes->map(function($like) {
@@ -646,10 +665,15 @@ class UserActivityController extends Controller
                 ];
             });
 
-            return response()->json([
+            $payload = [
                 'success' => true,
                 'data' => $likesData
-            ]);
+            ];
+            if ($paginated) {
+                $payload['pagination'] = $paginated['pagination'];
+            }
+
+            return response()->json($payload);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -661,10 +685,10 @@ class UserActivityController extends Controller
     /**
      * Get user watchlist
      */
-    public function getWatchlist($userId)
+    public function getWatchlist($userId, Request $request)
     {
         try {
-            $watchlist = DB::table('watchlists')
+            $watchlistQuery = DB::table('watchlists')
                 ->join('movies', 'watchlists.film_id', '=', 'movies.id')
                 ->leftJoin('movie_media', function($join) {
                     $join->on('movies.id', '=', 'movie_media.movie_id')
@@ -680,8 +704,10 @@ class UserActivityController extends Controller
                     'watchlists.created_at as added_at',
                     DB::raw(\App\Models\Movie::primaryReleaseDateSql() . ' as primary_release_date')
                 )
-                ->orderBy('watchlists.created_at', 'desc')
-                ->get();
+                ->orderBy('watchlists.created_at', 'desc');
+
+            $paginated = $this->paginateList($request, $watchlistQuery);
+            $watchlist = $paginated ? $paginated['items'] : $watchlistQuery->get();
 
             // Build poster URLs with base URL
             $watchlistData = $watchlist->map(function($item) {
@@ -712,10 +738,15 @@ class UserActivityController extends Controller
                 ];
             });
 
-            return response()->json([
+            $payload = [
                 'success' => true,
                 'data' => $watchlistData
-            ]);
+            ];
+            if ($paginated) {
+                $payload['pagination'] = $paginated['pagination'];
+            }
+
+            return response()->json($payload);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -875,7 +906,7 @@ class UserActivityController extends Controller
                     CASE WHEN r.id IS NOT NULL AND r.content IS NOT NULL THEN true ELSE false END as has_review,
                     COALESCE(r.id, 0) as review_id,
                     d.id as diary_id,
-                    UNIX_TIMESTAMP(d.watched_at) as timestamp,
+                    EXTRACT(EPOCH FROM d.watched_at)::bigint as timestamp,
                     0 as like_count
                 FROM (
                     SELECT 
@@ -890,7 +921,7 @@ class UserActivityController extends Controller
                 LEFT JOIN reviews r ON d.review_id = r.id AND r.status IN ('published', 'flagged')
                 LEFT JOIN ratings rat ON d.film_id = rat.film_id AND d.user_id = rat.user_id
                 WHERE d.rn = 1
-                ORDER BY timestamp DESC
+                ORDER BY timestamp DESC, diary_id DESC
             ");
 
             // Build full URLs for posters and profile photos
@@ -953,9 +984,12 @@ class UserActivityController extends Controller
     /**
      * Get all recent activities from followed users (up to 10 activities per user)
      */
-    public function getAllFriendsActivity($userId)
+    public function getAllFriendsActivity($userId, Request $request)
     {
         try {
+            $perPage = min(max((int) $request->input('per_page', 20), 1), 100);
+            $page = max(1, (int) $request->input('page', 1));
+
             // Get list of users that current user follows
             $followedUserIds = DB::table('followers')
                 ->where('follower_id', $userId)
@@ -963,15 +997,24 @@ class UserActivityController extends Controller
                 ->toArray();
 
             if (empty($followedUserIds)) {
-                return response()->json([
+                $payload = [
                     'success' => true,
                     'data' => []
-                ]);
+                ];
+                if ($request->has('page')) {
+                    $payload['pagination'] = [
+                        'current_page' => $page,
+                        'last_page' => 1,
+                        'per_page' => $perPage,
+                        'total' => 0
+                    ];
+                }
+                return response()->json($payload);
             }
 
             // Get up to 10 most recent activities per followed user from diaries
             // This includes both logs (review_id null) and reviews (review_id not null)
-            $activities = DB::select("
+            $baseSql = "
                 SELECT 
                     d.id as activity_id,
                     CASE WHEN r.id IS NOT NULL AND r.content IS NOT NULL THEN 'review' ELSE 'diary' END as activity_type,
@@ -996,7 +1039,7 @@ class UserActivityController extends Controller
                     CASE WHEN r.id IS NOT NULL AND r.content IS NOT NULL THEN true ELSE false END as has_review,
                     COALESCE(r.id, 0) as review_id,
                     d.id as diary_id,
-                    UNIX_TIMESTAMP(d.watched_at) as timestamp,
+                    EXTRACT(EPOCH FROM d.watched_at)::bigint as timestamp,
                     0 as like_count
                 FROM (
                     SELECT 
@@ -1011,8 +1054,28 @@ class UserActivityController extends Controller
                 LEFT JOIN reviews r ON d.review_id = r.id AND r.status IN ('published', 'flagged')
                 LEFT JOIN ratings rat ON d.film_id = rat.film_id AND d.user_id = rat.user_id
                 WHERE d.rn <= 10
-                ORDER BY timestamp DESC
-            ");
+            ";
+
+            if ($request->has('page')) {
+                $total = PHP_INT_MAX;
+                try {
+                    $countRow = DB::selectOne("select count(*) as cnt from ({$baseSql}) as cnt_src");
+                    $total = (int) ($countRow->cnt ?? 0);
+                } catch (\Throwable $e) {
+                    \Log::warning('getAllFriendsActivity count gagal: ' . $e->getMessage());
+                }
+                $offset = ($page - 1) * $perPage;
+                $activities = DB::select($baseSql . " ORDER BY timestamp DESC, diary_id DESC LIMIT {$perPage} OFFSET {$offset}");
+                $payloadPagination = [
+                    'current_page' => $page,
+                    'last_page' => max(1, (int) ceil($total / $perPage)),
+                    'per_page' => $perPage,
+                    'total' => $total
+                ];
+            } else {
+                $activities = DB::select($baseSql . " ORDER BY timestamp DESC, diary_id DESC");
+                $payloadPagination = null;
+            }
 
             // Build full URLs for posters and profile photos
             $activitiesWithUrls = array_map(function($activity) {
@@ -1059,10 +1122,15 @@ class UserActivityController extends Controller
                 ];
             }, $activities);
 
-            return response()->json([
+            $payload = [
                 'success' => true,
                 'data' => $activitiesWithUrls
-            ]);
+            ];
+            if ($payloadPagination !== null) {
+                $payload['pagination'] = $payloadPagination;
+            }
+
+            return response()->json($payload);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

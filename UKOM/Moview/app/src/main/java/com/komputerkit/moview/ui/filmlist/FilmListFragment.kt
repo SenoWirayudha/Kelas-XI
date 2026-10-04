@@ -16,9 +16,11 @@ import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
+import com.komputerkit.moview.ui.common.LoadingFooterAdapter
 import com.komputerkit.moview.ui.common.MovieFilterState
 import com.komputerkit.moview.ui.common.MovieFilterUtils
 import com.komputerkit.moview.ui.common.MovieSortMode
+import com.komputerkit.moview.ui.common.PagedList
 import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.ScrollStateHelper
 import kotlinx.coroutines.launch
@@ -30,6 +32,7 @@ class FilmListFragment : Fragment() {
     private val args: FilmListFragmentArgs by navArgs()
 
     private lateinit var adapter: FilmGridAdapter
+    private var listFooter: LoadingFooterAdapter? = null
     private val viewModel: FilmListViewModel by viewModels()
     private var savedScrollState: Pair<Int, Int>? = null
 
@@ -96,9 +99,13 @@ class FilmListFragment : Fragment() {
                 findNavController().navigate(action)
             }
         )
-        binding.rvFilms.apply {
-            layoutManager = GridLayoutManager(requireContext(), 4)
-            adapter = this@FilmListFragment.adapter
+        binding.rvFilms.layoutManager = GridLayoutManager(requireContext(), 4)
+        listFooter = PagedList.setup(
+            binding.rvFilms,
+            adapter,
+            prefetchThreshold = 8
+        ) {
+            viewModel.loadMore(userId())
         }
     }
 
@@ -239,6 +246,7 @@ class FilmListFragment : Fragment() {
         languageOptions = state.filterOptions.languages
 
         b.progressBar.visibility = if (state.status == FilmListStatus.LOADING) View.VISIBLE else View.GONE
+        listFooter?.setVisible(state.isLoadingMore)
 
         val filtered = MovieFilterUtils.applyFilters(allFilms, filterState)
         when {

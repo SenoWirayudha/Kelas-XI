@@ -10,6 +10,8 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.komputerkit.moview.databinding.FragmentReviewsListBinding
+import com.komputerkit.moview.ui.common.LoadingFooterAdapter
+import com.komputerkit.moview.ui.common.PagedList
 import com.komputerkit.moview.util.ScrollStateHelper
 
 class ReviewsListFragment : Fragment() {
@@ -21,6 +23,7 @@ class ReviewsListFragment : Fragment() {
     private val args: ReviewsListFragmentArgs by navArgs()
     
     private lateinit var reviewsAdapter: ReviewsAdapter
+    private var listFooter: LoadingFooterAdapter? = null
     private var savedScrollState: Pair<Int, Int>? = null
 
     override fun onCreateView(
@@ -65,15 +68,22 @@ class ReviewsListFragment : Fragment() {
             }
         )
         
-        binding.rvReviews.apply {
-            adapter = reviewsAdapter
-            layoutManager = LinearLayoutManager(requireContext())
+        binding.rvReviews.layoutManager = LinearLayoutManager(requireContext())
+        listFooter = PagedList.setup(
+            binding.rvReviews,
+            reviewsAdapter,
+            prefetchThreshold = 6
+        ) {
+            viewModel.loadMore(args.movieId)
         }
     }
     
     private fun setupObservers() {
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
             binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
+        viewModel.isLoadingMore.observe(viewLifecycleOwner) { loading ->
+            listFooter?.setVisible(loading)
         }
         viewModel.reviews.observe(viewLifecycleOwner) { reviews ->
             reviewsAdapter.submitList(reviews)

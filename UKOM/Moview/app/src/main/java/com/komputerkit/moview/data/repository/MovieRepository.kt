@@ -506,6 +506,8 @@ class MovieRepository {
     }
 
     companion object {
+        const val PAGE_SIZE = 20
+
         @Volatile
         private var cachedCountryCode: String? = null
         @Volatile
@@ -2159,4 +2161,282 @@ class MovieRepository {
             null
         }
     }
+
+    // ===================== PAGINATION (infinite scroll) =====================
+    // Halaman dikirim sebagai param opsional; tanpa ?page= backend mengembalikan
+    // seluruh data (mode lama). items kosong => VM menganggap sudah halaman akhir.
+
+    suspend fun getFilmsByCategoryPaged(
+        categoryType: String,
+        categoryValue: String,
+        page: Int
+    ): PagedSlice<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getFilmsByCategory(
+                categoryType, categoryValue, page = page, perPage = PAGE_SIZE
+            )
+            if (response.success && response.data != null) {
+                PagedSlice(
+                    items = response.data.map { it.toMovie() },
+                    page = response.pagination?.current_page ?: page,
+                    lastPage = response.pagination?.last_page ?: page
+                )
+            } else {
+                PagedSlice(emptyList(), page, page)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            PagedSlice(emptyList(), page, page)
+        }
+    }
+
+    suspend fun getUserFilmsPaged(userId: Int, page: Int): PagedSlice<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserFilms(userId, page = page, perPage = PAGE_SIZE)
+            if (response.success && response.data != null) {
+                val userReviews = getUserReviews(userId)
+                PagedSlice(
+                    items = response.data.map { filmDto ->
+                        val review = userReviews.find { it.id == filmDto.id }
+                        Movie(
+                            id = filmDto.id,
+                            title = filmDto.title,
+                            releaseYear = filmDto.year,
+                            posterUrl = filmDto.poster_path ?: "",
+                            userRating = filmDto.rating ?: 0f,
+                            averageRating = filmDto.average_rating ?: 0f,
+                            genre = filmDto.genres.joinToString(", "),
+                            genres = filmDto.genres,
+                            countries = filmDto.countries,
+                            languages = filmDto.languages,
+                            themes = filmDto.themes,
+                            activityAtRaw = filmDto.rated_at,
+                            primaryReleaseDate = filmDto.primary_release_date,
+                            description = "",
+                            hasReview = review != null,
+                            reviewId = review?.review_id ?: 0,
+                            isLiked = filmDto.is_liked ?: false,
+                            isInWatchlist = filmDto.is_in_watchlist ?: false
+                        )
+                    },
+                    page = response.pagination?.current_page ?: page,
+                    lastPage = response.pagination?.last_page ?: page
+                )
+            } else {
+                PagedSlice(emptyList(), page, page)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            PagedSlice(emptyList(), page, page)
+        }
+    }
+
+    suspend fun getUserDiaryPaged(userId: Int, page: Int): PagedSlice<com.komputerkit.moview.data.model.DiaryEntry> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserDiary(userId, page = page, perPage = PAGE_SIZE)
+            if (response.success && response.data != null) {
+                PagedSlice(
+                    items = response.data.map { dto ->
+                        val posterUrl = ServerConfig.resolveStorageUrl(dto.poster_path)
+                        val movie = Movie(
+                            id = dto.movie_id,
+                            title = dto.title,
+                            releaseYear = dto.year.toIntOrNull() ?: 0,
+                            posterUrl = posterUrl,
+                            userRating = dto.rating?.toFloat() ?: 0f,
+                            averageRating = 0f,
+                            genre = "",
+                            description = dto.note ?: "",
+                            hasReview = dto.type == "review",
+                            reviewId = dto.review_id ?: 0
+                        )
+                        com.komputerkit.moview.data.model.DiaryEntry(
+                            id = dto.diary_id,
+                            movie = movie,
+                            watchedDate = dto.watched_at,
+                            dateLabel = formatDiaryDate(dto.watched_at),
+                            monthYear = formatMonthYear(dto.watched_at),
+                            rating = dto.rating ?: 0f,
+                            hasReview = dto.type == "review",
+                            isLiked = dto.is_liked,
+                            isRewatched = dto.is_rewatched,
+                            reviewId = dto.review_id
+                        )
+                    },
+                    page = response.pagination?.current_page ?: page,
+                    lastPage = response.pagination?.last_page ?: page
+                )
+            } else {
+                PagedSlice(emptyList(), page, page)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.e("MovieRepository", "Error getting diary page: ${e.message}", e)
+            PagedSlice(emptyList(), page, page)
+        }
+    }
+
+    suspend fun getUserWatchlistPaged(userId: Int, page: Int): PagedSlice<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserWatchlist(userId, page = page, perPage = PAGE_SIZE)
+            if (response.success && response.data != null) {
+                PagedSlice(
+                    items = response.data.map { filmDto ->
+                        Movie(
+                            id = filmDto.id,
+                            title = filmDto.title,
+                            releaseYear = filmDto.year,
+                            posterUrl = filmDto.poster_path ?: "",
+                            averageRating = filmDto.average_rating ?: 0f,
+                            genre = filmDto.genres.joinToString(", "),
+                            genres = filmDto.genres,
+                            countries = filmDto.countries,
+                            languages = filmDto.languages,
+                            themes = filmDto.themes,
+                            activityAtRaw = filmDto.added_at,
+                            primaryReleaseDate = filmDto.primary_release_date,
+                            description = "",
+                            hasReview = false,
+                            reviewId = 0,
+                            userRating = filmDto.rating ?: 0f
+                        )
+                    },
+                    page = response.pagination?.current_page ?: page,
+                    lastPage = response.pagination?.last_page ?: page
+                )
+            } else {
+                PagedSlice(emptyList(), page, page)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            PagedSlice(emptyList(), page, page)
+        }
+    }
+
+    suspend fun getUserLikesPaged(userId: Int, page: Int): PagedSlice<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUserLikes(userId, page = page, perPage = PAGE_SIZE)
+            if (response.success && response.data != null) {
+                val userReviews = getUserReviews(userId)
+                PagedSlice(
+                    items = response.data.map { filmDto ->
+                        val posterUrl = ServerConfig.resolveStorageUrl(filmDto.poster_path)
+                        val review = userReviews.find { it.id == filmDto.id }
+                        Movie(
+                            id = filmDto.id,
+                            title = filmDto.title,
+                            releaseYear = filmDto.year,
+                            posterUrl = posterUrl,
+                            averageRating = filmDto.average_rating ?: 0f,
+                            genre = filmDto.genres.joinToString(", "),
+                            genres = filmDto.genres,
+                            countries = filmDto.countries,
+                            languages = filmDto.languages,
+                            themes = filmDto.themes,
+                            activityAtRaw = filmDto.liked_at,
+                            primaryReleaseDate = filmDto.primary_release_date,
+                            description = "",
+                            hasReview = review != null,
+                            reviewId = review?.review_id ?: 0,
+                            userRating = filmDto.rating ?: 0f,
+                            isLiked = true
+                        )
+                    },
+                    page = response.pagination?.current_page ?: page,
+                    lastPage = response.pagination?.last_page ?: page
+                )
+            } else {
+                PagedSlice(emptyList(), page, page)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            PagedSlice(emptyList(), page, page)
+        }
+    }
+
+    suspend fun getAllFriendsActivityPaged(userId: Int, page: Int): PagedSlice<FriendActivity> = withContext(Dispatchers.IO) {
+        var lastException: Exception? = null
+        repeat(3) { attempt ->
+            try {
+                val response = apiService.getAllFriendsActivity(userId, page = page, perPage = PAGE_SIZE)
+                if (response.success && response.data != null) {
+                    return@withContext PagedSlice(
+                        items = response.data.map { dto ->
+                            FriendActivity(
+                                id = dto.id,
+                                activityType = dto.activity_type,
+                                user = User(
+                                    id = dto.user.id,
+                                    username = dto.user.username,
+                                    profilePhotoUrl = dto.user.profile_photo ?: ""
+                                ),
+                                movie = Movie(
+                                    id = dto.movie.id,
+                                    title = dto.movie.title,
+                                    posterUrl = dto.movie.poster_path,
+                                    averageRating = null,
+                                    genre = null,
+                                    releaseYear = dto.movie.year,
+                                    description = null
+                                ),
+                                rating = dto.rating,
+                                likeCount = dto.like_count,
+                                isRewatch = dto.is_rewatched,
+                                hasReview = dto.has_review,
+                                reviewId = dto.review_id,
+                                diaryId = dto.diary_id,
+                                reviewText = "",
+                                timestamp = dto.timestamp
+                            )
+                        },
+                        page = response.pagination?.current_page ?: page,
+                        lastPage = response.pagination?.last_page ?: page
+                    )
+                }
+                return@withContext PagedSlice(emptyList(), page, page)
+            } catch (e: java.io.EOFException) {
+                android.util.Log.w("MovieRepository", "EOFException on getAllFriendsActivityPaged attempt ${attempt + 1}, retrying...", e)
+                lastException = e
+                if (attempt < 2) kotlinx.coroutines.delay(300L)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e("MovieRepository", "Error fetching friends activity page", e)
+                return@withContext PagedSlice(emptyList(), page, page)
+            }
+        }
+        android.util.Log.e("MovieRepository", "getAllFriendsActivityPaged failed after 3 attempts", lastException)
+        PagedSlice(emptyList(), page, page)
+    }
+
+    suspend fun getMovieReviewsPaged(movieId: Int, page: Int): PagedSlice<MovieReviewDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getMovieReviews(movieId, page = page, perPage = PAGE_SIZE)
+            PagedSlice(
+                items = if (response.success) response.data else emptyList(),
+                page = response.pagination.current_page,
+                lastPage = response.pagination.last_page
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            PagedSlice(emptyList(), page, page)
+        }
+    }
 }
+
+data class PagedSlice<T>(
+    val items: List<T>,
+    val page: Int,
+    val lastPage: Int
+)

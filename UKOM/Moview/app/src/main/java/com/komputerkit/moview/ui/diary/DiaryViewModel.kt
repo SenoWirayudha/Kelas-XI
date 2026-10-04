@@ -21,12 +21,19 @@ class DiaryViewModel(application: Application) : AndroidViewModel(application) {
     private var loadedKey: String? = null
     private var loadJob: Job? = null
     private var refreshJob: Job? = null
+    private var loadMoreJob: Job? = null
+    private var currentPage = 1
+    private var lastPage = 1
+    private var allEntries: List<DiaryEntry> = emptyList()
     
     private val _diaryItems = MutableLiveData<List<DiaryItem>>()
     val diaryItems: LiveData<List<DiaryItem>> = _diaryItems
     
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _isLoadingMore = MutableLiveData<Boolean>(false)
+    val isLoadingMore: LiveData<Boolean> = _isLoadingMore
     
     fun loadDiary(userId: Int = 0) {
         loadDiaryEntries(userId)
@@ -46,6 +53,7 @@ class DiaryViewModel(application: Application) : AndroidViewModel(application) {
         if (loadJob?.isActive == true) return
         if (key == loadedKey && _diaryItems.value != null) {
             if (refreshJob?.isActive == true) return
+            if (loadMoreJob?.isActive == true) return
             refreshJob = viewModelScope.launch {
                 try {
                     fetchDiary(targetUserId)
@@ -58,6 +66,8 @@ class DiaryViewModel(application: Application) : AndroidViewModel(application) {
             }
             return
         }
+        refreshJob?.cancel()
+        loadMoreJob?.cancel()
         loadJob = viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -76,10 +86,18 @@ class DiaryViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun fetchDiary(targetUserId: Int) {
         android.util.Log.d("DiaryViewModel", "Fetching diary entries from API...")
-        val entries = repository.getUserDiary(targetUserId)
-        android.util.Log.d("DiaryViewModel", "Fetched ${entries.size} diary entries")
+        val slice = repository.getUserDiaryPaged(targetUserId, 1)
+        currentPage = slice.page
+        lastPage = slice.lastPage
+        allEntries = slice.items
+        android.util.Log.d("DiaryViewModel", "Fetched ${allEntries.size} diary entries")
+        _diaryItems.postValue(groupWithHeaders(allEntries))
+    }
 
-        // Group entries by month/year and create header items
+    /**
+     * Gabung entry per bulan + header (dipakai load awal & setiap loadMore).
+     */
+    private fun groupWithHeaders(entries: List<DiaryEntry>): List<DiaryItem> {
         val items = mutableListOf<DiaryItem>()
         var currentMonth = ""
         entries.forEach { entry ->
@@ -89,8 +107,39 @@ class DiaryViewModel(application: Application) : AndroidViewModel(application) {
             }
             items.add(DiaryItem.Entry(entry))
         }
+        return items
+    }
 
-        android.util.Log.d("DiaryViewModel", "Created ${items.size} diary items (including headers)")
-        _diaryItems.postValue(items)
+    /**
+     * Infinite scroll: tarik halaman berikutnya, akumulasi entry, susun ulang header.
+     */
+    fun loadMore(userId: Int = 0) {
+        val targetUserId = if (userId > 0) userId else prefs.getInt("userId", 0)
+        if (targetUserId == 0) return
+        if (loadJob?.isActive == true || refreshJob?.isActive == true || loadMoreJob?.isActive == true) return
+        if (_isLoadingMore.value == true) return
+        if (currentPage >= lastPage) return
+        if (loadedKey != "diary|$targetUserId") return
+
+        loadMoreJob = viewModelScope.launch {
+            _isLoadingMore.postValue(true)
+            try {
+                val slice = repository.getUserDiaryPaged(targetUserId, currentPage + 1)
+                if (slice.items.isEmpty()) {
+                    lastPage = currentPage
+                    return@launch
+                }
+                currentPage = slice.page
+                lastPage = slice.lastPage
+                allEntries = allEntries + slice.items
+                _diaryItems.postValue(groupWithHeaders(allEntries))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e("DiaryViewModel", "loadMore failed: ${e.message}", e)
+            } finally {
+                if (isActive) _isLoadingMore.postValue(false)
+            }
+        }
     }
 }

@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Movie;
+use App\Support\PaginatesList;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class FilmListController extends Controller
 {
+    use PaginatesList;
+
     public function getFilterOptions()
     {
         try {
@@ -86,7 +89,7 @@ class FilmListController extends Controller
                     ], 400);
             }
 
-            $movies = $query->select(
+            $moviesQuery = $query->select(
                 'movies.id',
                 'movies.title',
                 'movies.release_year',
@@ -95,8 +98,10 @@ class FilmListController extends Controller
                 DB::raw(Movie::primaryReleaseDateSql() . ' AS primary_release_date')
             )
             ->distinct()
-            ->orderByDesc('watched_count')
-            ->get();
+            ->orderByDesc('watched_count');
+
+            $paginated = $this->paginateList($request, $moviesQuery);
+            $movies = $paginated ? $paginated['items'] : $moviesQuery->get();
 
             $moviesWithDetails = $movies->map(function ($movie) {
                 $genres = DB::table('movie_genres')
@@ -150,10 +155,15 @@ class FilmListController extends Controller
                 ];
             });
 
-            return response()->json([
+            $payload = [
                 'success' => true,
                 'data'    => $moviesWithDetails
-            ]);
+            ];
+            if ($paginated) {
+                $payload['pagination'] = $paginated['pagination'];
+            }
+
+            return response()->json($payload);
 
         } catch (\Exception $e) {
             return response()->json([

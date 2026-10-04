@@ -16,6 +16,8 @@ import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
 import com.komputerkit.moview.ui.films.FilmGridAdapter
+import com.komputerkit.moview.ui.common.LoadingFooterAdapter
+import com.komputerkit.moview.ui.common.PagedList
 import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.ScrollStateHelper
 
@@ -27,6 +29,8 @@ class LikesFragment : Fragment() {
     
     private val viewModel: LikesViewModel by viewModels()
     private lateinit var filmGridAdapter: FilmGridAdapter
+    private var listFooter: LoadingFooterAdapter? = null
+    private var targetUserId = 0
     private var savedScrollState: Pair<Int, Int>? = null
     private var genreOptions: List<String> = emptyList()
     private var countryOptions: List<String> = emptyList()
@@ -48,7 +52,7 @@ class LikesFragment : Fragment() {
         // Get userId from args or use current user
         val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         val currentUserId = prefs.getInt("userId", 0)
-        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        targetUserId = if (args.userId > 0) args.userId else currentUserId
         
         viewModel.loadLikes(targetUserId)
         
@@ -98,13 +102,20 @@ class LikesFragment : Fragment() {
             }
         )
         
-        binding.rvLikes.apply {
-            adapter = filmGridAdapter
-            layoutManager = GridLayoutManager(requireContext(), 4)
+        binding.rvLikes.layoutManager = GridLayoutManager(requireContext(), 4)
+        listFooter = PagedList.setup(
+            binding.rvLikes,
+            filmGridAdapter,
+            prefetchThreshold = 8
+        ) {
+            viewModel.loadMore(targetUserId)
         }
     }
     
     private fun setupObservers() {
+        viewModel.isLoadingMore.observe(viewLifecycleOwner) { loading ->
+            listFooter?.setVisible(loading)
+        }
         viewModel.likes.observe(viewLifecycleOwner) { films ->
             filmGridAdapter.submitList(films)
             binding.emptyState.isVisible = films.isEmpty() && viewModel.isLoading.value != true

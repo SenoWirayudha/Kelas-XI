@@ -26,7 +26,8 @@ data class FilmListUiState(
     val status: FilmListStatus = FilmListStatus.LOADING,
     val items: List<Movie> = emptyList(),
     val filterOptions: FilterOptionsDto = FilterOptionsDto(),
-    val error: String? = null
+    val error: String? = null,
+    val isLoadingMore: Boolean = false
 )
 
 class FilmListViewModel : ViewModel() {
@@ -39,6 +40,9 @@ class FilmListViewModel : ViewModel() {
     private var loadedKey: String? = null
     private var loadJob: Job? = null
     private var refreshJob: Job? = null
+    private var loadMoreJob: Job? = null
+    private var currentPage = 1
+    private var lastPage = 1
     private var options: FilterOptionsDto? = null
 
     fun load(categoryType: String, categoryValue: String, userId: Int) {
@@ -51,6 +55,7 @@ class FilmListViewModel : ViewModel() {
 
         loadedKey = key
         refreshJob?.cancel()
+        loadMoreJob?.cancel()
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _uiState.value = FilmListUiState(
@@ -60,10 +65,10 @@ class FilmListViewModel : ViewModel() {
                 filterOptions = options ?: FilterOptionsDto()
             )
             try {
-                val items = fetch(categoryType, categoryValue, userId)
+                val slice = fetch(categoryType, categoryValue, userId)
                 _uiState.value = _uiState.value.copy(
                     status = FilmListStatus.READY,
-                    items = items,
+                    items = slice.items,
                     error = null
                 )
             } catch (e: CancellationException) {
@@ -82,37 +87,87 @@ class FilmListViewModel : ViewModel() {
         if (userId <= 0) return
         if (state.status != FilmListStatus.READY) return
         if (refreshJob?.isActive == true) return
+        if (loadMoreJob?.isActive == true) return
         if (loadedKey == null) return
 
         refreshJob = viewModelScope.launch {
-            _uiState.value = state.copy(status = FilmListStatus.REFRESHING)
+            _uiState.value = state.copy(status = FilmListStatus.REFRESHING, isLoadingMore = false)
             try {
-                val items = fetch(state.categoryType, state.categoryValue, userId)
-                _uiState.value = state.copy(
+                val slice = fetch(state.categoryType, state.categoryValue, userId)
+                _uiState.value = _uiState.value.copy(
                     status = FilmListStatus.READY,
-                    items = items,
-                    error = null
+                    items = slice.items,
+                    error = null,
+                    isLoadingMore = false
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.value = state.copy(status = FilmListStatus.READY)
+                _uiState.value = _uiState.value.copy(status = FilmListStatus.READY, isLoadingMore = false)
             }
         }
     }
 
-    private suspend fun fetch(categoryType: String, categoryValue: String, userId: Int): List<Movie> {
-        val raw = repository.getFilmsByCategory(categoryType, categoryValue)
-        val items = if (userId > 0 && raw.isNotEmpty()) {
-            val customMedia = repository.batchCustomMedia(userId, raw.map { it.id }, "films")
-            raw.applyCustomMedia(customMedia)
+    /**
+     * Tarik halaman berikutnya saat mendekati akhir daftar (prefetch).
+     * Data lama tetap di layar; kosong / error -> berhenti senyap.
+     */
+    fun loadMore(userId: Int) {
+        val state = _uiState.value
+        if (state.status != FilmListStatus.READY) return
+        if (state.isLoadingMore) return
+        if (loadJob?.isActive == true || refreshJob?.isActive == true || loadMoreJob?.isActive == true) return
+        if (currentPage >= lastPage) return
+        val categoryType = state.categoryType
+        val categoryValue = state.categoryValue
+
+        loadMoreJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingMore = true)
+            try {
+                val slice = repository.getFilmsByCategoryPaged(categoryType, categoryValue, currentPage + 1)
+                val current = _uiState.value
+                if (current.categoryType != categoryType || current.categoryValue != categoryValue) {
+                    return@launch
+                }
+                if (slice.items.isEmpty()) {
+                    lastPage = currentPage
+                    _uiState.value = current.copy(isLoadingMore = false)
+                    return@launch
+                }
+                val newItems = if (userId > 0) {
+                    val customMedia = repository.batchCustomMedia(userId, slice.items.map { it.id }, "films")
+                    slice.items.applyCustomMedia(customMedia)
+                } else {
+                    slice.items
+                }
+                currentPage = slice.page
+                lastPage = slice.lastPage
+                _uiState.value = current.copy(
+                    items = current.items + newItems,
+                    isLoadingMore = false
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoadingMore = false)
+            }
+        }
+    }
+
+    private suspend fun fetch(categoryType: String, categoryValue: String, userId: Int): com.komputerkit.moview.data.repository.PagedSlice<Movie> {
+        val slice = repository.getFilmsByCategoryPaged(categoryType, categoryValue, 1)
+        currentPage = slice.page
+        lastPage = slice.lastPage
+        val items = if (userId > 0 && slice.items.isNotEmpty()) {
+            val customMedia = repository.batchCustomMedia(userId, slice.items.map { it.id }, "films")
+            slice.items.applyCustomMedia(customMedia)
         } else {
-            raw
+            slice.items
         }
         if (options == null) {
             options = repository.getFilterOptions()
             _uiState.value = _uiState.value.copy(filterOptions = options ?: FilterOptionsDto())
         }
-        return items
+        return slice.copy(items = items)
     }
 }

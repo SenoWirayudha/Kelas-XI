@@ -17,6 +17,8 @@ import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
+import com.komputerkit.moview.ui.common.LoadingFooterAdapter
+import com.komputerkit.moview.ui.common.PagedList
 import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.ScrollStateHelper
 
@@ -28,6 +30,8 @@ class WatchlistFragment : Fragment() {
     
     private val viewModel: WatchlistViewModel by viewModels()
     private lateinit var adapter: WatchlistAdapter
+    private var listFooter: LoadingFooterAdapter? = null
+    private var targetUserId = 0
     private var savedScrollState: Pair<Int, Int>? = null
     private var genreOptions: List<String> = emptyList()
     private var countryOptions: List<String> = emptyList()
@@ -49,7 +53,7 @@ class WatchlistFragment : Fragment() {
         // Get userId from args or use current user
         val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         val currentUserId = prefs.getInt("userId", 0)
-        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        targetUserId = if (args.userId > 0) args.userId else currentUserId
         
         viewModel.loadWatchlist(targetUserId)
         
@@ -90,7 +94,13 @@ class WatchlistFragment : Fragment() {
         )
         
         binding.rvWatchlist.layoutManager = GridLayoutManager(requireContext(), 4)
-        binding.rvWatchlist.adapter = adapter
+        listFooter = PagedList.setup(
+            binding.rvWatchlist,
+            adapter,
+            prefetchThreshold = 8
+        ) {
+            viewModel.loadMore(targetUserId)
+        }
     }
     
     private fun setupFilters() {
@@ -164,6 +174,9 @@ class WatchlistFragment : Fragment() {
     private fun observeViewModel() {
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
             binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
+        viewModel.isLoadingMore.observe(viewLifecycleOwner) { loading ->
+            listFooter?.setVisible(loading)
         }
         viewModel.watchlistItems.observe(viewLifecycleOwner) { items ->
             adapter.submitList(items)

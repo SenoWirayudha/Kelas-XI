@@ -27,12 +27,18 @@ class FilmsViewModel(application: Application) : AndroidViewModel(application) {
     private var loadedKey: String? = null
     private var loadJob: Job? = null
     private var refreshJob: Job? = null
+    private var loadMoreJob: Job? = null
+    private var currentPage = 1
+    private var lastPage = 1
     
     private val _films = MutableLiveData<List<Movie>>()
     val films: LiveData<List<Movie>> = _films
     
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _isLoadingMore = MutableLiveData<Boolean>(false)
+    val isLoadingMore: LiveData<Boolean> = _isLoadingMore
 
     private val _genres = MutableLiveData<List<String>>(emptyList())
     val genres: LiveData<List<String>> = _genres
@@ -58,6 +64,7 @@ class FilmsViewModel(application: Application) : AndroidViewModel(application) {
         if (loadJob?.isActive == true) return
         if (key == loadedKey && _films.value != null) {
             if (refreshJob?.isActive == true) return
+            if (loadMoreJob?.isActive == true) return
             refreshJob = viewModelScope.launch {
                 try {
                     fetchFilms(targetUserId)
@@ -70,6 +77,8 @@ class FilmsViewModel(application: Application) : AndroidViewModel(application) {
             }
             return
         }
+        refreshJob?.cancel()
+        loadMoreJob?.cancel()
         loadJob = viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -87,7 +96,10 @@ class FilmsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun fetchFilms(targetUserId: Int) {
-        val rawFilms = repository.getUserFilms(targetUserId)
+        val slice = repository.getUserFilmsPaged(targetUserId, 1)
+        currentPage = slice.page
+        lastPage = slice.lastPage
+        val rawFilms = slice.items
         Log.d("FilmsViewModel", "Loaded ${rawFilms.size} films for user $targetUserId")
         rawFilms.forEach { film ->
             Log.d("FilmsViewModel", "Film: ${film.title}, isLiked=${film.isLiked}, rating=${film.userRating}")
@@ -100,6 +112,41 @@ class FilmsViewModel(application: Application) : AndroidViewModel(application) {
         _languages.postValue(options.languages)
         _themes.postValue(options.themes)
         _films.postValue(MovieFilterUtils.applyFilters(allFilms, filterState))
+    }
+
+    /**
+     * Infinite scroll: tarik halaman berikutnya, akumulasi, terapkan ulang filter.
+     */
+    fun loadMore(userId: Int = 0) {
+        val targetUserId = if (userId > 0) userId else prefs.getInt("userId", 0)
+        if (targetUserId == 0) return
+        if (loadJob?.isActive == true || refreshJob?.isActive == true || loadMoreJob?.isActive == true) return
+        if (_isLoadingMore.value == true) return
+        if (currentPage >= lastPage) return
+        if (loadedKey != "films|$targetUserId") return
+
+        loadMoreJob = viewModelScope.launch {
+            _isLoadingMore.postValue(true)
+            try {
+                val slice = repository.getUserFilmsPaged(targetUserId, currentPage + 1)
+                if (slice.items.isEmpty()) {
+                    lastPage = currentPage
+                    return@launch
+                }
+                val customMedia = repository.batchCustomMedia(targetUserId, slice.items.map { it.id }, "films")
+                val newItems = slice.items.applyCustomMedia(customMedia)
+                currentPage = slice.page
+                lastPage = slice.lastPage
+                allFilms = allFilms + newItems
+                applyCurrentFilters()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                if (isActive) _isLoadingMore.postValue(false)
+            }
+        }
     }
     
     private fun applyCurrentFilters() {

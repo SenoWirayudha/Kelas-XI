@@ -27,12 +27,18 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
     private var loadedKey: String? = null
     private var loadJob: Job? = null
     private var refreshJob: Job? = null
+    private var loadMoreJob: Job? = null
+    private var currentPage = 1
+    private var lastPage = 1
     
     private val _watchlistItems = MutableLiveData<List<WatchlistItem>>()
     val watchlistItems: LiveData<List<WatchlistItem>> = _watchlistItems
     
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _isLoadingMore = MutableLiveData<Boolean>(false)
+    val isLoadingMore: LiveData<Boolean> = _isLoadingMore
 
     private val _genres = MutableLiveData<List<String>>(emptyList())
     val genres: LiveData<List<String>> = _genres
@@ -57,6 +63,7 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
         if (loadJob?.isActive == true) return
         if (key == loadedKey && _watchlistItems.value != null) {
             if (refreshJob?.isActive == true) return
+            if (loadMoreJob?.isActive == true) return
             refreshJob = viewModelScope.launch {
                 try {
                     fetchWatchlist(userId)
@@ -69,6 +76,8 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
             }
             return
         }
+        refreshJob?.cancel()
+        loadMoreJob?.cancel()
         loadJob = viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -86,7 +95,10 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private suspend fun fetchWatchlist(userId: Int) {
-        val rawMovies = repository.getUserWatchlist(userId)
+        val slice = repository.getUserWatchlistPaged(userId, 1)
+        currentPage = slice.page
+        lastPage = slice.lastPage
+        val rawMovies = slice.items
         val customMedia = repository.batchCustomMedia(userId, rawMovies.map { it.id }, "films")
         val movies = rawMovies.applyCustomMedia(customMedia)
         allMovies = movies
@@ -104,6 +116,48 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
         _languages.postValue(options.languages)
         _themes.postValue(options.themes)
         applyCurrentFilters()
+    }
+
+    /**
+     * Infinite scroll: tarik halaman berikutnya, akumulasi, terapkan ulang filter.
+     */
+    fun loadMore(userId: Int) {
+        if (userId == 0) return
+        if (loadJob?.isActive == true || refreshJob?.isActive == true || loadMoreJob?.isActive == true) return
+        if (_isLoadingMore.value == true) return
+        if (currentPage >= lastPage) return
+        if (loadedKey != "watchlist|$userId") return
+
+        loadMoreJob = viewModelScope.launch {
+            _isLoadingMore.postValue(true)
+            try {
+                val slice = repository.getUserWatchlistPaged(userId, currentPage + 1)
+                if (slice.items.isEmpty()) {
+                    lastPage = currentPage
+                    return@launch
+                }
+                val customMedia = repository.batchCustomMedia(userId, slice.items.map { it.id }, "films")
+                val newMovies = slice.items.applyCustomMedia(customMedia)
+                currentPage = slice.page
+                lastPage = slice.lastPage
+                allMovies = allMovies + newMovies
+                allItems = allItems + newMovies.map { movie ->
+                    WatchlistItem(
+                        id = movie.id,
+                        movie = movie,
+                        addedDate = movie.activityAtRaw ?: "",
+                        isWatched = false
+                    )
+                }
+                applyCurrentFilters()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                if (isActive) _isLoadingMore.postValue(false)
+            }
+        }
     }
     
     private fun applyCurrentFilters() {

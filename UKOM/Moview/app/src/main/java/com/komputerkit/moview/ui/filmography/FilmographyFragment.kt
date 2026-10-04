@@ -14,6 +14,8 @@ import com.komputerkit.moview.databinding.FragmentFilmographyBinding
 import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
+import com.komputerkit.moview.ui.common.LoadingFooterAdapter
+import com.komputerkit.moview.ui.common.PagedList
 import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.ScrollStateHelper
 
@@ -26,6 +28,7 @@ class FilmographyFragment : Fragment() {
     private val args: FilmographyFragmentArgs by navArgs()
 
     private lateinit var filmographyAdapter: FilmographyAdapter
+    private var listFooter: LoadingFooterAdapter? = null
     private var savedScrollState: Pair<Int, Int>? = null
     private var genreOptions: List<String> = emptyList()
     private var countryOptions: List<String> = emptyList()
@@ -82,15 +85,23 @@ class FilmographyFragment : Fragment() {
                 findNavController().navigate(action)
             }
         )
-        binding.rvFilmography.apply {
-            adapter = filmographyAdapter
-            layoutManager = GridLayoutManager(requireContext(), 4)
+        binding.rvFilmography.layoutManager = GridLayoutManager(requireContext(), 4)
+        listFooter = PagedList.setup(
+            binding.rvFilmography,
+            filmographyAdapter,
+            prefetchThreshold = 8
+        ) {
+            val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+            viewModel.loadMore(args.filterType, args.filterValue, prefs.getInt("userId", 0))
         }
     }
 
     private fun setupObservers() {
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
             binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
+        viewModel.isLoadingMore.observe(viewLifecycleOwner) { loading ->
+            listFooter?.setVisible(loading)
         }
         viewModel.films.observe(viewLifecycleOwner) { films ->
             filmographyAdapter.submitList(films)

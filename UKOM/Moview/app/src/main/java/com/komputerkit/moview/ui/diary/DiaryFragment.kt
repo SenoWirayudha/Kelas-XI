@@ -13,6 +13,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.DiaryEntry
 import com.komputerkit.moview.databinding.FragmentDiaryBinding
+import com.komputerkit.moview.ui.common.LoadingFooterAdapter
+import com.komputerkit.moview.ui.common.PagedList
 import com.komputerkit.moview.util.ScrollStateHelper
 
 class DiaryFragment : Fragment() {
@@ -23,6 +25,8 @@ class DiaryFragment : Fragment() {
     private val args: DiaryFragmentArgs by navArgs()
     private val viewModel: DiaryViewModel by viewModels()
     private lateinit var adapter: DiaryAdapter
+    private var listFooter: LoadingFooterAdapter? = null
+    private var targetUserId = 0
     private var savedScrollState: Pair<Int, Int>? = null
 
     override fun onCreateView(
@@ -40,7 +44,7 @@ class DiaryFragment : Fragment() {
         // Get userId from args or use current user
         val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         val currentUserId = prefs.getInt("userId", 0)
-        val targetUserId = if (args.userId > 0) args.userId else currentUserId
+        targetUserId = if (args.userId > 0) args.userId else currentUserId
         
         setupRecyclerView()
         setupClickListeners()
@@ -89,7 +93,13 @@ class DiaryFragment : Fragment() {
         )
         
         binding.rvDiary.layoutManager = LinearLayoutManager(requireContext())
-        binding.rvDiary.adapter = adapter
+        listFooter = PagedList.setup(
+            binding.rvDiary,
+            adapter,
+            prefetchThreshold = 6
+        ) {
+            viewModel.loadMore(targetUserId)
+        }
     }
     
     private fun setupClickListeners() {
@@ -101,6 +111,9 @@ class DiaryFragment : Fragment() {
     private fun observeViewModel() {
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
             binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        }
+        viewModel.isLoadingMore.observe(viewLifecycleOwner) { loading ->
+            listFooter?.setVisible(loading)
         }
         viewModel.diaryItems.observe(viewLifecycleOwner) { items ->
             adapter.submitList(items)

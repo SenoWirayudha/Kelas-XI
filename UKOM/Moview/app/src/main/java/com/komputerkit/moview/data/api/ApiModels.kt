@@ -3,7 +3,8 @@ package com.komputerkit.moview.data.api
 data class ApiResponse<T>(
     val success: Boolean,
     val data: T?,
-    val message: String? = null
+    val message: String? = null,
+    val pagination: Pagination? = null
 )
 
 data class SimpleResponse(

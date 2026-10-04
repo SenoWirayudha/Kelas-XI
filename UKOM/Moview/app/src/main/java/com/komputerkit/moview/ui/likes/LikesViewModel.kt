@@ -26,6 +26,9 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
     private var loadedKey: String? = null
     private var loadJob: Job? = null
     private var refreshJob: Job? = null
+    private var loadMoreJob: Job? = null
+    private var currentPage = 1
+    private var lastPage = 1
     
     private var allLikes: List<Movie> = emptyList()
     
@@ -34,6 +37,9 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
     
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _isLoadingMore = MutableLiveData<Boolean>(false)
+    val isLoadingMore: LiveData<Boolean> = _isLoadingMore
 
     private val _genres = MutableLiveData<List<String>>(emptyList())
     val genres: LiveData<List<String>> = _genres
@@ -59,6 +65,7 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
         if (loadJob?.isActive == true) return
         if (key == loadedKey && _likes.value != null) {
             if (refreshJob?.isActive == true) return
+            if (loadMoreJob?.isActive == true) return
             refreshJob = viewModelScope.launch {
                 try {
                     fetchLikes(userId)
@@ -71,6 +78,8 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
             }
             return
         }
+        refreshJob?.cancel()
+        loadMoreJob?.cancel()
         loadJob = viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -88,7 +97,10 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun fetchLikes(userId: Int) {
-        val rawLikes = repository.getUserLikes(userId)
+        val slice = repository.getUserLikesPaged(userId, 1)
+        currentPage = slice.page
+        lastPage = slice.lastPage
+        val rawLikes = slice.items
         val customMedia = repository.batchCustomMedia(userId, rawLikes.map { it.id }, "films")
         allLikes = rawLikes.applyCustomMedia(customMedia)
         val options = repository.getFilterOptions()
@@ -97,6 +109,40 @@ class LikesViewModel(application: Application) : AndroidViewModel(application) {
         _languages.postValue(options.languages)
         _themes.postValue(options.themes)
         _likes.postValue(MovieFilterUtils.applyFilters(allLikes, filterState))
+    }
+
+    /**
+     * Infinite scroll: tarik halaman berikutnya, akumulasi, terapkan ulang filter.
+     */
+    fun loadMore(userId: Int) {
+        if (userId == 0) return
+        if (loadJob?.isActive == true || refreshJob?.isActive == true || loadMoreJob?.isActive == true) return
+        if (_isLoadingMore.value == true) return
+        if (currentPage >= lastPage) return
+        if (loadedKey != "likes|$userId") return
+
+        loadMoreJob = viewModelScope.launch {
+            _isLoadingMore.postValue(true)
+            try {
+                val slice = repository.getUserLikesPaged(userId, currentPage + 1)
+                if (slice.items.isEmpty()) {
+                    lastPage = currentPage
+                    return@launch
+                }
+                val customMedia = repository.batchCustomMedia(userId, slice.items.map { it.id }, "films")
+                val newItems = slice.items.applyCustomMedia(customMedia)
+                currentPage = slice.page
+                lastPage = slice.lastPage
+                allLikes = allLikes + newItems
+                applyCurrentFilters()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                if (isActive) _isLoadingMore.postValue(false)
+            }
+        }
     }
     
     private fun applyCurrentFilters() {

@@ -98,7 +98,9 @@ interface MovieApiService {
     @GET("films/category")
     suspend fun getFilmsByCategory(
         @Query("type") type: String,
-        @Query("value") value: String
+        @Query("value") value: String,
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null
     ): ApiResponse<List<MovieCardDto>>
 
     @GET("filters/options")
@@ -155,12 +157,16 @@ interface MovieApiService {
     // User Activity Endpoints
     @GET("users/{userId}/films")
     suspend fun getUserFilms(
-        @Path("userId") userId: Int
+        @Path("userId") userId: Int,
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null
     ): ApiResponse<List<UserFilmDto>>
     
     @GET("users/{userId}/diary")
     suspend fun getUserDiary(
-        @Path("userId") userId: Int
+        @Path("userId") userId: Int,
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null
     ): ApiResponse<List<DiaryEntryDto>>
     
     @GET("users/{userId}/reviews")
@@ -206,12 +212,16 @@ interface MovieApiService {
 
     @GET("users/{userId}/likes")
     suspend fun getUserLikes(
-        @Path("userId") userId: Int
+        @Path("userId") userId: Int,
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null
     ): ApiResponse<List<UserFilmDto>>
     
     @GET("users/{userId}/watchlist")
     suspend fun getUserWatchlist(
-        @Path("userId") userId: Int
+        @Path("userId") userId: Int,
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null
     ): ApiResponse<List<UserFilmDto>>
     
     @GET("users/{userId}/followers")
@@ -231,7 +241,9 @@ interface MovieApiService {
     
     @GET("users/{userId}/friends-activity-all")
     suspend fun getAllFriendsActivity(
-        @Path("userId") userId: Int
+        @Path("userId") userId: Int,
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null
     ): ApiResponse<List<FriendActivityDto>>
     
     @POST("users/{userId}/follow/{targetUserId}")
