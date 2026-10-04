@@ -312,6 +312,37 @@
                     rows: {{ \Illuminate\Support\Js::from($existingReleases) }}
                 })"
             >
+                <!-- Skeleton Release Dates: tampil dari HTML awal sampai Alpine selesai render -->
+                <div x-show="!ready" id="release-timeline-skeleton" class="border border-gray-200 rounded-lg p-4 mb-3 bg-gray-50/50">
+                    <p class="text-sm text-gray-500 mb-3">
+                        <i class="fas fa-spinner fa-spin mr-2 text-blue-500"></i>Memuat daftar release…
+                    </p>
+                    <div class="h-10 bg-gray-200 rounded animate-pulse mb-2"></div>
+                    <div class="h-10 bg-gray-200 rounded animate-pulse mb-2"></div>
+                    <div class="h-10 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+                <!-- Fallback bila Alpine gagal termuat (dikelola vanilla JS, bukan Alpine) -->
+                <div id="release-timeline-fallback" style="display:none" class="border border-amber-300 bg-amber-50 rounded-lg p-4 mb-3 text-sm text-amber-800">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    JavaScript belum termuat — daftar release tidak dapat ditampilkan.
+                    <a href="{{ request()->fullUrl() }}" class="font-semibold underline">Muat ulang halaman</a>.
+                </div>
+                <script>
+                    window.__moviewReleaseReady = function () {
+                        window.__moviewReleaseReadyFired = true;
+                        var sk = document.getElementById('release-timeline-skeleton');
+                        var fb = document.getElementById('release-timeline-fallback');
+                        if (sk) sk.style.display = 'none';
+                        if (fb) fb.style.display = 'none';
+                    };
+                    setTimeout(function () {
+                        if (window.__moviewReleaseReadyFired) return;
+                        var sk = document.getElementById('release-timeline-skeleton');
+                        var fb = document.getElementById('release-timeline-fallback');
+                        if (sk) sk.style.display = 'none';
+                        if (fb) fb.style.display = '';
+                    }, 15000);
+                </script>
                 <template x-for="(row, index) in rows" :key="index">
                     <div class="border border-gray-200 rounded-lg p-4 mb-3 bg-gray-50/50">
                         <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
@@ -412,9 +443,11 @@
                     </div>
                 </template>
 
-                <p x-show="rows.length === 0" class="text-sm text-gray-400 text-center py-3">
-                    Belum ada release. Tambahkan baris di bawah.
-                </p>
+                <template x-if="ready && rows.length === 0">
+                    <p class="text-sm text-gray-400 text-center py-3">
+                        Belum ada release. Tambahkan baris di bawah.
+                    </p>
+                </template>
 
                 <button type="button"
                         @click="addRow()"
@@ -649,7 +682,7 @@
                            class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <!-- Search results -->
-                <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg" x-show="filteredMovies.length > 0">
+                <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg" x-show="filteredMovies.length > 0" x-cloak>
                     <template x-for="m in filteredMovies" :key="m.id">
                         <button type="button" @click="add(m.id)"
                                 class="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm flex items-center justify-between"
@@ -716,7 +749,7 @@
                            class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
                 </div>
                 <!-- Search results -->
-                <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg" x-show="filteredMovies.length > 0">
+                <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg" x-show="filteredMovies.length > 0" x-cloak>
                     <template x-for="m in filteredMovies" :key="m.id">
                         <button type="button" @click="add(m.id)"
                                 class="w-full text-left px-3 py-2 hover:bg-purple-50 text-sm flex items-center justify-between"
@@ -815,6 +848,15 @@
 <script>
 function releaseManager(cfg) {
     return {
+        ready: false,
+        init() {
+            // Sembunyikan skeleton SETELAH render baris selesai (nextTick), bukan saat init awal,
+            // agar skeleton menutupi periode render berat tanpa berkedip.
+            this.$nextTick(() => {
+                this.ready = true;
+                if (typeof window.__moviewReleaseReady === 'function') window.__moviewReleaseReady();
+            });
+        },
         countries: cfg.countries || [],
         rows: cfg.rows && cfg.rows.length ? cfg.rows.map(normalizeRow) : [],
         // Import dari teks state
