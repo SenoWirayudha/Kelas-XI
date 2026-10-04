@@ -99,6 +99,7 @@
                 <option value="follow" {{ request('activity_type') == 'follow' ? 'selected' : '' }}>Follow</option>
                 <option value="like_review" {{ request('activity_type') == 'like_review' ? 'selected' : '' }}>Like Review</option>
                 <option value="comment_review" {{ request('activity_type') == 'comment_review' ? 'selected' : '' }}>Comment Review</option>
+                <option value="reply_comment" {{ request('activity_type') == 'reply_comment' ? 'selected' : '' }}>Reply Comment</option>
                 <option value="watched" {{ request('activity_type') == 'watched' ? 'selected' : '' }}>Watched</option>
                 <option value="logged" {{ request('activity_type') == 'logged' ? 'selected' : '' }}>Logged</option>
                 <option value="reviewed" {{ request('activity_type') == 'reviewed' ? 'selected' : '' }}>Reviewed</option>

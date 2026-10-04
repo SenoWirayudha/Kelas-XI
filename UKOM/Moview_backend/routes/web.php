@@ -109,6 +109,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     
     // Analytics
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+    Route::get('/analytics/export', [AnalyticsController::class, 'export'])->name('analytics.export');
 
     // Schedule Management
     Route::get('/schedules',                  [ScheduleController::class, 'index'])->name('schedules.index');
@@ -146,8 +147,9 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     Route::delete('/studios/{studio}/seat-types/{key}',     [SeatTypeController::class, 'destroy'])->name('seat-types.destroy');
 
     // Order Management
-    Route::get('/orders',      [AdminOrderController::class, 'index'])->name('orders.index');
-    Route::get('/orders/{id}', [AdminOrderController::class, 'show'])->name('orders.show');
+Route::get('/orders',      [AdminOrderController::class, 'index'])->name('orders.index');
+Route::get('/orders/export', [AdminOrderController::class, 'export'])->name('orders.export');
+Route::get('/orders/{id}', [AdminOrderController::class, 'show'])->name('orders.show');
 
     // Ticket Scanner
     Route::get('/scan-ticket',  [TicketScannerController::class, 'index'])->name('tickets.scanner');

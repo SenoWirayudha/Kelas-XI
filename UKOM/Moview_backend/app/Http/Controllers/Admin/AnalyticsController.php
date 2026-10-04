@@ -3,12 +3,103 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\Admin\ActivityFeedService;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class AnalyticsController extends Controller
 {
+    public function __construct(private readonly ActivityFeedService $activityFeed)
+    {
+    }
+
     public function index()
+    {
+        return view('admin.analytics.index', $this->reportData());
+    }
+
+    public function export()
+    {
+        $data = $this->reportData();
+
+        $filename = 'analytics_' . now()->format('Ymd_Hi') . '.csv';
+
+        return response()->streamDownload(function () use ($data) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            $eol = "\r\n";
+            $write = function (array $fields) use ($out, $eol) {
+                fputcsv($out, $fields, ',', '"', '\\', $eol);
+            };
+
+            // Proteksi CSV injection (prefiks apostrof untuk sel AWAL = + - @):
+            // DIPAKAI HANYA untuk sel teks yang berasal dari konten buatan user
+            // (judul film; pada commit item 5 ditambah username/teks aktivitas/nama).
+            // TIDAK dipakai untuk label sistem ("Summary", "No films viewed this week",
+            // note "+0.0% from last month"), tanggal, angka, dan persen — semuanya
+            // diekstrak mentah apa adanya agar identik dengan tampilan dashboard.
+            $guard = function (string $v): string {
+                return ($v !== '' && in_array($v[0], ['=', '+', '-', '@'], true)) ? "'" . $v : $v;
+            };
+
+            $write(['Moview Analytics Report']);
+            $write(['Generated At', now()->format('Y-m-d H:i:s') . ' ' . config('app.timezone')]);
+            $write([]);
+            $write(['Summary']);
+            $write(['Metric', 'Value', 'Note']);
+            $write([
+                'Total Views',
+                $data['totalViews'],
+                ($data['viewsChange'] >= 0 ? '+' : '') . number_format($data['viewsChange'], 1) . '% from last month',
+            ]);
+            $write(['Active Users', $data['activeUsers'], 'Total registered users']);
+            $write([
+                'Reviews Posted',
+                $data['reviewsPosted'],
+                ($data['reviewsChange'] >= 0 ? '+' : '') . number_format($data['reviewsChange'], 1) . '% from last month',
+            ]);
+            $write([]);
+            $write(['Top Films This Week']);
+            $write(['Rank', 'Title', 'Views', 'Change']);
+            if ($data['topFilms']->isEmpty()) {
+                $write(['No films viewed this week']);
+            } else {
+                foreach ($data['topFilms'] as $index => $film) {
+                    $write([
+                        $index + 1,
+                        $guard($film->title),
+                        $film->view_count,
+                        ($film->change >= 0 ? '+' : '') . number_format($film->change, 0) . '%',
+                    ]);
+                }
+            }
+            $write([]);
+            $write(['Views Over Time - Last 7 Days']);
+            $write(['Date', 'Views']);
+            foreach ($data['viewsOverTime'] as $day) {
+                $write([$day['iso'], $day['count']]);
+            }
+            // Recent Activity: sumber data & urutan yang sama dengan widget di atas
+            // ($data['recentActivities'] = ActivityFeedService::recent(10)).
+            // Sel yang diproteksi: User, Activity, Movie (teks buatan user).
+            // Sel yang dikecualikan: Time (sistem) dan sel Summary/Top Films.
+            $write([]);
+            $write(['Recent Activity']);
+            $write(['Time', 'User', 'Activity', 'Movie']);
+            foreach ($data['recentActivities'] as $activity) {
+                $write([
+                    \Carbon\Carbon::parse($activity->created_at)->format('Y-m-d H:i:s'),
+                    $guard($activity->user_name),
+                    $guard($activity->action),
+                    $activity->movie_title !== null && $activity->movie_title !== '' ? $guard($activity->movie_title) : '',
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    private function reportData(): array
     {
         // Total Views (from ratings table - each rating means user watched)
         $totalViews = DB::table('ratings')->count();
@@ -117,33 +208,16 @@ class AnalyticsController extends Controller
                 ->count();
             $viewsOverTime[] = [
                 'date' => $targetDate->format('M d'),
+                'iso' => $targetDate->format('Y-m-d'),
                 'count' => $count
             ];
         }
         
-        // Recent Activity (last 10 activities from user_activities in last 24 hours: follow, like_review, comment_review)
-        $recentActivities = DB::table('user_activities')
-            ->join('users', 'user_activities.user_id', '=', 'users.id')
-            ->leftJoin('movies', 'user_activities.film_id', '=', 'movies.id')
-            ->select(
-                'user_activities.id',
-                'user_activities.type',
-                'user_activities.meta',
-                'user_activities.created_at',
-                'users.username as user_name',
-                'movies.title as movie_title'
-            )
-            ->whereIn('user_activities.type', ['follow', 'like_review', 'comment_review'])
-            ->where('user_activities.created_at', '>=', Carbon::now()->subDay())
-            ->orderBy('user_activities.created_at', 'desc')
-            ->limit(10)
-            ->get()
-            ->map(function($activity) {
-                $activity->meta = json_decode($activity->meta, true);
-                return $activity;
-            });
+        // Recent Activity (10 terbaru, semua sumber, tanpa batas waktu —
+        // ActivityFeedService::recent() juga menjadi sumber bagian CSV export)
+        $recentActivities = $this->activityFeed->recent(10);
         
-        return view('admin.analytics.index', [
+        return [
             'totalViews' => $totalViews,
             'viewsChange' => $viewsChange,
             'activeUsers' => $activeUsers,
@@ -152,6 +226,6 @@ class AnalyticsController extends Controller
             'topFilms' => $topFilmsWithChange,
             'viewsOverTime' => $viewsOverTime,
             'recentActivities' => $recentActivities
-        ]);
+        ];
     }
 }

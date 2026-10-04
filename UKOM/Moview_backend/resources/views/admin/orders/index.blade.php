@@ -30,6 +30,10 @@
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition">
             <i class="fas fa-search mr-1"></i> Filter
         </button>
+        <a href="{{ route('admin.orders.export', request()->query()) }}"
+           class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition">
+            <i class="fas fa-file-csv mr-1"></i> Export CSV
+        </a>
         @if(request()->hasAny(['search','status']))
             <a href="{{ route('admin.orders.index') }}"
                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition">

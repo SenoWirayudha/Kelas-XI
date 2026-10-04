@@ -145,52 +145,27 @@
     <div class="space-y-3">
         @forelse($recentActivities as $activity)
         @php
-            $iconColor = $activity->type === 'follow' ? 'blue' : 
-                         ($activity->type === 'like_review' ? 'pink' : 'cyan');
-            $icon = $activity->type === 'follow' ? 'user-plus' : 
-                    ($activity->type === 'like_review' ? 'heart' : 'comment');
-            
-            // Get target user for follow activity
-            $targetUser = null;
-            if ($activity->type === 'follow' && isset($activity->meta['followed_user_id'])) {
-                $targetUser = DB::table('users')->where('id', $activity->meta['followed_user_id'])->first();
-            }
-            
-            // Get review details for like/comment activities
-            $reviewData = null;
-            if (($activity->type === 'like_review' || $activity->type === 'comment_review') && isset($activity->meta['review_id'])) {
-                $reviewData = DB::table('reviews')
-                    ->join('users', 'reviews.user_id', '=', 'users.id')
-                    ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
-                    ->join('movies', 'reviews.film_id', '=', 'movies.id')
-                    ->where('reviews.id', $activity->meta['review_id'])
-                    ->select('users.username', 'user_profiles.display_name', 'movies.title as movie_title', 'reviews.rating')
-                    ->first();
-            }
+            // Ikon/warna mengikuti peta yang sama dengan halaman Activity
+            $styles = [
+                'follow'         => ['icon' => 'fa-user-plus',  'color' => 'blue'],
+                'like_review'    => ['icon' => 'fa-heart',      'color' => 'pink'],
+                'comment_review' => ['icon' => 'fa-comment',    'color' => 'cyan'],
+                'reply_comment'  => ['icon' => 'fa-reply',      'color' => 'teal'],
+                'watched'        => ['icon' => 'fa-eye',        'color' => 'green'],
+                'logged'         => ['icon' => 'fa-book',       'color' => 'purple'],
+                'reviewed'       => ['icon' => 'fa-star',       'color' => 'yellow'],
+                'watchlist'      => ['icon' => 'fa-bookmark',   'color' => 'orange'],
+            ];
+            $style = $styles[$activity->type] ?? ['icon' => 'fa-circle', 'color' => 'gray'];
         @endphp
         <div class="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg">
-            <div class="w-10 h-10 bg-gradient-to-br from-{{ $iconColor }}-400 to-{{ $iconColor }}-600 rounded-full flex items-center justify-center text-white">
-                <i class="fas fa-{{ $icon }}"></i>
+            <div class="w-10 h-10 bg-gradient-to-br from-{{ $style['color'] }}-400 to-{{ $style['color'] }}-600 rounded-full flex items-center justify-center text-white">
+                <i class="fas {{ $style['icon'] }}"></i>
             </div>
             <div class="flex-1">
                 <p class="text-sm">
                     <span class="font-medium">{{ $activity->user_name }}</span>
-                    @if($activity->type === 'follow' && $targetUser)
-                        <span class="text-gray-600"> followed </span>
-                        <span class="font-medium">{{ $targetUser->username }}</span>
-                    @elseif($activity->type === 'like_review' && $reviewData)
-                        <span class="text-gray-600"> liked </span>
-                        <span class="font-medium">{{ $reviewData->display_name ?? $reviewData->username }}</span>
-                        <span class="text-gray-600">'s review on </span>
-                        <span class="font-medium">{{ $reviewData->movie_title }}</span>
-                    @elseif($activity->type === 'comment_review' && $reviewData)
-                        <span class="text-gray-600"> commented on </span>
-                        <span class="font-medium">{{ $reviewData->display_name ?? $reviewData->username }}</span>
-                        <span class="text-gray-600">'s review on </span>
-                        <span class="font-medium">{{ $reviewData->movie_title }}</span>
-                    @else
-                        <span class="text-gray-600"> {{ str_replace('_', ' ', $activity->type) }}</span>
-                    @endif
+                    <span class="text-gray-600">{{ $activity->description }}</span>
                 </p>
                 <p class="text-xs text-gray-500">{{ \Carbon\Carbon::parse($activity->created_at)->diffForHumans() }}</p>
             </div>
@@ -211,19 +186,20 @@
         Export Reports
     </h3>
     <div class="flex flex-wrap gap-3">
-        <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg" onclick="window.showToast('Export to PDF (UI only)', 'info')">
+        <button class="bg-gray-200 text-gray-400 px-6 py-2 rounded-lg cursor-not-allowed" disabled title="Belum tersedia">
             <i class="fas fa-file-pdf mr-2"></i>
             Export PDF
         </button>
-        <button class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg" onclick="window.showToast('Export to Excel (UI only)', 'info')">
+        <button class="bg-gray-200 text-gray-400 px-6 py-2 rounded-lg cursor-not-allowed" disabled title="Belum tersedia">
             <i class="fas fa-file-excel mr-2"></i>
             Export Excel
         </button>
-        <button class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg" onclick="window.showToast('Export to CSV (UI only)', 'info')">
+        <a href="{{ route('admin.analytics.export') }}"
+           class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg inline-flex items-center">
             <i class="fas fa-file-csv mr-2"></i>
             Export CSV
-        </button>
-        <button class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg" onclick="window.showToast('Schedule report (UI only)', 'info')">
+        </a>
+        <button class="bg-gray-200 text-gray-400 px-6 py-2 rounded-lg cursor-not-allowed" disabled title="Belum tersedia">
             <i class="fas fa-calendar mr-2"></i>
             Schedule Report
         </button>
