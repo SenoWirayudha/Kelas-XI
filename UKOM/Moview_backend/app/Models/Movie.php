@@ -230,7 +230,7 @@ class Movie extends Model
      */
     public function movieReleases()
     {
-        return $this->hasMany(MovieRelease::class, 'movie_id')->orderBy('release_date');
+        return $this->hasMany(MovieRelease::class, 'movie_id')->orderBy('release_date')->orderBy('id');
     }
 
     /**

@@ -610,42 +610,76 @@ class FilmController extends Controller
     }
 
     /**
-     * Sync movie_releases rows: delete all for the movie, then insert each row
-     * submitted by the repeatable release form. Empty/null country_code is stored
-     * as NULL. Duplicate keys collapse thanks to the unique index on
-     * (movie_id, type, country_code, release_date). Rows without a release_date
-     * are skipped (release dates are optional).
+     * Sync movie_releases rows with a content diff inside a transaction:
+     * rows whose content already exists keep their id/created_at/updated_at
+     * untouched, rows missing from the submitted input are deleted, and only
+     * genuinely new content is inserted. Empty/null country_code is stored
+     * as NULL. Duplicate input keys collapse thanks to the unique index on
+     * (movie_id, type, country_code, name, release_date). Rows without a
+     * release_date are skipped (release dates are optional).
      */
     private function syncReleases(Movie $movie, array $releases)
     {
-        $movie->movieReleases()->delete();
-
-        foreach ($releases as $release) {
-            $release = array_map('trim', $release);
-            if (empty($release['release_date'])) {
-                continue;
+        DB::transaction(function () use ($movie, $releases) {
+            $desired = [];
+            foreach ($releases as $release) {
+                $release = array_map('trim', $release);
+                if (empty($release['release_date'])) {
+                    continue;
+                }
+                $countryCode = ($release['country_code'] ?? '') !== '' ? $release['country_code'] : null;
+                $type = $release['type'];
+                $date = Carbon::parse($release['release_date'])->toDateString();
+                $name = $type === 'theatrical' ? null : (trim($release['name'] ?? '') ?: null);
+                $key = $type . '|' . strtoupper($countryCode ?? '') . '|' . ($name ?? '') . '|' . $date;
+                if (!isset($desired[$key])) {
+                    $desired[$key] = [
+                        'row' => [
+                            'movie_id' => $movie->id,
+                            'type' => $type,
+                            'country_code' => $countryCode,
+                            'name' => $name,
+                            'release_date' => $date,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ],
+                        'count' => 0,
+                    ];
+                }
+                $desired[$key]['count']++;
             }
-            $countryCode = $release['country_code'] ?: null;
-            $name = trim($release['name'] ?? '');
-            $type = $release['type'];
 
-            $movie->movieReleases()->insertOrIgnore([
-                'movie_id' => $movie->id,
-                'type' => $type,
-                'country_code' => $countryCode,
-                'name' => $type === 'theatrical' ? null : ($name ?: null),
-                'release_date' => $release['release_date'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
+            $existingByKey = [];
+            foreach ($movie->movieReleases()->lockForUpdate()->get() as $row) {
+                $key = $row->type . '|' . strtoupper($row->country_code ?? '') . '|' . ($row->name ?? '') . '|' . ($row->release_date ? $row->release_date->toDateString() : '');
+                $existingByKey[$key][] = $row->id;
+            }
 
-        $this->syncTheatricalServices($movie);
+            $deleteIds = [];
+            foreach ($existingByKey as $key => $ids) {
+                $keep = min(count($ids), $desired[$key]['count'] ?? 0);
+                foreach (array_slice($ids, $keep) as $id) {
+                    $deleteIds[] = $id;
+                }
+            }
+            if ($deleteIds) {
+                $movie->movieReleases()->whereIn('id', $deleteIds)->delete();
+            }
 
-        $unhandledStreaming = app(\App\Services\StreamingSyncService::class)->syncMovie($movie);
-        if (!empty($unhandledStreaming)) {
-            session()->flash('streaming_warning', 'Streaming platform tidak dikenal (tidak disinkronkan): ' . implode(', ', $unhandledStreaming));
-        }
+            foreach ($desired as $key => $entry) {
+                $existingCount = count($existingByKey[$key] ?? []);
+                for ($i = $existingCount; $i < $entry['count']; $i++) {
+                    $movie->movieReleases()->insertOrIgnore($entry['row']);
+                }
+            }
+
+            $this->syncTheatricalServices($movie);
+
+            $unhandledStreaming = app(\App\Services\StreamingSyncService::class)->syncMovie($movie);
+            if (!empty($unhandledStreaming)) {
+                session()->flash('streaming_warning', 'Streaming platform tidak dikenal (tidak disinkronkan): ' . implode(', ', $unhandledStreaming));
+            }
+        });
     }
 
     /**
