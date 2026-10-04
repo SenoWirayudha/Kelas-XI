@@ -15,6 +15,13 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+        .sidebar-scroll {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .sidebar-scroll::-webkit-scrollbar {
+            display: none;
+        }
     </style>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -26,7 +33,7 @@
                 <h1 class="text-2xl font-bold text-blue-400">🎬 Moview Admin</h1>
             </div>
             
-            <nav class="flex-1 overflow-y-auto mt-2">
+            <nav class="sidebar-scroll flex-1 overflow-y-auto mt-2">
                 <a href="{{ route('admin.films.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.films.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-film mr-3"></i>
                     <span>Films</span>
