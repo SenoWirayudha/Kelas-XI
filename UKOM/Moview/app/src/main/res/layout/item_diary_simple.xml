@@ -15,17 +15,27 @@
         android:id="@+id/entry_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingBottom="24dp">
+        android:paddingBottom="@dimen/list_row_gap">
+
+        <!-- Date Badge (fixed left column, top-aligned with poster) -->
+        <include
+            android:id="@+id/date_badge"
+            layout="@layout/view_date_badge"
+            android:layout_width="@dimen/date_badge_width"
+            android:layout_height="wrap_content"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/poster_card"
-            android:layout_width="110dp"
-            android:layout_height="165dp"
+            android:layout_width="@dimen/poster_thumb_width"
+            android:layout_height="@dimen/poster_thumb_height"
             app:cardCornerRadius="8dp"
             app:cardElevation="0dp"
             app:cardBackgroundColor="@android:color/transparent"
             app:strokeWidth="0dp"
-            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="8dp"
+            app:layout_constraintStart_toEndOf="@id/date_badge"
             app:layout_constraintTop_toTopOf="parent">
 
             <ImageView
@@ -42,7 +52,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="12dp"
             app:layout_constraintStart_toEndOf="@id/poster_card"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@id/poster_card">
@@ -52,7 +62,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="@color/white"
-                android:textSize="18sp"
+                android:textSize="@dimen/list_row_title_text"
                 android:textStyle="bold"
                 android:maxLines="2"
                 android:ellipsize="end"
@@ -64,7 +74,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:textColor="@color/text_secondary"
-                android:textSize="14sp"
+                android:textSize="@dimen/list_row_meta_text"
                 tools:text="2025" />
 
             <LinearLayout
@@ -73,7 +83,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginTop="8dp">
+                android:layout_marginTop="6dp">
 
                 <com.komputerkit.moview.ui.common.StarRatingView
                     android:id="@+id/star_rating"
@@ -83,8 +93,8 @@
 
                 <ImageView
                     android:id="@+id/ic_liked"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
                     android:layout_marginStart="6dp"
                     android:src="@drawable/ic_heart_filled"
                     android:visibility="gone"
@@ -93,40 +103,19 @@
 
                 <ImageView
                     android:id="@+id/ic_rewatched"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
                     android:layout_marginStart="6dp"
                     android:src="@drawable/ic_rewatch"
                     android:visibility="gone"
                     app:tint="@color/teal_watched"
                     android:contentDescription="Rewatched" />
 
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="8dp">
-
-                <TextView
-                    android:id="@+id/tv_date"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/bg_date_badge"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="4dp"
-                    android:textColor="@color/white"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    tools:text="14" />
-
                 <ImageView
                     android:id="@+id/ic_has_review"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginStart="6dp"
                     android:src="@drawable/ic_review"
                     android:visibility="gone"
                     app:tint="@color/text_secondary"

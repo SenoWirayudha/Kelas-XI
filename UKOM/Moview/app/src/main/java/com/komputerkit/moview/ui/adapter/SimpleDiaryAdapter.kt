@@ -12,6 +12,7 @@ import com.komputerkit.moview.data.model.Diary
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemDiarySimpleBinding
 import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.util.bindDateIso
 import com.komputerkit.moview.util.loadPoster
 
 class SimpleDiaryAdapter(
@@ -46,10 +47,8 @@ class SimpleDiaryAdapter(
                 tvTitle.text = diary.title
                 tvYear.text = diary.year.toString()
 
-                // Set watched date as badge (show day number like diary screen)
-                tvDate.text = try {
-                    diary.watched_at.substring(8, 10).trimStart('0').ifEmpty { "1" }
-                } catch (e: Exception) { diary.watched_at }
+                // Set watched date badge (hari + tanggal, bulan di header grup)
+                dateBadge.bindDateIso(diary.watched_at)
 
                 // Update star rating (supports half-star)
                 binding.starRating.apply {

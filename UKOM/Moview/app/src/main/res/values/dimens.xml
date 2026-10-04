@@ -17,4 +17,27 @@
 
     <!-- Movie Schedule floating controls -->
     <dimen name="back_button_margin">16dp</dimen>
+
+    <!-- Date Badge (view_date_badge) -->
+    <dimen name="date_badge_width">40dp</dimen>
+    <dimen name="date_badge_weekday_text">10sp</dimen>
+    <dimen name="date_badge_day_text">16sp</dimen>
+    <dimen name="date_badge_ring_width">4dp</dimen>
+    <dimen name="date_badge_ring_height">9dp</dimen>
+    <dimen name="date_badge_ring_gap">16dp</dimen>
+    <dimen name="date_badge_ring_overhang">4dp</dimen>
+
+    <!-- UI polish -->
+    <dimen name="card_corner_radius">8dp</dimen>
+    <dimen name="card_section_width">120dp</dimen>
+    <dimen name="card_section_margin_end">12dp</dimen>
+    <dimen name="poster_thumb_width">64dp</dimen>
+    <dimen name="poster_thumb_height">96dp</dimen>
+    <dimen name="list_row_title_text">15sp</dimen>
+    <dimen name="list_row_padding_v">8dp</dimen>
+    <dimen name="list_row_meta_text">12sp</dimen>
+    <dimen name="list_row_gap">16dp</dimen>
+    <dimen name="user_avatar_size">36dp</dimen>
+    <dimen name="user_avatar_radius">18dp</dimen>
+    <dimen name="rating_chart_height">85dp</dimen>
 </resources>

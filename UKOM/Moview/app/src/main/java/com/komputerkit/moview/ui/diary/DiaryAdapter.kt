@@ -12,6 +12,7 @@ import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.DiaryEntry
 import com.komputerkit.moview.databinding.ItemDiaryEntryBinding
 import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.util.bindDateIso
 import com.komputerkit.moview.util.loadPoster
 
 class DiaryAdapter(
@@ -81,7 +82,7 @@ class DiaryAdapter(
 
             binding.tvTitle.text = entry.movie.title
             binding.tvYear.text = entry.movie.releaseYear.toString()
-            binding.tvDate.text = entry.dateLabel
+            binding.dateBadge.bindDateIso(entry.watchedDate)
 
             binding.ivPoster.loadPoster(entry.movie.posterUrl, entry.movie.title)
 

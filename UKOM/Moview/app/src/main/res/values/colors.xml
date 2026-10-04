@@ -39,4 +39,13 @@
     <color name="red">#F44336</color>
     <color name="orange">#FF9800</color>
     <color name="teal_watched">#00BCD4</color>
+
+    <!-- Date Badge (view_date_badge) -->
+    <color name="date_badge_body">@color/dark_card</color>
+    <color name="date_badge_stroke">@color/input_border</color>
+    <color name="date_badge_header">@color/accent_blue</color>
+    <color name="date_badge_header_text">@color/white</color>
+    <color name="date_badge_day_text">@color/text_primary</color>
+    <color name="date_badge_ring">#CBD5E1</color>
+    <color name="date_badge_stack">#CBD5E1</color>
 </resources>
