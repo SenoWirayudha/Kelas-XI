@@ -26,7 +26,9 @@ Route::get('/user', function (Request $request) {
 // Public API endpoints for Android app
 Route::prefix('v1')->group(function () {
     // Authentication
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
+    Route::post('/register/verify-otp', [AuthController::class, 'verifyOtp'])->middleware('throttle:10,1');
+    Route::post('/register/resend-otp', [AuthController::class, 'resendOtp'])->middleware('throttle:10,1');
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/google-login', [AuthController::class, 'googleLogin']);
     Route::post('/logout', [AuthController::class, 'logout']);

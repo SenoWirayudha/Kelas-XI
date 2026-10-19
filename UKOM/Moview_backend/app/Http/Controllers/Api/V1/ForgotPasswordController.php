@@ -5,10 +5,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\PasswordResetToken;
 use App\Models\User;
+use App\Services\BrevoMailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -197,40 +196,6 @@ class ForgotPasswordController extends Controller
      */
     private function sendViaBrevo(string $toEmail, string $subject, string $html, array $logContext = []): void
     {
-        $apiKey = (string) config('services.brevo.key');
-        if ($apiKey === '') {
-            Log::info('Brevo email not sent (BREVO_API_KEY not set)', array_merge([
-                'email' => $toEmail,
-                'subject' => $subject,
-            ], $logContext));
-            return;
-        }
-
-        try {
-            $response = Http::withHeaders([
-                'api-key' => $apiKey,
-                'accept' => 'application/json',
-            ])
-                ->timeout(15)
-                ->post('https://api.brevo.com/v3/smtp/email', [
-                    'sender' => [
-                        'name' => config('services.brevo.from_name'),
-                        'email' => config('services.brevo.from_email'),
-                    ],
-                    'to' => [['email' => $toEmail]],
-                    'subject' => $subject,
-                    'htmlContent' => $html,
-                ]);
-
-            if (!$response->successful()) {
-                Log::error('Brevo send failed', [
-                    'email' => $toEmail,
-                    'status' => $response->status(),
-                    'body' => mb_substr($response->body(), 0, 500),
-                ]);
-            }
-        } catch (\Throwable $e) {
-            Log::error('Brevo send exception', ['email' => $toEmail, 'error' => $e->getMessage()]);
-        }
+        app(BrevoMailer::class)->send($toEmail, $subject, $html, $logContext);
     }
 }
