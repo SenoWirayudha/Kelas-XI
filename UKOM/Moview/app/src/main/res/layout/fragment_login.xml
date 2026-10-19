@@ -55,40 +55,30 @@
             tools:visibility="visible" />
 
         <!-- Logo: overlaps the hero bottom edge slightly -->
-        <androidx.cardview.widget.CardView
+        <ImageView
             android:id="@+id/card_icon"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
+            android:layout_width="104dp"
+            android:layout_height="104dp"
             android:layout_marginStart="24dp"
             android:layout_marginEnd="24dp"
             android:layout_marginTop="-16dp"
-            app:cardBackgroundColor="@color/accent_blue"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="0dp"
+            android:contentDescription="@string/app_name"
+            android:scaleType="fitCenter"
+            android:src="@drawable/logo_moview"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/iv_hero">
+            app:layout_constraintTop_toBottomOf="@id/iv_hero" />
 
-            <ImageView
-                android:layout_width="34dp"
-                android:layout_height="34dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_movie"
-                app:tint="@android:color/white" />
-        </androidx.cardview.widget.CardView>
-
-        <!-- App name -->
-        <TextView
-            android:id="@+id/tv_app_name"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+        <!-- Text logo -->
+        <ImageView
+            android:id="@+id/iv_app_name"
+            android:layout_width="160dp"
+            android:layout_height="30dp"
             android:layout_marginStart="24dp"
             android:layout_marginEnd="24dp"
             android:layout_marginTop="16dp"
-            android:text="Moview"
-            android:textColor="@color/accent_blue"
-            android:textSize="32sp"
-            android:textStyle="bold"
+            android:contentDescription="@string/app_name"
+            android:src="@drawable/text_logo_moview"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/card_icon" />
@@ -106,7 +96,7 @@
             android:textSize="15sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_app_name" />
+            app:layout_constraintTop_toBottomOf="@id/iv_app_name" />
 
         <!-- Email Input -->
         <com.google.android.material.card.MaterialCardView

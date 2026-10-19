@@ -114,8 +114,8 @@ fun ImageView.loadLogo(url: String?, placeholder: Drawable? = null) {
         .thumbnail(0.1f) // Load low-res thumbnail first
         .apply(
             RequestOptions()
-                .placeholder(placeholder ?: context.getDrawable(R.drawable.ic_launcher_background))
-                .error(R.drawable.ic_launcher_background)
+                .placeholder(placeholder ?: context.getDrawable(R.drawable.logo_moview))
+                .error(R.drawable.logo_moview)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .centerInside() // Fit logo without cropping
         )

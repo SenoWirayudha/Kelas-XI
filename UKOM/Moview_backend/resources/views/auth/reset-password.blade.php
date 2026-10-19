@@ -23,14 +23,6 @@
             border-radius: 24px;
             padding: 36px 28px;
         }
-        .logo {
-            width: 64px; height: 64px;
-            margin: 0 auto 16px auto;
-            background-color: #3b82f6;
-            border-radius: 18px;
-            display: flex; align-items: center; justify-content: center;
-            color: #fff; font-size: 30px; font-weight: bold;
-        }
         h1 { color: #f5f7fa; font-size: 22px; text-align: center; }
         .subtitle { color: #9aa5b8; font-size: 14px; text-align: center; margin-top: 8px; line-height: 1.6; }
         label { display: block; color: #9aa5b8; font-size: 13px; margin: 20px 0 6px 4px; }
@@ -104,7 +96,7 @@
 </head>
 <body>
     <div class="card">
-        <div class="logo">M</div>
+        <img src="{{ asset('logo-moview.png') }}" alt="Moview" style="width: 64px; height: 64px; display: block; margin: 0 auto 16px;">
         <h1>Buat Password Baru</h1>
         <p class="subtitle">Masukkan password baru untuk akun Moview-mu.</p>
 

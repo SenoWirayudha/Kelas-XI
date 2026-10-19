@@ -11,6 +11,9 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="placeholder_color">#FFCCCCCC</color>
+
+    <!-- Launcher icon (adaptive background, matches the black of Logo_Moview) -->
+    <color name="ic_launcher_background">#0A0909</color>
     
     <!-- Dark Theme Colors -->
     <color name="background">#0F1419</color>

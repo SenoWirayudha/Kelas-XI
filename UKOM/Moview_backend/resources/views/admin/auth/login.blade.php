@@ -7,8 +7,8 @@
     <div class="w-full max-w-md">
         <!-- Logo & Header -->
         <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl shadow-lg mb-4">
-                <i class="fas fa-film text-white text-3xl"></i>
+            <div class="inline-flex items-center justify-center px-6 py-4 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl shadow-lg mb-4">
+                <img src="{{ asset('text-logo-moview.png') }}" alt="Moview" class="h-7 w-auto">
             </div>
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Moview Admin</h1>
             <p class="text-gray-600">Sign in to manage your film database</p>

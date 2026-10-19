@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Film Admin Dashboard')</title>
+    <title>@yield('title', 'Moview')</title>
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -30,7 +31,8 @@
         <!-- Sidebar -->
         <aside class="w-64 bg-gray-900 text-white flex-shrink-0 h-screen sticky top-0 flex flex-col">
             <div class="p-6 flex-shrink-0">
-                <h1 class="text-2xl font-bold text-blue-400">🎬 Moview Admin</h1>
+                <img src="{{ asset('text-logo-moview.png') }}" alt="Moview" class="h-7 mb-2">
+                <p class="text-xs font-semibold uppercase tracking-widest text-gray-400">Admin</p>
             </div>
             
             <nav class="sidebar-scroll flex-1 overflow-y-auto mt-2">
