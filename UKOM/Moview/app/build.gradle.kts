@@ -123,6 +123,9 @@ dependencies {
 
     // QR code generator
     implementation("com.google.zxing:core:3.5.3")
+
+    // OTP pin-view (ready-made 6 boxes, JitPack)
+    implementation("com.github.mukeshsolanki.android-otpview-pinview:otpview:3.1.0")
     
     // Testing
     testImplementation(libs.junit)

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Border colors for the OTP pin view (Mukesh Solanki OtpView):
+     focused box and filled boxes = accent blue, empty boxes = grey. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:color="@color/accent_blue" android:state_selected="true" />
+    <item android:color="@color/accent_blue" app:OtpState_filled="true" />
+    <item android:color="@color/input_border" />
+</selector>

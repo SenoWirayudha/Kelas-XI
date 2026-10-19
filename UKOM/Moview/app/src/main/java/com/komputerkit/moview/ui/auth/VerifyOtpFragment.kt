@@ -1,6 +1,7 @@
 package com.komputerkit.moview.ui.auth
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -20,7 +21,6 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.google.android.material.card.MaterialCardView
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentVerifyOtpBinding
 import com.komputerkit.moview.data.repository.AuthRepository
@@ -44,18 +44,6 @@ class VerifyOtpFragment : Fragment() {
     private var email: String = ""
     private var resendTimer: CountDownTimer? = null
     private var otpHasError: Boolean = false
-
-    private val otpBoxCards: List<MaterialCardView>
-        get() = listOf(
-            binding.otpBox0, binding.otpBox1, binding.otpBox2,
-            binding.otpBox3, binding.otpBox4, binding.otpBox5
-        )
-
-    private val otpBoxDigits: List<android.widget.TextView>
-        get() = listOf(
-            binding.tvOtpDigit0, binding.tvOtpDigit1, binding.tvOtpDigit2,
-            binding.tvOtpDigit3, binding.tvOtpDigit4, binding.tvOtpDigit5
-        )
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -96,7 +84,10 @@ class VerifyOtpFragment : Fragment() {
     private fun setupImmersiveStatusBar() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, bars.bottom)
+            // Include the IME so the page grows while the keyboard is open —
+            // the Verifikasi button stays reachable by scrolling.
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, bars.bottom + ime.bottom)
             val lp = binding.btnBackContainer.layoutParams as ConstraintLayout.LayoutParams
             lp.topMargin = bars.top + (8 * resources.displayMetrics.density).toInt()
             binding.btnBackContainer.layoutParams = lp
@@ -135,72 +126,77 @@ class VerifyOtpFragment : Fragment() {
         super.onPause()
     }
 
-    /**
-     * One hidden numeric field feeds the 6 visible boxes. Typing advances the
-     * highlighted box, Backspace steps back, and pasting a full 6-digit code
-     * fills every box at once. Taps fall through the boxes onto the field,
-     * which opens the number keyboard.
-     */
     private fun setupOtpInput() {
-        binding.etOtp.addTextChangedListener(object : TextWatcher {
+        // The library calls setTextIsSelectable(false) in OtpView's constructor,
+        // which forces focusable=false, focusableInTouchMode=false and
+        // cursorVisible=false AFTER the XML attributes are applied. A tap can
+        // therefore never focus the view, so the keyboard never opens (other
+        // fields in the app are plain EditTexts without that call). Restore
+        // normal EditText focusability.
+        binding.otpView.isFocusable = true
+        binding.otpView.isFocusableInTouchMode = true
+        binding.otpView.isCursorVisible = true
+
+        // Any edit after an error resets the red borders + message.
+        binding.otpView.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
             override fun afterTextChanged(s: Editable?) {
-                val raw = s?.toString().orEmpty()
-                val digits = raw.filter { it.isDigit() }.take(6)
-                if (digits != raw) {
-                    binding.etOtp.setText(digits)
-                    binding.etOtp.setSelection(digits.length)
-                    return
-                }
-                // New input invalidates any previous error state.
                 if (otpHasError) showOtpError(null)
-                renderOtpBoxes()
             }
         })
 
-        renderOtpBoxes()
+        // Tap: re-focus + show the keyboard again (covers focus stolen by
+        // scrolling/other views between taps).
+        binding.otpView.setOnClickListener {
+            focusOtpInput()
+        }
+
+        // Auto-focus + number keyboard as soon as the screen opens.
+        binding.otpView.requestFocus()
+        binding.otpView.post { focusOtpInput() }
     }
 
-    /** Draws the current code into the boxes: active box = primary border, others grey; error = all red. */
-    private fun renderOtpBoxes() {
-        val code = binding.etOtp.text.toString()
-        val accent = ContextCompat.getColor(requireContext(), R.color.accent_blue)
-        val grey = ContextCompat.getColor(requireContext(), R.color.input_border)
-        val red = ContextCompat.getColor(requireContext(), R.color.red)
-        val thin = dp(1)
-        val thick = dp(2)
+    /** The 6-digit code straight from the library view. */
+    private fun currentOtp(): String = binding.otpView.text?.toString().orEmpty()
 
-        otpBoxCards.forEachIndexed { i, card ->
-            otpBoxDigits[i].text = code.getOrNull(i)?.toString() ?: ""
-            when {
-                otpHasError -> {
-                    card.strokeColor = red
-                    card.strokeWidth = thick
-                }
-                code.length < 6 && i == code.length -> {
-                    card.strokeColor = accent
-                    card.strokeWidth = thick
-                }
-                else -> {
-                    card.strokeColor = grey
-                    card.strokeWidth = thin
-                }
+    /** Clears the boxes (used after a successful resend). */
+    private fun clearOtp() {
+        binding.otpView.setText("")
+    }
+
+    /** Focus the pin view and explicitly request the number keyboard. */
+    private fun focusOtpInput() {
+        binding.otpView.requestFocus()
+        binding.otpView.post {
+            // Edge-to-edge: the insets controller is the reliable way to
+            // toggle the IME; fall back to the classic IMM call.
+            val controller = ViewCompat.getWindowInsetsController(requireView())
+            if (controller != null) {
+                controller.show(WindowInsetsCompat.Type.ime())
+            } else {
+                val imm = requireContext()
+                    .getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                imm.showSoftInput(binding.otpView, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
             }
         }
     }
 
-    /** Red borders on all boxes + message under them; null clears the error. */
+    /** Red borders on all boxes + message under them; null restores normal colors. */
     private fun showOtpError(message: String?) {
         otpHasError = message != null
         binding.tvOtpError.text = message.orEmpty()
         binding.tvOtpError.visibility = if (message != null) View.VISIBLE else View.GONE
-        renderOtpBoxes()
+        binding.otpView.setLineColor(
+            if (message != null) {
+                ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.red))
+            } else {
+                ContextCompat.getColorStateList(requireContext(), R.color.otp_border_color)
+                    ?: ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.input_border))
+            }
+        )
     }
-
-    private fun dp(value: Int): Int =
-        (value * resources.displayMetrics.density + 0.5f).toInt()
 
     /** "Scene from [Title] ([Year])" for the backdrop actually shown (film 112). */
     private fun loadHeroCredit() {
@@ -228,7 +224,7 @@ class VerifyOtpFragment : Fragment() {
     }
 
     private fun performVerify() {
-        val code = binding.etOtp.text.toString().trim()
+        val code = currentOtp()
 
         if (code.isEmpty()) {
             showOtpError("Kode OTP wajib diisi")
@@ -272,8 +268,7 @@ class VerifyOtpFragment : Fragment() {
             authRepository.resendOtp(email)
                 .onSuccess {
                     showSnackbar("Kode OTP baru sudah dikirim ke emailmu", SnackbarType.SUCCESS)
-                    showOtpError(null)
-                    binding.etOtp.text?.clear()
+                    clearOtp()
                     startResendCooldown(60_000)
                 }
                 .onFailure { error ->

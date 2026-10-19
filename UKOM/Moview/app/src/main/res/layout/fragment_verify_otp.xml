@@ -149,182 +149,36 @@
             app:layout_constraintTop_toBottomOf="@id/tv_subtitle"
             tools:text="user@example.com" />
 
-        <!-- OTP: 6 separate boxes rendered from one hidden numeric field.
-             The transparent field sits ON TOP of the boxes so every tap
-             reaches it directly and opens the number keyboard. Paste of a
-             6-digit code fills all boxes. -->
-        <FrameLayout
-            android:id="@+id/fl_otp"
+        <!-- OTP: ready-made 6-box pin view (Mukesh Solanki OtpView).
+             The view IS the input — typing, paste, and backspace are all
+             handled by the library itself. Border colors come from
+             @color/otp_border_color (focused/filled = accent, empty = grey)
+             and are switched to red programmatically on error. -->
+        <com.mukeshsolanki.OtpView
+            android:id="@+id/otp_view"
             android:layout_width="wrap_content"
-            android:layout_height="56dp"
+            android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
             android:layout_marginEnd="24dp"
             android:layout_marginTop="28dp"
+            android:cursorVisible="true"
+            android:inputType="number"
+            android:textColor="@color/text_primary"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            app:OtpCursorColor="@color/accent_blue"
+            app:OtpCursorWidth="2dp"
+            app:OtpItemCount="6"
+            app:OtpItemHeight="56dp"
+            app:OtpItemRadius="16dp"
+            app:OtpItemSpacing="8dp"
+            app:OtpItemWidth="44dp"
+            app:OtpLineWidth="1dp"
+            app:OtpLineColor="@color/otp_border_color"
+            app:OtpViewType="rectangle"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_otp_email">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/otp_box_0"
-                    android:layout_width="44dp"
-                    android:layout_height="56dp"
-                    android:layout_marginEnd="8dp"
-                    android:clickable="false"
-                    android:focusable="false"
-                    app:cardBackgroundColor="@color/dark_surface"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/input_border"
-                    app:strokeWidth="1dp">
-
-                    <TextView
-                        android:id="@+id/tv_otp_digit_0"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:textColor="@color/text_primary"
-                        android:textSize="22sp"
-                        android:textStyle="bold" />
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/otp_box_1"
-                    android:layout_width="44dp"
-                    android:layout_height="56dp"
-                    android:layout_marginEnd="8dp"
-                    android:clickable="false"
-                    android:focusable="false"
-                    app:cardBackgroundColor="@color/dark_surface"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/input_border"
-                    app:strokeWidth="1dp">
-
-                    <TextView
-                        android:id="@+id/tv_otp_digit_1"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:textColor="@color/text_primary"
-                        android:textSize="22sp"
-                        android:textStyle="bold" />
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/otp_box_2"
-                    android:layout_width="44dp"
-                    android:layout_height="56dp"
-                    android:layout_marginEnd="8dp"
-                    android:clickable="false"
-                    android:focusable="false"
-                    app:cardBackgroundColor="@color/dark_surface"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/input_border"
-                    app:strokeWidth="1dp">
-
-                    <TextView
-                        android:id="@+id/tv_otp_digit_2"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:textColor="@color/text_primary"
-                        android:textSize="22sp"
-                        android:textStyle="bold" />
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/otp_box_3"
-                    android:layout_width="44dp"
-                    android:layout_height="56dp"
-                    android:layout_marginEnd="8dp"
-                    android:clickable="false"
-                    android:focusable="false"
-                    app:cardBackgroundColor="@color/dark_surface"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/input_border"
-                    app:strokeWidth="1dp">
-
-                    <TextView
-                        android:id="@+id/tv_otp_digit_3"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:textColor="@color/text_primary"
-                        android:textSize="22sp"
-                        android:textStyle="bold" />
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/otp_box_4"
-                    android:layout_width="44dp"
-                    android:layout_height="56dp"
-                    android:layout_marginEnd="8dp"
-                    android:clickable="false"
-                    android:focusable="false"
-                    app:cardBackgroundColor="@color/dark_surface"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/input_border"
-                    app:strokeWidth="1dp">
-
-                    <TextView
-                        android:id="@+id/tv_otp_digit_4"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:textColor="@color/text_primary"
-                        android:textSize="22sp"
-                        android:textStyle="bold" />
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/otp_box_5"
-                    android:layout_width="44dp"
-                    android:layout_height="56dp"
-                    android:clickable="false"
-                    android:focusable="false"
-                    app:cardBackgroundColor="@color/dark_surface"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/input_border"
-                    app:strokeWidth="1dp">
-
-                    <TextView
-                        android:id="@+id/tv_otp_digit_5"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:textColor="@color/text_primary"
-                        android:textSize="22sp"
-                        android:textStyle="bold" />
-                </com.google.android.material.card.MaterialCardView>
-            </LinearLayout>
-
-            <!-- Transparent input on top: receives taps/keys, renders nothing. -->
-            <EditText
-                android:id="@+id/et_otp"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@android:color/transparent"
-                android:cursorVisible="false"
-                android:focusable="true"
-                android:focusableInTouchMode="true"
-                android:imeOptions="actionDone"
-                android:inputType="number"
-                android:longClickable="true"
-                android:maxLength="6"
-                android:textColor="@android:color/transparent"
-                android:textSize="16sp" />
-        </FrameLayout>
+            app:layout_constraintTop_toBottomOf="@id/tv_otp_email" />
 
         <!-- Inline error (wrong / expired / empty code) -->
         <TextView
@@ -340,7 +194,7 @@
             android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/fl_otp"
+            app:layout_constraintTop_toBottomOf="@id/otp_view"
             tools:text="Kode OTP salah. Coba lagi."
             tools:visibility="visible" />
 
