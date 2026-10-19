@@ -5,7 +5,9 @@ import com.komputerkit.moview.data.api.ForgotPasswordRequest
 import com.komputerkit.moview.data.api.GoogleLoginRequest
 import com.komputerkit.moview.data.api.LoginRequest
 import com.komputerkit.moview.data.api.RegisterRequest
+import com.komputerkit.moview.data.api.ResendOtpRequest
 import com.komputerkit.moview.data.api.RetrofitClient
+import com.komputerkit.moview.data.api.VerifyOtpRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -13,10 +15,31 @@ class AuthRepository {
     
     private val apiService = RetrofitClient.movieApiService
     
-    suspend fun register(username: String, email: String, password: String): Result<LoginData> = withContext(Dispatchers.IO) {
+    /**
+     * Register step 1: asks the backend to email a 6-digit OTP. Success only
+     * means "OTP sent" — the account is created after verifyOtp() succeeds.
+     */
+    suspend fun register(username: String, email: String, password: String): Result<RegisterOtpData> = withContext(Dispatchers.IO) {
         try {
             val request = RegisterRequest(username, email, password)
             val response = apiService.register(request)
+            
+            if (response.success && response.data != null) {
+                Result.success(RegisterOtpData(response.data.email))
+            } else {
+                Result.failure(Exception(response.message ?: "Registration failed"))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    /** Register step 2: verify the 6-digit OTP; on success the account is
+     *  created and a full session (token) is returned. */
+    suspend fun verifyOtp(email: String, code: String): Result<LoginData> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.verifyOtp(VerifyOtpRequest(email, code))
             
             if (response.success && response.data != null) {
                 val loginData = LoginData(
@@ -29,7 +52,22 @@ class AuthRepository {
                 )
                 Result.success(loginData)
             } else {
-                Result.failure(Exception(response.message ?: "Registration failed"))
+                Result.failure(Exception(response.message ?: "Verifikasi gagal"))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    /** Requests a fresh OTP for a pending registration (60s server cooldown). */
+    suspend fun resendOtp(email: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.resendOtp(ResendOtpRequest(email))
+            if (response.success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception(response.message ?: "Gagal mengirim ulang kode"))
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -136,4 +174,8 @@ data class LoginData(
     val role: String,
     val token: String,
     val joinedAt: String
+)
+
+data class RegisterOtpData(
+    val email: String
 )

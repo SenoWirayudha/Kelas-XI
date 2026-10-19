@@ -434,6 +434,20 @@ data class RegisterRequest(
     val password: String
 )
 
+// Register step 1 responds with the OTP destination email (no session yet).
+data class RegisterOtpResponse(
+    val email: String
+)
+
+data class VerifyOtpRequest(
+    val email: String,
+    val code: String
+)
+
+data class ResendOtpRequest(
+    val email: String
+)
+
 data class LoginResponse(
     val user: UserInfoDto,
     val token: String

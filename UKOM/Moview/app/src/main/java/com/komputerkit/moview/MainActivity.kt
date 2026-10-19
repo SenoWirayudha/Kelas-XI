@@ -163,6 +163,7 @@ class MainActivity : AppCompatActivity() {
             when (destination.id) {
                 R.id.loginFragment,
                 R.id.signUpFragment,
+                R.id.verifyOtpFragment,
                 R.id.forgotPasswordFragment,
                 R.id.editProfileFragment,
                 R.id.logFilmFragment -> {

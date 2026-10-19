@@ -197,19 +197,19 @@ class SignUpFragment : Fragment() {
         // Show loading state
         showLoading(true)
         
-        // Perform API registration
+        // Register step 1: backend emails a 6-digit OTP; the account is only
+        // created after the OTP screen is verified.
         lifecycleScope.launch {
             val result = authRepository.register(username, email, password)
             
-            result.onSuccess { loginData ->
-                // Save login state
-                saveLoginState(loginData.email, loginData.username, loginData.token, loginData.userId)
-                
+            result.onSuccess { otpData ->
                 showLoading(false)
-                showSnackbar("Welcome to Moview, ${loginData.username}!", SnackbarType.SUCCESS)
                 
-                // Navigate to home
-                findNavController().navigate(R.id.action_signUp_to_home)
+                // Navigate to the OTP verification screen
+                val bundle = Bundle().apply {
+                    putString("email", otpData.email)
+                }
+                findNavController().navigate(R.id.action_signUp_to_verifyOtp, bundle)
             }.onFailure { error ->
                 showLoading(false)
                 val errorMessage = when {
@@ -220,18 +220,6 @@ class SignUpFragment : Fragment() {
                 }
                 showSnackbar(errorMessage, SnackbarType.ERROR)
             }
-        }
-    }
-    
-    private fun saveLoginState(email: String, username: String, token: String, userId: Int) {
-        val sharedPrefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
-        sharedPrefs.edit().apply {
-            putBoolean("isLoggedIn", true)
-            putString("userEmail", email)
-            putString("username", username)
-            putString("authToken", token)
-            putInt("userId", userId)
-            apply()
         }
     }
     

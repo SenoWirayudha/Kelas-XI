@@ -38,6 +38,21 @@
             app:destination="@id/navigation_home"
             app:popUpTo="@id/loginFragment"
             app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_signUp_to_verifyOtp"
+            app:destination="@id/verifyOtpFragment" />
+    </fragment>
+
+    <!-- Verify OTP Fragment (register step 2) -->
+    <fragment
+        android:id="@+id/verifyOtpFragment"
+        android:name="com.komputerkit.moview.ui.auth.VerifyOtpFragment"
+        android:label="Verifikasi OTP">
+        <action
+            android:id="@+id/action_verifyOtp_to_home"
+            app:destination="@id/navigation_home"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
     </fragment>
 
     <fragment

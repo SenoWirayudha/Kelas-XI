@@ -16,8 +16,14 @@ interface MovieApiService {
     
     // Authentication
     @POST("register")
-    suspend fun register(@Body request: RegisterRequest): ApiResponse<LoginResponse>
-    
+    suspend fun register(@Body request: RegisterRequest): ApiResponse<RegisterOtpResponse>
+
+    @POST("register/verify-otp")
+    suspend fun verifyOtp(@Body request: VerifyOtpRequest): ApiResponse<LoginResponse>
+
+    @POST("register/resend-otp")
+    suspend fun resendOtp(@Body request: ResendOtpRequest): SimpleResponse
+
     @POST("login")
     suspend fun login(@Body request: LoginRequest): ApiResponse<LoginResponse>
     

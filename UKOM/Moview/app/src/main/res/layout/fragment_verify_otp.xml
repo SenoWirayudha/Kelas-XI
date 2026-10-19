@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/dark_background"
+    android:fillViewport="true"
+    android:scrollbars="none">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="32dp">
+
+        <!-- Hero Image: bright & vivid, NO dark overlay, edge-to-edge -->
+        <ImageView
+            android:id="@+id/iv_hero"
+            android:layout_width="0dp"
+            android:layout_height="280dp"
+            android:contentDescription="@string/hero_image_description"
+            android:scaleType="centerCrop"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Subtle fade at the bottom edge of the hero only -->
+        <View
+            android:id="@+id/view_hero_fade"
+            android:layout_width="0dp"
+            android:layout_height="90dp"
+            android:background="@drawable/gradient_backdrop_bottom"
+            app:layout_constraintBottom_toBottomOf="@id/iv_hero"
+            app:layout_constraintEnd_toEndOf="@id/iv_hero"
+            app:layout_constraintStart_toStartOf="@id/iv_hero" />
+
+        <!-- Film credit for the hero still (small, raised clear of the app logo) -->
+        <TextView
+            android:id="@+id/tv_hero_credit"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="26dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#B3FFFFFF"
+            android:textSize="9sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/iv_hero"
+            app:layout_constraintEnd_toEndOf="@id/iv_hero"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constraintStart_toStartOf="@id/iv_hero"
+            tools:text="Scene from In the Mood for Love (2000)"
+            tools:visibility="visible" />
+
+        <!-- Back button (top-left, below the status bar) -->
+        <FrameLayout
+            android:id="@+id/btn_back_container"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_back_button"
+            android:elevation="6dp"
+            android:translationZ="2dp"
+            app:layout_constraintStart_toStartOf="@id/iv_hero"
+            app:layout_constraintTop_toTopOf="@id/iv_hero">
+
+            <ImageView
+                android:id="@+id/btn_back"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="Back"
+                android:src="@drawable/ic_back"
+                app:tint="@color/white" />
+        </FrameLayout>
+
+        <!-- Logo: overlaps the hero bottom edge slightly -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/card_icon"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="24dp"
+            android:layout_marginTop="-16dp"
+            app:cardBackgroundColor="@color/accent_blue"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/iv_hero">
+
+            <ImageView
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_movie"
+                app:tint="@android:color/white" />
+        </androidx.cardview.widget.CardView>
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="24dp"
+            android:layout_marginTop="16dp"
+            android:text="Verifikasi Email"
+            android:textColor="@color/text_primary"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/card_icon" />
+
+        <!-- Info: "Kode dikirim ke" + email below -->
+        <TextView
+            android:id="@+id/tv_subtitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="Kode dikirim ke"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_title" />
+
+        <!-- Email destination -->
+        <TextView
+            android:id="@+id/tv_otp_email"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_subtitle"
+            tools:text="user@example.com" />
+
+        <!-- OTP: 6 separate boxes rendered from one hidden numeric field.
+             The field sits under the boxes (transparent); taps fall through
+             it so the keyboard opens. Paste of a 6-digit code fills all boxes. -->
+        <FrameLayout
+            android:id="@+id/fl_otp"
+            android:layout_width="wrap_content"
+            android:layout_height="56dp"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="24dp"
+            android:layout_marginTop="28dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_otp_email">
+
+            <EditText
+                android:id="@+id/et_otp"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"
+                android:cursorVisible="false"
+                android:imeOptions="actionDone"
+                android:inputType="number"
+                android:maxLength="6"
+                android:textColor="@android:color/transparent"
+                android:textSize="16sp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/otp_box_0"
+                    android:layout_width="44dp"
+                    android:layout_height="56dp"
+                    android:layout_marginEnd="8dp"
+                    android:clickable="false"
+                    android:focusable="false"
+                    app:cardBackgroundColor="@color/dark_surface"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/input_border"
+                    app:strokeWidth="1dp">
+
+                    <TextView
+                        android:id="@+id/tv_otp_digit_0"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:textColor="@color/text_primary"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/otp_box_1"
+                    android:layout_width="44dp"
+                    android:layout_height="56dp"
+                    android:layout_marginEnd="8dp"
+                    android:clickable="false"
+                    android:focusable="false"
+                    app:cardBackgroundColor="@color/dark_surface"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/input_border"
+                    app:strokeWidth="1dp">
+
+                    <TextView
+                        android:id="@+id/tv_otp_digit_1"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:textColor="@color/text_primary"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/otp_box_2"
+                    android:layout_width="44dp"
+                    android:layout_height="56dp"
+                    android:layout_marginEnd="8dp"
+                    android:clickable="false"
+                    android:focusable="false"
+                    app:cardBackgroundColor="@color/dark_surface"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/input_border"
+                    app:strokeWidth="1dp">
+
+                    <TextView
+                        android:id="@+id/tv_otp_digit_2"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:textColor="@color/text_primary"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/otp_box_3"
+                    android:layout_width="44dp"
+                    android:layout_height="56dp"
+                    android:layout_marginEnd="8dp"
+                    android:clickable="false"
+                    android:focusable="false"
+                    app:cardBackgroundColor="@color/dark_surface"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/input_border"
+                    app:strokeWidth="1dp">
+
+                    <TextView
+                        android:id="@+id/tv_otp_digit_3"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:textColor="@color/text_primary"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/otp_box_4"
+                    android:layout_width="44dp"
+                    android:layout_height="56dp"
+                    android:layout_marginEnd="8dp"
+                    android:clickable="false"
+                    android:focusable="false"
+                    app:cardBackgroundColor="@color/dark_surface"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/input_border"
+                    app:strokeWidth="1dp">
+
+                    <TextView
+                        android:id="@+id/tv_otp_digit_4"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:textColor="@color/text_primary"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/otp_box_5"
+                    android:layout_width="44dp"
+                    android:layout_height="56dp"
+                    android:clickable="false"
+                    android:focusable="false"
+                    app:cardBackgroundColor="@color/dark_surface"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/input_border"
+                    app:strokeWidth="1dp">
+
+                    <TextView
+                        android:id="@+id/tv_otp_digit_5"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:textColor="@color/text_primary"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Inline error (wrong / expired / empty code) -->
+        <TextView
+            android:id="@+id/tv_otp_error"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="32dp"
+            android:gravity="center"
+            android:textColor="@color/red"
+            android:textSize="13sp"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/fl_otp"
+            tools:text="Kode OTP salah. Coba lagi."
+            tools:visibility="visible" />
+
+        <!-- Verify Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_verify"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="24dp"
+            android:layout_marginTop="24dp"
+            app:layout_goneMarginTop="24dp"
+            android:text="Verifikasi"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/accent_blue"
+            app:cornerRadius="28dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_otp_error" />
+
+        <!-- Loading Indicator (Hidden by default) -->
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:indeterminateTint="@android:color/white"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/btn_verify"
+            app:layout_constraintEnd_toStartOf="@id/tv_verify_status"
+            app:layout_constraintHorizontal_chainStyle="packed"
+            app:layout_constraintStart_toStartOf="@id/btn_verify"
+            app:layout_constraintTop_toTopOf="@id/btn_verify"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/tv_verify_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="Memverifikasi..."
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/btn_verify"
+            app:layout_constraintEnd_toEndOf="@id/btn_verify"
+            app:layout_constraintStart_toEndOf="@id/progress_bar"
+            app:layout_constraintTop_toTopOf="@id/btn_verify"
+            tools:visibility="visible" />
+
+        <!-- Resend (cooldown handled in the fragment) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_resend"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Kirim ulang (60 dtk)"
+            android:textAllCaps="false"
+            android:textColor="@color/accent_blue"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/btn_verify" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</ScrollView>
