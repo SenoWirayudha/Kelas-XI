@@ -150,8 +150,9 @@
             tools:text="user@example.com" />
 
         <!-- OTP: 6 separate boxes rendered from one hidden numeric field.
-             The field sits under the boxes (transparent); taps fall through
-             it so the keyboard opens. Paste of a 6-digit code fills all boxes. -->
+             The transparent field sits ON TOP of the boxes so every tap
+             reaches it directly and opens the number keyboard. Paste of a
+             6-digit code fills all boxes. -->
         <FrameLayout
             android:id="@+id/fl_otp"
             android:layout_width="wrap_content"
@@ -162,18 +163,6 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tv_otp_email">
-
-            <EditText
-                android:id="@+id/et_otp"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@android:color/transparent"
-                android:cursorVisible="false"
-                android:imeOptions="actionDone"
-                android:inputType="number"
-                android:maxLength="6"
-                android:textColor="@android:color/transparent"
-                android:textSize="16sp" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -319,6 +308,22 @@
                         android:textStyle="bold" />
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
+
+            <!-- Transparent input on top: receives taps/keys, renders nothing. -->
+            <EditText
+                android:id="@+id/et_otp"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"
+                android:cursorVisible="false"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:imeOptions="actionDone"
+                android:inputType="number"
+                android:longClickable="true"
+                android:maxLength="6"
+                android:textColor="@android:color/transparent"
+                android:textSize="16sp" />
         </FrameLayout>
 
         <!-- Inline error (wrong / expired / empty code) -->
