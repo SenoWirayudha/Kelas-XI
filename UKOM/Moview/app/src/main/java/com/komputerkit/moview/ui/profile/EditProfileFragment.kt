@@ -503,6 +503,8 @@ class EditProfileFragment : Fragment() {
             remove("userId")
             apply()
         }
+        // Clear any in-flight OTP verification state.
+        com.komputerkit.moview.ui.auth.OtpStateStore.clear(requireContext())
         
         // Navigate to login and clear the ENTIRE back stack so the hardware
         // back button exits the app instead of returning to the logged-out session.

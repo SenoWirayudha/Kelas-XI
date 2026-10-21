@@ -204,6 +204,7 @@ class SignUpFragment : Fragment() {
                 // Navigate to the OTP verification screen
                 val bundle = Bundle().apply {
                     putString("email", otpData.email)
+                    putString("flow", "register")
                 }
                 findNavController().navigate(R.id.action_signUp_to_verifyOtp, bundle)
             }.onFailure { error ->

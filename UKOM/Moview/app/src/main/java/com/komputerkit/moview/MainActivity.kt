@@ -212,8 +212,21 @@ class MainActivity : AppCompatActivity() {
         val isLoggedIn = sharedPrefs.getBoolean("isLoggedIn", false)
         
         if (!isLoggedIn) {
-            // User not logged in, navigate to login
-            navController.navigate(R.id.loginFragment)
+            // Resume an in-flight OTP verification if one is still pending and
+            // unexpired (the user backgrounded mid-verify or the process died).
+            val otpState = com.komputerkit.moview.ui.auth.OtpStateStore.getValid(this)
+            if (otpState != null) {
+                navController.navigate(
+                    R.id.verifyOtpFragment,
+                    Bundle().apply {
+                        putString("email", otpState.email)
+                        putString("flow", otpState.flow)
+                    }
+                )
+            } else {
+                // User not logged in, navigate to login
+                navController.navigate(R.id.loginFragment)
+            }
         }
         // If logged in, stay at default destination (home)
     }

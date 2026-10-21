@@ -12,6 +12,7 @@ import android.view.View
 import android.view.ViewGroup
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
+import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -19,8 +20,11 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentVerifyOtpBinding
 import com.komputerkit.moview.data.repository.AuthRepository
@@ -33,6 +37,14 @@ import kotlinx.coroutines.launch
  * Register step 2: asks for the 6-digit code emailed by the backend.
  * The account only becomes active (and the session starts) after the code
  * verifies; resend has a 60-second cooldown handled by the server.
+ *
+ * Hardened: the pending verification (email, flow, absolute expiry + resend
+ * timestamps) is persisted locally so the app returns here after a process
+ * death or an email-app round-trip; the typed code survives recreation via a
+ * ViewModel + savedInstanceState; countdowns are derived from absolute
+ * timestamps so they never reset on relaunch; both action buttons are inert
+ * while a request is in flight; leaving (system back or the back button) is
+ * guarded by a confirmation.
  */
 class VerifyOtpFragment : Fragment() {
 
@@ -42,9 +54,20 @@ class VerifyOtpFragment : Fragment() {
     private val authRepository = AuthRepository()
     private val movieRepository = com.komputerkit.moview.data.repository.MovieRepository()
 
+    private lateinit var viewModel: VerifyOtpViewModel
+
     private var email: String = ""
+    private var flow: String = "register"
     private var resendTimer: CountDownTimer? = null
     private var otpHasError: Boolean = false
+    private var isVerifying: Boolean = false
+    private var isResending: Boolean = false
+    private var backCallback: OnBackPressedCallback? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        viewModel = ViewModelProvider(this)[VerifyOtpViewModel::class.java]
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -58,15 +81,15 @@ class VerifyOtpFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        email = arguments?.getString("email") ?: ""
-        if (email.isEmpty()) {
-            // No email passed (shouldn't happen) — nothing to verify.
-            findNavController().navigateUp()
+        if (!resolveEmail(savedInstanceState)) {
+            // Nothing to verify (no args, no surviving local state) — leave
+            // with a clear message instead of crashing on an empty email.
             return
         }
 
         binding.tvOtpEmail.text = email
         setupOtpInput()
+        restoreOtpText(savedInstanceState)
 
         // Hero image: backdrop id 785 of film id 112 (same edge-to-edge
         // pattern as Login — bright, no dark overlay).
@@ -79,8 +102,44 @@ class VerifyOtpFragment : Fragment() {
         setupImmersiveStatusBar()
         setupClickListeners()
 
-        // The server also enforces its own 60s cooldown per email.
-        startResendCooldown(60_000)
+        // Countdown is derived from the persisted absolute timestamp, so it
+        // is correct after backgrounding/relaunch (never restarts at 60s).
+        startResendCooldownFromStore()
+    }
+
+    /**
+     * Resolves the email/flow to verify. Prefers the navigation arguments,
+     * falls back to the locally-persisted pending state (process death /
+     * relaunch), and finally leaves for Login with a Snackbar when neither
+     * exists. Returns false when the screen cannot be shown.
+     */
+    private fun resolveEmail(savedInstanceState: Bundle?): Boolean {
+        email = arguments?.getString("email").orEmpty()
+        flow = arguments?.getString("flow") ?: "register"
+
+        if (email.isEmpty()) {
+            // No args — restore the pending verification if one survived.
+            val state = OtpStateStore.getValid(requireContext())
+            if (state != null) {
+                email = state.email
+                flow = state.flow
+                return true
+            }
+            // Nothing pending — do not crash; return to Login.
+            showSnackbar("Sesi verifikasi tidak ditemukan. Silakan login kembali.", SnackbarType.ERROR)
+            goToLogin()
+            return false
+        }
+
+        // Email came from arguments. Persist it so a later process death can
+        // resume here — but only on a FRESH entry (a configuration change
+        // re-runs onViewCreated with the same args and must not reset the
+        // expiry/cooldown timestamps).
+        val existing = OtpStateStore.peek(requireContext())
+        if (existing == null || existing.email != email) {
+            OtpStateStore.save(requireContext(), email, flow)
+        }
+        return true
     }
 
     /** Backdrop is ~38% of the screen on common phones (360x800dp); shorter
@@ -131,11 +190,29 @@ class VerifyOtpFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         applyImmersiveStatusBar(true)
+        // The user may have sat in the email app past the OTP's lifetime —
+        // clear the (now-expired) state and leave rather than sit here.
+        checkStillValid()
     }
 
     override fun onPause() {
         applyImmersiveStatusBar(false)
         super.onPause()
+    }
+
+    /** Clears + leaves if the pending OTP expired while we were backgrounded. */
+    private fun checkStillValid() {
+        if (_binding == null || email.isEmpty()) return
+        val state = OtpStateStore.peek(requireContext()) ?: return
+        if (System.currentTimeMillis() > state.expiresAt) {
+            OtpStateStore.clear(requireContext())
+            viewModel.updateOtp("")
+            showSnackbar(
+                "Kode OTP kedaluwarsa. Silakan daftar ulang untuk mendapatkan kode baru.",
+                SnackbarType.ERROR
+            )
+            goToLogin()
+        }
     }
 
     private fun setupOtpInput() {
@@ -149,12 +226,14 @@ class VerifyOtpFragment : Fragment() {
         binding.otpView.isFocusableInTouchMode = true
         binding.otpView.isCursorVisible = true
 
-        // Any edit after an error resets the red borders + message.
+        // Any edit after an error resets the red borders + message, and keeps
+        // the ViewModel in sync so the input survives recreation.
         binding.otpView.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
             override fun afterTextChanged(s: Editable?) {
+                viewModel.updateOtp(s?.toString().orEmpty())
                 if (otpHasError) setOtpErrorBorder(false)
             }
         })
@@ -164,18 +243,37 @@ class VerifyOtpFragment : Fragment() {
         binding.otpView.setOnClickListener {
             focusOtpInput()
         }
+    }
+
+    /**
+     * Seeds the boxes with the surviving input. The ViewModel value wins on a
+     * configuration change; savedInstanceState covers process death (where the
+     * ViewModel is cleared). An empty restore keeps the original auto-focus.
+     */
+    private fun restoreOtpText(savedInstanceState: Bundle?) {
+        val restored = viewModel.otpText.value
+            ?: savedInstanceState?.getString(STATE_OTP)
+        if (!restored.isNullOrEmpty()) {
+            binding.otpView.setText(restored)
+        }
 
         // Auto-focus + number keyboard as soon as the screen opens.
         binding.otpView.requestFocus()
         binding.otpView.post { focusOtpInput() }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(STATE_OTP, currentOtp())
+    }
+
     /** The 6-digit code straight from the library view. */
-    private fun currentOtp(): String = binding.otpView.text?.toString().orEmpty()
+    private fun currentOtp(): String = _binding?.otpView?.text?.toString().orEmpty()
 
     /** Clears the boxes (used after a successful resend). */
     private fun clearOtp() {
         binding.otpView.setText("")
+        viewModel.updateOtp("")
     }
 
     /** Focus the pin view and explicitly request the number keyboard. */
@@ -214,15 +312,25 @@ class VerifyOtpFragment : Fragment() {
             val movie = movieRepository.getMovieDetail(112) ?: return@launch
             val title = movie.title ?: return@launch
             val year = movie.releaseYear ?: return@launch
+            if (_binding == null) return@launch
             binding.tvHeroCredit.text = "Scene from $title ($year)"
             binding.tvHeroCredit.visibility = View.VISIBLE
         }
     }
 
     private fun setupClickListeners() {
-        binding.btnBack.setOnClickListener {
-            findNavController().navigateUp()
+        // Both the in-page back button and the system back gesture/button go
+        // through the same confirmation so an accidental exit is prevented.
+        binding.btnBack.setOnClickListener { confirmExit() }
+
+        backCallback = object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                confirmExit()
+            }
         }
+        // Tied to viewLifecycleOwner so it is removed automatically in
+        // onDestroyView (no leak, no double-handling on recreation).
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback!!)
 
         binding.btnVerify.setOnClickListener {
             performVerify()
@@ -233,7 +341,49 @@ class VerifyOtpFragment : Fragment() {
         }
     }
 
+    /** Asks before discarding the in-flight verification. */
+    private fun confirmExit() {
+        if (_binding == null) return
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Batalkan verifikasi?")
+            .setMessage("Proses verifikasi akan dihentikan. Kamu bisa mendaftar lagi kapan saja untuk mendapatkan kode baru.")
+            .setPositiveButton("Ya, batalkan") { _, _ -> cancelVerification() }
+            .setNegativeButton("Lanjutkan verifikasi", null)
+            .show()
+    }
+
+    /** Leaves the OTP screen after a confirmed cancel. */
+    private fun cancelVerification() {
+        OtpStateStore.clear(requireContext())
+        viewModel.updateOtp("")
+        // From Sign-Up the natural "back" is the Sign-Up form; after a
+        // relaunch straight into OTP there is nothing beneath us but Home,
+        // so land on Login instead of a logged-out Home.
+        val previous = findNavController().previousBackStackEntry?.destination?.id
+        if (previous == R.id.signUpFragment) {
+            findNavController().navigateUp()
+        } else {
+            goToLogin()
+        }
+    }
+
+    /** Pops everything back to the graph start and opens Login. */
+    private fun goToLogin() {
+        try {
+            val navOptions = NavOptions.Builder()
+                .setPopUpTo(navControllerStartId(), false)
+                .build()
+            findNavController().navigate(R.id.loginFragment, null, navOptions)
+        } catch (e: Exception) {
+            // Destination unreachable — best-effort exit, never crash.
+            findNavController().navigateUp()
+        }
+    }
+
+    private fun navControllerStartId(): Int = findNavController().graph.startDestinationId
+
     private fun performVerify() {
+        if (isVerifying) return
         val code = currentOtp()
 
         if (code.isEmpty()) {
@@ -249,11 +399,20 @@ class VerifyOtpFragment : Fragment() {
         }
 
         setOtpErrorBorder(false)
+        isVerifying = true
         showLoading(true)
+        // Inert while the request is in flight (both action buttons).
+        binding.btnResend.isEnabled = false
 
-        lifecycleScope.launch {
+        // viewLifecycleOwner: the coroutine is cancelled the moment the view
+        // goes away, so callbacks can never touch a dead binding.
+        viewLifecycleOwner.lifecycleScope.launch {
             authRepository.verifyOtp(email, code)
                 .onSuccess { loginData ->
+                    if (!isAdded || _binding == null) return@onSuccess
+                    isVerifying = false
+                    OtpStateStore.clear(requireContext())
+                    viewModel.updateOtp("")
                     saveLoginState(
                         loginData.email,
                         loginData.username,
@@ -265,7 +424,11 @@ class VerifyOtpFragment : Fragment() {
                     findNavController().navigate(R.id.action_verifyOtp_to_home)
                 }
                 .onFailure { error ->
+                    if (!isAdded || _binding == null) return@onFailure
+                    isVerifying = false
                     showLoading(false)
+                    // Restore the resend button to its true cooldown state.
+                    startResendCooldownFromStore()
                     // Backend OTP messages (wrong code / expired / throttle) are
                     // already Indonesian; network/5xx are surfaced globally.
                     // Message goes to Snackbar — the boxes just keep red borders.
@@ -278,36 +441,68 @@ class VerifyOtpFragment : Fragment() {
     }
 
     private fun performResend() {
+        if (isResending) return
+        isResending = true
         binding.btnResend.isEnabled = false
+        // Inert while the request is in flight (both action buttons).
+        binding.btnVerify.isEnabled = false
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             authRepository.resendOtp(email)
                 .onSuccess {
+                    if (!isAdded || _binding == null) return@onSuccess
+                    isResending = false
+                    OtpStateStore.markResendSent(requireContext())
                     showSnackbar("Kode OTP baru sudah dikirim ke emailmu", SnackbarType.SUCCESS)
                     clearOtp()
-                    startResendCooldown(60_000)
+                    startResendCooldownFromStore()
+                    binding.btnVerify.isEnabled = true
                 }
                 .onFailure { error ->
+                    if (!isAdded || _binding == null) return@onFailure
+                    isResending = false
                     ErrorMessage.fromApi(error, "Gagal mengirim ulang kode. Coba lagi.")?.let { message ->
                         showSnackbar(message, SnackbarType.ERROR)
                     }
-                    binding.btnResend.isEnabled = false
+                    // Restore both buttons to their true cooldown/usable state.
+                    startResendCooldownFromStore()
+                    binding.btnVerify.isEnabled = true
                 }
         }
     }
 
-    /** "Kirim ulang (45 dtk)" countdown; the button enables at 0. */
+    /**
+     * "Kirim ulang (45 dtk)" countdown derived from the persisted absolute
+     * timestamp — correct after backgrounding/relaunch. Enables at 0.
+     */
+    private fun startResendCooldownFromStore() {
+        if (_binding == null) return
+        val resendAvailableAt = OtpStateStore.peek(requireContext())?.resendAvailableAt ?: 0L
+        val remaining = resendAvailableAt - System.currentTimeMillis()
+        if (remaining <= 0L) {
+            resendTimer?.cancel()
+            binding.btnResend.isEnabled = true
+            binding.btnResend.text = "Kirim ulang kode"
+        } else {
+            startResendCooldown(remaining)
+        }
+    }
+
+    /** Raw countdown; [millis] is the remaining time until resend unlocks. */
     private fun startResendCooldown(millis: Long) {
+        if (_binding == null) return
         resendTimer?.cancel()
         binding.btnResend.isEnabled = false
 
         resendTimer = object : CountDownTimer(millis, 1000) {
             override fun onTick(remaining: Long) {
+                if (_binding == null) return
                 val seconds = (remaining / 1000).toInt() + if (remaining % 1000 > 0) 1 else 0
                 binding.btnResend.text = "Kirim ulang ($seconds dtk)"
             }
 
             override fun onFinish() {
+                if (_binding == null) return
                 binding.btnResend.isEnabled = true
                 binding.btnResend.text = "Kirim ulang kode"
             }
@@ -327,6 +522,7 @@ class VerifyOtpFragment : Fragment() {
     }
 
     private fun showLoading(isLoading: Boolean) {
+        if (_binding == null) return
         if (isLoading) {
             binding.btnVerify.text = ""
             binding.progressBar.visibility = View.VISIBLE
@@ -344,6 +540,12 @@ class VerifyOtpFragment : Fragment() {
         super.onDestroyView()
         resendTimer?.cancel()
         resendTimer = null
+        // backCallback is removed automatically via its viewLifecycleOwner.
+        backCallback = null
         _binding = null
+    }
+
+    companion object {
+        private const val STATE_OTP = "state_otp"
     }
 }
