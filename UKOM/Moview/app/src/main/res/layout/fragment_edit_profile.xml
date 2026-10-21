@@ -43,9 +43,11 @@
 
     <!-- Scrollable Content -->
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginTop="56dp"
+        android:clipToPadding="false"
         android:paddingBottom="@dimen/edit_scroll_padding_bottom">
 
         <LinearLayout
@@ -285,14 +287,15 @@
 
             </LinearLayout>
 
-            <!-- Favorites Grid -->
+            <!-- Favorites Grid — a single non-scrollable row of 4 equal slots
+                 (GridLayoutManager span 4, set in code). -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_favorites"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:orientation="horizontal"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                android:nestedScrollingEnabled="false"
+                android:overScrollMode="never"
                 tools:itemCount="4"
                 tools:listitem="@layout/item_favorite_slot" />
 
@@ -328,6 +331,7 @@
 
     <!-- Bottom Action Bar -->
     <LinearLayout
+        android:id="@+id/layout_bottom_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"

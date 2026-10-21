@@ -160,6 +160,12 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
     
+    /** Commit a drag-reordered Top 4 (movies packed left, empty "+" right).
+     *  Persisted with the rest of the profile on Save Changes. */
+    fun setFavoriteOrder(slots: List<FavoriteSlot>) {
+        _uiState.value = _uiState.value.copy(favoriteSlots = slots)
+    }
+
     fun removeFavoriteMovie(index: Int) {
         if (index !in 0..3) return
         

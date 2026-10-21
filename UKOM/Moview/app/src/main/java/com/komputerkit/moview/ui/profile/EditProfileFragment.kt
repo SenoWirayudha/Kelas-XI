@@ -19,7 +19,9 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.util.loadProfilePhoto
 import com.komputerkit.moview.R
@@ -91,6 +93,30 @@ class EditProfileFragment : Fragment() {
         setupBackdropToggle()
         setupNavigationResultListener()
         setupUsernameCounter()
+        setupBottomBarScrollPadding()
+    }
+
+    /**
+     * Reserve the fixed bottom bar's height as scroll padding (with
+     * clipToPadding=false in XML) so the last section — the backdrop toggle —
+     * can scroll fully clear of the Save Changes bar. Kept in sync when the
+     * keyboard resizes the window.
+     */
+    private fun setupBottomBarScrollPadding() {
+        val applyPadding = {
+            if (_binding != null) {
+                binding.scrollContent.setPadding(
+                    binding.scrollContent.paddingLeft,
+                    0,
+                    binding.scrollContent.paddingRight,
+                    binding.layoutBottomBar.height
+                )
+            }
+        }
+        binding.layoutBottomBar.post(applyPadding)
+        binding.layoutBottomBar.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            if (top != oldTop || bottom != oldBottom) applyPadding()
+        }
     }
 
     private fun setupUsernameCounter() {
@@ -125,10 +151,120 @@ class EditProfileFragment : Fragment() {
                 viewModel.removeFavoriteMovie(index)
             }
         )
-        
+
         binding.rvFavorites.apply {
+            // 4 equal-width slots in a single non-scrollable row.
+            layoutManager = GridLayoutManager(requireContext(), 4)
             adapter = favoriteSlotAdapter
-            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+            isNestedScrollingEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            addItemDecoration(SlotSpacingDecoration((6 * resources.displayMetrics.density).toInt()))
+        }
+
+        attachDragToReorder()
+        applySlotHeightsFromWidth()
+    }
+
+    /**
+     * Derives each slot's height from its measured cell width (2:3) once the
+     * RecyclerView has a real width. A 0dp+ratio item collapses to 0 height
+     * under GridLayoutManager's unspecified vertical measure pass, so the
+     * height must be pinned here after layout instead.
+     */
+    private fun applySlotHeightsFromWidth() {
+        val spacing = (6 * resources.displayMetrics.density).toInt()
+        val compute = {
+            if (_binding != null) {
+                val rvWidth = binding.rvFavorites.width
+                if (rvWidth > 0) {
+                    val cellWidth = rvWidth / 4
+                    val itemWidth = cellWidth - spacing // minus left+right decoration
+                    val height = (itemWidth * 3f / 2f).toInt()
+                    if (height > 0 && favoriteSlotAdapter.itemHeight != height) {
+                        favoriteSlotAdapter.itemHeight = height
+                        favoriteSlotAdapter.notifyDataSetChanged()
+                    }
+                }
+            }
+        }
+        binding.rvFavorites.post(compute)
+        // Re-derive if the available width changes (e.g. rotation).
+        binding.rvFavorites.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (left != oldLeft || right != oldRight) compute()
+        }
+    }
+
+    /** Long-press + drag to reorder the filled slots; empty "+" slots never move. */
+    private fun attachDragToReorder() {
+        val callback = object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT, 0
+        ) {
+            override fun getMovementFlags(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder
+            ): Int {
+                // Only slots holding a movie can be dragged.
+                val position = viewHolder.bindingAdapterPosition
+                val isMovie = favoriteSlotAdapter.itemAt(position)?.movie != null
+                return if (isMovie) {
+                    makeMovementFlags(ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT, 0)
+                } else {
+                    0
+                }
+            }
+
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                val moved = favoriteSlotAdapter.onItemMove(
+                    viewHolder.bindingAdapterPosition,
+                    target.bindingAdapterPosition
+                )
+                // Update the rank badges live while dragging.
+                if (moved) favoriteSlotAdapter.refreshRanks(recyclerView)
+                return moved
+            }
+
+            // Swipe is disabled (0 dirs); required abstract no-op.
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && viewHolder != null) {
+                    // Short haptic + slight lift/enlarge for the dragged slot.
+                    viewHolder.itemView.performHapticFeedback(
+                        android.view.HapticFeedbackConstants.LONG_PRESS
+                    )
+                    viewHolder.itemView.animate().scaleX(1.06f).scaleY(1.06f).setDuration(120).start()
+                    viewHolder.itemView.elevation = 8f * resources.displayMetrics.density
+                }
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                viewHolder.itemView.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+                viewHolder.itemView.elevation = 0f
+                // Commit the new order (persisted when Save Changes is pressed).
+                viewModel.setFavoriteOrder(favoriteSlotAdapter.currentItems())
+            }
+
+            override fun isItemViewSwipeEnabled(): Boolean = false
+        }
+        ItemTouchHelper(callback).attachToRecyclerView(binding.rvFavorites)
+    }
+
+    /** Even horizontal gap between the 4 slots (and at the outer edges). */
+    private class SlotSpacingDecoration(private val spacing: Int) : RecyclerView.ItemDecoration() {
+        override fun getItemOffsets(
+            outRect: android.graphics.Rect,
+            view: View,
+            parent: RecyclerView,
+            state: RecyclerView.State
+        ) {
+            outRect.left = spacing / 2
+            outRect.right = spacing / 2
         }
     }
     
