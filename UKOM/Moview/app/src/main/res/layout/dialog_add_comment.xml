@@ -175,9 +175,10 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_cancel"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
+            style="@style/Widget.App.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
+            android:fontFamily="@font/font_family_inter"
             android:text="Cancel"
             android:textAllCaps="false"
             android:textColor="@color/text_secondary"
@@ -189,6 +190,7 @@
             android:layout_height="48dp"
             android:layout_marginStart="8dp"
             android:backgroundTint="@color/accent_blue"
+            android:fontFamily="@font/font_family_inter"
             android:paddingHorizontal="24dp"
             android:text="Post"
             android:textAllCaps="false"

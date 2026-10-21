@@ -26,6 +26,7 @@ import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentEditProfileBinding
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.applyInterButtons
 import com.komputerkit.moview.util.TmdbImageUrl
 import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.launch
@@ -377,6 +378,7 @@ class EditProfileFragment : Fragment() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+            .applyInterButtons()
     }
     
     private fun setDefaultProfilePhoto() {
@@ -429,7 +431,7 @@ class EditProfileFragment : Fragment() {
             findNavController().navigate(action)
         } else {
             // No favorite movies yet
-            showSnackbar("Please add a favorite movie first", SnackbarType.ERROR)
+            showSnackbar("Tambahkan film favorit dulu", SnackbarType.ERROR)
         }
     }
 
@@ -438,13 +440,13 @@ class EditProfileFragment : Fragment() {
         val bio = binding.etBio.text.toString()
         val location = binding.etLocation.text.toString()
         
-        // Validate
+        // Validate — errors surface via Snackbar (no inline error icons)
         if (username.isEmpty()) {
-            binding.etUsername.error = "Username cannot be empty"
+            showSnackbar("Username wajib diisi", SnackbarType.ERROR)
             return
         }
         if (username.length > 20) {
-            binding.etUsername.error = "Username max 20 characters"
+            showSnackbar("Username maksimal 20 karakter", SnackbarType.ERROR)
             return
         }
         
@@ -457,7 +459,7 @@ class EditProfileFragment : Fragment() {
         lifecycleScope.launch {
             // Wait if photo is still uploading
             if (viewModel.uiState.value.isLoading) {
-                showSnackbar("Please wait, photo is still uploading...", SnackbarType.INFO)
+                showSnackbar("Tunggu, foto masih diunggah...", SnackbarType.INFO)
                 return@launch
             }
             
@@ -481,7 +483,7 @@ class EditProfileFragment : Fragment() {
             } else {
                 // Show error toast - safely access context
                 context?.let { ctx ->
-                    showSnackbar("Failed to save profile", SnackbarType.ERROR)
+                    showSnackbar("Gagal menyimpan profil. Coba lagi.", SnackbarType.ERROR)
                 }
             }
         }

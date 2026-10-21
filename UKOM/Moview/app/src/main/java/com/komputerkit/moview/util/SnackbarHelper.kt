@@ -120,5 +120,21 @@ private fun showAppSnackbar(
 fun logChipFont(tag: String, chip: com.google.android.material.chip.Chip) {
     val tf = chip.typeface
     val paintTf = chip.paint.typeface
-    Log.d(TAG_FONT, "Chip[$tag] typeface=$tf paintTypeface=$paintTf text=${chip.text}")
+    android.util.Log.d(TAG_FONT, "Chip[$tag] typeface=$tf paintTypeface=$paintTf text=${chip.text}")
+}
+
+/**
+ * Forces Inter (semibold) onto an AlertDialog's text buttons. The stock
+ * TextAppearance.MaterialComponents.Button resolves to the phone's
+ * sans-serif-medium, so the font has to be set on the button views directly.
+ */
+fun android.app.Dialog.applyInterButtons() {
+    val tf = ResourcesCompat.getFont(context, R.font.inter_semibold) ?: return
+    (this as? android.app.AlertDialog)?.let { dialog ->
+        listOf(
+            android.content.DialogInterface.BUTTON_POSITIVE,
+            android.content.DialogInterface.BUTTON_NEGATIVE,
+            android.content.DialogInterface.BUTTON_NEUTRAL
+        ).forEach { which -> dialog.getButton(which)?.typeface = tf }
+    }
 }

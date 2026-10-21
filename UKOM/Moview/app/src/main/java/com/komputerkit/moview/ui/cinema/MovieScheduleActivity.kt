@@ -346,14 +346,25 @@ class MovieScheduleActivity : AppCompatActivity() {
             textSize = 16f
             setTextColor(getColor(com.komputerkit.moview.R.color.text_primary))
             setPadding(0, 0, 0, 12)
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            typeface = androidx.core.content.res.ResourcesCompat.getFont(
+                this@MovieScheduleActivity,
+                com.komputerkit.moview.R.font.inter_semibold
+            )
         }
         container.addView(title)
 
+        // City rows are plain clickable TextViews (button-role) — the theme's
+        // fontFamily does not reach programmatically-created TextViews reliably,
+        // so pin Inter directly.
+        val cityTypeface = androidx.core.content.res.ResourcesCompat.getFont(
+            this,
+            com.komputerkit.moview.R.font.font_family_inter
+        )
         cities.forEach { city ->
             val item = android.widget.TextView(this).apply {
                 text = city.toString().trim()
                 textSize = 14f
+                typeface = cityTypeface
                 setTextColor(getColor(com.komputerkit.moview.R.color.text_primary))
                 setPadding(8, 20, 8, 20)
                 setOnClickListener {

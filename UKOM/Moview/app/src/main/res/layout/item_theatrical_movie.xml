@@ -136,13 +136,14 @@
             android:layout_width="match_parent"
             android:layout_height="30dp"
             android:layout_marginTop="6dp"
+            android:fontFamily="@font/font_family_inter"
             android:text="Buy Ticket"
             android:textSize="10sp"
             android:textColor="@color/white"
             android:backgroundTint="@color/accent_blue"
             android:padding="0dp"
             android:visibility="gone"
-            style="@style/Widget.MaterialComponents.Button" />
+            style="@style/Widget.App.Button" />
 
         <!-- Movie Title -->
         <TextView

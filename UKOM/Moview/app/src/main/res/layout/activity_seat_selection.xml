@@ -319,6 +319,7 @@
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:layout_marginTop="12dp"
+            android:fontFamily="@font/font_family_inter"
             android:text="RINGKASAN ORDER"
             android:textAllCaps="true"
             android:textColor="@color/text_secondary"

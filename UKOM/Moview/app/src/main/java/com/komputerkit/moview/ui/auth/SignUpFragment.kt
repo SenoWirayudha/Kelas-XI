@@ -15,11 +15,13 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentSignUpBinding
 import com.komputerkit.moview.data.repository.AuthRepository
+import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.loadBackdrop
 import kotlinx.coroutines.launch
@@ -49,10 +51,20 @@ class SignUpFragment : Fragment() {
             ServerConfig.resolveStorageUrl("movies/40/backdrop/OB6fhfbBWeN6aLrVKoPQseKywhkoMhoYrpob4GWr.webp")
         )
         loadHeroCredit()
+        adjustHeroGuideline()
 
         setupImmersiveStatusBar()
         setupClickListeners()
-        setupValidation()
+    }
+
+    /** Backdrop is ~38% of the screen on common phones (360x800dp); shorter
+     *  screens shrink ONLY the backdrop down to a 25% floor. */
+    private fun adjustHeroGuideline() {
+        val heightDp = resources.displayMetrics.heightPixels / resources.displayMetrics.density
+        val percent = (0.25f + (heightDp - 640f) * 0.13f / 160f).coerceIn(0.25f, 0.38f)
+        val lp = binding.guidelineHero.layoutParams as ConstraintLayout.LayoutParams
+        lp.guidePercent = percent
+        binding.guidelineHero.layoutParams = lp
     }
 
     // Edge-to-edge: let the bright hero bleed behind the status bar (transparent).
@@ -128,19 +140,6 @@ class SignUpFragment : Fragment() {
         }
     }
     
-    private fun setupValidation() {
-        binding.etUsername.setOnFocusChangeListener { _, hasFocus ->
-            if (!hasFocus) {
-                val username = binding.etUsername.text.toString()
-                if (isValidUsername(username)) {
-                    binding.ivUsernameCheck.visibility = View.VISIBLE
-                } else {
-                    binding.ivUsernameCheck.visibility = View.GONE
-                }
-            }
-        }
-    }
-    
     private fun isValidUsername(username: String): Boolean {
         return username.length >= 3
     }
@@ -162,49 +161,46 @@ class SignUpFragment : Fragment() {
         val username = binding.etUsername.text.toString().trim()
         val email = binding.etEmail.text.toString().trim()
         val password = binding.etPassword.text.toString()
-        
-        // Validate inputs
-        if (username.isEmpty()) {
-            showSnackbar("Please enter username", SnackbarType.ERROR)
-            return
+
+        // Validate inputs — errors surface via Snackbar (no inline error icons)
+        when {
+            username.isEmpty() -> {
+                showSnackbar("Username wajib diisi", SnackbarType.ERROR)
+                return
+            }
+            !isValidUsername(username) -> {
+                showSnackbar("Username minimal 3 karakter", SnackbarType.ERROR)
+                return
+            }
+            email.isEmpty() -> {
+                showSnackbar("Email wajib diisi", SnackbarType.ERROR)
+                return
+            }
+            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
+                showSnackbar("Masukkan email yang valid", SnackbarType.ERROR)
+                return
+            }
+            password.isEmpty() -> {
+                showSnackbar("Password wajib diisi", SnackbarType.ERROR)
+                return
+            }
+            password.length < 6 -> {
+                showSnackbar("Password minimal 6 karakter", SnackbarType.ERROR)
+                return
+            }
         }
-        
-        if (!isValidUsername(username)) {
-            showSnackbar("Username must be at least 3 characters", SnackbarType.ERROR)
-            return
-        }
-        
-        if (email.isEmpty()) {
-            showSnackbar("Please enter email", SnackbarType.ERROR)
-            return
-        }
-        
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            showSnackbar("Please enter valid email", SnackbarType.ERROR)
-            return
-        }
-        
-        if (password.isEmpty()) {
-            showSnackbar("Please enter password", SnackbarType.ERROR)
-            return
-        }
-        
-        if (password.length < 6) {
-            showSnackbar("Password must be at least 6 characters", SnackbarType.ERROR)
-            return
-        }
-        
+
         // Show loading state
         showLoading(true)
-        
+
         // Register step 1: backend emails a 6-digit OTP; the account is only
         // created after the OTP screen is verified.
         lifecycleScope.launch {
             val result = authRepository.register(username, email, password)
-            
+
             result.onSuccess { otpData ->
                 showLoading(false)
-                
+
                 // Navigate to the OTP verification screen
                 val bundle = Bundle().apply {
                     putString("email", otpData.email)
@@ -212,13 +208,17 @@ class SignUpFragment : Fragment() {
                 findNavController().navigate(R.id.action_signUp_to_verifyOtp, bundle)
             }.onFailure { error ->
                 showLoading(false)
-                val errorMessage = when {
-                    error.message?.contains("Email already registered") == true -> "Email already registered"
-                    error.message?.contains("Username already taken") == true -> "Username already taken"
-                    error.message?.contains("Validation failed") == true -> "Please check your inputs"
-                    else -> "Registration failed. Please try again."
+                // 409 responses name the offending column — message goes to Snackbar
+                val raw = ErrorMessage.serverMessageRaw(error)
+                when {
+                    raw?.contains("Username already taken", ignoreCase = true) == true ->
+                        showSnackbar("Username sudah dipakai", SnackbarType.ERROR)
+                    raw?.contains("Email already registered", ignoreCase = true) == true ->
+                        showSnackbar("Email sudah terdaftar", SnackbarType.ERROR)
+                    else -> ErrorMessage.fromApi(error, "Pendaftaran gagal. Coba lagi.")?.let { message ->
+                        showSnackbar(message, SnackbarType.ERROR)
+                    }
                 }
-                showSnackbar(errorMessage, SnackbarType.ERROR)
             }
         }
     }

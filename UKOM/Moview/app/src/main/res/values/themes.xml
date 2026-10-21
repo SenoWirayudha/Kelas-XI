@@ -25,6 +25,13 @@
         <item name="chipStyle">@style/Widget.App.Chip</item>
         <item name="snackbarStyle">@style/Widget.App.Snackbar</item>
         <item name="snackbarButtonStyle">@style/Widget.App.Snackbar.Button</item>
+        <!-- Buttons resolve their label via a textAppearance, which overrides the
+             theme fontFamily. Pin Inter on the theme-level button appearances AND
+             route every MaterialButton / framework Button through App styles. -->
+        <item name="textAppearanceButton">@style/TextAppearance.App.Button</item>
+        <item name="textAppearanceLabelLarge">@style/TextAppearance.App.LabelLarge</item>
+        <item name="materialButtonStyle">@style/Widget.App.Button</item>
+        <item name="buttonStyle">@style/Widget.App.PlainButton</item>
     </style>
 
     <!-- Snackbar -->
@@ -35,6 +42,52 @@
     <style name="Widget.App.Snackbar.Button" parent="Widget.MaterialComponents.Button.TextButton.Snackbar">
         <item name="android:fontFamily">@font/font_family_inter</item>
         <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+
+    <!-- Buttons — Inter via textAppearance (buttons ignore the theme fontFamily). -->
+    <style name="TextAppearance.App.Button" parent="TextAppearance.MaterialComponents.Button">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+    <style name="TextAppearance.App.Button.M3" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+    <!-- Theme attr textAppearanceLabelLarge (M3 components resolve labels through it). -->
+    <style name="TextAppearance.App.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+    </style>
+
+    <!-- Wired via materialButtonStyle so bare MaterialButtons get Inter. -->
+    <style name="Widget.App.Button" parent="Widget.MaterialComponents.Button">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Button</item>
+    </style>
+    <style name="Widget.App.Button.TextButton" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Button</item>
+    </style>
+    <style name="Widget.App.Button.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Button</item>
+    </style>
+    <style name="Widget.App.Button.Outlined.M3" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Button.M3</item>
+    </style>
+    <!-- Framework <Button> — wired via the theme's buttonStyle.
+         textAppearance pinned too: Widget.AppCompat.Button's inherited
+         TextAppearance.Widget.AppCompat.Button would otherwise win over
+         the plain android:fontFamily item. -->
+    <style name="Widget.App.PlainButton" parent="Widget.AppCompat.Button">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Button</item>
     </style>
 
     <!-- Chip text appearance — Chip renders its label via android:textAppearance, not the
@@ -118,5 +171,13 @@
         <item name="android:textSize">16sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <!-- UCrop (external activity keeps its light UI) — Inter on the toolbar
+         Crop/Cancel actions and any dialog buttons it shows. -->
+    <style name="Theme.Moview.UCrop" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:fontFamily">@font/font_family_inter</item>
+        <item name="fontFamily">@font/font_family_inter</item>
+        <item name="textAppearanceButton">@style/TextAppearance.App.Button</item>
     </style>
 </resources>

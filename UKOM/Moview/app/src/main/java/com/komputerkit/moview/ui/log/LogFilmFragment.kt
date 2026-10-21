@@ -29,6 +29,7 @@ import androidx.navigation.fragment.navArgs
 import com.komputerkit.moview.R
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.applyInterButtons
 import com.komputerkit.moview.databinding.FragmentLogFilmBinding
 import com.komputerkit.moview.util.loadPoster
 import java.text.SimpleDateFormat
@@ -521,6 +522,7 @@ class LogFilmFragment : Fragment() {
         
         datePickerDialog.datePicker.maxDate = System.currentTimeMillis()
         datePickerDialog.show()
+        datePickerDialog.applyInterButtons()
     }
     
     private fun applyStyleSpan(style: Int) {
@@ -643,6 +645,7 @@ class LogFilmFragment : Fragment() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+            .applyInterButtons()
     }
     
     private fun spannableToHtml(spannable: CharSequence): String {

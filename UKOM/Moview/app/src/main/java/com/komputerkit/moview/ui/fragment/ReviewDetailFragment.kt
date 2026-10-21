@@ -27,6 +27,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.komputerkit.moview.R
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.applyInterButtons
 import com.komputerkit.moview.data.model.Comment
 import com.komputerkit.moview.databinding.BottomSheetCommentsBinding
 import com.komputerkit.moview.databinding.FragmentReviewDetailBinding
@@ -769,6 +770,7 @@ class ReviewDetailFragment : Fragment() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+            .applyInterButtons()
     }
     
     private fun showOptionsMenu(view: View) {
@@ -829,6 +831,7 @@ class ReviewDetailFragment : Fragment() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+            .applyInterButtons()
     }
     
     private fun navigateToEditReview() {
@@ -861,6 +864,7 @@ class ReviewDetailFragment : Fragment() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+            .applyInterButtons()
     }
     
     private fun deleteReview() {
@@ -886,6 +890,7 @@ class ReviewDetailFragment : Fragment() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+            .applyInterButtons()
     }
     
     private fun showFlagCommentDialog(comment: Comment) {
@@ -898,6 +903,7 @@ class ReviewDetailFragment : Fragment() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+            .applyInterButtons()
     }
 
     override fun onStop() {

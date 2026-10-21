@@ -1,5 +1,7 @@
 package com.komputerkit.moview.data.api
 
+import com.komputerkit.moview.util.ErrorBus
+import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.ServerConfig
 import okhttp3.ConnectionPool
 import okhttp3.Interceptor
@@ -7,6 +9,8 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.IOException
+import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
@@ -33,8 +37,31 @@ object RetrofitClient {
             .build()
         chain.proceed(request)
     }
+
+    // Most repositories swallow IOExceptions/5xx and return empty/null, so
+    // list/detail screens would fail silently. Surface those globally via
+    // ErrorBus (MainActivity shows one snackbar; 4xx stays per-screen).
+    private val errorReportingInterceptor = Interceptor { chain ->
+        try {
+            val response = chain.proceed(chain.request())
+            if (response.code in 500..599) {
+                ErrorBus.post(ErrorMessage.SERVER_BUSY)
+            }
+            response
+        } catch (e: IOException) {
+            val cancelled = e.message?.contains("cancel", ignoreCase = true) == true
+            if (!cancelled) {
+                ErrorBus.post(
+                    if (e is SocketTimeoutException) ErrorMessage.SERVER_BUSY
+                    else ErrorMessage.NO_INTERNET
+                )
+            }
+            throw e
+        }
+    }
     
     private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor(errorReportingInterceptor)
         .addInterceptor(loggingInterceptor)
         .addInterceptor(connectionCloseInterceptor)
         .addInterceptor(ngrokInterceptor)

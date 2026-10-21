@@ -30,6 +30,14 @@ class MainActivity : AppCompatActivity() {
         loadUnreadNotificationCount()
         handleMovieDetailIntent(intent)
 
+        // Global network/5xx errors surfaced by the OkHttp interceptor
+        // (repositories swallow them, so screens would otherwise fail silently).
+        lifecycleScope.launch {
+            com.komputerkit.moview.util.ErrorBus.messages.collect { message ->
+                showSnackbar(message, SnackbarType.ERROR)
+            }
+        }
+
         // --- DEBUG: runtime font verification (auto-removed after confirmed, keep log only) ---
         binding.root.post { verifyFontsAtRuntime() }
     }

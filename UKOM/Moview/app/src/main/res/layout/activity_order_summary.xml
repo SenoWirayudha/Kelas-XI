@@ -324,6 +324,7 @@
             android:id="@+id/btn_pay"
             android:layout_width="wrap_content"
             android:layout_height="52dp"
+            android:fontFamily="@font/font_family_inter"
             android:text="SELESAIKAN PEMBAYARAN"
             android:textAllCaps="true"
             android:textColor="@android:color/white"

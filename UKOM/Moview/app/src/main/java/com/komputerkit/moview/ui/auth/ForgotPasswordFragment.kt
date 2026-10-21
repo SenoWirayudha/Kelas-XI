@@ -19,6 +19,7 @@ import androidx.navigation.fragment.findNavController
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentForgotPasswordBinding
 import com.komputerkit.moview.data.repository.AuthRepository
+import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.loadBackdrop
 import kotlinx.coroutines.launch
@@ -73,6 +74,17 @@ class ForgotPasswordFragment : Fragment() {
         }
 
         loadHeroCredit()
+        adjustHeroGuideline()
+    }
+
+    /** Backdrop is ~38% of the screen on common phones (360x800dp); shorter
+     *  screens shrink ONLY the backdrop down to a 25% floor. */
+    private fun adjustHeroGuideline() {
+        val heightDp = resources.displayMetrics.heightPixels / resources.displayMetrics.density
+        val percent = (0.25f + (heightDp - 640f) * 0.13f / 160f).coerceIn(0.25f, 0.38f)
+        val lp = binding.guidelineHero.layoutParams as ConstraintLayout.LayoutParams
+        lp.guidePercent = percent
+        binding.guidelineHero.layoutParams = lp
     }
 
     /** "Scene from [Title] ([Year])" in the hero's bottom-left corner. */
@@ -124,14 +136,16 @@ class ForgotPasswordFragment : Fragment() {
     private fun performForgotPassword() {
         val email = binding.etEmail.text.toString().trim()
 
-        if (email.isEmpty()) {
-            showSnackbar("Please enter email", SnackbarType.ERROR)
-            return
-        }
-
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            showSnackbar("Please enter valid email", SnackbarType.ERROR)
-            return
+        // Validate inputs — errors surface via Snackbar (no inline error icons)
+        when {
+            email.isEmpty() -> {
+                showSnackbar("Email wajib diisi", SnackbarType.ERROR)
+                return
+            }
+            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
+                showSnackbar("Masukkan email yang valid", SnackbarType.ERROR)
+                return
+            }
         }
 
         showLoading(true)
@@ -143,10 +157,9 @@ class ForgotPasswordFragment : Fragment() {
                 showConfirmation()
             }.onFailure { error ->
                 showLoading(false)
-                showSnackbar(
-                    error.message ?: "Gagal mengirim link reset. Coba lagi.",
-                    SnackbarType.ERROR
-                )
+                ErrorMessage.fromApi(error, "Gagal mengirim link reset. Coba lagi.")?.let { message ->
+                    showSnackbar(message, SnackbarType.ERROR)
+                }
             }
         }
     }

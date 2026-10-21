@@ -40,4 +40,51 @@
     <dimen name="user_avatar_size">36dp</dimen>
     <dimen name="user_avatar_radius">18dp</dimen>
     <dimen name="rating_chart_height">85dp</dimen>
+
+    <!-- Auth screens (Login / Register / OTP / Forgot Password).
+         Backdrop height comes from a percentage Guideline set in code
+         (30% of the screen; 20% on short screens ~640dp) — not a fixed
+         dimen. Forms stay comfortable: 52dp fields/buttons, 15sp text. -->
+    <dimen name="auth_hero_fade_height">72dp</dimen>
+    <dimen name="auth_logo_size">84dp</dimen>
+    <dimen name="auth_logo_margin_top">2dp</dimen>
+    <dimen name="auth_caption_margin_bottom">20dp</dimen>
+    <dimen name="auth_text_logo_width">140dp</dimen>
+    <dimen name="auth_text_logo_height">24dp</dimen>
+    <dimen name="auth_title_text">22sp</dimen>
+    <dimen name="auth_subtitle_text">13sp</dimen>
+    <dimen name="auth_field_text">15sp</dimen>
+    <dimen name="auth_field_height">52dp</dimen>
+    <dimen name="auth_button_height">52dp</dimen>
+    <dimen name="auth_button_text">15sp</dimen>
+    <!-- Shared corner for every control (input cards, primary/Google buttons)
+         across Login / Register / OTP / Reset Password / Edit Profile. -->
+    <dimen name="corner_control">14dp</dimen>
+    <dimen name="auth_status_text">14sp</dimen>
+    <dimen name="auth_link_text">13sp</dimen>
+    <dimen name="auth_input_padding_v">14dp</dimen>
+    <dimen name="auth_input_padding_start">16dp</dimen>
+    <dimen name="auth_input_padding_end">12dp</dimen>
+    <dimen name="auth_gap">12dp</dimen>
+    <dimen name="auth_gap_small">8dp</dimen>
+    <dimen name="auth_side_margin">24dp</dimen>
+    <dimen name="auth_screen_padding_bottom">4dp</dimen>
+
+    <!-- Edit Profile — same compact scale as the auth screens -->
+    <dimen name="edit_backdrop_height">160dp</dimen>
+    <dimen name="edit_backdrop_fade_height">64dp</dimen>
+    <dimen name="edit_photo_container_top">112dp</dimen>
+    <dimen name="edit_avatar_size">96dp</dimen>
+    <dimen name="edit_avatar_radius">48dp</dimen>
+    <dimen name="edit_camera_badge_size">28dp</dimen>
+    <dimen name="edit_camera_icon_size">16dp</dimen>
+    <dimen name="edit_label_text">12sp</dimen>
+    <dimen name="edit_field_text">14sp</dimen>
+    <dimen name="edit_field_padding">12dp</dimen>
+    <dimen name="edit_bio_min_height">96dp</dimen>
+    <dimen name="edit_section_gap">16dp</dimen>
+    <dimen name="edit_button_height">48dp</dimen>
+    <dimen name="edit_button_text">15sp</dimen>
+    <dimen name="edit_scroll_padding_bottom">120dp</dimen>
+    <dimen name="edit_bottom_bar_padding">12dp</dimen>
 </resources>

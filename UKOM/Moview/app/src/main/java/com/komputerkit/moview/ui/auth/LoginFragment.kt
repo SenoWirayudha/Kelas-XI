@@ -18,6 +18,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -27,6 +28,7 @@ import com.google.android.gms.common.api.ApiException
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentLoginBinding
 import com.komputerkit.moview.data.repository.AuthRepository
+import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.loadBackdrop
 import kotlinx.coroutines.launch
@@ -91,6 +93,7 @@ class LoginFragment : Fragment() {
             ServerConfig.resolveStorageUrl("movies/100/backdrop/8oNbq20Y52DRycx5JyAei9VA9YyifDiQX4DRXLxx.webp")
         )
         loadHeroCredit()
+        adjustHeroGuideline()
 
         // Keep the bottom of the page above the navigation bar so the link is reachable.
         // The hero itself bleeds behind the status bar (no top padding).
@@ -149,6 +152,17 @@ class LoginFragment : Fragment() {
         googleSignInClient = GoogleSignIn.getClient(requireActivity(), gso)
     }
 
+    /** Backdrop is ~38% of the screen on common phones (360x800dp) so the
+     *  Google button stays visible without scrolling; shorter screens shrink
+     *  ONLY the backdrop down to a 25% floor (fields/buttons stay full size). */
+    private fun adjustHeroGuideline() {
+        val heightDp = resources.displayMetrics.heightPixels / resources.displayMetrics.density
+        val percent = (0.25f + (heightDp - 640f) * 0.13f / 160f).coerceIn(0.25f, 0.38f)
+        val lp = binding.guidelineHero.layoutParams as ConstraintLayout.LayoutParams
+        lp.guidePercent = percent
+        binding.guidelineHero.layoutParams = lp
+    }
+
     /** "Scene from [Title] ([Year])" in the hero's bottom-left corner. */
     private fun loadHeroCredit() {
         viewLifecycleOwner.lifecycleScope.launch {
@@ -201,7 +215,9 @@ class LoginFragment : Fragment() {
                 findNavController().navigate(R.id.action_login_to_home)
             }.onFailure { error ->
                 showGoogleLoading(false)
-                showSnackbar(error.message ?: "Google login gagal", SnackbarType.ERROR)
+                ErrorMessage.fromApi(error, "Login Google gagal. Coba lagi.")?.let { message ->
+                    showSnackbar(message, SnackbarType.ERROR)
+                }
             }
         }
     }
@@ -227,48 +243,46 @@ class LoginFragment : Fragment() {
     private fun performLogin() {
         val email = binding.etEmail.text.toString().trim()
         val password = binding.etPassword.text.toString()
-        
-        // Validate inputs
-        if (email.isEmpty()) {
-            showSnackbar("Please enter email", SnackbarType.ERROR)
-            return
+
+        // Validate inputs — errors surface via Snackbar (no inline error icons)
+        when {
+            email.isEmpty() -> {
+                showSnackbar("Email wajib diisi", SnackbarType.ERROR)
+                return
+            }
+            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
+                showSnackbar("Masukkan email yang valid", SnackbarType.ERROR)
+                return
+            }
+            password.isEmpty() -> {
+                showSnackbar("Password wajib diisi", SnackbarType.ERROR)
+                return
+            }
         }
-        
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            showSnackbar("Please enter valid email", SnackbarType.ERROR)
-            return
-        }
-        
-        if (password.isEmpty()) {
-            showSnackbar("Please enter password", SnackbarType.ERROR)
-            return
-        }
-        
+
         // Show loading state
         showLoading(true)
-        
+
         // Perform API login
         lifecycleScope.launch {
             val result = authRepository.login(email, password)
-            
+
             result.onSuccess { loginData ->
                 // Save login state
                 saveLoginState(loginData.email, loginData.username, loginData.token, loginData.userId)
-                
+
                 showLoading(false)
-                showSnackbar("Welcome, ${loginData.username}!", SnackbarType.SUCCESS)
-                
+                showSnackbar("Selamat datang, ${loginData.username}!", SnackbarType.SUCCESS)
+
                 // Navigate to home
                 findNavController().navigate(R.id.action_login_to_home)
             }.onFailure { error ->
                 showLoading(false)
-                val errorMessage = when {
-                    error.message?.contains("Invalid email or password") == true -> "Invalid email or password"
-                    error.message?.contains("banned") == true -> "Your account has been banned"
-                    error.message?.contains("suspended") == true -> "Your account has been suspended"
-                    else -> "Login failed. Please try again."
+                // Backend returns 401 "Invalid email or password" for both a wrong
+                // email and a wrong password — ErrorMessage maps it to one message.
+                ErrorMessage.fromApi(error, "Login gagal. Coba lagi.")?.let { message ->
+                    showSnackbar(message, SnackbarType.ERROR)
                 }
-                showSnackbar(errorMessage, SnackbarType.ERROR)
             }
         }
     }

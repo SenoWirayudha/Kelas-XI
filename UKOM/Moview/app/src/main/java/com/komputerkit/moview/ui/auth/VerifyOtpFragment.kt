@@ -24,6 +24,7 @@ import androidx.navigation.fragment.findNavController
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentVerifyOtpBinding
 import com.komputerkit.moview.data.repository.AuthRepository
+import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.loadBackdrop
 import kotlinx.coroutines.launch
@@ -73,12 +74,23 @@ class VerifyOtpFragment : Fragment() {
             ServerConfig.resolveStorageUrl("movies/112/backdrop/8BFLik9kl00OMjVvF0bFErnRlBE5PfLqMnaXpHtD.webp")
         )
         loadHeroCredit()
+        adjustHeroGuideline()
 
         setupImmersiveStatusBar()
         setupClickListeners()
 
         // The server also enforces its own 60s cooldown per email.
         startResendCooldown(60_000)
+    }
+
+    /** Backdrop is ~38% of the screen on common phones (360x800dp); shorter
+     *  screens shrink ONLY the backdrop down to a 25% floor. */
+    private fun adjustHeroGuideline() {
+        val heightDp = resources.displayMetrics.heightPixels / resources.displayMetrics.density
+        val percent = (0.25f + (heightDp - 640f) * 0.13f / 160f).coerceIn(0.25f, 0.38f)
+        val lp = binding.guidelineHero.layoutParams as ConstraintLayout.LayoutParams
+        lp.guidePercent = percent
+        binding.guidelineHero.layoutParams = lp
     }
 
     private fun setupImmersiveStatusBar() {
@@ -143,7 +155,7 @@ class VerifyOtpFragment : Fragment() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
             override fun afterTextChanged(s: Editable?) {
-                if (otpHasError) showOtpError(null)
+                if (otpHasError) setOtpErrorBorder(false)
             }
         })
 
@@ -183,13 +195,11 @@ class VerifyOtpFragment : Fragment() {
         }
     }
 
-    /** Red borders on all boxes + message under them; null restores normal colors. */
-    private fun showOtpError(message: String?) {
-        otpHasError = message != null
-        binding.tvOtpError.text = message.orEmpty()
-        binding.tvOtpError.visibility = if (message != null) View.VISIBLE else View.GONE
+    /** Red borders on all boxes while an error is active; null restores normal colors. */
+    private fun setOtpErrorBorder(invalid: Boolean) {
+        otpHasError = invalid
         binding.otpView.setLineColor(
-            if (message != null) {
+            if (invalid) {
                 ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.red))
             } else {
                 ContextCompat.getColorStateList(requireContext(), R.color.otp_border_color)
@@ -227,16 +237,18 @@ class VerifyOtpFragment : Fragment() {
         val code = currentOtp()
 
         if (code.isEmpty()) {
-            showOtpError("Kode OTP wajib diisi")
+            showSnackbar("Kode OTP wajib diisi", SnackbarType.ERROR)
+            setOtpErrorBorder(true)
             return
         }
 
         if (!code.all { it.isDigit() } || code.length != 6) {
-            showOtpError("Kode OTP harus 6 digit angka")
+            showSnackbar("Kode OTP harus 6 digit angka", SnackbarType.ERROR)
+            setOtpErrorBorder(true)
             return
         }
 
-        showOtpError(null)
+        setOtpErrorBorder(false)
         showLoading(true)
 
         lifecycleScope.launch {
@@ -254,9 +266,13 @@ class VerifyOtpFragment : Fragment() {
                 }
                 .onFailure { error ->
                     showLoading(false)
-                    showOtpError(
-                        error.message ?: "Kode OTP salah. Coba lagi."
-                    )
+                    // Backend OTP messages (wrong code / expired / throttle) are
+                    // already Indonesian; network/5xx are surfaced globally.
+                    // Message goes to Snackbar — the boxes just keep red borders.
+                    val message = ErrorMessage.fromApi(error, "Kode OTP salah. Coba lagi.")
+                        ?: "Kode OTP salah. Coba lagi."
+                    showSnackbar(message, SnackbarType.ERROR)
+                    setOtpErrorBorder(true)
                 }
         }
     }
@@ -272,10 +288,9 @@ class VerifyOtpFragment : Fragment() {
                     startResendCooldown(60_000)
                 }
                 .onFailure { error ->
-                    showSnackbar(
-                        error.message ?: "Gagal mengirim ulang kode. Coba lagi.",
-                        SnackbarType.ERROR
-                    )
+                    ErrorMessage.fromApi(error, "Gagal mengirim ulang kode. Coba lagi.")?.let { message ->
+                        showSnackbar(message, SnackbarType.ERROR)
+                    }
                     binding.btnResend.isEnabled = false
                 }
         }
