@@ -241,23 +241,32 @@ class LoginFragment : Fragment() {
     }
     
     private fun performLogin() {
-        val email = binding.etEmail.text.toString().trim()
+        val identifierInput = binding.etEmail.text.toString().trim()
+        // "@username" shorthand: the "@" is not part of the username.
+        val identifier = identifierInput.trimStart('@')
         val password = binding.etPassword.text.toString()
 
         // Validate inputs — errors surface via Snackbar (no inline error icons)
         when {
-            email.isEmpty() -> {
-                showSnackbar("Email wajib diisi", SnackbarType.ERROR)
+            identifier.isEmpty() -> {
+                showSnackbar("Email atau username wajib diisi", SnackbarType.ERROR)
                 return
             }
-            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
-                showSnackbar("Masukkan email yang valid", SnackbarType.ERROR)
+            identifier.contains("@") -> {
+                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(identifier).matches()) {
+                    showSnackbar("Masukkan email yang valid", SnackbarType.ERROR)
+                    return
+                }
+            }
+            identifier.length < 3 -> {
+                showSnackbar("Username minimal 3 karakter", SnackbarType.ERROR)
                 return
             }
-            password.isEmpty() -> {
-                showSnackbar("Password wajib diisi", SnackbarType.ERROR)
-                return
-            }
+        }
+
+        if (password.isEmpty()) {
+            showSnackbar("Password wajib diisi", SnackbarType.ERROR)
+            return
         }
 
         // Show loading state
@@ -265,7 +274,7 @@ class LoginFragment : Fragment() {
 
         // Perform API login
         lifecycleScope.launch {
-            val result = authRepository.login(email, password)
+            val result = authRepository.login(identifier, password)
 
             result.onSuccess { loginData ->
                 // Save login state
@@ -278,9 +287,9 @@ class LoginFragment : Fragment() {
                 findNavController().navigate(R.id.action_login_to_home)
             }.onFailure { error ->
                 showLoading(false)
-                // Backend returns 401 "Invalid email or password" for both a wrong
-                // email and a wrong password — ErrorMessage maps it to one message.
-                ErrorMessage.fromApi(error, "Login gagal. Coba lagi.")?.let { message ->
+                // One generic 401 covers both a wrong identifier and a wrong
+                // password — ErrorMessage maps it to a single message.
+                ErrorMessage.fromApi(error, "Email/username atau password salah")?.let { message ->
                     showSnackbar(message, SnackbarType.ERROR)
                 }
             }

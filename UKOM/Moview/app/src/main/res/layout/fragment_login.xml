@@ -109,7 +109,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/iv_app_name" />
 
-        <!-- Email Input -->
+        <!-- Email or Username Input -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/card_email"
             android:layout_width="0dp"
@@ -143,7 +143,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
-                    android:hint="Email"
+                    android:hint="Email atau Username"
                     android:inputType="textEmailAddress"
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_secondary"

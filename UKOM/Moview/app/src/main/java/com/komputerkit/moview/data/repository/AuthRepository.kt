@@ -79,9 +79,9 @@ class AuthRepository {
         }
     }
     
-    suspend fun login(email: String, password: String): Result<LoginData> = withContext(Dispatchers.IO) {
+    suspend fun login(identifier: String, password: String): Result<LoginData> = withContext(Dispatchers.IO) {
         try {
-            val request = LoginRequest(email, password)
+            val request = LoginRequest(identifier, password)
             val response = apiService.login(request)
             
             if (response.success && response.data != null) {

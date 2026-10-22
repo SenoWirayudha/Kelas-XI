@@ -21,9 +21,11 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        // Validate input
+        // Validate input. `identifier` is email OR username; `email` is still
+        // accepted for older app builds.
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
+            'identifier' => 'required_without:email|string|max:255',
+            'email' => 'nullable|string|max:255',
             'password' => 'required|string|min:6'
         ]);
 
@@ -35,17 +37,36 @@ class AuthController extends Controller
             ], 422);
         }
 
+        $identifier = trim((string) $request->input('identifier', $request->input('email', '')));
+        // Allow the "@username" shorthand.
+        $identifier = ltrim($identifier, '@');
+
         try {
-            // Find user by email
-            $user = DB::table('users')
-                ->where('email', $request->email)
-                ->first();
+            // Single generic failure so the client cannot tell whether the
+            // account exists or the password was wrong.
+            $invalidCredentials = response()->json([
+                'success' => false,
+                'message' => 'Email/username atau password salah'
+            ], 401);
+
+            if ($identifier === '') {
+                return $invalidCredentials;
+            }
+
+            // Resolve email or username in a case-insensitive way. Emails are
+            // stored lowercase; usernames may be mixed case.
+            if (str_contains($identifier, '@')) {
+                $user = DB::table('users')
+                    ->whereRaw('LOWER(email) = ?', [mb_strtolower($identifier)])
+                    ->first();
+            } else {
+                $user = DB::table('users')
+                    ->whereRaw('LOWER(username) = ?', [mb_strtolower($identifier)])
+                    ->first();
+            }
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid email or password'
-                ], 401);
+                return $invalidCredentials;
             }
 
             // Block admin account from Android app login
@@ -66,10 +87,7 @@ class AuthController extends Controller
 
             // Verify password
             if (!Hash::check($request->password, $user->password)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid email or password'
-                ], 401);
+                return $invalidCredentials;
             }
 
             // Generate simple token (in production, use Laravel Sanctum or JWT)
