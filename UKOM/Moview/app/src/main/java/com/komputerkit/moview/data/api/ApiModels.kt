@@ -448,6 +448,33 @@ data class ResendOtpRequest(
     val email: String
 )
 
+// --- Change password: step 1 emails the code; step 2 sends the new password
+// AND the code in one request. The server verifies the purpose-bound OTP
+// (expiry + max 3 wrong attempts) before replacing the password, so the
+// password is never transmitted or stored before verification. ---
+data class ChangePasswordOtpRequest(
+    val email: String
+)
+
+data class ChangePasswordRequest(
+    val email: String,
+    val code: String,
+    val password: String
+)
+
+// --- Delete account: proof is either a verified OTP code (email/password
+// account, verified in this very call) or a fresh google_id from a
+// re-login (Google account). ---
+data class DeleteAccountOtpRequest(
+    val email: String
+)
+
+data class DeleteAccountRequest(
+    val email: String,
+    val code: String? = null,
+    val google_id: String? = null
+)
+
 data class LoginResponse(
     val user: UserInfoDto,
     val token: String

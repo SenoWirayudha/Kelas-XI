@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.os.Bundle
+import android.os.CountDownTimer
+import android.text.InputType
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.method.LinkMovementMethod
@@ -22,13 +24,22 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
+import androidx.transition.AutoTransition
+import androidx.transition.TransitionManager
 import com.bumptech.glide.Glide
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.komputerkit.moview.util.loadProfilePhoto
 import com.komputerkit.moview.R
+import com.komputerkit.moview.data.repository.AuthRepository
 import com.komputerkit.moview.databinding.FragmentEditProfileBinding
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.applyInterButtons
+import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.TmdbImageUrl
 import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.launch
@@ -74,6 +85,38 @@ class EditProfileFragment : Fragment() {
         }
     }
 
+    private val authRepository = AuthRepository()
+    private val changePasswordViewModel: ChangePasswordViewModel by viewModels()
+    private var changePwSendingOtp = false
+    private var changePwSubmitting = false
+    private var changePwResendTimer: CountDownTimer? = null
+    private var newPasswordVisible = false
+    private var confirmPasswordVisible = false
+    private var deleteOtpBusy = false
+
+    // Re-login launcher for "Hapus Akun" (Google accounts): the fresh
+    // google_id returned here is the server-side proof of ownership.
+    private val googleDeleteLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                try {
+                    val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                        .getResult(ApiException::class.java)
+                    val gEmail = account.email
+                    val gId = account.id
+                    if (gEmail.isNullOrBlank() || gId.isNullOrBlank()) {
+                        showSnackbar("Data akun Google tidak ditemukan. Coba lagi.", SnackbarType.ERROR)
+                    } else {
+                        performBackendDelete(gEmail, gId)
+                    }
+                } catch (e: ApiException) {
+                    showSnackbar("Login Google gagal. Coba lagi.", SnackbarType.ERROR)
+                }
+            } else {
+                showSnackbar("Login Google dibatalkan", SnackbarType.INFO)
+            }
+        }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -94,6 +137,7 @@ class EditProfileFragment : Fragment() {
         setupNavigationResultListener()
         setupUsernameCounter()
         setupBottomBarScrollPadding()
+        setupSettingsTab()
     }
 
     /**
@@ -485,10 +529,6 @@ class EditProfileFragment : Fragment() {
         binding.btnSave.setOnClickListener {
             saveChanges()
         }
-
-        binding.btnLogout.setOnClickListener {
-            performLogout()
-        }
         
         // Photo picker - click on profile image or camera icon
         binding.ivProfile.setOnClickListener {
@@ -625,6 +665,464 @@ class EditProfileFragment : Fragment() {
         }
     }
     
+    /** Tab header (Profil / Setting) + the Setting rows. Visibility is toggled
+     *  only, so unsaved profile edits survive a tab switch. */
+    private fun setupSettingsTab() {
+        binding.tabProfil.setOnClickListener { switchTab(showSettings = false) }
+        binding.tabSetting.setOnClickListener { switchTab(showSettings = true) }
+
+        // Google accounts have no password — the section is not shown at all.
+        if (accountProvider() == "google") {
+            binding.cardChangePassword.visibility = View.GONE
+        } else {
+            setupChangePasswordSection()
+        }
+
+        binding.cardLogout.setOnClickListener {
+            performLogout()
+        }
+        binding.cardDeleteAccount.setOnClickListener {
+            confirmDeleteAccount()
+        }
+        binding.cardAbout.setOnClickListener {
+            showAboutDialog()
+        }
+    }
+
+    private fun switchTab(showSettings: Boolean) {
+        binding.scrollContent.visibility = if (showSettings) View.GONE else View.VISIBLE
+        binding.scrollSettings.visibility = if (showSettings) View.VISIBLE else View.GONE
+        // Save Changes only exists on the Profil tab.
+        binding.layoutBottomBar.visibility = if (showSettings) View.GONE else View.VISIBLE
+
+        binding.tvTabProfil.setTextColor(
+            ContextCompat.getColor(
+                requireContext(),
+                if (showSettings) R.color.text_secondary else R.color.accent_blue
+            )
+        )
+        binding.tvTabSetting.setTextColor(
+            ContextCompat.getColor(
+                requireContext(),
+                if (showSettings) R.color.accent_blue else R.color.text_secondary
+            )
+        )
+        binding.tabProfilIndicator.visibility = if (showSettings) View.GONE else View.VISIBLE
+        binding.tabSettingIndicator.visibility = if (showSettings) View.VISIBLE else View.GONE
+    }
+
+    /** How this session was created: "email" (default for old sessions) or "google". */
+    private fun accountProvider(): String = requireContext()
+        .getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        .getString("accountProvider", "email") ?: "email"
+
+    private fun sessionEmail(): String? = requireContext()
+        .getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        .getString("userEmail", null)
+
+    // ---------------------------------------------------------------------
+    // Inline "Ganti Password" (email accounts only)
+    // ---------------------------------------------------------------------
+
+    private fun setupChangePasswordSection() {
+        binding.layoutChangePasswordHeader.setOnClickListener { toggleChangePasswordSection() }
+        binding.btnSendChangeOtp.setOnClickListener { sendChangePasswordOtp() }
+        binding.btnChangePassword.setOnClickListener { submitChangePassword() }
+
+        binding.btnToggleNewPassword.setOnClickListener {
+            newPasswordVisible = !newPasswordVisible
+            setPasswordVisible(
+                binding.etChangeNewPassword,
+                binding.btnToggleNewPassword,
+                newPasswordVisible
+            )
+        }
+        binding.btnToggleConfirmPassword.setOnClickListener {
+            confirmPasswordVisible = !confirmPasswordVisible
+            setPasswordVisible(
+                binding.etChangeConfirmPassword,
+                binding.btnToggleConfirmPassword,
+                confirmPasswordVisible
+            )
+        }
+
+        observeText(binding.etChangeNewPassword) { changePasswordViewModel.newPassword = it }
+        observeText(binding.etChangeConfirmPassword) { changePasswordViewModel.confirmPassword = it }
+        observeText(binding.etChangeOtp) {
+            changePasswordViewModel.otpCode = it
+            updateChangePasswordButtons()
+        }
+
+        restoreChangePasswordState()
+    }
+
+    /** Re-seeds inputs from the ViewModel (config change) and re-opens the
+     *  section with a correct countdown if an OTP is still pending (process
+     *  death). Password/OTP are never restored from disk. */
+    private fun restoreChangePasswordState() {
+        val vm = changePasswordViewModel
+        if (vm.newPassword.isNotEmpty()) binding.etChangeNewPassword.setText(vm.newPassword)
+        if (vm.confirmPassword.isNotEmpty()) binding.etChangeConfirmPassword.setText(vm.confirmPassword)
+        if (vm.otpCode.isNotEmpty()) binding.etChangeOtp.setText(vm.otpCode)
+
+        val otpState = ChangePasswordOtpStore.getValid(requireContext())
+        val expanded = vm.expanded || otpState != null
+        vm.expanded = expanded
+        applyChangePasswordExpanded(expanded, animate = false)
+
+        if (otpState != null) startChangePwCountdownFromStore()
+        updateChangePasswordButtons()
+    }
+
+    private fun toggleChangePasswordSection() {
+        val expand = !changePasswordViewModel.expanded
+        changePasswordViewModel.expanded = expand
+        if (expand) {
+            applyChangePasswordExpanded(true, animate = true)
+            binding.scrollSettings.post { scrollChangePasswordIntoView() }
+        } else {
+            clearChangePasswordInputs()
+            applyChangePasswordExpanded(false, animate = true)
+        }
+    }
+
+    private fun applyChangePasswordExpanded(expanded: Boolean, animate: Boolean) {
+        if (_binding == null) return
+        if (animate) {
+            TransitionManager.beginDelayedTransition(
+                binding.cardChangePassword,
+                AutoTransition().apply { duration = 200L }
+            )
+        }
+        binding.layoutChangePasswordForm.visibility = if (expanded) View.VISIBLE else View.GONE
+        binding.ivChangePasswordArrow.animate()
+            .rotation(if (expanded) 90f else 0f)
+            .setDuration(200L)
+            .start()
+        updateChangePasswordButtons()
+    }
+
+    /** Scrolls the expanded card fully into view (keyboard focus scrolling is
+     *  handled by the NestedScrollView / window resize). */
+    private fun scrollChangePasswordIntoView() {
+        if (_binding == null) return
+        val scroll = binding.scrollSettings
+        val extra = (24 * resources.displayMetrics.density).toInt()
+        val target = binding.cardChangePassword.bottom - scroll.height + extra
+        scroll.smoothScrollTo(0, target.coerceAtLeast(0))
+    }
+
+    private fun clearChangePasswordInputs() {
+        changePwResendTimer?.cancel()
+        changePwResendTimer = null
+        ChangePasswordOtpStore.clear(requireContext())
+
+        binding.etChangeNewPassword.setText("")
+        binding.etChangeConfirmPassword.setText("")
+        binding.etChangeOtp.setText("")
+        changePasswordViewModel.newPassword = ""
+        changePasswordViewModel.confirmPassword = ""
+        changePasswordViewModel.otpCode = ""
+
+        newPasswordVisible = false
+        confirmPasswordVisible = false
+        setPasswordVisible(binding.etChangeNewPassword, binding.btnToggleNewPassword, false)
+        setPasswordVisible(binding.etChangeConfirmPassword, binding.btnToggleConfirmPassword, false)
+
+        updateChangePasswordButtons()
+    }
+
+    /** Validates only the password pair (same rules as Register) before sending
+     *  the OTP. The password itself is never sent at this step. */
+    private fun validateNewPassword(): Boolean {
+        val password = binding.etChangeNewPassword.text?.toString().orEmpty()
+        val confirm = binding.etChangeConfirmPassword.text?.toString().orEmpty()
+        return when {
+            password.isEmpty() -> {
+                showSnackbar("Password baru wajib diisi", SnackbarType.ERROR)
+                false
+            }
+            password.length < 6 -> {
+                showSnackbar("Password minimal 6 karakter", SnackbarType.ERROR)
+                false
+            }
+            password != confirm -> {
+                showSnackbar("Password tidak sama", SnackbarType.ERROR)
+                false
+            }
+            else -> true
+        }
+    }
+
+    private fun sendChangePasswordOtp() {
+        if (changePwSendingOtp) return
+        if (!validateNewPassword()) return
+
+        val email = sessionEmail()
+        if (email.isNullOrBlank()) {
+            showSnackbar("Email akun tidak ditemukan. Silakan login ulang.", SnackbarType.ERROR)
+            return
+        }
+
+        changePwSendingOtp = true
+        updateChangePasswordButtons()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = authRepository.requestChangePasswordOtp(email)
+            if (!isAdded || _binding == null) return@launch
+            changePwSendingOtp = false
+            result
+                .onSuccess {
+                    // New code => fresh expiry + resend timestamps.
+                    ChangePasswordOtpStore.save(requireContext())
+                    showSnackbar("Kode OTP sudah dikirim ke emailmu", SnackbarType.SUCCESS)
+                    startChangePwCountdownFromStore()
+                    updateChangePasswordButtons()
+                    binding.etChangeOtp.requestFocus()
+                }
+                .onFailure { error ->
+                    updateChangePasswordButtons()
+                    val message = ErrorMessage.fromApi(error, "Gagal mengirim kode OTP. Coba lagi.")
+                        ?: "Gagal mengirim kode OTP. Coba lagi."
+                    showSnackbar(message, SnackbarType.ERROR)
+                }
+        }
+    }
+
+    private fun submitChangePassword() {
+        if (changePwSubmitting) return
+        if (!validateNewPassword()) return
+
+        val code = binding.etChangeOtp.text?.toString().orEmpty()
+        if (code.length != 6 || !code.all { it.isDigit() }) {
+            showSnackbar("Kode OTP harus 6 digit angka", SnackbarType.ERROR)
+            return
+        }
+
+        val email = sessionEmail()
+        if (email.isNullOrBlank()) {
+            showSnackbar("Email akun tidak ditemukan. Silakan login ulang.", SnackbarType.ERROR)
+            return
+        }
+        val password = binding.etChangeNewPassword.text?.toString().orEmpty()
+
+        changePwSubmitting = true
+        updateChangePasswordButtons()
+        viewLifecycleOwner.lifecycleScope.launch {
+            // Password + code travel in ONE request; the server verifies the
+            // purpose-bound OTP before replacing the password.
+            val result = authRepository.changePassword(email, code, password)
+            if (!isAdded || _binding == null) return@launch
+            changePwSubmitting = false
+            result
+                .onSuccess {
+                    changePasswordViewModel.expanded = false
+                    clearChangePasswordInputs()
+                    applyChangePasswordExpanded(false, animate = true)
+                    showSnackbar("Password berhasil diubah", SnackbarType.SUCCESS)
+                }
+                .onFailure { error ->
+                    updateChangePasswordButtons()
+                    val message = ErrorMessage.fromApi(error, "Kode OTP salah. Coba lagi.")
+                        ?: "Kode OTP salah. Coba lagi."
+                    showSnackbar(message, SnackbarType.ERROR)
+                }
+        }
+    }
+
+    /** "Kirim ulang (n dtk)" countdown derived from the persisted absolute
+     *  timestamp, so it stays correct after backgrounding/relaunch. */
+    private fun startChangePwCountdownFromStore() {
+        if (_binding == null) return
+        changePwResendTimer?.cancel()
+        val state = ChangePasswordOtpStore.peek(requireContext()) ?: return
+        val remaining = state.resendAvailableAt - System.currentTimeMillis()
+        if (remaining <= 0L) {
+            updateChangePasswordButtons()
+            return
+        }
+        binding.btnSendChangeOtp.isEnabled = false
+        changePwResendTimer = object : CountDownTimer(remaining, 1000L) {
+            override fun onTick(millisUntilFinished: Long) {
+                if (_binding == null) return
+                binding.btnSendChangeOtp.isEnabled = false
+                binding.btnSendChangeOtp.text =
+                    "Kirim ulang (${secondsCeil(millisUntilFinished)} dtk)"
+            }
+
+            override fun onFinish() {
+                if (_binding == null) return
+                updateChangePasswordButtons()
+            }
+        }.start()
+    }
+
+    private fun updateChangePasswordButtons() {
+        if (_binding == null) return
+        val state = ChangePasswordOtpStore.getValid(requireContext())
+        val resendRemaining = (state?.resendAvailableAt ?: 0L) - System.currentTimeMillis()
+        val otpSent = state != null
+
+        binding.btnSendChangeOtp.isEnabled =
+            !changePwSendingOtp && (!otpSent || resendRemaining <= 0L)
+        binding.btnSendChangeOtp.text = when {
+            changePwSendingOtp -> "Mengirim..."
+            !otpSent -> "Kirim OTP"
+            resendRemaining > 0L -> "Kirim ulang (${secondsCeil(resendRemaining)} dtk)"
+            else -> "Kirim ulang"
+        }
+
+        val otpLength = binding.etChangeOtp.text?.toString().orEmpty().length
+        binding.btnChangePassword.isEnabled = otpSent && otpLength == 6 && !changePwSubmitting
+        binding.btnChangePassword.text =
+            if (changePwSubmitting) "Menyimpan..." else "Ganti Password"
+
+        binding.etChangeNewPassword.isEnabled = !changePwSubmitting
+        binding.etChangeConfirmPassword.isEnabled = !changePwSubmitting
+        binding.etChangeOtp.isEnabled = otpSent && !changePwSubmitting
+    }
+
+    private fun secondsCeil(millis: Long): Int =
+        (millis / 1000).toInt() + if (millis % 1000 > 0) 1 else 0
+
+    private fun setPasswordVisible(
+        edit: android.widget.EditText,
+        button: android.widget.ImageButton,
+        visible: Boolean
+    ) {
+        edit.inputType = if (visible) {
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+        } else {
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        button.setImageResource(
+            if (visible) R.drawable.ic_visibility else R.drawable.ic_visibility_off
+        )
+        edit.setSelection(edit.text.length)
+    }
+
+    private fun observeText(edit: android.widget.EditText, onChanged: (String) -> Unit) {
+        edit.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                onChanged(s?.toString().orEmpty())
+            }
+        })
+    }
+
+    private fun confirmDeleteAccount() {
+        if (deleteOtpBusy) return
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Hapus akun?")
+            .setMessage("Tindakan ini permanen. Semua data profil, favorit, dan riwayatmu akan dihapus dan tidak bisa dikembalikan.")
+            .setPositiveButton("Hapus Akun") { _, _ -> startDeleteAccount() }
+            .setNegativeButton("Batal", null)
+            .show()
+            .applyInterButtons()
+    }
+
+    private fun startDeleteAccount() {
+        if (accountProvider() == "google") {
+            // Google accounts prove ownership by signing in again — the fresh
+            // google_id is sent to the server instead of an OTP code.
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail()
+                .requestProfile()
+                .requestId()
+                .build()
+            val client: GoogleSignInClient = GoogleSignIn.getClient(requireActivity(), gso)
+            client.signOut().addOnCompleteListener {
+                if (_binding != null) googleDeleteLauncher.launch(client.signInIntent)
+            }
+            return
+        }
+
+        val email = sessionEmail()
+        if (email.isNullOrBlank()) {
+            showSnackbar("Email akun tidak ditemukan. Silakan login ulang.", SnackbarType.ERROR)
+            return
+        }
+
+        deleteOtpBusy = true
+        binding.cardDeleteAccount.alpha = 0.5f
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = authRepository.requestDeleteAccountOtp(email)
+            if (!isAdded || _binding == null) return@launch
+            deleteOtpBusy = false
+            binding.cardDeleteAccount.alpha = 1f
+            result
+                .onSuccess {
+                    findNavController().navigate(
+                        R.id.action_editProfile_to_verifyOtp,
+                        Bundle().apply {
+                            putString("email", email)
+                            putString("flow", "delete_account")
+                        }
+                    )
+                }
+                .onFailure { error ->
+                    val message = ErrorMessage.fromApi(error, "Gagal mengirim kode OTP. Coba lagi.")
+                        ?: "Gagal mengirim kode OTP. Coba lagi."
+                    showSnackbar(message, SnackbarType.ERROR)
+                }
+        }
+    }
+
+    /** Delete-account final call after a successful Google re-login. */
+    private fun performBackendDelete(email: String, googleId: String) {
+        deleteOtpBusy = true
+        binding.cardDeleteAccount.alpha = 0.5f
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = authRepository.deleteAccount(email, googleId = googleId)
+            if (!isAdded || _binding == null) return@launch
+            deleteOtpBusy = false
+            binding.cardDeleteAccount.alpha = 1f
+            result
+                .onSuccess { finishAccountDeletion() }
+                .onFailure { error ->
+                    val message = ErrorMessage.fromApi(error, "Gagal menghapus akun. Coba lagi.")
+                        ?: "Gagal menghapus akun. Coba lagi."
+                    showSnackbar(message, SnackbarType.ERROR)
+                }
+        }
+    }
+
+    /** Local session teardown after the server removed the account. */
+    private fun finishAccountDeletion() {
+        val sharedPrefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        sharedPrefs.edit().clear().apply()
+        com.komputerkit.moview.ui.auth.OtpStateStore.clear(requireContext())
+        ChangePasswordOtpStore.clear(requireContext())
+
+        showSnackbar("Akun berhasil dihapus", SnackbarType.SUCCESS)
+        val navController = findNavController()
+        val navOptions = androidx.navigation.NavOptions.Builder()
+            .setPopUpTo(navController.graph.startDestinationId, true)
+            .build()
+        navController.navigate(R.id.loginFragment, null, navOptions)
+    }
+
+    private fun showAboutDialog() {
+        val version = try {
+            requireContext().packageManager
+                .getPackageInfo(requireContext().packageName, 0).versionName ?: "-"
+        } catch (e: Exception) {
+            "-"
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Tentang Moview")
+            .setMessage("Moview\nVersi $version")
+            .setNeutralButton("Kebijakan Privasi", null)
+            .setNegativeButton("Tutup", null)
+            .show()
+            .also { dialog ->
+                // No privacy-policy URL exists anywhere in the project — keep
+                // the button visible but inert instead of inventing a link.
+                dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).isEnabled = false
+                dialog.applyInterButtons()
+            }
+    }
+
     private fun performLogout() {
         // Only proceed if fragment is still attached
         if (!isAdded) return
@@ -641,6 +1139,7 @@ class EditProfileFragment : Fragment() {
         }
         // Clear any in-flight OTP verification state.
         com.komputerkit.moview.ui.auth.OtpStateStore.clear(requireContext())
+        ChangePasswordOtpStore.clear(requireContext())
         
         // Navigate to login and clear the ENTIRE back stack so the hardware
         // back button exits the app instead of returning to the logged-out session.
@@ -653,6 +1152,8 @@ class EditProfileFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        changePwResendTimer?.cancel()
+        changePwResendTimer = null
         _binding = null
     }
 }

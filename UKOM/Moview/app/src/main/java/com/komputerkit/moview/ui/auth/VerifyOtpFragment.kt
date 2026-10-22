@@ -207,11 +207,19 @@ class VerifyOtpFragment : Fragment() {
         if (System.currentTimeMillis() > state.expiresAt) {
             OtpStateStore.clear(requireContext())
             viewModel.updateOtp("")
-            showSnackbar(
-                "Kode OTP kedaluwarsa. Silakan daftar ulang untuk mendapatkan kode baru.",
-                SnackbarType.ERROR
-            )
-            goToLogin()
+            if (flow == "register") {
+                showSnackbar(
+                    "Kode OTP kedaluwarsa. Silakan daftar ulang untuk mendapatkan kode baru.",
+                    SnackbarType.ERROR
+                )
+                goToLogin()
+            } else {
+                showSnackbar(
+                    "Kode OTP kedaluwarsa. Silakan minta kode baru dari Pengaturan profil.",
+                    SnackbarType.ERROR
+                )
+                findNavController().navigateUp()
+            }
         }
     }
 
@@ -344,9 +352,14 @@ class VerifyOtpFragment : Fragment() {
     /** Asks before discarding the in-flight verification. */
     private fun confirmExit() {
         if (_binding == null) return
+        val message = if (flow == "register") {
+            "Proses verifikasi akan dihentikan. Kamu bisa mendaftar lagi kapan saja untuk mendapatkan kode baru."
+        } else {
+            "Proses verifikasi akan dihentikan. Kamu bisa memulai ulang dari Pengaturan profil kapan saja."
+        }
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Batalkan verifikasi?")
-            .setMessage("Proses verifikasi akan dihentikan. Kamu bisa mendaftar lagi kapan saja untuk mendapatkan kode baru.")
+            .setMessage(message)
             .setPositiveButton("Ya, batalkan") { _, _ -> cancelVerification() }
             .setNegativeButton("Lanjutkan verifikasi", null)
             .show()
@@ -356,6 +369,12 @@ class VerifyOtpFragment : Fragment() {
     private fun cancelVerification() {
         OtpStateStore.clear(requireContext())
         viewModel.updateOtp("")
+        // Non-register flows (change password / delete account) simply go
+        // back to Edit Profile — only Sign-Up belongs on Sign-Up/Login.
+        if (flow != "register") {
+            findNavController().navigateUp()
+            return
+        }
         // From Sign-Up the natural "back" is the Sign-Up form; after a
         // relaunch straight into OTP there is nothing beneath us but Home,
         // so land on Login instead of a logged-out Home.
@@ -406,6 +425,15 @@ class VerifyOtpFragment : Fragment() {
 
         // viewLifecycleOwner: the coroutine is cancelled the moment the view
         // goes away, so callbacks can never touch a dead binding.
+        if (flow == "register") {
+            verifyRegisterCode(code)
+        } else {
+            verifyActionCode(code)
+        }
+    }
+
+    /** Register flow: a successful code creates the account + starts the session. */
+    private fun verifyRegisterCode(code: String) {
         viewLifecycleOwner.lifecycleScope.launch {
             authRepository.verifyOtp(email, code)
                 .onSuccess { loginData ->
@@ -440,6 +468,38 @@ class VerifyOtpFragment : Fragment() {
         }
     }
 
+    /** delete_account: the code is verified and the account removed atomically. */
+    private fun verifyActionCode(code: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = authRepository.deleteAccount(email, code = code)
+            if (!isAdded || _binding == null) return@launch
+            isVerifying = false
+            showLoading(false)
+            result
+                .onSuccess {
+                    OtpStateStore.clear(requireContext())
+                    viewModel.updateOtp("")
+                    finishAccountDeletion()
+                }
+                .onFailure { error ->
+                    startResendCooldownFromStore()
+                    val message = ErrorMessage.fromApi(error, "Kode OTP salah. Coba lagi.")
+                        ?: "Kode OTP salah. Coba lagi."
+                    showSnackbar(message, SnackbarType.ERROR)
+                    setOtpErrorBorder(true)
+                }
+        }
+    }
+
+    /** Local session teardown after the server removed the account. */
+    private fun finishAccountDeletion() {
+        OtpStateStore.clear(requireContext())
+        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+        showSnackbar("Akun berhasil dihapus", SnackbarType.SUCCESS)
+        goToLogin()
+    }
+
     private fun performResend() {
         if (isResending) return
         isResending = true
@@ -448,10 +508,14 @@ class VerifyOtpFragment : Fragment() {
         binding.btnVerify.isEnabled = false
 
         viewLifecycleOwner.lifecycleScope.launch {
-            authRepository.resendOtp(email)
+            val result = when (flow) {
+                "delete_account" -> authRepository.requestDeleteAccountOtp(email)
+                else -> authRepository.resendOtp(email)
+            }
+            if (!isAdded || _binding == null) return@launch
+            isResending = false
+            result
                 .onSuccess {
-                    if (!isAdded || _binding == null) return@onSuccess
-                    isResending = false
                     OtpStateStore.markResendSent(requireContext())
                     showSnackbar("Kode OTP baru sudah dikirim ke emailmu", SnackbarType.SUCCESS)
                     clearOtp()
@@ -459,8 +523,6 @@ class VerifyOtpFragment : Fragment() {
                     binding.btnVerify.isEnabled = true
                 }
                 .onFailure { error ->
-                    if (!isAdded || _binding == null) return@onFailure
-                    isResending = false
                     ErrorMessage.fromApi(error, "Gagal mengirim ulang kode. Coba lagi.")?.let { message ->
                         showSnackbar(message, SnackbarType.ERROR)
                     }
@@ -517,6 +579,8 @@ class VerifyOtpFragment : Fragment() {
             putString("username", username)
             putString("authToken", token)
             putInt("userId", userId)
+            // A new account created via OTP always belongs to email/password.
+            putString("accountProvider", "email")
             apply()
         }
     }

@@ -209,7 +209,7 @@ class LoginFragment : Fragment() {
         lifecycleScope.launch {
             val result = authRepository.googleLogin(email, displayName, googleId)
             result.onSuccess { loginData ->
-                saveLoginState(loginData.email, loginData.username, loginData.token, loginData.userId)
+                saveLoginState(loginData.email, loginData.username, loginData.token, loginData.userId, provider = "google")
                 showGoogleLoading(false)
                 showSnackbar("Selamat datang, ${loginData.username}!", SnackbarType.SUCCESS)
                 findNavController().navigate(R.id.action_login_to_home)
@@ -269,7 +269,7 @@ class LoginFragment : Fragment() {
 
             result.onSuccess { loginData ->
                 // Save login state
-                saveLoginState(loginData.email, loginData.username, loginData.token, loginData.userId)
+                saveLoginState(loginData.email, loginData.username, loginData.token, loginData.userId, provider = "email")
 
                 showLoading(false)
                 showSnackbar("Selamat datang, ${loginData.username}!", SnackbarType.SUCCESS)
@@ -287,7 +287,13 @@ class LoginFragment : Fragment() {
         }
     }
     
-    private fun saveLoginState(email: String, username: String, token: String, userId: Int) {
+    private fun saveLoginState(
+        email: String,
+        username: String,
+        token: String,
+        userId: Int,
+        provider: String = "email"
+    ) {
         val sharedPrefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         sharedPrefs.edit().apply {
             putBoolean("isLoggedIn", true)
@@ -295,6 +301,9 @@ class LoginFragment : Fragment() {
             putString("username", username)
             putString("authToken", token)
             putInt("userId", userId)
+            // Which auth method created this session (email/password vs Google)
+            // — Edit Profile uses it to gate Change Password / deletion proof.
+            putString("accountProvider", provider)
             apply()
         }
     }

@@ -33,6 +33,23 @@ interface MovieApiService {
     @POST("forgot-password")
     suspend fun forgotPassword(@Body request: ForgotPasswordRequest): SimpleResponse
 
+    // Change password: request-otp sends/resends the code; the final call
+    // carries the new password + the code so the server verifies the
+    // purpose-bound OTP before changing anything.
+    @POST("change-password/request-otp")
+    suspend fun requestChangePasswordOtp(@Body request: ChangePasswordOtpRequest): SimpleResponse
+
+    @POST("change-password")
+    suspend fun changePassword(@Body request: ChangePasswordRequest): ApiResponse<Any>
+
+    // Delete account: request-otp sends/resends the code; the final call
+    // verifies proof (OTP code or fresh google_id) then removes the account.
+    @POST("delete-account/request-otp")
+    suspend fun requestDeleteAccountOtp(@Body request: DeleteAccountOtpRequest): SimpleResponse
+
+    @POST("delete-account")
+    suspend fun deleteAccount(@Body request: DeleteAccountRequest): ApiResponse<Any>
+
     @GET("auth-hero-credits")
     suspend fun getAuthHeroCredits(): ApiResponse<AuthHeroCreditsDto>
     

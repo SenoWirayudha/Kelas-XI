@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\V1\MovieMediaController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\ForgotPasswordController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\UserActivityController;
@@ -37,6 +38,12 @@ Route::prefix('v1')->group(function () {
     // Password reset (public)
     Route::post('/forgot-password', [ForgotPasswordController::class, 'forgot'])->middleware('throttle:10,1');
     Route::post('/reset-password', [ForgotPasswordController::class, 'reset'])->middleware('throttle:10,1');
+
+    // Account maintenance (signed-in user actions)
+    Route::post('/change-password/request-otp', [AccountController::class, 'requestChangePasswordOtp'])->middleware('throttle:10,1');
+    Route::post('/change-password', [AccountController::class, 'changePassword'])->middleware('throttle:10,1');
+    Route::post('/delete-account/request-otp', [AccountController::class, 'requestDeleteAccountOtp'])->middleware('throttle:10,1');
+    Route::post('/delete-account', [AccountController::class, 'deleteAccount'])->middleware('throttle:10,1');
     
     // Home Screen
     Route::get('/home', [MovieApiController::class, 'home']);

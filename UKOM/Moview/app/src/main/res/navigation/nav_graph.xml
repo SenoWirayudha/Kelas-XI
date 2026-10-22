@@ -43,7 +43,8 @@
             app:destination="@id/verifyOtpFragment" />
     </fragment>
 
-    <!-- Verify OTP Fragment (register step 2) -->
+    <!-- Verify OTP Fragment (register step 2; also re-verifies for the
+         delete-account flow) -->
     <fragment
         android:id="@+id/verifyOtpFragment"
         android:name="com.komputerkit.moview.ui.auth.VerifyOtpFragment"
@@ -672,6 +673,9 @@
             app:destination="@id/loginFragment"
             app:popUpTo="@id/nav_graph"
             app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_editProfile_to_verifyOtp"
+            app:destination="@id/verifyOtpFragment" />
     </fragment>
 
     <fragment

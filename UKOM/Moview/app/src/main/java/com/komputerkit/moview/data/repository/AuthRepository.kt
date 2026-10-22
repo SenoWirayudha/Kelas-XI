@@ -1,6 +1,10 @@
 package com.komputerkit.moview.data.repository
 
 import com.komputerkit.moview.data.api.AuthHeroCreditsDto
+import com.komputerkit.moview.data.api.ChangePasswordOtpRequest
+import com.komputerkit.moview.data.api.ChangePasswordRequest
+import com.komputerkit.moview.data.api.DeleteAccountOtpRequest
+import com.komputerkit.moview.data.api.DeleteAccountRequest
 import com.komputerkit.moview.data.api.ForgotPasswordRequest
 import com.komputerkit.moview.data.api.GoogleLoginRequest
 import com.komputerkit.moview.data.api.LoginRequest
@@ -121,6 +125,65 @@ class AuthRepository {
             } else {
                 Result.failure(Exception(response.message ?: "Gagal mengirim link reset"))
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    /** Change password step 1 (also used as resend): emails a 6-digit OTP for
+     *  the account. The server may reject Google-only accounts here. */
+    suspend fun requestChangePasswordOtp(email: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.requestChangePasswordOtp(ChangePasswordOtpRequest(email))
+            if (response.success) Result.success(Unit)
+            else Result.failure(Exception(response.message ?: "Gagal mengirim kode OTP"))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    /** Change password step 2: the new password AND the OTP travel together.
+     *  The server verifies the purpose-bound, attempt-limited code before
+     *  replacing the password (client-side checks alone are never trusted). */
+    suspend fun changePassword(email: String, code: String, password: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.changePassword(ChangePasswordRequest(email, code, password))
+            if (response.success) Result.success(Unit)
+            else Result.failure(Exception(response.message ?: "Gagal mengubah password"))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    /** Delete-account step 1 (also used as resend): emails a 6-digit OTP. */
+    suspend fun requestDeleteAccountOtp(email: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.requestDeleteAccountOtp(DeleteAccountOtpRequest(email))
+            if (response.success) Result.success(Unit)
+            else Result.failure(Exception(response.message ?: "Gagal mengirim kode OTP"))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    /** Delete-account final call: the server verifies the proof (OTP code for
+     *  email/password accounts, or a fresh google_id from a re-login for
+     *  Google accounts) before removing user data + the auth account. */
+    suspend fun deleteAccount(
+        email: String,
+        code: String? = null,
+        googleId: String? = null
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.deleteAccount(
+                DeleteAccountRequest(email = email, code = code, google_id = googleId)
+            )
+            if (response.success) Result.success(Unit)
+            else Result.failure(Exception(response.message ?: "Gagal menghapus akun"))
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
