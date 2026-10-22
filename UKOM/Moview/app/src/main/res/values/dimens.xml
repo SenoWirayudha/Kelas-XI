@@ -72,7 +72,7 @@
 
     <!-- Edit Profile — same compact scale as the auth screens -->
     <dimen name="edit_backdrop_height">160dp</dimen>
-    <dimen name="edit_backdrop_fade_height">64dp</dimen>
+    <dimen name="edit_backdrop_fade_height">88dp</dimen>
     <dimen name="edit_photo_container_top">112dp</dimen>
     <dimen name="edit_avatar_size">96dp</dimen>
     <dimen name="edit_avatar_radius">48dp</dimen>

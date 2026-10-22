@@ -61,21 +61,29 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp">
 
-                <!-- Backdrop Background -->
-                <ImageView
-                    android:id="@+id/iv_backdrop"
+                <!-- Backdrop + bottom fade. Fixed-height inner frame so the
+                     gradient anchors to the backdrop's own bottom (the outer
+                     FrameLayout wraps the taller photo container, which pushed
+                     the gradient below the image and left a hard edge). -->
+                <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/edit_backdrop_height"
-                    android:scaleType="centerCrop"
-                    android:contentDescription="Backdrop"
-                    tools:src="@android:color/darker_gray" />
+                    android:layout_height="@dimen/edit_backdrop_height">
 
-                <!-- Gradient Fade at Bottom (30-40% of backdrop height) -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/edit_backdrop_fade_height"
-                    android:layout_gravity="bottom"
-                    android:background="@drawable/bg_gradient_bottom" />
+                    <ImageView
+                        android:id="@+id/iv_backdrop"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="Backdrop"
+                        tools:src="@android:color/darker_gray" />
+
+                    <!-- Gradient Fade at Bottom (~55% of backdrop height) -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/edit_backdrop_fade_height"
+                        android:layout_gravity="bottom"
+                        android:background="@drawable/bg_gradient_bottom" />
+                </FrameLayout>
 
                 <!-- Profile Photo Container - positioned absolutely to avoid clipping -->
                 <LinearLayout
