@@ -196,32 +196,76 @@
                     android:gravity="center"
                     tools:text="Sci-fi addict. Nolan enthusiast.\nProfessional popcorn eater." />
 
-                <!-- Location -->
+                <!-- Location + Social Link (same row) -->
                 <LinearLayout
-                    android:id="@+id/layout_location"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:gravity="center"
+                    android:gravity="center_vertical"
                     android:layout_marginTop="6dp"
                     android:layout_marginBottom="16dp">
 
-                    <ImageView
-                        android:layout_width="14dp"
-                        android:layout_height="14dp"
-                        android:src="@drawable/ic_location"
-                        android:contentDescription="Location"
-                        app:tint="#4CAF50" />
-
-                    <TextView
-                        android:id="@+id/tv_location"
+                    <LinearLayout
+                        android:id="@+id/layout_location"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
-                        android:textColor="#4CAF50"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        tools:text="JAKARTA, ID" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:src="@drawable/ic_location"
+                            android:contentDescription="Location"
+                            app:tint="#4CAF50" />
+
+                        <TextView
+                            android:id="@+id/tv_location"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
+                            android:fontFamily="@font/font_family_inter"
+                            android:textColor="#4CAF50"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            tools:text="JAKARTA, ID" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layout_social"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:visibility="gone"
+                        tools:visibility="visible">
+
+                        <ImageView
+                            android:id="@+id/iv_social_icon"
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:src="@drawable/ic_link"
+                            android:contentDescription="Social link"
+                            app:tint="@color/text_secondary" />
+
+                        <TextView
+                            android:id="@+id/tv_social_link"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
+                            android:fontFamily="@font/font_family_inter"
+                            android:maxWidth="180dp"
+                            android:maxLines="1"
+                            android:ellipsize="end"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            tools:text="@alexc" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
 

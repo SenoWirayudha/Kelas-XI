@@ -1,6 +1,7 @@
 package com.komputerkit.moview.ui.profile
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -16,6 +17,7 @@ import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentProfileNewBinding
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.SocialLink
 import com.komputerkit.moview.ui.ticket.TicketHistoryActivity
 import com.komputerkit.moview.util.TmdbImageUrl
 import com.komputerkit.moview.util.loadProfilePhoto
@@ -268,6 +270,21 @@ class ProfileFragment : Fragment() {
             binding.tvLocation.text = location
             // Hide location row (icon + text) if empty
             binding.layoutLocation.visibility = if (location.isNullOrBlank()) View.GONE else View.VISIBLE
+            updateLocationSocialSpacing()
+        }
+        
+        viewModel.socialLink.observe(viewLifecycleOwner) { link ->
+            val info = SocialLink.parse(link)
+            if (info == null) {
+                binding.layoutSocial.visibility = View.GONE
+                binding.layoutSocial.setOnClickListener(null)
+            } else {
+                binding.layoutSocial.visibility = View.VISIBLE
+                binding.ivSocialIcon.setImageResource(info.iconRes)
+                binding.tvSocialLink.text = info.label
+                binding.layoutSocial.setOnClickListener { openSocialLink(info.url) }
+            }
+            updateLocationSocialSpacing()
         }
         
         viewModel.favoriteMovies.observe(viewLifecycleOwner) { movies ->
@@ -487,6 +504,26 @@ class ProfileFragment : Fragment() {
             binding.btnFollow.strokeColor = resources.getColorStateList(R.color.white, null)
             binding.btnFollow.setTextColor(resources.getColor(R.color.white, null))
             Log.d("ProfileFragment", "Button set to FOLLOW (transparent border)")
+        }
+    }
+
+    private fun updateLocationSocialSpacing() {
+        val margin = if (binding.layoutLocation.visibility == View.VISIBLE) {
+            (12 * resources.displayMetrics.density).toInt()
+        } else 0
+        val params = binding.layoutSocial.layoutParams as ViewGroup.MarginLayoutParams
+        if (params.marginStart != margin) {
+            params.marginStart = margin
+            binding.layoutSocial.layoutParams = params
+        }
+    }
+
+    private fun openSocialLink(url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            showSnackbar("Tidak ada aplikasi untuk membuka link ini", SnackbarType.ERROR)
         }
     }
 

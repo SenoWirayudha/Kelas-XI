@@ -347,6 +347,40 @@
                     android:textSize="@dimen/edit_field_text" />
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Social Link -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/edit_section_gap"
+                android:text="Social Link"
+                android:textColor="@color/text_secondary"
+                android:textSize="@dimen/edit_label_text"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/auth_gap"
+                app:cardBackgroundColor="@color/dark_card"
+                app:cardCornerRadius="@dimen/corner_control"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp">
+
+                <EditText
+                    android:id="@+id/et_social_link"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:hint="instagram.com/username"
+                    android:inputType="textUri"
+                    android:maxLength="100"
+                    android:maxLines="1"
+                    android:padding="@dimen/edit_field_padding"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_secondary"
+                    android:textSize="@dimen/edit_field_text" />
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Top 4 Favorites -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -779,19 +813,32 @@
         android:orientation="vertical"
         android:padding="@dimen/edit_bottom_bar_padding">
 
-        <Button
-            android:id="@+id/btn_save"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="@dimen/edit_button_height"
-            android:backgroundTint="@color/accent_blue"
-            android:fontFamily="@font/font_family_inter"
-            android:letterSpacing="0"
-            android:text="Save Changes"
-            android:textAllCaps="false"
-            android:textColor="@color/white"
-            android:textSize="@dimen/edit_button_text"
-            android:textStyle="bold"
-            app:cornerRadius="@dimen/corner_control" />
+            android:layout_height="@dimen/edit_button_height">
+
+            <Button
+                android:id="@+id/btn_save"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:backgroundTint="@color/accent_blue"
+                android:fontFamily="@font/font_family_inter"
+                android:letterSpacing="0"
+                android:text="Save Changes"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="@dimen/edit_button_text"
+                android:textStyle="bold"
+                app:cornerRadius="@dimen/corner_control" />
+
+            <ProgressBar
+                android:id="@+id/progress_save"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:indeterminateTint="@color/white"
+                android:visibility="gone" />
+        </FrameLayout>
     </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

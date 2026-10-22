@@ -16,6 +16,7 @@ class UserProfile extends Model
         'backdrop_enabled',
         'bio',
         'location',
+        'social_link',
     ];
 
     protected $casts = [

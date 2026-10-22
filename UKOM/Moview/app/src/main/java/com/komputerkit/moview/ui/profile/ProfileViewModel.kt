@@ -40,6 +40,9 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val _location = MutableLiveData<String>()
     val location: LiveData<String> = _location
     
+    private val _socialLink = MutableLiveData<String>()
+    val socialLink: LiveData<String> = _socialLink
+    
     private val _stats = MutableLiveData<UserStats>()
     val stats: LiveData<UserStats> = _stats
     
@@ -99,6 +102,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     _userName.postValue(displayName)
                     _bio.postValue(profileData.profile.bio ?: "")
                     _location.postValue(profileData.profile.location ?: "")
+                    _socialLink.postValue(profileData.profile.social_link ?: "")
                     
                     // Set profile photo URL, use default drawable if null
                     _profilePhotoUrl.postValue(profileData.profile.profile_photo_url)

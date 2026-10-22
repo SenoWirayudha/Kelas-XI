@@ -38,6 +38,7 @@ import com.komputerkit.moview.data.repository.AuthRepository
 import com.komputerkit.moview.databinding.FragmentEditProfileBinding
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.SocialLink
 import com.komputerkit.moview.util.applyInterButtons
 import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.TmdbImageUrl
@@ -56,6 +57,7 @@ class EditProfileFragment : Fragment() {
     private var isBackdropEnabled = false
     private var currentBackdropUrl: String? = null
     private var skipPhotoReload = false // Flag to prevent reload after upload
+    private var isSavingProfile = false
     
     // Photo picker launcher - opens cropper
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -319,6 +321,7 @@ class EditProfileFragment : Fragment() {
                 binding.etUsername.setText(state.username)
                 binding.etBio.setText(state.bio)
                 binding.etLocation.setText(state.location)
+                binding.etSocialLink.setText(state.socialLink)
                 
                 // Update profile photo from state (only if not skipping reload)
                 if (!skipPhotoReload && !state.profilePhotoUrl.isNullOrBlank()) {
@@ -612,9 +615,12 @@ class EditProfileFragment : Fragment() {
     }
 
     private fun saveChanges() {
+        if (isSavingProfile) return
+
         val username = binding.etUsername.text.toString()
         val bio = binding.etBio.text.toString()
         val location = binding.etLocation.text.toString()
+        val socialLinkInput = binding.etSocialLink.text.toString()
         
         // Validate — errors surface via Snackbar (no inline error icons)
         if (username.isEmpty()) {
@@ -625,44 +631,68 @@ class EditProfileFragment : Fragment() {
             showSnackbar("Username maksimal 20 karakter", SnackbarType.ERROR)
             return
         }
+
+        val socialLink = SocialLink.validateAndNormalize(socialLinkInput)
+        val socialLinkError = socialLink.error
+        if (socialLinkError != null) {
+            showSnackbar(socialLinkError, SnackbarType.ERROR)
+            return
+        }
+
+        // Wait if photo is still uploading
+        if (viewModel.uiState.value.isLoading) {
+            showSnackbar("Tunggu, foto masih diunggah...", SnackbarType.INFO)
+            return
+        }
         
         // Update ViewModel
         viewModel.updateUsername(username)
         viewModel.updateBio(bio)
         viewModel.updateLocation(location)
+        viewModel.updateSocialLink(socialLink.url ?: "")
+
+        isSavingProfile = true
+        setSaveLoading(true)
         
         // Save to API
         lifecycleScope.launch {
-            // Wait if photo is still uploading
-            if (viewModel.uiState.value.isLoading) {
-                showSnackbar("Tunggu, foto masih diunggah...", SnackbarType.INFO)
-                return@launch
-            }
-            
-            val success = viewModel.saveProfile()
-            if (success) {
-                if (isAdded) {
-                    // Get the latest profile photo URL from ViewModel state (more reliable)
-                    val profilePhotoUrl = viewModel.uiState.value.profilePhotoUrl
-                    
-                    android.util.Log.d("EditProfileFragment", "Sending profile_photo_url: $profilePhotoUrl")
-                    
-                    // Set result to notify ProfileFragment to reload
-                    findNavController().previousBackStackEntry?.savedStateHandle?.set("profile_updated", true)
-                    findNavController().previousBackStackEntry?.savedStateHandle?.set("profile_photo_url", profilePhotoUrl)
-                    
-                    // Show success message
-                    showSnackbar("Profile updated successfully", SnackbarType.SUCCESS)
-                    
-                    findNavController().navigateUp()
+            try {
+                val success = viewModel.saveProfile()
+                if (success) {
+                    if (isAdded) {
+                        // Get the latest profile photo URL from ViewModel state (more reliable)
+                        val profilePhotoUrl = viewModel.uiState.value.profilePhotoUrl
+                        
+                        android.util.Log.d("EditProfileFragment", "Sending profile_photo_url: $profilePhotoUrl")
+                        
+                        // Set result to notify ProfileFragment to reload
+                        findNavController().previousBackStackEntry?.savedStateHandle?.set("profile_updated", true)
+                        findNavController().previousBackStackEntry?.savedStateHandle?.set("profile_photo_url", profilePhotoUrl)
+                        
+                        // Show success message
+                        showSnackbar("Profile updated successfully", SnackbarType.SUCCESS)
+                        
+                        findNavController().navigateUp()
+                    }
+                } else {
+                    // Show error toast - safely access context
+                    context?.let { ctx ->
+                        showSnackbar("Gagal menyimpan profil. Coba lagi.", SnackbarType.ERROR)
+                    }
                 }
-            } else {
-                // Show error toast - safely access context
-                context?.let { ctx ->
-                    showSnackbar("Gagal menyimpan profil. Coba lagi.", SnackbarType.ERROR)
+            } finally {
+                isSavingProfile = false
+                if (_binding != null) {
+                    setSaveLoading(false)
                 }
             }
         }
+    }
+
+    private fun setSaveLoading(loading: Boolean) {
+        binding.progressSave.visibility = if (loading) View.VISIBLE else View.GONE
+        binding.btnSave.isEnabled = !loading
+        binding.btnSave.text = if (loading) "" else "Save Changes"
     }
     
     /** Tab header (Profil / Setting) + the Setting rows. Visibility is toggled

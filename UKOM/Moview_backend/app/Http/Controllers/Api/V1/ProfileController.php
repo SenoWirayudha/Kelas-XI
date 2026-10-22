@@ -114,7 +114,8 @@ class ProfileController extends Controller
                         'backdrop_url' => $backdropUrl,
                         'backdrop_enabled' => $profile && $profile->backdrop_enabled ? true : false,
                         'bio' => $profile && !empty($profile->bio) ? $profile->bio : '',
-                        'location' => $profile && !empty($profile->location) ? $profile->location : ''
+                        'location' => $profile && !empty($profile->location) ? $profile->location : '',
+                        'social_link' => $profile && !empty($profile->social_link) ? $profile->social_link : ''
                     ],
                     'favorites' => $favoriteMovies,
                     'statistics' => $stats
@@ -360,6 +361,24 @@ class ProfileController extends Controller
             $location = $request->input('location');
             $backdropEnabled = $request->input('backdrop_enabled', false);
 
+            // Social link is optional; when sent it must be a plain http/https URL.
+            $hasSocialLink = $request->has('social_link');
+            $socialLink = $hasSocialLink ? trim((string) $request->input('social_link')) : null;
+            if ($socialLink !== null && $socialLink !== '') {
+                if (mb_strlen($socialLink) > 100) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Social link maksimal 100 karakter'
+                    ], 422);
+                }
+                if (!preg_match('#^https?://#i', $socialLink)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Social link harus berupa URL http/https'
+                    ], 422);
+                }
+            }
+
             // Update username in users table
             if ($username) {
                 DB::table('users')
@@ -385,6 +404,10 @@ class ProfileController extends Controller
                 if ($username) {
                     $updateData['display_name'] = $username;
                 }
+
+                if ($hasSocialLink) {
+                    $updateData['social_link'] = $socialLink !== '' ? $socialLink : null;
+                }
                 
                 DB::table('user_profiles')
                     ->where('user_id', $userId)
@@ -395,6 +418,7 @@ class ProfileController extends Controller
                     'user_id' => $userId,
                     'bio' => $bio,
                     'location' => $location,
+                    'social_link' => $socialLink !== '' ? $socialLink : null,
                     'backdrop_enabled' => $backdropEnabled,
                     'created_at' => now(),
                     'updated_at' => now()

@@ -510,7 +510,8 @@ data class ProfileInfoDto(
     val backdrop_url: String?,
     val backdrop_enabled: Boolean = false,
     val bio: String,
-    val location: String
+    val location: String,
+    val social_link: String? = null
 )
 
 data class FavoriteMovieDto(
@@ -717,7 +718,8 @@ data class UpdateProfileRequest(
     val username: String,
     val bio: String,
     val location: String,
-    val backdrop_enabled: Boolean
+    val backdrop_enabled: Boolean,
+    val social_link: String? = null
 )
 
 data class UpdateBackdropRequest(

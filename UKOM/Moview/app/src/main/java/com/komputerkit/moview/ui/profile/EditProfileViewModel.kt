@@ -18,6 +18,7 @@ data class EditProfileUiState(
     val username: String = "",
     val bio: String = "",
     val location: String = "",
+    val socialLink: String = "",
     val backdropEnabled: Boolean = false,
     val backdropUrl: String? = null,
     val profilePhotoUrl: String? = null,
@@ -85,6 +86,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                     username = profileResponse.user.username,
                     bio = profileResponse.profile.bio,
                     location = profileResponse.profile.location,
+                    socialLink = profileResponse.profile.social_link ?: "",
                     backdropEnabled = profileResponse.profile.backdrop_enabled,
                     backdropUrl = profileResponse.profile.backdrop_url,
                     profilePhotoUrl = profileResponse.profile.profile_photo_url,
@@ -198,6 +200,10 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
         _uiState.value = _uiState.value.copy(location = location)
     }
     
+    fun updateSocialLink(socialLink: String) {
+        _uiState.value = _uiState.value.copy(socialLink = socialLink)
+    }
+    
     fun updateBackdropEnabled(enabled: Boolean) {
         _uiState.value = _uiState.value.copy(backdropEnabled = enabled)
     }
@@ -209,12 +215,13 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
         return try {
             val state = _uiState.value
             
-            // Update profile (username, bio, location, backdrop_enabled)
+            // Update profile (username, bio, location, social_link, backdrop_enabled)
             val profileRequest = UpdateProfileRequest(
                 username = state.username,
                 bio = state.bio,
                 location = state.location,
-                backdrop_enabled = state.backdropEnabled
+                backdrop_enabled = state.backdropEnabled,
+                social_link = state.socialLink
             )
             val profileResponse = repository.updateUserProfile(userId, profileRequest)
             
