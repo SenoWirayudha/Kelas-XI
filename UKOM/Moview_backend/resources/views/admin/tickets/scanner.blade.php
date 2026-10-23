@@ -111,8 +111,8 @@ function ticketScanner() {
         lastScannedCode: null,
         lastScannedAt: 0,
         csrfToken: '{{ csrf_token() }}',
-        scanPreviewApiUrl: '{{ url('/api/tickets/scan/preview') }}',
-        scanConfirmApiUrl: '{{ url('/api/tickets/scan') }}',
+        scanPreviewApiUrl: '{{ route('staff.tickets.preview') }}',
+        scanConfirmApiUrl: '{{ route('staff.tickets.scan') }}',
 
         init() {},
 

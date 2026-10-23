@@ -8,7 +8,7 @@
 <div class="p-6 max-w-xl">
 
     <div class="mb-4">
-        <a href="{{ route('admin.cinemas.index') }}"
+        <a href="{{ route($panelPrefix.'.cinemas.index') }}"
            class="inline-flex items-center text-sm text-gray-500 hover:text-gray-800 transition">
             <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Bioskop
         </a>
@@ -24,7 +24,7 @@
             </div>
         @endif
 
-        <form action="{{ route('admin.cinemas.store') }}" method="POST">
+        <form action="{{ route($panelPrefix.'.cinemas.store') }}" method="POST">
             @csrf
 
             {{-- Service --}}
@@ -82,7 +82,7 @@
                         class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
                     <i class="fas fa-save mr-2"></i> Simpan Bioskop
                 </button>
-                <a href="{{ route('admin.cinemas.index') }}"
+                <a href="{{ route($panelPrefix.'.cinemas.index') }}"
                    class="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
                     Batal
                 </a>

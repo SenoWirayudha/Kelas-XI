@@ -34,7 +34,7 @@ class TicketController extends Controller
      * printed tickets, the legacy `ticket_code` (MOV-XXXXXX). A bare numeric id
      * is deliberately NOT accepted.
      */
-    private function resolveValidOrderForScan(string $payload, bool $lockForUpdate = false): array
+    private function resolveValidOrderForScan(string $payload, bool $lockForUpdate = false, ?int $cinemaId = null): array
     {
         $payload = trim($payload);
         $isLegacyCode = str_starts_with(strtoupper($payload), 'MOV-');
@@ -59,6 +59,17 @@ class TicketController extends Controller
                     'success' => false,
                     'message' => 'Ticket not found',
                 ], 404),
+            ];
+        }
+
+        // Staff may only validate tickets for their own cinema.
+        if ($cinemaId !== null && (int) $order->schedule->studio?->cinema_id !== $cinemaId) {
+            return [
+                'order' => null,
+                'error' => response()->json([
+                    'success' => false,
+                    'message' => 'Tiket ini bukan milik bioskop Anda.',
+                ], 403),
             ];
         }
 
@@ -312,7 +323,7 @@ class TicketController extends Controller
      * POST /api/v1/tickets/scan/preview
      * Body: { qr_code: "<token>" }  (legacy: { ticket_code: "MOV-XXXXXX" })
      */
-    public function scanPreview(Request $request)
+    public function scanPreview(Request $request, ?int $cinemaId = null)
     {
         $validated = $request->validate([
             'qr_code' => 'nullable|string',
@@ -327,7 +338,7 @@ class TicketController extends Controller
             ], 422);
         }
 
-        $resolved = $this->resolveValidOrderForScan((string) $payload);
+        $resolved = $this->resolveValidOrderForScan((string) $payload, false, $cinemaId);
         if ($resolved['error']) {
             return $resolved['error'];
         }
@@ -348,7 +359,7 @@ class TicketController extends Controller
      * The ticket is claimed atomically: the UPDATE only succeeds while
      * is_scanned is still false, so two concurrent scans can never both win.
      */
-    public function scan(Request $request)
+    public function scan(Request $request, ?int $cinemaId = null)
     {
         $validated = $request->validate([
             'qr_code' => 'nullable|string',
@@ -363,8 +374,8 @@ class TicketController extends Controller
             ], 422);
         }
 
-        $result = DB::transaction(function () use ($payload) {
-            $resolved = $this->resolveValidOrderForScan($payload, true);
+        $result = DB::transaction(function () use ($payload, $cinemaId) {
+            $resolved = $this->resolveValidOrderForScan($payload, true, $cinemaId);
             if ($resolved['error']) {
                 return $resolved['error'];
             }

@@ -8,7 +8,7 @@
 <div class="p-6 max-w-lg">
 
     <div class="mb-4">
-        <a href="{{ route('admin.studios.index') }}"
+        <a href="{{ route($panelPrefix.'.studios.index') }}"
            class="inline-flex items-center text-sm text-gray-500 hover:text-gray-800 transition">
             <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Studio
         </a>
@@ -24,7 +24,7 @@
             </div>
         @endif
 
-        <form action="{{ route('admin.studios.store') }}" method="POST">
+        <form action="{{ route($panelPrefix.'.studios.store') }}" method="POST">
             @csrf
 
             {{-- Bioskop --}}
@@ -37,7 +37,7 @@
                     <option value="">-- Pilih Bioskop --</option>
                     @foreach($cinemas as $cinema)
                         <option value="{{ $cinema->id }}" {{ old('cinema_id') == $cinema->id ? 'selected' : '' }}>
-                            {{ $cinema->cinema_name }}{{ $cinema->city ? ' — ' . $cinema->city : '' }}
+                            {{ $cinema->cinema_name }}{{ $cinema->city ? ' â€” ' . $cinema->city : '' }}
                         </option>
                     @endforeach
                 </select>
@@ -79,7 +79,7 @@
                         class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
                     <i class="fas fa-arrow-right mr-2"></i> Simpan &amp; Atur Layout Kursi
                 </button>
-                <a href="{{ route('admin.studios.index') }}"
+                <a href="{{ route($panelPrefix.'.studios.index') }}"
                    class="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
                     Batal
                 </a>

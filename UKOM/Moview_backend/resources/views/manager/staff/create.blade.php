@@ -1,4 +1,4 @@
-@extends('layouts.portal')
+@extends('layouts.admin')
 
 @section('title', 'Tambah Staff')
 @section('page-title', 'Tambah Staff')

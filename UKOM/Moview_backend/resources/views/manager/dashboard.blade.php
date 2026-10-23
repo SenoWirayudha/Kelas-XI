@@ -1,4 +1,4 @@
-@extends('layouts.portal')
+@extends('layouts.admin')
 
 @section('title', 'Dashboard Manager')
 @section('page-title', 'Dashboard Manager')

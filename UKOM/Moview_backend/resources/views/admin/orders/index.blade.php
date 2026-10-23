@@ -30,12 +30,12 @@
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition">
             <i class="fas fa-search mr-1"></i> Filter
         </button>
-        <a href="{{ route('admin.orders.export', request()->query()) }}"
+        <a href="{{ route($panelPrefix.'.orders.export', request()->query()) }}"
            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition">
             <i class="fas fa-file-csv mr-1"></i> Export CSV
         </a>
         @if(request()->hasAny(['search','status']))
-            <a href="{{ route('admin.orders.index') }}"
+            <a href="{{ route($panelPrefix.'.orders.index') }}"
                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition">
                 Reset
             </a>
@@ -102,7 +102,7 @@
                         {{ $order->created_at ? \Carbon\Carbon::parse($order->created_at)->isoFormat('D MMM Y, HH:mm') : '-' }}
                     </td>
                     <td class="px-4 py-3 text-center">
-                        <a href="{{ route('admin.orders.show', $order->id) }}"
+                        <a href="{{ route($panelPrefix.'.orders.show', $order->id) }}"
                            class="inline-flex items-center px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs transition">
                             <i class="fas fa-eye mr-1"></i> Lihat
                         </a>

@@ -7,7 +7,7 @@
 @section('content')
 <div class="p-6 max-w-3xl">
     <div class="mb-4">
-        <a href="{{ route('admin.orders.index') }}"
+        <a href="{{ route($panelPrefix.'.orders.index') }}"
            class="inline-flex items-center text-sm text-gray-500 hover:text-gray-800 transition">
             <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Order
         </a>
@@ -110,7 +110,7 @@
             <div class="flex flex-wrap gap-2">
                 @foreach($order->orderSeats as $os)
                     <span class="px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm font-medium">
-                        {{ $os->seat?->seat_code ?? '—' }}
+                        {{ $os->seat?->seat_code ?? 'â€”' }}
                     </span>
                 @endforeach
             </div>

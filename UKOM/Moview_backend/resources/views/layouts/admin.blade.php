@@ -32,10 +32,49 @@
         <aside class="w-64 bg-gray-900 text-white flex-shrink-0 h-screen sticky top-0 flex flex-col">
             <div class="p-6 flex-shrink-0">
                 <img src="{{ asset('text-logo-moview.png') }}" alt="Moview" class="h-7 mb-2">
-                <p class="text-xs font-semibold uppercase tracking-widest text-gray-400">Admin</p>
+                <p class="text-xs font-semibold uppercase tracking-widest text-gray-400">{{ ucfirst(session('admin_role', 'Admin')) }}</p>
             </div>
             
             <nav class="sidebar-scroll flex-1 overflow-y-auto mt-2">
+                @if(session('admin_role') === 'manager')
+                <a href="{{ route('manager.dashboard') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.dashboard') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-gauge-high mr-3"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ route('manager.cinemas.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.cinemas.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-building mr-3"></i>
+                    <span>Manajemen Bioskop</span>
+                </a>
+                <a href="{{ route('manager.studios.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.studios.*', 'manager.seats.*', 'manager.seat-types.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-door-open mr-3"></i>
+                    <span>Manajemen Studio</span>
+                </a>
+                <a href="{{ route('manager.schedules.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.schedules.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-calendar-alt mr-3"></i>
+                    <span>Jadwal Tayang</span>
+                </a>
+                <a href="{{ route('manager.orders.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.orders.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-shopping-cart mr-3"></i>
+                    <span>Manajemen Order</span>
+                </a>
+                <a href="{{ route('manager.staff.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.staff.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-user-tie mr-3"></i>
+                    <span>Kelola Staff</span>
+                </a>
+                @elseif(session('admin_role') === 'staff')
+                <a href="{{ route('staff.dashboard') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('staff.dashboard') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-gauge-high mr-3"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ route('staff.tickets.scanner') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('staff.tickets.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-qrcode mr-3"></i>
+                    <span>Scan Tiket</span>
+                </a>
+                @else
+                <a href="{{ route('admin.dashboard') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.dashboard') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-gauge-high mr-3"></i>
+                    <span>Dashboard</span>
+                </a>
                 <a href="{{ route('admin.films.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.films.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-film mr-3"></i>
                     <span>Films</span>
@@ -89,10 +128,7 @@
                     <i class="fas fa-shopping-cart mr-3"></i>
                     <span>Order Tiket</span>
                 </a>
-                <a href="{{ route('admin.tickets.scanner') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.tickets.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
-                    <i class="fas fa-qrcode mr-3"></i>
-                    <span>Scan Tiket</span>
-                </a>
+                @endif
             </nav>
 
             <div class="flex-shrink-0 p-6 border-t border-gray-800">
@@ -128,6 +164,7 @@
                         <p class="text-sm text-gray-500">@yield('page-subtitle', '')</p>
                     </div>
                     <div class="flex items-center space-x-4">
+                        @if(session('admin_role') === 'admin')
                         <div x-data="{ 
                             open: false, 
                             notifications: [],
@@ -192,6 +229,7 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                         <div class="flex items-center space-x-2">
                             <span class="text-sm text-gray-600">{{ date('l, M d, Y') }}</span>
                         </div>

@@ -8,7 +8,7 @@
 <div class="p-6 max-w-2xl">
 
     <div class="mb-4">
-        <a href="{{ route('admin.schedules.index') }}"
+        <a href="{{ route($panelPrefix.'.schedules.index') }}"
            class="inline-flex items-center text-sm text-gray-500 hover:text-gray-800 transition">
             <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Jadwal
         </a>
@@ -26,7 +26,7 @@
             </div>
         @endif
 
-        <form action="{{ route('admin.schedules.update', $schedule->id) }}" method="POST" x-data="scheduleForm()" x-init="init()">
+        <form action="{{ route($panelPrefix.'.schedules.update', $schedule->id) }}" method="POST" x-data="scheduleForm()" x-init="init()">
             @csrf
             @method('PUT')
 
@@ -37,7 +37,7 @@
                     <option value="">-- Pilih Film --</option>
                     @foreach($movies as $movie)
                         <option value="{{ $movie->id }}" {{ old('movie_id', $schedule->movie_id) == $movie->id ? 'selected' : '' }}>
-                            {{ $movie->title }}{{ $movie->release_date ? ' — Rilis: ' . \Carbon\Carbon::parse($movie->release_date)->translatedFormat('d M Y') : '' }}
+                            {{ $movie->title }}{{ $movie->release_date ? ' â€” Rilis: ' . \Carbon\Carbon::parse($movie->release_date)->translatedFormat('d M Y') : '' }}
                         </option>
                     @endforeach
                 </select>
@@ -52,7 +52,7 @@
                     <option value="">-- Pilih Bioskop --</option>
                     @foreach($cinemas as $cinema)
                         <option value="{{ $cinema->id }}" {{ old('cinema_id', $schedule->studio->cinema_id ?? '') == $cinema->id ? 'selected' : '' }}>
-                            {{ $cinema->cinema_name }}{{ $cinema->city ? ' — ' . $cinema->city : '' }}
+                            {{ $cinema->cinema_name }}{{ $cinema->city ? ' â€” ' . $cinema->city : '' }}
                         </option>
                     @endforeach
                 </select>
@@ -65,7 +65,7 @@
                     <option value="">-- Pilih Studio --</option>
                     @foreach($studios as $studio)
                         <option value="{{ $studio->id }}" {{ old('studio_id', $schedule->studio_id) == $studio->id ? 'selected' : '' }}>
-                            {{ $studio->cinema->cinema_name ?? '' }} — {{ $studio->studio_name }} ({{ $studio->total_seats }} kursi)
+                            {{ $studio->cinema->cinema_name ?? '' }} â€” {{ $studio->studio_name }} ({{ $studio->total_seats }} kursi)
                         </option>
                     @endforeach
                 </select>
@@ -105,7 +105,7 @@
                         class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
                     <i class="fas fa-save mr-2"></i> Update Jadwal
                 </button>
-                <a href="{{ route('admin.schedules.index') }}"
+                <a href="{{ route($panelPrefix.'.schedules.index') }}"
                    class="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
                     Batal
                 </a>
@@ -125,7 +125,7 @@ function scheduleForm() {
             if (!this.cinemaId) return;
             const select = document.querySelector('select[name="studio_id"]');
             const oldVal = '{{ old('studio_id', $schedule->studio_id) }}';
-            fetch(`/admin/cinemas/${this.cinemaId}/studios`)
+            fetch(`/{{ $panelPrefix }}/cinemas/${this.cinemaId}/studios`)
                 .then(r => r.json())
                 .then(studios => {
                     select.innerHTML = '<option value="">-- Pilih Studio --</option>';

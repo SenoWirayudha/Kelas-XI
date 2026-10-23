@@ -14,13 +14,13 @@ use App\Http\Controllers\Admin\CinemaController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ManagerAccountController;
 use App\Http\Controllers\Manager\StaffAccountController;
+use App\Http\Controllers\Staff\TicketScannerController as StaffTicketScannerController;
 use App\Http\Controllers\Admin\StudioController;
 use App\Http\Controllers\Admin\SeatController;
 use App\Http\Controllers\Admin\SeatTypeController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
-use App\Http\Controllers\Admin\TicketScannerController;
 
 // Public Routes
 Route::get('/', function () {
@@ -173,19 +173,50 @@ Route::prefix('admin')->name('admin.')->middleware(['admin.auth', 'role:admin'])
 Route::get('/orders',      [AdminOrderController::class, 'index'])->name('orders.index');
 Route::get('/orders/export', [AdminOrderController::class, 'export'])->name('orders.export');
 Route::get('/orders/{id}', [AdminOrderController::class, 'show'])->name('orders.show');
-
-    // Ticket Scanner
-    Route::get('/scan-ticket',  [TicketScannerController::class, 'index'])->name('tickets.scanner');
-    Route::get('/tickets/scanner', function () {
-        return redirect()->route('admin.tickets.scanner');
-    });
-    Route::post('/tickets/scan',    [TicketScannerController::class, 'scan'])->name('tickets.scan');
-    Route::post('/tickets/mark-used', [TicketScannerController::class, 'markUsed'])->name('tickets.mark-used');
 });
 
 // Manager Routes (own cinema only)
 Route::prefix('manager')->name('manager.')->middleware(['admin.auth', 'role:manager', 'cinema.scope'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'manager'])->name('dashboard');
+
+    // Cinema (view + edit own cinema only; no create/delete)
+    Route::get('/cinemas', [CinemaController::class, 'index'])->name('cinemas.index');
+    Route::get('/cinemas/{cinema}/edit', [CinemaController::class, 'edit'])->name('cinemas.edit');
+    Route::put('/cinemas/{cinema}', [CinemaController::class, 'update'])->name('cinemas.update');
+
+    // Studios
+    Route::get('/studios', [StudioController::class, 'index'])->name('studios.index');
+    Route::get('/studios/create', [StudioController::class, 'create'])->name('studios.create');
+    Route::post('/studios', [StudioController::class, 'store'])->name('studios.store');
+    Route::get('/studios/{id}/edit', [StudioController::class, 'edit'])->name('studios.edit');
+    Route::put('/studios/{id}', [StudioController::class, 'update'])->name('studios.update');
+    Route::delete('/studios/{id}', [StudioController::class, 'destroy'])->name('studios.destroy');
+
+    // Seat layout
+    Route::get('/studios/{studioId}/seats', [SeatController::class, 'layout'])->name('seats.layout');
+    Route::post('/studios/{studioId}/seats/layout', [SeatController::class, 'saveLayout'])->name('seats.save-layout');
+    Route::post('/studios/{studioId}/seats/generate', [SeatController::class, 'generate'])->name('seats.generate');
+    Route::delete('/studios/{studioId}/seats', [SeatController::class, 'destroyAll'])->name('seats.destroy-all');
+
+    // Seat type definitions
+    Route::get('/studios/{studio}/seat-types', [SeatTypeController::class, 'index'])->name('seat-types.index');
+    Route::post('/studios/{studio}/seat-types', [SeatTypeController::class, 'store'])->name('seat-types.store');
+    Route::put('/studios/{studio}/seat-types/{key}', [SeatTypeController::class, 'update'])->name('seat-types.update');
+    Route::delete('/studios/{studio}/seat-types/{key}', [SeatTypeController::class, 'destroy'])->name('seat-types.destroy');
+
+    // Schedules
+    Route::get('/schedules', [ScheduleController::class, 'index'])->name('schedules.index');
+    Route::get('/schedules/create', [ScheduleController::class, 'create'])->name('schedules.create');
+    Route::get('/schedules/{id}/edit', [ScheduleController::class, 'edit'])->name('schedules.edit');
+    Route::post('/schedules', [ScheduleController::class, 'store'])->name('schedules.store');
+    Route::put('/schedules/{id}', [ScheduleController::class, 'update'])->name('schedules.update');
+    Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy'])->name('schedules.destroy');
+    Route::get('/cinemas/{cinemaId}/studios', [ScheduleController::class, 'studiosByCinema'])->name('cinemas.studios');
+
+    // Orders (own cinema only)
+    Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
+    Route::get('/orders/export', [AdminOrderController::class, 'export'])->name('orders.export');
+    Route::get('/orders/{id}', [AdminOrderController::class, 'show'])->name('orders.show');
 
     // Staff accounts are always created inside the manager's cinema.
     Route::get('/staff', [StaffAccountController::class, 'index'])->name('staff.index');
@@ -199,5 +230,8 @@ Route::prefix('manager')->name('manager.')->middleware(['admin.auth', 'role:mana
 // Staff Routes (own cinema only)
 Route::prefix('staff')->name('staff.')->middleware(['admin.auth', 'role:staff', 'cinema.scope'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'staff'])->name('dashboard');
+    Route::get('/scan-ticket', [StaffTicketScannerController::class, 'index'])->name('tickets.scanner');
+    Route::post('/tickets/preview', [StaffTicketScannerController::class, 'preview'])->name('tickets.preview');
+    Route::post('/tickets/scan', [StaffTicketScannerController::class, 'scan'])->name('tickets.scan');
 });
 

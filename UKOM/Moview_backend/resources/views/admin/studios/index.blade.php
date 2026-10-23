@@ -19,10 +19,12 @@
             <label class="block text-xs text-gray-500 mb-1">Filter Bioskop</label>
             <select name="cinema_id"
                     class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-64">
+                @if(session('admin_role') === 'admin')
                 <option value="">Semua Bioskop</option>
+                @endif
                 @foreach($cinemas as $cinema)
                     <option value="{{ $cinema->id }}" {{ request('cinema_id') == $cinema->id ? 'selected' : '' }}>
-                        {{ $cinema->cinema_name }}{{ $cinema->city ? ' — ' . $cinema->city : '' }}
+                        {{ $cinema->cinema_name }}{{ $cinema->city ? ' â€” ' . $cinema->city : '' }}
                     </option>
                 @endforeach
             </select>
@@ -32,11 +34,11 @@
             <i class="fas fa-filter mr-1"></i> Filter
         </button>
         @if(request('cinema_id'))
-            <a href="{{ route('admin.studios.index') }}"
+            <a href="{{ route($panelPrefix.'.studios.index') }}"
                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition">Reset</a>
         @endif
         <div class="ml-auto">
-            <a href="{{ route('admin.studios.create') }}"
+            <a href="{{ route($panelPrefix.'.studios.create') }}"
                class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
                 <i class="fas fa-plus mr-2"></i> Tambah Studio
             </a>
@@ -62,7 +64,7 @@
                 @forelse($studios as $studio)
                 <tr class="hover:bg-gray-50 transition">
                     <td class="px-4 py-3 text-gray-400">{{ $loop->iteration + ($studios->currentPage() - 1) * $studios->perPage() }}</td>
-                    <td class="px-4 py-3 text-gray-700">{{ $studio->cinema->cinema_name ?? '—' }}</td>
+                    <td class="px-4 py-3 text-gray-700">{{ $studio->cinema->cinema_name ?? 'â€”' }}</td>
                     <td class="px-4 py-3 font-medium text-gray-800">{{ $studio->studio_name }}</td>
                     <td class="px-4 py-3">
                         <span class="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-semibold">
@@ -76,7 +78,7 @@
                     </td>
                     <td class="px-4 py-3 text-center">
                         @php $seatCount = $studio->seat_layout_count ?? 0; @endphp
-                        <a href="{{ route('admin.seats.layout', $studio->id) }}"
+                        <a href="{{ route($panelPrefix.'.seats.layout', $studio->id) }}"
                            class="inline-flex items-center px-2 py-1 rounded text-xs transition
                                   {{ $seatCount > 0 ? 'bg-green-50 hover:bg-green-100 text-green-700' : 'bg-orange-50 hover:bg-orange-100 text-orange-700' }}">
                             <i class="fas fa-chair mr-1"></i>
@@ -85,11 +87,11 @@
                     </td>
                     <td class="px-4 py-3 text-center">
                         <div class="flex items-center justify-center gap-2">
-                            <a href="{{ route('admin.studios.edit', $studio->id) }}"
+                            <a href="{{ route($panelPrefix.'.studios.edit', $studio->id) }}"
                                class="inline-flex items-center px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-xs font-medium transition">
                                 <i class="fas fa-pen mr-1"></i> Edit
                             </a>
-                            <form action="{{ route('admin.studios.destroy', $studio->id) }}" method="POST"
+                            <form action="{{ route($panelPrefix.'.studios.destroy', $studio->id) }}" method="POST"
                                   onsubmit="return requireConfirm(event, 'Hapus studio {{ addslashes($studio->studio_name) }}? Data seats dan jadwal terkait ikut terhapus.', { form: this })">
                                 @csrf
                                 @method('DELETE')

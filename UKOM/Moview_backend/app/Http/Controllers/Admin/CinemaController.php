@@ -11,9 +11,13 @@ class CinemaController extends Controller
 {
     public function index()
     {
-        $cinemas = Cinema::with('service')
-            ->orderBy('cinema_name')
-            ->paginate(20)->withQueryString();
+        $query = Cinema::with('service')->orderBy('cinema_name');
+
+        if ($this->isManager()) {
+            $query->where('id', $this->scopedCinemaId());
+        }
+
+        $cinemas = $query->paginate(20)->withQueryString();
 
         return view('admin.cinemas.index', compact('cinemas'));
     }
@@ -41,6 +45,36 @@ class CinemaController extends Controller
 
         return redirect()->route('admin.cinemas.index')
             ->with('success', 'Bioskop berhasil ditambahkan.');
+    }
+
+    public function edit($id)
+    {
+        $cinema = Cinema::findOrFail($id);
+        $this->authorizeCinema($cinema->id);
+
+        $services = Service::where('type', 'theatrical')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('admin.cinemas.edit', compact('cinema', 'services'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $cinema = Cinema::findOrFail($id);
+        $this->authorizeCinema($cinema->id);
+
+        $validated = $request->validate([
+            'service_id'  => 'nullable|exists:services,id',
+            'cinema_name' => 'required|string|max:150',
+            'city'        => 'required|string|max:100',
+            'address'     => 'required|string|max:255',
+        ]);
+
+        $cinema->update($validated);
+
+        return redirect()->route($this->panelRoute('cinemas.index'))
+            ->with('success', 'Bioskop berhasil diperbarui.');
     }
 
     public function destroy($id)

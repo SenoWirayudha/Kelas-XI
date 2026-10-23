@@ -17,13 +17,21 @@ class StudioController extends Controller
 
     public function index(Request $request)
     {
-        $cinemas = Cinema::orderBy('cinema_name')->get(['id', 'cinema_name', 'city']);
+        $cinemasQuery = Cinema::orderBy('cinema_name');
+
+        if ($this->isManager()) {
+            $cinemasQuery->where('id', $this->scopedCinemaId());
+        }
+
+        $cinemas = $cinemasQuery->get(['id', 'cinema_name', 'city']);
 
         $query = Studio::with('cinema')
             ->withCount(['seats as seat_layout_count' => fn($q) => $q->whereNotIn('seat_type', Studio::PLACEHOLDER_TYPE_KEYS)])
             ->orderBy('studio_name');
 
-        if ($request->filled('cinema_id')) {
+        if ($this->isManager()) {
+            $query->where('cinema_id', $this->scopedCinemaId());
+        } elseif ($request->filled('cinema_id')) {
             $query->where('cinema_id', $request->cinema_id);
         }
 
@@ -34,7 +42,13 @@ class StudioController extends Controller
 
     public function create()
     {
-        $cinemas = Cinema::orderBy('cinema_name')->get(['id', 'cinema_name', 'city']);
+        $cinemasQuery = Cinema::orderBy('cinema_name');
+
+        if ($this->isManager()) {
+            $cinemasQuery->where('id', $this->scopedCinemaId());
+        }
+
+        $cinemas = $cinemasQuery->get(['id', 'cinema_name', 'city']);
         $studioTypes = $this->studioTypes;
 
         return view('admin.studios.create', compact('cinemas', 'studioTypes'));
@@ -49,18 +63,30 @@ class StudioController extends Controller
             'total_seats' => 'nullable|integer|min:0|max:999',
         ]);
 
+        if ($this->isManager()) {
+            $validated['cinema_id'] = $this->scopedCinemaId();
+        }
+
         $validated['total_seats'] = $validated['total_seats'] ?? 0;
 
         $studio = Studio::create($validated);
 
-        return redirect()->route('admin.seats.layout', $studio->id)
+        return redirect()->route($this->panelRoute('seats.layout'), $studio->id)
             ->with('success', 'Studio berhasil dibuat. Silakan atur layout kursi.');
     }
 
     public function edit($id)
     {
         $studio = Studio::findOrFail($id);
-        $cinemas = Cinema::orderBy('cinema_name')->get(['id', 'cinema_name', 'city']);
+        $this->authorizeCinema($studio->cinema_id);
+
+        $cinemasQuery = Cinema::orderBy('cinema_name');
+
+        if ($this->isManager()) {
+            $cinemasQuery->where('id', $this->scopedCinemaId());
+        }
+
+        $cinemas = $cinemasQuery->get(['id', 'cinema_name', 'city']);
         $studioTypes = $this->studioTypes;
 
         return view('admin.studios.edit', compact('studio', 'cinemas', 'studioTypes'));
@@ -69,6 +95,7 @@ class StudioController extends Controller
     public function update(Request $request, $id)
     {
         $studio = Studio::findOrFail($id);
+        $this->authorizeCinema($studio->cinema_id);
 
         $validated = $request->validate([
             'cinema_id'   => 'required|exists:cinemas,id',
@@ -77,18 +104,24 @@ class StudioController extends Controller
             'total_seats' => 'required|integer|min:0|max:999',
         ]);
 
+        if ($this->isManager()) {
+            $validated['cinema_id'] = $this->scopedCinemaId();
+        }
+
         $studio->update($validated);
 
-        return redirect()->route('admin.studios.index')
+        return redirect()->route($this->panelRoute('studios.index'))
             ->with('success', 'Studio berhasil diperbarui.');
     }
 
     public function destroy($id)
     {
         $studio = Studio::findOrFail($id);
+        $this->authorizeCinema($studio->cinema_id);
+
         $studio->delete();
 
-        return redirect()->route('admin.studios.index')
+        return redirect()->route($this->panelRoute('studios.index'))
             ->with('success', 'Studio berhasil dihapus.');
     }
 }

@@ -15,10 +15,12 @@
 
     <div class="flex items-center justify-between mb-6">
         <p class="text-sm text-gray-500">Total: <strong>{{ $cinemas->total() }}</strong> bioskop</p>
-        <a href="{{ route('admin.cinemas.create') }}"
+        @if(session('admin_role') === 'admin')
+        <a href="{{ route($panelPrefix.'.cinemas.create') }}"
            class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
             <i class="fas fa-plus mr-2"></i> Tambah Bioskop
         </a>
+        @endif
     </div>
 
     <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -51,21 +53,29 @@
                     <td class="px-4 py-3 text-gray-600">{{ $cinema->city }}</td>
                     <td class="px-4 py-3 text-gray-500 max-w-xs truncate">{{ $cinema->address }}</td>
                     <td class="px-4 py-3 text-center">
-                        <a href="{{ route('admin.studios.index', ['cinema_id' => $cinema->id]) }}"
+                        <a href="{{ route($panelPrefix.'.studios.index', ['cinema_id' => $cinema->id]) }}"
                            class="inline-flex items-center px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs transition">
                             <i class="fas fa-door-open mr-1"></i> Lihat Studio
                         </a>
                     </td>
                     <td class="px-4 py-3 text-center">
-                        <form action="{{ route('admin.cinemas.destroy', $cinema->id) }}" method="POST"
-                              onsubmit="return requireConfirm(event, 'Hapus bioskop {{ addslashes($cinema->cinema_name) }}? Semua studio dan jadwal terkait akan ikut terhapus.', { form: this })">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit"
-                                    class="inline-flex items-center px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-medium transition">
-                                <i class="fas fa-trash mr-1"></i> Hapus
-                            </button>
-                        </form>
+                        <div class="flex items-center justify-center gap-2">
+                            <a href="{{ route($panelPrefix.'.cinemas.edit', $cinema->id) }}"
+                               class="inline-flex items-center px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-xs font-medium transition">
+                                <i class="fas fa-pen mr-1"></i> Edit
+                            </a>
+                            @if(session('admin_role') === 'admin')
+                            <form action="{{ route('admin.cinemas.destroy', $cinema->id) }}" method="POST"
+                                  onsubmit="return requireConfirm(event, 'Hapus bioskop {{ addslashes($cinema->cinema_name) }}? Semua studio dan jadwal terkait akan ikut terhapus.', { form: this })">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit"
+                                        class="inline-flex items-center px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-medium transition">
+                                    <i class="fas fa-trash mr-1"></i> Hapus
+                                </button>
+                            </form>
+                            @endif
+                        </div>
                     </td>
                 </tr>
                 @empty

@@ -15,6 +15,7 @@ class SeatTypeController extends Controller
      */
     public function index(Studio $studio)
     {
+        $this->authorizeCinema($studio->cinema_id);
         return response()->json([
             'success'  => true,
             'data'     => $studio->seat_type_definitions ?? [],
@@ -27,6 +28,7 @@ class SeatTypeController extends Controller
      */
     public function store(Request $request, Studio $studio)
     {
+        $this->authorizeCinema($studio->cinema_id);
         $validated = $this->validateDefinition($request, $studio, null);
 
         $definitions = $studio->seat_type_definitions ?? [];
@@ -93,6 +95,7 @@ class SeatTypeController extends Controller
      */
     public function update(Request $request, Studio $studio, string $key)
     {
+        $this->authorizeCinema($studio->cinema_id);
         $definitions = $studio->seat_type_definitions ?? [];
 
         $index = null;
@@ -160,6 +163,7 @@ class SeatTypeController extends Controller
      */
     public function destroy(Studio $studio, string $key)
     {
+        $this->authorizeCinema($studio->cinema_id);
         $definitions = $studio->seat_type_definitions ?? [];
 
         $index = null;

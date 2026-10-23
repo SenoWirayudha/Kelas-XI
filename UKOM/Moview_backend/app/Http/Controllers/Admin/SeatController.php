@@ -16,6 +16,7 @@ class SeatController extends Controller
     public function layout($studioId)
     {
         $studio = Studio::with('cinema')->findOrFail($studioId);
+        $this->authorizeStudio($studio->id);
 
         $seats = Seat::where('studio_id', $studioId)
             ->orderBy('position_y')
@@ -97,6 +98,7 @@ class SeatController extends Controller
     public function generate(Request $request, $studioId)
     {
         $studio = Studio::findOrFail($studioId);
+        $this->authorizeStudio($studio->id);
 
         $validated = $request->validate([
             'rows_count'         => 'required|integer|min:1|max:26',
@@ -292,6 +294,7 @@ class SeatController extends Controller
     public function saveLayout(Request $request, $studioId)
     {
         $studio = Studio::findOrFail($studioId);
+        $this->authorizeStudio($studio->id);
         $definitionsByKey = $studio->definitionsByKey();
         $allowedTypes = array_values(array_unique(array_merge($studio->seatTypeKeys(), ['empty'])));
 
@@ -478,6 +481,7 @@ class SeatController extends Controller
     public function destroyAll($studioId)
     {
         $studio = Studio::findOrFail($studioId);
+        $this->authorizeStudio($studio->id);
 
         // Only delete seats that have no bookings
         $bookedSeatIds = DB::table('order_seats')
@@ -507,5 +511,11 @@ class SeatController extends Controller
             ->pluck('seat_id')
             ->unique()
             ->all();
+    }
+
+    private function authorizeStudio(int $studioId): void
+    {
+        $cinemaId = Studio::whereKey($studioId)->value('cinema_id');
+        $this->authorizeCinema($cinemaId);
     }
 }

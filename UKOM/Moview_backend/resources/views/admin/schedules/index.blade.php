@@ -17,7 +17,7 @@
     {{-- Header action --}}
     <div class="flex items-center justify-between mb-6">
         <p class="text-gray-500 text-sm">Total: <strong>{{ $schedules->total() }}</strong> jadwal</p>
-        <a href="{{ route('admin.schedules.create') }}"
+        <a href="{{ route($panelPrefix.'.schedules.create') }}"
            class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
             <i class="fas fa-plus mr-2"></i> Tambah Jadwal
         </a>
@@ -62,11 +62,11 @@
                     </td>
                     <td class="px-4 py-3 text-center">
                         <div class="flex items-center justify-center gap-2">
-                            <a href="{{ route('admin.schedules.edit', $schedule->id) }}"
+                            <a href="{{ route($panelPrefix.'.schedules.edit', $schedule->id) }}"
                                class="inline-flex items-center px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-xs font-medium transition">
                                 <i class="fas fa-pen mr-1"></i> Edit
                             </a>
-                            <form action="{{ route('admin.schedules.destroy', $schedule->id) }}" method="POST"
+                            <form action="{{ route($panelPrefix.'.schedules.destroy', $schedule->id) }}" method="POST"
                                   onsubmit="return requireConfirm(event, 'Hapus jadwal ini?', { form: this })">
                                 @csrf
                                 @method('DELETE')

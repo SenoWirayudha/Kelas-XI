@@ -15,7 +15,7 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
-        $orders = Order::adminList($request->only(['status', 'search']))
+        $orders = $this->scopedQuery($request->only(['status', 'search']))
             ->paginate(25)
             ->withQueryString();
 
@@ -25,9 +25,10 @@ class OrderController extends Controller
     public function export(Request $request)
     {
         $filters = $request->only(['status', 'search']);
+        $cinemaId = $this->isManager() ? $this->scopedCinemaId() : null;
         $filename = 'orders_' . now()->format('Ymd_Hi') . '.csv';
 
-        return response()->streamDownload(function () use ($filters) {
+        return response()->streamDownload(function () use ($filters, $cinemaId) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             $eol = "\r\n";
@@ -51,9 +52,12 @@ class OrderController extends Controller
 
             while (true) {
                 // Builder bersama dengan list (scope adminList) + kondisi
-                // keyset EKSPLISIT per batch (bukan row-value comparison →
+                // keyset EKSPLISIT per batch (bukan row-value comparison —
                 // identik di pgsql dan sqlite).
                 $batch = Order::adminList($filters);
+                if ($cinemaId !== null) {
+                    $batch->whereHas('schedule.studio', fn ($q) => $q->where('cinema_id', $cinemaId));
+                }
                 if ($lastCreated !== null) {
                     $batch->where(function (Builder $q) use ($lastCreated, $lastId) {
                         $q->where('created_at', '<', $lastCreated)
@@ -97,7 +101,7 @@ class OrderController extends Controller
                 }
 
                 // Cursor: nilai created_at MENTAH dari DB (getRawOriginal,
-                // tanpa cast → presisi mikrodetik tidak hilang) supaya baris
+                // tanpa cast — presisi mikrodetik tidak hilang) supaya baris
                 // di batas batch tidak terlewat/dobel.
                 $last = $rows->last();
                 $lastCreated = $last->getRawOriginal('created_at');
@@ -121,6 +125,19 @@ class OrderController extends Controller
             'tickets',
         ])->findOrFail($id);
 
+        $this->authorizeCinema($order->schedule?->studio?->cinema_id);
+
         return view('admin.orders.show', compact('order'));
+    }
+
+    private function scopedQuery(array $filters): Builder
+    {
+        $query = Order::adminList($filters);
+
+        if ($this->isManager()) {
+            $query->whereHas('schedule.studio', fn ($q) => $q->where('cinema_id', $this->scopedCinemaId()));
+        }
+
+        return $query;
     }
 }
