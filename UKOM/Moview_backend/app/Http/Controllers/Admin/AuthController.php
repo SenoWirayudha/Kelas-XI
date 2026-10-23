@@ -69,7 +69,7 @@ class AuthController extends Controller
         $role = session('admin_role');
 
         $route = match ($role) {
-            User::ROLE_ADMIN => 'admin.dashboard',
+            User::ROLE_ADMIN => 'admin.analytics.index',
             User::ROLE_MANAGER => 'manager.dashboard',
             User::ROLE_STAFF => 'staff.dashboard',
             default => null,

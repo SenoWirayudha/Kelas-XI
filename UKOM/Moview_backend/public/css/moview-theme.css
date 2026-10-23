@@ -657,3 +657,173 @@
 .moview-theme hr {
     border-color: var(--mv-border);
 }
+
+/* Back-office dashboards */
+.mv-dash-hero {
+    position: relative;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 88% 18%, rgba(19, 91, 236, 0.28), transparent 34%),
+        linear-gradient(125deg, #1B2432 0%, #151C27 62%, #111821 100%);
+    border: 1px solid var(--mv-border-subtle);
+}
+
+.mv-dash-hero::after {
+    content: '';
+    position: absolute;
+    right: -70px;
+    bottom: -110px;
+    width: 260px;
+    height: 260px;
+    border: 1px solid rgba(19, 91, 236, 0.22);
+    border-radius: 999px;
+    box-shadow: 0 0 0 38px rgba(19, 91, 236, 0.05), 0 0 0 78px rgba(19, 91, 236, 0.03);
+    pointer-events: none;
+}
+
+.mv-dash-kpi {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--mv-border-subtle);
+    background: linear-gradient(145deg, var(--mv-card), #1A212C) !important;
+}
+
+.mv-dash-kpi::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: var(--mv-primary);
+}
+
+.mv-dash-kpi.is-green::before { background: var(--mv-success); }
+.mv-dash-kpi.is-gold::before { background: var(--mv-gold); }
+.mv-dash-kpi.is-orange::before { background: var(--mv-warning); }
+
+.mv-dash-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.75rem;
+    background: var(--mv-primary-soft);
+    color: #6EA0FF;
+    flex-shrink: 0;
+}
+
+.mv-dash-icon.is-green { background: rgba(76, 175, 80, 0.14); color: #6BD36F; }
+.mv-dash-icon.is-gold { background: rgba(255, 215, 0, 0.12); color: var(--mv-gold); }
+.mv-dash-icon.is-orange { background: rgba(255, 152, 0, 0.14); color: #FFB74D; }
+
+.mv-dash-chart {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: 0.35rem;
+    height: 230px;
+    padding-top: 0.5rem;
+}
+
+.mv-dash-chart-grid {
+    position: absolute;
+    inset: 0 0 28px;
+    background-image: repeating-linear-gradient(
+        to top,
+        rgba(136, 153, 166, 0.13) 0,
+        rgba(136, 153, 166, 0.13) 1px,
+        transparent 1px,
+        transparent 25%
+    );
+    pointer-events: none;
+}
+
+.mv-dash-chart-col {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex: 1 1 0%;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.mv-dash-chart-barwrap {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: 100%;
+    flex: 1;
+}
+
+.mv-dash-chart-bar {
+    display: flex;
+    width: 100%;
+    max-width: 34px;
+    flex-direction: column-reverse;
+    overflow: hidden;
+    border-radius: 6px 6px 3px 3px;
+    transition: filter 160ms ease, transform 160ms ease;
+}
+
+.mv-dash-chart-col:hover .mv-dash-chart-bar {
+    filter: brightness(1.18);
+    transform: translateY(-2px);
+}
+
+.mv-dash-chart-online { background: var(--mv-primary); }
+.mv-dash-chart-offline { background: var(--mv-success); }
+.mv-dash-chart-zero { background: var(--mv-border); }
+
+.mv-dash-chart-label {
+    color: var(--mv-text-secondary);
+    font-size: 0.7rem;
+    line-height: 1;
+    text-transform: capitalize;
+}
+
+.mv-dash-progress {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--mv-control);
+}
+
+.mv-dash-progress > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--mv-primary), #5B8DF7);
+}
+
+.mv-dash-progress.is-green > span {
+    background: linear-gradient(90deg, #43A047, #6BD36F);
+}
+
+.mv-dash-action {
+    border: 1px solid var(--mv-border-subtle);
+    background: linear-gradient(145deg, var(--mv-card), #1A212C);
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.mv-dash-action:hover {
+    transform: translateY(-2px);
+    border-color: rgba(19, 91, 236, 0.55);
+    background: linear-gradient(145deg, #212A37, #1A212C);
+}
+
+.mv-dash-fade {
+    animation: mv-dash-fade 320ms ease both;
+}
+
+@keyframes mv-dash-fade {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+    .mv-dash-chart { height: 185px; }
+}

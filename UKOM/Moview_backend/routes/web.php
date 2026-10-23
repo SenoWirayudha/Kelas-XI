@@ -46,7 +46,7 @@ Route::get('/admin', function () {
         'manager' => 'manager.dashboard',
         'staff' => 'staff.dashboard',
         null => 'admin.login',
-        default => 'admin.dashboard',
+        default => 'admin.analytics.index',
     });
 })->name('admin.index');
 
@@ -60,8 +60,6 @@ Route::get('/staff', function () {
 
 // Admin Routes (Protected)
 Route::prefix('admin')->name('admin.')->middleware(['admin.auth', 'role:admin'])->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
-
     // Manager accounts (admin can pick the cinema)
     Route::get('/accounts', [ManagerAccountController::class, 'index'])->name('accounts.index');
     Route::get('/accounts/create', [ManagerAccountController::class, 'create'])->name('accounts.create');

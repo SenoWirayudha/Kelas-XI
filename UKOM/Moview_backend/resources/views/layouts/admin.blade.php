@@ -98,10 +98,6 @@
                     <span>Scan Tiket</span>
                 </a>
                 @else
-                <a href="{{ route('admin.dashboard') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.dashboard') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
-                    <i class="fas fa-gauge-high mr-3"></i>
-                    <span>Dashboard</span>
-                </a>
                 <a href="{{ route('admin.films.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.films.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-film mr-3"></i>
                     <span>Films</span>
