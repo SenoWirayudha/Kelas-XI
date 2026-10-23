@@ -69,11 +69,11 @@ class AuthController extends Controller
                 return $invalidCredentials;
             }
 
-            // Block admin account from Android app login
-            if (($user->role ?? null) === 'admin') {
+            // Block back-office accounts from Android app login
+            if ($webOnlyMessage = $this->webOnlyRoleMessage($user->role ?? null)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Admin account can only login from web admin.'
+                    'message' => $webOnlyMessage
                 ], 403);
             }
 
@@ -502,10 +502,10 @@ class AuthController extends Controller
                 ], 401);
             }
 
-            if (($user->role ?? null) === 'admin') {
+            if ($webOnlyMessage = $this->webOnlyRoleMessage($user->role ?? null)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Admin account is not allowed in Android app.'
+                    'message' => $webOnlyMessage
                 ], 403);
             }
 
@@ -566,10 +566,10 @@ class AuthController extends Controller
                     ], 403);
                 }
 
-                if (($user->role ?? null) === 'admin') {
+                if ($webOnlyMessage = $this->webOnlyRoleMessage($user->role ?? null)) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Admin account can only login from web admin.'
+                        'message' => $webOnlyMessage
                     ], 403);
                 }
 
@@ -647,5 +647,14 @@ class AuthController extends Controller
                 'message' => 'Google login failed: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function webOnlyRoleMessage(?string $role): ?string
+    {
+        return match ($role) {
+            'admin' => 'Akun admin hanya dapat login melalui web admin.',
+            'manager', 'staff' => 'Akun manager/staff hanya dapat login melalui web admin.',
+            default => null,
+        };
     }
 }

@@ -23,6 +23,18 @@ class User extends Authenticatable
         'password',
         'role',
         'status',
+        'cinema_id',
+    ];
+
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_MANAGER = 'manager';
+    public const ROLE_STAFF = 'staff';
+    public const ROLE_USER = 'user';
+
+    public const WEB_ROLES = [
+        self::ROLE_ADMIN,
+        self::ROLE_MANAGER,
+        self::ROLE_STAFF,
     ];
 
     /**
@@ -104,5 +116,40 @@ class User extends Authenticatable
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function cinema()
+    {
+        return $this->belongsTo(Cinema::class);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function isManager(): bool
+    {
+        return $this->role === self::ROLE_MANAGER;
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->role === self::ROLE_STAFF;
+    }
+
+    public function isCinemaUser(): bool
+    {
+        return $this->isManager() || $this->isStaff();
+    }
+
+    public function dashboardRoute(): string
+    {
+        return match ($this->role) {
+            self::ROLE_ADMIN => 'admin.dashboard',
+            self::ROLE_MANAGER => 'manager.dashboard',
+            self::ROLE_STAFF => 'staff.dashboard',
+            default => 'admin.login',
+        };
     }
 }

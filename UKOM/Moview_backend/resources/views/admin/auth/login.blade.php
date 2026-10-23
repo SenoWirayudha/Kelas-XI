@@ -10,13 +10,13 @@
             <div class="inline-flex items-center justify-center px-6 py-4 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl shadow-lg mb-4">
                 <img src="{{ asset('text-logo-moview.png') }}" alt="Moview" class="h-7 w-auto">
             </div>
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Moview Admin</h1>
-            <p class="text-gray-600">Sign in to manage your film database</p>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Moview Panel</h1>
+            <p class="text-gray-600">Masuk untuk mengelola bioskop dan operasional</p>
         </div>
 
         <!-- Login Card -->
         <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Admin Login</h2>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Login</h2>
             
             <!-- Error Messages -->
             @if($errors->any())
@@ -47,7 +47,7 @@
                         id="email" 
                         name="email" 
                         value="{{ old('email') }}"
-                        placeholder="admin@moview.com"
+                        placeholder="nama@moview.com"
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
                         required
                         autocomplete="email"
@@ -116,7 +116,7 @@
                     <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center text-sm">
-                    <span class="px-4 bg-white text-gray-500">Admin Access Only</span>
+                    <span class="px-4 bg-white text-gray-500">Admin, Manager &amp; Staff</span>
                 </div>
             </div>
 
@@ -124,7 +124,7 @@
             <div class="text-center">
                 <p class="text-sm text-gray-600">
                     <i class="fas fa-info-circle text-blue-500 mr-1"></i>
-                    This is a restricted admin area
+                    Akun user hanya dapat login melalui aplikasi Android
                 </p>
             </div>
         </div>

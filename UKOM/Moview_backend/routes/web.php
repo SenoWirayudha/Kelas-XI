@@ -11,6 +11,9 @@ use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\CinemaController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ManagerAccountController;
+use App\Http\Controllers\Manager\StaffAccountController;
 use App\Http\Controllers\Admin\StudioController;
 use App\Http\Controllers\Admin\SeatController;
 use App\Http\Controllers\Admin\SeatTypeController;
@@ -37,14 +40,34 @@ Route::post('/admin/logout', [AuthController::class, 'logout'])->name('admin.log
 
 // Admin root redirect
 Route::get('/admin', function () {
-    if (session()->has('admin_logged_in')) {
-        return redirect()->route('admin.films.index');
-    }
-    return redirect()->route('admin.login');
+    return redirect()->route(match (session('admin_role')) {
+        'manager' => 'manager.dashboard',
+        'staff' => 'staff.dashboard',
+        null => 'admin.login',
+        default => 'admin.dashboard',
+    });
 })->name('admin.index');
 
+Route::get('/manager', function () {
+    return redirect()->route(session('admin_role') === 'manager' ? 'manager.dashboard' : 'admin.login');
+})->name('manager.index');
+
+Route::get('/staff', function () {
+    return redirect()->route(session('admin_role') === 'staff' ? 'staff.dashboard' : 'admin.login');
+})->name('staff.index');
+
 // Admin Routes (Protected)
-Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['admin.auth', 'role:admin'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
+
+    // Manager accounts (admin can pick the cinema)
+    Route::get('/accounts', [ManagerAccountController::class, 'index'])->name('accounts.index');
+    Route::get('/accounts/create', [ManagerAccountController::class, 'create'])->name('accounts.create');
+    Route::post('/accounts', [ManagerAccountController::class, 'store'])->name('accounts.store');
+    Route::get('/accounts/{account}/edit', [ManagerAccountController::class, 'edit'])->name('accounts.edit');
+    Route::put('/accounts/{account}', [ManagerAccountController::class, 'update'])->name('accounts.update');
+    Route::delete('/accounts/{account}', [ManagerAccountController::class, 'destroy'])->name('accounts.destroy');
+
     // Film Management
     Route::get('/films', [FilmController::class, 'index'])->name('films.index');
     Route::get('/films/create', [FilmController::class, 'create'])->name('films.create');
@@ -159,3 +182,22 @@ Route::get('/orders/{id}', [AdminOrderController::class, 'show'])->name('orders.
     Route::post('/tickets/scan',    [TicketScannerController::class, 'scan'])->name('tickets.scan');
     Route::post('/tickets/mark-used', [TicketScannerController::class, 'markUsed'])->name('tickets.mark-used');
 });
+
+// Manager Routes (own cinema only)
+Route::prefix('manager')->name('manager.')->middleware(['admin.auth', 'role:manager', 'cinema.scope'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'manager'])->name('dashboard');
+
+    // Staff accounts are always created inside the manager's cinema.
+    Route::get('/staff', [StaffAccountController::class, 'index'])->name('staff.index');
+    Route::get('/staff/create', [StaffAccountController::class, 'create'])->name('staff.create');
+    Route::post('/staff', [StaffAccountController::class, 'store'])->name('staff.store');
+    Route::get('/staff/{staff}/edit', [StaffAccountController::class, 'edit'])->name('staff.edit');
+    Route::put('/staff/{staff}', [StaffAccountController::class, 'update'])->name('staff.update');
+    Route::delete('/staff/{staff}', [StaffAccountController::class, 'destroy'])->name('staff.destroy');
+});
+
+// Staff Routes (own cinema only)
+Route::prefix('staff')->name('staff.')->middleware(['admin.auth', 'role:staff', 'cinema.scope'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'staff'])->name('dashboard');
+});
+

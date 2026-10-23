@@ -48,6 +48,10 @@
                     <i class="fas fa-users mr-3"></i>
                     <span>Users</span>
                 </a>
+                <a href="{{ route('admin.accounts.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.accounts.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-user-tie mr-3"></i>
+                    <span>Akun Manager</span>
+                </a>
                 <a href="{{ route('admin.activity.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.activity.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-history mr-3"></i>
                     <span>Activity</span>
