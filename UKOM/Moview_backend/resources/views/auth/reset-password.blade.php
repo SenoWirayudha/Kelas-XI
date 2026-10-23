@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Reset Password — Moview</title>
+    <title>Reset Password - Moview</title>
+    <link rel="stylesheet" href="{{ asset('css/moview-theme.css') }}">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -11,21 +12,21 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background-color: #0e1420;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--mv-background);
+            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
             padding: 24px 16px;
         }
         .card {
             width: 100%;
             max-width: 420px;
-            background-color: #161d2c;
-            border: 1px solid #2a3346;
+            background-color: var(--mv-card);
+            border: 1px solid var(--mv-border);
             border-radius: 24px;
             padding: 36px 28px;
         }
-        h1 { color: #f5f7fa; font-size: 22px; text-align: center; }
-        .subtitle { color: #9aa5b8; font-size: 14px; text-align: center; margin-top: 8px; line-height: 1.6; }
-        label { display: block; color: #9aa5b8; font-size: 13px; margin: 20px 0 6px 4px; }
+        h1 { color: var(--mv-text); font-size: 22px; text-align: center; }
+        .subtitle { color: var(--mv-text-secondary); font-size: 14px; text-align: center; margin-top: 8px; line-height: 1.6; }
+        label { display: block; color: var(--mv-text-secondary); font-size: 13px; margin: 20px 0 6px 4px; }
         .input-wrap {
             position: relative;
             display: flex;
@@ -34,14 +35,14 @@
         .input-wrap input {
             width: 100%;
             padding: 14px 44px 14px 16px;
-            background-color: #0e1420;
-            border: 1px solid #2a3346;
+            background-color: var(--mv-input);
+            border: 1px solid var(--mv-border);
             border-radius: 14px;
-            color: #f5f7fa;
+            color: var(--mv-text);
             font-size: 15px;
             outline: none;
         }
-        .input-wrap input:focus { border-color: #3b82f6; }
+        .input-wrap input:focus { border-color: var(--mv-primary); }
         .input-wrap .eye-btn {
             position: absolute;
             right: 12px;
@@ -51,20 +52,20 @@
             border: none;
             padding: 4px;
             cursor: pointer;
-            color: #9aa5b8;
+            color: var(--mv-text-secondary);
             display: flex;
             align-items: center;
             justify-content: center;
             width: auto;
             margin-top: 0;
         }
-        .input-wrap .eye-btn:hover { color: #f5f7fa; }
+        .input-wrap .eye-btn:hover { color: var(--mv-text); }
         .input-wrap .eye-btn svg { width: 20px; height: 20px; stroke-width: 1.75; fill: none; stroke: currentColor; }
         .btn-submit {
             width: 100%;
             margin-top: 28px;
             padding: 15px;
-            background-color: #3b82f6;
+            background-color: var(--mv-primary);
             border: none;
             border-radius: 28px;
             color: #fff;
@@ -90,11 +91,11 @@
         .btn-submit.loading .spinner { display: block; }
         .btn-submit.loading .btn-label { display: none; }
         .message { display: none; margin-top: 20px; padding: 14px 16px; border-radius: 14px; font-size: 14px; line-height: 1.6; }
-        .message.error { display: block; background-color: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); }
-        .message.success { display: block; background-color: rgba(34, 197, 94, 0.12); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.35); }
+        .message.error { display: block; background-color: rgba(239, 68, 68, 0.12); color: var(--mv-error); border: 1px solid rgba(244, 67, 54, 0.35); }
+        .message.success { display: block; background-color: rgba(34, 197, 94, 0.12); color: var(--mv-success); border: 1px solid rgba(76, 175, 80, 0.35); }
     </style>
 </head>
-<body>
+<body class="moview-theme">
     <div class="card">
         <img src="{{ asset('logo-moview.png') }}" alt="Moview" style="width: 64px; height: 64px; display: block; margin: 0 auto 16px;">
         <h1>Buat Password Baru</h1>

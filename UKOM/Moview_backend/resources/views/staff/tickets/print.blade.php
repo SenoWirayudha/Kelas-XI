@@ -1,8 +1,6 @@
-@extends('layouts.admin')
+@extends('layouts.print')
 
 @section('title', 'Tiket')
-@section('page-title', 'Tiket')
-@section('page-subtitle', 'Tiket siap dicetak')
 
 @section('content')
 @php
