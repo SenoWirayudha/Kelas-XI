@@ -2,22 +2,61 @@ package com.komputerkit.moview
 
 import android.content.Context
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
+import android.view.ViewConfiguration
+import android.view.ViewGroup
+import android.widget.HorizontalScrollView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityMainBinding
     private lateinit var navController: NavController
+
+    // Bottom-tab order as laid out in bottom_nav_menu.xml (no wrapping in swipe).
+    private val tabOrder = intArrayOf(
+        R.id.navigation_home,
+        R.id.navigation_search,
+        R.id.navigation_notification,
+        R.id.navigation_profile
+    )
+    private var lastTabIndex = 0
+
+    // --- Horizontal fling state for swiping between adjacent main tabs ---
+    private var swipeDownX = 0f
+    private var swipeDownY = 0f
+    private var swipeDownTime = 0L
+    private var swipeEligible = false
+    private var swipeTracker: VelocityTracker? = null
+    private val swipeDensity by lazy { resources.displayMetrics.density }
+    private val swipeMaxVelocity by lazy {
+        ViewConfiguration.get(this).scaledMaximumFlingVelocity.toFloat()
+    }
+    private val swipeTouchSlop by lazy { ViewConfiguration.get(this).scaledTouchSlop }
+
+    // Standard forward push animation (enter from right, exit to left) used for
+    // navigate-by-id pushes that have no <action> to carry anim attrs.
+    private val forwardNavOptions: NavOptions
+        get() = NavOptions.Builder()
+            .setEnterAnim(R.anim.slide_in_right)
+            .setExitAnim(R.anim.slide_out_left)
+            .setPopEnterAnim(R.anim.slide_in_left)
+            .setPopExitAnim(R.anim.slide_out_right)
+            .build()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -102,7 +141,8 @@ class MainActivity : AppCompatActivity() {
             try {
                 navController.navigate(
                     R.id.movieDetailFragment,
-                    Bundle().apply { putInt("movieId", movieId) }
+                    Bundle().apply { putInt("movieId", movieId) },
+                    forwardNavOptions
                 )
             } catch (e: Exception) {
                 showSnackbar("Gagal membuka detail film", SnackbarType.ERROR)
@@ -123,7 +163,8 @@ class MainActivity : AppCompatActivity() {
                         putString("existingReviewText", null)
                         putInt("existingRating", 0)
                         putString("watchedDate", null)
-                    }
+                    },
+                    forwardNavOptions
                 )
             } catch (e: Exception) {
                 showSnackbar("Gagal membuka halaman review/log", SnackbarType.ERROR)
@@ -140,7 +181,8 @@ class MainActivity : AppCompatActivity() {
                     Bundle().apply {
                         putInt("movieId", posterBackdropMovieId)
                         putBoolean("openBackdropsTab", false)
-                    }
+                    },
+                    forwardNavOptions
                 )
             } catch (e: Exception) {
                 showSnackbar("Gagal membuka ganti poster/backdrop", SnackbarType.ERROR)
@@ -157,7 +199,8 @@ class MainActivity : AppCompatActivity() {
         // tabs or re-tapping the active one) goes back to that tab's root and discards all
         // nested/child screens opened anywhere. No saveState/restoreState / multiple back stacks.
         binding.bottomNavigation.setOnItemSelectedListener { item ->
-            navigateToTabRoot(item.itemId)
+            val index = tabOrder.indexOf(item.itemId)
+            navigateToTabRoot(item.itemId, forward = index > lastTabIndex)
             true
         }
 
@@ -195,16 +238,161 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    private fun navigateToTabRoot(itemId: Int) {
-        val options = NavOptions.Builder()
+    /**
+     * Jump to a main tab's root (single stack, all nested screens discarded).
+     *
+     * @param forward true when moving toward the next tab (or reselecting), false
+     *  when moving toward the previous tab — controls the slide direction so the
+     *  screen transition matches the swipe/button direction. Re-tapping the tab
+     *  root you are already on keeps the original (no) animation.
+     */
+    private fun navigateToTabRoot(itemId: Int, forward: Boolean = true) {
+        val index = tabOrder.indexOf(itemId)
+        if (index >= 0) lastTabIndex = index
+
+        val builder = NavOptions.Builder()
             .setLaunchSingleTop(true)
             .setPopUpTo(navController.graph.startDestinationId, false)
-            .build()
+
+        if (navController.currentDestination?.id != itemId) {
+            if (forward) {
+                builder.setEnterAnim(R.anim.slide_in_right)
+                    .setExitAnim(R.anim.slide_out_left)
+                    .setPopEnterAnim(R.anim.slide_in_right)
+                    .setPopExitAnim(R.anim.slide_out_left)
+            } else {
+                builder.setEnterAnim(R.anim.slide_in_left)
+                    .setExitAnim(R.anim.slide_out_right)
+                    .setPopEnterAnim(R.anim.slide_in_left)
+                    .setPopExitAnim(R.anim.slide_out_right)
+            }
+        }
+
         try {
-            navController.navigate(itemId, null, options)
+            navController.navigate(itemId, null, builder.build())
         } catch (e: IllegalArgumentException) {
             // Destination not reachable from current graph state — ignore
         }
+    }
+
+    // --- Swipe between main tabs (adjacent only, no wrap-around) -------------
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        detectTabSwipe(ev)
+        return super.dispatchTouchEvent(ev)
+    }
+
+    /**
+     * Observes (never consumes) touch stream: a fast horizontal fling on a
+     * main-tab root switches to the adjacent tab. Gestures that start over
+     * horizontal scrollers, the bottom nav bar, or non-tab screens are ignored
+     * so their own scrolling/navigation keeps priority.
+     */
+    private fun detectTabSwipe(ev: MotionEvent) {
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                swipeTracker?.recycle()
+                swipeTracker = VelocityTracker.obtain()
+                swipeTracker?.addMovement(ev)
+                swipeDownX = ev.rawX
+                swipeDownY = ev.rawY
+                swipeDownTime = ev.eventTime
+                swipeEligible = isTabSwipeAllowed(ev)
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> swipeEligible = false
+            MotionEvent.ACTION_MOVE -> swipeTracker?.addMovement(ev)
+            MotionEvent.ACTION_UP -> {
+                val tracker = swipeTracker
+                swipeTracker = null
+                tracker?.addMovement(ev)
+                if (swipeEligible && tracker != null) {
+                    tracker.computeCurrentVelocity(1000, swipeMaxVelocity)
+                    val vx = tracker.xVelocity
+                    val vy = tracker.yVelocity
+                    val dx = ev.rawX - swipeDownX
+                    val dy = ev.rawY - swipeDownY
+                    val elapsed = ev.eventTime - swipeDownTime
+                    if (elapsed > 0L && elapsed <= 1200L &&
+                        abs(dx) >= swipeTouchSlop * 2f &&
+                        abs(vx) >= 450f * swipeDensity &&
+                        abs(vx) > abs(vy) * 1.3f
+                    ) {
+                        switchTabBySwipe(dx)
+                    }
+                }
+                tracker?.recycle()
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                swipeTracker?.recycle()
+                swipeTracker = null
+                swipeEligible = false
+            }
+        }
+    }
+
+    private fun isTabSwipeAllowed(ev: MotionEvent): Boolean {
+        if (binding.bottomNavigation.visibility != View.VISIBLE) return false
+        val currentId = navController.currentDestination?.id
+        if (currentId == null || currentId !in tabOrder) return false
+
+        val decor = window.decorView
+        val location = IntArray(2)
+        decor.getLocationOnScreen(location)
+        val hit = findTopChildUnder(decor, ev.rawX - location[0], ev.rawY - location[1])
+            ?: return false
+        return !isGestureBlockedAt(hit)
+    }
+
+    /** Top-most visible view under the given decor-view coordinates. */
+    private fun findTopChildUnder(root: View, rootX: Float, rootY: Float): View? {
+        var current: View = root
+        var x = rootX
+        var y = rootY
+        val rect = android.graphics.Rect()
+        while (true) {
+            val group = current as? ViewGroup ?: break
+            var matched = false
+            for (i in group.childCount - 1 downTo 0) {
+                val child = group.getChildAt(i)
+                if (child.visibility != View.VISIBLE) continue
+                child.getHitRect(rect)
+                if (rect.contains(x.toInt(), y.toInt())) {
+                    x -= rect.left
+                    y -= rect.top
+                    current = child
+                    matched = true
+                    break
+                }
+            }
+            if (!matched) break
+        }
+        return current
+    }
+
+    /** True when the touch sits on the bottom nav or a horizontal scroller. */
+    private fun isGestureBlockedAt(start: View): Boolean {
+        var view: View? = start
+        while (view != null) {
+            if (view === binding.bottomNavigation) return true
+            if (view is HorizontalScrollView) return true
+            if (view is RecyclerView) {
+                val orientation = view.layoutManager?.let { lm ->
+                    (lm as? LinearLayoutManager)?.orientation
+                }
+                if (orientation == RecyclerView.HORIZONTAL) return true
+            }
+            view = view.parent as? View
+        }
+        return false
+    }
+
+    private fun switchTabBySwipe(dx: Float) {
+        val currentIdx = tabOrder.indexOf(binding.bottomNavigation.selectedItemId)
+        if (currentIdx < 0) return
+        val step = if (dx < 0f) 1 else -1 // swipe left → next tab, right → previous
+        val targetIdx = currentIdx + step
+        if (targetIdx !in tabOrder.indices) return // no wrap at first/last tab
+        navigateToTabRoot(tabOrder[targetIdx], forward = step > 0)
     }
 
     private fun checkLoginStatus() {

@@ -1128,6 +1128,10 @@ class EditProfileFragment : Fragment() {
         val navController = findNavController()
         val navOptions = androidx.navigation.NavOptions.Builder()
             .setPopUpTo(navController.graph.startDestinationId, true)
+            .setEnterAnim(com.komputerkit.moview.R.anim.slide_in_left)
+            .setExitAnim(com.komputerkit.moview.R.anim.slide_out_right)
+            .setPopEnterAnim(com.komputerkit.moview.R.anim.slide_in_left)
+            .setPopExitAnim(com.komputerkit.moview.R.anim.slide_out_right)
             .build()
         navController.navigate(R.id.loginFragment, null, navOptions)
     }
@@ -1176,6 +1180,10 @@ class EditProfileFragment : Fragment() {
         val navController = findNavController()
         val navOptions = androidx.navigation.NavOptions.Builder()
             .setPopUpTo(navController.graph.startDestinationId, true)
+            .setEnterAnim(com.komputerkit.moview.R.anim.slide_in_left)
+            .setExitAnim(com.komputerkit.moview.R.anim.slide_out_right)
+            .setPopEnterAnim(com.komputerkit.moview.R.anim.slide_in_left)
+            .setPopExitAnim(com.komputerkit.moview.R.anim.slide_out_right)
             .build()
         navController.navigate(R.id.loginFragment, null, navOptions)
     }

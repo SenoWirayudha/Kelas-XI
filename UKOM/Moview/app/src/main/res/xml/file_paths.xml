@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Shared ticket cards live only in app cache; never in public storage. -->
+    <cache-path
+        name="shared_tickets"
+        path="shared_tickets/" />
+</paths>

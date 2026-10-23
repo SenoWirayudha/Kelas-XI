@@ -19,6 +19,7 @@ import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentSearchNewBinding
+import com.komputerkit.moview.util.postponeEnterUntilLaidOut
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import kotlinx.coroutines.flow.collectLatest
@@ -36,8 +37,10 @@ class SearchFragment : Fragment() {
     private lateinit var castCrewAdapter: SearchPersonAdapter
     private lateinit var productionHouseAdapter: SearchStudioAdapter
     private lateinit var userAdapter: SearchUserAdapter
+    private lateinit var historyAdapter: SearchHistoryAdapter
 
     private var syncingQuery = false
+    private var userId = 0
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -56,11 +59,14 @@ class SearchFragment : Fragment() {
             viewModel.setSelectMovieMode(true)
         }
         
+        setupSearchHistory()
         setupSearchBar()
         setupFilterChips()
         setupRecyclerViews()
         observeUiState()
         syncQueryFromState()
+
+        postponeEnterUntilLaidOut()
 
         // Restore scroll position saved before navigating away
         binding.searchScroll.post {
@@ -105,6 +111,7 @@ class SearchFragment : Fragment() {
                     viewModel.onQueryChanged(query)
                 }
                 binding.btnClear.isVisible = query.isNotEmpty()
+                updateHistoryVisibility(query)
             }
         })
         
@@ -112,6 +119,7 @@ class SearchFragment : Fragment() {
         binding.etSearch.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 val query = binding.etSearch.text.toString()
+                rememberSearch(query)
                 viewModel.onSearchSubmit(query)
                 true
             } else {
@@ -119,21 +127,72 @@ class SearchFragment : Fragment() {
             }
         }
         
-        // Clear button
+        // Clear (X) button — empties the field, keeps focus, reveals the history
         binding.btnClear.setOnClickListener {
             setQueryText("")
             viewModel.clearSearch()
+            updateHistoryVisibility("")
+            binding.etSearch.requestFocus()
+            val imm = requireContext()
+                .getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            imm?.showSoftInput(binding.etSearch, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
         }
 
-        // Cancel button
+        // Cancel button — only used by the movie-picker flow (bottom nav hidden)
         binding.btnCancel.setOnClickListener {
             if (viewModel.uiState.value.isSelectMovieMode) {
                 findNavController().navigateUp()
-            } else {
-                setQueryText("")
-                viewModel.clearSearch()
             }
         }
+    }
+
+    private fun setupSearchHistory() {
+        userId = requireContext()
+            .getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+            .getInt("userId", 0)
+
+        historyAdapter = SearchHistoryAdapter(
+            onKeywordClick = { keyword ->
+                setQueryText(keyword)
+                rememberSearch(keyword)
+                viewModel.onQueryChanged(keyword)
+                viewModel.onSearchSubmit(keyword)
+                binding.etSearch.clearFocus()
+            },
+            onDeleteClick = { keyword ->
+                renderHistory(SearchHistoryStore.remove(requireContext(), userId, keyword))
+            }
+        )
+
+        binding.rvHistory.apply {
+            adapter = historyAdapter
+            layoutManager = LinearLayoutManager(requireContext())
+            itemAnimator = null
+        }
+
+        binding.btnClearHistory.setOnClickListener {
+            SearchHistoryStore.clear(requireContext(), userId)
+            renderHistory(emptyList())
+        }
+
+        renderHistory(SearchHistoryStore.load(requireContext(), userId))
+    }
+
+    /** Persists the keyword for the current account and refreshes the section. */
+    private fun rememberSearch(keyword: String) {
+        if (keyword.isBlank()) return
+        renderHistory(SearchHistoryStore.add(requireContext(), userId, keyword))
+    }
+
+    private fun renderHistory(entries: List<String>) {
+        historyAdapter.submitList(entries)
+        if (_binding != null) updateHistoryVisibility(binding.etSearch.text?.toString() ?: "")
+    }
+
+    /** History is visible only while the search field is empty and has entries. */
+    private fun updateHistoryVisibility(query: String) {
+        val hasHistory = historyAdapter.itemCount > 0
+        binding.sectionHistory.isVisible = query.isEmpty() && hasHistory
     }
 
     private fun setQueryText(text: String) {
@@ -158,6 +217,7 @@ class SearchFragment : Fragment() {
         // Movies - handle click based on mode
         movieAdapter = SearchMovieAdapter(
             onMovieClick = { movie ->
+                rememberSearch(binding.etSearch.text?.toString() ?: "")
                 if (viewModel.uiState.value.isSelectMovieMode) {
                     // SELECT_MOVIE mode: Return selected movie ID
                     findNavController().previousBackStackEntry?.savedStateHandle?.set("selected_movie_id", movie.id)
@@ -185,6 +245,7 @@ class SearchFragment : Fragment() {
         
         // Cast & Crew - navigate to person detail
         castCrewAdapter = SearchPersonAdapter { person ->
+            rememberSearch(binding.etSearch.text?.toString() ?: "")
             val action = SearchFragmentDirections.actionSearchToCrewDetail(person.id)
             findNavController().navigate(action)
         }
@@ -195,6 +256,7 @@ class SearchFragment : Fragment() {
         
         // Production Houses - navigate to filmography
         productionHouseAdapter = SearchStudioAdapter { studio ->
+            rememberSearch(binding.etSearch.text?.toString() ?: "")
             val action = SearchFragmentDirections.actionSearchToFilmList(
                 categoryType = "production_house",
                 categoryValue = studio.name,
@@ -212,6 +274,7 @@ class SearchFragment : Fragment() {
         
         // Users - navigate to user profile
         userAdapter = SearchUserAdapter { user ->
+            rememberSearch(binding.etSearch.text?.toString() ?: "")
             val action = SearchFragmentDirections.actionSearchToUserProfile(user.id)
             findNavController().navigate(action)
         }
@@ -276,6 +339,11 @@ class SearchFragment : Fragment() {
                 // Show empty state
                 val showEmpty = !state.isLoading && state.isEmpty && state.query.isNotEmpty()
                 binding.emptyState.isVisible = showEmpty
+
+                // Recent searches only while the field is empty; Cancel only in the
+                // movie-picker flow (where the bottom nav is hidden).
+                updateHistoryVisibility(binding.etSearch.text?.toString() ?: "")
+                binding.btnCancel.isVisible = state.isSelectMovieMode
                 
                 // Show error if any
                 state.error?.let { error ->

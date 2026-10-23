@@ -37,6 +37,16 @@ import kotlinx.coroutines.launch
 object MovieActionsHelper {
 
     private val repository = MovieRepository()
+
+    // Forward push animation for navigate-by-id calls that have no <action>
+    // to carry anim attrs (same slide set as nav_graph actions).
+    private val pushNavOptions: androidx.navigation.NavOptions
+        get() = androidx.navigation.NavOptions.Builder()
+            .setEnterAnim(R.anim.slide_in_right)
+            .setExitAnim(R.anim.slide_out_left)
+            .setPopEnterAnim(R.anim.slide_in_left)
+            .setPopExitAnim(R.anim.slide_out_right)
+            .build()
     
     /**
      * Get LifecycleOwner from Context by unwrapping ContextWrapper
@@ -285,7 +295,7 @@ object MovieActionsHelper {
                                     putBoolean("isLog", isLog)
                                     if (isLog) putInt("diaryId", diaryId)
                                 }
-                                navController.navigate(R.id.reviewDetailFragment, bundle)
+                                navController.navigate(R.id.reviewDetailFragment, bundle, pushNavOptions)
                             } catch (e: Exception) {
                                 Log.e("MovieActionsHelper", "Cannot navigate to review detail", e)
                             }
@@ -487,7 +497,7 @@ object MovieActionsHelper {
                         putInt("userId", userId)
                         putInt("filmId", movie.id)
                     }
-                    navController.navigate(R.id.userFilmActivityFragment, bundle)
+                    navController.navigate(R.id.userFilmActivityFragment, bundle, pushNavOptions)
                 } else {
                     val latestReviewId = info?.latest_review_id ?: 0
                     val latestDiaryId = info?.latest_diary_id ?: 0
@@ -497,14 +507,14 @@ object MovieActionsHelper {
                             putInt("reviewId", latestReviewId)
                             putBoolean("isLog", false)
                         }
-                        navController.navigate(R.id.reviewDetailFragment, bundle)
+                        navController.navigate(R.id.reviewDetailFragment, bundle, pushNavOptions)
                     } else if (latestDiaryId > 0) {
                         val bundle = android.os.Bundle().apply {
                             putInt("reviewId", latestDiaryId)
                             putBoolean("isLog", true)
                             putInt("diaryId", latestDiaryId)
                         }
-                        navController.navigate(R.id.reviewDetailFragment, bundle)
+                        navController.navigate(R.id.reviewDetailFragment, bundle, pushNavOptions)
                     }
                 }
             } catch (e: Exception) {

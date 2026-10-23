@@ -391,6 +391,10 @@ class VerifyOtpFragment : Fragment() {
         try {
             val navOptions = NavOptions.Builder()
                 .setPopUpTo(navControllerStartId(), false)
+                .setEnterAnim(R.anim.slide_in_left)
+                .setExitAnim(R.anim.slide_out_right)
+                .setPopEnterAnim(R.anim.slide_in_left)
+                .setPopExitAnim(R.anim.slide_out_right)
                 .build()
             findNavController().navigate(R.id.loginFragment, null, navOptions)
         } catch (e: Exception) {

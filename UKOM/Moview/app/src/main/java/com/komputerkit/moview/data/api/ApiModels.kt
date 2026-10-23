@@ -164,13 +164,17 @@ data class UserTicketSeatDto(
 data class TicketQrDetailDto(
     val order_id: Int,
     val ticket_code: String,
+    val qr_token: String? = null,
     val order_status: String,
-    val is_scanned: Boolean,
+    val is_scanned: Boolean = false,
+    val is_used: Boolean = false,
+    val is_expired: Boolean = false,
+    val scanned_at: String? = null,
     val movie: UserTicketMovieDto,
     val cinema: TicketQrCinemaDto,
     val studio: UserTicketStudioDto,
     val schedule: UserTicketScheduleDto,
-    val seats: List<UserTicketSeatDto>
+    val seats: List<UserTicketSeatDto> = emptyList()
 )
 
 data class TicketQrCinemaDto(
@@ -179,7 +183,8 @@ data class TicketQrCinemaDto(
 )
 
 data class TicketScanRequest(
-    val ticket_code: String
+    val ticket_code: String? = null,
+    val qr_code: String? = null
 )
 
 data class TicketScanResponseDto(

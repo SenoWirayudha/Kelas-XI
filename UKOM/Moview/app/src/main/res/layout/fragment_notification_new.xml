@@ -15,7 +15,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingHorizontal="16dp"
-        android:background="@color/dark_background"
+
         app:layout_constraintTop_toTopOf="parent">
 
         <TextView

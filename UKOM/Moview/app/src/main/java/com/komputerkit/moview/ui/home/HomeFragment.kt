@@ -15,6 +15,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentHomeNewBinding
+import com.komputerkit.moview.util.postponeEnterUntilLaidOut
+import com.komputerkit.moview.util.runAfterEnterTransition
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.ui.cinema.MovieScheduleActivity
@@ -49,13 +51,16 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         val userId = prefs.getInt("userId", 0)
         android.util.Log.d("HomeFragment", "Retrieved userId from SharedPreferences: $userId")
         
-        // Set userId to ViewModel
-        viewModel.setUserId(userId)
-        
+        postponeEnterUntilLaidOut()
+
         setupRecyclerViews()
         setupSwipeRefresh()
         observeViewModel()
         setupClickListeners()
+
+        // Defer the first network load until the tab slide has finished so the
+        // list rebind does not land in the middle of the animation.
+        runAfterEnterTransition { viewModel.setUserId(userId) }
 
         // Restore scroll position saved before navigating away
         binding.nestedScrollView.post {

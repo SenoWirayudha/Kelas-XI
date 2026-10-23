@@ -2,6 +2,8 @@ package com.komputerkit.moview.ui.search
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
@@ -14,16 +16,9 @@ class SearchMovieAdapter(
     private val onLongPressGoToFilm: ((Movie) -> Unit)? = null,
     private val onLogFilm: ((Movie) -> Unit)? = null,
     private val onChangePoster: ((Movie) -> Unit)? = null
-) : RecyclerView.Adapter<SearchMovieAdapter.SearchMovieViewHolder>() {
+) : ListAdapter<Movie, SearchMovieAdapter.SearchMovieViewHolder>(DIFF) {
     
 
-    private var movies: List<Movie> = emptyList()
-    
-    fun submitList(list: List<Movie>) {
-        movies = list
-        notifyDataSetChanged()
-    }
-    
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SearchMovieViewHolder {
         val binding = ItemSearchMovieBinding.inflate(
             LayoutInflater.from(parent.context),
@@ -34,10 +29,8 @@ class SearchMovieAdapter(
     }
     
     override fun onBindViewHolder(holder: SearchMovieViewHolder, position: Int) {
-        holder.bind(movies[position])
+        holder.bind(getItem(position))
     }
-    
-    override fun getItemCount(): Int = movies.size
     
     inner class SearchMovieViewHolder(
         private val binding: ItemSearchMovieBinding
@@ -66,6 +59,13 @@ class SearchMovieAdapter(
                 )
                 true
             }
+        }
+    }
+
+    companion object {
+        private val DIFF = object : DiffUtil.ItemCallback<Movie>() {
+            override fun areItemsTheSame(oldItem: Movie, newItem: Movie) = oldItem.id == newItem.id
+            override fun areContentsTheSame(oldItem: Movie, newItem: Movie) = oldItem == newItem
         }
     }
 }

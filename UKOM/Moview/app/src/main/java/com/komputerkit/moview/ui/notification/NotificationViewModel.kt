@@ -27,11 +27,23 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
     val unreadCount: LiveData<Int> = _unreadCount
 
     private var loadedKey: String? = null
+    private var lastLoadedAt = 0L
     private var loadJob: kotlinx.coroutines.Job? = null
     private var refreshJob: kotlinx.coroutines.Job? = null
 
     fun refresh() {
         loadNotifications(force = true)
+    }
+
+    /** Silent refresh used on resume; skips the network when data is still fresh. */
+    fun refreshIfStale(maxAgeMs: Long = 15_000L) {
+        val key = "notifications|" + prefs.getInt("userId", 0)
+        if (key == loadedKey && _notifications.value != null &&
+            System.currentTimeMillis() - lastLoadedAt < maxAgeMs
+        ) {
+            return
+        }
+        loadNotifications()
     }
 
     fun loadNotifications(force: Boolean = false) {
@@ -76,6 +88,7 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
                 _notifications.postValue(resolved)
                 _unreadCount.postValue(resolved.count { !it.isRead })
                 loadedKey = key
+                lastLoadedAt = System.currentTimeMillis()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {

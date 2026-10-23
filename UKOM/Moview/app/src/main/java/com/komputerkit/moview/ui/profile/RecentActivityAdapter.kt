@@ -3,6 +3,8 @@ package com.komputerkit.moview.ui.profile
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import androidx.core.content.ContextCompat
 import com.komputerkit.moview.R
@@ -18,16 +20,9 @@ class RecentActivityAdapter(
     private val onLogClick: ((Int) -> Unit)? = null,
     private val onLogFilm: ((DiaryEntry) -> Unit)? = null,
     private val onChangePoster: ((DiaryEntry) -> Unit)? = null
-) : RecyclerView.Adapter<RecentActivityAdapter.RecentActivityViewHolder>() {
+) : ListAdapter<DiaryEntry, RecentActivityAdapter.RecentActivityViewHolder>(DIFF) {
     
 
-    private var activities: List<DiaryEntry> = emptyList()
-    
-    fun submitList(list: List<DiaryEntry>) {
-        activities = list
-        notifyDataSetChanged()
-    }
-    
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecentActivityViewHolder {
         val binding = ItemRecentActivityBinding.inflate(
             LayoutInflater.from(parent.context),
@@ -38,10 +33,8 @@ class RecentActivityAdapter(
     }
     
     override fun onBindViewHolder(holder: RecentActivityViewHolder, position: Int) {
-        holder.bind(activities[position])
+        holder.bind(getItem(position))
     }
-    
-    override fun getItemCount(): Int = activities.size
     
     inner class RecentActivityViewHolder(
         private val binding: ItemRecentActivityBinding
@@ -97,6 +90,16 @@ class RecentActivityAdapter(
                 )
                 true
             }
+        }
+    }
+
+    companion object {
+        private val DIFF = object : DiffUtil.ItemCallback<DiaryEntry>() {
+            override fun areItemsTheSame(oldItem: DiaryEntry, newItem: DiaryEntry) =
+                oldItem.id == newItem.id
+
+            override fun areContentsTheSame(oldItem: DiaryEntry, newItem: DiaryEntry) =
+                oldItem == newItem
         }
     }
 }

@@ -2,22 +2,17 @@ package com.komputerkit.moview.ui.search
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.databinding.ItemSearchPersonBinding
 import com.komputerkit.moview.util.loadAvatar
 
 class SearchPersonAdapter(
     private val onPersonClick: (SearchPerson) -> Unit
-) : RecyclerView.Adapter<SearchPersonAdapter.SearchPersonViewHolder>() {
+) : ListAdapter<SearchPerson, SearchPersonAdapter.SearchPersonViewHolder>(DIFF) {
     
 
-    private var people: List<SearchPerson> = emptyList()
-    
-    fun submitList(list: List<SearchPerson>) {
-        people = list
-        notifyDataSetChanged()
-    }
-    
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SearchPersonViewHolder {
         val binding = ItemSearchPersonBinding.inflate(
             LayoutInflater.from(parent.context),
@@ -28,10 +23,8 @@ class SearchPersonAdapter(
     }
     
     override fun onBindViewHolder(holder: SearchPersonViewHolder, position: Int) {
-        holder.bind(people[position])
+        holder.bind(getItem(position))
     }
-    
-    override fun getItemCount(): Int = people.size
     
     inner class SearchPersonViewHolder(
         private val binding: ItemSearchPersonBinding
@@ -47,6 +40,16 @@ class SearchPersonAdapter(
             binding.root.setOnClickListener {
                 onPersonClick(person)
             }
+        }
+    }
+
+    companion object {
+        private val DIFF = object : DiffUtil.ItemCallback<SearchPerson>() {
+            override fun areItemsTheSame(oldItem: SearchPerson, newItem: SearchPerson) =
+                oldItem.id == newItem.id
+
+            override fun areContentsTheSame(oldItem: SearchPerson, newItem: SearchPerson) =
+                oldItem == newItem
         }
     }
 }

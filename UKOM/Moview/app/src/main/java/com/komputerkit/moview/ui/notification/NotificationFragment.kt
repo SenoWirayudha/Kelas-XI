@@ -11,6 +11,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.komputerkit.moview.data.model.Notification
 import com.komputerkit.moview.data.model.NotificationType
 import com.komputerkit.moview.databinding.FragmentNotificationNewBinding
+import com.komputerkit.moview.util.postponeEnterUntilLaidOut
+import com.komputerkit.moview.util.runAfterEnterTransition
 import com.komputerkit.moview.util.ScrollStateHelper
 
 class NotificationFragment : Fragment() {
@@ -38,15 +40,18 @@ class NotificationFragment : Fragment() {
         setupObservers()
         setupClickListeners()
         
-        // Load notifications on first view creation
-        viewModel.loadNotifications()
+        postponeEnterUntilLaidOut()
+
+        // Load notifications only after the tab slide finished (avoids rebinding
+        // the list in the middle of the animation).
+        runAfterEnterTransition { viewModel.loadNotifications() }
     }
     
     override fun onResume() {
         super.onResume()
         // Refresh notifications when fragment resumes (e.g., after switching accounts);
         // guarded — tampil tanpa spinner bila data sudah pernah dimuat
-        viewModel.loadNotifications()
+        viewModel.refreshIfStale()
     }
     
     private fun setupRecyclerView() {
@@ -61,6 +66,7 @@ class NotificationFragment : Fragment() {
         binding.rvNotifications.apply {
             adapter = notificationAdapter
             layoutManager = LinearLayoutManager(requireContext())
+            setHasFixedSize(true)
         }
     }
     

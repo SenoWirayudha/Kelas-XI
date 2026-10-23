@@ -19,7 +19,8 @@ class TicketScanViewModel : ViewModel() {
     val scanErrorMessage: LiveData<String?> = _scanErrorMessage
 
     fun validateTicket(ticketCode: String) {
-        if (ticketCode.isBlank()) {
+        val payload = ticketCode.trim()
+        if (payload.isBlank()) {
             _scanErrorMessage.value = "Ticket code tidak valid"
             return
         }
@@ -27,7 +28,14 @@ class TicketScanViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val response = withContext(Dispatchers.IO) {
-                    RetrofitClient.movieApiService.scanTicket(TicketScanRequest(ticketCode))
+                    // Scanned QR payloads are opaque tokens; printed legacy codes
+                    // start with "MOV-". Only the token is sent for QR scans.
+                    val request = if (payload.startsWith("MOV-", ignoreCase = true)) {
+                        TicketScanRequest(ticket_code = payload.uppercase())
+                    } else {
+                        TicketScanRequest(qr_code = payload)
+                    }
+                    RetrofitClient.movieApiService.scanTicket(request)
                 }
 
                 if (response.success) {

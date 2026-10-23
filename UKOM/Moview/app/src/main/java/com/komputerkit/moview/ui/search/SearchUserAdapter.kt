@@ -2,6 +2,8 @@ package com.komputerkit.moview.ui.search
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
@@ -9,15 +11,8 @@ import com.komputerkit.moview.databinding.ItemSearchUserBinding
 
 class SearchUserAdapter(
     private val onUserClick: (SearchUser) -> Unit
-) : RecyclerView.Adapter<SearchUserAdapter.SearchUserViewHolder>() {
+) : ListAdapter<SearchUser, SearchUserAdapter.SearchUserViewHolder>(DIFF) {
 
-
-    private var users: List<SearchUser> = emptyList()
-
-    fun submitList(list: List<SearchUser>) {
-        users = list
-        notifyDataSetChanged()
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SearchUserViewHolder {
         val binding = ItemSearchUserBinding.inflate(
@@ -29,10 +24,8 @@ class SearchUserAdapter(
     }
 
     override fun onBindViewHolder(holder: SearchUserViewHolder, position: Int) {
-        holder.bind(users[position])
+        holder.bind(getItem(position))
     }
-
-    override fun getItemCount(): Int = users.size
 
     inner class SearchUserViewHolder(
         private val binding: ItemSearchUserBinding
@@ -55,6 +48,16 @@ class SearchUserAdapter(
                     onUserClick(user)
                 }
             }
+        }
+    }
+
+    companion object {
+        private val DIFF = object : DiffUtil.ItemCallback<SearchUser>() {
+            override fun areItemsTheSame(oldItem: SearchUser, newItem: SearchUser) =
+                oldItem.id == newItem.id
+
+            override fun areContentsTheSame(oldItem: SearchUser, newItem: SearchUser) =
+                oldItem == newItem
         }
     }
 }

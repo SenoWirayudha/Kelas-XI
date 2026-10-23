@@ -12,7 +12,7 @@ class Order extends Model
 
     protected $fillable = [
         'schedule_id', 'user_id', 'order_code',
-        'ticket_code', 'total_price', 'status', 'is_scanned', 'scanned_at', 'expired_at',
+        'ticket_code', 'qr_token', 'total_price', 'status', 'is_scanned', 'scanned_at', 'expired_at',
     ];
 
     protected $casts = [
@@ -29,6 +29,27 @@ class Order extends Model
         } while (self::where('ticket_code', $ticketCode)->exists());
 
         return $ticketCode;
+    }
+
+    /**
+     * Returns this order's opaque QR token, creating (and persisting) one on
+     * first use. 48 random characters: not derivable from the order id or the
+     * short ticket_code that is printed on the screen.
+     */
+    public function ensureQrToken(): string
+    {
+        if (!empty($this->qr_token)) {
+            return (string) $this->qr_token;
+        }
+
+        do {
+            $token = Str::random(48);
+        } while (self::where('qr_token', $token)->exists());
+
+        $this->qr_token = $token;
+        $this->save();
+
+        return $token;
     }
 
     /**

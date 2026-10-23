@@ -3,6 +3,8 @@ package com.komputerkit.moview.ui.profile
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
@@ -16,16 +18,9 @@ class FavoriteMovieAdapter(
     private val onLongPressGoToFilm: ((Movie) -> Unit)? = null,
     private val onLogFilm: ((Movie) -> Unit)? = null,
     private val onChangePoster: ((Movie, Int?) -> Unit)? = null
-) : RecyclerView.Adapter<FavoriteMovieAdapter.FavoriteMovieViewHolder>() {
+) : ListAdapter<Movie, FavoriteMovieAdapter.FavoriteMovieViewHolder>(DIFF) {
     
 
-    private var movies: List<Movie> = emptyList()
-    
-    fun submitList(list: List<Movie>) {
-        movies = list
-        notifyDataSetChanged()
-    }
-    
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FavoriteMovieViewHolder {
         val binding = ItemFavoriteMovieBinding.inflate(
             LayoutInflater.from(parent.context),
@@ -36,10 +31,8 @@ class FavoriteMovieAdapter(
     }
     
     override fun onBindViewHolder(holder: FavoriteMovieViewHolder, position: Int) {
-        holder.bind(movies[position])
+        holder.bind(getItem(position))
     }
-    
-    override fun getItemCount(): Int = movies.size
     
     inner class FavoriteMovieViewHolder(
         private val binding: ItemFavoriteMovieBinding
@@ -71,6 +64,13 @@ class FavoriteMovieAdapter(
                 )
                 true
             }
+        }
+    }
+
+    companion object {
+        private val DIFF = object : DiffUtil.ItemCallback<Movie>() {
+            override fun areItemsTheSame(oldItem: Movie, newItem: Movie) = oldItem.id == newItem.id
+            override fun areContentsTheSame(oldItem: Movie, newItem: Movie) = oldItem == newItem
         }
     }
 }

@@ -48,20 +48,26 @@
 
             <ImageView
                 android:id="@+id/btn_clear"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_more"
-                android:contentDescription="Clear"
-                android:layout_marginEnd="8dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:padding="2dp"
+                android:src="@drawable/ic_close"
+                android:contentDescription="Hapus teks"
+                android:visibility="gone"
                 app:tint="@color/text_secondary" />
 
+            <!-- Exit affordance for the movie-picker flow only (bottom nav is
+                 hidden there). Hidden during normal tab search. -->
             <TextView
                 android:id="@+id/btn_cancel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:fontFamily="@font/font_family_inter"
                 android:text="Cancel"
                 android:textColor="@color/accent_blue"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                android:visibility="gone" />
 
         </LinearLayout>
 
@@ -152,6 +158,53 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="16dp">
+
+            <!-- Recent searches (shown only while the query is empty) -->
+            <LinearLayout
+                android:id="@+id/section_history"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingBottom="4dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/font_family_inter"
+                        android:text="Pencarian Terakhir"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btn_clear_history"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/font_family_inter"
+                        android:text="Hapus semua"
+                        android:textColor="@color/accent_blue"
+                        android:textSize="13sp"
+                        android:paddingVertical="8dp" />
+
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_history"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:paddingBottom="8dp"
+                    tools:listitem="@layout/item_search_history" />
+
+            </LinearLayout>
 
             <!-- Movies Section -->
             <LinearLayout

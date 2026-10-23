@@ -15,6 +15,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentProfileNewBinding
+import com.komputerkit.moview.util.postponeEnterUntilLaidOut
+import com.komputerkit.moview.util.runAfterEnterTransition
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.SocialLink
@@ -68,15 +70,20 @@ class ProfileFragment : Fragment() {
         setupScrollListener()
         setupNavigationResultListener()
         
-        // Load profile data
-        viewModel.loadProfileData(targetUserId)
-        
-        // Check follow status if viewing another user's profile
-        if (!isOwnProfile) {
-            val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
-            val currentUserId = prefs.getInt("userId", 0)
-            Log.d("ProfileFragment", "Checking follow status: currentUser=$currentUserId, target=$targetUserId")
-            viewModel.checkFollowStatus(currentUserId, targetUserId)
+        postponeEnterUntilLaidOut()
+
+        // Defer the first load until the tab slide is done (list rebind would
+        // otherwise happen mid-animation).
+        runAfterEnterTransition {
+            viewModel.loadProfileData(targetUserId)
+
+            // Check follow status if viewing another user's profile
+            if (!isOwnProfile) {
+                val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
+                val currentUserId = prefs.getInt("userId", 0)
+                Log.d("ProfileFragment", "Checking follow status: currentUser=$currentUserId, target=$targetUserId")
+                viewModel.checkFollowStatus(currentUserId, targetUserId)
+            }
         }
         
         // Restore scroll position saved before navigating away

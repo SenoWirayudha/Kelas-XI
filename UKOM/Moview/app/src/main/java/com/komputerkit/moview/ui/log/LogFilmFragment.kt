@@ -402,6 +402,10 @@ class LogFilmFragment : Fragment() {
                     entryBundle,
                     androidx.navigation.NavOptions.Builder()
                         .setPopUpTo(R.id.logFilmFragment, true)
+                        .setEnterAnim(R.anim.slide_in_right)
+                        .setExitAnim(R.anim.slide_out_left)
+                        .setPopEnterAnim(R.anim.slide_in_left)
+                        .setPopExitAnim(R.anim.slide_out_right)
                         .build()
                 )
             }

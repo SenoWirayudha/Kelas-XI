@@ -66,12 +66,15 @@ fun ImageView.loadThumbnail(url: String?, title: String? = null, placeholder: Dr
     val height = this.layoutParams?.height ?: ViewGroup.LayoutParams.WRAP_CONTENT
     val fixedUrl = if (!url.isNullOrEmpty()) ServerConfig.fixUrl(url) else url
     
+    // One fallback instance for both placeholder and error (halves per-bind allocations)
+    val fallback = placeholder ?: PosterFallbackDrawable(context, title)
+    
     val requestBuilder = Glide.with(this.context)
         .load(fixedUrl)
         .apply(
             RequestOptions()
-                .placeholder(placeholder ?: PosterFallbackDrawable(context, title))
-                .error(PosterFallbackDrawable(context, title))
+                .placeholder(fallback)
+                .error(fallback)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .centerCrop() // Ensure proper cropping without distortion
                 .dontAnimate() // Disable animation to prevent stretching

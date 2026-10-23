@@ -20,6 +20,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.komputerkit.moview.util.postponeEnterUntilLaidOut
+import com.komputerkit.moview.util.runAfterEnterTransition
 import com.komputerkit.moview.util.loadPoster
 import com.komputerkit.moview.util.loadBackdrop
 import com.komputerkit.moview.R
@@ -81,9 +83,12 @@ class MovieDetailFragment : Fragment() {
         setupRecyclerViews()
         setupClickListeners()
         setupObservers()
-        
-        // Load movie details
-        viewModel.loadMovieDetails(args.movieId)
+
+        postponeEnterUntilLaidOut()
+
+        // Load movie details after the slide finished — the network emit rebinds
+        // ~8 adapters and would otherwise land in the middle of the animation.
+        runAfterEnterTransition { viewModel.loadMovieDetails(args.movieId) }
 
         // Reload when returning from artwork change
         findNavController().currentBackStackEntry?.savedStateHandle

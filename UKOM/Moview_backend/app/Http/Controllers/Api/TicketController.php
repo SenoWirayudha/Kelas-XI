@@ -12,11 +12,45 @@ use Illuminate\Support\Facades\DB;
 
 class TicketController extends Controller
 {
-    private function resolveValidOrderForScan(string $ticketCode): array
+    /** True when the show has already ended (same grace rule as scanning). */
+    private function isOrderShowExpired(Order $order): bool
     {
-        $order = Order::with(['schedule.movie', 'schedule.studio.cinema', 'tickets.seat'])
-            ->where('ticket_code', $ticketCode)
-            ->first();
+        $schedule = $order->schedule;
+        if (!$schedule || empty($schedule->show_date) || empty($schedule->show_time)) {
+            return false;
+        }
+
+        $showDateTime = Carbon::parse(
+            trim(Carbon::parse($schedule->show_date)->format('Y-m-d') . ' ' . $schedule->show_time)
+        );
+
+        return now()->greaterThan($showDateTime->copy()->addHour());
+    }
+
+    /**
+     * Resolves the order behind a scanned QR payload.
+     *
+     * Accepts the opaque `qr_token` (what the app renders) and, for existing
+     * printed tickets, the legacy `ticket_code` (MOV-XXXXXX). A bare numeric id
+     * is deliberately NOT accepted.
+     */
+    private function resolveValidOrderForScan(string $payload, bool $lockForUpdate = false): array
+    {
+        $payload = trim($payload);
+        $isLegacyCode = str_starts_with(strtoupper($payload), 'MOV-');
+
+        $query = Order::with(['schedule.movie', 'schedule.studio.cinema', 'tickets.seat'])
+            ->when(
+                $isLegacyCode,
+                fn ($q) => $q->where('ticket_code', strtoupper($payload)),
+                fn ($q) => $q->where('qr_token', $payload)
+            );
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
+        $order = $query->first();
 
         if (!$order || !$order->schedule) {
             return [
@@ -51,9 +85,7 @@ class TicketController extends Controller
             ];
         }
 
-        $showDateTime = Carbon::parse(trim(Carbon::parse($showDateRaw)->format('Y-m-d') . ' ' . $showTime));
-
-        if (now()->greaterThan($showDateTime->copy()->addHour())) {
+        if ($this->isOrderShowExpired($order)) {
             return [
                 'order' => null,
                 'error' => response()->json([
@@ -200,13 +232,16 @@ class TicketController extends Controller
     }
 
     /**
-     * GET /api/v1/users/{userId}/tickets/{orderId}/qr?ticket_code=MOV-XXXXXX
-     * Returns order-level QR ticket detail (1 QR for 1 order).
+     * GET /api/v1/users/{userId}/tickets/{orderId}/qr?ticket_code=...
+     *
+     * Only the owner can read it (user_id + ticket_code must match). The
+     * response carries the opaque qr_token that is rendered into the QR image,
+     * plus the current usage/expiry state so the app can hide a dead ticket.
      */
     public function qrDetail(Request $request, int $userId, int $orderId)
     {
         $request->validate([
-            'ticket_code' => 'required|string',
+            'ticket_code' => 'nullable|string',
         ]);
 
         $order = Order::with([
@@ -216,7 +251,10 @@ class TicketController extends Controller
         ])
             ->where('id', $orderId)
             ->where('user_id', $userId)
-            ->where('ticket_code', $request->get('ticket_code'))
+            ->when(
+                $request->filled('ticket_code'),
+                fn ($q) => $q->where('ticket_code', $request->get('ticket_code'))
+            )
             ->first();
 
         if (!$order || !$order->schedule || !$order->schedule->movie || !$order->schedule->studio || !$order->schedule->studio->cinema) {
@@ -236,8 +274,12 @@ class TicketController extends Controller
             'data' => [
                 'order_id' => $order->id,
                 'ticket_code' => $order->ticket_code,
+                'qr_token' => $order->ensureQrToken(),
                 'order_status' => $order->status,
                 'is_scanned' => (bool) $order->is_scanned,
+                'is_used' => (bool) $order->is_scanned,
+                'is_expired' => $this->isOrderShowExpired($order),
+                'scanned_at' => optional($order->scanned_at)?->toIso8601String(),
                 'movie' => [
                     'id' => $movie->id,
                     'title' => $movie->title,
@@ -268,15 +310,24 @@ class TicketController extends Controller
 
     /**
      * POST /api/v1/tickets/scan/preview
-     * Body: { ticket_code: "MOV-XXXXXX" }
+     * Body: { qr_code: "<token>" }  (legacy: { ticket_code: "MOV-XXXXXX" })
      */
     public function scanPreview(Request $request)
     {
         $validated = $request->validate([
-            'ticket_code' => 'required|string',
+            'qr_code' => 'nullable|string',
+            'ticket_code' => 'nullable|string',
         ]);
 
-        $resolved = $this->resolveValidOrderForScan($validated['ticket_code']);
+        $payload = $validated['qr_code'] ?? $validated['ticket_code'] ?? '';
+        if (trim((string) $payload) === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kode QR wajib diisi',
+            ], 422);
+        }
+
+        $resolved = $this->resolveValidOrderForScan((string) $payload);
         if ($resolved['error']) {
             return $resolved['error'];
         }
@@ -292,38 +343,61 @@ class TicketController extends Controller
 
     /**
      * POST /api/v1/tickets/scan
-     * Body: { ticket_code: "MOV-XXXXXX" }
+     * Body: { qr_code: "<token>" }  (legacy: { ticket_code: "MOV-XXXXXX" })
+     *
+     * The ticket is claimed atomically: the UPDATE only succeeds while
+     * is_scanned is still false, so two concurrent scans can never both win.
      */
     public function scan(Request $request)
     {
         $validated = $request->validate([
-            'ticket_code' => 'required|string',
+            'qr_code' => 'nullable|string',
+            'ticket_code' => 'nullable|string',
         ]);
 
-        $resolved = $this->resolveValidOrderForScan($validated['ticket_code']);
-        if ($resolved['error']) {
-            return $resolved['error'];
+        $payload = trim((string) ($validated['qr_code'] ?? $validated['ticket_code'] ?? ''));
+        if ($payload === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kode QR wajib diisi',
+            ], 422);
         }
 
-        $order = $resolved['order'];
+        $result = DB::transaction(function () use ($payload) {
+            $resolved = $this->resolveValidOrderForScan($payload, true);
+            if ($resolved['error']) {
+                return $resolved['error'];
+            }
 
-        DB::transaction(function () use ($order) {
-            $order->update([
-                'is_scanned' => true,
-                'scanned_at' => now(),
-            ]);
+            $order = $resolved['order'];
 
-            $order->tickets()->update([
-                'is_used' => true,
-            ]);
+            $claimed = Order::where('id', $order->id)
+                ->where('is_scanned', false)
+                ->update([
+                    'is_scanned' => true,
+                    'scanned_at' => now(),
+                ]);
+
+            if ($claimed !== 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ticket already used',
+                ], 409);
+            }
+
+            $order->tickets()->update(['is_used' => true]);
+
+            return $order->fresh(['schedule.movie', 'schedule.studio.cinema', 'tickets.seat']);
         });
 
-        $freshOrder = $order->fresh(['schedule.movie', 'schedule.studio.cinema', 'tickets.seat']);
+        if ($result instanceof \Illuminate\Http\JsonResponse) {
+            return $result;
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Ticket berhasil dikonfirmasi',
-            'data' => $this->buildScanPayload($freshOrder),
+            'data' => $this->buildScanPayload($result),
         ]);
     }
 

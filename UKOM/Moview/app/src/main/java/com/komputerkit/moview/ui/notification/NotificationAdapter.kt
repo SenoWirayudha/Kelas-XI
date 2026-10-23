@@ -3,6 +3,8 @@ package com.komputerkit.moview.ui.notification
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Notification
@@ -14,16 +16,9 @@ import com.komputerkit.moview.util.loadProfilePhoto
 class NotificationAdapter(
     private val onNotificationClick: (Notification) -> Unit,
     private val onAvatarClick: (Notification) -> Unit = {}
-) : RecyclerView.Adapter<NotificationAdapter.NotificationViewHolder>() {
+) : ListAdapter<Notification, NotificationAdapter.NotificationViewHolder>(DIFF) {
     
 
-    private var notifications: List<Notification> = emptyList()
-    
-    fun submitList(list: List<Notification>) {
-        notifications = list
-        notifyDataSetChanged()
-    }
-    
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NotificationViewHolder {
         val binding = ItemNotificationBinding.inflate(
             LayoutInflater.from(parent.context),
@@ -34,10 +29,8 @@ class NotificationAdapter(
     }
     
     override fun onBindViewHolder(holder: NotificationViewHolder, position: Int) {
-        holder.bind(notifications[position], position)
+        holder.bind(getItem(position), position)
     }
-    
-    override fun getItemCount(): Int = notifications.size
     
     inner class NotificationViewHolder(
         private val binding: ItemNotificationBinding
@@ -45,7 +38,7 @@ class NotificationAdapter(
         
         fun bind(notification: Notification, position: Int) {
             // Show section header if first item or section changed
-            if (position == 0 || notifications[position - 1].section != notification.section) {
+            if (position == 0 || getItem(position - 1).section != notification.section) {
                 binding.sectionHeader.visibility = View.VISIBLE
                 binding.sectionHeader.text = when (notification.section) {
                     NotificationSection.TODAY -> "Today"
@@ -96,6 +89,16 @@ class NotificationAdapter(
             binding.root.setOnClickListener {
                 onNotificationClick(notification)
             }
+        }
+    }
+
+    companion object {
+        private val DIFF = object : DiffUtil.ItemCallback<Notification>() {
+            override fun areItemsTheSame(oldItem: Notification, newItem: Notification) =
+                oldItem.id == newItem.id
+
+            override fun areContentsTheSame(oldItem: Notification, newItem: Notification) =
+                oldItem == newItem
         }
     }
 }

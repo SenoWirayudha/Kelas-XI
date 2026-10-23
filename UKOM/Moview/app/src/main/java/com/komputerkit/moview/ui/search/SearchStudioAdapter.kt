@@ -2,21 +2,16 @@ package com.komputerkit.moview.ui.search
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.databinding.ItemSearchStudioBinding
 
 class SearchStudioAdapter(
     private val onStudioClick: (SearchStudio) -> Unit
-) : RecyclerView.Adapter<SearchStudioAdapter.SearchStudioViewHolder>() {
+) : ListAdapter<SearchStudio, SearchStudioAdapter.SearchStudioViewHolder>(DIFF) {
     
 
-    private var studios: List<SearchStudio> = emptyList()
-    
-    fun submitList(list: List<SearchStudio>) {
-        studios = list
-        notifyDataSetChanged()
-    }
-    
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SearchStudioViewHolder {
         val binding = ItemSearchStudioBinding.inflate(
             LayoutInflater.from(parent.context),
@@ -27,10 +22,8 @@ class SearchStudioAdapter(
     }
     
     override fun onBindViewHolder(holder: SearchStudioViewHolder, position: Int) {
-        holder.bind(studios[position])
+        holder.bind(getItem(position))
     }
-    
-    override fun getItemCount(): Int = studios.size
     
     inner class SearchStudioViewHolder(
         private val binding: ItemSearchStudioBinding
@@ -42,6 +35,16 @@ class SearchStudioAdapter(
             binding.chipStudio.setOnClickListener {
                 onStudioClick(studio)
             }
+        }
+    }
+
+    companion object {
+        private val DIFF = object : DiffUtil.ItemCallback<SearchStudio>() {
+            override fun areItemsTheSame(oldItem: SearchStudio, newItem: SearchStudio) =
+                oldItem.id == newItem.id
+
+            override fun areContentsTheSame(oldItem: SearchStudio, newItem: SearchStudio) =
+                oldItem == newItem
         }
     }
 }

@@ -4,6 +4,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.MarginLayoutParams
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.TheatricalMovie
@@ -22,15 +24,8 @@ class TheatricalMovieAdapter(
     private val onLongPressGoToFilm: ((TheatricalMovie) -> Unit)? = null,
     private val onLogFilm: ((TheatricalMovie) -> Unit)? = null,
     private val onChangePoster: ((TheatricalMovie) -> Unit)? = null
-) : RecyclerView.Adapter<TheatricalMovieAdapter.TheatricalMovieViewHolder>() {
+) : ListAdapter<TheatricalMovie, TheatricalMovieAdapter.TheatricalMovieViewHolder>(DIFF) {
 
-
-    private var movies: List<TheatricalMovie> = emptyList()
-
-    fun submitList(list: List<TheatricalMovie>) {
-        movies = list
-        notifyDataSetChanged()
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TheatricalMovieViewHolder {
         val binding = ItemTheatricalMovieBinding.inflate(
@@ -40,10 +35,8 @@ class TheatricalMovieAdapter(
     }
 
     override fun onBindViewHolder(holder: TheatricalMovieViewHolder, position: Int) {
-        holder.bind(movies[position])
+        holder.bind(getItem(position))
     }
-
-    override fun getItemCount(): Int = movies.size
 
     inner class TheatricalMovieViewHolder(
         private val binding: ItemTheatricalMovieBinding
@@ -169,6 +162,16 @@ class TheatricalMovieAdapter(
                 )
                 true
             }
+        }
+    }
+
+    companion object {
+        private val DIFF = object : DiffUtil.ItemCallback<TheatricalMovie>() {
+            override fun areItemsTheSame(oldItem: TheatricalMovie, newItem: TheatricalMovie) =
+                oldItem.id == newItem.id
+
+            override fun areContentsTheSame(oldItem: TheatricalMovie, newItem: TheatricalMovie) =
+                oldItem == newItem
         }
     }
 }
