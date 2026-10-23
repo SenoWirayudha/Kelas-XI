@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\OrderSeat;
 use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
 
@@ -34,6 +35,10 @@ class PendingOrderCleanupService
             Order::whereIn('id', $staleOrderIds)
                 ->where('status', 'pending')
                 ->update(['status' => 'cancelled']);
+
+            // Release the seats: the unique (schedule_id, seat_id) constraint
+            // must not keep a cancelled order's seats blocked forever.
+            OrderSeat::whereIn('order_id', $staleOrderIds)->delete();
 
             Payment::whereIn('order_id', $staleOrderIds)
                 ->where(function ($query) {

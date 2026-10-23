@@ -15,7 +15,7 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
-        $orders = $this->scopedQuery($request->only(['status', 'search']))
+        $orders = $this->scopedQuery($request->only(['status', 'search', 'channel']))
             ->paginate(25)
             ->withQueryString();
 
@@ -24,7 +24,7 @@ class OrderController extends Controller
 
     public function export(Request $request)
     {
-        $filters = $request->only(['status', 'search']);
+        $filters = $request->only(['status', 'search', 'channel']);
         $cinemaId = $this->isManager() ? $this->scopedCinemaId() : null;
         $filename = 'orders_' . now()->format('Ymd_Hi') . '.csv';
 
@@ -44,7 +44,7 @@ class OrderController extends Controller
                 return ($v !== '' && in_array($v[0], ['=', '+', '-', '@'], true)) ? "'" . $v : $v;
             };
 
-            $write(['Order Code', 'Film', 'Cinema', 'Studio', 'Kursi', 'Tanggal Tayang', 'Total', 'Status', 'Dibuat']);
+            $write(['Order Code', 'Film', 'Cinema', 'Studio', 'Kursi', 'Tanggal Tayang', 'Total', 'Status', 'Channel', 'Staff', 'Dibuat']);
 
             $batchSize = self::$exportBatchSize;
             $lastCreated = null;
@@ -52,7 +52,7 @@ class OrderController extends Controller
 
             while (true) {
                 // Builder bersama dengan list (scope adminList) + kondisi
-                // keyset EKSPLISIT per batch (bukan row-value comparison —
+                // keyset EKSPLISIT per batch (bukan row-value comparison â€”
                 // identik di pgsql dan sqlite).
                 $batch = Order::adminList($filters);
                 if ($cinemaId !== null) {
@@ -89,6 +89,8 @@ class OrderController extends Controller
                         $showDate,
                         $order->total_price !== null ? (float) $order->total_price : '',
                         $order->status,
+                        $order->channel ?? 'online',
+                        $guard((string) ($order->staff?->username ?? '')),
                         $order->created_at !== null
                             ? Carbon::parse($order->created_at)->format('Y-m-d H:i:s')
                             : '',
@@ -101,7 +103,7 @@ class OrderController extends Controller
                 }
 
                 // Cursor: nilai created_at MENTAH dari DB (getRawOriginal,
-                // tanpa cast — presisi mikrodetik tidak hilang) supaya baris
+                // tanpa cast â€” presisi mikrodetik tidak hilang) supaya baris
                 // di batas batch tidak terlewat/dobel.
                 $last = $rows->last();
                 $lastCreated = $last->getRawOriginal('created_at');

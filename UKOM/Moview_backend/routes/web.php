@@ -14,6 +14,8 @@ use App\Http\Controllers\Admin\CinemaController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ManagerAccountController;
 use App\Http\Controllers\Manager\StaffAccountController;
+use App\Http\Controllers\Staff\CashierController;
+use App\Http\Controllers\Staff\TicketPrintController;
 use App\Http\Controllers\Staff\TicketScannerController as StaffTicketScannerController;
 use App\Http\Controllers\Admin\StudioController;
 use App\Http\Controllers\Admin\SeatController;
@@ -230,8 +232,16 @@ Route::prefix('manager')->name('manager.')->middleware(['admin.auth', 'role:mana
 // Staff Routes (own cinema only)
 Route::prefix('staff')->name('staff.')->middleware(['admin.auth', 'role:staff', 'cinema.scope'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'staff'])->name('dashboard');
+
+    // Offline ticket sales (cashier)
+    Route::get('/cashier', [CashierController::class, 'index'])->name('cashier.index');
+    Route::get('/cashier/seats', [CashierController::class, 'seats'])->name('cashier.seats');
+    Route::post('/cashier', [CashierController::class, 'store'])->name('cashier.store');
+
+    // Ticket scanning + printable ticket
     Route::get('/scan-ticket', [StaffTicketScannerController::class, 'index'])->name('tickets.scanner');
     Route::post('/tickets/preview', [StaffTicketScannerController::class, 'preview'])->name('tickets.preview');
     Route::post('/tickets/scan', [StaffTicketScannerController::class, 'scan'])->name('tickets.scan');
+    Route::get('/tickets/{order}/print', [TicketPrintController::class, 'show'])->name('tickets.print');
 });
 

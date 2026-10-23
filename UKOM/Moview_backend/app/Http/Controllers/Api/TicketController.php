@@ -51,13 +51,29 @@ class TicketController extends Controller
         }
 
         $order = $query->first();
+        $ticket = null;
+
+        // Printed tickets carry the per-seat QR code, not the order token.
+        if (!$order) {
+            $ticketQuery = Ticket::where('qr_code', $payload);
+            if ($lockForUpdate) {
+                $ticketQuery->lockForUpdate();
+            }
+
+            $ticket = $ticketQuery->first();
+
+            if ($ticket) {
+                $order = Order::with(['schedule.movie', 'schedule.studio.cinema', 'tickets.seat'])
+                    ->find($ticket->order_id);
+            }
+        }
 
         if (!$order || !$order->schedule) {
             return [
                 'order' => null,
                 'error' => response()->json([
                     'success' => false,
-                    'message' => 'Ticket not found',
+                    'message' => 'Tiket tidak ditemukan.',
                 ], 404),
             ];
         }
@@ -73,12 +89,36 @@ class TicketController extends Controller
             ];
         }
 
-        if ((bool) $order->is_scanned) {
+        // A printed ticket is consumed individually; the order token (app QR)
+        // consumes the whole order.
+        if ($ticket) {
+            if ($ticket->is_used) {
+                $usedAt = $ticket->used_at
+                    ? Carbon::parse($ticket->used_at)->format('d M Y H:i')
+                    : null;
+
+                return [
+                    'order' => null,
+                    'error' => response()->json([
+                        'success' => false,
+                        'message' => $usedAt
+                            ? "Tiket sudah dipakai pada {$usedAt}."
+                            : 'Tiket sudah dipakai.',
+                    ], 409),
+                ];
+            }
+        } elseif ((bool) $order->is_scanned) {
+            $usedAt = $order->scanned_at
+                ? Carbon::parse($order->scanned_at)->format('d M Y H:i')
+                : null;
+
             return [
                 'order' => null,
                 'error' => response()->json([
                     'success' => false,
-                    'message' => 'Ticket already used',
+                    'message' => $usedAt
+                        ? "Tiket sudah dipakai pada {$usedAt}."
+                        : 'Tiket sudah dipakai.',
                 ], 409),
             ];
         }
@@ -91,7 +131,7 @@ class TicketController extends Controller
                 'order' => null,
                 'error' => response()->json([
                     'success' => false,
-                    'message' => 'Invalid show schedule',
+                    'message' => 'Jadwal tayang tiket tidak valid.',
                 ], 422),
             ];
         }
@@ -101,7 +141,7 @@ class TicketController extends Controller
                 'order' => null,
                 'error' => response()->json([
                     'success' => false,
-                    'message' => 'Ticket expired',
+                    'message' => 'Tiket sudah kedaluwarsa (jadwal tayang telah lewat).',
                 ], 422),
             ];
         }
@@ -111,36 +151,58 @@ class TicketController extends Controller
                 'order' => null,
                 'error' => response()->json([
                     'success' => false,
-                    'message' => 'Ticket is not paid yet',
+                    'message' => 'Tiket belum dibayar.',
                 ], 422),
             ];
         }
 
         return [
             'order' => $order,
+            'ticket' => $ticket,
             'error' => null,
         ];
     }
 
-    private function buildScanPayload(Order $order): array
+    /**
+     * Seats consumed by this scan: one printed ticket, otherwise every seat of
+     * the order (app QR token).
+     */
+    private function scannedSeats(Order $order, ?Ticket $ticket = null): array
+    {
+        if ($ticket) {
+            return [$ticket->seat?->seat_code ?? '-'];
+        }
+
+        return $order->tickets
+            ->map(fn ($t) => $t->seat?->seat_code)
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function buildScanPayload(Order $order, ?Ticket $ticket = null): array
     {
         $schedule = $order->schedule;
         $showDateRaw = $schedule?->show_date;
+        $used = $ticket ? (bool) $ticket->is_used : (bool) $order->is_scanned;
+        $usedAt = $ticket ? $ticket->used_at : $order->scanned_at;
 
         return [
             'order_id' => $order->id,
             'ticket_code' => $order->ticket_code,
-            'is_scanned' => (bool) $order->is_scanned,
-            'scanned_at' => optional($order->scanned_at)?->toIso8601String(),
+            'ticket_qr_code' => $ticket?->qr_code,
+            'channel' => $order->channel,
+            'buyer_name' => $order->buyer_name,
+            'staff_name' => $order->staff?->username,
+            'is_scanned' => $used,
+            'scanned_at' => $usedAt ? Carbon::parse($usedAt)->toIso8601String() : null,
+            'is_fully_scanned' => (bool) $order->is_scanned,
             'movie_title' => $schedule?->movie?->title,
             'cinema_name' => $schedule?->studio?->cinema?->cinema_name,
             'studio_name' => $schedule?->studio?->studio_name,
             'show_date' => $showDateRaw ? Carbon::parse($showDateRaw)->format('Y-m-d') : null,
             'show_time' => $schedule?->show_time,
-            'seat_codes' => $order->tickets
-                ->map(fn($ticket) => $ticket->seat?->seat_code)
-                ->filter(fn($seatCode) => !empty($seatCode))
-                ->values(),
+            'seat_codes' => $this->scannedSeats($order, $ticket),
         ];
     }
 
@@ -348,7 +410,7 @@ class TicketController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Tiket valid. Silakan konfirmasi tiket masuk.',
-            'data' => $this->buildScanPayload($order),
+            'data' => $this->buildScanPayload($order, $resolved['ticket'] ?? null),
         ]);
     }
 
@@ -381,6 +443,38 @@ class TicketController extends Controller
             }
 
             $order = $resolved['order'];
+            $ticket = $resolved['ticket'] ?? null;
+
+            if ($ticket) {
+                $claimed = Ticket::where('id', $ticket->id)
+                    ->where('is_used', false)
+                    ->update([
+                        'is_used' => true,
+                        'used_at' => now(),
+                    ]);
+
+                if ($claimed !== 1) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Tiket sudah dipakai.',
+                    ], 409);
+                }
+
+                // Order is only marked scanned when every ticket is used.
+                if (!Ticket::where('order_id', $order->id)->where('is_used', false)->exists()) {
+                    Order::where('id', $order->id)
+                        ->where('is_scanned', false)
+                        ->update([
+                            'is_scanned' => true,
+                            'scanned_at' => now(),
+                        ]);
+                }
+
+                return [
+                    'order'  => $order->fresh(['schedule.movie', 'schedule.studio.cinema', 'tickets.seat', 'staff']),
+                    'ticket' => $ticket->fresh(['seat']),
+                ];
+            }
 
             $claimed = Order::where('id', $order->id)
                 ->where('is_scanned', false)
@@ -392,13 +486,19 @@ class TicketController extends Controller
             if ($claimed !== 1) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ticket already used',
+                    'message' => 'Tiket sudah dipakai.',
                 ], 409);
             }
 
-            $order->tickets()->update(['is_used' => true]);
+            $order->tickets()->update([
+                'is_used' => true,
+                'used_at' => now(),
+            ]);
 
-            return $order->fresh(['schedule.movie', 'schedule.studio.cinema', 'tickets.seat']);
+            return [
+                'order'  => $order->fresh(['schedule.movie', 'schedule.studio.cinema', 'tickets.seat', 'staff']),
+                'ticket' => null,
+            ];
         });
 
         if ($result instanceof \Illuminate\Http\JsonResponse) {
@@ -407,8 +507,8 @@ class TicketController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Ticket berhasil dikonfirmasi',
-            'data' => $this->buildScanPayload($result),
+            'message' => 'Tiket berhasil dikonfirmasi.',
+            'data' => $this->buildScanPayload($result['order'], $result['ticket']),
         ]);
     }
 

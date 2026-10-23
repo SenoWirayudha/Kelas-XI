@@ -23,6 +23,28 @@
         .sidebar-scroll::-webkit-scrollbar {
             display: none;
         }
+
+        /* Print: only the ticket area is printed (no sidebar/header). */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+
+            #ticket-print-area, #ticket-print-area * {
+                visibility: visible;
+            }
+
+            #ticket-print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
     </style>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -65,6 +87,10 @@
                 <a href="{{ route('staff.dashboard') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('staff.dashboard') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-gauge-high mr-3"></i>
                     <span>Dashboard</span>
+                </a>
+                <a href="{{ route('staff.cashier.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('staff.cashier.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-cash-register mr-3"></i>
+                    <span>Kasir</span>
                 </a>
                 <a href="{{ route('staff.tickets.scanner') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('staff.tickets.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-qrcode mr-3"></i>

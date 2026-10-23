@@ -26,6 +26,15 @@
                 <option value="expired"   {{ request('status') === 'expired'   ? 'selected' : '' }}>Expired</option>
             </select>
         </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Channel</label>
+            <select name="channel"
+                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="">Semua</option>
+                <option value="online"  {{ request('channel') === 'online'  ? 'selected' : '' }}>Online</option>
+                <option value="offline" {{ request('channel') === 'offline' ? 'selected' : '' }}>Offline</option>
+            </select>
+        </div>
         <button type="submit"
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition">
             <i class="fas fa-search mr-1"></i> Filter
@@ -34,7 +43,7 @@
            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition">
             <i class="fas fa-file-csv mr-1"></i> Export CSV
         </a>
-        @if(request()->hasAny(['search','status']))
+        @if(request()->hasAny(['search','status','channel']))
             <a href="{{ route($panelPrefix.'.orders.index') }}"
                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition">
                 Reset
@@ -56,6 +65,8 @@
                     <th class="px-4 py-3 text-left font-semibold text-gray-600">Tanggal Tayang</th>
                     <th class="px-4 py-3 text-right font-semibold text-gray-600">Total</th>
                     <th class="px-4 py-3 text-center font-semibold text-gray-600">Status</th>
+                    <th class="px-4 py-3 text-center font-semibold text-gray-600">Channel</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-600">Staff</th>
                     <th class="px-4 py-3 text-left font-semibold text-gray-600">Dibuat</th>
                     <th class="px-4 py-3 text-center font-semibold text-gray-600">Detail</th>
                 </tr>
@@ -98,6 +109,14 @@
                             {{ $order->status }}
                         </span>
                     </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold uppercase {{ $order->channel === 'offline' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700' }}">
+                            {{ $order->channel ?? 'online' }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-gray-600">
+                        {{ $order->staff?->username ?? '-' }}
+                    </td>
                     <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                         {{ $order->created_at ? \Carbon\Carbon::parse($order->created_at)->isoFormat('D MMM Y, HH:mm') : '-' }}
                     </td>
@@ -110,7 +129,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="9" class="px-4 py-10 text-center text-gray-400">
+                    <td colspan="11" class="px-4 py-10 text-center text-gray-400">
                         <i class="fas fa-inbox text-3xl mb-2 block"></i>
                         Tidak ada order ditemukan.
                     </td>

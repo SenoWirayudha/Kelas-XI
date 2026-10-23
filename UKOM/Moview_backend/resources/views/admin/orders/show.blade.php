@@ -55,6 +55,20 @@
                     <dd><span class="px-2 py-0.5 rounded-full text-xs font-semibold uppercase border {{ $statusColor }}">{{ $order->status }}</span></dd>
                 </div>
                 <div class="flex justify-between">
+                    <dt class="text-gray-500">Channel</dt>
+                    <dd class="font-medium text-gray-700 uppercase">{{ $order->channel ?? 'online' }}</dd>
+                </div>
+                @if($order->isOffline())
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Staff Penjual</dt>
+                        <dd class="font-medium text-gray-700">{{ $order->staff?->username ?? '-' }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Nama Pembeli</dt>
+                        <dd class="font-medium text-gray-700">{{ $order->buyer_name ?: 'Walk-in' }}</dd>
+                    </div>
+                @endif
+                <div class="flex justify-between">
                     <dt class="text-gray-500">Total Harga</dt>
                     <dd class="font-bold text-gray-800">Rp {{ number_format($order->total_price, 0, ',', '.') }}</dd>
                 </div>

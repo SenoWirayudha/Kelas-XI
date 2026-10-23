@@ -86,6 +86,13 @@
                                 <i class="fas fa-check mr-1"></i> Konfirmasi Tiket Masuk
                             </button>
                         </template>
+
+                        <button type="button"
+                                x-show="isSuccess && result?.data?.order_id"
+                                @click="printTicket"
+                                class="mt-2 w-full px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-lg transition">
+                            <i class="fas fa-print mr-1"></i> Print Tiket
+                        </button>
                     </div>
                 </div>
             </div>
@@ -113,6 +120,7 @@ function ticketScanner() {
         csrfToken: '{{ csrf_token() }}',
         scanPreviewApiUrl: '{{ route('staff.tickets.preview') }}',
         scanConfirmApiUrl: '{{ route('staff.tickets.scan') }}',
+        printUrlTemplate: '{{ route('staff.tickets.print', ['order' => '__ORDER__']) }}',
 
         init() {},
 
@@ -258,6 +266,15 @@ function ticketScanner() {
             this.isSuccess = success;
             this.result = payload;
             this.animateScannerBorder(success);
+        },
+
+        printTicket() {
+            const orderId = this.result?.data?.order_id;
+            if (!orderId) {
+                return;
+            }
+
+            window.open(this.printUrlTemplate.replace('__ORDER__', orderId), '_blank');
         },
 
         animateScannerBorder(success) {

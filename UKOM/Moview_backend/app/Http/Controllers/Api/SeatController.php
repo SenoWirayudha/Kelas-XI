@@ -31,10 +31,7 @@ class SeatController extends Controller
         $schedule = Schedule::findOrFail($request->schedule_id);
         $studio   = $schedule->studio;
 
-        $bookedSeatIds = OrderSeat::where('schedule_id', $schedule->id)
-            ->whereHas('order', fn($q) => $q->whereIn('status', ['pending', 'paid']))
-            ->pluck('seat_id')
-            ->all();
+        $bookedSeatIds = OrderSeat::occupiedSeatIds($schedule->id);
 
         $rawSeats = Seat::where('studio_id', $schedule->studio_id)
             ->orderBy('position_y')
@@ -100,11 +97,8 @@ class SeatController extends Controller
 
         $schedule = Schedule::findOrFail($request->schedule_id);
 
-        // Seat IDs already taken by active (pending or paid) orders
-        $bookedSeatIds = OrderSeat::where('schedule_id', $schedule->id)
-            ->whereHas('order', fn($q) => $q->whereIn('status', ['pending', 'paid']))
-            ->pluck('seat_id')
-            ->all();
+        // Seat IDs already taken by active (pending or paid) orders.
+        $bookedSeatIds = OrderSeat::occupiedSeatIds($schedule->id);
 
         $seats = Seat::where('studio_id', $schedule->studio_id)
             ->orderBy('position_y')
