@@ -245,6 +245,12 @@ Route::prefix('staff')->name('staff.')->middleware(['admin.auth', 'role:staff', 
     Route::post('/cashier', [CashierController::class, 'store'])->name('cashier.store');
     Route::post('/cashier/status', [CashierController::class, 'status'])->name('cashier.status');
 
+    // Attendance simulation + personal daily stats
+    Route::get('/attendance', [\App\Http\Controllers\Staff\AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('/attendance/check-in', [\App\Http\Controllers\Staff\AttendanceController::class, 'checkIn'])->name('attendance.check-in');
+    Route::post('/attendance/check-out', [\App\Http\Controllers\Staff\AttendanceController::class, 'checkOut'])->name('attendance.check-out');
+    Route::get('/stats', [\App\Http\Controllers\Staff\DailyStatsController::class, 'index'])->name('stats.index');
+
     // Ticket scanning + printable ticket
     Route::get('/scan-ticket', [StaffTicketScannerController::class, 'index'])->name('tickets.scanner');
     Route::post('/tickets/preview', [StaffTicketScannerController::class, 'preview'])->name('tickets.preview');

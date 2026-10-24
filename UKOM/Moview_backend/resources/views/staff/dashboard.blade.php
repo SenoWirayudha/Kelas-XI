@@ -6,6 +6,7 @@
 
 @section('content')
 <div class="mv-dash-fade space-y-6">
+    @include('staff.partials.attendance-warning', ['attendanceToday' => $attendanceToday ?? null])
 
     {{-- Greeting --}}
     <section class="mv-dash-hero rounded-2xl p-6 lg:p-8">

@@ -287,6 +287,14 @@
                     <i class="fas fa-qrcode mr-3"></i>
                     <span>Scan Tiket</span>
                 </a>
+                <a href="{{ route('staff.attendance.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('staff.attendance.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-clipboard-user mr-3"></i>
+                    <span>Absensi</span>
+                </a>
+                <a href="{{ route('staff.stats.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('staff.stats.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-chart-line mr-3"></i>
+                    <span>Statistik Saya</span>
+                </a>
                 @else
                 <a href="{{ route('admin.films.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.films.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-film mr-3"></i>

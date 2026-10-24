@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderSeat;
 use App\Models\Schedule;
 use App\Models\Seat;
+use App\Models\StaffAttendance;
 use App\Services\MidtransService;
 use App\Services\PendingOrderCleanupService;
 use App\Services\TicketOrderService;
@@ -61,10 +62,17 @@ class CashierController extends Controller
             })
             ->values();
 
+        $attendanceToday = StaffAttendance::query()
+            ->where('staff_id', (int) session('admin_user_id'))
+            ->where('cinema_id', $cinemaId)
+            ->whereDate('tanggal', now('Asia/Jakarta')->toDateString())
+            ->first();
+
         return view('staff.cashier.index', [
             'films' => $films,
             'totalFilms' => $films->count(),
             'totalSchedules' => $schedules->count(),
+            'attendanceToday' => $attendanceToday,
         ]);
     }
 

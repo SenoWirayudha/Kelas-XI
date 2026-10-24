@@ -26,6 +26,7 @@
 </style>
 <div class="cashier-screen flex min-h-0 flex-col"
      x-data="cashierFilms(@js($films))">
+    @include('staff.partials.attendance-warning', ['attendanceToday' => $attendanceToday ?? null])
 
     <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div class="min-w-0">

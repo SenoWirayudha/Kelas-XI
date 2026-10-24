@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Schedule;
+use App\Models\StaffAttendance;
 use App\Models\Ticket;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -88,8 +89,15 @@ class DashboardController extends Controller
             ->where('orders.channel', Order::CHANNEL_OFFLINE)
             ->whereBetween('orders.created_at', [$today, $tomorrow]);
 
+        $attendanceToday = StaffAttendance::query()
+            ->where('staff_id', $staffId)
+            ->where('cinema_id', $cinemaId)
+            ->whereDate('tanggal', $today->toDateString())
+            ->first();
+
         return view('staff.dashboard', [
             'cinemaName' => session('admin_cinema_name'),
+            'attendanceToday' => $attendanceToday,
             'greeting' => $this->greeting(),
             'today' => $today,
             'ticketsSoldToday' => (int) $this->paidTicketsInCinema($cinemaId)
