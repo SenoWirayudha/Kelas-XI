@@ -1030,5 +1030,76 @@
         });
     })();
     </script>
+
+    <script>
+    (function () {
+        const scrollPrefix = 'moview_scroll_';
+        const flashPrefix = 'moview_flash_';
+
+        window.moviewPageState = {
+            saveScroll(key) {
+                try {
+                    const main = document.querySelector('main');
+                    sessionStorage.setItem(scrollPrefix + key, JSON.stringify({
+                        y: main ? main.scrollTop : (window.scrollY || window.pageYOffset || 0),
+                        at: Date.now(),
+                    }));
+                } catch (_) {}
+            },
+
+            restoreScroll(key) {
+                let saved = null;
+
+                try {
+                    saved = JSON.parse(sessionStorage.getItem(scrollPrefix + key) || 'null');
+                    sessionStorage.removeItem(scrollPrefix + key);
+                } catch (_) {}
+
+                if (!saved || Date.now() - saved.at > 120000) return;
+
+                if ('scrollRestoration' in history) {
+                    history.scrollRestoration = 'manual';
+                }
+
+                const apply = () => requestAnimationFrame(() => {
+                    const main = document.querySelector('main');
+
+                    if (main) {
+                        main.scrollTop = saved.y;
+                    } else {
+                        window.scrollTo(0, saved.y);
+                    }
+                });
+
+                if (document.readyState === 'complete') {
+                    apply();
+                } else {
+                    window.addEventListener('load', apply, { once: true });
+                }
+            },
+
+            flash(key, message, type = 'success') {
+                try {
+                    sessionStorage.setItem(flashPrefix + key, JSON.stringify({ message, type, at: Date.now() }));
+                } catch (_) {}
+            },
+
+            consumeFlash(key) {
+                try {
+                    const raw = sessionStorage.getItem(flashPrefix + key);
+                    sessionStorage.removeItem(flashPrefix + key);
+                    if (!raw) return null;
+
+                    const data = JSON.parse(raw);
+                    if (Date.now() - data.at > 120000) return null;
+
+                    return data;
+                } catch (_) {
+                    return null;
+                }
+            },
+        };
+    })();
+    </script>
 </body>
 </html>

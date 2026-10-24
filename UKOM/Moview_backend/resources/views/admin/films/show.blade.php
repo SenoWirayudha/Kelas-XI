@@ -367,6 +367,7 @@
             <div class="border-t border-gray-200 mb-6"></div>
             
             <!-- Media Options Section -->
+            <div id="media-status" class="mb-4 hidden rounded-lg border px-4 py-3 text-sm" role="status"></div>
             <div x-data="mediaManager()">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-xl font-bold text-gray-800">Media Options</h3>
@@ -1955,12 +1956,15 @@ document.addEventListener('alpine:init', () => {
                 const data = await response.json();
                 
                 if (data.success) {
-                    window.showToastAfterReload(data.message);
+                    window.moviewPageState?.saveScroll('film-media');
+                    window.moviewPageState?.flash('film-media', data.message, 'success');
                     location.reload(); // Reload to show new media
                 } else {
+                    showMediaStatus('Upload gagal: ' + (data.message || 'Terjadi kesalahan.'), 'error');
                     window.showToast('Error: ' + (data.message || 'Upload gagal'), 'error');
                 }
             } catch (error) {
+                showMediaStatus('Upload gagal: ' + error.message, 'error');
                 window.showToast('Error uploading file: ' + error.message, 'error');
             }
             
@@ -1984,12 +1988,15 @@ function setMediaDefault(movieId, mediaId) {
             const data = await response.json();
             
             if (data.success) {
-                window.showToastAfterReload(data.message);
+                window.moviewPageState?.saveScroll('film-media');
+                window.moviewPageState?.flash('film-media', data.message, 'success');
                 location.reload();
             } else {
+                showMediaStatus('Gagal mengubah media default: ' + data.message, 'error');
                 window.showToast('Error: ' + data.message, 'error');
             }
         } catch (error) {
+            showMediaStatus('Gagal mengubah media default: ' + error.message, 'error');
             window.showToast('Error: ' + error.message, 'error');
         }
     }, { danger: false, confirmText: 'Ya, Set Default' });
@@ -2010,16 +2017,45 @@ function deleteMedia(movieId, mediaId) {
             const data = await response.json();
             
             if (data.success) {
-                window.showToastAfterReload(data.message);
+                window.moviewPageState?.saveScroll('film-media');
+                window.moviewPageState?.flash('film-media', data.message, 'success');
                 location.reload();
             } else {
+                showMediaStatus('Gagal menghapus media: ' + data.message, 'error');
                 window.showToast('Error: ' + data.message, 'error');
             }
         } catch (error) {
+            showMediaStatus('Gagal menghapus media: ' + error.message, 'error');
             window.showToast('Error: ' + error.message, 'error');
         }
     });
 }
+
+function showMediaStatus(message, type = 'success') {
+    const el = document.getElementById('media-status');
+    if (!el) return;
+
+    el.textContent = message;
+    el.className = 'mb-4 rounded-lg border px-4 py-3 text-sm ' + (
+        type === 'error'
+            ? 'border-red-400/40 bg-red-100 text-red-800'
+            : 'border-green-400/40 bg-green-100 text-green-800'
+    );
+
+    window.clearTimeout(window.__mediaStatusTimer);
+    window.__mediaStatusTimer = window.setTimeout(() => {
+        el.classList.add('hidden');
+    }, 8000);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    window.moviewPageState?.restoreScroll('film-media');
+
+    const flash = window.moviewPageState?.consumeFlash('film-media');
+    if (flash && flash.message) {
+        showMediaStatus(flash.message, flash.type || 'success');
+    }
+});
 
 // Hero title auto-shrink: ukuran font hero diukur beneran vs container, bukan cuma clamp vw.
 // Jika scrollHeight > 2 baris atau keluar dari hero (h-96), kecilkan step 1px sampai muat, min 28px.
