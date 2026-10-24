@@ -37,7 +37,7 @@
                     <option value="">-- Pilih Film --</option>
                     @foreach($movies as $movie)
                         <option value="{{ $movie->id }}" {{ old('movie_id', $schedule->movie_id) == $movie->id ? 'selected' : '' }}>
-                            {{ $movie->title }}{{ $movie->release_date ? ' â€” Rilis: ' . \Carbon\Carbon::parse($movie->release_date)->translatedFormat('d M Y') : '' }}
+                            {{ $movie->title }}{{ $movie->release_date ? ' — Rilis: ' . \Carbon\Carbon::parse($movie->release_date)->translatedFormat('d M Y') : '' }}
                         </option>
                     @endforeach
                 </select>
@@ -52,7 +52,7 @@
                     <option value="">-- Pilih Bioskop --</option>
                     @foreach($cinemas as $cinema)
                         <option value="{{ $cinema->id }}" {{ old('cinema_id', $schedule->studio->cinema_id ?? '') == $cinema->id ? 'selected' : '' }}>
-                            {{ $cinema->cinema_name }}{{ $cinema->city ? ' â€” ' . $cinema->city : '' }}
+                            {{ $cinema->cinema_name }}{{ $cinema->city ? ' — ' . $cinema->city : '' }}
                         </option>
                     @endforeach
                 </select>
@@ -65,7 +65,7 @@
                     <option value="">-- Pilih Studio --</option>
                     @foreach($studios as $studio)
                         <option value="{{ $studio->id }}" {{ old('studio_id', $schedule->studio_id) == $studio->id ? 'selected' : '' }}>
-                            {{ $studio->cinema->cinema_name ?? '' }} â€” {{ $studio->studio_name }} ({{ $studio->total_seats }} kursi)
+                            {{ $studio->cinema->cinema_name ?? '' }} — {{ $studio->studio_name }} ({{ $studio->total_seats }} kursi)
                         </option>
                     @endforeach
                 </select>

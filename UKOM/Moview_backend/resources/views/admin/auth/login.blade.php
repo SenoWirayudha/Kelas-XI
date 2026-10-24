@@ -39,7 +39,9 @@
             @endif
 
             <!-- Login Form -->
-            <form action="{{ route('admin.login.post') }}" method="POST">
+            <form action="{{ route('admin.login.post') }}" method="POST"
+                  x-data="{ submitting: false }"
+                  @submit="submitting = true">
                 @csrf
                 
                 <!-- Email Field -->
@@ -103,10 +105,17 @@
                 <!-- Login Button -->
                 <button 
                     type="submit"
-                    class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                    :disabled="submitting"
+                    class="inline-flex w-full items-center justify-center bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
                 >
-                    <i class="fas fa-sign-in-alt mr-2"></i>
-                    Masuk
+                    <span x-show="!submitting" class="inline-flex items-center">
+                        <i class="fas fa-sign-in-alt mr-2"></i>
+                        Masuk
+                    </span>
+                    <span x-show="submitting" x-cloak class="inline-flex items-center">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>
+                        Memproses...
+                    </span>
                 </button>
             </form>
 

@@ -326,7 +326,7 @@
 
 <!-- Films Table View -->
 <div class="overflow-x-auto rounded-lg bg-white shadow">
-    <table class="min-w-[1000px] table-fixed divide-y divide-gray-200">
+    <table class="mv-table min-w-[1000px] table-fixed divide-y divide-gray-200">
         <thead class="bg-gray-50">
             <tr>
                 <th style="width:28%" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Film</th>

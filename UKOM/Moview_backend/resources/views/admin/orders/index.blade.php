@@ -133,7 +133,7 @@
 
     {{-- Table --}}
     <div class="hidden overflow-x-auto rounded-xl bg-white shadow md:block">
-        <table class="min-w-[1100px] divide-y divide-gray-200 text-sm">
+        <table class="mv-table min-w-[1100px] divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-3 text-left font-semibold text-gray-600">Order Code</th>

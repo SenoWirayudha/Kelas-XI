@@ -24,7 +24,7 @@
                 @endif
                 @foreach($cinemas as $cinema)
                     <option value="{{ $cinema->id }}" {{ request('cinema_id') == $cinema->id ? 'selected' : '' }}>
-                        {{ $cinema->cinema_name }}{{ $cinema->city ? ' â€” ' . $cinema->city : '' }}
+                        {{ $cinema->cinema_name }}{{ $cinema->city ? ' — ' . $cinema->city : '' }}
                     </option>
                 @endforeach
             </select>
@@ -48,7 +48,7 @@
     <p class="text-sm text-gray-500 mb-3">Total: <strong>{{ $studios->total() }}</strong> studio</p>
 
     <div class="overflow-x-auto rounded-xl bg-white shadow">
-        <table class="min-w-[760px] divide-y divide-gray-200 text-sm">
+        <table class="mv-table min-w-[760px] divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-3 text-left font-semibold text-gray-600">#</th>
@@ -64,7 +64,7 @@
                 @forelse($studios as $studio)
                 <tr class="hover:bg-gray-50 transition">
                     <td class="px-4 py-3 text-gray-400">{{ $loop->iteration + ($studios->currentPage() - 1) * $studios->perPage() }}</td>
-                    <td class="px-4 py-3 text-gray-700">{{ $studio->cinema->cinema_name ?? 'â€”' }}</td>
+                    <td class="px-4 py-3 text-gray-700">{{ $studio->cinema->cinema_name ?? '—' }}</td>
                     <td class="px-4 py-3 font-medium text-gray-800">{{ $studio->studio_name }}</td>
                     <td class="px-4 py-3">
                         <span class="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-semibold">

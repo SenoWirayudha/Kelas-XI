@@ -25,7 +25,7 @@
 
     {{-- Table --}}
     <div class="overflow-x-auto rounded-xl bg-white shadow">
-        <table class="min-w-[980px] divide-y divide-gray-200 text-sm">
+        <table class="mv-table min-w-[980px] divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-3 text-left font-semibold text-gray-600">#</th>

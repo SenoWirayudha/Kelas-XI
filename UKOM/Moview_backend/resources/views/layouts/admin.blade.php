@@ -345,15 +345,13 @@
             </nav>
 
             <div class="flex-shrink-0 p-6 border-t border-gray-800">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                            <span class="font-bold">{{ strtoupper(substr(session('admin_user_name', 'A'), 0, 1)) }}</span>
-                        </div>
-                        <div class="ml-3">
-                            <p class="font-medium">{{ session('admin_user_name', 'Admin User') }}</p>
-                            <p class="text-sm text-gray-400">{{ session('admin_user_email', 'admin@moview.com') }}</p>
-                        </div>
+                <div class="flex min-w-0 items-center">
+                    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-500">
+                        <span class="font-bold">{{ strtoupper(substr(session('admin_user_name', 'A'), 0, 1)) }}</span>
+                    </div>
+                    <div class="ml-3 min-w-0 flex-1">
+                        <p class="truncate font-medium" title="{{ session('admin_user_name', 'Admin User') }}">{{ session('admin_user_name', 'Admin User') }}</p>
+                        <p class="truncate text-sm text-gray-400" title="{{ session('admin_user_email', 'admin@moview.com') }}">{{ session('admin_user_email', 'admin@moview.com') }}</p>
                     </div>
                 </div>
                 <form action="{{ route('admin.logout') }}" method="POST" class="mt-4">

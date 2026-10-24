@@ -217,7 +217,7 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-700/60 text-sm">
+                <table class="mv-table min-w-full divide-y divide-gray-700/60 text-sm">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-5 py-3 text-left font-semibold text-gray-500">Jam</th>

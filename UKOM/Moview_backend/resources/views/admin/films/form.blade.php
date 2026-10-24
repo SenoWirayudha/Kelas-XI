@@ -561,7 +561,7 @@
                                     </div>
 
                                     <div class="overflow-x-auto border border-gray-200 rounded-lg">
-                                        <table class="min-w-full divide-y divide-gray-200">
+                                        <table class="mv-table min-w-full divide-y divide-gray-200">
                                             <thead class="bg-gray-50">
                                                 <tr>
                                                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Tipe</th>

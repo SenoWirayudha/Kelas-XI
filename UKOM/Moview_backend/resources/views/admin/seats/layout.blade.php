@@ -1,8 +1,8 @@
 @extends('layouts.admin')
 
-@section('title', 'Layout Kursi â€” ' . $studio->studio_name)
+@section('title', 'Layout Kursi — ' . $studio->studio_name)
 @section('page-title', 'Layout Kursi')
-@section('page-subtitle', $studio->cinema->cinema_name . ' â€º ' . $studio->studio_name)
+@section('page-subtitle', $studio->cinema->cinema_name . ' › ' . $studio->studio_name)
 
 @section('content')
 <div class="p-0 sm:p-6">
@@ -40,12 +40,12 @@
             <div class="bg-white rounded-xl shadow p-5">
                 <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
                     <i class="fas fa-th text-blue-500"></i> Visual Grid Builder
-                    <span class="text-xs text-gray-400 font-normal" x-text="`${seatCount()} kursi Â· ${grid.length} baris`"></span>
+                    <span class="text-xs text-gray-400 font-normal" x-text="`${seatCount()} kursi · ${grid.length} baris`"></span>
                 </h3>
 
                 <p class="text-xs text-gray-500 mb-4 leading-relaxed">
                     Tekan &amp; seret di preview untuk melukis banyak sel sekaligus (dari atas ke bawah).
-                    Klik sel untuk toggle tipe kursi. Tipe berpasangan dilukis dengan 2+ sel berdekatan â€”
+                    Klik sel untuk toggle tipe kursi. Tipe berpasangan dilukis dengan 2+ sel berdekatan —
                     sel berdekatan otomatis menjadi satu grup. Klik ganda = kosongkan sel.
                 </p>
 
@@ -138,13 +138,13 @@
                                         <span x-text="d.purchase_mode === 'paired' ? 'Berpasangan' : 'Individual'"></span>
                                     </template>
                                     <template x-if="d.purchase_mode && d.price_multiplier !== null">
-                                        <span x-text="' Â· Ã— ' + d.price_multiplier"></span>
+                                        <span x-text="' · × ' + d.price_multiplier"></span>
                                     </template>
                                     <template x-if="!d.purchase_mode">
                                         <span>Bukan kursi</span>
                                     </template>
                                     <template x-if="isBuiltin(d)">
-                                        <span class="text-gray-400"> Â· builtin</span>
+                                        <span class="text-gray-400"> · builtin</span>
                                     </template>
                                 </div>
                             </div>
@@ -206,7 +206,7 @@
                         <template x-if="!editingKey || !isBuiltin(defList.find(d => d.key === editingKey))">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Multiplier Harga <span class="text-xs text-gray-400 font-normal">(Ã— harga tiket)</span>
+                                    Multiplier Harga <span class="text-xs text-gray-400 font-normal">(× harga tiket)</span>
                                 </label>
                                 <input type="number" step="0.1" min="0" max="20" x-model.number="form.price_multiplier"
                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
@@ -251,7 +251,7 @@
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">
                             Jumlah Baris <span class="text-red-500">*</span>
-                            <span class="text-xs text-gray-400 font-normal">(Aâ€“Z, maks 26)</span>
+                            <span class="text-xs text-gray-400 font-normal">(A–Z, maks 26)</span>
                         </label>
                         <input type="number" name="rows_count" required min="1" max="26"
                                value="{{ old('rows_count', $rows->count() ?: 8) }}"
@@ -270,13 +270,13 @@
 
                     <div class="mb-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Lorong 1 â€” Setelah Kursi ke-
+                            Lorong 1 — Setelah Kursi ke-
                             <span class="text-xs text-gray-400 font-normal">(0 = tidak ada)</span>
                         </label>
                         <input type="number" name="aisle_after_1" min="0" max="49"
                                value="{{ old('aisle_after_1', $aisles[0] ?? 0) }}"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        <p class="text-xs text-gray-400 mt-1">Contoh: 8 â†’ lorong antara kursi 8 dan 9</p>
+                        <p class="text-xs text-gray-400 mt-1">Contoh: 8 → lorong antara kursi 8 dan 9</p>
                     </div>
 
                     <div class="mb-4">
@@ -289,7 +289,7 @@
 
                     <div class="mb-5" x-show="dblAisle" x-cloak>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Lorong 2 â€” Setelah Kursi ke-
+                            Lorong 2 — Setelah Kursi ke-
                         </label>
                         <input type="number" name="aisle_after_2" min="1" max="49"
                                value="{{ old('aisle_after_2', $aisles[1] ?? 0) }}"
@@ -375,7 +375,7 @@
                     @endif
                     <div class="flex justify-between">
                         <dt class="text-gray-500">Baris</dt>
-                        <dd class="font-semibold">{{ $rows->keys()->first() }} â€“ {{ $rows->keys()->last() }}</dd>
+                        <dd class="font-semibold">{{ $rows->keys()->first() }} – {{ $rows->keys()->last() }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-gray-500">Lorong</dt>
@@ -412,7 +412,7 @@
 
                 {{-- Screen indicator --}}
                 <div class="mb-4 mx-auto w-3/4 py-2 bg-gray-800 text-white text-center text-xs rounded-lg tracking-widest uppercase">
-                    â–¬â–¬â–¬ LAYAR / SCREEN â–¬â–¬â–¬
+                    <i class="fas fa-caret-left"></i><i class="fas fa-caret-left"></i><i class="fas fa-caret-left"></i> LAYAR / SCREEN <i class="fas fa-caret-right"></i><i class="fas fa-caret-right"></i><i class="fas fa-caret-right"></i>
                 </div>
 
                 {{-- Legend (dynamic from seat type definitions) --}}
@@ -426,7 +426,7 @@
                         </span>
                     </template>
                     <span class="flex items-center gap-1">
-                        <span class="inline-block w-6 h-6 border border-dashed border-gray-300 rounded text-gray-300 text-center leading-6">â‰¡</span> Kosong
+                        <span class="inline-block w-6 h-6 border border-dashed border-gray-300 rounded text-gray-300 text-center leading-6">≡</span> Kosong
                     </span>
                 </div>
 
@@ -452,7 +452,7 @@
 
                 <p class="text-xs text-gray-400 mt-4">
                     <i class="fas fa-mouse-pointer mr-1"></i>
-                    Tekan &amp; seret = lukis area Â· Klik = lukis 1 sel Â· Shift+klik = lukis rentang dari sel terakhir Â· Klik ganda = hapus sel Â·
+                    Tekan &amp; seret = lukis area · Klik = lukis 1 sel · Shift+klik = lukis rentang dari sel terakhir · Klik ganda = hapus sel ·
                     Nomor kursi dihitung otomatis (melewati lorong, pola CGV).
                 </p>
             </div>
@@ -635,7 +635,7 @@
                 const cell = this.grid[ri].cells[ci];
                 const def = this.defs[this.tool];
                 if (def && def.purchase_mode === 'paired') {
-                    // Join an adjacent cell of the same type (if any) â†’ same group.
+                    // Join an adjacent cell of the same type (if any) → same group.
                     const row = this.grid[ri].cells;
                     const left = ci > 0 ? row[ci - 1] : null;
                     const right = ci < row.length - 1 ? row[ci + 1] : null;
@@ -713,8 +713,8 @@
             },
             cellText(cell, rowLabel, ci, rowCells) {
                 if (cell.type === 'empty') return '';
-                if (cell.type === 'aisle') return 'â‰¡';
-                if (cell.type === 'entrance') return 'ðŸšª';
+                if (cell.type === 'aisle') return '≡';
+                if (cell.type === 'entrance') return '↳';
                 if (cell.type === 'unavailable') return 'X' + this.cellNumber(rowCells, ci);
                 return rowLabel + this.cellNumber(rowCells, ci);
             },
@@ -722,7 +722,7 @@
                 const def = this.defs[cell.type];
                 let label = def ? def.label : (cell.type === 'empty' ? 'Kosong' : cell.type);
                 if (cell.group) label += ' (grup ' + cell.group + ')';
-                return `${rowLabel} Â· ${label}`;
+                return `${rowLabel} · ${label}`;
             },
             cellBaseClass(cell) {
                 return cell.type === 'empty'
@@ -740,8 +740,8 @@
                 };
             },
             swatchText(d) {
-                if (d.key === 'aisle') return 'â‰¡';
-                if (d.key === 'entrance') return 'ðŸšª';
+                if (d.key === 'aisle') return '≡';
+                if (d.key === 'entrance') return '↳';
                 if (d.key === 'unavailable') return 'X';
                 if (d.label) return d.label.charAt(0).toUpperCase();
                 return d.key.charAt(0).toUpperCase();

@@ -52,7 +52,7 @@ class OrderController extends Controller
 
             while (true) {
                 // Builder bersama dengan list (scope adminList) + kondisi
-                // keyset EKSPLISIT per batch (bukan row-value comparison â€”
+                // keyset EKSPLISIT per batch (bukan row-value comparison —
                 // identik di pgsql dan sqlite).
                 $batch = Order::adminList($filters);
                 if ($cinemaId !== null) {
@@ -103,7 +103,7 @@ class OrderController extends Controller
                 }
 
                 // Cursor: nilai created_at MENTAH dari DB (getRawOriginal,
-                // tanpa cast â€” presisi mikrodetik tidak hilang) supaya baris
+                // tanpa cast — presisi mikrodetik tidak hilang) supaya baris
                 // di batas batch tidak terlewat/dobel.
                 $last = $rows->last();
                 $lastCreated = $last->getRawOriginal('created_at');

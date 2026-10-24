@@ -15,7 +15,7 @@
 </div>
 
 <div class="overflow-x-auto rounded-lg bg-white shadow">
-    <table class="min-w-[640px] w-full text-left">
+    <table class="mv-table min-w-[640px] w-full text-left">
         <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
             <tr>
                 <th class="px-6 py-3">Nama</th>

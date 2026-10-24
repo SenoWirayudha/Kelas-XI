@@ -37,7 +37,7 @@
                     <option value="">-- Pilih Bioskop --</option>
                     @foreach($cinemas as $cinema)
                         <option value="{{ $cinema->id }}" {{ old('cinema_id', $studio->cinema_id) == $cinema->id ? 'selected' : '' }}>
-                            {{ $cinema->cinema_name }}{{ $cinema->city ? ' â€” ' . $cinema->city : '' }}
+                            {{ $cinema->cinema_name }}{{ $cinema->city ? ' — ' . $cinema->city : '' }}
                         </option>
                     @endforeach
                 </select>

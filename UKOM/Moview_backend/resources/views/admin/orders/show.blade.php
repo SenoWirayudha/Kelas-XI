@@ -128,7 +128,7 @@
             <div class="flex flex-wrap gap-2">
                 @foreach($order->orderSeats as $os)
                     <span class="px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm font-medium">
-                        {{ $os->seat?->seat_code ?? 'â€”' }}
+                        {{ $os->seat?->seat_code ?? '—' }}
                     </span>
                 @endforeach
             </div>

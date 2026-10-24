@@ -827,3 +827,28 @@
 @media (max-width: 640px) {
     .mv-dash-chart { height: 185px; }
 }
+
+/* Shared admin data table: fills its container, consistent cell metrics. */
+.mv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+.mv-table thead th {
+    padding: 0.75rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.mv-table tbody td {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+}
+
+.mv-table tbody tr {
+    height: 3.25rem;
+}
