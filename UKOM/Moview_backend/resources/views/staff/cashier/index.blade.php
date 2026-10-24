@@ -4,20 +4,26 @@
 @section('page-title', 'Kasir Tiket')
 @section('page-subtitle', 'Pilih film lalu jam tayang hari ini')
 
+@section('header-actions')
+<button type="button"
+        onclick="window.moviewCashierWide?.toggle()"
+        class="inline-flex min-h-[40px] items-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+        aria-label="Layar Penuh">
+    <i class="fas fa-expand sm:mr-2"></i>
+    <span class="hidden sm:inline">Layar Penuh</span>
+</button>
+@endsection
+
 @section('content')
 <style>
-    .cashier-screen { height: calc(100vh - 11rem); }
-    @media (max-width: 767px) {
-        body.moview-theme aside { display: none; }
-        body.moview-theme main { padding: 0.75rem; }
-        .cashier-screen { height: calc(100vh - 7rem); }
-    }
+    .cashier-screen { height: 100%; }
+    html.cashier-fullscreen .cashier-screen { padding: 0.75rem; }
 </style>
-<div class="cashier-screen flex flex-col overflow-hidden"
+<div class="cashier-screen flex min-h-0 flex-col"
      x-data="cashierFilms(@js($films))">
 
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
+    <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div class="min-w-0">
             <p class="text-sm text-gray-400">
                 <span class="font-semibold text-white">{{ number_format($totalFilms, 0, ',', '.') }}</span> film
                 <span class="mx-1">•</span>
@@ -37,7 +43,7 @@
             <p class="mt-1 text-xs text-gray-500">Jadwal yang sudah melewati batas penjualan kasir otomatis disembunyikan.</p>
         </div>
     @else
-        <div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-4 overflow-hidden sm:grid-cols-2 lg:grid-cols-3">
+        <div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-3 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 lg:overflow-hidden">
             <template x-for="film in pagedFilms" :key="film.id">
                 <article class="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-700/60 bg-white shadow-lg">
                     <div class="flex gap-3 border-b border-gray-700/50 p-3">
@@ -83,12 +89,12 @@
         <div x-show="totalPages > 1" class="mt-3 flex items-center justify-between gap-3">
             <button type="button" @click="prev()"
                     :disabled="!hasPrev"
-                    class="inline-flex items-center rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 transition disabled:pointer-events-none disabled:opacity-40 hover:bg-gray-800">
+                    class="inline-flex min-h-[40px] items-center rounded-lg border border-gray-700 px-3 py-2 text-xs font-medium text-gray-300 transition disabled:pointer-events-none disabled:opacity-40 hover:bg-gray-800">
                 <i class="fas fa-chevron-left mr-1"></i> Sebelumnya
             </button>
             <button type="button" @click="next()"
                     :disabled="!hasNext"
-                    class="inline-flex items-center rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 transition disabled:pointer-events-none disabled:opacity-40 hover:bg-gray-800">
+                    class="inline-flex min-h-[40px] items-center rounded-lg border border-gray-700 px-3 py-2 text-xs font-medium text-gray-300 transition disabled:pointer-events-none disabled:opacity-40 hover:bg-gray-800">
                 Berikutnya <i class="fas fa-chevron-right ml-1"></i>
             </button>
         </div>

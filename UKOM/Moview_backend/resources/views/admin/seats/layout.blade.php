@@ -5,7 +5,7 @@
 @section('page-subtitle', $studio->cinema->cinema_name . ' â€º ' . $studio->studio_name)
 
 @section('content')
-<div class="p-6">
+<div class="p-0 sm:p-6">
 
     {{-- Alerts --}}
     @if(session('success'))
@@ -394,7 +394,7 @@
                     @method('DELETE')
                     <button type="submit"
                             onclick="return requireConfirm(event, 'Hapus semua kursi studio ini? Kursi yang sudah dipesan tidak akan terhapus.', { form: this.closest('form') })"
-                            class="w-full py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium rounded-lg transition flex items-center justify-center gap-2">
+                            class="flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg bg-red-100 py-2 text-sm font-medium text-red-700 transition hover:bg-red-200">
                         <i class="fas fa-trash"></i> Hapus Semua Kursi
                     </button>
                 </form>

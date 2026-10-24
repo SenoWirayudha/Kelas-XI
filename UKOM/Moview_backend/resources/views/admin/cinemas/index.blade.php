@@ -5,7 +5,7 @@
 @section('page-subtitle', 'Kelola data bioskop dan lokasinya')
 
 @section('content')
-<div class="p-6">
+<div class="p-0 sm:p-6">
 
     @if(session('success'))
         <div class="mb-4 px-4 py-3 bg-green-100 border border-green-400 text-green-800 rounded-lg flex items-center gap-2">
@@ -13,18 +13,18 @@
         </div>
     @endif
 
-    <div class="flex items-center justify-between mb-6">
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-sm text-gray-500">Total: <strong>{{ $cinemas->total() }}</strong> bioskop</p>
         @if(session('admin_role') === 'admin')
         <a href="{{ route($panelPrefix.'.cinemas.create') }}"
-           class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
+           class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
             <i class="fas fa-plus mr-2"></i> Tambah Bioskop
         </a>
         @endif
     </div>
 
-    <div class="bg-white rounded-xl shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
+    <div class="overflow-x-auto rounded-xl bg-white shadow">
+        <table class="min-w-[760px] divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-3 text-left font-semibold text-gray-600">#</th>
@@ -60,10 +60,12 @@
                     </td>
                     <td class="px-4 py-3 text-center">
                         <div class="flex items-center justify-center gap-2">
+                            @if(Route::has($panelPrefix.'.cinemas.edit'))
                             <a href="{{ route($panelPrefix.'.cinemas.edit', $cinema->id) }}"
                                class="inline-flex items-center px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-xs font-medium transition">
                                 <i class="fas fa-pen mr-1"></i> Edit
                             </a>
+                            @endif
                             @if(session('admin_role') === 'admin')
                             <form action="{{ route('admin.cinemas.destroy', $cinema->id) }}" method="POST"
                                   onsubmit="return requireConfirm(event, 'Hapus bioskop {{ addslashes($cinema->cinema_name) }}? Semua studio dan jadwal terkait akan ikut terhapus.', { form: this })">

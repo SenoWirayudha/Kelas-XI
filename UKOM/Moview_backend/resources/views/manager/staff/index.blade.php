@@ -5,17 +5,17 @@
 @section('page-subtitle', session('admin_cinema_name', '-'))
 
 @section('content')
-<div class="mb-6 flex items-center justify-between">
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <p class="text-gray-600">Total staff: <span class="font-semibold">{{ $staff->total() }}</span></p>
     <a href="{{ route('manager.staff.create') }}"
-       class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+       class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700">
         <i class="fas fa-plus mr-2"></i>
         Tambah Staff
     </a>
 </div>
 
-<div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="w-full text-left">
+<div class="overflow-x-auto rounded-lg bg-white shadow">
+    <table class="min-w-[640px] w-full text-left">
         <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
             <tr>
                 <th class="px-6 py-3">Nama</th>

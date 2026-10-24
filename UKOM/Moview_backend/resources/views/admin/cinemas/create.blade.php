@@ -5,7 +5,7 @@
 @section('page-subtitle', 'Daftarkan bioskop baru ke sistem')
 
 @section('content')
-<div class="p-6 max-w-xl">
+<div class="max-w-xl p-0 sm:p-6">
 
     <div class="mb-4">
         <a href="{{ route($panelPrefix.'.cinemas.index') }}"
@@ -77,13 +77,13 @@
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-3">
                 <button type="submit"
-                        class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
+                        class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
                     <i class="fas fa-save mr-2"></i> Simpan Bioskop
                 </button>
                 <a href="{{ route($panelPrefix.'.cinemas.index') }}"
-                   class="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
+                   class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-gray-100 px-6 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-200">
                     Batal
                 </a>
             </div>

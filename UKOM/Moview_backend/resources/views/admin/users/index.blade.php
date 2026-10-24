@@ -59,7 +59,7 @@
                 </div>
             </div>
             <select name="status" 
-                    class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto"
                     onchange="document.getElementById('filterForm').submit()">
                 <option value="">All Users</option>
                 <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
@@ -67,7 +67,7 @@
                 <option value="banned" {{ request('status') == 'banned' ? 'selected' : '' }}>Banned</option>
             </select>
             <select name="role" 
-                    class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto"
                     onchange="document.getElementById('filterForm').submit()">
                 <option value="">All Roles</option>
                 <option value="admin" {{ request('role') == 'admin' ? 'selected' : '' }}>Admin</option>
@@ -126,8 +126,8 @@
 @endif
 
 <!-- Users Table -->
-<div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="min-w-full divide-y divide-gray-200">
+<div class="overflow-x-auto rounded-lg bg-white shadow">
+    <table class="min-w-[880px] divide-y divide-gray-200">
         <thead class="bg-gray-50">
             <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>

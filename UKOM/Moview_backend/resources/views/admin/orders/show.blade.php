@@ -5,10 +5,14 @@
 @section('page-subtitle', 'Informasi lengkap pemesanan tiket')
 
 @section('content')
-<div class="p-6 max-w-3xl">
+<style>
+    .order-detail dl > div { gap: 1rem; }
+    .order-detail dd { min-width: 0; overflow-wrap: anywhere; text-align: right; }
+</style>
+<div class="order-detail max-w-3xl p-0 sm:p-6">
     <div class="mb-4">
         <a href="{{ route($panelPrefix.'.orders.index') }}"
-           class="inline-flex items-center text-sm text-gray-500 hover:text-gray-800 transition">
+           class="inline-flex min-h-[40px] items-center text-sm text-gray-500 transition hover:text-gray-800">
             <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Order
         </a>
     </div>

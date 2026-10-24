@@ -25,6 +25,36 @@
             display: none;
         }
 
+        @media (max-width: 1023.98px) {
+            .admin-sidebar {
+                transform: translateX(-100%);
+                transition: transform 200ms ease;
+            }
+            .admin-sidebar.is-open {
+                transform: translateX(0);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .admin-sidebar {
+                transform: none !important;
+            }
+        }
+
+        html.cashier-fullscreen body aside,
+        html.cashier-fullscreen body header {
+            display: none !important;
+        }
+        html.cashier-fullscreen body main {
+            padding: 0 !important;
+        }
+        #cashier-wide-exit {
+            display: none;
+        }
+        html.cashier-fullscreen #cashier-wide-exit {
+            display: inline-flex;
+        }
+
         /* Staff focus mode: keep navigation present but inert and subtle. */
         html.staff-focus-mode body aside {
             width: 4rem;
@@ -176,18 +206,49 @@
     })();
     </script>
     @endif
+    @if(request()->routeIs('staff.cashier.*'))
+    <script>
+    (function () {
+        try {
+            if (sessionStorage.getItem('moview_cashier_wide') === '1') {
+                document.documentElement.classList.add('cashier-fullscreen');
+            }
+        } catch (_) {}
+    })();
+    </script>
+    @endif
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="moview-theme bg-gray-100">
-    <div class="min-h-screen flex">
+<body class="moview-theme overflow-hidden bg-gray-100">
+    <div class="h-[100dvh] overflow-hidden lg:flex"
+         x-data="{ sidebarOpen: false }"
+         @keydown.escape.window="sidebarOpen = false"
+         @resize.window="if (window.innerWidth >= 1024) sidebarOpen = false"
+         x-effect="document.body.classList.toggle('admin-drawer-open', sidebarOpen)">
+        <div x-show="sidebarOpen"
+             x-cloak
+             class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+             @click="sidebarOpen = false"
+             aria-hidden="true"></div>
+
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-900 text-white flex-shrink-0 h-screen sticky top-0 flex flex-col">
-            <div class="p-6 flex-shrink-0">
-                <img src="{{ asset('text-logo-moview.png') }}" alt="Moview" class="h-7 mb-2">
-                <p class="text-xs font-semibold uppercase tracking-widest text-gray-400">{{ ucfirst(session('admin_role', 'Admin')) }}</p>
+        <aside class="admin-sidebar fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-shrink-0 flex-col bg-gray-900 text-white lg:static lg:h-full"
+               :class="sidebarOpen ? 'is-open' : ''">
+            <div class="flex flex-shrink-0 items-start justify-between gap-3 p-6">
+                <div class="min-w-0">
+                    <img src="{{ asset('text-logo-moview.png') }}" alt="Moview" class="h-7 mb-2">
+                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-400">{{ ucfirst(session('admin_role', 'Admin')) }}</p>
+                </div>
+                <button type="button"
+                        @click="sidebarOpen = false"
+                        class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white lg:hidden"
+                        aria-label="Tutup menu">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             
-            <nav class="sidebar-scroll flex-1 overflow-y-auto mt-2">
+            <nav class="sidebar-scroll flex-1 overflow-y-auto mt-2"
+                 @click="if ($event.target.closest('a')) sidebarOpen = false">
                 @if(session('admin_role') === 'manager')
                 <a href="{{ route('manager.dashboard') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.dashboard') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-gauge-high mr-3"></i>
@@ -307,15 +368,24 @@
         </aside>
 
         <!-- Main Content -->
-        <div class="flex-1 flex flex-col">
+        <div class="flex h-[100dvh] min-w-0 flex-1 flex-col overflow-hidden">
             <!-- Top Navigation -->
-            <header class="bg-white shadow-sm">
-                <div class="flex items-center justify-between gap-3 px-4 py-3 sm:px-8 sm:py-4">
-                    <div>
-                        <h2 class="text-2xl font-semibold text-gray-800">@yield('page-title', 'Dashboard')</h2>
-                        <p class="text-sm text-gray-500">@yield('page-subtitle', '')</p>
+            <header class="flex-shrink-0 bg-white shadow-sm">
+                <div class="flex items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6 sm:py-4 lg:px-8">
+                    <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+                        <button type="button"
+                                @click="sidebarOpen = true"
+                                class="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition hover:bg-gray-50 lg:hidden"
+                                aria-label="Buka menu">
+                            <i class="fas fa-bars text-lg"></i>
+                        </button>
+                        <div class="min-w-0">
+                            <h2 class="truncate text-lg font-semibold text-gray-800 sm:text-2xl">@yield('page-title', 'Dashboard')</h2>
+                            <p class="truncate text-xs text-gray-500 sm:text-sm">@yield('page-subtitle', '')</p>
+                        </div>
                     </div>
-                    <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
+                    <div class="flex flex-shrink-0 items-center justify-end gap-1 sm:gap-3">
+                        @yield('header-actions')
                         @if(session('admin_role') === 'admin')
                         <div x-data="{ 
                             open: false, 
@@ -352,7 +422,8 @@
                             }
                         }" class="relative">
                             <button @click="open = !open; if(open && notifications.length === 0) loadNotifications()" 
-                                    class="p-2 text-gray-600 hover:text-gray-900 relative">
+                                    class="relative inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                    aria-label="Notifikasi">
                                 <i class="fas fa-bell text-xl"></i>
                                 <span x-show="count > 0" 
                                       x-text="count > 99 ? '99+' : count"
@@ -368,7 +439,7 @@
                                  x-transition:leave="transition ease-in duration-75"
                                  x-transition:leave-start="transform opacity-100 scale-100"
                                  x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50 border border-gray-200"
+                                 class="absolute right-0 mt-2 w-[min(24rem,calc(100vw-2rem))] bg-white rounded-lg shadow-xl z-50 border border-gray-200"
                                  x-cloak>
                                 <div class="p-4 border-b border-gray-200">
                                     <h3 class="text-lg font-semibold text-gray-800">Flagged Comments</h3>
@@ -382,16 +453,16 @@
                             </div>
                         </div>
                         @endif
-                        <div class="flex items-center space-x-2">
+                        <div class="hidden items-center space-x-2 md:flex">
                             <span class="text-sm text-gray-600">{{ date('l, M d, Y') }}</span>
                         </div>
-                        <div class="border-l pl-4">
+                        <div class="sm:border-l sm:pl-4">
                             <form action="{{ route('admin.logout') }}" method="POST" class="inline">
                                 @csrf
                                 <button type="submit"
-                                        class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium">
-                                    <i class="fas fa-sign-out-alt mr-2"></i>
-                                    Logout
+                                        class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-red-700 sm:px-4">
+                                    <i class="fas fa-sign-out-alt sm:mr-2"></i>
+                                    <span class="hidden sm:inline">Logout</span>
                                 </button>
                             </form>
                         </div>
@@ -400,7 +471,7 @@
             </header>
 
             <!-- Page Content -->
-            <main class="flex-1 overflow-y-auto p-8">
+            <main class="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-8">
                 <!-- Success Message -->
                 @if(session('success'))
                 <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
@@ -452,8 +523,91 @@
         </div>
     </div>
 
+    @if(request()->routeIs('staff.cashier.*'))
+    <button type="button"
+            id="cashier-wide-exit"
+            class="fixed right-3 top-3 z-[80] min-h-[40px] items-center rounded-lg border border-white/20 bg-black/60 px-3 py-2 text-xs font-semibold text-white backdrop-blur transition hover:bg-black/80"
+            aria-label="Keluar Layar Penuh">
+        <i class="fas fa-compress mr-2"></i> Keluar Layar Penuh
+    </button>
+    <script>
+    (function () {
+        const key = 'moview_cashier_wide';
+        const root = document.documentElement;
+        const button = document.getElementById('cashier-wide-exit');
+
+        const isActive = () => {
+            try {
+                return sessionStorage.getItem(key) === '1';
+            } catch (_) {
+                return false;
+            }
+        };
+
+        const requestFullscreen = () => {
+            if (document.fullscreenElement) return;
+            try {
+                const request = root.requestFullscreen?.();
+                if (request && request.catch) request.catch(() => {});
+            } catch (_) {}
+        };
+
+        const retryFullscreen = (event) => {
+            if (!isActive() || document.fullscreenElement) return;
+            if (event.target.closest && event.target.closest('#cashier-wide-exit')) return;
+            requestFullscreen();
+        };
+
+        const apply = () => {
+            const active = isActive();
+            root.classList.toggle('cashier-fullscreen', active);
+
+            if (active && !document.fullscreenElement) {
+                document.addEventListener('click', retryFullscreen, { once: true, capture: true });
+            }
+        };
+
+        const enter = () => {
+            try {
+                sessionStorage.setItem(key, '1');
+            } catch (_) {}
+            apply();
+            requestFullscreen();
+        };
+
+        const exit = () => {
+            try {
+                sessionStorage.removeItem(key);
+            } catch (_) {}
+            apply();
+
+            try {
+                if (document.fullscreenElement && document.exitFullscreen) {
+                    const request = document.exitFullscreen();
+                    if (request && request.catch) request.catch(() => {});
+                }
+            } catch (_) {}
+        };
+
+        button?.addEventListener('click', exit);
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) apply();
+        });
+
+        window.moviewCashierWide = {
+            toggle: () => isActive() ? exit() : enter(),
+            enter,
+            exit,
+            isActive,
+        };
+
+        apply();
+    })();
+    </script>
+    @endif
+
     {{-- Global Toast Container --}}
-    <div x-data="globalToast" class="fixed top-5 right-5 z-[100] space-y-3 w-80">
+    <div x-data="globalToast" class="fixed right-4 top-4 z-[100] w-[calc(100vw-2rem)] max-w-sm space-y-3">
         <template x-for="t in toasts" :key="t.id">
             <div class="transform transition-all duration-300 bg-white rounded-lg shadow-lg border overflow-hidden"
                  :class="t.type === 'success' ? 'border-green-400' : t.type === 'error' ? 'border-red-400' : 'border-blue-400'">
@@ -475,7 +629,7 @@
     <div x-data="confirmModal" x-cloak>
         <div x-show="open" class="fixed inset-0 z-[110] flex items-center justify-center p-4" x-cloak>
             <div class="absolute inset-0 bg-black bg-opacity-50" @click="cancel()"></div>
-            <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div class="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-lg bg-white p-5 shadow-xl sm:p-6">
                 <div class="flex items-start">
                     <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
                          :class="danger ? 'bg-red-100' : 'bg-blue-100'">

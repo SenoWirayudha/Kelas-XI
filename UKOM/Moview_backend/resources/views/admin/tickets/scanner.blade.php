@@ -5,77 +5,95 @@
 @section('page-subtitle', 'Scan QR tiket dengan kamera atau input manual kode tiket')
 
 @section('content')
-<div class="max-w-4xl mx-auto" x-data="ticketScanner()">
-    <div x-show="!focusMode" class="mb-4 flex flex-wrap items-center justify-between gap-3">
+<style>
+    .scan-camera {
+        width: 100%;
+        max-width: calc((100dvh - 15rem) * 4 / 3);
+        max-height: calc(100dvh - 15rem);
+        aspect-ratio: 4 / 3;
+    }
+    #scanner-reader,
+    #scanner-reader > div,
+    #scanner-reader__scan_region {
+        width: 100% !important;
+        height: 100% !important;
+    }
+    #scanner-reader video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+    }
+</style>
+<div class="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col" x-data="ticketScanner()">
+    <div x-show="!focusMode" class="mb-2 flex flex-shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-xs text-gray-500">Gunakan Mode Fokus saat pengunjung memindai tiket sendiri.</p>
         <button type="button"
                 x-show="isStaff"
                 @click="enterFocusMode()"
                 aria-label="Mode Fokus"
-                class="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100">
+                class="inline-flex min-h-[40px] items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100">
             <i class="fas fa-expand mr-2"></i> Mode Fokus
         </button>
     </div>
 
-    <div class="grid grid-cols-1 gap-6" :class="focusMode ? '' : 'lg:grid-cols-2'">
-        <div class="bg-white rounded-xl shadow p-5">
-            <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+    <div class="grid min-h-0 flex-1 grid-cols-1 items-start gap-3 overflow-y-auto overscroll-contain md:grid-cols-2 md:overflow-hidden">
+        <div class="flex flex-col rounded-xl bg-white p-3 shadow sm:p-4">
+            <h3 class="mb-2 flex flex-shrink-0 items-center gap-2 font-semibold text-gray-800">
                 <i class="fas fa-camera text-blue-500"></i>
                 <span x-text="focusMode ? 'Pindai QR Tiket' : 'Kamera Scanner'"></span>
             </h3>
 
-            <div x-show="!focusMode" class="mb-3 text-xs text-gray-500">
+            <div x-show="!focusMode" class="mb-2 flex-shrink-0 text-xs text-gray-500">
                 Kamera tidak aktif otomatis. Tekan Aktifkan Kamera saat akan scan.
             </div>
 
             <div id="scanner-wrapper"
-                 class="rounded-xl border-2 border-gray-200 overflow-hidden transition-all duration-300"
-                 :class="focusMode ? 'min-h-[52vh]' : ''">
-                <div id="scanner-reader" class="w-full min-h-[280px]" :class="focusMode ? 'min-h-[52vh]' : ''"></div>
+                 class="scan-camera flex-shrink-0 overflow-hidden rounded-xl border-2 border-gray-200 transition-all duration-300">
+                <div id="scanner-reader" class="h-full w-full"></div>
             </div>
 
-            <div x-show="!focusMode" class="mt-4 flex items-center gap-2">
+            <div x-show="!focusMode" class="mt-2 flex flex-shrink-0 items-center gap-2">
                 <button type="button"
                         @click="startCamera"
-                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition disabled:opacity-50"
-                        :disabled="cameraActive || isProcessing">
+                        class="inline-flex min-h-[40px] flex-1 items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-sm text-white transition hover:bg-blue-700 disabled:opacity-50"
+                        :disabled="cameraActive || isProcessing || resultVisible">
                     <i class="fas fa-video mr-1"></i> Aktifkan Kamera
                 </button>
                 <button type="button"
                         @click="stopCamera"
-                        class="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm rounded-lg transition disabled:opacity-50"
+                        class="inline-flex min-h-[40px] flex-1 items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-sm text-white transition hover:bg-gray-800 disabled:opacity-50"
                         :disabled="!cameraActive || isProcessing">
                     <i class="fas fa-video-slash mr-1"></i> Matikan Kamera
                 </button>
             </div>
             <div x-show="!focusMode"
-                 class="mt-2 text-xs"
+                 class="mt-1 flex-shrink-0 text-xs"
                  :class="cameraActive ? 'text-green-600' : 'text-gray-500'"
                  x-text="cameraActive ? 'Kamera aktif' : 'Kamera nonaktif'"></div>
             <div x-show="focusMode && cameraNotice"
                  x-text="cameraNotice"
-                 class="mt-3 rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-800"></div>
+                 class="mt-2 flex-shrink-0 rounded-lg border border-yellow-300 bg-yellow-50 p-2 text-xs text-yellow-800"></div>
         </div>
 
-        <div class="space-y-6" :class="focusMode ? 'mx-auto w-full max-w-xl' : ''">
-            <div class="bg-white rounded-xl shadow p-5">
-                <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+        <div class="flex flex-col gap-3">
+            <div class="flex-shrink-0 rounded-xl bg-white p-3 shadow sm:p-4">
+                <h3 class="mb-2 flex items-center gap-2 font-semibold text-gray-800">
                     <i class="fas fa-keyboard text-blue-500"></i>
                     <span x-text="focusMode ? 'Input Kode Tiket' : 'Input Manual'"></span>
                 </h3>
-                <form @submit.prevent="submitManualCode" class="space-y-3">
+                <form @submit.prevent="submitManualCode" class="space-y-2">
                     <input type="text"
                            x-model.trim="manualCode"
                            x-ref="manualCodeInput"
                            placeholder="Contoh: MOV-ABC123"
                            autocomplete="off"
-                           class="w-full border border-gray-300 rounded-lg px-4 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                           :class="focusMode ? 'py-4 text-lg' : 'text-sm'">
+                           class="w-full rounded-lg border border-gray-300 px-4 py-2.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           :class="focusMode ? 'py-3 text-base' : ''">
                     <button type="submit"
-                            class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50"
+                            class="inline-flex min-h-[40px] w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
                             :class="focusMode ? 'py-3 text-base' : ''"
                             :aria-label="focusMode ? 'Cek Tiket' : 'Validasi Tiket'"
-                            :disabled="isProcessing || !manualCode">
+                            :disabled="isProcessing || !manualCode || resultVisible">
                         <i class="fas fa-check-circle mr-1"></i>
                         <span x-text="focusMode ? 'Cek Tiket' : 'Validasi Tiket'"></span>
                     </button>
@@ -84,18 +102,18 @@
 
             <div x-show="!focusMode && result"
                  x-transition
-                 class="rounded-xl shadow p-5 border"
+                 class="rounded-xl border p-3 shadow sm:p-4"
                  :class="isSuccess ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'">
-                <div class="flex items-start gap-3">
-                    <i class="text-2xl mt-0.5"
+                <div class="flex items-start gap-2.5">
+                    <i class="mt-0.5 text-xl"
                        :class="isSuccess ? 'fas fa-circle-check text-green-600' : 'fas fa-circle-xmark text-red-600'"></i>
-                    <div>
+                    <div class="min-w-0 flex-1">
                         <p class="font-bold"
                            :class="isSuccess ? 'text-green-800' : 'text-red-800'"
                            x-text="result?.message || '-'"></p>
 
                         <template x-if="isSuccess && result?.data">
-                            <div class="mt-3 text-sm text-gray-700 space-y-1">
+                            <div class="mt-2 space-y-0.5 text-xs text-gray-700 sm:text-sm">
                                 <p><span class="text-gray-500">Kode Tiket:</span> <span class="font-mono font-semibold" x-text="result.data.ticket_code || '-'"></span></p>
                                 <p><span class="text-gray-500">Film:</span> <span class="font-medium" x-text="result.data.movie_title || '-'"></span></p>
                                 <p><span class="text-gray-500">Bioskop:</span> <span x-text="result.data.cinema_name || '-'"></span></p>
@@ -103,21 +121,29 @@
                             </div>
                         </template>
 
-                        <template x-if="isSuccess && canConfirm">
-                            <button type="button"
-                                    @click="confirmTicket"
-                                    class="mt-4 w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
-                                    :disabled="isProcessing">
-                                <i class="fas fa-check mr-1"></i> Konfirmasi Tiket Masuk
-                            </button>
-                        </template>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            <template x-if="isSuccess && canConfirm">
+                                <button type="button"
+                                        @click="confirmTicket"
+                                        class="inline-flex min-h-[40px] flex-1 items-center justify-center rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
+                                        :disabled="isProcessing">
+                                    <i class="fas fa-check mr-1"></i> Konfirmasi Masuk
+                                </button>
+                            </template>
 
-                        <button type="button"
-                                x-show="isSuccess && result?.data?.order_id"
-                                @click="printTicket"
-                                class="mt-2 w-full px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-lg transition">
-                            <i class="fas fa-print mr-1"></i> Print Tiket
-                        </button>
+                            <button type="button"
+                                    x-show="isSuccess && result?.data?.order_id"
+                                    @click="printTicket"
+                                    class="inline-flex min-h-[40px] flex-1 items-center justify-center rounded-lg bg-gray-800 px-3 py-2 text-xs font-semibold text-white transition hover:bg-gray-900">
+                                <i class="fas fa-print mr-1"></i> Cetak
+                            </button>
+
+                            <button type="button"
+                                    @click="finishResult()"
+                                    class="inline-flex min-h-[40px] flex-1 items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50">
+                                Selesai
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -128,7 +154,7 @@
         <button type="button"
                 @click="openFocusExit()"
                 aria-label="Keluar Mode Fokus"
-                class="rounded-full border px-3 py-1.5 text-[11px] font-medium backdrop-blur transition"
+                class="min-h-[40px] rounded-full border px-3 py-2 text-[11px] font-medium backdrop-blur transition"
                 :class="focusResult
                     ? 'border-white/30 bg-black/20 text-white/60 hover:text-white'
                     : 'border-gray-300 bg-white/70 text-gray-500 hover:text-gray-800'">
@@ -139,15 +165,15 @@
     <div x-show="focusMode && focusResult"
          x-cloak
          x-transition.opacity
-         class="fixed inset-0 z-[90] flex items-center justify-center p-6"
+         class="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto p-4 sm:p-6"
          :class="focusResultClass()">
-        <div class="max-w-2xl text-center">
-            <i class="fas text-7xl sm:text-8xl" :class="focusResultIcon()"></i>
-            <p class="mt-6 text-3xl font-black tracking-tight sm:text-5xl" x-text="focusResultTitle()"></p>
-            <p class="mt-3 text-lg font-medium opacity-90 sm:text-2xl" x-text="focusResult?.message || ''"></p>
+        <div class="max-w-2xl py-8 text-center">
+            <i class="fas text-6xl sm:text-8xl" :class="focusResultIcon()"></i>
+            <p class="mt-5 text-2xl font-black tracking-tight sm:mt-6 sm:text-5xl" x-text="focusResultTitle()"></p>
+            <p class="mt-3 text-base font-medium opacity-90 sm:text-2xl" x-text="focusResult?.message || ''"></p>
 
             <template x-if="focusResult?.data">
-                <div class="mt-6 rounded-2xl bg-black/15 px-5 py-4 text-left text-sm sm:text-base">
+                <div class="mt-5 rounded-2xl bg-black/15 px-5 py-3 text-left text-sm sm:text-base">
                     <p class="font-semibold" x-text="focusResult.data.movie_title || '-'"></p>
                     <p class="mt-1 opacity-90">
                         <span x-text="focusResult.data.cinema_name || '-'"></span>
@@ -158,13 +184,29 @@
                 </div>
             </template>
 
-            <p class="mt-8 text-xs uppercase tracking-[0.25em] opacity-60">Kembali siap scan otomatis...</p>
+            <div class="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+                <button type="button"
+                        x-show="focusResultType === 'success' && focusResult?.data?.order_id"
+                        @click="printTicket"
+                        class="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-white/20 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-white/30">
+                    <i class="fas fa-print mr-2"></i> Cetak
+                </button>
+                <button type="button"
+                        @click="finishResult()"
+                        class="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-gray-800 transition hover:bg-gray-100">
+                    Selesai
+                </button>
+            </div>
+
+            <p class="mt-4 text-[11px] uppercase tracking-[0.2em] opacity-60">
+                Kembali siap scan otomatis dalam <span x-text="focusResultSeconds"></span> detik
+            </p>
         </div>
     </div>
 
     <div x-show="focusExitOpen" x-cloak class="fixed inset-0 z-[96] flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/60" @click="closeFocusExit()"></div>
-        <div class="relative w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl">
+        <div class="relative max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-2xl sm:p-6">
             <div class="flex items-start gap-3">
                 <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
                     <i class="fas fa-lock text-red-600"></i>
@@ -186,11 +228,11 @@
                 <div class="flex justify-end gap-2">
                     <button type="button"
                             @click="closeFocusExit()"
-                            class="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            class="min-h-[40px] rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                         Batal
                     </button>
                     <button type="submit"
-                            class="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            class="inline-flex min-h-[40px] items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                             aria-label="Konfirmasi Keluar Mode Fokus"
                             :disabled="focusExitProcessing || !focusPassword">
                         <i class="fas fa-spinner fa-spin mr-2" x-show="focusExitProcessing"></i>
@@ -218,6 +260,8 @@ function ticketScanner() {
         isSuccess: false,
         canConfirm: false,
         pendingTicketCode: null,
+        resultTimer: null,
+        restartCameraOnClear: false,
         lastScannedCode: null,
         lastScannedAt: 0,
         isStaff: @json(session('admin_role') === 'staff'),
@@ -225,6 +269,8 @@ function ticketScanner() {
         focusResult: null,
         focusResultType: '',
         focusResultTimer: null,
+        focusCountdownTimer: null,
+        focusResultSeconds: 15,
         focusExitOpen: false,
         focusPassword: '',
         focusError: '',
@@ -234,6 +280,10 @@ function ticketScanner() {
         scanConfirmApiUrl: '{{ route('staff.tickets.scan') }}',
         focusVerifyUrl: '{{ route('staff.focus.verify') }}',
         printUrlTemplate: '{{ route('staff.tickets.print', ['order' => '__ORDER__']) }}',
+
+        get resultVisible() {
+            return !!(this.result || this.focusResult);
+        },
 
         init() {
             if (!this.isStaff) {
@@ -254,10 +304,7 @@ function ticketScanner() {
 
             this.focusMode = true;
             this.cameraNotice = '';
-            this.result = null;
-            this.isSuccess = false;
-            this.canConfirm = false;
-            this.pendingTicketCode = null;
+            this.clearNormalResult();
             this.clearFocusResult();
             window.moviewFocusMode?.setActive(true);
 
@@ -278,6 +325,7 @@ function ticketScanner() {
             this.focusExitOpen = false;
             this.focusPassword = '';
             this.focusError = '';
+            this.clearNormalResult();
             this.clearFocusResult();
             this.stopCamera();
             window.moviewFocusMode?.setActive(false);
@@ -349,7 +397,7 @@ function ticketScanner() {
         },
 
         async startCamera() {
-            if (this.scannerReady || this.cameraActive) {
+            if (this.scannerReady || this.cameraActive || this.resultVisible) {
                 return;
             }
 
@@ -360,7 +408,14 @@ function ticketScanner() {
             try {
                 await this.scanner.start(
                     { facingMode: 'environment' },
-                    { fps: 10, qrbox: 240 },
+                    {
+                        fps: 10,
+                        aspectRatio: 4 / 3,
+                        qrbox: (viewfinderWidth, viewfinderHeight) => {
+                            const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.72);
+                            return { width: edge, height: edge };
+                        },
+                    },
                     (decodedText) => this.onQrDetected(decodedText)
                 );
                 this.scannerReady = true;
@@ -370,6 +425,7 @@ function ticketScanner() {
                 this.cameraActive = false;
                 this.cameraNotice = 'Kamera tidak dapat diakses. Gunakan input kode tiket.';
                 if (!this.focusMode) {
+                    this.restartCameraOnClear = false;
                     this.showResult(false, { message: this.cameraNotice });
                 }
             }
@@ -388,7 +444,7 @@ function ticketScanner() {
 
         async onQrDetected(decodedText) {
             const code = (decodedText || '').trim();
-            if (!code || this.isProcessing) {
+            if (!code || this.isProcessing || this.resultVisible) {
                 return;
             }
 
@@ -409,7 +465,7 @@ function ticketScanner() {
         },
 
         async submitManualCode() {
-            if (!this.manualCode || this.isProcessing) {
+            if (!this.manualCode || this.isProcessing || this.resultVisible) {
                 return;
             }
 
@@ -423,7 +479,7 @@ function ticketScanner() {
 
         async processFocusTicket(ticketCode) {
             const code = (ticketCode || '').trim();
-            if (!code || this.isProcessing) {
+            if (!code || this.isProcessing || this.focusResult) {
                 return;
             }
 
@@ -470,24 +526,16 @@ function ticketScanner() {
         },
 
         showFocusResult(type, message, data = null) {
-            if (this.focusResultTimer) {
-                clearTimeout(this.focusResultTimer);
-            }
+            this.clearFocusResult();
 
             this.focusResultType = type;
             this.focusResult = { message, data };
+            this.focusResultSeconds = 15;
 
-            this.focusResultTimer = setTimeout(() => {
-                this.focusResult = null;
-                this.focusResultType = '';
-                this.focusResultTimer = null;
-                this.lastScannedCode = null;
-                this.lastScannedAt = 0;
-
-                if (this.focusMode) {
-                    this.startCamera();
-                }
-            }, 5000);
+            this.focusResultTimer = setTimeout(() => this.finishResult(), 15000);
+            this.focusCountdownTimer = setInterval(() => {
+                if (this.focusResultSeconds > 0) this.focusResultSeconds--;
+            }, 1000);
         },
 
         clearFocusResult() {
@@ -495,9 +543,41 @@ function ticketScanner() {
                 clearTimeout(this.focusResultTimer);
                 this.focusResultTimer = null;
             }
+            if (this.focusCountdownTimer) {
+                clearInterval(this.focusCountdownTimer);
+                this.focusCountdownTimer = null;
+            }
 
             this.focusResult = null;
             this.focusResultType = '';
+            this.focusResultSeconds = 15;
+        },
+
+        clearNormalResult() {
+            if (this.resultTimer) {
+                clearTimeout(this.resultTimer);
+                this.resultTimer = null;
+            }
+
+            this.result = null;
+            this.isSuccess = false;
+            this.canConfirm = false;
+            this.pendingTicketCode = null;
+        },
+
+        finishResult() {
+            this.clearNormalResult();
+            this.clearFocusResult();
+            this.manualCode = '';
+            this.lastScannedCode = null;
+            this.lastScannedAt = 0;
+
+            const restartCamera = this.focusMode || this.restartCameraOnClear;
+            this.restartCameraOnClear = false;
+
+            if (restartCamera) {
+                this.$nextTick(() => this.startCamera());
+            }
         },
 
         focusResultClass() {
@@ -549,6 +629,7 @@ function ticketScanner() {
                 }
 
                 const success = response.ok && payload?.success;
+                this.restartCameraOnClear = fromCamera;
                 this.showResult(success, payload || { message: 'Terjadi kesalahan saat validasi tiket.' });
 
                 if (success) {
@@ -559,6 +640,7 @@ function ticketScanner() {
                     }
                 }
             } catch (error) {
+                this.restartCameraOnClear = fromCamera;
                 this.showResult(false, { message: 'Gagal menghubungi server. Coba lagi.' });
             } finally {
                 this.isProcessing = false;
@@ -606,17 +688,19 @@ function ticketScanner() {
         },
 
         showResult(success, payload) {
+            if (this.resultTimer) {
+                clearTimeout(this.resultTimer);
+            }
+
             this.isSuccess = success;
             this.result = payload;
+            this.resultTimer = setTimeout(() => this.finishResult(), 15000);
             this.animateScannerBorder(success);
         },
 
         printTicket() {
-            if (this.focusMode) {
-                return;
-            }
-
-            const orderId = this.result?.data?.order_id;
+            const data = this.focusMode ? this.focusResult?.data : this.result?.data;
+            const orderId = data?.order_id;
             if (!orderId) {
                 return;
             }

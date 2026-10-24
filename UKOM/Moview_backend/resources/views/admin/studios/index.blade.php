@@ -5,7 +5,7 @@
 @section('page-subtitle', 'Kelola studio per bioskop')
 
 @section('content')
-<div class="p-6">
+<div class="p-0 sm:p-6">
 
     @if(session('success'))
         <div class="mb-4 px-4 py-3 bg-green-100 border border-green-400 text-green-800 rounded-lg flex items-center gap-2">
@@ -14,11 +14,11 @@
     @endif
 
     {{-- Filter by Cinema --}}
-    <form method="GET" class="flex flex-wrap items-end gap-3 mb-6">
-        <div>
+    <form method="GET" class="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div class="w-full sm:w-auto">
             <label class="block text-xs text-gray-500 mb-1">Filter Bioskop</label>
             <select name="cinema_id"
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-64">
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-64">
                 @if(session('admin_role') === 'admin')
                 <option value="">Semua Bioskop</option>
                 @endif
@@ -30,16 +30,16 @@
             </select>
         </div>
         <button type="submit"
-                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition">
+                class="min-h-[40px] rounded-lg bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700">
             <i class="fas fa-filter mr-1"></i> Filter
         </button>
         @if(request('cinema_id'))
             <a href="{{ route($panelPrefix.'.studios.index') }}"
-               class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition">Reset</a>
+               class="inline-flex min-h-[40px] items-center rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-200">Reset</a>
         @endif
-        <div class="ml-auto">
+        <div class="sm:ml-auto">
             <a href="{{ route($panelPrefix.'.studios.create') }}"
-               class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
+               class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
                 <i class="fas fa-plus mr-2"></i> Tambah Studio
             </a>
         </div>
@@ -47,8 +47,8 @@
 
     <p class="text-sm text-gray-500 mb-3">Total: <strong>{{ $studios->total() }}</strong> studio</p>
 
-    <div class="bg-white rounded-xl shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
+    <div class="overflow-x-auto rounded-xl bg-white shadow">
+        <table class="min-w-[760px] divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-3 text-left font-semibold text-gray-600">#</th>

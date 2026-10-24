@@ -5,12 +5,6 @@
 @section('page-subtitle', $schedule->movie?->title ?? 'Kasir Tiket')
 
 @section('content')
-<style>
-    @media (max-width: 767px) {
-        body.moview-theme aside { display: none; }
-        body.moview-theme main { padding: 0.75rem; }
-    }
-</style>
 @php
     $snapScript = config('services.midtrans.is_production')
         ? 'https://app.midtrans.com/snap/snap.js'
@@ -21,11 +15,11 @@
     <script src="{{ $snapScript }}" data-client-key="{{ config('services.midtrans.client_key') }}"></script>
 @endif
 
-<div x-data="cashierSeatPage()" class="pb-44 lg:pb-36">
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-            <h3 class="text-xl font-semibold text-white">{{ $schedule->movie?->title ?? '-' }}</h3>
-            <p class="mt-1 text-sm text-gray-400">
+<div x-data="cashierSeatPage()" class="flex h-full min-h-0 flex-col gap-2 sm:gap-3">
+    <div class="flex flex-shrink-0 items-start justify-between gap-3">
+        <div class="min-w-0">
+            <h3 class="truncate text-lg font-semibold text-white sm:text-xl">{{ $schedule->movie?->title ?? '-' }}</h3>
+            <p class="mt-0.5 truncate text-xs text-gray-400 sm:text-sm">
                 {{ substr((string) $schedule->show_time, 0, 5) }}
                 <span class="mx-1">•</span>
                 {{ $schedule->studio?->studio_name ?? '-' }}
@@ -34,98 +28,113 @@
             </p>
         </div>
         <a href="{{ route('staff.cashier.index') }}"
-           class="inline-flex items-center rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">
+           class="inline-flex min-h-[40px] flex-shrink-0 items-center rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-300 hover:bg-gray-800 sm:text-sm">
             <i class="fas fa-arrow-left mr-2"></i> Pilih Film Lain
         </a>
     </div>
 
-    <div class="rounded-xl border border-gray-700/60 bg-white p-4 shadow-lg sm:p-6">
-        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-700/60 bg-white p-3 shadow-lg sm:p-4">
+        <div class="flex flex-shrink-0 flex-wrap items-center justify-between gap-2">
             <span x-show="loading" class="text-xs text-gray-500"><i class="fas fa-spinner fa-spin mr-1"></i> Memuat denah...</span>
             <span x-show="!loading" class="text-xs text-gray-500" x-text="seats.length + ' kursi'"></span>
-        </div>
-
-        <div class="mb-6 flex flex-col items-center">
-            <div class="h-1.5 w-56 rounded-full bg-gradient-to-r from-transparent via-blue-400/80 to-transparent"></div>
-            <p class="mt-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-gray-500">Layar</p>
-        </div>
-
-        <div x-show="error" x-text="error" class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"></div>
-        <div x-show="mapMessage" x-text="mapMessage" class="mb-4 rounded-lg border border-yellow-400/30 bg-yellow-400/10 p-3 text-sm text-yellow-200"></div>
-
-        {{-- Horizontal scroll stays inside the seat area only. --}}
-        <div class="overflow-x-auto pb-2">
-            <div class="mx-auto grid w-max justify-center gap-1.5" :style="gridStyle()" x-show="seats.length > 0">
-                <template x-for="seat in seats" :key="seat.uid">
-                    <button type="button"
-                            @click="toggleSeat(seat)"
-                            :disabled="!seat.selectable"
-                            :style="seatStyle(seat)"
-                            :class="seatClass(seat)"
-                            :title="seatTitle(seat)">
-                        <span class="pointer-events-none" x-text="seatLabel(seat)"></span>
-                    </button>
-                </template>
+            <div class="flex items-center gap-1.5">
+                <button type="button" @click="zoomOut()" :disabled="zoom <= 1"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-700 text-gray-300 transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-35"
+                        aria-label="Perkecil denah">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <span class="w-10 text-center text-[11px] font-semibold text-gray-400" x-text="Math.round(zoom * 100) + '%'"></span>
+                <button type="button" @click="zoomIn()" :disabled="zoom >= 2.5"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-700 text-gray-300 transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-35"
+                        aria-label="Perbesar denah">
+                    <i class="fas fa-plus"></i>
+                </button>
             </div>
         </div>
 
-        {{-- Dynamic legend from the studio's seat type definitions. --}}
-        <div class="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-gray-700/60 pt-4 text-xs text-gray-400">
-            <template x-for="type in legend" :key="type.key">
-                <span class="flex items-center gap-1.5">
-                    <span class="inline-block h-3.5 w-3.5 rounded border" :style="{ backgroundColor: type.bg, borderColor: type.color }"></span>
-                    <span x-text="type.label"></span>
-                    <span class="text-gray-500" x-show="type.price" x-text="'• ' + formatRupiah(type.price)"></span>
-                </span>
-            </template>
-            <span class="flex items-center gap-1.5">
-                <span class="inline-block h-3.5 w-3.5 rounded border border-blue-400 bg-blue-500"></span> Dipilih
-            </span>
-            <span class="flex items-center gap-1.5">
-                <span class="inline-block h-3.5 w-3.5 rounded border border-red-900 bg-red-950"></span> Terjual
-            </span>
-
+        <div class="mt-1 flex flex-shrink-0 flex-col items-center">
+            <div class="h-1 w-40 max-w-full rounded-full bg-gradient-to-r from-transparent via-blue-400/80 to-transparent sm:w-56"></div>
+            <p class="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.25em] text-gray-500">Layar</p>
         </div>
 
-        <div x-show="!loading && seats.length === 0" class="py-16 text-center">
-            <i class="fas fa-chair text-3xl text-gray-600"></i>
-            <p class="mt-3 text-sm text-gray-400">Denah kursi tidak tersedia.</p>
+        <div x-show="error" x-text="error" class="mt-2 flex-shrink-0 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700"></div>
+        <div x-show="mapMessage" x-text="mapMessage" class="mt-2 flex-shrink-0 rounded-lg border border-yellow-400/30 bg-yellow-400/10 p-2 text-xs text-yellow-200"></div>
+
+        <div x-ref="seatScroll"
+             class="mt-2 min-h-0 flex-1 overflow-auto overscroll-contain rounded-lg border border-gray-700/60 bg-[#121821] p-1">
+            <div class="min-w-max p-1">
+                <div class="mx-auto grid w-max" :style="gridStyle()" x-show="seats.length > 0">
+                    <template x-for="row in rowLabels" :key="row.displayRow">
+                        <span class="flex items-center justify-center text-[10px] font-bold text-gray-500"
+                              :style="rowLabelStyle(row)"
+                              x-text="row.label"></span>
+                    </template>
+                    <template x-for="seat in seats" :key="seat.uid">
+                        <button type="button"
+                                @click="toggleSeat(seat)"
+                                :disabled="!seat.selectable"
+                                :style="seatStyle(seat)"
+                                :class="seatClass(seat)"
+                                :title="seatTitle(seat)">
+                            <span class="pointer-events-none" x-text="seatButtonLabel(seat)"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <div x-show="!loading && seats.length === 0" class="flex h-full flex-col items-center justify-center py-10 text-center">
+                <i class="fas fa-chair text-3xl text-gray-600"></i>
+                <p class="mt-3 text-sm text-gray-400">Denah kursi tidak tersedia.</p>
+            </div>
+        </div>
+
+        <div class="mt-2 flex flex-shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-gray-700/60 pt-2 text-[10px] text-gray-400 sm:text-xs">
+            <template x-for="type in legend" :key="type.key">
+                <span class="flex items-center gap-1">
+                    <span class="inline-block h-3 w-3 rounded border" :style="{ backgroundColor: type.bg, borderColor: type.color }"></span>
+                    <span x-text="type.label"></span>
+                    <span class="hidden text-gray-500 sm:inline" x-show="type.price" x-text="'• ' + formatRupiah(type.price)"></span>
+                </span>
+            </template>
+            <span class="flex items-center gap-1">
+                <span class="inline-block h-3 w-3 rounded border border-blue-400 bg-blue-500"></span> Dipilih
+            </span>
+            <span class="flex items-center gap-1">
+                <span class="inline-block h-3 w-3 rounded border border-red-900 bg-red-950"></span> Terjual
+            </span>
         </div>
     </div>
 
-{{-- Fixed checkout bar: never covers the map; page has bottom padding. --}}
-<div class="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-700/80 bg-[#121821]/95 shadow-2xl backdrop-blur lg:left-64">
-    <div class="mx-auto max-w-6xl px-4 py-3 sm:px-6">
-        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div class="flex-shrink-0 rounded-xl border border-gray-700/80 bg-[#121821]/95 p-3 shadow-2xl backdrop-blur">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-semibold text-white">{{ $schedule->movie?->title ?? '-' }}</p>
                 <p class="mt-0.5 text-xs text-gray-400">
                     {{ substr((string) $schedule->show_time, 0, 5) }} • {{ $schedule->studio?->studio_name ?? '-' }}
                 </p>
-                <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                <div class="mt-1 flex max-h-10 flex-wrap items-center gap-1 overflow-y-auto">
                     <template x-for="seat in selected" :key="seat.seat_id">
                         <span class="inline-flex items-center gap-1 rounded-md bg-blue-500/20 px-2 py-0.5 text-[11px] font-semibold text-blue-200">
                             <span x-text="seat.label"></span>
-                            <button type="button" @click="toggleSeat(seat)" class="text-blue-300 hover:text-white" aria-label="Hapus kursi">&times;</button>
+                            <button type="button" @click="toggleSeat(seat)" class="inline-flex h-5 w-5 items-center justify-center text-blue-300 hover:text-white" aria-label="Hapus kursi">&times;</button>
                         </span>
                     </template>
                     <span x-show="selected.length === 0" class="text-xs text-gray-500">Belum ada kursi dipilih</span>
                 </div>
             </div>
-            <div class="flex flex-shrink-0 items-center gap-4">
+            <div class="flex flex-shrink-0 items-center justify-between gap-3 sm:justify-end">
                 <div class="text-right">
                     <p class="text-[10px] uppercase tracking-wide text-gray-500">Total</p>
-                    <p class="text-lg font-bold text-white" x-text="formatRupiah(total())"></p>
+                    <p class="text-base font-bold text-white sm:text-lg" x-text="formatRupiah(total())"></p>
                 </div>
                 <button type="button" @click="openSummary()"
                         :disabled="selected.length === 0 || summaryLoading || processing"
-                        class="inline-flex items-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
+                        class="inline-flex min-h-[40px] items-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
                     <i class="fas fa-arrow-right mr-2"></i> Lanjut
                 </button>
             </div>
         </div>
     </div>
-</div>
 
 {{-- Purchase summary step --}}
 <div x-show="showSummary" x-cloak class="fixed inset-0 z-40 overflow-y-auto bg-[#0F1419]">
@@ -137,7 +146,7 @@
             </div>
             <button type="button" @click="closeSummary()"
                     :disabled="summaryLoading || processing"
-                    class="rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-300 hover:bg-gray-800 disabled:opacity-40">
+                    class="min-h-[40px] rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-300 hover:bg-gray-800 disabled:opacity-40">
                 <i class="fas fa-arrow-left mr-1"></i> Kembali
             </button>
         </div>
@@ -223,17 +232,17 @@
                 <h3 class="text-lg font-semibold text-white">Konfirmasi Pembayaran</h3>
                 <p class="mt-1 text-xs text-gray-400">Pilih metode pembayaran untuk menyelesaikan transaksi.</p>
             </div>
-            <button type="button" @click="closePayment()" class="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white" aria-label="Tutup">
+            <button type="button" @click="closePayment()" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white" aria-label="Tutup">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
         <div class="mt-4 rounded-xl border border-gray-700/70 bg-[#121821] p-4">
-            <div class="flex items-center justify-between gap-3">
-                <div>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                <div class="min-w-0">
                     <p class="text-sm font-medium text-white">{{ $schedule->movie?->title ?? '-' }}</p>
                     <p class="mt-1 text-xs text-gray-400">{{ substr((string) $schedule->show_time, 0, 5) }} • {{ $schedule->studio?->studio_name ?? '-' }}</p>
-                    <p class="mt-1 text-xs text-gray-500"><span x-text="selected.length"></span> kursi: <span x-text="selected.map(s => s.label).join(', ')"></span></p>
+                    <p class="mt-1 break-words text-xs text-gray-500"><span x-text="selected.length"></span> kursi: <span x-text="selected.map(s => s.label).join(', ')"></span></p>
                 </div>
                 <p class="whitespace-nowrap text-lg font-bold text-white" x-text="formatRupiah(orderTotal())"></p>
             </div>
@@ -331,6 +340,10 @@ function cashierSeatPage() {
         paymentError: '',
         pendingOrderCode: '',
         definitions: {},
+        seatSize: 36,
+        fitSeatSize: 36,
+        zoom: 1,
+        mapObserver: null,
         seatDataUrl: '{{ route('staff.cashier.seat-data') }}',
         summaryUrl: '{{ route('staff.cashier.summary') }}',
         storeUrl: '{{ route('staff.cashier.store') }}',
@@ -338,7 +351,66 @@ function cashierSeatPage() {
         csrfToken: '{{ csrf_token() }}',
 
         init() {
+            this.$nextTick(() => this.setupMapObserver());
             this.loadSeats();
+        },
+
+        setupMapObserver() {
+            const el = this.$refs.seatScroll;
+            if (!el) return;
+
+            this.updateSeatSize();
+
+            if (window.ResizeObserver && !this.mapObserver) {
+                this.mapObserver = new ResizeObserver(() => this.updateSeatSize());
+                this.mapObserver.observe(el);
+            }
+        },
+
+        updateSeatSize() {
+            const el = this.$refs.seatScroll;
+            if (!el || this.seats.length === 0) return;
+
+            const style = getComputedStyle(el);
+            const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+            const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+            const availW = Math.max(0, el.clientWidth - padX - 10);
+            const availH = Math.max(0, el.clientHeight - padY - 10);
+            const cols = Math.max(1, this.columns);
+            const rows = Math.max(1, this.rowCount);
+            const gap = 6;
+            const labelWidth = 24;
+            const byWidth = (availW - labelWidth - cols * gap) / cols;
+            const byHeight = (availH - (rows - 1) * gap) / rows;
+            const fit = Math.max(28, Math.floor(Math.min(byWidth, byHeight)));
+
+            this.fitSeatSize = fit;
+            this.seatSize = Math.max(28, Math.floor(fit * this.zoom));
+        },
+
+        zoomIn() {
+            if (this.zoom >= 2.5) return;
+            this.zoom = Math.min(2.5, this.zoom + 0.25);
+            this.updateSeatSize();
+            this.$nextTick(() => this.centerMap());
+        },
+
+        zoomOut() {
+            if (this.zoom <= 1) return;
+            this.zoom = Math.max(1, this.zoom - 0.25);
+            this.updateSeatSize();
+            this.$nextTick(() => this.centerMap());
+        },
+
+        centerMap() {
+            const el = this.$refs.seatScroll;
+            if (!el) return;
+            if (this.zoom <= 1) {
+                el.scrollTo({ left: 0, top: 0 });
+                return;
+            }
+            el.scrollLeft = Math.max(0, (el.scrollWidth - el.clientWidth) / 2);
+            el.scrollTop = Math.max(0, (el.scrollHeight - el.clientHeight) / 2);
         },
 
         async loadSeats(options = {}) {
@@ -376,6 +448,7 @@ function cashierSeatPage() {
                 this.error = error.message;
             } finally {
                 this.loading = false;
+                this.$nextTick(() => this.updateSeatSize());
             }
         },
 
@@ -438,6 +511,7 @@ function cashierSeatPage() {
                     uid: 'seat-' + (seat.seat_id ?? index),
                     seat_id: seat.seat_id,
                     label: seat.seat_code || ((seat.row || '').trim() + (displayColumn + 1)),
+                    rowLabel: String(seat.row || seat.seat_code || '').replace(/\d+$/, '').trim() || String.fromCharCode(65 + displayRow),
                     raw_label: seat.seat_code,
                     price: Number(seat.price) || 0,
                     status,
@@ -454,6 +528,16 @@ function cashierSeatPage() {
             });
 
             this.legend = legend;
+        },
+
+        get rowLabels() {
+            const rows = new Map();
+            this.seats.forEach(seat => {
+                if (!rows.has(seat.displayRow)) {
+                    rows.set(seat.displayRow, { displayRow: seat.displayRow, label: seat.rowLabel });
+                }
+            });
+            return [...rows.values()].sort((a, b) => a.displayRow - b.displayRow);
         },
 
         isSelected(seat) {
@@ -486,6 +570,14 @@ function cashierSeatPage() {
             return seat.label;
         },
 
+        seatButtonLabel(seat) {
+            return this.seatLabel(seat);
+        },
+
+        rowLabelStyle(row) {
+            return `grid-column: 1; grid-row: ${row.displayRow + 1};`;
+        },
+
         seatTitle(seat) {
             if (seat.status === 'booked') return 'Kursi sudah terjual';
             if (!seat.sellable || seat.status === 'unavailable') return seat.def?.label || 'Tidak tersedia';
@@ -493,11 +585,13 @@ function cashierSeatPage() {
         },
 
         gridStyle() {
-            return 'grid-template-columns: repeat(' + Math.max(1, this.columns) + ', minmax(2.25rem, 2.25rem));';
+            const cols = Math.max(1, this.columns);
+            const rows = Math.max(1, this.rowCount);
+            return `grid-template-columns: 1.5rem repeat(${cols}, ${this.seatSize}px); grid-template-rows: repeat(${rows}, ${this.seatSize}px); gap: 6px;`;
         },
 
         seatClass(seat) {
-            const base = 'flex h-9 w-9 items-center justify-center rounded border text-[10px] font-semibold transition ';
+            const base = 'flex h-full w-full min-h-0 min-w-0 items-center justify-center rounded border font-semibold transition ';
             if (this.isSelected(seat)) return base + 'cursor-pointer border-blue-400 shadow-lg';
             if (seat.status === 'booked') return base + 'cursor-not-allowed';
             if (!seat.sellable || seat.status === 'unavailable' || !seat.selectable) return base + 'cursor-not-allowed';
@@ -506,8 +600,9 @@ function cashierSeatPage() {
 
         seatStyle(seat) {
             const style = {
-                gridColumn: String(seat.displayColumn + 1),
+                gridColumn: String(seat.displayColumn + 2),
                 gridRow: String(seat.displayRow + 1),
+                fontSize: Math.max(10, Math.min(12, Math.floor(this.seatSize * 0.32))) + 'px',
             };
 
             if (this.isSelected(seat)) {

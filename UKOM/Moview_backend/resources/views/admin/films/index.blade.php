@@ -12,21 +12,21 @@
         'filter_production_house', 'filter_service', 'filter_director', 'filter_cast', 'filter_crew'];
     $activeFilterCount = collect($allFilterKeys)->filter(fn($k) => request($k))->count();
 @endphp
-<div class="bg-white rounded-lg shadow p-6 mb-6" x-data="{ filterOpen: false }">
+<div class="mb-6 rounded-lg bg-white p-4 shadow sm:p-6" x-data="{ filterOpen: false }">
     <form method="GET" action="{{ route('admin.films.index') }}" id="filterForm">
-        <div class="mb-4 flex justify-between items-center flex-wrap gap-4">
-            <div class="flex space-x-4 flex-1">
-                <div class="relative flex-1 min-w-[200px]">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div class="flex flex-col gap-3 sm:flex-1 sm:flex-row sm:space-x-4">
+                <div class="relative min-w-0 flex-1">
                     <input type="text" 
                            name="search"
                            value="{{ request('search') }}"
                            placeholder="Search films..." 
-                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
                 </div>
                 <button type="button" 
                         @click="filterOpen = true" 
-                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap">
+                        class="min-h-[40px] whitespace-nowrap rounded-lg bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700">
                     <i class="fas fa-filter mr-2"></i>Filter
                     @if($activeFilterCount > 0)
                         <span class="ml-1 px-2 py-0.5 rounded-full bg-blue-400 text-white text-xs font-bold">
@@ -36,12 +36,12 @@
                 </button>
                 @if($activeFilterCount > 0 || request('search'))
                     <a href="{{ route('admin.films.index') }}" 
-                       class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors whitespace-nowrap">
+                       class="inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-lg bg-gray-200 px-6 py-2 text-gray-700 transition-colors hover:bg-gray-300">
                         <i class="fas fa-times mr-2"></i>Clear
                     </a>
                 @endif
             </div>
-            <a href="{{ route('admin.films.create') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center whitespace-nowrap">
+            <a href="{{ route('admin.films.create') }}" class="inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700">
                 <i class="fas fa-plus mr-2"></i>
                 Add New Film
             </a>
@@ -325,8 +325,8 @@
 </div>
 
 <!-- Films Table View -->
-<div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="min-w-full table-fixed divide-y divide-gray-200">
+<div class="overflow-x-auto rounded-lg bg-white shadow">
+    <table class="min-w-[1000px] table-fixed divide-y divide-gray-200">
         <thead class="bg-gray-50">
             <tr>
                 <th style="width:28%" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Film</th>

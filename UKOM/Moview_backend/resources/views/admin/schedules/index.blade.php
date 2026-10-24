@@ -5,7 +5,7 @@
 @section('page-subtitle', 'Kelola jadwal penayangan film di bioskop')
 
 @section('content')
-<div class="p-6">
+<div class="p-0 sm:p-6">
 
     {{-- Alert --}}
     @if(session('success'))
@@ -15,17 +15,17 @@
     @endif
 
     {{-- Header action --}}
-    <div class="flex items-center justify-between mb-6">
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-gray-500 text-sm">Total: <strong>{{ $schedules->total() }}</strong> jadwal</p>
         <a href="{{ route($panelPrefix.'.schedules.create') }}"
-           class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
+           class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
             <i class="fas fa-plus mr-2"></i> Tambah Jadwal
         </a>
     </div>
 
     {{-- Table --}}
-    <div class="bg-white rounded-xl shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
+    <div class="overflow-x-auto rounded-xl bg-white shadow">
+        <table class="min-w-[980px] divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-3 text-left font-semibold text-gray-600">#</th>

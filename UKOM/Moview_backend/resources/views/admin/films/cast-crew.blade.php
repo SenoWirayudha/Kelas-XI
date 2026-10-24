@@ -6,7 +6,7 @@
 
 @section('content')
 <!-- Back Button -->
-<div class="mb-6 flex space-x-3">
+<div class="mb-6 flex flex-wrap gap-3">
     <a href="{{ route('admin.films.show', $movie->id) }}" class="text-blue-600 hover:text-blue-800 flex items-center">
         <i class="fas fa-arrow-left mr-2"></i>
         Back to Film
@@ -35,10 +35,10 @@
 
 <!-- Edit Modal -->
 <div id="editModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+    <div class="relative mx-auto mt-10 w-[calc(100%-2rem)] max-w-md rounded-md border bg-white p-5 shadow-lg sm:mt-20">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-bold" id="modalTitle">Edit Character Name</h3>
-            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+            <button onclick="closeModal()" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-600">
                 <i class="fas fa-times"></i>
             </button>
         </div>
