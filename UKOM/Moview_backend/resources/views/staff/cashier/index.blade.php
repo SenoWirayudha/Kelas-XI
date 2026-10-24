@@ -5,13 +5,18 @@
 @section('page-subtitle', 'Pilih film lalu jam tayang hari ini')
 
 @section('header-actions')
-<button type="button"
-        onclick="window.moviewCashierWide?.toggle()"
-        class="inline-flex min-h-[40px] items-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
-        aria-label="Layar Penuh">
-    <i class="fas fa-expand sm:mr-2"></i>
-    <span class="hidden sm:inline">Layar Penuh</span>
-</button>
+<div class="flex flex-col items-end gap-1">
+    <button type="button"
+            onclick="window.moviewCashierWide?.toggle()"
+            class="inline-flex min-h-[40px] items-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+            aria-label="Layar Penuh">
+        <i class="fas fa-expand sm:mr-2"></i>
+        <span class="hidden sm:inline">Layar Penuh</span>
+    </button>
+    <p class="hidden max-w-[210px] text-right text-[10px] leading-tight text-gray-400 xl:block">
+        Tekan F11 agar layar penuh browser menetap di semua langkah.
+    </p>
+</div>
 @endsection
 
 @section('content')

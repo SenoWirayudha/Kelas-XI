@@ -49,6 +49,11 @@
                         aria-label="Perbesar denah">
                     <i class="fas fa-plus"></i>
                 </button>
+                <button type="button" @click="fitMap()"
+                        class="inline-flex h-9 items-center rounded-lg border border-gray-700 px-2.5 text-[11px] font-semibold text-gray-300 transition hover:bg-gray-800"
+                        aria-label="Pas Layar" title="Muat seluruh denah">
+                    Pas Layar
+                </button>
             </div>
         </div>
 
@@ -340,6 +345,7 @@ function cashierSeatPage() {
         paymentError: '',
         pendingOrderCode: '',
         definitions: {},
+        minSeatSize: 28,
         seatSize: 36,
         fitSeatSize: 36,
         zoom: 1,
@@ -374,18 +380,19 @@ function cashierSeatPage() {
             const style = getComputedStyle(el);
             const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
             const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-            const availW = Math.max(0, el.clientWidth - padX - 10);
-            const availH = Math.max(0, el.clientHeight - padY - 10);
+            const innerPadding = 12;
+            const availW = Math.max(0, el.clientWidth - padX - innerPadding);
+            const availH = Math.max(0, el.clientHeight - padY - innerPadding);
             const cols = Math.max(1, this.columns);
             const rows = Math.max(1, this.rowCount);
             const gap = 6;
             const labelWidth = 24;
             const byWidth = (availW - labelWidth - cols * gap) / cols;
             const byHeight = (availH - (rows - 1) * gap) / rows;
-            const fit = Math.max(28, Math.floor(Math.min(byWidth, byHeight)));
+            const fit = Math.max(this.minSeatSize, Math.floor(Math.min(byWidth, byHeight)));
 
             this.fitSeatSize = fit;
-            this.seatSize = Math.max(28, Math.floor(fit * this.zoom));
+            this.seatSize = Math.max(this.minSeatSize, Math.floor(fit * this.zoom));
         },
 
         zoomIn() {
@@ -398,6 +405,12 @@ function cashierSeatPage() {
         zoomOut() {
             if (this.zoom <= 1) return;
             this.zoom = Math.max(1, this.zoom - 0.25);
+            this.updateSeatSize();
+            this.$nextTick(() => this.centerMap());
+        },
+
+        fitMap() {
+            this.zoom = 1;
             this.updateSeatSize();
             this.$nextTick(() => this.centerMap());
         },
