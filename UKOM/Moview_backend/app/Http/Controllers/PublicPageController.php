@@ -51,13 +51,11 @@ class PublicPageController extends Controller
             ->limit(12)
             ->get();
 
-        $reviews = Review::with(['user', 'movie'])
-            ->where('status', 'published')
-            ->whereNotNull('content')
-            ->latest('created_at')
-            ->latest('id')
-            ->limit(3)
-            ->get();
+        $reviews = $this->popularReviews(3, 20);
+
+        if ($reviews->isEmpty()) {
+            $reviews = $this->popularReviews(3);
+        }
 
         $popularMovies = $this->weeklyPopularMovies();
 
@@ -113,30 +111,14 @@ class PublicPageController extends Controller
             ])
             ->values();
 
-        $review = Review::with(['user', 'movie'])
-            ->where('status', 'published')
-            ->whereNotNull('content')
-            ->whereRaw('LENGTH(content) >= 80')
-            ->latest('created_at')
-            ->latest('id')
-            ->first()
-            ?? Review::with(['user', 'movie'])
-                ->where('status', 'published')
-                ->whereNotNull('content')
-                ->latest('created_at')
-                ->latest('id')
-                ->first();
+        $review = $this->popularReviews(1, 20)->first()
+            ?? $this->popularReviews(1)->first();
 
         $reviewStats = [
             // Likes by OTHER users live in review_likes.
             // reviews.is_liked is the review author's own movie like and is unrelated.
-            'likes' => $review ? DB::table('review_likes')->where('review_id', $review->id)->count() : 0,
-            'comments' => $review
-                ? DB::table('review_comments')
-                    ->where('review_id', $review->id)
-                    ->where('status', 'published')
-                    ->count()
-                : 0,
+            'likes' => $review ? (int) $review->likes_count : 0,
+            'comments' => $review ? (int) $review->published_comments_count : 0,
             'saved' => $review ? DB::table('watchlists')->where('film_id', $review->film_id)->count() : 0,
         ];
 
@@ -196,6 +178,33 @@ class PublicPageController extends Controller
                 'cinemas' => Cinema::query()->count(),
             ],
         ];
+    }
+
+    /**
+     * "Review teramai": published reviews ranked by engagement.
+     * Engagement = likes from other users (review_likes)
+     * + published comments (review_comments).
+     * Ties fall back to the newest review.
+     */
+    private function popularReviews(int $limit = 3, int $minContentLength = 0)
+    {
+        return Review::with(['user', 'movie'])
+            ->where('status', 'published')
+            ->whereNotNull('content')
+            ->withCount([
+                'likes',
+                'comments as published_comments_count' => fn ($query) => $query
+                    ->where('status', 'published'),
+            ])
+            ->get()
+            ->filter(fn (Review $review) => $minContentLength <= 0
+                || mb_strlen(trim(strip_tags((string) $review->content))) >= $minContentLength)
+            ->sortByDesc(fn (Review $review) => (
+                (($review->likes_count + $review->published_comments_count) * 1000000000)
+                + (optional($review->created_at)->timestamp ?? 0)
+            ))
+            ->take($limit)
+            ->values();
     }
 
     /**

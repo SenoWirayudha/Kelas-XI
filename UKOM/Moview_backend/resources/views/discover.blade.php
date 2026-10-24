@@ -27,7 +27,7 @@
             <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">Discover</p>
             <h1 class="mt-2 text-2xl font-bold text-white sm:text-3xl">Halo, {{ $user->username }}.</h1>
             <p class="mt-2 max-w-2xl text-sm leading-relaxed text-gray-400">
-                Lihat film yang sedang tayang dan ulasan terbaru komunitas. Untuk menulis ulasan, menyimpan favorit,
+                Lihat film yang sedang tayang dan ulasan teramai komunitas. Untuk menulis ulasan, menyimpan favorit,
                 dan membeli tiket, lanjutkan di aplikasi Android Moview.
             </p>
         </section>
@@ -48,7 +48,7 @@
             <section class="mt-10">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-400">Dari komunitas</p>
-                    <h2 class="mt-1 text-xl font-bold text-white sm:text-2xl">Ulasan terbaru</h2>
+                    <h2 class="mt-1 text-xl font-bold text-white sm:text-2xl">Ulasan teramai</h2>
                 </div>
 
                 <div class="mt-4 grid gap-4 md:grid-cols-3">
@@ -69,6 +69,10 @@
                             <p class="mt-3 line-clamp-4 text-sm leading-relaxed text-gray-300">
                                 {{ \Illuminate\Support\Str::limit(strip_tags($review->content), 180) }}
                             </p>
+                            <div class="mt-3 flex items-center gap-4 border-t border-white/5 pt-2 text-[11px] text-gray-500">
+                                <span><i class="fas fa-heart mr-1"></i>{{ number_format((int) $review->likes_count, 0, ',', '.') }}</span>
+                                <span><i class="fas fa-comment mr-1"></i>{{ number_format((int) $review->published_comments_count, 0, ',', '.') }}</span>
+                            </div>
                         </article>
                     @endforeach
                 </div>

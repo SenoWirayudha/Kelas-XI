@@ -14,7 +14,7 @@
     $reviewQuote = $review?->content
         ? trim(strip_tags($review->content))
         : '';
-    if (mb_strlen($reviewQuote) < 80) {
+    if (mb_strlen($reviewQuote) < 20) {
         $reviewQuote = 'Film ini punya ritme yang tenang, tapi setiap adegannya terasa sengaja ditempatkan. Layak dibicarakan setelah lampu bioskop menyala.';
     } else {
         $reviewQuote = \Illuminate\Support\Str::limit($reviewQuote, 220);
@@ -232,6 +232,7 @@
             <div class="community-grid">
                 <article class="review-card reveal" data-reveal style="--delay:80ms">
                     <span class="example-badge">Contoh tampilan</span>
+                    <p class="review-kicker">Ulasan teramai</p>
 
                     <div class="review-user">
                         <span class="avatar">{{ strtoupper(substr($reviewUser?->username ?? 'M', 0, 1)) }}</span>
@@ -786,6 +787,14 @@
     }
     .review-card > .example-badge,
     .profile-card > .example-badge { position: absolute; top: 18px; right: 18px; }
+    .review-kicker {
+        color: var(--mv-primary);
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+    .review-kicker + .review-user { margin-top: 14px; }
     .review-user { display: flex; align-items: center; gap: 11px; padding-right: 90px; }
     .avatar {
         display: flex;

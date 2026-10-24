@@ -31,4 +31,19 @@ class Review extends Model
     {
         return $this->belongsTo(Movie::class, 'film_id');
     }
+
+    /**
+     * Likes from OTHER users (review_likes table).
+     * Not to be confused with reviews.is_liked, which is the author's own
+     * "liked this movie" flag.
+     */
+    public function likes()
+    {
+        return $this->belongsToMany(User::class, 'review_likes');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(ReviewComment::class);
+    }
 }
