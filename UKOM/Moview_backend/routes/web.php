@@ -243,6 +243,7 @@ Route::prefix('staff')->name('staff.')->middleware(['admin.auth', 'role:staff', 
     Route::get('/scan-ticket', [StaffTicketScannerController::class, 'index'])->name('tickets.scanner');
     Route::post('/tickets/preview', [StaffTicketScannerController::class, 'preview'])->name('tickets.preview');
     Route::post('/tickets/scan', [StaffTicketScannerController::class, 'scan'])->name('tickets.scan');
+    Route::post('/focus/verify', [StaffTicketScannerController::class, 'verifyFocusPassword'])->name('focus.verify');
     Route::get('/tickets/{order}/print', [TicketPrintController::class, 'show'])->name('tickets.print');
 });
 

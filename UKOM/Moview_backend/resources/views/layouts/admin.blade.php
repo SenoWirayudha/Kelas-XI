@@ -25,6 +25,45 @@
             display: none;
         }
 
+        /* Staff focus mode: keep navigation present but inert and subtle. */
+        html.staff-focus-mode body aside {
+            width: 4rem;
+            opacity: 0.35;
+            overflow: hidden;
+            pointer-events: none;
+            transition: width 200ms ease, opacity 200ms ease;
+        }
+        html.staff-focus-mode body aside img {
+            max-width: 2rem;
+            height: 1.5rem;
+            object-fit: contain;
+            object-position: left;
+        }
+        html.staff-focus-mode body aside nav,
+        html.staff-focus-mode body aside .border-t {
+            display: none !important;
+        }
+        html.staff-focus-mode body header {
+            opacity: 0.25;
+            pointer-events: none;
+        }
+        html.staff-focus-mode body header > div {
+            padding-top: 0.35rem;
+            padding-bottom: 0.35rem;
+        }
+        html.staff-focus-mode body header h2 {
+            font-size: 1rem;
+        }
+        html.staff-focus-mode body header p,
+        html.staff-focus-mode body header form,
+        html.staff-focus-mode body header .border-l,
+        html.staff-focus-mode body header span {
+            display: none !important;
+        }
+        html.staff-focus-mode body main {
+            padding: 0.75rem !important;
+        }
+
         /* Print: only the ticket area is printed (no sidebar/header). */
         @media print {
             body * {
@@ -47,6 +86,96 @@
             }
         }
     </style>
+    @if(session('admin_role') === 'staff')
+    <script>
+    (function () {
+        const key = 'moview_staff_focus_mode';
+        const scanUrl = @json(route('staff.tickets.scanner'));
+        const scanPath = new URL(scanUrl, window.location.href).pathname;
+
+        const isActive = () => {
+            try {
+                return sessionStorage.getItem(key) === '1';
+            } catch (_) {
+                return false;
+            }
+        };
+
+        const apply = () => {
+            document.documentElement.classList.toggle('staff-focus-mode', isActive());
+        };
+
+        const redirect = () => {
+            if (isActive() && window.location.pathname !== scanPath) {
+                window.location.replace(scanUrl);
+                return true;
+            }
+            return false;
+        };
+
+        window.moviewFocusMode = {
+            key,
+            scanUrl,
+            scanPath,
+            isActive,
+            apply,
+            redirect,
+            setActive(active) {
+                try {
+                    active ? sessionStorage.setItem(key, '1') : sessionStorage.removeItem(key);
+                } catch (_) {}
+                apply();
+            },
+        };
+
+        apply();
+        redirect();
+
+        window.addEventListener('pageshow', redirect);
+        window.addEventListener('popstate', redirect);
+
+        document.addEventListener('click', function (event) {
+            if (!isActive()) return;
+
+            const link = event.target.closest ? event.target.closest('a[href]') : null;
+            if (!link) return;
+
+            let url;
+            try {
+                url = new URL(link.getAttribute('href'), window.location.href);
+            } catch (_) {
+                return;
+            }
+
+            if (url.origin === window.location.origin && url.pathname === scanPath) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            redirect();
+        }, true);
+
+        document.addEventListener('submit', function (event) {
+            if (!isActive()) return;
+
+            const action = event.target.getAttribute ? event.target.getAttribute('action') : null;
+            if (!action) return;
+
+            let url;
+            try {
+                url = new URL(action, window.location.href);
+            } catch (_) {
+                return;
+            }
+
+            if (url.origin === window.location.origin && url.pathname === scanPath) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            redirect();
+        }, true);
+    })();
+    </script>
+    @endif
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="moview-theme bg-gray-100">
