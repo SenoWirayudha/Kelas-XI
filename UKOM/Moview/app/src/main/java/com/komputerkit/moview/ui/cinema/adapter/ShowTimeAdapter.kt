@@ -24,7 +24,9 @@ class ShowTimeAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val time = times[position]
-        holder.tv.text = time.time
+        holder.tv.text = if (time.isAvailable) time.time else "${time.time}\nDitutup"
+        holder.tv.textSize = if (time.isAvailable) 13f else 11f
+        holder.tv.maxLines = 2
 
         val isSelected = position == selectedPosition
         holder.tv.setBackgroundResource(

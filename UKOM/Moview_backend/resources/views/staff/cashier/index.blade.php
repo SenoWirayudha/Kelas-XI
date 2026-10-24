@@ -2,281 +2,134 @@
 
 @section('title', 'Kasir Tiket')
 @section('page-title', 'Kasir Tiket')
-@section('page-subtitle', 'Penjualan tiket offline di bioskop Anda')
+@section('page-subtitle', 'Pilih film lalu jam tayang hari ini')
 
 @section('content')
-<div class="p-6" x-data="cashierPage()" x-init="init()">
-    @if($schedules->isEmpty())
-        <div class="bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-xl p-5">
-            <i class="fas fa-circle-info mr-2"></i>
-            Tidak ada jadwal tayang hari ini di bioskop Anda.
+<style>
+    .cashier-screen { height: calc(100vh - 11rem); }
+    @media (max-width: 767px) {
+        body.moview-theme aside { display: none; }
+        body.moview-theme main { padding: 0.75rem; }
+        .cashier-screen { height: calc(100vh - 7rem); }
+    }
+</style>
+<div class="cashier-screen flex flex-col overflow-hidden"
+     x-data="cashierFilms(@js($films))">
+
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+            <p class="text-sm text-gray-400">
+                <span class="font-semibold text-white">{{ number_format($totalFilms, 0, ',', '.') }}</span> film
+                <span class="mx-1">•</span>
+                <span class="font-semibold text-white">{{ number_format($totalSchedules, 0, ',', '.') }}</span> jam tayang tersedia
+            </p>
+            <p class="mt-0.5 text-xs text-gray-500">Jadwal yang sudah lewat batas kasir tidak ditampilkan.</p>
+        </div>
+        <span x-show="films.length > 0" class="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-300">
+            Halaman <span x-text="page"></span> / <span x-text="totalPages"></span>
+        </span>
+    </div>
+
+    @if($films->isEmpty())
+        <div class="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-gray-700/60 bg-white text-center">
+            <i class="fas fa-film text-4xl text-gray-600"></i>
+            <p class="mt-3 text-sm font-medium text-gray-300">Tidak ada jadwal tayang hari ini</p>
+            <p class="mt-1 text-xs text-gray-500">Jadwal yang sudah melewati batas penjualan kasir otomatis disembunyikan.</p>
         </div>
     @else
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div class="xl:col-span-2 space-y-6">
-            <div class="bg-white rounded-xl shadow p-5">
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Jadwal Tayang Hari Ini</label>
-                <select x-model="scheduleId" @change="loadSeats()"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                    @foreach($schedules as $schedule)
-                        <option value="{{ $schedule->id }}">
-                            {{ $schedule->movie?->title ?? '-' }} — {{ $schedule->studio?->studio_name ?? '-' }} — {{ substr((string) $schedule->show_time, 0, 5) }}
-                        </option>
-                    @endforeach
-                </select>
-                <p class="mt-2 text-xs text-gray-500">
-                    Kursi yang sudah terjual (online maupun offline) tidak dapat dipilih.
-                </p>
-            </div>
+        <div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-4 overflow-hidden sm:grid-cols-2 lg:grid-cols-3">
+            <template x-for="film in pagedFilms" :key="film.id">
+                <article class="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-700/60 bg-white shadow-lg">
+                    <div class="flex gap-3 border-b border-gray-700/50 p-3">
+                        <template x-if="film.poster_url">
+                            <img :src="film.poster_url" :alt="film.title"
+                                 class="h-20 w-14 flex-shrink-0 rounded-lg object-cover bg-gray-800">
+                        </template>
+                        <template x-if="!film.poster_url">
+                            <div class="flex h-20 w-14 flex-shrink-0 items-center justify-center rounded-lg bg-gray-800 text-gray-600">
+                                <i class="fas fa-film"></i>
+                            </div>
+                        </template>
+                        <div class="min-w-0 flex-1">
+                            <h3 class="truncate text-base font-semibold text-white" :title="film.title" x-text="film.title"></h3>
+                            <p class="mt-1 text-xs text-gray-500"><span x-text="film.studios.length"></span> studio tersedia</p>
+                        </div>
+                    </div>
 
-            <div class="bg-white rounded-xl shadow p-5">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-semibold text-gray-800 flex items-center gap-2">
-                        <i class="fas fa-chair text-blue-500"></i> Denah Studio
-                    </h3>
-                    <span x-show="loadingSeats" class="text-xs text-gray-500">
-                        <i class="fas fa-spinner fa-spin mr-1"></i> Memuat...
-                    </span>
-                </div>
-
-                <div x-show="error" x-text="error" class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3"></div>
-
-                <div class="overflow-x-auto pb-2">
-                    <div class="grid gap-1 justify-center mx-auto" :style="gridStyle()">
-                        <template x-for="seat in seats" :key="seat.seat_id">
-                            <button type="button"
-                                    @click="toggleSeat(seat)"
-                                    :disabled="!isSelectable(seat)"
-                                    :style="seatStyle(seat)"
-                                    :class="seatClass(seat)"
-                                    :title="seat.status === 'booked' ? 'Sudah terjual' : seat.seat_code">
-                                <span x-text="seatLabel(seat)"></span>
-                            </button>
+                    <div class="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+                        <template x-for="studio in film.studios" :key="studio.name + '|' + studio.type">
+                            <div>
+                                <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                                    <i class="fas fa-door-open mr-1 text-blue-400"></i><span x-text="studio.name"></span>
+                                    <span class="font-normal normal-case text-gray-500" x-show="studio.type" x-text="'• ' + studio.type"></span>
+                                </p>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <template x-for="schedule in studio.schedules" :key="schedule.id">
+                                        <a :href="seatsUrl + '?schedule_id=' + schedule.id"
+                                           class="group inline-flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-2.5 py-1.5 text-xs font-semibold text-blue-200 transition hover:border-blue-400 hover:bg-blue-500/25"
+                                           :title="'Tutup kasir ' + schedule.closes_at">
+                                            <i class="far fa-clock text-[10px] text-blue-400"></i>
+                                            <span x-text="schedule.time"></span>
+                                        </a>
+                                    </template>
+                                </div>
+                            </div>
                         </template>
                     </div>
-                </div>
-
-                <div class="mt-4 flex flex-wrap gap-4 text-xs text-gray-600">
-                    <span class="flex items-center gap-1"><span class="w-4 h-4 rounded border bg-white border-gray-300"></span> Tersedia</span>
-                    <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-blue-600"></span> Dipilih</span>
-                    <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-gray-300"></span> Terjual</span>
-                </div>
-            </div>
+                </article>
+            </template>
         </div>
 
-        <div class="space-y-6">
-            <div class="bg-white rounded-xl shadow p-5">
-                <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <i class="fas fa-cash-register text-blue-500"></i> Pembayaran
-                </h3>
-
-                <div class="mb-4">
-                    <p class="text-xs text-gray-500 mb-1">Kursi dipilih</p>
-                    <div class="flex flex-wrap gap-1 min-h-[1.75rem]">
-                        <template x-for="seat in selected" :key="seat.seat_id">
-                            <span class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-800 text-xs px-2 py-1 rounded">
-                                <span x-text="seat.seat_code"></span>
-                                <button type="button" @click="toggleSeat(seat)" class="text-blue-500 hover:text-blue-800">&times;</button>
-                            </span>
-                        </template>
-                        <span x-show="selected.length === 0" class="text-sm text-gray-400">Belum ada kursi dipilih</span>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between py-2 border-t border-gray-100">
-                    <span class="text-sm text-gray-600">Total</span>
-                    <span class="font-bold text-gray-900" x-text="formatRupiah(total())"></span>
-                </div>
-
-                <label class="block text-sm font-medium text-gray-700 mt-3 mb-1">Nama Pembeli <span class="text-gray-400 font-normal">(opsional)</span></label>
-                <input type="text" x-model="buyerName" maxlength="100"
-                       placeholder="Nama pembeli"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-
-                <label class="block text-sm font-medium text-gray-700 mt-3 mb-1">Uang Tunai</label>
-                <input type="number" min="0" step="1000" x-model.number="cash"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-
-                <div class="flex items-center justify-between py-2 mt-1">
-                    <span class="text-sm text-gray-600">Kembalian</span>
-                    <span class="font-semibold" :class="cash >= total() ? 'text-green-700' : 'text-red-600'" x-text="formatRupiah(change())"></span>
-                </div>
-
-                <button type="button" @click="pay()"
-                        :disabled="processing || selected.length === 0 || cash < total()"
-                        class="mt-4 w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i class="fas fa-money-bill-wave mr-1"></i>
-                    <span x-text="processing ? 'Memproses...' : 'Bayar'"></span>
-                </button>
-            </div>
+        <div x-show="totalPages > 1" class="mt-3 flex items-center justify-between gap-3">
+            <button type="button" @click="prev()"
+                    :disabled="!hasPrev"
+                    class="inline-flex items-center rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 transition disabled:pointer-events-none disabled:opacity-40 hover:bg-gray-800">
+                <i class="fas fa-chevron-left mr-1"></i> Sebelumnya
+            </button>
+            <button type="button" @click="next()"
+                    :disabled="!hasNext"
+                    class="inline-flex items-center rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 transition disabled:pointer-events-none disabled:opacity-40 hover:bg-gray-800">
+                Berikutnya <i class="fas fa-chevron-right ml-1"></i>
+            </button>
         </div>
-    </div>
     @endif
 </div>
 @endsection
 
 @push('scripts')
 <script>
-function cashierPage() {
+function cashierFilms(films) {
     return {
-        scheduleId: '{{ $schedules->first()?->id }}',
-        seats: [],
-        rows: 0,
-        columns: 0,
-        selected: [],
-        buyerName: '',
-        cash: 0,
-        loadingSeats: false,
-        processing: false,
-        error: '',
+        films: films || [],
+        page: 1,
+        perPage: 2,
         seatsUrl: '{{ route('staff.cashier.seats') }}',
-        storeUrl: '{{ route('staff.cashier.store') }}',
-        csrfToken: '{{ csrf_token() }}',
 
         init() {
-            if (this.scheduleId) {
-                this.loadSeats();
-            }
+            this.applyBreakpoint();
+            window.addEventListener('resize', () => this.applyBreakpoint());
         },
 
-        async loadSeats() {
-            this.loadingSeats = true;
-            this.error = '';
-            this.selected = [];
-            this.seats = [];
-
-            try {
-                const response = await fetch(this.seatsUrl + '?schedule_id=' + encodeURIComponent(this.scheduleId), {
-                    headers: { 'Accept': 'application/json' },
-                });
-                const payload = await response.json().catch(() => ({}));
-
-                if (!response.ok || !payload.success) {
-                    throw new Error(payload.message || 'Gagal memuat denah kursi.');
-                }
-
-                this.seats = payload.data.seats || [];
-                this.rows = payload.data.rows || 0;
-                this.columns = payload.data.columns || 0;
-            } catch (error) {
-                this.error = error.message;
-            } finally {
-                this.loadingSeats = false;
-            }
+        applyBreakpoint() {
+            const width = window.innerWidth;
+            this.perPage = width >= 1024 ? 6 : (width >= 640 ? 4 : 2);
+            if (this.page > this.totalPages) this.page = this.totalPages;
         },
 
-        isSelectable(seat) {
-            return seat.status === 'available';
+        get totalPages() {
+            return Math.max(1, Math.ceil(this.films.length / this.perPage));
         },
 
-        isSelected(seat) {
-            return this.selected.some(s => s.seat_id === seat.seat_id);
+        get pagedFilms() {
+            const start = (this.page - 1) * this.perPage;
+            return this.films.slice(start, start + this.perPage);
         },
 
-        toggleSeat(seat) {
-            if (!this.isSelectable(seat)) {
-                return;
-            }
+        get hasPrev() { return this.page > 1; },
+        get hasNext() { return this.page < this.totalPages; },
 
-            const index = this.selected.findIndex(s => s.seat_id === seat.seat_id);
-            if (index >= 0) {
-                this.selected.splice(index, 1);
-            } else {
-                this.selected.push(seat);
-            }
-        },
-
-        seatLabel(seat) {
-            if (!seat.status && (seat.seat_type === 'aisle' || seat.seat_type === 'entrance')) {
-                return '';
-            }
-            return seat.seat_code || '';
-        },
-
-        seatStyle(seat) {
-            return 'grid-column: ' + (Number(seat.column) + 1) + '; grid-row: ' + (Number(seat.row_index) + 1) + ';';
-        },
-
-        gridStyle() {
-            return 'grid-template-columns: repeat(' + Math.max(1, Number(this.columns)) + ', minmax(2.25rem, 2.25rem));';
-        },
-
-        seatClass(seat) {
-            const base = 'w-9 h-9 rounded border text-[10px] font-semibold flex items-center justify-center transition ';
-
-            if (this.isSelected(seat)) {
-                return base + 'bg-blue-600 border-blue-700 text-white';
-            }
-            if (seat.status === 'booked') {
-                return base + 'bg-gray-300 border-gray-300 text-gray-500 cursor-not-allowed';
-            }
-            if (seat.status === 'unavailable') {
-                return base + 'bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed';
-            }
-            if (!seat.status) {
-                return base + 'bg-transparent border-transparent cursor-default';
-            }
-            return base + 'bg-white border-gray-300 text-gray-700 hover:bg-blue-50';
-        },
-
-        total() {
-            return this.selected.reduce((sum, seat) => sum + Number(seat.price || 0), 0);
-        },
-
-        change() {
-            return Math.max(0, Number(this.cash || 0) - this.total());
-        },
-
-        formatRupiah(value) {
-            return 'Rp ' + Number(value || 0).toLocaleString('id-ID');
-        },
-
-        async pay() {
-            if (this.selected.length === 0 || this.processing) {
-                return;
-            }
-
-            this.processing = true;
-            this.error = '';
-
-            try {
-                const response = await fetch(this.storeUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': this.csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    body: JSON.stringify({
-                        schedule_id: this.scheduleId,
-                        seats: this.selected.map(seat => seat.seat_id),
-                        buyer_name: this.buyerName,
-                        cash_received: Number(this.cash || 0),
-                    }),
-                });
-
-                const payload = await response.json().catch(() => ({}));
-
-                if (!response.ok || !payload.success) {
-                    const soldOut = (payload.message || '').includes('Kursi sudah terjual');
-
-                    if (soldOut) {
-                        await this.loadSeats();
-                        this.error = 'Kursi sudah terjual. Denah telah dimuat ulang.';
-                    } else {
-                        this.error = payload.message || 'Pembayaran gagal. Coba lagi.';
-                    }
-                    return;
-                }
-
-                window.location.href = payload.redirect;
-            } catch (error) {
-                this.error = 'Gagal menghubungi server. Coba lagi.';
-            } finally {
-                this.processing = false;
-            }
-        },
+        prev() { if (this.hasPrev) this.page--; },
+        next() { if (this.hasNext) this.page++; },
     };
 }
 </script>

@@ -36,6 +36,15 @@ class TicketOrderService
         $channel = $options['channel'] ?? Order::CHANNEL_ONLINE;
         $cashReceived = $options['cash_received'] ?? null;
 
+        if (! $schedule->isOpenForChannel($channel)) {
+            throw new BookingException(
+                $channel === Order::CHANNEL_OFFLINE
+                    ? 'Jadwal sudah ditutup untuk penjualan kasir.'
+                    : 'Jadwal sudah ditutup untuk pembelian online.',
+                422
+            );
+        }
+
         try {
             return DB::transaction(function () use ($schedule, $seatIds, $options, $status, $channel, $cashReceived) {
                 $studio = $schedule->studio;

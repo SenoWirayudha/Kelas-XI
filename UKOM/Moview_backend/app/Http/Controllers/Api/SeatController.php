@@ -31,6 +31,10 @@ class SeatController extends Controller
         $schedule = Schedule::findOrFail($request->schedule_id);
         $studio   = $schedule->studio;
 
+        if (! $this->isCashierRequest($request) && ! $schedule->isOnlineOpen()) {
+            abort(422, 'Jadwal sudah ditutup untuk pembelian online.');
+        }
+
         $bookedSeatIds = OrderSeat::occupiedSeatIds($schedule->id);
 
         $rawSeats = Seat::where('studio_id', $schedule->studio_id)
@@ -83,6 +87,15 @@ class SeatController extends Controller
     }
 
     /**
+     * The cashier sends `cashier=1`; it may sell a schedule up to 15 minutes
+     * after showtime, unlike the online app.
+     */
+    private function isCashierRequest(Request $request): bool
+    {
+        return $request->boolean('cashier');
+    }
+
+    /**
      * GET /api/v1/seats?schedule_id=1
      * Returns all seats in the studio for the schedule,
      * each marked as 'available' or 'booked'.
@@ -96,6 +109,10 @@ class SeatController extends Controller
         ]);
 
         $schedule = Schedule::findOrFail($request->schedule_id);
+
+        if (! $this->isCashierRequest($request) && ! $schedule->isOnlineOpen()) {
+            abort(422, 'Jadwal sudah ditutup untuk pembelian online.');
+        }
 
         // Seat IDs already taken by active (pending or paid) orders.
         $bookedSeatIds = OrderSeat::occupiedSeatIds($schedule->id);

@@ -52,6 +52,7 @@ data class ScheduleDto(
     val studio_name: String,
     val studio_type: String?,
     val status: String?,
+    val is_open: Boolean? = null,
     val show_date: String,
     val show_time: String,
     val ticket_price: Double

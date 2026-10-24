@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Schedule;
+use App\Support\ScheduleRules;
 use Illuminate\Http\Request;
 
 class ScheduleController extends Controller
@@ -31,7 +32,8 @@ class ScheduleController extends Controller
             'service_name'    => $s->studio->cinema->service->name ?? null,
                 'studio_name'     => $s->studio->studio_name,
                 'studio_type'     => $s->studio->studio_type,
-                'status'          => $s->status,
+                'status'          => ScheduleRules::effectiveStatus($s, 'online'),
+                'is_open'         => ScheduleRules::isOnlineOpen($s),
                 'show_date'       => $s->show_date->format('Y-m-d'),
                 'show_time'       => $s->show_time,
                 'ticket_price'    => (float) $s->ticket_price,

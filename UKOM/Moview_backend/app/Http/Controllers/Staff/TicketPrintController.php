@@ -18,6 +18,8 @@ class TicketPrintController extends Controller
 
         $this->authorizeCinema($order->schedule?->studio?->cinema_id);
 
+        abort_unless($order->status === 'paid', 403, 'Tiket hanya dapat dicetak setelah pembayaran lunas.');
+
         return view('staff.tickets.print', compact('order'));
     }
 }

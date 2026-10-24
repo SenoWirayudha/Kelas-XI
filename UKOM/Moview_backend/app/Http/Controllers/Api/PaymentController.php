@@ -63,6 +63,10 @@ class PaymentController extends Controller
         $newOrderStatus = $this->resolveOrderStatus($transactionStatus, $fraudStatus, $order->status);
         $order->update(['status' => $newOrderStatus]);
 
+        if (in_array($newOrderStatus, ['cancelled', 'expired'], true)) {
+            OrderSeat::where('order_id', $order->id)->delete();
+        }
+
         return [
             'order_status' => $newOrderStatus,
             'transaction_status' => $transactionStatus,
@@ -85,6 +89,13 @@ class PaymentController extends Controller
         $schedule = Schedule::with(['movie', 'studio.cinema.service'])->findOrFail($validated['schedule_id']);
         $user = User::findOrFail($validated['user_id']);
         $seatIds = $validated['selected_seats'];
+
+        if (! $schedule->isOnlineOpen()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Jadwal sudah ditutup untuk pembelian online.',
+            ], 422);
+        }
 
         $serviceFeePerSeat = (int) config('services.booking.service_fee', 4000);
         $pendingTimeoutMinutes = (int) config('services.booking.pending_timeout_minutes', 7);

@@ -286,8 +286,9 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun isScheduleAvailable(schedule: ScheduleDto): Boolean {
+        if (schedule.is_open != null) return schedule.is_open
         val status = schedule.status.orEmpty().trim().lowercase()
-        return status != "expired" && status != "cancelled"
+        return status != "expired" && status != "cancelled" && status != "closed"
     }
 
     private fun extractCity(cinemaLocation: String): String {

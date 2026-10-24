@@ -181,12 +181,12 @@
         <div class="flex-1 flex flex-col">
             <!-- Top Navigation -->
             <header class="bg-white shadow-sm">
-                <div class="flex items-center justify-between px-8 py-4">
+                <div class="flex items-center justify-between gap-3 px-4 py-3 sm:px-8 sm:py-4">
                     <div>
                         <h2 class="text-2xl font-semibold text-gray-800">@yield('page-title', 'Dashboard')</h2>
                         <p class="text-sm text-gray-500">@yield('page-subtitle', '')</p>
                     </div>
-                    <div class="flex items-center space-x-4">
+                    <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
                         @if(session('admin_role') === 'admin')
                         <div x-data="{ 
                             open: false, 
