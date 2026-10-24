@@ -7,7 +7,7 @@
 @section('content')
 <!-- Key Metrics -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+    <div class="mv-stat-card bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-blue-100 text-sm mb-1">Total Views</p>
@@ -28,7 +28,7 @@
         </div>
     </div>
     
-    <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+    <div class="mv-stat-card bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-green-100 text-sm mb-1">Active Users</p>
@@ -44,7 +44,7 @@
         </div>
     </div>
     
-    <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
+    <div class="mv-stat-card bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-purple-100 text-sm mb-1">Reviews Posted</p>

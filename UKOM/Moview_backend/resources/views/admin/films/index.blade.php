@@ -41,7 +41,7 @@
                     </a>
                 @endif
             </div>
-            <a href="{{ route('admin.films.create') }}" class="inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700">
+            <a href="{{ route('admin.films.create') }}" class="inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700">
                 <i class="fas fa-plus mr-2"></i>
                 Add New Film
             </a>

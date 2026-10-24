@@ -40,7 +40,7 @@
             <i class="fas fa-search mr-1"></i> Filter
         </button>
         <a href="{{ route($panelPrefix.'.orders.export', request()->query()) }}"
-           class="inline-flex min-h-[40px] w-full items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm text-white transition hover:bg-green-700 sm:w-auto">
+           class="inline-flex min-h-[40px] w-full items-center justify-center rounded-lg border border-gray-300 bg-gray-100 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-200 sm:w-auto">
             <i class="fas fa-file-csv mr-1"></i> Export CSV
         </a>
         @if(request()->hasAny(['search','status','channel']))
