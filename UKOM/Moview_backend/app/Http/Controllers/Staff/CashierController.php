@@ -273,15 +273,13 @@ class CashierController extends Controller
             'item_details' => $items,
             'customer_details' => [
                 'first_name' => $buyerName ?: 'Walk-in Customer',
-                'email' => session('admin_email') ?: 'staff@moview.com',
+                'email' => (string) session('admin_user_email'),
                 'phone' => '081234567890',
             ],
             'credit_card' => [
                 'secure' => true,
             ],
-            'enabled_payments' => $method === 'qris'
-                ? ['other_qris']
-                : ['credit_card'],
+            'enabled_payments' => ['shopeepay', 'credit_card'],
             'custom_field1' => $method,
             'custom_field2' => (string) $schedule->movie?->title,
             'callbacks' => [
