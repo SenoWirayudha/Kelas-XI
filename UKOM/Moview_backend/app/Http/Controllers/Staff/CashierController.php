@@ -7,7 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderSeat;
 use App\Models\Schedule;
+use App\Models\Seat;
 use App\Services\MidtransService;
+use App\Services\PendingOrderCleanupService;
 use App\Services\TicketOrderService;
 use App\Support\ScheduleRules;
 use Illuminate\Http\Request;
@@ -105,7 +107,168 @@ class CashierController extends Controller
     }
 
     /**
-     * Step 4: cash is immediately paid; QRIS / card go through the existing
+     * Step 4: purchase summary. Also acts as the cashier's final availability
+     * check before the payment step; totals and prices come from the server.
+     */
+    public function summary(Request $request, PendingOrderCleanupService $pendingOrderCleanupService)
+    {
+        $validated = $request->validate([
+            'schedule_id' => 'required|integer|exists:schedules,id',
+            'seats' => 'required|array|min:1',
+            'seats.*' => 'integer|exists:seats,id',
+        ]);
+
+        $schedule = Schedule::with(['movie', 'studio.cinema'])->findOrFail($validated['schedule_id']);
+        $this->authorizeCinema($schedule->studio?->cinema_id);
+
+        if ($schedule->show_date->toDateString() !== now()->toDateString()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya jadwal hari ini yang dapat dijual di kasir.',
+            ], 422);
+        }
+
+        if (! $schedule->isOfflineOpen()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Jadwal ini sudah ditutup untuk penjualan kasir.',
+            ], 422);
+        }
+
+        $studio = $schedule->studio;
+
+        if (! $studio) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Jadwal tidak valid.',
+            ], 422);
+        }
+
+        $pendingOrderCleanupService->cleanupExpiredPendingOrders();
+
+        $seatIds = array_values(array_unique(array_map('intval', $validated['seats'])));
+        $selectedSeats = Seat::whereIn('id', $seatIds)
+            ->orderBy('position_y')
+            ->orderBy('position_x')
+            ->get();
+
+        if ($selectedSeats->count() !== count($seatIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ada kursi yang tidak valid.',
+            ], 422);
+        }
+
+        $invalid = $selectedSeats->filter(
+            fn (Seat $seat) => $seat->studio_id !== $schedule->studio_id
+                || ! $studio->isSellableKey($seat->seat_type)
+                || ! $seat->is_active
+        );
+
+        if ($invalid->isNotEmpty()) {
+            $codes = $invalid->pluck('seat_code')->filter()->values()->all();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Kursi tidak dapat dijual: ' . implode(', ', $codes),
+                'seat_codes' => $codes,
+            ], 422);
+        }
+
+        // A paired seat can only be bought with every cell in its group.
+        $pairedGroups = $selectedSeats
+            ->filter(fn (Seat $seat) => $studio->purchaseModeFor($seat->seat_type) === 'paired' && $seat->seat_group)
+            ->pluck('seat_group')
+            ->unique()
+            ->values();
+
+        $allSeatIds = $seatIds;
+        $groupMembers = [];
+
+        foreach ($pairedGroups as $group) {
+            $memberIds = Seat::where('studio_id', $schedule->studio_id)
+                ->where('seat_group', $group)
+                ->pluck('id')
+                ->all();
+
+            $groupMembers[$group] = $memberIds;
+
+            if (array_diff($memberIds, $seatIds)) {
+                $codes = Seat::whereIn('id', array_intersect($memberIds, $seatIds))
+                    ->pluck('seat_code')
+                    ->all();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => "Kursi berpasangan '{$group}' harus dibeli sekaligus.",
+                    'seat_codes' => array_values($codes),
+                ], 422);
+            }
+
+            $allSeatIds = array_merge($allSeatIds, $memberIds);
+        }
+
+        $allSeatIds = array_values(array_unique(array_map('intval', $allSeatIds)));
+        $occupied = OrderSeat::occupiedSeatIds($schedule->id, $allSeatIds);
+
+        if (! empty($occupied)) {
+            $blockedSeatIds = $occupied;
+
+            foreach ($groupMembers as $memberIds) {
+                if (array_intersect($memberIds, $occupied)) {
+                    $blockedSeatIds = array_merge(
+                        $blockedSeatIds,
+                        array_values(array_intersect($memberIds, $seatIds))
+                    );
+                }
+            }
+
+            $codes = Seat::whereIn('id', $occupied)->pluck('seat_code')->all();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Kursi sudah terjual: ' . implode(', ', $codes) . '. Silakan pilih kursi lain.',
+                'seat_codes' => array_values($codes),
+                'seat_ids' => array_values(array_unique(array_map('intval', $blockedSeatIds))),
+            ], 409);
+        }
+
+        $definitions = $studio->definitionsByKey();
+        $items = $selectedSeats->map(function (Seat $seat) use ($schedule, $studio, $definitions) {
+            $type = $seat->seat_type ?: 'seat';
+            $definition = $definitions[$type] ?? null;
+
+            return [
+                'seat_id' => (int) $seat->id,
+                'seat_code' => $seat->seat_code ?: trim(($seat->seat_row ?? '') . ($seat->seat_number ?? '')),
+                'seat_type' => $type,
+                'seat_type_label' => $definition['label'] ?? ucfirst($type),
+                'price' => (int) round($schedule->ticket_price * $studio->priceMultiplierFor($type)),
+            ];
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'schedule_id' => (int) $schedule->id,
+                'movie' => [
+                    'title' => $schedule->movie?->title ?? '-',
+                    'poster_url' => $this->posterUrl($schedule->movie?->default_poster_path),
+                ],
+                'cinema_name' => $studio->cinema?->cinema_name ?? '-',
+                'studio_name' => $studio->studio_name ?? '-',
+                'date' => $schedule->show_date->toDateString(),
+                'date_label' => $schedule->show_date->locale('id')->isoFormat('dddd, D MMMM Y'),
+                'time' => substr((string) $schedule->show_time, 0, 5),
+                'seats' => $items,
+                'quantity' => $items->count(),
+                'total' => (int) $items->sum('price'),
+            ],
+        ]);
+    }
+
+    /**
+     * Step 5: cash is immediately paid; QRIS / card go through the existing
      * Midtrans Snap integration and stay pending until Midtrans confirms.
      */
     public function store(

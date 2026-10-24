@@ -235,6 +235,7 @@ Route::prefix('staff')->name('staff.')->middleware(['admin.auth', 'role:staff', 
     Route::get('/cashier', [CashierController::class, 'index'])->name('cashier.index');
     Route::get('/cashier/seats', [CashierController::class, 'seats'])->name('cashier.seats');
     Route::get('/cashier/seat-data', [CashierController::class, 'seatData'])->name('cashier.seat-data');
+    Route::post('/cashier/summary', [CashierController::class, 'summary'])->name('cashier.summary');
     Route::post('/cashier', [CashierController::class, 'store'])->name('cashier.store');
     Route::post('/cashier/status', [CashierController::class, 'status'])->name('cashier.status');
 

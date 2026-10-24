@@ -21,7 +21,7 @@
     <script src="{{ $snapScript }}" data-client-key="{{ config('services.midtrans.client_key') }}"></script>
 @endif
 
-<div x-data="cashierSeatPage()" x-init="init()" class="pb-44 lg:pb-36">
+<div x-data="cashierSeatPage()" class="pb-44 lg:pb-36">
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
             <h3 class="text-xl font-semibold text-white">{{ $schedule->movie?->title ?? '-' }}</h3>
@@ -51,6 +51,7 @@
         </div>
 
         <div x-show="error" x-text="error" class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"></div>
+        <div x-show="mapMessage" x-text="mapMessage" class="mb-4 rounded-lg border border-yellow-400/30 bg-yellow-400/10 p-3 text-sm text-yellow-200"></div>
 
         {{-- Horizontal scroll stays inside the seat area only. --}}
         <div class="overflow-x-auto pb-2">
@@ -116,12 +117,100 @@
                     <p class="text-[10px] uppercase tracking-wide text-gray-500">Total</p>
                     <p class="text-lg font-bold text-white" x-text="formatRupiah(total())"></p>
                 </div>
-                <button type="button" @click="openPayment()"
-                        :disabled="selected.length === 0 || processing"
+                <button type="button" @click="openSummary()"
+                        :disabled="selected.length === 0 || summaryLoading || processing"
                         class="inline-flex items-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
-                    <i class="fas fa-arrow-right-to-bracket mr-2"></i> Lanjut Bayar
+                    <i class="fas fa-arrow-right mr-2"></i> Lanjut
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+{{-- Purchase summary step --}}
+<div x-show="showSummary" x-cloak class="fixed inset-0 z-40 overflow-y-auto bg-[#0F1419]">
+    <div class="mx-auto min-h-full w-full max-w-3xl px-4 py-5 sm:px-6 sm:py-8">
+        <div class="flex items-start justify-between gap-3">
+            <div>
+                <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-400">Langkah 2 dari 3</p>
+                <h2 class="mt-1 text-xl font-semibold text-white">Ringkasan Pembelian</h2>
+            </div>
+            <button type="button" @click="closeSummary()"
+                    :disabled="summaryLoading || processing"
+                    class="rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-300 hover:bg-gray-800 disabled:opacity-40">
+                <i class="fas fa-arrow-left mr-1"></i> Kembali
+            </button>
+        </div>
+
+        <div x-show="summaryLoading" class="mt-8 rounded-xl border border-gray-700/60 bg-[#171F2A] p-6 text-center text-sm text-gray-400">
+            <i class="fas fa-spinner fa-spin mr-2 text-blue-400"></i> Memeriksa ketersediaan kursi...
+        </div>
+
+        <div x-show="summaryError" x-text="summaryError" class="mt-4 rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200"></div>
+
+        <template x-if="summary && !summaryLoading">
+            <div class="mt-4 space-y-4">
+                <div class="rounded-xl border border-gray-700/60 bg-[#171F2A] p-4">
+                    <div class="flex gap-4">
+                        <template x-if="summary?.movie?.poster_url">
+                            <img :src="summary.movie.poster_url" :alt="summary.movie.title"
+                                 class="h-24 w-16 flex-shrink-0 rounded-lg bg-gray-800 object-cover sm:h-28 sm:w-20">
+                        </template>
+                        <template x-if="!summary?.movie?.poster_url">
+                            <div class="flex h-24 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-gray-800 text-gray-600 sm:h-28 sm:w-20">
+                                <i class="fas fa-film"></i>
+                            </div>
+                        </template>
+                        <div class="min-w-0 flex-1">
+                            <h3 class="text-lg font-semibold text-white" x-text="summary.movie.title"></h3>
+                            <div class="mt-2 space-y-1 text-xs text-gray-400">
+                                <p><i class="fas fa-building mr-2 w-3 text-gray-500"></i><span x-text="summary.cinema_name"></span></p>
+                                <p><i class="fas fa-door-open mr-2 w-3 text-gray-500"></i><span x-text="summary.studio_name"></span></p>
+                                <p><i class="fas fa-calendar-day mr-2 w-3 text-gray-500"></i><span x-text="summary.date_label"></span></p>
+                                <p><i class="fas fa-clock mr-2 w-3 text-gray-500"></i><span x-text="summary.time"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-gray-700/60 bg-[#171F2A] p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 class="text-sm font-semibold text-white">Kursi Dipilih</h3>
+                        <span class="text-xs text-gray-400"><span x-text="summary.quantity"></span> tiket</span>
+                    </div>
+
+                    <div class="mt-3 divide-y divide-gray-700/60">
+                        <template x-for="seat in summary.seats" :key="seat.seat_id">
+                            <div class="flex items-center justify-between gap-3 py-2.5">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-white" x-text="seat.seat_code"></p>
+                                    <p class="mt-0.5 text-[11px] text-gray-500" x-text="seat.seat_type_label"></p>
+                                </div>
+                                <p class="whitespace-nowrap text-sm text-gray-200" x-text="formatRupiah(seat.price)"></p>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="mt-2 flex items-center justify-between border-t border-gray-700/60 pt-3">
+                        <span class="text-sm text-gray-400">Total</span>
+                        <span class="text-xl font-bold text-white" x-text="formatRupiah(summary.total)"></span>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button type="button" @click="closeSummary()"
+                    :disabled="summaryLoading || processing"
+                    class="rounded-lg border border-gray-700 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 disabled:opacity-40">
+                Kembali
+            </button>
+            <button type="button" @click="continueToPayment()"
+                    :disabled="!summary || summaryLoading || processing"
+                    class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
+                <i class="fas fa-spinner fa-spin mr-2" x-show="summaryLoading"></i>
+                <span>Lanjut ke Pembayaran</span>
+            </button>
         </div>
     </div>
 </div>
@@ -131,7 +220,7 @@
     <div @click.outside="closePayment()" class="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl border border-gray-700 bg-[#171F2A] p-5 shadow-2xl sm:rounded-2xl sm:p-6">
         <div class="flex items-start justify-between gap-3">
             <div>
-                <h3 class="text-lg font-semibold text-white">Pembayaran</h3>
+                <h3 class="text-lg font-semibold text-white">Konfirmasi Pembayaran</h3>
                 <p class="mt-1 text-xs text-gray-400">Pilih metode pembayaran untuk menyelesaikan transaksi.</p>
             </div>
             <button type="button" @click="closePayment()" class="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white" aria-label="Tutup">
@@ -146,7 +235,7 @@
                     <p class="mt-1 text-xs text-gray-400">{{ substr((string) $schedule->show_time, 0, 5) }} • {{ $schedule->studio?->studio_name ?? '-' }}</p>
                     <p class="mt-1 text-xs text-gray-500"><span x-text="selected.length"></span> kursi: <span x-text="selected.map(s => s.label).join(', ')"></span></p>
                 </div>
-                <p class="whitespace-nowrap text-lg font-bold text-white" x-text="formatRupiah(total())"></p>
+                <p class="whitespace-nowrap text-lg font-bold text-white" x-text="formatRupiah(orderTotal())"></p>
             </div>
         </div>
 
@@ -180,13 +269,13 @@
                    class="mt-2 w-full rounded-lg border border-gray-600 bg-[#0F1419] px-3 py-2.5 text-lg font-semibold text-white focus:border-blue-400 focus:outline-none"
                    placeholder="0">
             <div class="mt-2 flex flex-wrap gap-2">
-                <button type="button" @click="cash = total()" class="rounded-lg bg-gray-800 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700">Uang pas</button>
+                <button type="button" @click="cash = orderTotal()" class="rounded-lg bg-gray-800 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700">Uang pas</button>
                 <button type="button" @click="cash = 50000" class="rounded-lg bg-gray-800 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700">50.000</button>
                 <button type="button" @click="cash = 100000" class="rounded-lg bg-gray-800 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700">100.000</button>
             </div>
             <div class="mt-3 flex items-center justify-between border-t border-gray-700/70 pt-3">
                 <span class="text-sm text-gray-400">Kembalian</span>
-                <span class="text-lg font-bold" :class="cash >= total() ? 'text-green-400' : 'text-red-400'" x-text="formatRupiah(change())"></span>
+                <span class="text-lg font-bold" :class="cash >= orderTotal() ? 'text-green-400' : 'text-red-400'" x-text="formatRupiah(change())"></span>
             </div>
         </div>
 
@@ -201,10 +290,10 @@
         <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <button type="button" @click="closePayment()"
                     class="rounded-lg border border-gray-700 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800">
-                Batal
+                Kembali
             </button>
             <button type="button" @click="submitPayment()"
-                    :disabled="processing || (method === 'cash' && cash < total())"
+                    :disabled="processing || (method === 'cash' && cash < orderTotal())"
                     class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
                 <i class="fas fa-spinner fa-spin mr-2" x-show="processing"></i>
                 <span x-text="method === 'cash' ? 'Bayar Tunai' : 'Lanjut ke Midtrans'"></span>
@@ -230,6 +319,11 @@ function cashierSeatPage() {
         loading: true,
         processing: false,
         error: '',
+        mapMessage: '',
+        showSummary: false,
+        summary: null,
+        summaryLoading: false,
+        summaryError: '',
         showPayment: false,
         method: 'cash',
         cash: 0,
@@ -238,6 +332,7 @@ function cashierSeatPage() {
         pendingOrderCode: '',
         definitions: {},
         seatDataUrl: '{{ route('staff.cashier.seat-data') }}',
+        summaryUrl: '{{ route('staff.cashier.summary') }}',
         storeUrl: '{{ route('staff.cashier.store') }}',
         statusUrl: '{{ route('staff.cashier.status') }}',
         csrfToken: '{{ csrf_token() }}',
@@ -246,10 +341,15 @@ function cashierSeatPage() {
             this.loadSeats();
         },
 
-        async loadSeats() {
+        async loadSeats(options = {}) {
+            const keepSelected = options.keepSelected === true;
+            const previousSelected = keepSelected
+                ? this.selected.map(seat => Number(seat.seat_id))
+                : [];
+            const blockedSeatIds = new Set((options.dropSeatIds || []).map(Number));
+
             this.loading = true;
             this.error = '';
-            this.selected = [];
             this.legend = [];
             this.definitions = {};
 
@@ -264,7 +364,15 @@ function cashierSeatPage() {
                 }
 
                 this.applyLayout(payload.data || {});
+                this.selected = keepSelected
+                    ? this.seats.filter(seat =>
+                        previousSelected.includes(Number(seat.seat_id))
+                        && seat.selectable
+                        && !blockedSeatIds.has(Number(seat.seat_id))
+                    )
+                    : [];
             } catch (error) {
+                this.selected = [];
                 this.error = error.message;
             } finally {
                 this.loading = false;
@@ -354,6 +462,8 @@ function cashierSeatPage() {
 
         toggleSeat(seat) {
             if (!seat || !seat.selectable) return;
+
+            this.mapMessage = '';
 
             const group = (seat.purchase_mode === 'paired' && seat.seat_group)
                 ? this.seats.filter(s => s.seat_group === seat.seat_group && s.selectable)
@@ -465,26 +575,117 @@ function cashierSeatPage() {
             return this.selected.reduce((sum, seat) => sum + Number(seat.price || 0), 0);
         },
 
+        orderTotal() {
+            return this.summary ? Number(this.summary.total || 0) : this.total();
+        },
+
         change() {
-            return Math.max(0, Number(this.cash || 0) - this.total());
+            return Math.max(0, Number(this.cash || 0) - this.orderTotal());
         },
 
         formatRupiah(value) {
             return 'Rp ' + Math.round(Number(value || 0)).toLocaleString('id-ID');
         },
 
-        openPayment() {
-            if (this.selected.length === 0) return;
-            this.method = 'cash';
-            this.cash = this.total();
+        async fetchSummary() {
+            const response = await fetch(this.summaryUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': this.csrfToken,
+                },
+                body: JSON.stringify({
+                    schedule_id: {{ $schedule->id }},
+                    seats: this.selected.map(seat => seat.seat_id),
+                }),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok || !payload.success) {
+                const error = new Error(payload.message || 'Gagal memuat ringkasan pembelian.');
+                error.status = response.status;
+                error.payload = payload;
+                throw error;
+            }
+
+            return payload.data;
+        },
+
+        async openSummary() {
+            if (this.selected.length === 0 || this.summaryLoading || this.processing) return;
+
+            this.summaryLoading = true;
+            this.summary = null;
+            this.summaryError = '';
+            this.showSummary = true;
+
+            try {
+                this.summary = await this.fetchSummary();
+            } catch (error) {
+                await this.handleSummaryError(error);
+            } finally {
+                this.summaryLoading = false;
+            }
+        },
+
+        async continueToPayment() {
+            if (!this.summary || this.summaryLoading || this.processing) return;
+
+            this.summaryLoading = true;
+            this.summaryError = '';
+
+            try {
+                // Re-check availability and refresh the server-calculated total.
+                this.summary = await this.fetchSummary();
+                this.method = 'cash';
+                this.cash = this.orderTotal();
+                this.paymentError = '';
+                this.paymentMessage = '';
+                this.showPayment = true;
+            } catch (error) {
+                await this.handleSummaryError(error);
+            } finally {
+                this.summaryLoading = false;
+            }
+        },
+
+        async handleSummaryError(error) {
+            if (error.status === 409) {
+                await this.handleUnavailableSeats(error.payload || {});
+                return;
+            }
+
+            this.summaryError = error.message || 'Gagal memuat ringkasan pembelian.';
+        },
+
+        async handleUnavailableSeats(payload) {
+            this.showPayment = false;
+            this.showSummary = false;
+            this.summary = null;
+            this.summaryError = '';
             this.paymentError = '';
-            this.paymentMessage = '';
-            this.showPayment = true;
+
+            const message = payload.message || 'Kursi yang dipilih sudah terjual. Silakan pilih kursi lain.';
+
+            await this.loadSeats({
+                keepSelected: true,
+                dropSeatIds: payload.seat_ids || [],
+            });
+
+            this.mapMessage = message + ' Denah telah dimuat ulang.';
+        },
+
+        closeSummary() {
+            if (this.summaryLoading || this.processing) return;
+            this.showSummary = false;
         },
 
         closePayment() {
             if (this.processing) return;
             this.showPayment = false;
+            if (this.summary) this.showSummary = true;
         },
 
         openSnap(token) {
@@ -564,7 +765,7 @@ function cashierSeatPage() {
 
         async submitPayment() {
             if (this.selected.length === 0 || this.processing) return;
-            if (this.method === 'cash' && Number(this.cash || 0) < this.total()) {
+            if (this.method === 'cash' && Number(this.cash || 0) < this.orderTotal()) {
                 this.paymentError = 'Uang tunai kurang dari total pembayaran.';
                 return;
             }
@@ -592,14 +793,24 @@ function cashierSeatPage() {
                 const payload = await response.json().catch(() => ({}));
 
                 if (!response.ok || !payload.success) {
-                    const soldOut = (payload.message || '').includes('Kursi sudah terjual');
+                    const soldOut = response.status === 409
+                        || (payload.message || '').includes('Kursi sudah terjual');
+
                     if (soldOut) {
-                        await this.loadSeats();
-                        this.paymentError = 'Kursi sudah terjual. Denah telah dimuat ulang.';
+                        const codes = new Set(payload.seat_codes || []);
+                        const blockedIds = this.selected
+                            .filter(seat => codes.has(seat.label))
+                            .map(seat => Number(seat.seat_id));
+
+                        this.processing = false;
+                        await this.handleUnavailableSeats({
+                            message: payload.message,
+                            seat_ids: payload.seat_ids || blockedIds,
+                        });
                     } else {
                         this.paymentError = payload.message || 'Pembayaran gagal. Coba lagi.';
+                        this.processing = false;
                     }
-                    this.processing = false;
                     return;
                 }
 
