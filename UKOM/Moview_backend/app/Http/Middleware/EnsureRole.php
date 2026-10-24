@@ -34,6 +34,7 @@ class EnsureRole
                 'admin' => 'admin.dashboard',
                 'manager' => 'manager.dashboard',
                 'staff' => 'staff.dashboard',
+                'user' => 'discover',
                 default => null,
             };
 

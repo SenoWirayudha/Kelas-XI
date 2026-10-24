@@ -21,3 +21,5 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+/public/downloads/*.apk

@@ -35,6 +35,7 @@ class User extends Authenticatable
         self::ROLE_ADMIN,
         self::ROLE_MANAGER,
         self::ROLE_STAFF,
+        self::ROLE_USER,
     ];
 
     /**
@@ -149,6 +150,7 @@ class User extends Authenticatable
             self::ROLE_ADMIN => 'admin.dashboard',
             self::ROLE_MANAGER => 'manager.dashboard',
             self::ROLE_STAFF => 'staff.dashboard',
+            self::ROLE_USER => 'discover',
             default => 'admin.login',
         };
     }

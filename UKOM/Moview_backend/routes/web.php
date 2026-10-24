@@ -23,11 +23,17 @@ use App\Http\Controllers\Admin\SeatTypeController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\PublicPageController;
 
 // Public Routes
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [PublicPageController::class, 'landing'])->name('home');
+
+// One login page for every role.
+Route::get('/login', [AuthController::class, 'showLoginForm'])->name('admin.login');
+Route::post('/login', [AuthController::class, 'login'])->name('admin.login.post');
+
+// Legacy login URL.
+Route::get('/admin/login', fn () => redirect()->route('admin.login'));
 
 // Public password reset page (linked from the forgot-password email).
 // The form posts to POST /api/v1/reset-password from the page's JS.
@@ -35,10 +41,8 @@ Route::get('/reset-password/{token}', function (string $token) {
     return view('auth.reset-password', ['token' => $token]);
 })->name('password.reset');
 
-// Admin Authentication
-Route::get('/admin/login', [AuthController::class, 'showLoginForm'])->name('admin.login');
-Route::post('/admin/login', [AuthController::class, 'login'])->name('admin.login.post');
-Route::post('/admin/logout', [AuthController::class, 'logout'])->name('admin.logout');
+// Authentication
+Route::post('/logout', [AuthController::class, 'logout'])->name('admin.logout');
 
 // Admin root redirect
 Route::get('/admin', function () {
@@ -60,6 +64,8 @@ Route::get('/staff', function () {
 
 // Admin Routes (Protected)
 Route::prefix('admin')->name('admin.')->middleware(['admin.auth', 'role:admin'])->group(function () {
+    Route::get('/dashboard', fn () => redirect()->route('admin.analytics.index'))->name('dashboard');
+
     // Manager accounts (admin can pick the cinema)
     Route::get('/accounts', [ManagerAccountController::class, 'index'])->name('accounts.index');
     Route::get('/accounts/create', [ManagerAccountController::class, 'create'])->name('accounts.create');
@@ -246,4 +252,9 @@ Route::prefix('staff')->name('staff.')->middleware(['admin.auth', 'role:staff', 
     Route::post('/focus/verify', [StaffTicketScannerController::class, 'verifyFocusPassword'])->name('focus.verify');
     Route::get('/tickets/{order}/print', [TicketPrintController::class, 'show'])->name('tickets.print');
 });
+
+// Read-only web discovery for regular users.
+Route::get('/discover', [PublicPageController::class, 'discover'])
+    ->middleware(['admin.auth', 'role:user'])
+    ->name('discover');
 

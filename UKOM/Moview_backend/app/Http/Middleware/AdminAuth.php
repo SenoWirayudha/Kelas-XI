@@ -25,7 +25,7 @@ class AdminAuth
         if (!session()->has('admin_role')) {
             $user = User::find(session('admin_user_id'));
 
-            if (!$user || $user->status !== 'active' || !$user->isAdmin()) {
+            if (!$user || $user->status !== 'active' || !in_array($user->role, User::WEB_ROLES, true)) {
                 session()->flush();
 
                 return redirect()->route('admin.login')

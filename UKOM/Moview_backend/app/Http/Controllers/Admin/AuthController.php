@@ -28,13 +28,6 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        // Role "user" is app-only; explain it instead of a generic error.
-        if ($user && $user->role === User::ROLE_USER) {
-            return back()->withErrors([
-                'email' => 'Akun user hanya dapat login melalui aplikasi Android.',
-            ])->withInput($request->only('email'));
-        }
-
         $canLogin = $user
             && in_array($user->role, User::WEB_ROLES, true)
             && $user->status === 'active'
@@ -61,7 +54,7 @@ class AuthController extends Controller
     {
         session()->flush();
 
-        return redirect()->route('admin.login');
+        return redirect()->route('home');
     }
 
     private function redirectToDashboard()
@@ -69,9 +62,10 @@ class AuthController extends Controller
         $role = session('admin_role');
 
         $route = match ($role) {
-            User::ROLE_ADMIN => 'admin.analytics.index',
+            User::ROLE_ADMIN => 'admin.dashboard',
             User::ROLE_MANAGER => 'manager.dashboard',
             User::ROLE_STAFF => 'staff.dashboard',
+            User::ROLE_USER => 'discover',
             default => null,
         };
 
