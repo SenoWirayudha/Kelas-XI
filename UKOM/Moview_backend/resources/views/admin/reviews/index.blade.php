@@ -6,12 +6,14 @@
 
 @section('content')
 <!-- Stats Cards -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+<div class="stat-grid mb-6">
     <div class="bg-white rounded-lg shadow p-6">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Total Reviews</p>
-                <p class="text-3xl font-bold text-gray-800">{{ number_format($totalReviews) }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $totalReviews])
+                </div>
             </div>
             <div class="bg-blue-100 p-3 rounded-full">
                 <i class="fas fa-comments text-blue-600 text-2xl"></i>
@@ -23,7 +25,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Flagged</p>
-                <p class="text-3xl font-bold text-red-600">{{ number_format($flaggedReviews) }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $flaggedReviews])
+                </div>
             </div>
             <div class="bg-red-100 p-3 rounded-full">
                 <i class="fas fa-flag text-red-600 text-2xl"></i>

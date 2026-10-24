@@ -73,12 +73,14 @@
 @endif
 
 <!-- Stats Cards -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+<div class="stat-grid mb-6">
     <div class="bg-white rounded-lg shadow p-6">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Total Comments</p>
-                <p class="text-3xl font-bold text-blue-600">{{ number_format($comments->total()) }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $comments->total()])
+                </div>
             </div>
             <div class="bg-blue-100 p-3 rounded-full">
                 <i class="fas fa-comments text-blue-600 text-2xl"></i>
@@ -90,7 +92,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Published</p>
-                <p class="text-3xl font-bold text-green-600">{{ number_format(\App\Models\ReviewComment::where('status', 'published')->count()) }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => \App\Models\ReviewComment::where('status', 'published')->count()])
+                </div>
             </div>
             <div class="bg-green-100 p-3 rounded-full">
                 <i class="fas fa-check-circle text-green-600 text-2xl"></i>
@@ -102,7 +106,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Flagged</p>
-                <p class="text-3xl font-bold text-red-600">{{ number_format(\App\Models\ReviewComment::where('status', 'flagged')->count()) }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => \App\Models\ReviewComment::where('status', 'flagged')->count()])
+                </div>
             </div>
             <div class="bg-red-100 p-3 rounded-full">
                 <i class="fas fa-flag text-red-600 text-2xl"></i>
@@ -114,7 +120,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Deleted</p>
-                <p class="text-3xl font-bold text-gray-600">{{ number_format(\App\Models\ReviewComment::where('status', 'deleted')->count()) }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => \App\Models\ReviewComment::where('status', 'deleted')->count()])
+                </div>
             </div>
             <div class="bg-gray-100 p-3 rounded-full">
                 <i class="fas fa-trash text-gray-600 text-2xl"></i>

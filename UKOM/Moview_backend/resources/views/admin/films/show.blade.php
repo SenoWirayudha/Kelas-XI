@@ -94,7 +94,7 @@
                             </div>
                             
                             <div>
-                                <span class="text-3xl font-bold">{{ number_format($rating5Scale, 1) }}</span>
+                                @include('partials.stat-number', ['value' => $rating5Scale, 'decimals' => 1, 'class' => 'is-lg'])
                                 <span class="text-gray-300 ml-2">/5</span>
                             </div>
                         </div>
@@ -165,11 +165,15 @@
             <div class="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
                 <div class="text-center">
                     <p class="text-gray-600 text-sm mb-1">Total Reviews</p>
-                    <p class="text-3xl font-bold text-gray-800">{{ number_format($totalReviews) }}</p>
+                    <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $totalReviews])
+                </div>
                 </div>
                 <div class="text-center">
                     <p class="text-gray-600 text-sm mb-1">Average Rating</p>
-                    <p class="text-3xl font-bold text-purple-600">{{ number_format($averageRating, 1) }} / 5</p>
+                    <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $averageRating, 'decimals' => 1, 'suffix' => ' / 5'])
+                </div>
                 </div>
             </div>
             

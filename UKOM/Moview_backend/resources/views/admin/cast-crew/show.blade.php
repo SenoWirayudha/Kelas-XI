@@ -239,22 +239,18 @@
         </div>
 
         <!-- Stats Summary -->
-        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="stat-grid mt-6">
             <div class="bg-blue-50 rounded-lg p-4 text-center">
-                <div class="text-2xl font-bold text-blue-600">{{ $person->moviePersons->count() }}</div>
-                <div class="text-sm text-blue-800">Total Films</div>
+                @include('partials.stat-number', ['value' => $person->moviePersons->count()])
+                <div class="mt-1 text-sm text-blue-800">Total Films</div>
             </div>
             <div class="bg-green-50 rounded-lg p-4 text-center">
-                <div class="text-2xl font-bold text-green-600">
-                    {{ $person->moviePersons->filter(fn($mp) => $mp->movie->status === 'published')->count() }}
-                </div>
-                <div class="text-sm text-green-800">Published</div>
+                @include('partials.stat-number', ['value' => $person->moviePersons->filter(fn($mp) => $mp->movie->status === 'published')->count()])
+                <div class="mt-1 text-sm text-green-800">Published</div>
             </div>
             <div class="bg-yellow-50 rounded-lg p-4 text-center">
-                <div class="text-2xl font-bold text-yellow-600">
-                    {{ $person->moviePersons->filter(fn($mp) => $mp->movie->status === 'draft')->count() }}
-                </div>
-                <div class="text-sm text-yellow-800">Draft</div>
+                @include('partials.stat-number', ['value' => $person->moviePersons->filter(fn($mp) => $mp->movie->status === 'draft')->count()])
+                <div class="mt-1 text-sm text-yellow-800">Draft</div>
             </div>
         </div>
     @else

@@ -6,14 +6,16 @@
 
 @section('content')
 <!-- Stats Cards -->
-<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+<div class="stat-grid mb-6">
     <div class="bg-white rounded-lg shadow p-4">
         <div class="flex flex-col items-center justify-center">
             <div class="bg-blue-100 p-3 rounded-full mb-2">
                 <i class="fas fa-user-plus text-blue-600 text-xl"></i>
             </div>
             <p class="text-gray-500 text-xs mb-1">Follow</p>
-            <p class="text-2xl font-bold text-blue-600">{{ number_format($stats['follow']) }}</p>
+            <div class="mt-1">
+                @include('partials.stat-number', ['value' => $stats['follow']])
+            </div>
         </div>
     </div>
     
@@ -23,7 +25,9 @@
                 <i class="fas fa-heart text-pink-600 text-xl"></i>
             </div>
             <p class="text-gray-500 text-xs mb-1">Like Review</p>
-            <p class="text-2xl font-bold text-pink-600">{{ number_format($stats['like_review']) }}</p>
+            <div class="mt-1">
+                @include('partials.stat-number', ['value' => $stats['like_review']])
+            </div>
         </div>
     </div>
     
@@ -33,7 +37,9 @@
                 <i class="fas fa-comment text-cyan-600 text-xl"></i>
             </div>
             <p class="text-gray-500 text-xs mb-1">Comment Review</p>
-            <p class="text-2xl font-bold text-cyan-600">{{ number_format($stats['comment_review']) }}</p>
+            <div class="mt-1">
+                @include('partials.stat-number', ['value' => $stats['comment_review']])
+            </div>
         </div>
     </div>
     
@@ -43,7 +49,9 @@
                 <i class="fas fa-eye text-green-600 text-xl"></i>
             </div>
             <p class="text-gray-500 text-xs mb-1">Watched</p>
-            <p class="text-2xl font-bold text-green-600">{{ number_format($stats['watched']) }}</p>
+            <div class="mt-1">
+                @include('partials.stat-number', ['value' => $stats['watched']])
+            </div>
         </div>
     </div>
     
@@ -53,7 +61,9 @@
                 <i class="fas fa-book text-purple-600 text-xl"></i>
             </div>
             <p class="text-gray-500 text-xs mb-1">Logged</p>
-            <p class="text-2xl font-bold text-purple-600">{{ number_format($stats['logged']) }}</p>
+            <div class="mt-1">
+                @include('partials.stat-number', ['value' => $stats['logged']])
+            </div>
         </div>
     </div>
     
@@ -63,7 +73,9 @@
                 <i class="fas fa-star text-yellow-600 text-xl"></i>
             </div>
             <p class="text-gray-500 text-xs mb-1">Reviewed</p>
-            <p class="text-2xl font-bold text-yellow-600">{{ number_format($stats['reviewed']) }}</p>
+            <div class="mt-1">
+                @include('partials.stat-number', ['value' => $stats['reviewed']])
+            </div>
         </div>
     </div>
     
@@ -73,7 +85,9 @@
                 <i class="fas fa-bookmark text-orange-600 text-xl"></i>
             </div>
             <p class="text-gray-500 text-xs mb-1">Watchlist</p>
-            <p class="text-2xl font-bold text-orange-600">{{ number_format($stats['watchlist']) }}</p>
+            <div class="mt-1">
+                @include('partials.stat-number', ['value' => $stats['watchlist']])
+            </div>
         </div>
     </div>
 </div>

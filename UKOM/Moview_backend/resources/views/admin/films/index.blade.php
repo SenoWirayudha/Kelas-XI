@@ -286,12 +286,14 @@
 @endif
 
 <!-- Stats Cards -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+<div class="stat-grid mb-6">
     <div class="bg-white rounded-lg shadow p-6">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Total Films</p>
-                <p class="text-3xl font-bold text-gray-800">{{ $totalFilms }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $totalFilms])
+                </div>
             </div>
             <div class="bg-blue-100 p-3 rounded-full">
                 <i class="fas fa-film text-blue-600 text-2xl"></i>
@@ -303,7 +305,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Published</p>
-                <p class="text-3xl font-bold text-green-600">{{ $totalPublished }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $totalPublished])
+                </div>
             </div>
             <div class="bg-green-100 p-3 rounded-full">
                 <i class="fas fa-check-circle text-green-600 text-2xl"></i>
@@ -315,7 +319,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Draft</p>
-                <p class="text-3xl font-bold text-yellow-600">{{ $totalDraft }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $totalDraft])
+                </div>
             </div>
             <div class="bg-yellow-100 p-3 rounded-full">
                 <i class="fas fa-edit text-yellow-600 text-2xl"></i>

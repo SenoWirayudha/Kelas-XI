@@ -36,12 +36,14 @@
     </section>
 
     {{-- KPI cards --}}
-    <section class="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <section class="stat-grid">
         <div class="mv-dash-kpi is-green rounded-xl p-5 shadow-lg">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <p class="text-sm text-gray-400">Tiket terjual oleh saya</p>
-                    <p class="mt-2 text-3xl font-bold text-white">{{ number_format($ticketsSoldToday, 0, ',', '.') }}</p>
+                    <div class="mt-2">
+                        @include('partials.stat-number', ['value' => $ticketsSoldToday])
+                    </div>
                     <p class="mt-2 text-xs text-gray-500">Order offline paid hari ini</p>
                 </div>
                 <span class="mv-dash-icon is-green"><i class="fas fa-ticket"></i></span>
@@ -52,9 +54,9 @@
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                     <p class="text-sm text-gray-400">Uang tunai diterima</p>
-                    <p class="mt-2 truncate text-3xl font-bold text-white" title="Rp {{ number_format($cashToday, 0, ',', '.') }}">
-                        Rp {{ number_format($cashToday, 0, ',', '.') }}
-                    </p>
+                    <div class="mt-2">
+                        @include('partials.stat-number', ['value' => $cashToday, 'prefix' => 'Rp '])
+                    </div>
                     <p class="mt-2 text-xs text-gray-500">Pendapatan transaksi saya</p>
                 </div>
                 <span class="mv-dash-icon is-gold"><i class="fas fa-money-bill-wave"></i></span>
@@ -65,7 +67,9 @@
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <p class="text-sm text-gray-400">Tiket discan hari ini</p>
-                    <p class="mt-2 text-3xl font-bold text-white">{{ number_format($scannedToday, 0, ',', '.') }}</p>
+                    <div class="mt-2">
+                        @include('partials.stat-number', ['value' => $scannedToday])
+                    </div>
                     <p class="mt-2 text-xs text-gray-500">Seluruh bioskop ini</p>
                 </div>
                 <span class="mv-dash-icon"><i class="fas fa-qrcode"></i></span>

@@ -39,12 +39,14 @@
 </div>
 
 <!-- Stats Cards -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+<div class="stat-grid mb-6">
     <div class="bg-white rounded-lg shadow p-6">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Average Rating</p>
-                <p class="text-3xl font-bold text-yellow-600">{{ number_format($movie->rating_average ?? 0, 1) }}/5</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $movie->rating_average ?? 0, 'decimals' => 1, 'suffix' => '/5'])
+                </div>
             </div>
             <div class="bg-yellow-100 p-3 rounded-full">
                 <i class="fas fa-star text-yellow-600 text-2xl"></i>
@@ -56,7 +58,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Total Reviews</p>
-                <p class="text-3xl font-bold text-blue-600">{{ number_format($movie->reviews->count()) }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $movie->reviews->count()])
+                </div>
             </div>
             <div class="bg-blue-100 p-3 rounded-full">
                 <i class="fas fa-comments text-blue-600 text-2xl"></i>

@@ -6,12 +6,12 @@
 
 @section('content')
 <!-- Key Metrics -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+<div class="stat-grid mb-6">
     <div class="mv-stat-card bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-blue-100 text-sm mb-1">Total Views</p>
-                <p class="text-4xl font-bold">{{ number_format($totalViews) }}</p>
+                @include('partials.stat-number', ['value' => $totalViews, 'class' => 'is-lg'])
                 <p class="text-blue-100 text-sm mt-2">
                     @if($viewsChange >= 0)
                         <i class="fas fa-arrow-up mr-1"></i>
@@ -32,7 +32,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-green-100 text-sm mb-1">Active Users</p>
-                <p class="text-4xl font-bold">{{ number_format($activeUsers) }}</p>
+                @include('partials.stat-number', ['value' => $activeUsers, 'class' => 'is-lg'])
                 <p class="text-green-100 text-sm mt-2">
                     <i class="fas fa-check-circle mr-1"></i>
                     Total registered users
@@ -48,7 +48,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-purple-100 text-sm mb-1">Reviews Posted</p>
-                <p class="text-4xl font-bold">{{ number_format($reviewsPosted) }}</p>
+                @include('partials.stat-number', ['value' => $reviewsPosted, 'class' => 'is-lg'])
                 <p class="text-purple-100 text-sm mt-2">
                     @if($reviewsChange >= 0)
                         <i class="fas fa-arrow-up mr-1"></i>

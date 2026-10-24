@@ -254,6 +254,10 @@
                     <i class="fas fa-gauge-high mr-3"></i>
                     <span>Dashboard</span>
                 </a>
+                <a href="{{ route('manager.stats.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.stats.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-chart-line mr-3"></i>
+                    <span>Statistik</span>
+                </a>
                 <a href="{{ route('manager.cinemas.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.cinemas.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-building mr-3"></i>
                     <span>Manajemen Bioskop</span>
@@ -612,6 +616,8 @@
     </script>
     @endif
 
+    <div id="stat-number-tooltip" class="stat-number-tooltip-global" role="tooltip" aria-hidden="true"></div>
+
     {{-- Global Toast Container --}}
     <div x-data="globalToast" class="fixed right-4 top-4 z-[100] w-[calc(100vw-2rem)] max-w-sm space-y-3">
         <template x-for="t in toasts" :key="t.id">
@@ -772,6 +778,140 @@
             return false;
         };
     });
+    </script>
+
+    <script>
+    (function () {
+        const tooltip = document.getElementById('stat-number-tooltip');
+        const canHover = window.matchMedia('(hover: hover)').matches;
+        let pinned = null;
+
+        const positionTooltip = (el) => {
+            if (!tooltip) return;
+
+            const rect = el.getBoundingClientRect();
+            const margin = 8;
+            const width = tooltip.offsetWidth;
+            const height = tooltip.offsetHeight;
+
+            let left = rect.left + (rect.width / 2) - (width / 2);
+            left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+
+            let top = rect.top - height - margin;
+            if (top < margin) {
+                top = rect.bottom + margin;
+            }
+
+            tooltip.style.left = Math.round(left) + 'px';
+            tooltip.style.top = Math.round(top) + 'px';
+        };
+
+        const showTooltip = (el) => {
+            if (!tooltip) return;
+
+            tooltip.textContent = el.dataset.full || el.textContent.trim();
+            tooltip.classList.add('is-visible');
+            tooltip.setAttribute('aria-hidden', 'false');
+            positionTooltip(el);
+        };
+
+        const hideTooltip = (force = false) => {
+            if (!tooltip || (pinned && !force)) return;
+
+            tooltip.classList.remove('is-visible');
+            tooltip.setAttribute('aria-hidden', 'true');
+        };
+
+        const fitNumber = (el) => {
+            const text = el.querySelector('.stat-number-text');
+            if (!text || el.clientWidth <= 0) return;
+
+            text.textContent = el.dataset.full;
+            el.style.fontSize = '';
+
+            let size = parseFloat(window.getComputedStyle(el).fontSize);
+            const minimum = 13;
+
+            while (el.scrollWidth > el.clientWidth + 1 && size > minimum) {
+                size -= 1;
+                el.style.fontSize = size + 'px';
+            }
+
+            if (el.scrollWidth > el.clientWidth + 1) {
+                text.textContent = el.dataset.compact;
+                el.style.fontSize = '';
+            }
+        };
+
+        const fitAll = () => {
+            document.querySelectorAll('[data-stat-number]').forEach(fitNumber);
+        };
+
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+            window.clearTimeout(resizeTimer);
+            hideTooltip(true);
+            resizeTimer = window.setTimeout(fitAll, 120);
+        });
+        window.addEventListener('load', fitAll);
+
+        document.addEventListener('pointerover', (event) => {
+            if (event.pointerType && event.pointerType !== 'mouse') return;
+            const el = event.target.closest('[data-stat-number]');
+            if (el) showTooltip(el);
+        });
+
+        document.addEventListener('pointerout', (event) => {
+            if (event.pointerType && event.pointerType !== 'mouse') return;
+            const el = event.target.closest('[data-stat-number]');
+            if (!el || el.contains(event.relatedTarget)) return;
+            hideTooltip();
+        });
+
+        document.addEventListener('focusin', (event) => {
+            const el = event.target.closest('[data-stat-number]');
+            if (el) showTooltip(el);
+        });
+
+        document.addEventListener('focusout', (event) => {
+            const el = event.target.closest('[data-stat-number]');
+            if (el) hideTooltip();
+        });
+
+        document.addEventListener('click', (event) => {
+            const el = event.target.closest('[data-stat-number]');
+
+            if (!el) {
+                pinned = null;
+                hideTooltip(true);
+                return;
+            }
+
+            if (canHover) {
+                showTooltip(el);
+                return;
+            }
+
+            if (pinned === el) {
+                pinned = null;
+                hideTooltip(true);
+            } else {
+                pinned = el;
+                showTooltip(el);
+            }
+        });
+
+        window.addEventListener('scroll', () => {
+            pinned = null;
+            hideTooltip(true);
+        }, { passive: true });
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fitAll);
+        } else {
+            fitAll();
+        }
+    })();
     </script>
 </body>
 </html>

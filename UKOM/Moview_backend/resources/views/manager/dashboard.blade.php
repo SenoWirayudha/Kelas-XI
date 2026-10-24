@@ -36,14 +36,14 @@
     </section>
 
     {{-- KPI cards --}}
-    <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <section class="stat-grid">
         <div class="mv-dash-kpi rounded-xl p-5 shadow-lg">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                     <p class="text-sm text-gray-400">Pendapatan hari ini</p>
-                    <p class="mt-2 truncate text-2xl font-bold text-white" title="Rp {{ number_format($revenueToday, 0, ',', '.') }}">
-                        Rp {{ number_format($revenueToday, 0, ',', '.') }}
-                    </p>
+                    <div class="mt-2">
+                        @include('partials.stat-number', ['value' => $revenueToday, 'prefix' => 'Rp '])
+                    </div>
                     <p class="mt-2 text-xs text-gray-500">
                         Online Rp {{ number_format($onlineRevenue, 0, ',', '.') }}
                         <span class="mx-1">•</span>
@@ -58,7 +58,9 @@
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <p class="text-sm text-gray-400">Tiket terjual</p>
-                    <p class="mt-2 text-2xl font-bold text-white">{{ number_format($ticketsToday, 0, ',', '.') }}</p>
+                    <div class="mt-2">
+                        @include('partials.stat-number', ['value' => $ticketsToday])
+                    </div>
                     <p class="mt-2 text-xs text-gray-500">Dari order berstatus paid</p>
                 </div>
                 <span class="mv-dash-icon is-green"><i class="fas fa-ticket"></i></span>
@@ -69,7 +71,9 @@
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <p class="text-sm text-gray-400">Order hari ini</p>
-                    <p class="mt-2 text-2xl font-bold text-white">{{ number_format($ordersToday, 0, ',', '.') }}</p>
+                    <div class="mt-2">
+                        @include('partials.stat-number', ['value' => $ordersToday])
+                    </div>
                     <p class="mt-2 text-xs text-gray-500">Transaksi yang berhasil dibayar</p>
                 </div>
                 <span class="mv-dash-icon is-gold"><i class="fas fa-receipt"></i></span>

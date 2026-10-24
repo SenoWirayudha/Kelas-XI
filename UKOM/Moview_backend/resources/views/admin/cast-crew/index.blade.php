@@ -6,12 +6,14 @@
 
 @section('content')
 <!-- Stats Cards -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+<div class="stat-grid mb-6">
     <div class="bg-white rounded-lg shadow p-6">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Total People</p>
-                <p class="text-3xl font-bold text-gray-800">{{ $totalPeople }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $totalPeople])
+                </div>
             </div>
             <div class="bg-blue-100 p-3 rounded-full">
                 <i class="fas fa-user-friends text-blue-600 text-2xl"></i>
@@ -23,7 +25,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Actors</p>
-                <p class="text-3xl font-bold text-purple-600">{{ $actorsCount }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $actorsCount])
+                </div>
             </div>
             <div class="bg-purple-100 p-3 rounded-full">
                 <i class="fas fa-theater-masks text-purple-600 text-2xl"></i>
@@ -35,7 +39,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Directors</p>
-                <p class="text-3xl font-bold text-blue-600">{{ $directorsCount }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $directorsCount])
+                </div>
             </div>
             <div class="bg-blue-100 p-3 rounded-full">
                 <i class="fas fa-video text-blue-600 text-2xl"></i>
@@ -47,7 +53,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Writers</p>
-                <p class="text-3xl font-bold text-green-600">{{ $writersCount }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $writersCount])
+                </div>
             </div>
             <div class="bg-green-100 p-3 rounded-full">
                 <i class="fas fa-pen text-green-600 text-2xl"></i>

@@ -6,12 +6,14 @@
 
 @section('content')
 <!-- Stats Cards -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+<div class="stat-grid mb-6">
     <div class="bg-white rounded-lg shadow p-6">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Total Users</p>
-                <p class="text-3xl font-bold text-gray-800">{{ number_format($totalUsers) }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $totalUsers])
+                </div>
             </div>
             <div class="bg-blue-100 p-3 rounded-full">
                 <i class="fas fa-users text-blue-600 text-2xl"></i>
@@ -23,7 +25,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">Active Today</p>
-                <p class="text-3xl font-bold text-green-600">{{ number_format($activeToday) }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $activeToday])
+                </div>
             </div>
             <div class="bg-green-100 p-3 rounded-full">
                 <i class="fas fa-user-check text-green-600 text-2xl"></i>
@@ -35,7 +39,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">New This Month</p>
-                <p class="text-3xl font-bold text-purple-600">{{ number_format($newThisMonth) }}</p>
+                <div class="mt-2">
+                    @include('partials.stat-number', ['value' => $newThisMonth])
+                </div>
             </div>
             <div class="bg-purple-100 p-3 rounded-full">
                 <i class="fas fa-user-plus text-purple-600 text-2xl"></i>

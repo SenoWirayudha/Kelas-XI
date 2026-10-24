@@ -30,12 +30,14 @@
         </form>
     </section>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div class="stat-grid">
         <div class="rounded-xl border border-gray-700/60 bg-white p-5 shadow-lg">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <p class="text-sm text-gray-500">Tiket terjual</p>
-                    <p class="mt-2 text-3xl font-bold text-white">{{ number_format($stats['tickets_sold'], 0, ',', '.') }}</p>
+                    <div class="mt-2">
+                        @include('partials.stat-number', ['value' => $stats['tickets_sold']])
+                    </div>
                 </div>
                 <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600"><i class="fas fa-ticket"></i></span>
             </div>
@@ -44,7 +46,9 @@
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <p class="text-sm text-gray-500">Jumlah order</p>
-                    <p class="mt-2 text-3xl font-bold text-white">{{ number_format($stats['orders'], 0, ',', '.') }}</p>
+                    <div class="mt-2">
+                        @include('partials.stat-number', ['value' => $stats['orders']])
+                    </div>
                 </div>
                 <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600"><i class="fas fa-receipt"></i></span>
             </div>
@@ -53,7 +57,9 @@
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                     <p class="text-sm text-gray-500">Pendapatan</p>
-                    <p class="mt-2 truncate text-2xl font-bold text-white">Rp {{ number_format($stats['revenue'], 0, ',', '.') }}</p>
+                    <div class="mt-2">
+                        @include('partials.stat-number', ['value' => $stats['revenue'], 'prefix' => 'Rp '])
+                    </div>
                     <p class="mt-1 text-[11px] text-gray-500">Tunai Rp {{ number_format($stats['cash_revenue'], 0, ',', '.') }}</p>
                     <p class="text-[11px] text-gray-500">Non-tunai Rp {{ number_format($stats['non_cash_revenue'], 0, ',', '.') }}</p>
                 </div>
@@ -64,7 +70,9 @@
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <p class="text-sm text-gray-500">Tiket di-scan</p>
-                    <p class="mt-2 text-3xl font-bold text-white">{{ number_format($stats['scanned_tickets'], 0, ',', '.') }}</p>
+                    <div class="mt-2">
+                        @include('partials.stat-number', ['value' => $stats['scanned_tickets']])
+                    </div>
                 </div>
                 <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600"><i class="fas fa-qrcode"></i></span>
             </div>
