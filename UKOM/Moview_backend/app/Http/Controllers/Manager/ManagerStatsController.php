@@ -160,7 +160,7 @@ class ManagerStatsController extends Controller
 
     private function topFilms($orders)
     {
-        return (clone $orders)
+        $films = (clone $orders)
             ->join('tickets', 'tickets.order_id', '=', 'orders.id')
             ->join('movies', 'movies.id', '=', 'schedules.movie_id')
             ->selectRaw('movies.id, movies.title, COUNT(tickets.id) AS tickets_sold')
@@ -168,6 +168,16 @@ class ManagerStatsController extends Controller
             ->orderByDesc('tickets_sold')
             ->limit(5)
             ->get();
+
+        $revenues = (clone $orders)
+            ->whereIn('schedules.movie_id', $films->pluck('id'))
+            ->selectRaw('schedules.movie_id, SUM(orders.total_price) AS revenue')
+            ->groupBy('schedules.movie_id')
+            ->pluck('revenue', 'movie_id');
+
+        return $films->each(function ($film) use ($revenues) {
+            $film->revenue = (int) ($revenues[$film->id] ?? 0);
+        });
     }
 
     private function paymentBreakdown($orders, int $ordersCount)

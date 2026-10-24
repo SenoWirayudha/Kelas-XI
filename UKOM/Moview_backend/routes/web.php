@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ManagerAccountController;
 use App\Http\Controllers\Manager\ManagerStatsController;
 use App\Http\Controllers\Manager\StaffAccountController;
+use App\Http\Controllers\Manager\StaffStatsController;
 use App\Http\Controllers\Staff\CashierController;
 use App\Http\Controllers\Staff\TicketPrintController;
 use App\Http\Controllers\Staff\TicketScannerController as StaffTicketScannerController;
@@ -186,6 +187,8 @@ Route::get('/orders/{id}', [AdminOrderController::class, 'show'])->name('orders.
 Route::prefix('manager')->name('manager.')->middleware(['admin.auth', 'role:manager', 'cinema.scope'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'manager'])->name('dashboard');
     Route::get('/stats', [ManagerStatsController::class, 'index'])->name('stats.index');
+    Route::get('/staff-stats', [StaffStatsController::class, 'index'])->name('staff-stats.index');
+    Route::get('/staff-stats/{staff}', [StaffStatsController::class, 'show'])->name('staff-stats.show');
 
     // Cinema (view + edit own cinema only; no create/delete)
     Route::get('/cinemas', [CinemaController::class, 'index'])->name('cinemas.index');

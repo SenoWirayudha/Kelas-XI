@@ -258,6 +258,10 @@
                     <i class="fas fa-chart-line mr-3"></i>
                     <span>Statistik</span>
                 </a>
+                <a href="{{ route('manager.staff-stats.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.staff-stats.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-users-viewfinder mr-3"></i>
+                    <span>Statistik Staff</span>
+                </a>
                 <a href="{{ route('manager.cinemas.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.cinemas.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-building mr-3"></i>
                     <span>Manajemen Bioskop</span>
@@ -617,6 +621,7 @@
     @endif
 
     <div id="stat-number-tooltip" class="stat-number-tooltip-global" role="tooltip" aria-hidden="true"></div>
+    <div id="chart-tooltip" class="stat-number-tooltip-global" role="tooltip" aria-hidden="true"></div>
 
     {{-- Global Toast Container --}}
     <div x-data="globalToast" class="fixed right-4 top-4 z-[100] w-[calc(100vw-2rem)] max-w-sm space-y-3">
@@ -911,6 +916,118 @@
         } else {
             fitAll();
         }
+
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(fitAll).catch(() => {});
+        }
+    })();
+    </script>
+
+    <script>
+    (function () {
+        const tooltip = document.getElementById('chart-tooltip');
+        if (!tooltip) return;
+
+        const canHover = window.matchMedia('(hover: hover)').matches;
+        let pinned = null;
+
+        const position = (x, y) => {
+            const margin = 10;
+            const width = tooltip.offsetWidth;
+            const height = tooltip.offsetHeight;
+
+            let left = x + 14;
+            let top = y + 14;
+
+            if (left + width > window.innerWidth - margin) {
+                left = x - width - 14;
+            }
+
+            if (top + height > window.innerHeight - margin) {
+                top = y - height - 14;
+            }
+
+            tooltip.style.left = Math.round(Math.max(margin, left)) + 'px';
+            tooltip.style.top = Math.round(Math.max(margin, top)) + 'px';
+        };
+
+        const show = (el, x, y) => {
+            tooltip.textContent = el.dataset.chartTip || '';
+            tooltip.classList.add('is-visible');
+            tooltip.setAttribute('aria-hidden', 'false');
+            position(x, y);
+        };
+
+        const hide = (force = false) => {
+            if (pinned && !force) return;
+            tooltip.classList.remove('is-visible');
+            tooltip.setAttribute('aria-hidden', 'true');
+        };
+
+        document.addEventListener('pointerover', (event) => {
+            if (event.pointerType && event.pointerType !== 'mouse') return;
+            const el = event.target.closest('[data-chart-tip]');
+            if (el) show(el, event.clientX, event.clientY);
+        });
+
+        document.addEventListener('pointermove', (event) => {
+            if (event.pointerType && event.pointerType !== 'mouse') return;
+            const el = event.target.closest('[data-chart-tip]');
+            if (el && tooltip.classList.contains('is-visible')) {
+                position(event.clientX, event.clientY);
+            }
+        });
+
+        document.addEventListener('pointerout', (event) => {
+            if (event.pointerType && event.pointerType !== 'mouse') return;
+            const el = event.target.closest('[data-chart-tip]');
+            if (!el || el.contains(event.relatedTarget)) return;
+            hide();
+        });
+
+        document.addEventListener('focusin', (event) => {
+            const el = event.target.closest('[data-chart-tip]');
+            if (!el) return;
+            const rect = el.getBoundingClientRect();
+            show(el, rect.left + (rect.width / 2), rect.top + (rect.height / 2));
+        });
+
+        document.addEventListener('focusout', (event) => {
+            if (event.target.closest('[data-chart-tip]')) hide();
+        });
+
+        document.addEventListener('click', (event) => {
+            const el = event.target.closest('[data-chart-tip]');
+
+            if (!el) {
+                pinned = null;
+                hide(true);
+                return;
+            }
+
+            if (canHover) {
+                show(el, event.clientX, event.clientY);
+                return;
+            }
+
+            if (pinned === el) {
+                pinned = null;
+                hide(true);
+            } else {
+                pinned = el;
+                show(el, event.clientX, event.clientY);
+            }
+        });
+
+        window.addEventListener('scroll', () => {
+            pinned = null;
+            hide(true);
+        }, { passive: true });
+
+        window.addEventListener('resize', () => {
+            pinned = null;
+            hide(true);
+        });
     })();
     </script>
 </body>
