@@ -32,44 +32,17 @@
             </p>
         </section>
 
-        <section class="mt-8">
-            <div class="flex items-end justify-between gap-3">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-400">Now showing</p>
-                    <h2 class="mt-1 text-xl font-bold text-white sm:text-2xl">Sedang tayang</h2>
-                </div>
-                <span class="text-xs text-gray-500">{{ $movies->count() }} film</span>
-            </div>
-
-            @if($movies->isEmpty())
-                <div class="mt-4 rounded-xl border border-dashed border-gray-700 bg-[#171F2A] px-5 py-12 text-center">
+        <div class="mt-8">
+            @if($popularMovies->isEmpty())
+                <div class="rounded-xl border border-dashed border-gray-700 bg-[#171F2A] px-5 py-12 text-center">
                     <i class="fas fa-film text-3xl text-gray-600"></i>
                     <p class="mt-3 text-sm font-medium text-gray-300">Belum ada film yang sedang tayang.</p>
                     <p class="mt-1 text-xs text-gray-500">Cek kembali beberapa saat lagi.</p>
                 </div>
             @else
-                <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-                    @foreach($movies as $movie)
-                        <article class="min-w-0">
-                            <div class="aspect-[2/3] overflow-hidden rounded-xl border border-gray-700/60 bg-[#171F2A] shadow-lg">
-                                @if($movie->default_poster_path)
-                                    <img src="{{ asset('storage/' . $movie->default_poster_path) }}"
-                                         alt="Poster {{ $movie->title }}"
-                                         class="h-full w-full object-cover" loading="lazy">
-                                @else
-                                    <div class="flex h-full flex-col items-center justify-center gap-2 text-gray-600">
-                                        <i class="fas fa-film text-3xl"></i>
-                                        <span class="px-3 text-center text-[10px]">Poster belum tersedia</span>
-                                    </div>
-                                @endif
-                            </div>
-                            <h3 class="mt-2 line-clamp-2 text-sm font-semibold leading-snug text-white">{{ $movie->title }}</h3>
-                            <p class="mt-1 text-[11px] text-gray-500">Sedang tayang</p>
-                        </article>
-                    @endforeach
-                </div>
+                @include('partials.popular-carousel', ['popularMovies' => $popularMovies])
             @endif
-        </section>
+        </div>
 
         @if($reviews->isNotEmpty())
             <section class="mt-10">

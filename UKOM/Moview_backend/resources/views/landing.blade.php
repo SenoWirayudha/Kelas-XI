@@ -138,6 +138,10 @@
             </div>
         </section>
 
+        <div class="landing-wrap">
+            @include('partials.popular-carousel', ['popularMovies' => $popularMovies])
+        </div>
+
         <section id="tiket" class="landing-band">
             <div class="landing-wrap section-pad">
                 <div class="section-head section-head-center reveal" data-reveal>
@@ -238,7 +242,8 @@
                     </div>
 
                     <div class="review-movie">
-                        <div class="review-poster">
+                        <div class="review-poster"
+                             @if($reviewCard) data-movie-card='@json($reviewCard)' tabindex="0" role="button" aria-label="Lihat info {{ $reviewCard['title'] }}" @endif>
                             @if($reviewMovie?->default_poster_path)
                                 <img src="{{ asset('storage/' . $reviewMovie->default_poster_path) }}" alt="Poster {{ $reviewMovie->title }}">
                             @else
@@ -271,8 +276,12 @@
                     <p class="profile-label">Top 4 film favorit</p>
                     <div class="favorite-grid">
                         @for($i = 0; $i < 4; $i++)
-                            @php $favorite = $favoritePosters->get($i); @endphp
-                            <div class="favorite-poster">
+                            @php
+                                $favorite = $favoritePosters->get($i);
+                                $favoriteCard = $favoriteCards->get($i);
+                            @endphp
+                            <div class="favorite-poster"
+                                 @if($favoriteCard) data-movie-card='@json($favoriteCard)' tabindex="0" role="button" aria-label="Lihat info {{ $favoriteCard['title'] }}" @endif>
                                 @if($favorite?->default_poster_path)
                                     <img src="{{ asset('storage/' . $favorite->default_poster_path) }}" alt="Poster {{ $favorite->title }}">
                                 @else
@@ -795,6 +804,8 @@
     .review-user div span { color: var(--mv-text-muted); font-size: 10px; }
     .review-movie { display: flex; align-items: center; gap: 10px; margin-top: 20px; border-block: 1px solid var(--mv-border-subtle); padding-block: 12px; }
     .review-poster { display: flex; width: 38px; height: 54px; flex-shrink: 0; align-items: center; justify-content: center; overflow: hidden; border-radius: 5px; background: #121821; color: var(--mv-border); }
+    .review-poster[data-movie-card] { cursor: pointer; }
+    .review-poster[data-movie-card]:focus-visible { outline: 2px solid var(--mv-primary); outline-offset: 2px; }
     .review-poster img { width: 100%; height: 100%; object-fit: cover; }
     .review-movie-info { min-width: 0; flex: 1; }
     .review-movie-info p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
@@ -824,7 +835,9 @@
         font-weight: 800;
         transition: transform 200ms ease, border-color 200ms ease;
     }
-    .favorite-poster:hover { transform: translateY(-4px); border-color: var(--mv-primary); }
+    .favorite-poster[data-movie-card] { cursor: pointer; }
+    .favorite-poster:hover,
+    .favorite-poster:focus-visible { transform: translateY(-4px); border-color: var(--mv-primary); outline: none; }
     .favorite-poster img { width: 100%; height: 100%; object-fit: cover; }
     .profile-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 20px; border-top: 1px solid var(--mv-border-subtle); padding-top: 14px; text-align: center; }
     .profile-stats strong { display: block; font-size: 19px; font-weight: 800; }

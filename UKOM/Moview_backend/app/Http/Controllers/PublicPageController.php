@@ -9,6 +9,7 @@ use App\Models\Schedule;
 use App\Models\User;
 use App\Models\UserFavoriteFilm;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PublicPageController extends Controller
 {
@@ -58,9 +59,16 @@ class PublicPageController extends Controller
             ->limit(3)
             ->get();
 
+        $popularMovies = $this->weeklyPopularMovies();
+
+        if ($popularMovies->isEmpty()) {
+            $popularMovies = $movies;
+        }
+
         return view('discover', array_merge($this->appDownload(), [
             'user' => $user,
             'movies' => $movies,
+            'popularMovies' => $this->movieCards($popularMovies),
             'reviews' => $reviews,
         ]));
     }
@@ -120,6 +128,8 @@ class PublicPageController extends Controller
                 ->first();
 
         $reviewStats = [
+            // Likes by OTHER users live in review_likes.
+            // reviews.is_liked is the review author's own movie like and is unrelated.
             'likes' => $review ? DB::table('review_likes')->where('review_id', $review->id)->count() : 0,
             'comments' => $review
                 ? DB::table('review_comments')
@@ -140,6 +150,12 @@ class PublicPageController extends Controller
                 : 0,
             'watchlist' => $curator ? DB::table('watchlists')->where('user_id', $curator->id)->count() : 0,
         ];
+
+        $popularMovies = $this->weeklyPopularMovies();
+
+        if ($popularMovies->isEmpty()) {
+            $popularMovies = $nowShowing;
+        }
 
         $favoritePosters = $curator
             ? UserFavoriteFilm::with('movie')
@@ -165,6 +181,11 @@ class PublicPageController extends Controller
             'heroMovie' => $heroMovie,
             'heroSchedule' => $heroSchedule,
             'heroPosters' => $heroPosters,
+            'popularMovies' => $this->movieCards($popularMovies),
+            'favoriteCards' => $this->movieCards($favoritePosters),
+            'reviewCard' => $review?->movie
+                ? $this->movieCards(collect([$review->movie]))->first()
+                : null,
             'review' => $review,
             'reviewStats' => $reviewStats,
             'curator' => $curator,
@@ -175,6 +196,91 @@ class PublicPageController extends Controller
                 'cinemas' => Cinema::query()->count(),
             ],
         ];
+    }
+
+    /**
+     * Same ranking source as the admin Analytics "Top Films This Week":
+     * count of ratings in the last 7 days, highest first.
+     */
+    private function weeklyPopularMovies()
+    {
+        $ids = DB::table('ratings')
+            ->join('movies', 'ratings.film_id', '=', 'movies.id')
+            ->select('movies.id', DB::raw('COUNT(*) as view_count'))
+            ->whereBetween('ratings.created_at', [now()->subWeek(), now()])
+            ->groupBy('movies.id')
+            ->orderByDesc('view_count')
+            ->limit(5)
+            ->pluck('movies.id');
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $order = $ids->flip();
+
+        return Movie::query()
+            ->whereIn('id', $ids)
+            ->get()
+            ->sortBy(fn (Movie $movie) => $order->get($movie->id, 999))
+            ->values();
+    }
+
+    private function movieCards($movies)
+    {
+        $ids = collect($movies)->pluck('id')->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $detailed = Movie::query()
+            ->whereIn('id', $ids)
+            ->with([
+                'genres',
+                'moviePersons' => fn ($query) => $query
+                    ->where('role_type', 'crew')
+                    ->where('job', 'Director')
+                    ->with('person'),
+            ])
+            ->withAvg('ratings as ratings_avg_rating', 'rating')
+            ->get()
+            ->keyBy('id');
+
+        return collect($movies)
+            ->map(function ($movie) use ($detailed) {
+                $detail = $detailed->get($movie->id);
+
+                if (! $detail) {
+                    return null;
+                }
+
+                $director = $detail->moviePersons
+                    ->map(fn ($credit) => $credit->person?->full_name)
+                    ->filter()
+                    ->unique()
+                    ->take(2)
+                    ->implode(', ');
+
+                $poster = $this->posterUrl($detail->default_poster_path);
+
+                return [
+                    'id' => $detail->id,
+                    'title' => $detail->title,
+                    'year' => $detail->release_year,
+                    'poster_url' => $poster,
+                    'backdrop_url' => $this->posterUrl($detail->default_backdrop_path),
+                    'rating' => round((float) ($detail->ratings_avg_rating ?? 0), 1),
+                    'duration' => $detail->duration ? (int) $detail->duration : null,
+                    'genres' => $detail->genres->pluck('name')->take(3)->implode(', '),
+                    'director' => $director,
+                    'synopsis' => $detail->synopsis
+                        ? Str::limit(trim(strip_tags($detail->synopsis)), 240)
+                        : null,
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     private function posterUrl(?string $path): ?string
