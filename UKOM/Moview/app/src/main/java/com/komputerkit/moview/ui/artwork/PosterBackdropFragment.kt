@@ -71,6 +71,8 @@ class PosterBackdropFragment : Fragment() {
             }
             binding.layoutTabs.visibility = View.GONE
             binding.tvTitle.text = "Pilih 3 Backdrop"
+            binding.btnUseDefaultBackground.visibility = View.VISIBLE
+            binding.btnUseDefaultBackground.setOnClickListener { skipBackdropSelection() }
             binding.btnSetCover.text = pickerButtonLabel()
             switchToTab(ArtworkType.BACKDROP)
             updatePickerButton()
@@ -207,6 +209,15 @@ class PosterBackdropFragment : Fragment() {
         findNavController().previousBackStackEntry?.savedStateHandle?.set(
             "selected_backdrop_urls",
             ArrayList(shareSelection)
+        )
+        findNavController().navigateUp()
+    }
+
+    /** User does not want any backdrop: the poster uses the branded Moview artwork. */
+    private fun skipBackdropSelection() {
+        findNavController().previousBackStackEntry?.savedStateHandle?.set(
+            "use_default_background",
+            true
         )
         findNavController().navigateUp()
     }

@@ -2,11 +2,23 @@
 
 @section('title', 'Tiket')
 
-@section('content')
 @php
     $schedule = $order->schedule;
     $cinema = $schedule?->studio?->cinema;
+
+    // Ticket header follows the cinema chain, not the app name. Matched case-insensitively
+    // against the cinema name, most specific brand first.
+    $cinemaName = (string) ($cinema?->cinema_name ?? '');
+    $brandName = 'MOVIEW';
+    foreach (['CINEPOLIS', 'CGV', 'XXI'] as $needle) {
+        if (stripos($cinemaName, $needle) !== false) {
+            $brandName = $needle;
+            break;
+        }
+    }
 @endphp
+
+@section('content')
 
 <div class="p-6">
     <div class="no-print flex flex-wrap items-center gap-3 mb-6">
@@ -29,8 +41,8 @@
             <div class="ticket-card bg-white border border-dashed border-gray-400 rounded-xl p-5">
                 <div class="flex items-start justify-between border-b border-dashed border-gray-300 pb-3 mb-3">
                     <div>
-                        <p class="text-lg font-black tracking-widest text-gray-900">MOVIEW</p>
-                        <p class="text-xs text-gray-500">Tiket Bioskop</p>
+                        <p class="text-lg font-black tracking-widest text-gray-900">{{ $brandName }}</p>
+                        <p class="text-xs text-gray-500">{{ $cinemaName !== '' ? $cinemaName : 'Tiket Bioskop' }}</p>
                     </div>
                     <div class="text-right">
                         <p class="text-xs text-gray-500">Kode</p>

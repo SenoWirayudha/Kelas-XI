@@ -13,6 +13,7 @@ import android.graphics.Shader
 import android.view.View
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.ColorUtils
+import androidx.core.graphics.drawable.toBitmap
 import com.komputerkit.moview.R
 import com.komputerkit.moview.ui.common.StarRatingView
 import kotlin.math.roundToInt
@@ -182,16 +183,34 @@ class PosterCompositor(
             val rect = RectF(0f, edges[index], width, edges[index + 1])
             val bitmap = backdrops.getOrNull(index)
 
-            if (bitmap != null && !bitmap.isRecycled) {
-                paint.shader = centerCropShader(bitmap, rect)
-                canvas.drawRect(rect, paint)
-                paint.shader = null
-            } else {
-                paint.shader = null
-                paint.color = colors.panelFallback
-                canvas.drawRect(rect, paint)
+            when {
+                bitmap != null && !bitmap.isRecycled -> {
+                    paint.shader = centerCropShader(bitmap, rect)
+                    canvas.drawRect(rect, paint)
+                    paint.shader = null
+                }
+                // No backdrop chosen (or the film has none): use the branded artwork so the
+                // poster is never a plain grey block.
+                defaultPanel != null && !defaultPanel!!.isRecycled -> {
+                    paint.shader = centerCropShader(defaultPanel!!, rect)
+                    canvas.drawRect(rect, paint)
+                    paint.shader = null
+                }
+                else -> {
+                    paint.shader = null
+                    paint.color = colors.panelFallback
+                    canvas.drawRect(rect, paint)
+                }
             }
         }
+    }
+
+    /** Branding fallback (branding/"Background jika tanpa backdrop.png"), loaded once. */
+    private val defaultPanel: Bitmap? by lazy {
+        runCatching {
+            ResourcesCompat.getDrawable(context.resources, R.drawable.bg_poster_default, null)
+                ?.toBitmap()
+        }.getOrNull()
     }
 
     /** Black shadow: [bounds] grown by [spread], then Gaussian-blurred with [sigma]. */

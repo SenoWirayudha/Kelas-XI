@@ -144,6 +144,25 @@
             android:visibility="gone" />
     </FrameLayout>
 
+    <!-- Skip picking: use the branded background artwork instead (share mode only) -->
+    <TextView
+        android:id="@+id/btn_use_default_background"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="8dp"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="center"
+        android:paddingVertical="8dp"
+        android:text="Tanpa backdrop (pakai background Moview)"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/btn_set_cover"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <!-- Set as Cover Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_set_cover"

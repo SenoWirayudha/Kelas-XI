@@ -182,49 +182,54 @@
                         android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
-
-                    <!-- One-time use warning (shareable tickets) -->
-                    <TextView
-                        android:id="@+id/tv_share_warning"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:fontFamily="@font/font_family_inter"
-                        android:gravity="center"
-                        android:letterSpacing="0"
-                        android:lineSpacingExtra="2dp"
-                        android:text="Tiket berlaku satu kali. Siapa pun yang memindai lebih dulu bisa masuk, jadi bagikan hanya ke orang yang kamu percaya."
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp"
-                        android:visibility="gone" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_share_ticket"
-                        style="@style/Widget.App.Button"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
-                        android:fontFamily="@font/font_family_inter"
-                        android:gravity="center"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:letterSpacing="0"
-                        android:minHeight="@dimen/button_min_height"
-                        android:paddingTop="@dimen/button_padding_v"
-                        android:paddingBottom="@dimen/button_padding_v"
-                        android:text="Bagikan Tiket"
-                        android:textAllCaps="false"
-                        android:textColor="@android:color/white"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        app:backgroundTint="@color/accent_blue"
-                        app:cornerRadius="@dimen/corner_control"
-                        app:icon="@drawable/ic_share"
-                        app:iconGravity="textStart"
-                        app:iconPadding="8dp"
-                        app:iconTint="@android:color/white" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <!-- One-time use warning + share action, pinned to the bottom of the page.
+                 marginTop pushes them well below the card so they read as page footer. -->
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="32dp" />
+
+            <TextView
+                android:id="@+id/tv_share_warning"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/font_family_inter"
+                android:gravity="center"
+                android:letterSpacing="0"
+                android:lineSpacingExtra="2dp"
+                android:text="Tiket berlaku satu kali. Siapa pun yang memindai lebih dulu bisa masuk, jadi bagikan hanya ke orang yang kamu percaya."
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_share_ticket"
+                style="@style/Widget.App.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:layout_marginBottom="16dp"
+                android:fontFamily="@font/font_family_inter"
+                android:gravity="center"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:letterSpacing="0"
+                android:minHeight="@dimen/button_min_height"
+                android:paddingTop="@dimen/button_padding_v"
+                android:paddingBottom="@dimen/button_padding_v"
+                android:text="Bagikan Tiket"
+                android:textAllCaps="false"
+                android:textColor="@android:color/white"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/accent_blue"
+                app:cornerRadius="@dimen/corner_control"
+                app:icon="@drawable/ic_share"
+                app:iconGravity="textStart"
+                app:iconPadding="8dp"
+                app:iconTint="@android:color/white" />
         </LinearLayout>
     </ScrollView>
 

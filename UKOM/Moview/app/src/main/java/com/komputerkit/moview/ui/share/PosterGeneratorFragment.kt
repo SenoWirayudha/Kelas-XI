@@ -57,8 +57,16 @@ class PosterGeneratorFragment : Fragment() {
         // returning from the picker would immediately open it again (double flow).
         consumePendingPickerResult()
 
-        // Still nothing chosen: send the user straight to the picker.
-        if (viewModel.selectedUrls.value.orEmpty().isEmpty()) {
+        if (viewModel.useDefaultBackground) {
+            viewModel.loadPreview(requireContext())
+            showPreview()
+            return
+        }
+
+        // Open the picker automatically only on the first visit. Coming back from it (with or
+        // without a selection, including while it is still loading) must stay on this screen.
+        if (!viewModel.autoOpenedPicker && viewModel.selectedUrls.value.orEmpty().isEmpty()) {
+            viewModel.markPickerAutoOpened()
             openPicker()
         }
     }
@@ -66,6 +74,14 @@ class PosterGeneratorFragment : Fragment() {
     /** Reads the picker's savedStateHandle value synchronously (LiveData delivery is async). */
     private fun consumePendingPickerResult() {
         val handle = findNavController().currentBackStackEntry?.savedStateHandle ?: return
+
+        if (handle.get<Boolean>(KEY_USE_DEFAULT) == true) {
+            viewModel.useBrandedBackground()
+            handle.remove<Boolean>(KEY_USE_DEFAULT)
+            handle.remove<ArrayList<String>>(KEY_SELECTED_URLS)
+            return
+        }
+
         val urls = handle.get<ArrayList<String>>(KEY_SELECTED_URLS)
         if (!urls.isNullOrEmpty()) {
             viewModel.setSelectedUrls(urls)
@@ -74,14 +90,19 @@ class PosterGeneratorFragment : Fragment() {
     }
 
     private fun setupPickerResultListener() {
-        findNavController().currentBackStackEntry?.savedStateHandle
-            ?.getLiveData<ArrayList<String>>(KEY_SELECTED_URLS)
-            ?.observe(viewLifecycleOwner) { urls ->
-                if (urls.isNullOrEmpty()) return@observe
-                viewModel.setSelectedUrls(urls)
-                findNavController().currentBackStackEntry
-                    ?.savedStateHandle?.remove<ArrayList<String>>(KEY_SELECTED_URLS)
-            }
+        val handle = findNavController().currentBackStackEntry?.savedStateHandle ?: return
+
+        handle.getLiveData<Boolean>(KEY_USE_DEFAULT).observe(viewLifecycleOwner) { useDefault ->
+            if (useDefault != true) return@observe
+            viewModel.useBrandedBackground()
+            handle.remove<Boolean>(KEY_USE_DEFAULT)
+        }
+
+        handle.getLiveData<ArrayList<String>>(KEY_SELECTED_URLS).observe(viewLifecycleOwner) { urls ->
+            if (urls.isNullOrEmpty()) return@observe
+            viewModel.setSelectedUrls(urls)
+            handle.remove<ArrayList<String>>(KEY_SELECTED_URLS)
+        }
     }
 
     private fun setupClickListeners() {
@@ -108,7 +129,10 @@ class PosterGeneratorFragment : Fragment() {
 
     private fun setupObservers() {
         viewModel.selectedUrls.observe(viewLifecycleOwner) { selected ->
-            if (selected.size == PosterGeneratorViewModel.MAX_SCENES) {
+            if (viewModel.isReady() && selected.isNotEmpty()) {
+                viewModel.loadPreview(requireContext())
+                showPreview()
+            } else if (viewModel.useDefaultBackground) {
                 viewModel.loadPreview(requireContext())
                 showPreview()
             } else {
@@ -159,5 +183,6 @@ class PosterGeneratorFragment : Fragment() {
 
     companion object {
         const val KEY_SELECTED_URLS = "selected_backdrop_urls"
+        const val KEY_USE_DEFAULT = "use_default_background"
     }
 }

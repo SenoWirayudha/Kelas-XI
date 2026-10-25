@@ -34,6 +34,22 @@ class PosterGeneratorViewModel(application: Application) : AndroidViewModel(appl
 
     private var previewJob: Job? = null
 
+    /**
+     * True once the picker was opened automatically. The generator's view is destroyed while
+     * the picker is on top, so without this flag returning from the picker (including with
+     * Back) would immediately open it again and trap the user in a loop.
+     */
+    var autoOpenedPicker: Boolean = false
+        private set
+
+    fun markPickerAutoOpened() {
+        autoOpenedPicker = true
+    }
+
+    /** See [useBrandedBackground]; when true the collage ignores [selectedUrls]. */
+    var useDefaultBackground: Boolean = false
+        private set
+
     private var title: String = ""
     private var rating: Float = 0f
     private var username: String = ""
@@ -56,21 +72,33 @@ class PosterGeneratorViewModel(application: Application) : AndroidViewModel(appl
 
     /** Applies the 3 scenes chosen in the shared backdrop picker. */
     fun setSelectedUrls(urls: List<String>) {
+        useDefaultBackground = false
         _selectedUrls.value = urls.take(MAX_SCENES)
     }
 
+    /**
+     * The user skipped picking scenes: the collage uses the branded artwork from
+     * `res/drawable-nodpi/bg_poster_default.png` (branding/"Background jika tanpa backdrop").
+     */
+    fun useBrandedBackground() {
+        useDefaultBackground = true
+        _selectedUrls.value = emptyList()
+    }
+
     fun clearSelection() {
+        useDefaultBackground = false
         _selectedUrls.value = emptyList()
         previewJob?.cancel()
         _previewContent.value = null
     }
 
-    fun isReady(): Boolean = _selectedUrls.value.orEmpty().size == MAX_SCENES
+    fun isReady(): Boolean =
+        useDefaultBackground || _selectedUrls.value.orEmpty().size == MAX_SCENES
 
     /** Builds the on-screen preview content at display resolution. */
     fun loadPreview(context: Context) {
         val urls = _selectedUrls.value.orEmpty()
-        if (urls.size != MAX_SCENES) {
+        if (!isReady()) {
             _previewContent.value = null
             return
         }
@@ -79,7 +107,9 @@ class PosterGeneratorViewModel(application: Application) : AndroidViewModel(appl
         previewJob = viewModelScope.launch {
             val panelHeight = PREVIEW_WIDTH / 3
 
-            val backdrops = urls.map { url ->
+            // Empty when the user skipped picking: the compositor then paints the branded
+            // fallback artwork instead of grey panels.
+            val backdrops = if (useDefaultBackground) emptyList() else urls.map { url ->
                 ShareBitmapLoader.load(context, url, PREVIEW_WIDTH, panelHeight)
             }
             val poster = ShareBitmapLoader.load(context, posterUrl, PREVIEW_POSTER_W, PREVIEW_POSTER_H)
@@ -101,8 +131,8 @@ class PosterGeneratorViewModel(application: Application) : AndroidViewModel(appl
      * Falls back to saving in the gallery only when Instagram truly cannot take it.
      */
     fun share(context: Context) {
+        if (!isReady()) return
         val urls = _selectedUrls.value.orEmpty()
-        if (urls.size != MAX_SCENES) return
 
         viewModelScope.launch {
             val bitmap = withContext(Dispatchers.Default) { buildBitmap(context, urls) }
@@ -133,7 +163,7 @@ class PosterGeneratorViewModel(application: Application) : AndroidViewModel(appl
     private suspend fun buildBitmap(context: Context, urls: List<String>): Bitmap? {
         val panelHeight = OUTPUT_HEIGHT / 3
 
-        val backdrops = urls.map { url ->
+        val backdrops = if (useDefaultBackground) emptyList() else urls.map { url ->
             ShareBitmapLoader.load(context, url, OUTPUT_WIDTH, panelHeight)
         }
         val poster = ShareBitmapLoader.load(
