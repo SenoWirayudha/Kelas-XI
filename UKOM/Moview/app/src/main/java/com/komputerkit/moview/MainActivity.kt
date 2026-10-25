@@ -3,9 +3,7 @@ package com.komputerkit.moview
 import android.content.Context
 import android.os.Bundle
 import android.view.MotionEvent
-import android.view.VelocityTracker
 import android.view.View
-import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
 import androidx.appcompat.app.AppCompatActivity
@@ -16,11 +14,13 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.PagerSwipeGesture
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToLong
 
 class MainActivity : AppCompatActivity() {
     
@@ -35,20 +35,9 @@ class MainActivity : AppCompatActivity() {
         R.id.navigation_profile
     )
     private var lastTabIndex = 0
-
-    // --- Horizontal fling state for swiping between adjacent main tabs ---
-    private var swipeDownX = 0f
-    private var swipeDownY = 0f
-    private var swipeDownTime = 0L
-    private var swipeEligible = false
-    private var swipeTracker: VelocityTracker? = null
-    /** True when the down event landed on a horizontally scrollable view (carousel). */
-    private var swipeLockedByScroller = false
-    private val swipeDensity by lazy { resources.displayMetrics.density }
-    private val swipeMaxVelocity by lazy {
-        ViewConfiguration.get(this).scaledMaximumFlingVelocity.toFloat()
-    }
-    private val swipeTouchSlop by lazy { ViewConfiguration.get(this).scaledTouchSlop }
+    // Set to true while a swipe-gesture commit is handling navigation directly,
+    // so the BottomNav's setOnItemSelectedListener skips its navigateToTabRoot call.
+    private var swipeNavigating = false
 
     // Standard forward push animation (enter from right, exit to left) used for
     // navigate-by-id pushes that have no <action> to carry anim attrs.
@@ -201,6 +190,7 @@ class MainActivity : AppCompatActivity() {
         // tabs or re-tapping the active one) goes back to that tab's root and discards all
         // nested/child screens opened anywhere. No saveState/restoreState / multiple back stacks.
         binding.bottomNavigation.setOnItemSelectedListener { item ->
+            if (swipeNavigating) return@setOnItemSelectedListener true // swipe already handled nav
             val index = tabOrder.indexOf(item.itemId)
             navigateToTabRoot(item.itemId, forward = index > lastTabIndex)
             true
@@ -279,76 +269,97 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // --- Swipe between main tabs (adjacent only, no wrap-around) -------------
+    // --- Swipe between main tabs (ViewPager2-style: content follows finger, snaps on release) ---
+
+    /**
+     * PagerSwipeGesture drives the horizontal swipe on the main-tab host.
+     *
+     * Because only one fragment exists at a time in the NavHostFragment, only the
+     * current page slides (like a single-panel push). On commit the fragment
+     * transition is suppressed (no enter/exit anim) so the snap animation that
+     * already moved navHostFragment.translationX provides the only visible motion.
+     */
+    private val tabSwipeGesture by lazy {
+        val navHost = binding.navHostFragment
+        PagerSwipeGesture(
+            context = this,
+            pageWidth = { navHost.width.toFloat() },
+            translate = { offset -> navHost.translationX = offset },
+            canGoLeft  = { currentTabIndex() < tabOrder.lastIndex },
+            canGoRight = { currentTabIndex() > 0 },
+            isBlocked  = { ev -> !isTabSwipeStartAllowed(ev) },
+            onDragEnd  = { navHost.translationX = 0f },
+            onSwipe    = { direction -> switchTabBySwipe(direction) },
+
+            // onCommit takes over when the swipe is going to commit.
+            // Strategy: navigate to the target fragment FIRST (before the snap animation),
+            // force-commit the transaction so the new fragment's view is already attached,
+            // then snap translationX from the current drag offset straight to 0 (center).
+            //
+            // This avoids the glitch that occurs with the default "snap to ±width → navigate →
+            // reset to 0" sequence, where the old fragment briefly flashes at center because
+            // the transaction hasn't committed yet when translationX is reset.
+            onCommit = onCommit@{ direction, offset ->
+                val currentIdx = currentTabIndex()
+                val targetIdx  = currentIdx + direction
+                if (targetIdx !in tabOrder.indices) return@onCommit false
+
+                val targetId = tabOrder[targetIdx]
+                if (binding.bottomNavigation.selectedItemId == targetId) return@onCommit false
+
+                // 1. Navigate immediately — no enter/exit animation.
+                val noAnim = NavOptions.Builder()
+                    .setLaunchSingleTop(true)
+                    .setPopUpTo(navController.graph.startDestinationId, false)
+                    .build()
+                try {
+                    navController.navigate(targetId, null, noAnim)
+                } catch (_: IllegalArgumentException) { return@onCommit false }
+
+                // 2. Force-commit the transaction synchronously.
+                //    NavController uses the NavHostFragment's childFragmentManager,
+                //    not the activity's supportFragmentManager.
+                val navHostFrag = supportFragmentManager
+                    .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+                navHostFrag.childFragmentManager.executePendingTransactions()
+
+                // 3. Sync bottom-nav indicator (suppress listener re-navigation).
+                lastTabIndex   = targetIdx
+                swipeNavigating = true
+                binding.bottomNavigation.selectedItemId = targetId
+                swipeNavigating = false
+
+                // 4. Snap translationX from current drag offset straight to 0.
+                //    The new fragment is already in place — no ±width detour, no flash.
+                val width   = navHost.width.toFloat()
+                val dist    = abs(offset)
+                val snapMs  = (300L * (dist / width).coerceIn(0f, 1f))
+                    .roundToLong().coerceIn(180L, 300L)
+                android.animation.ValueAnimator.ofFloat(offset, 0f).apply {
+                    duration     = snapMs
+                    interpolator = android.view.animation.DecelerateInterpolator(1.8f)
+                    addUpdateListener { navHost.translationX = it.animatedValue as Float }
+                    addListener(object : android.animation.AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(a: android.animation.Animator) {
+                            navHost.translationX = 0f
+                        }
+                    })
+                    start()
+                }
+                true // handled — PagerSwipeGesture will not run its own settle/onSwipe/onDragEnd
+            }
+        )
+    }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        detectTabSwipe(ev)
+        if (tabSwipeGesture.onTouch(ev)) return true
         return super.dispatchTouchEvent(ev)
     }
 
-    /**
-     * Observes (never consumes) touch stream: a fast horizontal fling on a
-     * main-tab root switches to the adjacent tab. Gestures that start over
-     * horizontal scrollers, the bottom nav bar, or non-tab screens are ignored
-     * so their own scrolling/navigation keeps priority.
-     */
-    private fun detectTabSwipe(ev: MotionEvent) {
-        when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                swipeTracker?.recycle()
-                swipeTracker = VelocityTracker.obtain()
-                swipeTracker?.addMovement(ev)
-                swipeDownX = ev.rawX
-                swipeDownY = ev.rawY
-                swipeDownTime = ev.eventTime
-                swipeEligible = isTabSwipeAllowed(ev)
-            }
-            MotionEvent.ACTION_POINTER_DOWN -> swipeEligible = false
-            MotionEvent.ACTION_MOVE -> {
-                swipeTracker?.addMovement(ev)
-                // The finger started on a horizontal carousel: once it actually scrolls, the
-                // gesture belongs to the carousel, so drop the tab-swipe candidate for good.
-                if (swipeEligible && swipeLockedByScroller) {
-                    val dx = abs(ev.rawX - swipeDownX)
-                    val dy = abs(ev.rawY - swipeDownY)
-                    if (dx > swipeTouchSlop && dx > dy) {
-                        swipeEligible = false
-                        swipeTracker?.recycle()
-                        swipeTracker = null
-                    }
-                }
-            }
-            MotionEvent.ACTION_UP -> {
-                val tracker = swipeTracker
-                swipeTracker = null
-                tracker?.addMovement(ev)
-                if (swipeEligible && tracker != null) {
-                    tracker.computeCurrentVelocity(1000, swipeMaxVelocity)
-                    val vx = tracker.xVelocity
-                    val vy = tracker.yVelocity
-                    val dx = ev.rawX - swipeDownX
-                    val dy = ev.rawY - swipeDownY
-                    val elapsed = ev.eventTime - swipeDownTime
-                    if (elapsed > 0L && elapsed <= 1200L &&
-                        abs(dx) >= swipeTouchSlop * 2f &&
-                        abs(vx) >= 450f * swipeDensity &&
-                        abs(vx) > abs(vy) * 1.3f
-                    ) {
-                        switchTabBySwipe(dx)
-                    }
-                }
-                tracker?.recycle()
-            }
-            MotionEvent.ACTION_CANCEL -> {
-                swipeTracker?.recycle()
-                swipeTracker = null
-                swipeEligible = false
-            }
-        }
-    }
+    private fun currentTabIndex(): Int =
+        tabOrder.indexOf(binding.bottomNavigation.selectedItemId)
 
-    private fun isTabSwipeAllowed(ev: MotionEvent): Boolean {
-        swipeLockedByScroller = false
+    private fun isTabSwipeStartAllowed(ev: MotionEvent): Boolean {
         if (binding.bottomNavigation.visibility != View.VISIBLE) return false
         val currentId = navController.currentDestination?.id
         if (currentId == null || currentId !in tabOrder) return false
@@ -358,7 +369,7 @@ class MainActivity : AppCompatActivity() {
         decor.getLocationOnScreen(location)
         val hit = findTopChildUnder(decor, ev.rawX - location[0], ev.rawY - location[1])
             ?: return false
-        return !isGestureBlockedAt(hit)
+        return !isHorizontalScrollerOrNav(hit)
     }
 
     /** Top-most visible view under the given decor-view coordinates. */
@@ -388,35 +399,43 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** True when the touch sits on the bottom nav or a horizontal scroller. */
-    private fun isGestureBlockedAt(start: View): Boolean {
+    private fun isHorizontalScrollerOrNav(start: View): Boolean {
         var view: View? = start
         while (view != null) {
             if (view === binding.bottomNavigation) return true
-            if (view is HorizontalScrollView) {
-                swipeLockedByScroller = true
-                return true
-            }
+            if (view is HorizontalScrollView) return true
             if (view is RecyclerView) {
                 val orientation = view.layoutManager?.let { lm ->
                     (lm as? LinearLayoutManager)?.orientation
                 }
-                if (orientation == RecyclerView.HORIZONTAL) {
-                    swipeLockedByScroller = true
-                    return true
-                }
+                if (orientation == RecyclerView.HORIZONTAL) return true
             }
             view = view.parent as? View
         }
         return false
     }
 
-    private fun switchTabBySwipe(dx: Float) {
-        val currentIdx = tabOrder.indexOf(binding.bottomNavigation.selectedItemId)
+    /** Fallback navigation used when onCommit returns false (edge cases). */
+    private fun switchTabBySwipe(direction: Int) {
+        val currentIdx = currentTabIndex()
         if (currentIdx < 0) return
-        val step = if (dx < 0f) 1 else -1 // swipe left → next tab, right → previous
-        val targetIdx = currentIdx + step
-        if (targetIdx !in tabOrder.indices) return // no wrap at first/last tab
-        navigateToTabRoot(tabOrder[targetIdx], forward = step > 0)
+        val targetIdx = currentIdx + direction
+        if (targetIdx !in tabOrder.indices) return
+        val targetId = tabOrder[targetIdx]
+        if (binding.bottomNavigation.selectedItemId == targetId) return
+
+        val noAnim = NavOptions.Builder()
+            .setLaunchSingleTop(true)
+            .setPopUpTo(navController.graph.startDestinationId, false)
+            .build()
+        try {
+            navController.navigate(targetId, null, noAnim)
+        } catch (_: IllegalArgumentException) { return }
+
+        lastTabIndex   = targetIdx
+        swipeNavigating = true
+        binding.bottomNavigation.selectedItemId = targetId
+        swipeNavigating = false
     }
 
     private fun checkLoginStatus() {

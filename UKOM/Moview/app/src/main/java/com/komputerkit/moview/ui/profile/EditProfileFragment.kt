@@ -12,7 +12,6 @@ import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
-import android.view.GestureDetector
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -727,44 +726,102 @@ class EditProfileFragment : Fragment() {
     private var showSettingsTab = false
 
     /**
-     * Swiping left/right on the content switches between the Profil and Setting tabs, the
-     * same gesture the user already uses elsewhere. Horizontal drags on a horizontally
-     * scrollable child (favourite slots strip) and vertical drags are ignored so scrolling
-     * still wins.
+     * Swipe between the Profil and Setting panes with the same pager feel as the ticket
+     * history screen: the content follows the finger and snaps on release. Vertical drags
+     * and the horizontal favourites strip keep their own gestures.
      */
     private fun setupTabSwipe() {
-        val detector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
-            override fun onDown(e: MotionEvent): Boolean = true
-
-            override fun onFling(
-                e1: MotionEvent?,
-                e2: MotionEvent,
-                velocityX: Float,
-                velocityY: Float
-            ): Boolean {
-                val from = e1 ?: return false
-                val dx = e2.x - from.x
-                val dy = e2.y - from.y
-                if (abs(dx) < TAB_SWIPE_MIN_DX || abs(dx) <= abs(dy) * 1.5f) return false
-
-                if (dx < 0 && !showSettingsTab) {
-                    switchTab(showSettings = true)
-                    return true
+        val width = { binding.root.width.toFloat() }
+        val gesture = com.komputerkit.moview.util.PagerSwipeGesture(
+            context = requireContext(),
+            pageWidth = width,
+            translate = { offset ->
+                val w = width()
+                if (showSettingsTab) {
+                    // Dragging back to Profil: Profil comes in from the left.
+                    binding.scrollContent.translationX = -w + offset
+                    binding.layoutBottomBar.translationX = -w + offset
+                    binding.scrollSettings.translationX = offset
+                } else {
+                    binding.scrollContent.translationX = offset
+                    binding.layoutBottomBar.translationX = offset
+                    binding.scrollSettings.translationX = w + offset
                 }
-                if (dx > 0 && showSettingsTab) {
-                    switchTab(showSettings = false)
-                    return true
+                updateTabIndicatorInteractive(offset, w)
+            },
+            canGoLeft = { !showSettingsTab },
+            canGoRight = { showSettingsTab },
+            onSwipe = { direction -> switchTab(showSettings = direction > 0) },
+            onCancelChildren = {
+                // Only disallow parent interception — do NOT dispatch ACTION_CANCEL through
+                // the views because they have an OnTouchListener that re-enters the gesture,
+                // which causes the jitter / premature snap-back.
+                binding.scrollContent.parent?.requestDisallowInterceptTouchEvent(true)
+                binding.scrollSettings.parent?.requestDisallowInterceptTouchEvent(true)
+            },
+            isBlocked = { ev -> isOverHorizontalList(ev) },
+            onDragStart = { direction ->
+                // Reveal the incoming pane so it slides in with the finger.
+                val w = width()
+                if (direction > 0) {
+                    binding.scrollSettings.visibility = View.VISIBLE
+                    binding.scrollSettings.translationX = w
+                } else {
+                    binding.scrollContent.visibility = View.VISIBLE
+                    binding.scrollContent.translationX = -w
+                    binding.layoutBottomBar.visibility = View.VISIBLE
+                    binding.layoutBottomBar.translationX = -w
                 }
-                return false
+            },
+            onDragEnd = {
+                binding.scrollContent.translationX = 0f
+                binding.scrollSettings.translationX = 0f
+                binding.layoutBottomBar.translationX = 0f
+                binding.scrollContent.visibility =
+                    if (showSettingsTab) View.GONE else View.VISIBLE
+                binding.scrollSettings.visibility =
+                    if (showSettingsTab) View.VISIBLE else View.GONE
+                binding.layoutBottomBar.visibility =
+                    if (showSettingsTab) View.GONE else View.VISIBLE
+                resetTabIndicators()
             }
-        })
+        )
 
         val listener = View.OnTouchListener { _, event ->
-            detector.onTouchEvent(event)
-            false // never consume: scrolling and taps keep working
+            gesture.onTouch(event)
         }
         binding.scrollContent.setOnTouchListener(listener)
         binding.scrollSettings.setOnTouchListener(listener)
+    }
+
+    private fun updateTabIndicatorInteractive(offset: Float, w: Float) {
+        if (w <= 0f) return
+        val progress = if (showSettingsTab) {
+            (1f - (offset / w)).coerceIn(0f, 1f)
+        } else {
+            (-offset / w).coerceIn(0f, 1f)
+        }
+        binding.tabProfilIndicator.visibility = View.VISIBLE
+        binding.tabSettingIndicator.visibility = View.VISIBLE
+        binding.tabProfilIndicator.alpha = 1f - progress
+        binding.tabSettingIndicator.alpha = progress
+    }
+
+    private fun resetTabIndicators() {
+        if (_binding == null) return
+        binding.tabProfilIndicator.alpha = 1f
+        binding.tabSettingIndicator.alpha = 1f
+        binding.tabProfilIndicator.visibility = if (showSettingsTab) View.GONE else View.VISIBLE
+        binding.tabSettingIndicator.visibility = if (showSettingsTab) View.VISIBLE else View.GONE
+    }
+
+    /** True when the touch starts on the horizontal favourites strip. */
+    private fun isOverHorizontalList(ev: MotionEvent): Boolean {
+        val rv = binding.rvFavorites
+        if (rv.visibility != View.VISIBLE) return false
+        val rect = android.graphics.Rect()
+        rv.getGlobalVisibleRect(rect)
+        return rect.contains(ev.rawX.toInt(), ev.rawY.toInt())
     }
 
     private fun switchTab(showSettings: Boolean) {
@@ -786,8 +843,7 @@ class EditProfileFragment : Fragment() {
                 if (showSettings) R.color.accent_blue else R.color.text_secondary
             )
         )
-        binding.tabProfilIndicator.visibility = if (showSettings) View.GONE else View.VISIBLE
-        binding.tabSettingIndicator.visibility = if (showSettings) View.VISIBLE else View.GONE
+        resetTabIndicators()
     }
 
     /** How this session was created: "email" (default for old sessions) or "google". */
@@ -1245,7 +1301,6 @@ class EditProfileFragment : Fragment() {
     }
 
     private companion object {
-        /** Minimum horizontal travel (px) before a drag counts as a tab swipe. */
-        const val TAB_SWIPE_MIN_DX = 120f
+        // Swipe behaviour lives in PagerSwipeGesture (same feel as the ticket-history pager).
     }
 }
