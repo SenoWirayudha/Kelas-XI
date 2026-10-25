@@ -12,7 +12,9 @@
         'filter_production_house', 'filter_service', 'filter_director', 'filter_cast', 'filter_crew'];
     $activeFilterCount = collect($allFilterKeys)->filter(fn($k) => request($k))->count();
 @endphp
-<div class="mb-6 rounded-lg bg-white p-4 shadow sm:p-6" x-data="{ filterOpen: false }">
+<div class="mb-6 rounded-lg bg-white p-4 shadow sm:p-6"
+     x-data="{ filterOpen: false }"
+     @moview-modal-close.window="filterOpen = false">
     <form method="GET" action="{{ route('admin.films.index') }}" id="filterForm">
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div class="flex flex-col gap-3 sm:flex-1 sm:flex-row sm:space-x-4">
@@ -25,7 +27,7 @@
                     <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
                 </div>
                 <button type="button" 
-                        @click="filterOpen = true" 
+                        @click="filterOpen = true; window.moviewHistoryUI?.openModal()"
                         class="min-h-[40px] whitespace-nowrap rounded-lg bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700">
                     <i class="fas fa-filter mr-2"></i>Filter
                     @if($activeFilterCount > 0)
@@ -49,13 +51,13 @@
 
         <!-- Filter Modal -->
         <div x-show="filterOpen" x-cloak class="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <div class="absolute inset-0 bg-black bg-opacity-50" @click="filterOpen = false"></div>
+            <div class="absolute inset-0 bg-black bg-opacity-50" @click="filterOpen = false; window.moviewHistoryUI?.closeModal()"></div>
             <div class="relative bg-white rounded-lg shadow-xl w-full max-w-2xl">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <h3 class="text-lg font-semibold text-gray-900">
                         <i class="fas fa-filter mr-2 text-blue-600"></i>Filter & Sort Films
                     </h3>
-                    <button type="button" @click="filterOpen = false" class="text-gray-400 hover:text-gray-600">
+                    <button type="button" @click="filterOpen = false; window.moviewHistoryUI?.closeModal()" class="text-gray-400 hover:text-gray-600">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>

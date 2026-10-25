@@ -13,7 +13,13 @@ class AuthController extends Controller
     public function showLoginForm()
     {
         if (session()->has('admin_logged_in')) {
-            return $this->redirectToDashboard();
+            $route = $this->dashboardRoute();
+
+            if ($route) {
+                return redirect()->route($route);
+            }
+
+            session()->flush();
         }
 
         return view('admin.auth.login');
@@ -47,7 +53,18 @@ class AuthController extends Controller
 
         AdminAuth::putSession($request, $user);
 
-        return $this->redirectToDashboard();
+        $route = $this->dashboardRoute();
+
+        if (! $route) {
+            session()->flush();
+
+            return redirect()->route('admin.login');
+        }
+
+        // Replace the login entry in browser history instead of pushing a new one.
+        return response()
+            ->view('auth.redirect', ['url' => route($route)])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
     public function logout()
@@ -57,24 +74,14 @@ class AuthController extends Controller
         return redirect()->route('home');
     }
 
-    private function redirectToDashboard()
+    private function dashboardRoute(): ?string
     {
-        $role = session('admin_role');
-
-        $route = match ($role) {
+        return match (session('admin_role')) {
             User::ROLE_ADMIN => 'admin.dashboard',
             User::ROLE_MANAGER => 'manager.dashboard',
             User::ROLE_STAFF => 'staff.dashboard',
             User::ROLE_USER => 'discover',
             default => null,
         };
-
-        if (!$route) {
-            session()->flush();
-
-            return redirect()->route('admin.login');
-        }
-
-        return redirect()->route($route);
     }
 }

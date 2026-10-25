@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.auth' => \App\Http\Middleware\AdminAuth::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
             'cinema.scope' => \App\Http\Middleware\EnsureCinemaScope::class,
+            'no-store' => \App\Http\Middleware\NoStoreResponse::class,
         ]);
         
         // Enable CORS for API

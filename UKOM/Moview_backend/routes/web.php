@@ -31,8 +31,8 @@ use App\Http\Controllers\PublicPageController;
 Route::get('/', [PublicPageController::class, 'landing'])->name('home');
 
 // One login page for every role.
-Route::get('/login', [AuthController::class, 'showLoginForm'])->name('admin.login');
-Route::post('/login', [AuthController::class, 'login'])->name('admin.login.post');
+Route::get('/login', [AuthController::class, 'showLoginForm'])->middleware('no-store')->name('admin.login');
+Route::post('/login', [AuthController::class, 'login'])->middleware('no-store')->name('admin.login.post');
 
 // Legacy login URL.
 Route::get('/admin/login', fn () => redirect()->route('admin.login'));
@@ -44,7 +44,7 @@ Route::get('/reset-password/{token}', function (string $token) {
 })->name('password.reset');
 
 // Authentication
-Route::post('/logout', [AuthController::class, 'logout'])->name('admin.logout');
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('no-store')->name('admin.logout');
 
 // Admin root redirect
 Route::get('/admin', function () {
@@ -65,7 +65,7 @@ Route::get('/staff', function () {
 })->name('staff.index');
 
 // Admin Routes (Protected)
-Route::prefix('admin')->name('admin.')->middleware(['admin.auth', 'role:admin'])->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['admin.auth', 'role:admin', 'no-store'])->group(function () {
     Route::get('/dashboard', fn () => redirect()->route('admin.analytics.index'))->name('dashboard');
 
     // Manager accounts (admin can pick the cinema)
@@ -184,7 +184,7 @@ Route::get('/orders/{id}', [AdminOrderController::class, 'show'])->name('orders.
 });
 
 // Manager Routes (own cinema only)
-Route::prefix('manager')->name('manager.')->middleware(['admin.auth', 'role:manager', 'cinema.scope'])->group(function () {
+Route::prefix('manager')->name('manager.')->middleware(['admin.auth', 'role:manager', 'cinema.scope', 'no-store'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'manager'])->name('dashboard');
     Route::get('/stats', [ManagerStatsController::class, 'index'])->name('stats.index');
     Route::get('/staff-stats', [StaffStatsController::class, 'index'])->name('staff-stats.index');
@@ -239,7 +239,7 @@ Route::prefix('manager')->name('manager.')->middleware(['admin.auth', 'role:mana
 });
 
 // Staff Routes (own cinema only)
-Route::prefix('staff')->name('staff.')->middleware(['admin.auth', 'role:staff', 'cinema.scope'])->group(function () {
+Route::prefix('staff')->name('staff.')->middleware(['admin.auth', 'role:staff', 'cinema.scope', 'no-store'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'staff'])->name('dashboard');
 
     // Offline ticket sales (cashier)
@@ -266,6 +266,5 @@ Route::prefix('staff')->name('staff.')->middleware(['admin.auth', 'role:staff', 
 
 // Read-only web discovery for regular users.
 Route::get('/discover', [PublicPageController::class, 'discover'])
-    ->middleware(['admin.auth', 'role:user'])
+    ->middleware(['admin.auth', 'role:user', 'no-store'])
     ->name('discover');
-

@@ -11,6 +11,7 @@
 <div class="p-6">
     <div class="no-print flex flex-wrap items-center gap-3 mb-6">
         <a href="{{ route('staff.cashier.index') }}"
+           onclick="event.preventDefault(); try { var ref = document.referrer ? new URL(document.referrer) : null; if (ref && ref.origin === location.origin && history.length > 1) { history.back(); return; } } catch (_) {} location.href = this.href;"
            class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition">
             <i class="fas fa-arrow-left mr-2"></i> Kembali ke Kasir
         </a>

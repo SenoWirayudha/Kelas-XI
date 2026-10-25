@@ -297,17 +297,17 @@
         </div>
 
         <!-- Media Management & Metadata Tabs -->
-        <div class="bg-white rounded-lg shadow p-6" x-data="{ activeSection: 'media', activeTab: 'posters', currentTab: 'posters' }">
+        <div class="bg-white rounded-lg shadow p-6" x-data="filmShowTabs()">
             <!-- Section Tabs -->
             <div class="border-b border-gray-200 mb-6">
                 <nav class="-mb-px flex space-x-8">
-                    <button @click="activeSection = 'media'" 
+                    <button @click="setSection('media')"
                             :class="activeSection === 'media' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                             class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors duration-200">
                         <i class="fas fa-images mr-2"></i>
                         Media Management
                     </button>
-                    <button @click="activeSection = 'metadata'" 
+                    <button @click="setSection('metadata')"
                             :class="activeSection === 'metadata' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                             class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors duration-200">
                         <i class="fas fa-tags mr-2"></i>
@@ -1911,24 +1911,68 @@ document.addEventListener('alpine:init', () => {
     }));
 });
 
+// Section tabs: keep the active section in the URL.
+document.addEventListener('alpine:init', () => {
+    Alpine.data('filmShowTabs', () => ({
+        activeSection: 'media',
+
+        init() {
+            this.syncFromUrl();
+            window.addEventListener('popstate', () => this.syncFromUrl());
+        },
+
+        syncFromUrl() {
+            const section = new URLSearchParams(window.location.search).get('section');
+            this.activeSection = section === 'metadata' ? 'metadata' : 'media';
+        },
+
+        setSection(section) {
+            this.activeSection = section;
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('section', section);
+            window.history.pushState({ filmSection: section }, '', url.toString());
+        },
+    }));
+});
+
 // Media Manager Alpine.js component
 document.addEventListener('alpine:init', () => {
     Alpine.data('mediaManager', () => ({
-        currentTab: sessionStorage.getItem('moview_media_tab') || 'posters',
-        activeTab: sessionStorage.getItem('moview_media_tab') || 'posters',
+        currentTab: 'posters',
+        activeTab: 'posters',
 
         init() {
+            const urlTab = new URLSearchParams(window.location.search).get('tab');
             const saved = sessionStorage.getItem('moview_media_tab');
-            if (saved === 'posters' || saved === 'backdrops') {
+
+            if (urlTab === 'posters' || urlTab === 'backdrops') {
+                this.currentTab = urlTab;
+                this.activeTab = urlTab;
+            } else if (saved === 'posters' || saved === 'backdrops') {
                 this.currentTab = saved;
                 this.activeTab = saved;
             }
+
+            window.addEventListener('popstate', () => {
+                const tab = new URLSearchParams(window.location.search).get('tab');
+
+                if (tab === 'posters' || tab === 'backdrops') {
+                    this.currentTab = tab;
+                    this.activeTab = tab;
+                }
+            });
         },
 
         setTab(tab) {
             this.activeTab = tab;
             this.currentTab = tab;
             sessionStorage.setItem('moview_media_tab', tab);
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('section', 'media');
+            url.searchParams.set('tab', tab);
+            window.history.pushState({ filmTab: tab }, '', url.toString());
         },
         
         openFileDialog() {

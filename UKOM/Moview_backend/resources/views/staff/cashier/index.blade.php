@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Kasir Tiket')
+@section('title', 'Kasir: Pilih Film')
 @section('page-title', 'Kasir Tiket')
 @section('page-subtitle', 'Pilih film lalu jam tayang hari ini')
 
@@ -118,14 +118,43 @@ function cashierFilms(films) {
         seatsUrl: '{{ route('staff.cashier.seats') }}',
 
         init() {
+            this.page = this.pageFromUrl();
             this.applyBreakpoint();
             window.addEventListener('resize', () => this.applyBreakpoint());
+            window.addEventListener('popstate', () => {
+                this.page = this.pageFromUrl();
+            });
+        },
+
+        pageFromUrl() {
+            const page = parseInt(new URL(window.location.href).searchParams.get('page') || '1', 10);
+            return Number.isFinite(page) && page > 0 ? page : 1;
+        },
+
+        urlForPage(page) {
+            const url = new URL(window.location.href);
+
+            if (page > 1) {
+                url.searchParams.set('page', page);
+            } else {
+                url.searchParams.delete('page');
+            }
+
+            return url.toString();
+        },
+
+        goToPage(page) {
+            this.page = Math.max(1, Math.min(page, this.totalPages));
+            window.history.pushState({ cashierPage: this.page }, '', this.urlForPage(this.page));
         },
 
         applyBreakpoint() {
             const width = window.innerWidth;
             this.perPage = width >= 1024 ? 6 : (width >= 640 ? 4 : 2);
-            if (this.page > this.totalPages) this.page = this.totalPages;
+            if (this.page > this.totalPages) {
+                this.page = this.totalPages;
+                window.history.replaceState(history.state, '', this.urlForPage(this.page));
+            }
         },
 
         get totalPages() {
@@ -140,8 +169,8 @@ function cashierFilms(films) {
         get hasPrev() { return this.page > 1; },
         get hasNext() { return this.page < this.totalPages; },
 
-        prev() { if (this.hasPrev) this.page--; },
-        next() { if (this.hasNext) this.page++; },
+        prev() { if (this.hasPrev) this.goToPage(this.page - 1); },
+        next() { if (this.hasNext) this.goToPage(this.page + 1); },
     };
 }
 </script>

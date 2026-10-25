@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Moview')</title>
+    @php
+        $mvPageTitle = trim(View::yieldContent('title'));
+        $mvPageTitle = $mvPageTitle === ''
+            ? 'Moview'
+            : (str_contains($mvPageTitle, 'Moview') ? $mvPageTitle : $mvPageTitle . ' | Moview');
+    @endphp
+    <title>{{ $mvPageTitle }}</title>
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -222,13 +228,15 @@
 <body class="moview-theme overflow-hidden bg-gray-100">
     <div class="h-[100dvh] overflow-hidden lg:flex"
          x-data="{ sidebarOpen: false }"
-         @keydown.escape.window="sidebarOpen = false"
-         @resize.window="if (window.innerWidth >= 1024) sidebarOpen = false"
+         @keydown.escape.window="sidebarOpen = false; window.moviewHistoryUI?.closeDrawer()"
+         @resize.window="if (window.innerWidth >= 1024) { sidebarOpen = false; window.moviewHistoryUI?.closeDrawer(); }"
+         @moview-drawer-open.window="sidebarOpen = true"
+         @moview-drawer-close.window="sidebarOpen = false"
          x-effect="document.body.classList.toggle('admin-drawer-open', sidebarOpen)">
         <div x-show="sidebarOpen"
              x-cloak
              class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
-             @click="sidebarOpen = false"
+             @click="sidebarOpen = false; window.moviewHistoryUI?.closeDrawer()"
              aria-hidden="true"></div>
 
         <!-- Sidebar -->
@@ -240,7 +248,7 @@
                     <p class="text-xs font-semibold uppercase tracking-widest text-gray-400">{{ ucfirst(session('admin_role', 'Admin')) }}</p>
                 </div>
                 <button type="button"
-                        @click="sidebarOpen = false"
+                        @click="sidebarOpen = false; window.moviewHistoryUI?.closeDrawer()"
                         class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white lg:hidden"
                         aria-label="Tutup menu">
                     <i class="fas fa-times"></i>
@@ -248,7 +256,7 @@
             </div>
             
             <nav class="sidebar-scroll flex-1 overflow-y-auto mt-2"
-                 @click="if ($event.target.closest('a')) sidebarOpen = false">
+                 @click="if ($event.target.closest('a')) { sidebarOpen = false; window.moviewHistoryUI?.closeDrawer(); }">
                 @if(session('admin_role') === 'manager')
                 <a href="{{ route('manager.dashboard') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.dashboard') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-gauge-high mr-3"></i>
@@ -388,7 +396,7 @@
                 <div class="flex items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6 sm:py-4 lg:px-8">
                     <div class="flex min-w-0 items-center gap-2 sm:gap-3">
                         <button type="button"
-                                @click="sidebarOpen = true"
+                                @click="sidebarOpen = true; window.moviewHistoryUI?.openDrawer()"
                                 class="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition hover:bg-gray-50 lg:hidden"
                                 aria-label="Buka menu">
                             <i class="fas fa-bars text-lg"></i>
@@ -712,6 +720,12 @@
             confirmText: 'Ya, Lanjutkan',
             danger: true,
             callback: null,
+            init() {
+                window.addEventListener('moview-modal-close', () => {
+                    this.open = false;
+                    this.callback = null;
+                });
+            },
             show(opts) {
                 this.message = opts.message || 'Konfirmasi';
                 this.submessage = opts.submessage || '';
@@ -719,16 +733,19 @@
                 this.danger = opts.danger !== false;
                 this.callback = opts.callback || null;
                 this.open = true;
+                window.moviewHistoryUI?.openModal();
             },
             cancel() {
                 this.open = false;
                 if (this.callback && this.callback.onCancel) this.callback.onCancel();
                 this.callback = null;
+                window.moviewHistoryUI?.closeModal();
             },
             confirmAction() {
                 this.open = false;
                 if (this.callback && this.callback.onConfirm) this.callback.onConfirm();
                 this.callback = null;
+                window.moviewHistoryUI?.closeModal();
             }
         }));
 
@@ -1099,6 +1116,95 @@
                 }
             },
         };
+    })();
+    </script>
+
+    <script>
+    (function () {
+        let drawerOpen = false;
+        let modalOpen = false;
+
+        const without = (state, key) => {
+            const next = Object.assign({}, state || {});
+            delete next[key];
+            return next;
+        };
+
+        window.moviewHistoryUI = {
+            openDrawer() {
+                if (drawerOpen) return;
+                drawerOpen = true;
+                if (!history.state || !history.state.moviewDrawer) {
+                    history.pushState(Object.assign({}, history.state || {}, { moviewDrawer: true }), '', location.href);
+                }
+            },
+
+            closeDrawer() {
+                if (!drawerOpen) return;
+                drawerOpen = false;
+                if (history.state && history.state.moviewDrawer) {
+                    history.replaceState(without(history.state, 'moviewDrawer'), '', location.href);
+                }
+            },
+
+            openModal() {
+                if (modalOpen) return;
+                modalOpen = true;
+                if (!history.state || !history.state.moviewModal) {
+                    history.pushState(Object.assign({}, history.state || {}, { moviewModal: true }), '', location.href);
+                }
+            },
+
+            closeModal() {
+                if (!modalOpen) return;
+                modalOpen = false;
+                if (history.state && history.state.moviewModal) {
+                    history.replaceState(without(history.state, 'moviewModal'), '', location.href);
+                }
+            },
+        };
+
+        window.moviewGoBack = function (fallback) {
+            try {
+                const referrer = document.referrer ? new URL(document.referrer) : null;
+
+                if (referrer && referrer.origin === window.location.origin && history.length > 1) {
+                    history.back();
+                    return;
+                }
+            } catch (_) {}
+
+            window.location.href = fallback;
+        };
+
+        window.addEventListener('popstate', function (event) {
+            if (drawerOpen && !(event.state && event.state.moviewDrawer)) {
+                drawerOpen = false;
+                window.dispatchEvent(new Event('moview-drawer-close'));
+            }
+
+            if (modalOpen && !(event.state && event.state.moviewModal)) {
+                modalOpen = false;
+                window.dispatchEvent(new Event('moview-modal-close'));
+            }
+        });
+
+        document.addEventListener('click', function (event) {
+            const link = event.target.closest ? event.target.closest('a[href]') : null;
+            if (!link || link.dataset.noHistory !== undefined) return;
+
+            const label = (link.textContent || '').trim().toLowerCase();
+            if (!label.startsWith('kembali') && !label.startsWith('pilih film lain')) return;
+
+            try {
+                const referrer = document.referrer ? new URL(document.referrer) : null;
+
+                if (referrer && referrer.origin === window.location.origin && history.length > 1) {
+                    event.preventDefault();
+                    history.back();
+                }
+            } catch (_) {}
+        });
     })();
     </script>
 </body>

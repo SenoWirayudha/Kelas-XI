@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Login') - Moview</title>
+    @php
+        $mvPageTitle = trim(View::yieldContent('title'));
+        $mvPageTitle = $mvPageTitle === ''
+            ? 'Moview'
+            : (str_contains($mvPageTitle, 'Moview') ? $mvPageTitle : $mvPageTitle . ' | Moview');
+    @endphp
+    <title>{{ $mvPageTitle }}</title>
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
     
     <!-- Tailwind CSS -->

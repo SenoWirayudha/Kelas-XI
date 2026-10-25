@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Pilih Kursi')
+@section('title', 'Kasir: Pilih Kursi')
 @section('page-title', 'Pilih Kursi')
 @section('page-subtitle', $schedule->movie?->title ?? 'Kasir Tiket')
 
@@ -354,11 +354,88 @@ function cashierSeatPage() {
         summaryUrl: '{{ route('staff.cashier.summary') }}',
         storeUrl: '{{ route('staff.cashier.store') }}',
         statusUrl: '{{ route('staff.cashier.status') }}',
+        cashierUrl: '{{ route('staff.cashier.index') }}',
+        historyStep: null,
         csrfToken: '{{ csrf_token() }}',
 
         init() {
             this.$nextTick(() => this.setupMapObserver());
-            this.loadSeats();
+            this.loadSeats().then(() => this.applyStepFromUrl());
+            window.addEventListener('popstate', () => this.applyStepFromUrl());
+        },
+
+        selectionKey() {
+            return 'moview_cashier_selected_{{ $schedule->id }}';
+        },
+
+        savedSeatIds() {
+            try {
+                return JSON.parse(sessionStorage.getItem(this.selectionKey()) || '[]').map(Number);
+            } catch (_) {
+                return [];
+            }
+        },
+
+        persistSelection() {
+            try {
+                sessionStorage.setItem(
+                    this.selectionKey(),
+                    JSON.stringify(this.selected.map(seat => Number(seat.seat_id)))
+                );
+            } catch (_) {}
+        },
+
+        clearSelection() {
+            try {
+                sessionStorage.removeItem(this.selectionKey());
+            } catch (_) {}
+        },
+
+        stepUrl(step) {
+            const url = new URL(window.location.href);
+
+            if (step) {
+                url.searchParams.set('step', step);
+            } else {
+                url.searchParams.delete('step');
+            }
+
+            return url.toString();
+        },
+
+        setStepTitle(step) {
+            document.title = step === 'summary'
+                ? 'Kasir: Ringkasan Pembelian | Moview'
+                : (step === 'payment' ? 'Kasir: Pembayaran | Moview' : 'Kasir: Pilih Kursi | Moview');
+        },
+
+        applyStepFromUrl() {
+            const step = new URL(window.location.href).searchParams.get('step');
+            this.setStepTitle(step);
+
+            if (step === 'summary' || step === 'payment') {
+                if (this.selected.length === 0) {
+                    this.historyStep = null;
+                    this.showSummary = false;
+                    this.showPayment = false;
+                    this.setStepTitle(null);
+                    window.history.replaceState(history.state, '', this.stepUrl(null));
+                    return;
+                }
+
+                if (!this.showSummary) {
+                    this.openSummary(false, step);
+                    return;
+                }
+
+                this.historyStep = step;
+                this.showPayment = step === 'payment';
+                return;
+            }
+
+            this.historyStep = null;
+            this.showSummary = false;
+            this.showPayment = false;
         },
 
         setupMapObserver() {
@@ -449,13 +526,18 @@ function cashierSeatPage() {
                 }
 
                 this.applyLayout(payload.data || {});
-                this.selected = keepSelected
-                    ? this.seats.filter(seat =>
-                        previousSelected.includes(Number(seat.seat_id))
-                        && seat.selectable
-                        && !blockedSeatIds.has(Number(seat.seat_id))
-                    )
-                    : [];
+
+                const step = new URL(window.location.href).searchParams.get('step');
+                const restoreFromUrl = step === 'summary' || step === 'payment';
+                const saved = keepSelected
+                    ? previousSelected
+                    : (restoreFromUrl ? this.savedSeatIds() : []);
+
+                this.selected = this.seats.filter(seat =>
+                    saved.includes(Number(seat.seat_id))
+                    && seat.selectable
+                    && !blockedSeatIds.has(Number(seat.seat_id))
+                );
             } catch (error) {
                 this.selected = [];
                 this.error = error.message;
@@ -575,6 +657,8 @@ function cashierSeatPage() {
                     if (!this.isSelected(s)) this.selected.push(s);
                 });
             }
+
+            this.persistSelection();
         },
 
         seatLabel(seat) {
@@ -721,7 +805,7 @@ function cashierSeatPage() {
             return payload.data;
         },
 
-        async openSummary() {
+        async openSummary(pushHistory = true, targetStep = 'summary') {
             if (this.selected.length === 0 || this.summaryLoading || this.processing) return;
 
             this.summaryLoading = true;
@@ -731,6 +815,17 @@ function cashierSeatPage() {
 
             try {
                 this.summary = await this.fetchSummary();
+                this.historyStep = targetStep;
+                this.showPayment = targetStep === 'payment';
+                this.setStepTitle(targetStep);
+
+                if (pushHistory) {
+                    window.history.pushState(
+                        { cashierStep: targetStep, selected: this.selected.map(seat => seat.seat_id) },
+                        '',
+                        this.stepUrl(targetStep)
+                    );
+                }
             } catch (error) {
                 await this.handleSummaryError(error);
             } finally {
@@ -738,7 +833,7 @@ function cashierSeatPage() {
             }
         },
 
-        async continueToPayment() {
+        async continueToPayment(pushHistory = true) {
             if (!this.summary || this.summaryLoading || this.processing) return;
 
             this.summaryLoading = true;
@@ -752,6 +847,16 @@ function cashierSeatPage() {
                 this.paymentError = '';
                 this.paymentMessage = '';
                 this.showPayment = true;
+                this.historyStep = 'payment';
+                this.setStepTitle('payment');
+
+                if (pushHistory) {
+                    window.history.pushState(
+                        { cashierStep: 'payment', selected: this.selected.map(seat => seat.seat_id) },
+                        '',
+                        this.stepUrl('payment')
+                    );
+                }
             } catch (error) {
                 await this.handleSummaryError(error);
             } finally {
@@ -787,13 +892,33 @@ function cashierSeatPage() {
 
         closeSummary() {
             if (this.summaryLoading || this.processing) return;
+
+            if (this.historyStep) {
+                window.history.back();
+                return;
+            }
+
             this.showSummary = false;
+            this.setStepTitle(null);
         },
 
         closePayment() {
             if (this.processing) return;
+
+            if (this.historyStep === 'payment') {
+                window.history.back();
+                return;
+            }
+
             this.showPayment = false;
+            this.setStepTitle('summary');
             if (this.summary) this.showSummary = true;
+        },
+
+        goToPrint(url) {
+            this.clearSelection();
+            window.history.replaceState({ cashierStep: 'done' }, '', this.cashierUrl);
+            window.location.replace(url);
         },
 
         openSnap(token) {
@@ -832,7 +957,7 @@ function cashierSeatPage() {
             for (let attempt = 0; attempt < 8; attempt++) {
                 const status = await this.checkStatus(orderCode);
                 if (status?.redirect) {
-                    window.location.href = status.redirect;
+                    this.goToPrint(status.redirect);
                     return;
                 }
                 if (status?.order_status === 'cancelled') {
@@ -923,7 +1048,7 @@ function cashierSeatPage() {
                 }
 
                 if (payload.redirect) {
-                    window.location.href = payload.redirect;
+                    this.goToPrint(payload.redirect);
                     return;
                 }
 
