@@ -5,6 +5,9 @@
 @section('page-subtitle', 'Daftar semua order tiket bioskop')
 
 @section('content')
+@php
+    $listReturn = \App\Support\ReturnUrl::current();
+@endphp
 <div class="p-0 sm:p-6">
 
     {{-- Filters --}}
@@ -118,7 +121,7 @@
                 </div>
             </div>
 
-            <a href="{{ route($panelPrefix.'.orders.show', $order->id) }}"
+            <a href="{{ \App\Support\ReturnUrl::add(route($panelPrefix.'.orders.show', $order->id), $listReturn) }}"
                class="mt-4 inline-flex min-h-[40px] w-full items-center justify-center rounded-lg bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100">
                 <i class="fas fa-eye mr-2"></i> Lihat Detail
             </a>
@@ -199,7 +202,7 @@
                         {{ $order->created_at ? \Carbon\Carbon::parse($order->created_at)->isoFormat('D MMM Y, HH:mm') : '-' }}
                     </td>
                     <td class="px-4 py-3 text-center">
-                        <a href="{{ route($panelPrefix.'.orders.show', $order->id) }}"
+                        <a href="{{ \App\Support\ReturnUrl::add(route($panelPrefix.'.orders.show', $order->id), $listReturn) }}"
                            class="inline-flex items-center px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs transition">
                             <i class="fas fa-eye mr-1"></i> Lihat
                         </a>

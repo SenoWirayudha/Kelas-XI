@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Seat;
 use App\Models\Studio;
+use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -267,7 +268,8 @@ class SeatController extends Controller
                (count($aisles) > 0 ? ', ' . count($aisles) . ' lorong' : '') .
                ($hasEntranceFeature ? ', area entrance dari baris ' . $entranceStartRow : '') . '.';
 
-        return redirect()->route('admin.seats.layout', $studioId)->with('success', $msg);
+return redirect(ReturnUrl::add(route('admin.seats.layout', $studioId), ReturnUrl::fromRequest($request)))
+            ->with('success', $msg);
     }
 
     /**
@@ -472,13 +474,14 @@ class SeatController extends Controller
 
         $msg = "Layout berhasil disimpan: {$totalActualSeats} kursi, " . count($rowsPayload) . ' baris.';
 
-        return redirect()->route('admin.seats.layout', $studioId)->with('success', $msg);
+        return redirect(ReturnUrl::add(route('admin.seats.layout', $studioId), ReturnUrl::fromRequest($request)))
+            ->with('success', $msg);
     }
 
     /**
      * Delete all seats for a studio.
      */
-    public function destroyAll($studioId)
+    public function destroyAll(Request $request, $studioId)
     {
         $studio = Studio::findOrFail($studioId);
         $this->authorizeStudio($studio->id);
@@ -498,7 +501,7 @@ class SeatController extends Controller
 
         $studio->update(['total_seats' => Seat::where('studio_id', $studio->id)->whereNotIn('seat_type', Studio::PLACEHOLDER_TYPE_KEYS)->count()]);
 
-        return redirect()->route('admin.seats.layout', $studioId)
+return redirect(ReturnUrl::add(route('admin.seats.layout', $studioId), ReturnUrl::fromRequest($request)))
             ->with('success', "Berhasil menghapus {$deleted} kursi.");
     }
 

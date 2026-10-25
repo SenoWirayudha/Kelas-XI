@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Cinema;
 use App\Models\User;
+use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -41,7 +42,7 @@ class ManagerAccountController extends Controller
             'cinema_id' => $data['cinema_id'],
         ]);
 
-        return redirect()->route('admin.accounts.index')
+        return ReturnUrl::redirect($request, route('admin.accounts.index'))
             ->with('success', 'Akun manager berhasil dibuat.');
     }
 
@@ -73,17 +74,20 @@ class ManagerAccountController extends Controller
 
         $account->save();
 
-        return redirect()->route('admin.accounts.index')
+        return ReturnUrl::redirect($request, route('admin.accounts.index'))
             ->with('success', 'Akun manager berhasil diperbarui.');
     }
 
-    public function destroy(User $account)
+    public function destroy(Request $request, User $account)
     {
         $this->ensureManager($account);
 
         $account->delete();
 
-        return redirect()->route('admin.accounts.index')
+        $return = ReturnUrl::resolve($request, route('admin.accounts.index'));
+        $total = User::where('role', User::ROLE_MANAGER)->count();
+
+        return redirect(ReturnUrl::fitPage($return, $total, 15))
             ->with('success', 'Akun manager berhasil dihapus.');
     }
 

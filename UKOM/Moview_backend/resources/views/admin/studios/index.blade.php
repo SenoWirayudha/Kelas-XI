@@ -5,6 +5,9 @@
 @section('page-subtitle', 'Kelola studio per bioskop')
 
 @section('content')
+@php
+    $listReturn = \App\Support\ReturnUrl::current();
+@endphp
 <div class="p-0 sm:p-6">
 
     @if(session('success'))
@@ -38,7 +41,7 @@
                class="inline-flex min-h-[40px] items-center rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-200">Reset</a>
         @endif
         <div class="sm:ml-auto">
-            <a href="{{ route($panelPrefix.'.studios.create') }}"
+            <a href="{{ \App\Support\ReturnUrl::add(route($panelPrefix.'.studios.create'), $listReturn) }}"
                class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
                 <i class="fas fa-plus mr-2"></i> Tambah Studio
             </a>
@@ -78,7 +81,7 @@
                     </td>
                     <td class="px-4 py-3 text-center">
                         @php $seatCount = $studio->seat_layout_count ?? 0; @endphp
-                        <a href="{{ route($panelPrefix.'.seats.layout', $studio->id) }}"
+                        <a href="{{ \App\Support\ReturnUrl::add(route($panelPrefix.'.seats.layout', $studio->id), $listReturn) }}"
                            class="inline-flex items-center px-2 py-1 rounded text-xs transition
                                   {{ $seatCount > 0 ? 'bg-green-50 hover:bg-green-100 text-green-700' : 'bg-orange-50 hover:bg-orange-100 text-orange-700' }}">
                             <i class="fas fa-chair mr-1"></i>
@@ -87,7 +90,7 @@
                     </td>
                     <td class="px-4 py-3 text-center">
                         <div class="flex items-center justify-center gap-2">
-                            <a href="{{ route($panelPrefix.'.studios.edit', $studio->id) }}"
+                            <a href="{{ \App\Support\ReturnUrl::add(route($panelPrefix.'.studios.edit', $studio->id), $listReturn) }}"
                                class="inline-flex items-center px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-xs font-medium transition">
                                 <i class="fas fa-pen mr-1"></i> Edit
                             </a>
@@ -95,6 +98,7 @@
                                   onsubmit="return requireConfirm(event, 'Hapus studio {{ addslashes($studio->studio_name) }}? Data seats dan jadwal terkait ikut terhapus.', { form: this })">
                                 @csrf
                                 @method('DELETE')
+                                <input type="hidden" name="return" value="{{ $listReturn }}">
                                 <button type="submit"
                                         class="inline-flex items-center px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-medium transition">
                                     <i class="fas fa-trash mr-1"></i> Hapus

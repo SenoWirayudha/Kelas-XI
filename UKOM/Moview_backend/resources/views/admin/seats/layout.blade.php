@@ -5,6 +5,10 @@
 @section('page-subtitle', $studio->cinema->cinema_name . ' › ' . $studio->studio_name)
 
 @section('content')
+@php
+    $returnUrl = \App\Support\ReturnUrl::fromRequest(request());
+    $backUrl = $returnUrl ?? route($panelPrefix.'.studios.index');
+@endphp
 <div class="p-0 sm:p-6">
 
     {{-- Alerts --}}
@@ -20,7 +24,7 @@
     @endif
 
     <div class="mb-4">
-        <a href="{{ route($panelPrefix.'.studios.index') }}"
+        <a href="{{ $backUrl }}" data-no-history
            class="inline-flex items-center text-sm text-gray-500 hover:text-gray-800 transition">
             <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Studio
         </a>
@@ -247,6 +251,7 @@
                           hasEntrance: {{ $entranceConfig['enabled'] ? 'true' : 'false' }}
                       }">
                     @csrf
+                    <input type="hidden" name="return" value="{{ $returnUrl }}">
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -392,6 +397,7 @@
                 <form action="{{ route($panelPrefix.'.seats.destroy-all', $studio->id) }}" method="POST" class="mt-4">
                     @csrf
                     @method('DELETE')
+                    <input type="hidden" name="return" value="{{ $returnUrl }}">
                     <button type="submit"
                             onclick="return requireConfirm(event, 'Hapus semua kursi studio ini? Kursi yang sudah dipesan tidak akan terhapus.', { form: this.closest('form') })"
                             class="flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg bg-red-100 py-2 text-sm font-medium text-red-700 transition hover:bg-red-200">

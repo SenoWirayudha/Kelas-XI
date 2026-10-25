@@ -5,10 +5,14 @@
 @section('page-subtitle', 'Tambahkan studio baru ke bioskop')
 
 @section('content')
+@php
+    $returnUrl = \App\Support\ReturnUrl::fromRequest(request());
+    $backUrl = $returnUrl ?? route($panelPrefix.'.studios.index');
+@endphp
 <div class="max-w-lg p-0 sm:p-6">
 
     <div class="mb-4">
-        <a href="{{ route($panelPrefix.'.studios.index') }}"
+        <a href="{{ $backUrl }}" data-no-history
            class="inline-flex items-center text-sm text-gray-500 hover:text-gray-800 transition">
             <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Studio
         </a>
@@ -26,6 +30,7 @@
 
         <form action="{{ route($panelPrefix.'.studios.store') }}" method="POST">
             @csrf
+            <input type="hidden" name="return" value="{{ $returnUrl }}">
 
             {{-- Bioskop --}}
             <div class="mb-5">
@@ -79,7 +84,8 @@
                         class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
                     <i class="fas fa-arrow-right mr-2"></i> Simpan &amp; Atur Layout Kursi
                 </button>
-                <a href="{{ route($panelPrefix.'.studios.index') }}"
+                <a href="{{ $backUrl }}"
+                   data-no-history
                    class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-gray-100 px-6 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-200">
                     Batal
                 </a>

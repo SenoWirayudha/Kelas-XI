@@ -5,6 +5,9 @@
 @section('page-subtitle', 'Kelola data bioskop dan lokasinya')
 
 @section('content')
+@php
+    $listReturn = \App\Support\ReturnUrl::current();
+@endphp
 <div class="p-0 sm:p-6">
 
     @if(session('success'))
@@ -16,7 +19,7 @@
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-sm text-gray-500">Total: <strong>{{ $cinemas->total() }}</strong> bioskop</p>
         @if(session('admin_role') === 'admin')
-        <a href="{{ route($panelPrefix.'.cinemas.create') }}"
+        <a href="{{ \App\Support\ReturnUrl::add(route($panelPrefix.'.cinemas.create'), $listReturn) }}"
            class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
             <i class="fas fa-plus mr-2"></i> Tambah Bioskop
         </a>
@@ -61,7 +64,7 @@
                     <td class="px-4 py-3 text-center">
                         <div class="flex items-center justify-center gap-2">
                             @if(Route::has($panelPrefix.'.cinemas.edit'))
-                            <a href="{{ route($panelPrefix.'.cinemas.edit', $cinema->id) }}"
+                            <a href="{{ \App\Support\ReturnUrl::add(route($panelPrefix.'.cinemas.edit', $cinema->id), $listReturn) }}"
                                class="inline-flex items-center px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-xs font-medium transition">
                                 <i class="fas fa-pen mr-1"></i> Edit
                             </a>
@@ -71,6 +74,7 @@
                                   onsubmit="return requireConfirm(event, 'Hapus bioskop {{ addslashes($cinema->cinema_name) }}? Semua studio dan jadwal terkait akan ikut terhapus.', { form: this })">
                                 @csrf
                                 @method('DELETE')
+                                <input type="hidden" name="return" value="{{ $listReturn }}">
                                 <button type="submit"
                                         class="inline-flex items-center px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-medium transition">
                                     <i class="fas fa-trash mr-1"></i> Hapus

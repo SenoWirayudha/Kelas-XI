@@ -5,10 +5,14 @@
 @section('page-subtitle', isset($film) ? 'Update film information' : 'Add a new film to the collection')
 
 @section('content')
+@php
+    $returnUrl = \App\Support\ReturnUrl::fromRequest(request());
+    $backUrl = $returnUrl ?? route('admin.films.index');
+@endphp
 <div class="max-w-6xl">
     <!-- Back Button & Status Badge -->
     <div class="mb-6 flex items-center justify-between">
-        <a href="{{ route('admin.films.index') . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" class="text-blue-600 hover:text-blue-800 flex items-center">
+        <a href="{{ $backUrl }}" data-no-history class="text-blue-600 hover:text-blue-800 flex items-center">
             <i class="fas fa-arrow-left mr-2"></i>
             Back to Films
         </a>
@@ -25,6 +29,7 @@
         @if(isset($film))
             @method('PUT')
         @endif
+        <input type="hidden" name="return" value="{{ $returnUrl }}">
         
         <!-- Basic Information -->
         <div class="bg-white rounded-lg shadow p-6">
@@ -157,7 +162,7 @@
                     <p class="text-gray-700 mb-4">
                         Untuk mengelola poster dan backdrop, gunakan halaman detail film.
                     </p>
-                    <a href="{{ route('admin.films.show', $film->id) }}" 
+                    <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.show', $film->id), $returnUrl) }}" 
                        class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200">
                         <i class="fas fa-images mr-2"></i>
                         Kelola Media ({{ $film->movieMedia->count() }} media)
@@ -828,11 +833,11 @@
         <!-- Form Actions -->
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center">
-                <button type="button" 
-                        class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                        onclick="window.history.back()">
+                <a href="{{ $backUrl }}"
+                   data-no-history
+                   class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                     Cancel
-                </button>
+                </a>
                 <div class="flex space-x-3">
                     @if(!isset($film))
                         <button type="submit"

@@ -5,9 +5,12 @@
 @section('page-subtitle', session('admin_cinema_name', '-'))
 
 @section('content')
+@php
+    $listReturn = \App\Support\ReturnUrl::current();
+@endphp
 <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <p class="text-gray-600">Total staff: <span class="font-semibold">{{ $staff->total() }}</span></p>
-    <a href="{{ route('manager.staff.create') }}"
+    <a href="{{ \App\Support\ReturnUrl::add(route('manager.staff.create'), $listReturn) }}"
        class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700">
         <i class="fas fa-plus mr-2"></i>
         Tambah Staff
@@ -31,7 +34,7 @@
                 <td class="px-6 py-4 text-gray-600">{{ $member->email }}</td>
                 <td class="px-6 py-4 text-gray-600">{{ session('admin_cinema_name', '-') }}</td>
                 <td class="px-6 py-4 text-right whitespace-nowrap">
-                    <a href="{{ route('manager.staff.edit', $member) }}"
+                    <a href="{{ \App\Support\ReturnUrl::add(route('manager.staff.edit', $member), $listReturn) }}"
                        class="inline-flex items-center px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded">
                         <i class="fas fa-pen mr-1.5"></i> Edit
                     </a>
@@ -39,6 +42,7 @@
                           onsubmit="return confirm('Hapus akun staff ini?')">
                         @csrf
                         @method('DELETE')
+                        <input type="hidden" name="return" value="{{ $listReturn }}">
                         <button type="submit"
                                 class="inline-flex items-center px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded">
                             <i class="fas fa-trash mr-1.5"></i> Hapus

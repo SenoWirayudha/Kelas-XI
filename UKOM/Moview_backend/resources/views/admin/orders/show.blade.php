@@ -5,13 +5,17 @@
 @section('page-subtitle', 'Informasi lengkap pemesanan tiket')
 
 @section('content')
+@php
+    $returnUrl = \App\Support\ReturnUrl::fromRequest(request());
+    $backUrl = $returnUrl ?? route($panelPrefix.'.orders.index');
+@endphp
 <style>
     .order-detail dl > div { gap: 1rem; }
     .order-detail dd { min-width: 0; overflow-wrap: anywhere; text-align: right; }
 </style>
 <div class="order-detail max-w-3xl p-0 sm:p-6">
     <div class="mb-4">
-        <a href="{{ route($panelPrefix.'.orders.index') }}"
+        <a href="{{ $backUrl }}" data-no-history
            class="inline-flex min-h-[40px] items-center text-sm text-gray-500 transition hover:text-gray-800">
             <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Order
         </a>

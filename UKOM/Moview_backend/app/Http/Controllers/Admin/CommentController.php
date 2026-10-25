@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ReviewComment;
+use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -43,31 +44,31 @@ class CommentController extends Controller
         return view('admin.comments.index', compact('comments', 'flaggedCount'));
     }
     
-    public function flag($id)
+    public function flag(Request $request, $id)
     {
         $comment = ReviewComment::findOrFail($id);
         $comment->status = 'flagged';
         $comment->save();
         
-        return redirect()->back()->with('success', 'Comment flagged successfully!');
+        return ReturnUrl::redirect($request, route('admin.comments.index'))->with('success', 'Comment flagged successfully!');
     }
     
-    public function delete($id)
+    public function delete(Request $request, $id)
     {
         $comment = ReviewComment::findOrFail($id);
         $comment->status = 'deleted';
         $comment->save();
         
-        return redirect()->back()->with('success', 'Comment marked as deleted!');
+        return ReturnUrl::redirect($request, route('admin.comments.index'))->with('success', 'Comment marked as deleted!');
     }
     
-    public function restore($id)
+    public function restore(Request $request, $id)
     {
         $comment = ReviewComment::findOrFail($id);
         $comment->status = 'published';
         $comment->save();
         
-        return redirect()->back()->with('success', 'Comment restored!');
+        return ReturnUrl::redirect($request, route('admin.comments.index'))->with('success', 'Comment restored!');
     }
     
     public function notifications()

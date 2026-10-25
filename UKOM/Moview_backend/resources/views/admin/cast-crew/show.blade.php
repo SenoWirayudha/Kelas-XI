@@ -5,12 +5,16 @@
 @section('page-subtitle', $person->primary_role)
 
 @section('content')
+@php
+    $returnUrl = \App\Support\ReturnUrl::fromRequest(request());
+    $backUrl = $returnUrl ?? route('admin.cast-crew.index');
+@endphp
 <!-- Breadcrumb -->
 <div class="mb-6">
     <nav class="flex" aria-label="Breadcrumb">
         <ol class="inline-flex items-center space-x-1 md:space-x-3">
             <li class="inline-flex items-center">
-                <a href="{{ route('admin.cast-crew.index') }}" class="inline-flex items-center text-sm text-gray-700 hover:text-blue-600">
+                <a href="{{ $backUrl }}" data-no-history class="inline-flex items-center text-sm text-gray-700 hover:text-blue-600">
                     <i class="fas fa-user-friends mr-2"></i>
                     Cast & Crew
                 </a>
@@ -27,7 +31,7 @@
 
 <!-- Action Buttons -->
 <div class="mb-6 flex justify-end space-x-3">
-    <a href="{{ route('admin.cast-crew.edit', $person->id) }}" 
+    <a href="{{ \App\Support\ReturnUrl::add(route('admin.cast-crew.edit', $person->id), $returnUrl) }}" 
        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">
         <i class="fas fa-edit mr-2"></i>
         Edit Person
@@ -36,6 +40,7 @@
           onsubmit="return requireConfirm(event, 'Are you sure you want to delete {{ $person->full_name }}? This action cannot be undone.', { form: this })">
         @csrf
         @method('DELETE')
+        <input type="hidden" name="return" value="{{ $returnUrl }}">
         <button type="submit" 
                 class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium">
             <i class="fas fa-trash mr-2"></i>
@@ -270,7 +275,8 @@
 
 <!-- Back Button -->
 <div class="mt-6">
-    <a href="{{ route('admin.cast-crew.index') }}" 
+    <a href="{{ $backUrl }}"
+       data-no-history
        class="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium">
         <i class="fas fa-arrow-left mr-2"></i>
         Back to Cast & Crew

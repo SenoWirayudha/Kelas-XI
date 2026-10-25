@@ -7,6 +7,7 @@ use App\Models\Cinema;
 use App\Models\Movie;
 use App\Models\Schedule;
 use App\Models\Studio;
+use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -66,18 +67,26 @@ class ScheduleController extends Controller
 
         Schedule::create($validated);
 
-        return redirect()->route($this->panelRoute('schedules.index'))
+        return ReturnUrl::redirect($request, route($this->panelRoute('schedules.index')))
             ->with('success', 'Jadwal berhasil ditambahkan.');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $schedule = Schedule::with('studio')->findOrFail($id);
         $this->authorizeCinema($schedule->studio?->cinema_id);
 
         $schedule->delete();
 
-        return redirect()->route($this->panelRoute('schedules.index'))
+        $return = ReturnUrl::resolve($request, route($this->panelRoute('schedules.index')));
+
+        $countQuery = Schedule::query();
+
+        if ($this->isManager()) {
+            $countQuery->whereHas('studio', fn($q) => $q->where('cinema_id', $this->scopedCinemaId()));
+        }
+
+        return redirect(ReturnUrl::fitPage($return, $countQuery->count(), 20))
             ->with('success', 'Jadwal berhasil dihapus.');
     }
 
@@ -124,7 +133,7 @@ class ScheduleController extends Controller
 
         $schedule->update($validated);
 
-        return redirect()->route($this->panelRoute('schedules.index'))
+        return ReturnUrl::redirect($request, route($this->panelRoute('schedules.index')))
             ->with('success', 'Jadwal berhasil diperbarui.');
     }
 

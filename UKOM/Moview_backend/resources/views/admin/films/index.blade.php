@@ -11,6 +11,7 @@
         'filter_genre', 'filter_theme', 'filter_country', 'filter_language',
         'filter_production_house', 'filter_service', 'filter_director', 'filter_cast', 'filter_crew'];
     $activeFilterCount = collect($allFilterKeys)->filter(fn($k) => request($k))->count();
+    $listReturn = \App\Support\ReturnUrl::current();
 @endphp
 <div class="mb-6 rounded-lg bg-white p-4 shadow sm:p-6"
      x-data="{ filterOpen: false }"
@@ -43,7 +44,7 @@
                     </a>
                 @endif
             </div>
-            <a href="{{ route('admin.films.create') }}" class="inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700">
+            <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.create'), $listReturn) }}" class="inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700">
                 <i class="fas fa-plus mr-2"></i>
                 Add New Film
             </a>
@@ -410,19 +411,19 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ number_format($film->total_reviews ?? 0) }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div class="flex justify-end space-x-2">
-                        <a href="{{ route('admin.films.show', $film->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" 
+                        <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.show', $film->id), $listReturn) }}" 
                            class="text-blue-600 hover:text-blue-900" title="View">
                             <i class="fas fa-eye"></i>
                         </a>
-                        <a href="{{ route('admin.films.edit', $film->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" 
+                        <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.edit', $film->id), $listReturn) }}" 
                            class="text-indigo-600 hover:text-indigo-900" title="Edit">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <a href="{{ route('admin.films.cast-crew', $film->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" 
+                        <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.cast-crew', $film->id), $listReturn) }}" 
                            class="text-purple-600 hover:text-purple-900" title="Cast & Crew">
                             <i class="fas fa-users"></i>
                         </a>
-                        <a href="{{ route('admin.films.reviews', $film->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" 
+                        <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.reviews', $film->id), $listReturn) }}" 
                            class="text-green-600 hover:text-green-900" title="Reviews">
                             <i class="fas fa-star"></i>
                         </a>
@@ -430,6 +431,7 @@
                               onsubmit="return requireConfirm(event, 'Hapus film &quot;' + {{ json_encode($film->title) }} + '&quot;? Semua data terkait (review, jadwal, media) ikut terhapus.', { form: this })">
                             @csrf
                             @method('DELETE')
+                            <input type="hidden" name="return" value="{{ $listReturn }}">
                             <button type="submit" class="text-red-600 hover:text-red-900" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>

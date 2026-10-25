@@ -5,6 +5,9 @@
 @section('page-subtitle', 'Manage actors, directors, and crew members')
 
 @section('content')
+@php
+    $listReturn = \App\Support\ReturnUrl::current();
+@endphp
 <!-- Stats Cards -->
 <div class="stat-grid mb-6">
     <div class="bg-white rounded-lg shadow p-6">
@@ -68,7 +71,7 @@
 <div class="bg-white rounded-lg shadow p-6 mb-6">
     <div class="flex justify-between items-center mb-4">
         <h3 class="text-lg font-bold text-gray-800">Cast & Crew List</h3>
-        <a href="{{ route('admin.cast-crew.add') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg inline-flex items-center">
+        <a href="{{ \App\Support\ReturnUrl::add(route('admin.cast-crew.add'), $listReturn) }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg inline-flex items-center">
             <i class="fas fa-plus mr-2"></i>
             Add Person
         </a>
@@ -154,10 +157,10 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div class="flex justify-end space-x-2">
-                            <a href="{{ route('admin.cast-crew.show', $person->id) }}" class="text-blue-600 hover:text-blue-900 px-2 py-1 rounded hover:bg-blue-50" title="View Details">
+                            <a href="{{ \App\Support\ReturnUrl::add(route('admin.cast-crew.show', $person->id), $listReturn) }}" class="text-blue-600 hover:text-blue-900 px-2 py-1 rounded hover:bg-blue-50" title="View Details">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <a href="{{ route('admin.cast-crew.edit', $person->id) }}" class="text-indigo-600 hover:text-indigo-900 px-2 py-1 rounded hover:bg-indigo-50" title="Edit">
+                            <a href="{{ \App\Support\ReturnUrl::add(route('admin.cast-crew.edit', $person->id), $listReturn) }}" class="text-indigo-600 hover:text-indigo-900 px-2 py-1 rounded hover:bg-indigo-50" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
                         </div>

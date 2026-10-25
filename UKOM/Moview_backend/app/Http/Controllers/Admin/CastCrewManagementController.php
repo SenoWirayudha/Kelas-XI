@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Person;
+use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -11,37 +12,10 @@ class CastCrewManagementController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Person::query();
-
-        // Search by name
-        if ($request->has('search') && $request->search) {
-            $query->whereRaw(
-                "LOWER(full_name) LIKE LOWER(?) ESCAPE '|'",
-                ['%' . str_replace(['|', '%', '_'], ['||', '|%', '|_'], $request->search) . '%']
-            );
-        }
-
-        // Filter by role (primary_role)
-        if ($request->has('role') && $request->role && $request->role !== 'all') {
-            $query->where('primary_role', $request->role);
-        }
-
-        // Sorting
-        $sortBy = $request->get('sort', 'name_asc');
-        switch ($sortBy) {
-            case 'name_desc':
-                $query->orderBy('full_name', 'desc');
-                break;
-            case 'recent':
-                $query->orderBy('created_at', 'desc');
-                break;
-            case 'name_asc':
-            default:
-                $query->orderBy('full_name', 'asc');
-                break;
-        }
-
-        $people = $query->withCount('moviePersons')->paginate(20)->withQueryString();
+        $people = $this->filteredPeople($request)
+            ->withCount('moviePersons')
+            ->paginate(20)
+            ->withQueryString();
 
         // Count stats
         $totalPeople = Person::count();
@@ -83,7 +57,7 @@ class CastCrewManagementController extends Controller
 
         Person::create($validated);
 
-        return redirect()->route('admin.cast-crew.index')
+        return ReturnUrl::redirect($request, route('admin.cast-crew.index'))
             ->with('success', 'Person berhasil ditambahkan!');
     }
 
@@ -131,11 +105,11 @@ class CastCrewManagementController extends Controller
 
         $person->save();
 
-        return redirect()->route('admin.cast-crew.index')
+        return ReturnUrl::redirect($request, route('admin.cast-crew.index'))
             ->with('success', 'Person berhasil diperbarui!');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $person = Person::findOrFail($id);
 
@@ -146,7 +120,44 @@ class CastCrewManagementController extends Controller
 
         $person->delete();
 
-        return redirect()->route('admin.cast-crew.index')
+        $return = ReturnUrl::resolve($request, route('admin.cast-crew.index'));
+
+        return redirect(ReturnUrl::fitPage($return, $this->filteredPeople(ReturnUrl::request($return))->count(), 20))
             ->with('success', 'Person berhasil dihapus!');
+    }
+
+    private function filteredPeople(Request $request)
+    {
+        $query = Person::query();
+
+        // Search by name
+        if ($request->has('search') && $request->search) {
+            $query->whereRaw(
+                "LOWER(full_name) LIKE LOWER(?) ESCAPE '|'",
+                ['%' . str_replace(['|', '%', '_'], ['||', '|%', '|_'], $request->search) . '%']
+            );
+        }
+
+        // Filter by role (primary_role)
+        if ($request->has('role') && $request->role && $request->role !== 'all') {
+            $query->where('primary_role', $request->role);
+        }
+
+        // Sorting
+        $sortBy = $request->get('sort', 'name_asc');
+        switch ($sortBy) {
+            case 'name_desc':
+                $query->orderBy('full_name', 'desc');
+                break;
+            case 'recent':
+                $query->orderBy('created_at', 'desc');
+                break;
+            case 'name_asc':
+            default:
+                $query->orderBy('full_name', 'asc');
+                break;
+        }
+
+        return $query;
     }
 }

@@ -184,6 +184,7 @@
                         <form action="{{ route('admin.users.ban', $user->id) }}" method="POST" style="display: inline;">
                             @csrf
                             @method('POST')
+                            <input type="hidden" name="return" value="{{ \App\Support\ReturnUrl::current() }}">
                             <button type="submit" 
                                     class="text-red-600 hover:text-red-900" 
                                     title="Ban User" 

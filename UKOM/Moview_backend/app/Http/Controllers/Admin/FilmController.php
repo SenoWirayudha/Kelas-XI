@@ -12,6 +12,7 @@ use App\Models\Country;
 use App\Models\Language;
 use App\Models\ProductionHouse;
 use App\Models\Theme;
+use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -168,7 +169,10 @@ class FilmController extends Controller
         ];
     }
 
-    public function index(Request $request)
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    private function filteredMovies(Request $request)
     {
         // Get filter parameters
         $search = $request->input('search');
@@ -301,8 +305,12 @@ class FilmController extends Controller
             $query->orderBy('created_at', 'desc');
         }
 
-        // Paginate results
-        $films = $query->paginate(15)->withQueryString();
+        return $query;
+    }
+
+    public function index(Request $request)
+    {
+        $films = $this->filteredMovies($request)->paginate(15)->withQueryString();
 
         // Global stats
         $totalFilms = Movie::count();
@@ -429,7 +437,7 @@ class FilmController extends Controller
         $this->syncRelatedMovies($movie, $request->input('related_movies', []));
         $this->syncSimilarMovies($movie, $request->input('similar_movies', []));
 
-        return redirect()->route('admin.films.show', $movie->id)
+        return ReturnUrl::redirect($request, route('admin.films.index'))
             ->with('success', 'Film berhasil ditambahkan!');
     }
 
@@ -575,7 +583,7 @@ class FilmController extends Controller
         $this->syncRelatedMovies($movie, $request->input('related_movies', []));
         $this->syncSimilarMovies($movie, $request->input('similar_movies', []));
 
-        return redirect()->route('admin.films.show', $movie->id)
+        return ReturnUrl::redirect($request, route('admin.films.index'))
             ->with('success', 'Film berhasil diperbarui!');
     }
 
@@ -748,18 +756,18 @@ class FilmController extends Controller
         return response()->json($result);
     }
 
-    public function toggleStatus($id)
+    public function toggleStatus(Request $request, $id)
     {
         $movie = Movie::findOrFail($id);
 
         $newStatus = $movie->status === 'published' ? 'draft' : 'published';
         $movie->update(['status' => $newStatus]);
 
-        return redirect()->route('admin.films.show', $movie->id)
+        return redirect(ReturnUrl::add(route('admin.films.show', $movie->id), ReturnUrl::fromRequest($request)))
             ->with('success', 'Film status berhasil diubah menjadi ' . ucfirst($newStatus) . '!');
     }
 
-    public function duplicate($id)
+    public function duplicate(Request $request, $id)
     {
         $originalMovie = Movie::with([
             'movieGenres',
@@ -810,11 +818,11 @@ class FilmController extends Controller
             $duplicateMovie->movieThemes()->create(['theme_id' => $mt->theme_id]);
         }
 
-        return redirect()->route('admin.films.edit', $duplicateMovie->id)
+        return redirect(ReturnUrl::add(route('admin.films.edit', $duplicateMovie->id), ReturnUrl::fromRequest($request)))
             ->with('success', 'Film berhasil diduplikasi! Silakan edit dan simpan.');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $movie = Movie::findOrFail($id);
         
@@ -828,8 +836,13 @@ class FilmController extends Controller
         // Delete movie (cascade will delete all relationships)
         $movie->delete();
 
-        return redirect()->route('admin.films.index')
-            ->with('success', 'Film berhasil dihapus!');
+        $return = ReturnUrl::resolve($request, route('admin.films.index'));
+
+        return redirect(ReturnUrl::fitPage(
+            $return,
+            $this->filteredMovies(ReturnUrl::request($return))->count(),
+            15
+        ))->with('success', 'Film berhasil dihapus!');
     }
 
     public function castCrew($id)
@@ -1001,7 +1014,7 @@ class FilmController extends Controller
             }
         }
 
-        return redirect()->route('admin.films.show', $id)
+        return redirect(ReturnUrl::add(route('admin.films.show', $id), ReturnUrl::fromRequest($request)))
             ->with('success', 'Services updated successfully!');
     }
 

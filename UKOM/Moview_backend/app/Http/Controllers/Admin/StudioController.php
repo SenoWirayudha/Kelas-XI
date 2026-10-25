@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Cinema;
 use App\Models\Studio;
+use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 
 class StudioController extends Controller
@@ -25,6 +26,16 @@ class StudioController extends Controller
 
         $cinemas = $cinemasQuery->get(['id', 'cinema_name', 'city']);
 
+        $studios = $this->filteredStudios($request)->paginate(25)->withQueryString();
+
+        return view('admin.studios.index', compact('studios', 'cinemas'));
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    private function filteredStudios(Request $request)
+    {
         $query = Studio::with('cinema')
             ->withCount(['seats as seat_layout_count' => fn($q) => $q->whereNotIn('seat_type', Studio::PLACEHOLDER_TYPE_KEYS)])
             ->orderBy('studio_name');
@@ -35,9 +46,7 @@ class StudioController extends Controller
             $query->where('cinema_id', $request->cinema_id);
         }
 
-        $studios = $query->paginate(25)->withQueryString();
-
-        return view('admin.studios.index', compact('studios', 'cinemas'));
+        return $query;
     }
 
     public function create()
@@ -71,7 +80,9 @@ class StudioController extends Controller
 
         $studio = Studio::create($validated);
 
-        return redirect()->route($this->panelRoute('seats.layout'), $studio->id)
+        $return = ReturnUrl::fromRequest($request);
+
+        return redirect(ReturnUrl::add(route($this->panelRoute('seats.layout'), $studio->id), $return))
             ->with('success', 'Studio berhasil dibuat. Silakan atur layout kursi.');
     }
 
@@ -110,18 +121,23 @@ class StudioController extends Controller
 
         $studio->update($validated);
 
-        return redirect()->route($this->panelRoute('studios.index'))
+        return ReturnUrl::redirect($request, route($this->panelRoute('studios.index')))
             ->with('success', 'Studio berhasil diperbarui.');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $studio = Studio::findOrFail($id);
         $this->authorizeCinema($studio->cinema_id);
 
         $studio->delete();
 
-        return redirect()->route($this->panelRoute('studios.index'))
-            ->with('success', 'Studio berhasil dihapus.');
+        $return = ReturnUrl::resolve($request, route($this->panelRoute('studios.index')));
+
+        return redirect(ReturnUrl::fitPage(
+            $return,
+            $this->filteredStudios(ReturnUrl::request($return))->count(),
+            25
+        ))->with('success', 'Studio berhasil dihapus.');
     }
 }

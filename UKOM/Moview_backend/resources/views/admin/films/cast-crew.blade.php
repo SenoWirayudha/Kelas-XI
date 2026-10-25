@@ -5,14 +5,17 @@
 @section('page-subtitle', $movie->title)
 
 @section('content')
+@php
+    $returnUrl = \App\Support\ReturnUrl::fromRequest(request());
+@endphp
 <!-- Back Button -->
 <div class="mb-6 flex flex-wrap gap-3">
-    <a href="{{ route('admin.films.show', $movie->id) }}" class="text-blue-600 hover:text-blue-800 flex items-center">
+    <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.show', $movie->id), $returnUrl) }}" data-no-history class="text-blue-600 hover:text-blue-800 flex items-center">
         <i class="fas fa-arrow-left mr-2"></i>
         Back to Film
     </a>
     <span class="text-gray-400">|</span>
-    <a href="{{ route('admin.films.edit', $movie->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" class="text-indigo-600 hover:text-indigo-800 flex items-center">
+    <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.edit', $movie->id), $returnUrl) }}" class="text-indigo-600 hover:text-indigo-800 flex items-center">
         <i class="fas fa-edit mr-2"></i>
         Edit Film Details
     </a>
@@ -44,6 +47,7 @@
         </div>
         <form id="editForm" method="POST">
             @csrf
+                <input type="hidden" name="return" value="{{ $returnUrl }}">
             @method('PUT')
             <div class="mb-4">
                 <label for="editInput" class="block text-sm font-medium text-gray-700 mb-2" id="inputLabel">Character Name</label>
@@ -124,6 +128,7 @@ document.getElementById('editModal')?.addEventListener('click', function(e) {
         <div x-show="showAddCast" x-cloak class="p-6 bg-blue-50 border-b">
             <form action="{{ route('admin.films.castcrew.store', $movie->id) }}" method="POST" class="space-y-4">
                 @csrf
+                <input type="hidden" name="return" value="{{ $returnUrl }}">
                 <input type="hidden" name="role_type" value="cast">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -180,6 +185,7 @@ document.getElementById('editModal')?.addEventListener('click', function(e) {
                                 </button>
                                 <form action="{{ route('admin.films.castcrew.destroy', [$movie->id, $moviePerson->id]) }}" method="POST" class="inline" onsubmit="return requireConfirm(event, 'Remove this cast member?', { form: this })">
                                     @csrf
+                <input type="hidden" name="return" value="{{ $returnUrl }}">
                                     @method('DELETE')
                                     <button type="submit" class="text-red-600 hover:text-red-800 p-2" title="Remove">
                                         <i class="fas fa-trash"></i>
@@ -190,6 +196,7 @@ document.getElementById('editModal')?.addEventListener('click', function(e) {
                         <div x-show="editing" x-cloak class="mt-4 pt-4 border-t">
                             <form action="{{ route('admin.films.castcrew.update', [$movie->id, $moviePerson->id]) }}" method="POST" class="flex items-end space-x-3">
                                 @csrf
+                <input type="hidden" name="return" value="{{ $returnUrl }}">
                                 @method('PUT')
                                 <div class="flex-1">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Character Name</label>
@@ -235,6 +242,7 @@ document.getElementById('editModal')?.addEventListener('click', function(e) {
         <div x-show="showAddCrew" x-cloak class="p-6 bg-purple-50 border-b">
             <form action="{{ route('admin.films.castcrew.store', $movie->id) }}" method="POST" class="space-y-4">
                 @csrf
+                <input type="hidden" name="return" value="{{ $returnUrl }}">
                 <input type="hidden" name="role_type" value="crew">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -288,6 +296,7 @@ document.getElementById('editModal')?.addEventListener('click', function(e) {
                                 </button>
                                 <form action="{{ route('admin.films.castcrew.destroy', [$movie->id, $moviePerson->id]) }}" method="POST" class="inline" onsubmit="return requireConfirm(event, 'Remove this crew member?', { form: this })">
                                     @csrf
+                <input type="hidden" name="return" value="{{ $returnUrl }}">
                                     @method('DELETE')
                                     <button type="submit" class="text-red-600 hover:text-red-800 p-2" title="Remove">
                                         <i class="fas fa-trash"></i>
@@ -298,6 +307,7 @@ document.getElementById('editModal')?.addEventListener('click', function(e) {
                         <div x-show="editing" x-cloak class="mt-4 pt-4 border-t">
                             <form action="{{ route('admin.films.castcrew.update', [$movie->id, $moviePerson->id]) }}" method="POST" class="flex items-end space-x-3">
                                 @csrf
+                <input type="hidden" name="return" value="{{ $returnUrl }}">
                                 @method('PUT')
                                 <div class="flex-1">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Job/Role</label>
@@ -332,7 +342,7 @@ document.getElementById('editModal')?.addEventListener('click', function(e) {
             Total: {{ $cast->count() }} Cast, {{ $crew->count() }} Crew
         </p>
         <div class="flex space-x-3">
-            <a href="{{ route('admin.films.show', $movie->id) }}" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+            <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.show', $movie->id), $returnUrl) }}" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
                 Done
             </a>
         </div>

@@ -5,14 +5,17 @@
 @section('page-subtitle', $movie->title)
 
 @section('content')
+@php
+    $returnUrl = \App\Support\ReturnUrl::fromRequest(request());
+@endphp
 <!-- Back Button -->
 <div class="mb-6 flex space-x-3">
-    <a href="{{ route('admin.films.show', $movie->id) }}" class="text-blue-600 hover:text-blue-800 flex items-center">
+    <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.show', $movie->id), $returnUrl) }}" data-no-history class="text-blue-600 hover:text-blue-800 flex items-center">
         <i class="fas fa-arrow-left mr-2"></i>
         Back to Film
     </a>
     <span class="text-gray-400">|</span>
-    <a href="{{ route('admin.films.edit', $movie->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" class="text-indigo-600 hover:text-indigo-800 flex items-center">
+    <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.edit', $movie->id), $returnUrl) }}" class="text-indigo-600 hover:text-indigo-800 flex items-center">
         <i class="fas fa-edit mr-2"></i>
         Edit Film Details
     </a>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
@@ -63,7 +64,7 @@ class UserController extends Controller
         $user->status = 'banned';
         $user->save();
         
-        return redirect()->route('admin.users.index')
+        return ReturnUrl::redirect($request, route('admin.users.index'))
             ->with('success', 'User has been banned successfully.');
     }
 }

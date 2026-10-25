@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Movie;
 use App\Models\Person;
 use App\Models\MoviePerson;
+use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 
 class CastCrewController extends Controller
@@ -30,11 +31,11 @@ class CastCrewController extends Controller
             'order_index' => $movie->moviePersons()->count(),
         ]);
 
-        return redirect()->route('admin.films.cast-crew', $movieId)
+        return redirect(ReturnUrl::add(route('admin.films.cast-crew', $movieId), ReturnUrl::fromRequest($request)))
             ->with('success', 'Cast/Crew berhasil ditambahkan!');
     }
 
-    public function destroy($movieId, $moviePersonId)
+    public function destroy(Request $request, $movieId, $moviePersonId)
     {
         $moviePerson = MoviePerson::findOrFail($moviePersonId);
 
@@ -45,7 +46,7 @@ class CastCrewController extends Controller
 
         $moviePerson->delete();
 
-        return redirect()->route('admin.films.cast-crew', $movieId)
+        return redirect(ReturnUrl::add(route('admin.films.cast-crew', $movieId), ReturnUrl::fromRequest($request)))
             ->with('success', 'Cast/Crew berhasil dihapus!');
     }
 
@@ -71,7 +72,7 @@ class CastCrewController extends Controller
         }
         $moviePerson->save();
 
-        return redirect()->route('admin.films.cast-crew', $movieId)
+        return redirect(ReturnUrl::add(route('admin.films.cast-crew', $movieId), ReturnUrl::fromRequest($request)))
             ->with('success', 'Cast/Crew berhasil diupdate!');
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Cinema;
 use App\Models\Service;
+use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 
 class CinemaController extends Controller
@@ -43,7 +44,7 @@ class CinemaController extends Controller
 
         Cinema::create($validated);
 
-        return redirect()->route('admin.cinemas.index')
+        return ReturnUrl::redirect($request, route('admin.cinemas.index'))
             ->with('success', 'Bioskop berhasil ditambahkan.');
     }
 
@@ -73,16 +74,18 @@ class CinemaController extends Controller
 
         $cinema->update($validated);
 
-        return redirect()->route($this->panelRoute('cinemas.index'))
+        return ReturnUrl::redirect($request, route($this->panelRoute('cinemas.index')))
             ->with('success', 'Bioskop berhasil diperbarui.');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $cinema = Cinema::findOrFail($id);
         $cinema->delete();
 
-        return redirect()->route('admin.cinemas.index')
+        $return = ReturnUrl::resolve($request, route('admin.cinemas.index'));
+
+        return redirect(ReturnUrl::fitPage($return, Cinema::count(), 20))
             ->with('success', 'Bioskop berhasil dihapus.');
     }
 }

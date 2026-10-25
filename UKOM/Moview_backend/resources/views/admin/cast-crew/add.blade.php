@@ -5,12 +5,16 @@
 @section('page-subtitle', 'Add new cast or crew member')
 
 @section('content')
+@php
+    $returnUrl = \App\Support\ReturnUrl::fromRequest(request());
+    $backUrl = $returnUrl ?? route('admin.cast-crew.index');
+@endphp
 <!-- Breadcrumb -->
 <div class="mb-6">
     <nav class="flex" aria-label="Breadcrumb">
         <ol class="inline-flex items-center space-x-1 md:space-x-3">
             <li class="inline-flex items-center">
-                <a href="{{ route('admin.cast-crew.index') }}" class="inline-flex items-center text-sm text-gray-700 hover:text-blue-600">
+                <a href="{{ $backUrl }}" data-no-history class="inline-flex items-center text-sm text-gray-700 hover:text-blue-600">
                     <i class="fas fa-user-friends mr-2"></i>
                     Cast & Crew
                 </a>
@@ -29,6 +33,7 @@
 <div class="bg-white rounded-lg shadow-lg p-8 max-w-4xl">
     <form action="{{ route('admin.cast-crew.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
+        <input type="hidden" name="return" value="{{ $returnUrl }}">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Left Column -->
             <div class="space-y-6">
@@ -131,7 +136,8 @@
 
         <!-- Form Actions -->
         <div class="mt-8 flex justify-end space-x-4 pt-6 border-t border-gray-200">
-            <a href="{{ route('admin.cast-crew.index') }}" 
+            <a href="{{ $backUrl }}"
+               data-no-history
                class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium">
                 <i class="fas fa-times mr-2"></i>
                 Cancel

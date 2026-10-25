@@ -5,9 +5,12 @@
 @section('page-subtitle', 'Buat, ubah, dan hapus akun manager beserta bioskopnya')
 
 @section('content')
+@php
+    $listReturn = \App\Support\ReturnUrl::current();
+@endphp
 <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <p class="text-gray-600">Total manager: <span class="font-semibold">{{ $managers->total() }}</span></p>
-    <a href="{{ route('admin.accounts.create') }}"
+    <a href="{{ \App\Support\ReturnUrl::add(route('admin.accounts.create'), $listReturn) }}"
        class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700">
         <i class="fas fa-plus mr-2"></i>
         Tambah Manager
@@ -37,7 +40,7 @@
                 </td>
                 <td class="text-right">
                     <div class="flex items-center justify-end gap-2">
-                        <a href="{{ route('admin.accounts.edit', $manager) }}"
+                        <a href="{{ \App\Support\ReturnUrl::add(route('admin.accounts.edit', $manager), $listReturn) }}"
                            class="inline-flex items-center rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-200">
                             <i class="fas fa-pen mr-1"></i> Edit
                         </a>
@@ -45,6 +48,7 @@
                               onsubmit="return confirm('Hapus akun manager ini?')">
                             @csrf
                             @method('DELETE')
+                            <input type="hidden" name="return" value="{{ $listReturn }}">
                             <button type="submit"
                                     class="inline-flex items-center rounded-lg bg-red-100 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-200">
                                 <i class="fas fa-trash mr-1"></i> Hapus

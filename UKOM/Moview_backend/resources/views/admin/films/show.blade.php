@@ -5,6 +5,10 @@
 @section('page-subtitle', 'Admin preview mode')
 
 @section('content')
+@php
+    $returnUrl = \App\Support\ReturnUrl::fromRequest(request());
+    $backUrl = $returnUrl ?? route('admin.films.index');
+@endphp
 <!-- Preview Mode Banner -->
 <div class="bg-yellow-500 text-white px-6 py-3 rounded-lg mb-6 flex items-center justify-between">
     <div class="flex items-center">
@@ -14,7 +18,7 @@
             <p class="text-sm">This is how users will see this film</p>
         </div>
     </div>
-    <a href="{{ route('admin.films.edit', $movie->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" class="bg-white text-yellow-600 px-4 py-2 rounded-lg hover:bg-yellow-50">
+    <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.edit', $movie->id), $returnUrl) }}" class="bg-white text-yellow-600 px-4 py-2 rounded-lg hover:bg-yellow-50">
         <i class="fas fa-edit mr-2"></i>
         Edit Film
     </a>
@@ -22,17 +26,17 @@
 
 <!-- Quick Actions -->
 <div class="mb-6 flex space-x-3">
-    <a href="{{ route('admin.films.index') . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" class="text-blue-600 hover:text-blue-800 flex items-center">
+    <a href="{{ $backUrl }}" data-no-history class="text-blue-600 hover:text-blue-800 flex items-center">
         <i class="fas fa-arrow-left mr-2"></i>
         Back to Films
     </a>
     <span class="text-gray-400">|</span>
-    <a href="{{ route('admin.films.cast-crew', $movie->id) }}" class="text-purple-600 hover:text-purple-800 flex items-center">
+    <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.cast-crew', $movie->id), $returnUrl) }}" class="text-purple-600 hover:text-purple-800 flex items-center">
         <i class="fas fa-users mr-2"></i>
         Manage Cast & Crew
     </a>
     <span class="text-gray-400">|</span>
-    <a href="{{ route('admin.films.reviews', $movie->id) }}" class="text-green-600 hover:text-green-800 flex items-center">
+    <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.reviews', $movie->id), $returnUrl) }}" class="text-green-600 hover:text-green-800 flex items-center">
         <i class="fas fa-star mr-2"></i>
         View Reviews
     </a>
@@ -230,7 +234,7 @@
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold">Cast & Crew</h2>
-                <a href="{{ route('admin.films.cast-crew', $movie->id) }}" class="text-blue-600 hover:text-blue-800">
+                <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.cast-crew', $movie->id), $returnUrl) }}" class="text-blue-600 hover:text-blue-800">
                     Manage →
                 </a>
             </div>
@@ -289,7 +293,7 @@
             
             <!-- Add Button -->
             <div class="mt-4 pt-4 border-t">
-                <a href="{{ route('admin.films.cast-crew', $movie->id) }}" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm flex items-center justify-center">
+                <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.cast-crew', $movie->id), $returnUrl) }}" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm flex items-center justify-center">
                     <i class="fas fa-users-cog mr-2"></i>
                     Manage Cast & Crew
                 </a>
@@ -773,7 +777,7 @@
 
                     <!-- Edit Button -->
                     <div class="flex justify-end pt-4 border-t border-gray-200">
-                        <a href="{{ route('admin.films.edit', $movie->id) . (request()->getQueryString() ? '?' . request()->getQueryString() : '') }}" 
+                        <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.edit', $movie->id), $returnUrl) }}" 
                                 class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center">
                             <i class="fas fa-edit mr-2"></i>
                             Edit Metadata
@@ -811,7 +815,7 @@
                 @endforeach
             </div>
         @else
-            <p class="text-gray-500 text-sm">Belum ada related film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-blue-600 hover:underline">Edit Film → Related Films (paling bawah)</a>.</p>
+            <p class="text-gray-500 text-sm">Belum ada related film. Tambahkan di <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.edit', $movie->id), $returnUrl) }}" class="text-blue-600 hover:underline">Edit Film → Related Films (paling bawah)</a>.</p>
         @endif
     </div>
 
@@ -843,7 +847,7 @@
                 @endforeach
             </div>
         @else
-            <p class="text-gray-500 text-sm">Belum ada similar film. Tambahkan di <a href="{{ route('admin.films.edit', $movie->id) }}" class="text-purple-600 hover:underline">Edit Film → Similar Films (paling bawah)</a>.</p>
+            <p class="text-gray-500 text-sm">Belum ada similar film. Tambahkan di <a href="{{ \App\Support\ReturnUrl::add(route('admin.films.edit', $movie->id), $returnUrl) }}" class="text-purple-600 hover:underline">Edit Film → Similar Films (paling bawah)</a>.</p>
         @endif
     </div>
 
@@ -1021,6 +1025,7 @@
                     <form action="{{ route('admin.films.services.update', $movie->id) }}" method="POST" class="flex-1 min-h-0 flex flex-col">
                         @csrf
                         @method('PUT')
+                        <input type="hidden" name="return" value="{{ $returnUrl }}">
                         
                         <div class="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
                             @php
@@ -1712,6 +1717,7 @@
                 <form method="POST" action="{{ route('admin.films.toggle-status', $movie->id) }}">
                     @csrf
                     @method('PUT')
+                    <input type="hidden" name="return" value="{{ $returnUrl }}">
                     <button type="submit" 
                             class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors duration-200">
                         <i class="fas fa-toggle-on mr-2"></i>
@@ -1721,6 +1727,7 @@
                 <form method="POST" action="{{ route('admin.films.destroy', $movie->id) }}" onsubmit="return requireConfirm(event, 'Are you sure you want to delete this film? This action cannot be undone.', { form: this })">
                     @csrf
                     @method('DELETE')
+                    <input type="hidden" name="return" value="{{ $returnUrl }}">
                     <button type="submit" 
                             class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition-colors duration-200">
                         <i class="fas fa-trash mr-2"></i>

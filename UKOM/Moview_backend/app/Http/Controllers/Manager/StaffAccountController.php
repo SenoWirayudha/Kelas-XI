@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Manager;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -38,7 +39,7 @@ class StaffAccountController extends Controller
             'cinema_id' => $this->cinemaId(),
         ]);
 
-        return redirect()->route('manager.staff.index')
+        return ReturnUrl::redirect($request, route('manager.staff.index'))
             ->with('success', 'Akun staff berhasil dibuat.');
     }
 
@@ -66,17 +67,20 @@ class StaffAccountController extends Controller
 
         $staff->save();
 
-        return redirect()->route('manager.staff.index')
+        return ReturnUrl::redirect($request, route('manager.staff.index'))
             ->with('success', 'Akun staff berhasil diperbarui.');
     }
 
-    public function destroy(User $staff)
+    public function destroy(Request $request, User $staff)
     {
         $this->ensureOwnStaff($staff);
 
         $staff->delete();
 
-        return redirect()->route('manager.staff.index')
+        $return = ReturnUrl::resolve($request, route('manager.staff.index'));
+        $total = User::where('role', User::ROLE_STAFF)->where('cinema_id', $this->cinemaId())->count();
+
+        return redirect(ReturnUrl::fitPage($return, $total, 15))
             ->with('success', 'Akun staff berhasil dihapus.');
     }
 

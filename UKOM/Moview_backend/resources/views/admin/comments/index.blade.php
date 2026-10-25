@@ -208,6 +208,7 @@
                             @if($comment->status !== 'deleted')
                             <form action="{{ route('admin.comments.delete', $comment->id) }}" method="POST" class="inline">
                                 @csrf
+                                <input type="hidden" name="return" value="{{ \App\Support\ReturnUrl::current() }}">
                                 <button type="submit" 
                                         class="text-red-600 hover:text-red-900" 
                                         title="Mark as Deleted"
@@ -220,6 +221,7 @@
                             @if(in_array($comment->status, ['flagged', 'deleted']))
                             <form action="{{ route('admin.comments.restore', $comment->id) }}" method="POST" class="inline">
                                 @csrf
+                                <input type="hidden" name="return" value="{{ \App\Support\ReturnUrl::current() }}">
                                 <button type="submit" 
                                         class="text-green-600 hover:text-green-900" 
                                         title="Restore Comment"
