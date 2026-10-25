@@ -30,6 +30,7 @@ import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.applyInterButtons
 import com.komputerkit.moview.data.model.Comment
 import com.komputerkit.moview.databinding.BottomSheetCommentsBinding
+import com.komputerkit.moview.databinding.BottomSheetEntryActionsBinding
 import com.komputerkit.moview.databinding.FragmentReviewDetailBinding
 import com.komputerkit.moview.ui.adapter.CommentAdapter
 import com.komputerkit.moview.ui.adapter.LikedReviewAdapter
@@ -277,8 +278,6 @@ class ReviewDetailFragment : Fragment() {
         viewModel.flagStatus.observe(viewLifecycleOwner) { success ->
             if (success) {
                 showSnackbar("Review reported successfully", SnackbarType.SUCCESS)
-                // Hide menu after reporting
-                binding.btnMoreOptions.visibility = View.GONE
             } else {
                 showSnackbar("Failed to report review", SnackbarType.ERROR)
             }
@@ -289,7 +288,7 @@ class ReviewDetailFragment : Fragment() {
         binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
         }
-        
+
         binding.btnMoreOptions.setOnClickListener {
             showOptionsMenu(it)
         }
@@ -776,32 +775,57 @@ class ReviewDetailFragment : Fragment() {
     private fun showOptionsMenu(view: View) {
         val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
         val currentUserId = prefs.getInt("userId", 0)
-        val reviewUserId = viewModel.review.value?.userId ?: 0
-        val isOwnReview = currentUserId == reviewUserId
-        
-        if (isOwnReview) {
-            // Show edit/delete menu for own review
-            val popup = PopupMenu(requireContext(), view)
-            popup.menuInflater.inflate(R.menu.menu_review_options, popup.menu)
-            
-            popup.setOnMenuItemClickListener { item ->
-                when (item.itemId) {
-                    R.id.action_edit -> {
-                        navigateToEditReview()
-                        true
-                    }
-                    R.id.action_delete -> {
-                        showDeleteConfirmation()
-                        true
-                    }
-                    else -> false
-                }
-            }
-            popup.show()
-        } else {
-            // Show report menu for other's review
+        val review = viewModel.review.value ?: return
+        val isOwnReview = currentUserId == review.userId
+
+        if (!isOwnReview) {
+            // Other people's entries keep the lightweight report popup.
             showReportMenu(view)
+            return
         }
+
+        val reviewId = review.reviewId
+        val isReview = reviewId > 0
+
+        val dialog = BottomSheetDialog(requireContext(), R.style.BottomSheetDialogTheme)
+        val sheet = BottomSheetEntryActionsBinding.inflate(layoutInflater)
+        dialog.setContentView(sheet.root)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setDimAmount(0.4f)
+        dialog.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        dialog.behavior.skipCollapsed = true
+
+        // Header: same treatment as the film actions sheet.
+        sheet.tvMovieTitle.text = review.movie.title
+        sheet.tvMovieYear.text = review.movie.releaseYear
+            ?.takeIf { it > 0 }?.toString().orEmpty()
+        // Logs are titled by type; reviews keep the "Delete review" wording.
+        sheet.tvDeleteLabel.text = if (isReview) "Delete review" else "Delete entry"
+
+        sheet.btnEdit.setOnClickListener {
+            dialog.dismiss()
+            navigateToEditReview()
+        }
+
+        sheet.btnShareInstagram.setOnClickListener {
+            dialog.dismiss()
+            val action = ReviewDetailFragmentDirections.actionReviewDetailToSharePoster(
+                movieId = review.movieId,
+                title = review.movie.title,
+                rating = review.rating,
+                username = review.userName,
+                posterUrl = review.movie.posterUrl,
+                profilePhotoUrl = review.userAvatar
+            )
+            findNavController().navigate(action)
+        }
+
+        sheet.btnDeleteEntry.setOnClickListener {
+            dialog.dismiss()
+            showDeleteConfirmation()
+        }
+
+        dialog.show()
     }
     
     private fun showReportMenu(view: View) {

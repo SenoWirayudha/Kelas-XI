@@ -4,4 +4,9 @@
     <cache-path
         name="shared_tickets"
         path="shared_tickets/" />
+
+    <!-- Generated share posters (Instagram Stories) live in app cache too. -->
+    <cache-path
+        name="shared_posters"
+        path="shared_posters/" />
 </paths>

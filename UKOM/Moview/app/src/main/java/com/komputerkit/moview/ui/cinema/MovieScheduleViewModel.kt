@@ -286,9 +286,37 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun isScheduleAvailable(schedule: ScheduleDto): Boolean {
-        if (schedule.is_open != null) return schedule.is_open
         val status = schedule.status.orEmpty().trim().lowercase()
-        return status != "expired" && status != "cancelled" && status != "closed"
+        if (status == "expired" || status == "cancelled" || status == "closed") return false
+        if (schedule.is_open == false) return false
+
+        // Mirror the backend's ScheduleRules for online sales: close 10 minutes before the
+        // show starts. Checking here too means a stale/missing `is_open` from the API can no
+        // longer let a schedule that is already past its cutoff look bookable (the web app
+        // enforces the same rule, so both channels now agree).
+        val startsAt = parseShowStartMillis(schedule.show_date, schedule.show_time)
+            ?: return schedule.is_open ?: true
+        return System.currentTimeMillis() < startsAt - ONLINE_CLOSE_BEFORE_MIN * 60_000L
+    }
+
+    /** Parses "yyyy-MM-dd" + "HH:mm[:ss]" in the device timezone; null when unparseable. */
+    private fun parseShowStartMillis(showDate: String, showTime: String): Long? {
+        val normalizedTime = showTime.trim().let { t ->
+            when {
+                t.matches(Regex("^\\d{2}:\\d{2}$")) -> "$t:00"
+                else -> t
+            }
+        }
+        val patterns = listOf("yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm")
+        for (pattern in patterns) {
+            try {
+                val parsed = SimpleDateFormat(pattern, Locale.US).parse("${showDate.trim()} $normalizedTime")
+                if (parsed != null) return parsed.time
+            } catch (_: Exception) {
+                // try next pattern
+            }
+        }
+        return null
     }
 
     private fun extractCity(cinemaLocation: String): String {
@@ -356,5 +384,10 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
                 null
             }
         }
+    }
+
+    private companion object {
+        /** Same rule as the backend's ScheduleRules::ONLINE_CLOSE_BEFORE_MIN. */
+        const val ONLINE_CLOSE_BEFORE_MIN = 10L
     }
 }

@@ -42,6 +42,8 @@ class MainActivity : AppCompatActivity() {
     private var swipeDownTime = 0L
     private var swipeEligible = false
     private var swipeTracker: VelocityTracker? = null
+    /** True when the down event landed on a horizontally scrollable view (carousel). */
+    private var swipeLockedByScroller = false
     private val swipeDensity by lazy { resources.displayMetrics.density }
     private val swipeMaxVelocity by lazy {
         ViewConfiguration.get(this).scaledMaximumFlingVelocity.toFloat()
@@ -217,7 +219,9 @@ class MainActivity : AppCompatActivity() {
                 R.id.verifyOtpFragment,
                 R.id.forgotPasswordFragment,
                 R.id.editProfileFragment,
-                R.id.logFilmFragment -> {
+                R.id.logFilmFragment,
+                R.id.posterGeneratorFragment,
+                R.id.posterBackdropFragment -> {
                     binding.bottomNavigation.visibility = View.GONE
                 }
                 R.id.navigation_search -> {
@@ -300,7 +304,20 @@ class MainActivity : AppCompatActivity() {
                 swipeEligible = isTabSwipeAllowed(ev)
             }
             MotionEvent.ACTION_POINTER_DOWN -> swipeEligible = false
-            MotionEvent.ACTION_MOVE -> swipeTracker?.addMovement(ev)
+            MotionEvent.ACTION_MOVE -> {
+                swipeTracker?.addMovement(ev)
+                // The finger started on a horizontal carousel: once it actually scrolls, the
+                // gesture belongs to the carousel, so drop the tab-swipe candidate for good.
+                if (swipeEligible && swipeLockedByScroller) {
+                    val dx = abs(ev.rawX - swipeDownX)
+                    val dy = abs(ev.rawY - swipeDownY)
+                    if (dx > swipeTouchSlop && dx > dy) {
+                        swipeEligible = false
+                        swipeTracker?.recycle()
+                        swipeTracker = null
+                    }
+                }
+            }
             MotionEvent.ACTION_UP -> {
                 val tracker = swipeTracker
                 swipeTracker = null
@@ -331,6 +348,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isTabSwipeAllowed(ev: MotionEvent): Boolean {
+        swipeLockedByScroller = false
         if (binding.bottomNavigation.visibility != View.VISIBLE) return false
         val currentId = navController.currentDestination?.id
         if (currentId == null || currentId !in tabOrder) return false
@@ -374,12 +392,18 @@ class MainActivity : AppCompatActivity() {
         var view: View? = start
         while (view != null) {
             if (view === binding.bottomNavigation) return true
-            if (view is HorizontalScrollView) return true
+            if (view is HorizontalScrollView) {
+                swipeLockedByScroller = true
+                return true
+            }
             if (view is RecyclerView) {
                 val orientation = view.layoutManager?.let { lm ->
                     (lm as? LinearLayoutManager)?.orientation
                 }
-                if (orientation == RecyclerView.HORIZONTAL) return true
+                if (orientation == RecyclerView.HORIZONTAL) {
+                    swipeLockedByScroller = true
+                    return true
+                }
             }
             view = view.parent as? View
         }

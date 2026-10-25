@@ -134,6 +134,14 @@ class MovieScheduleActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         applyImmersiveStatusBar(true)
+
+        // Showtimes close 10 minutes before the show starts, so a list loaded earlier can
+        // contain slots that have just expired. Re-fetch when returning to this screen
+        // (e.g. after backing out of seat selection) instead of trusting the cached list.
+        val state = viewModel.uiState.value
+        if (state != null && !state.city.isNullOrBlank() && movieId > 0) {
+            viewModel.loadSchedules(movieId)
+        }
     }
 
     override fun onPause() {

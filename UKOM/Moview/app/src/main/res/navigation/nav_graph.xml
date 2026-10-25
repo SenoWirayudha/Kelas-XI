@@ -676,6 +676,15 @@
             android:name="diariesId"
             android:defaultValue="0"
             app:argType="integer" />
+        <argument
+            android:name="shareMode"
+            android:defaultValue="false"
+            app:argType="boolean" />
+        <argument
+            android:name="initialUrls"
+            app:argType="string[]"
+            app:nullable="true"
+            android:defaultValue="@null" />
     </fragment>
 
     <fragment
@@ -992,6 +1001,54 @@
             app:popExitAnim="@anim/slide_out_right" />
         <action
             android:id="@+id/action_reviewDetail_to_posterBackdrop"
+            app:destination="@id/posterBackdropFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_reviewDetail_to_sharePoster"
+            app:destination="@id/posterGeneratorFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <!-- Share Poster Generator (from Log Detail / Review Detail) -->
+    <fragment
+        android:id="@+id/posterGeneratorFragment"
+        android:name="com.komputerkit.moview.ui.share.PosterGeneratorFragment"
+        android:label="Share Poster">
+        <argument
+            android:name="movieId"
+            app:argType="integer" />
+        <argument
+            android:name="title"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="rating"
+            app:argType="float"
+            android:defaultValue="0.0" />
+        <argument
+            android:name="username"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="posterUrl"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="profilePhotoUrl"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <action
+            android:id="@+id/action_posterGenerator_to_posterBackdrop"
             app:destination="@id/posterBackdropFragment"
             app:enterAnim="@anim/slide_in_right"
             app:exitAnim="@anim/slide_out_left"

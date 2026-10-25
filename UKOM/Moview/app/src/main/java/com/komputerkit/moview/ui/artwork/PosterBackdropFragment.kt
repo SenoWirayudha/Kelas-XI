@@ -12,8 +12,11 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.komputerkit.moview.R
+import com.komputerkit.moview.data.model.Artwork
 import com.komputerkit.moview.data.model.ArtworkType
 import com.komputerkit.moview.databinding.FragmentPosterBackdropBinding
+import com.komputerkit.moview.ui.share.PosterGeneratorViewModel
+import com.komputerkit.moview.ui.share.PosterSceneAdapter
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 
@@ -27,8 +30,14 @@ class PosterBackdropFragment : Fragment() {
     
     private lateinit var posterAdapter: PosterArtworkAdapter
     private lateinit var backdropAdapter: BackdropArtworkAdapter
-    
+
+    // Share mode: reuse this screen as the 3-scene picker for the poster generator.
+    private var shareSceneAdapter: PosterSceneAdapter? = null
+    private val shareSelection = mutableListOf<String>()
+
     private var currentTab = ArtworkType.POSTER
+
+    private val isShareMode: Boolean get() = args.shareMode
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -53,8 +62,19 @@ class PosterBackdropFragment : Fragment() {
         setupClickListeners()
         setupObservers()
         
-        // If openBackdropsTab argument is true, switch to backdrops tab
-        if (args.openBackdropsTab) {
+        if (isShareMode) {
+            // Backdrop-only mode: no poster tab, multi-select up to 3 scenes.
+            args.initialUrls?.forEach { url ->
+                if (shareSelection.size < PosterGeneratorViewModel.MAX_SCENES) {
+                    shareSelection += url
+                }
+            }
+            binding.layoutTabs.visibility = View.GONE
+            binding.tvTitle.text = "Pilih 3 Backdrop"
+            binding.btnSetCover.text = pickerButtonLabel()
+            switchToTab(ArtworkType.BACKDROP)
+            updatePickerButton()
+        } else if (args.openBackdropsTab) {
             switchToTab(ArtworkType.BACKDROP)
         }
     }
@@ -68,13 +88,25 @@ class PosterBackdropFragment : Fragment() {
         binding.rvPosters.layoutManager = GridLayoutManager(requireContext(), 3)
         binding.rvPosters.adapter = posterAdapter
         
-        // Backdrops list (1 column)
-        backdropAdapter = BackdropArtworkAdapter { artwork ->
-            viewModel.selectArtwork(artwork)
+        if (isShareMode) {
+            // Same tile design as the generator's scene grid (shows 1/2/3 order badges).
+            val adapter = PosterSceneAdapter(
+                selectedOrder = { artwork ->
+                    shareSelection.indexOf(artwork.url).takeIf { it >= 0 }?.plus(1) ?: 0
+                },
+                onClick = { artwork -> toggleScene(artwork) }
+            )
+            shareSceneAdapter = adapter
+            binding.rvBackdrops.layoutManager = LinearLayoutManager(requireContext())
+            binding.rvBackdrops.adapter = adapter
+        } else {
+            // Backdrops list (1 column)
+            backdropAdapter = BackdropArtworkAdapter { artwork ->
+                viewModel.selectArtwork(artwork)
+            }
+            binding.rvBackdrops.layoutManager = LinearLayoutManager(requireContext())
+            binding.rvBackdrops.adapter = backdropAdapter
         }
-        
-        binding.rvBackdrops.layoutManager = LinearLayoutManager(requireContext())
-        binding.rvBackdrops.adapter = backdropAdapter
     }
     
     private fun setupClickListeners() {
@@ -91,7 +123,11 @@ class PosterBackdropFragment : Fragment() {
         }
         
         binding.btnSetCover.setOnClickListener {
-            saveCover()
+            if (isShareMode) {
+                confirmSceneSelection()
+            } else {
+                saveCover()
+            }
         }
     }
     
@@ -106,7 +142,11 @@ class PosterBackdropFragment : Fragment() {
         }
         
         viewModel.backdrops.observe(viewLifecycleOwner) { backdrops ->
-            backdropAdapter.submitList(backdrops)
+            if (isShareMode) {
+                shareSceneAdapter?.submitList(backdrops)
+            } else {
+                backdropAdapter.submitList(backdrops)
+            }
             updateEmptyState()
         }
 
@@ -135,6 +175,40 @@ class PosterBackdropFragment : Fragment() {
                 showSnackbar("Failed to save artwork", SnackbarType.ERROR)
             }
         }
+    }
+
+    private fun toggleScene(artwork: Artwork) {
+        when {
+            shareSelection.contains(artwork.url) -> shareSelection.remove(artwork.url)
+            shareSelection.size < PosterGeneratorViewModel.MAX_SCENES -> shareSelection += artwork.url
+            else -> {
+                showSnackbar(
+                    "Maksimal ${PosterGeneratorViewModel.MAX_SCENES} backdrop.",
+                    SnackbarType.INFO
+                )
+                return
+            }
+        }
+        shareSceneAdapter?.notifyItemRangeChanged(0, shareSceneAdapter?.itemCount ?: 0)
+        updatePickerButton()
+    }
+
+    private fun pickerButtonLabel(): String =
+        "Pilih Backdrop (${shareSelection.size}/${PosterGeneratorViewModel.MAX_SCENES})"
+
+    private fun updatePickerButton() {
+        binding.btnSetCover.text = pickerButtonLabel()
+        binding.btnSetCover.isEnabled =
+            shareSelection.size == PosterGeneratorViewModel.MAX_SCENES
+    }
+
+    private fun confirmSceneSelection() {
+        if (shareSelection.size != PosterGeneratorViewModel.MAX_SCENES) return
+        findNavController().previousBackStackEntry?.savedStateHandle?.set(
+            "selected_backdrop_urls",
+            ArrayList(shareSelection)
+        )
+        findNavController().navigateUp()
     }
     
     private fun updateEmptyState() {
@@ -208,6 +282,7 @@ class PosterBackdropFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        shareSceneAdapter = null
         _binding = null
     }
 }

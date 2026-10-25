@@ -38,9 +38,16 @@ android {
             (localProps.getProperty("NGROK_URL")
                 ?: project.findProperty("NGROK_URL") as String?)?.trim()?.trimEnd('/') ?: ""
 
+        // Facebook App ID, required by Instagram's "Share to Stories" intent (since Jan 2023).
+        // Empty = fall back to Instagram's normal ACTION_SEND sheet (no App ID needed).
+        val fbAppId =
+            (localProps.getProperty("FB_APP_ID")
+                ?: project.findProperty("FB_APP_ID") as String?)?.trim() ?: ""
+
         buildConfigField("String", "MIDTRANS_CLIENT_KEY", "\"$midtransClientKey\"")
         buildConfigField("String", "MIDTRANS_MERCHANT_BASE_URL", "\"$midtransMerchantBaseUrl\"")
         buildConfigField("String", "NGROK_URL", "\"$ngrokUrl\"")
+        buildConfigField("String", "FB_APP_ID", "\"$fbAppId\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -4,6 +4,20 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Android 11+ package visibility: without this, Instagram is invisible to
+         getPackageInfo()/resolveActivity(), so the Stories share was wrongly reported
+         as "app not installed" and silently fell back to saving to the gallery. -->
+    <queries>
+        <package android:name="com.instagram.android" />
+        <intent>
+            <action android:name="com.instagram.share.ADD_TO_STORY" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="image/*" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
