@@ -145,20 +145,30 @@
     </FrameLayout>
 
     <!-- Skip picking: use the branded background artwork instead (share mode only) -->
-    <TextView
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_use_default_background"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="48dp"
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="8dp"
-        android:background="?attr/selectableItemBackground"
-        android:gravity="center"
-        android:paddingVertical="8dp"
-        android:text="Tanpa backdrop (pakai background Moview)"
-        android:textColor="@color/text_secondary"
-        android:textSize="13sp"
+        android:fontFamily="@font/font_family_inter"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:letterSpacing="0"
+        android:maxLines="1"
+        android:text="Tanpa backdrop"
+        android:textAllCaps="false"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:textStyle="bold"
         android:visibility="gone"
+        app:cornerRadius="24dp"
+        app:icon="@drawable/ic_image"
+        app:iconGravity="textStart"
+        app:iconPadding="8dp"
+        app:iconTint="@color/text_primary"
         app:layout_constraintBottom_toTopOf="@id/btn_set_cover"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

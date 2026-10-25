@@ -177,8 +177,25 @@ class PosterCompositor(
     // ---- Layers --------------------------------------------------------------------
 
     private fun drawBackdrops(canvas: Canvas, backdrops: List<Bitmap?>, width: Float, height: Float, s: Float) {
-        val edges = floatArrayOf(0f, PANEL_1_BOTTOM * s, PANEL_2_BOTTOM * s, height)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        // No scenes chosen at all: paint the branded artwork once, full-bleed across the whole
+        // canvas. Splitting it into the three panel rects would repeat/crop it three times.
+        if (backdrops.none { it != null && !it.isRecycled }) {
+            val full = RectF(0f, 0f, width, height)
+            val fallback = defaultPanel
+            if (fallback != null && !fallback.isRecycled) {
+                paint.shader = centerCropShader(fallback, full)
+                canvas.drawRect(full, paint)
+                paint.shader = null
+            } else {
+                paint.color = colors.panelFallback
+                canvas.drawRect(full, paint)
+            }
+            return
+        }
+
+        val edges = floatArrayOf(0f, PANEL_1_BOTTOM * s, PANEL_2_BOTTOM * s, height)
         for (index in 0 until 3) {
             val rect = RectF(0f, edges[index], width, edges[index + 1])
             val bitmap = backdrops.getOrNull(index)
@@ -189,8 +206,7 @@ class PosterCompositor(
                     canvas.drawRect(rect, paint)
                     paint.shader = null
                 }
-                // No backdrop chosen (or the film has none): use the branded artwork so the
-                // poster is never a plain grey block.
+                // A missing scene in an otherwise complete set: branded artwork for that panel.
                 defaultPanel != null && !defaultPanel!!.isRecycled -> {
                     paint.shader = centerCropShader(defaultPanel!!, rect)
                     canvas.drawRect(rect, paint)
