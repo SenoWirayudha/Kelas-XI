@@ -12,7 +12,9 @@ import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
@@ -44,6 +46,7 @@ import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.TmdbImageUrl
 import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 class EditProfileFragment : Fragment() {
 
@@ -701,6 +704,8 @@ class EditProfileFragment : Fragment() {
         binding.tabProfil.setOnClickListener { switchTab(showSettings = false) }
         binding.tabSetting.setOnClickListener { switchTab(showSettings = true) }
 
+        setupTabSwipe()
+
         // Google accounts have no password — the section is not shown at all.
         if (accountProvider() == "google") {
             binding.cardChangePassword.visibility = View.GONE
@@ -719,7 +724,51 @@ class EditProfileFragment : Fragment() {
         }
     }
 
+    private var showSettingsTab = false
+
+    /**
+     * Swiping left/right on the content switches between the Profil and Setting tabs, the
+     * same gesture the user already uses elsewhere. Horizontal drags on a horizontally
+     * scrollable child (favourite slots strip) and vertical drags are ignored so scrolling
+     * still wins.
+     */
+    private fun setupTabSwipe() {
+        val detector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                val from = e1 ?: return false
+                val dx = e2.x - from.x
+                val dy = e2.y - from.y
+                if (abs(dx) < TAB_SWIPE_MIN_DX || abs(dx) <= abs(dy) * 1.5f) return false
+
+                if (dx < 0 && !showSettingsTab) {
+                    switchTab(showSettings = true)
+                    return true
+                }
+                if (dx > 0 && showSettingsTab) {
+                    switchTab(showSettings = false)
+                    return true
+                }
+                return false
+            }
+        })
+
+        val listener = View.OnTouchListener { _, event ->
+            detector.onTouchEvent(event)
+            false // never consume: scrolling and taps keep working
+        }
+        binding.scrollContent.setOnTouchListener(listener)
+        binding.scrollSettings.setOnTouchListener(listener)
+    }
+
     private fun switchTab(showSettings: Boolean) {
+        showSettingsTab = showSettings
         binding.scrollContent.visibility = if (showSettings) View.GONE else View.VISIBLE
         binding.scrollSettings.visibility = if (showSettings) View.VISIBLE else View.GONE
         // Save Changes only exists on the Profil tab.
@@ -1193,5 +1242,10 @@ class EditProfileFragment : Fragment() {
         changePwResendTimer?.cancel()
         changePwResendTimer = null
         _binding = null
+    }
+
+    private companion object {
+        /** Minimum horizontal travel (px) before a drag counts as a tab swipe. */
+        const val TAB_SWIPE_MIN_DX = 120f
     }
 }

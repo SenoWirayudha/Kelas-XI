@@ -61,6 +61,22 @@
             display: inline-flex;
         }
 
+        /* F11 / browser fullscreen: hide the staff sidebar and header so the page uses the
+           whole screen (same visual result as the cashier "Layar Penuh" mode). */
+        html.staff-browser-fullscreen body aside,
+        html.staff-browser-fullscreen body header {
+            display: none !important;
+        }
+        html.staff-browser-fullscreen body main {
+            padding: 0.75rem !important;
+        }
+        #staff-fullscreen-exit {
+            display: none;
+        }
+        html.staff-browser-fullscreen #staff-fullscreen-exit {
+            display: inline-flex;
+        }
+
         /* Staff focus mode: keep navigation present but inert and subtle. */
         html.staff-focus-mode body aside {
             width: 4rem;
@@ -544,6 +560,76 @@
             </main>
         </div>
     </div>
+
+    @if(session('admin_role') === 'staff')
+    {{-- F11 / browser fullscreen: hide sidebar + header and use the whole screen. --}}
+    <button type="button"
+            id="staff-fullscreen-exit"
+            class="fixed right-3 top-3 z-[80] min-h-[40px] items-center rounded-lg border border-white/20 bg-black/60 px-3 py-2 text-xs font-semibold text-white backdrop-blur transition hover:bg-black/80"
+            aria-label="Keluar Layar Penuh">
+        <i class="fas fa-compress mr-2"></i> Keluar Layar Penuh
+    </button>
+    <script>
+    (function () {
+        const root = document.documentElement;
+        const button = document.getElementById('staff-fullscreen-exit');
+        const KEY = 'moview_staff_fullscreen';
+
+        const setActive = (active) => {
+            root.classList.toggle('staff-browser-fullscreen', active);
+            try {
+                sessionStorage.setItem(KEY, active ? '1' : '0');
+            } catch (_) {}
+        };
+
+        const isFullscreen = () => !!document.fullscreenElement;
+        const isActive = () => root.classList.contains('staff-browser-fullscreen');
+
+        const apply = () => {
+            // Stay in "hide chrome" mode while the browser reports true fullscreen, and keep
+            // the manual toggle alive across navigations via sessionStorage.
+            let stored = false;
+            try {
+                stored = sessionStorage.getItem(KEY) === '1';
+            } catch (_) {}
+            setActive(isFullscreen() || stored);
+        };
+
+        // Keep the chrome hidden whenever the page is in browser fullscreen (F11).
+        document.addEventListener('fullscreenchange', apply);
+
+        // F11 cannot be intercepted, but after it toggles, re-sync on the next paint.
+        window.addEventListener('resize', () => {
+            // Browser fullscreen changes the viewport height dramatically; re-apply.
+            if (isFullscreen()) setActive(true);
+            else if (!isActive()) setActive(false);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F11') {
+                // No preventDefault: let the browser toggle; just sync our state after it.
+                setTimeout(() => setActive(isFullscreen() || !isActive() ? true : false), 120);
+            }
+            if (e.key === 'Escape' && isActive() && !isFullscreen()) {
+                setActive(false);
+            }
+        });
+
+        button?.addEventListener('click', () => {
+            setActive(false);
+            try {
+                if (document.fullscreenElement && document.exitFullscreen) {
+                    const request = document.exitFullscreen();
+                    if (request && request.catch) request.catch(() => {});
+                }
+            } catch (_) {}
+        });
+
+        window.moviewStaffFullscreen = { apply };
+        apply();
+    })();
+    </script>
+    @endif
 
     @if(request()->routeIs('staff.cashier.*'))
     <button type="button"

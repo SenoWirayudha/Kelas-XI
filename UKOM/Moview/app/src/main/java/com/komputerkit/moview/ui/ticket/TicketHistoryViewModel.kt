@@ -138,7 +138,9 @@ class TicketHistoryViewModel : ViewModel() {
                 val date = parser.parse(combined) ?: continue
                 val calendar = Calendar.getInstance().apply {
                     time = date
-                    add(Calendar.HOUR_OF_DAY, 1)
+                    // Online tickets expire 30 minutes after the show starts (matches the
+                    // backend's ScheduleRules::ONLINE_TICKET_VALID_AFTER_MIN).
+                    add(Calendar.MINUTE, 30)
                 }
                 return calendar.timeInMillis
             } catch (_: Exception) {

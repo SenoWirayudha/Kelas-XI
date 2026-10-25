@@ -17,6 +17,12 @@ final class ScheduleRules
     public const ONLINE_CLOSE_BEFORE_MIN = 10;
     public const OFFLINE_CLOSE_AFTER_MIN = 15;
 
+    /**
+     * Online tickets stay valid (and scannable) until this many minutes after the show
+     * starts; afterwards they are marked/reported as expired.
+     */
+    public const ONLINE_TICKET_VALID_AFTER_MIN = 30;
+
     public static function startsAt(Schedule $schedule): Carbon
     {
         $date = $schedule->show_date instanceof Carbon
@@ -24,6 +30,18 @@ final class ScheduleRules
             : Carbon::parse((string) $schedule->show_date);
 
         return $date->startOfDay()->setTimeFromTimeString((string) $schedule->show_time);
+    }
+
+    /** Moment an online ticket stops being valid (show start + grace). */
+    public static function onlineTicketExpiresAt(Schedule $schedule): Carbon
+    {
+        return self::startsAt($schedule)->addMinutes(self::ONLINE_TICKET_VALID_AFTER_MIN);
+    }
+
+    /** True once an online ticket for this schedule must be treated as expired. */
+    public static function isOnlineTicketExpired(Schedule $schedule, ?Carbon $now = null): bool
+    {
+        return ($now ?? now())->greaterThanOrEqualTo(self::onlineTicketExpiresAt($schedule));
     }
 
     public static function onlineClosesAt(Schedule $schedule): Carbon

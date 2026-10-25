@@ -979,6 +979,15 @@ class MovieApiController extends Controller
                             ->whereHas('schedules');
                     });
             })
+            // Most purchased first: number of PAID orders across this movie's schedules.
+            // Movies with no sales still appear (count 0) and keep newest-first order.
+            ->addSelect(['tickets_sold_count' => DB::table('orders')
+                ->selectRaw('COUNT(*)')
+                ->join('schedules', 'schedules.id', '=', 'orders.schedule_id')
+                ->whereColumn('schedules.movie_id', 'movies.id')
+                ->where('orders.status', 'paid')
+            ])
+            ->orderByDesc('tickets_sold_count')
             ->orderByDesc('id');
 
         if ((int) $limit > 0) {

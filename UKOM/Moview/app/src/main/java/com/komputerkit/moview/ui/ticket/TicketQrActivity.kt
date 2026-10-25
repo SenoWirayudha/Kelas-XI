@@ -2,11 +2,17 @@ package com.komputerkit.moview.ui.ticket
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
@@ -16,12 +22,14 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
 import com.google.zxing.common.BitMatrix
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.data.api.TicketQrDetailDto
 import com.komputerkit.moview.databinding.ActivityTicketQrBinding
+import com.komputerkit.moview.util.PosterFallbackDrawable
 import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.showSnackbar
@@ -32,6 +40,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Locale
+import kotlin.math.roundToInt
 
 class TicketQrActivity : AppCompatActivity() {
 
@@ -50,6 +59,99 @@ class TicketQrActivity : AppCompatActivity() {
 
         /** Cache subfolder for shareable ticket cards (never public storage). */
         private const val SHARED_DIR = "shared_tickets"
+
+        // ---------------------------------------------------------------------------
+        // Share card layout. Every number is in Figma/SVG pixels (design canvas 1154x1452)
+        // and is used as-is: the canvas is translated so the dark card's top-left corner
+        // becomes (0,0), and only the card area (1066x1350) is exported.
+        // ---------------------------------------------------------------------------
+
+        // Card (dark body) inside the design canvas
+        private const val CARD_LEFT = 52f
+        private const val CARD_TOP = 85f
+        private const val CARD_RIGHT = 1118f
+        private const val CARD_BOTTOM = 1435f
+        private const val CARD_WIDTH = 1066
+        private const val CARD_HEIGHT = 1350
+        private const val CARD_CENTER_X = 585f
+        private val CARD_COLOR = Color.parseColor("#0E1525")
+
+        // Audience/seat strip (res/drawable-nodpi/ticket_seats_strip.png, already cropped to
+        // 1080x213). Stretched over the bottom of the canvas at 58% opacity.
+        private const val SEATS_OPACITY = 0.58f
+        private const val SEATS_DST_LEFT = 0f
+        private const val SEATS_DST_TOP = 1224f
+        private const val SEATS_DST_RIGHT = 1154f
+        private const val SEATS_DST_BOTTOM = 1452f
+
+        // Ticket-shaped header background (res/drawable-nodpi/ticket_header_bg.png, 1114x813)
+        private const val HEADER_LEFT = 24.6f
+        private const val HEADER_TOP = 0f
+        private const val HEADER_RIGHT = 1145.5f
+        private const val HEADER_BOTTOM = 818f
+
+        // Poster 327x490, radius 50
+        private const val POSTER_LEFT = 132f
+        private const val POSTER_TOP = 144f
+        private const val POSTER_WIDTH = 327f
+        private const val POSTER_HEIGHT = 490f
+        private const val POSTER_CORNER = 50f
+
+        // Text column: left edge x=488, right edge x=1038 (same as the seat pills)
+        private const val TEXT_X = 487.5f
+        private const val TEXT_MAX_WIDTH = 550f
+
+        // "Moview • Tiket Film"
+        private const val HEADER_LABEL_BASELINE = 193f
+        private const val HEADER_LABEL_X_2 = 573.8f
+        private const val BULLET_X = 564f
+        private const val BULLET_Y = 186f
+        private const val BULLET_RADIUS = 2f
+
+        // Title: 40px bold, 2 lines max, line height 48
+        private const val TITLE_SIZE = 40f
+        private const val TITLE_BASELINE = 245f
+        private const val TITLE_LINE_HEIGHT = 48f
+        private const val TITLE_MAX_LINES = 2
+
+        // Labels 20px light, values 24px bold. Baselines measured per row.
+        private const val LABEL_SIZE = 20f
+        private const val VALUE_SIZE = 24f
+        private const val ROW_DATE_LABEL_BASELINE = 339f
+        private const val ROW_DATE_VALUE_BASELINE = 377f
+        private const val ROW_TIME_LABEL_BASELINE = 418f
+        private const val ROW_TIME_VALUE_BASELINE = 458f
+        private const val ROW_STUDIO_LABEL_BASELINE = 498f
+        private const val ROW_STUDIO_VALUE_BASELINE = 540f
+
+        // Seat pills: 85x42, radius 20, gap 9, right-aligned to x=1038, bottom row top y=627
+        private const val PILL_WIDTH = 85f
+        private const val PILL_HEIGHT = 42f
+        private const val PILL_GAP = 9f
+        private const val PILL_RADIUS = 20f
+        private const val PILLS_RIGHT = 1038f
+        private const val PILLS_BOTTOM_ROW_TOP = 627f
+        private const val PILLS_PER_ROW = 3
+        private const val PILL_TEXT_BASELINE_OFFSET = 30f
+        private const val SEAT_LABEL_OFFSET = 15f
+
+        // QR 460x460 at (355,747), white quiet zone included in the image
+        private const val QR_LEFT = 355f
+        private const val QR_TOP = 747f
+        private const val QR_SIZE = 460
+        private const val QR_QUIET_ZONE_MODULES = 2
+
+        // Ticket code 40px bold, centered; note 20px light, centered
+        private const val CODE_SIZE = 40f
+        private const val CODE_BASELINE = 1291f
+        private const val CODE_LABEL_BASELINE = 1245f
+        private const val NOTE_BASELINE = 1363f
+
+        // Moview wordmark (res/drawable-nodpi/moview_wordmark.png, 1920x1080)
+        private const val LOGO_LEFT = 62f
+        private const val LOGO_TOP = 1368f
+        private const val LOGO_WIDTH = 133.3f
+        private const val LOGO_HEIGHT = 75f
     }
 
     private lateinit var binding: ActivityTicketQrBinding
@@ -183,12 +285,7 @@ class TicketQrActivity : AppCompatActivity() {
             binding.tvMovieTitle.text = data.movie.title
             binding.tvCinema.text = data.cinema.name
 
-            val studioType = data.studio.type?.takeIf { it.isNotBlank() }
-            binding.tvStudio.text = if (studioType != null) {
-                "${data.studio.name} • $studioType"
-            } else {
-                data.studio.name
-            }
+            binding.tvStudio.text = studioText(data)
 
             binding.tvDateTime.text =
                 "${formatDate(data.schedule.show_date)} • ${formatTime(data.schedule.show_time)}"
@@ -198,8 +295,8 @@ class TicketQrActivity : AppCompatActivity() {
 
             Glide.with(this)
                 .load(ServerConfig.resolveStorageUrl(data.movie.poster_path))
-                .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(this, data.movie.title))
-                .error(com.komputerkit.moview.util.PosterFallbackDrawable(this, data.movie.title))
+                .placeholder(PosterFallbackDrawable(this, data.movie.title))
+                .error(PosterFallbackDrawable(this, data.movie.title))
                 .into(binding.ivPoster)
 
             val isUsed = data.is_scanned || data.is_used
@@ -212,7 +309,7 @@ class TicketQrActivity : AppCompatActivity() {
                 binding.tvStatus.isVisible = true
                 binding.tvStatus.text = when {
                     isUsed -> "Tiket sudah digunakan" +
-                        data.scanned_at?.let { "\n${formatScannedAt(it)}" }.orEmpty()
+                            data.scanned_at?.let { "\n${formatScannedAt(it)}" }.orEmpty()
                     else -> "Tiket sudah kedaluwarsa"
                 }
                 binding.btnShareTicket.isVisible = false
@@ -237,6 +334,11 @@ class TicketQrActivity : AppCompatActivity() {
         } catch (e: Exception) {
             showSnackbar("Gagal menampilkan QR tiket.", SnackbarType.ERROR)
         }
+    }
+
+    private fun studioText(data: TicketQrDetailDto): String {
+        val studioType = data.studio.type?.takeIf { it.isNotBlank() }
+        return if (studioType != null) "${data.studio.name} • $studioType" else data.studio.name
     }
 
     // --- Sharing -------------------------------------------------------------
@@ -312,8 +414,8 @@ class TicketQrActivity : AppCompatActivity() {
                     putExtra(
                         Intent.EXTRA_TEXT,
                         "Tiket ${data.movie.title} — " +
-                            "${formatDate(data.schedule.show_date)} ${formatTime(data.schedule.show_time)}. " +
-                            "Tiket berlaku satu kali."
+                                "${formatDate(data.schedule.show_date)} ${formatTime(data.schedule.show_time)}. " +
+                                "Tiket berlaku satu kali."
                     )
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
@@ -324,129 +426,321 @@ class TicketQrActivity : AppCompatActivity() {
         }
     }
 
-    /** Simple portrait ticket card: movie, schedule, studio, seats, QR. */
+    /**
+     * Draws the share card exactly as in the Figma design. Must run off the main thread
+     * (it downloads the poster and decodes the branding bitmaps).
+     *
+     * Required resources (res/drawable-nodpi/):
+     *  - ticket_header_bg.png       (from /branding/Tiket background header.png)
+     *  - ticket_seats_strip.png     (pre-cropped audience/seats strip, 1080x213)
+     *  - moview_wordmark.png        (Moview logo, transparent PNG)
+     */
     private fun buildTicketCardBitmap(data: TicketQrDetailDto, qrPayload: String): Bitmap {
-        val width = 1080
-        val height = 1620
-        val padding = 72f
-
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val bitmap = Bitmap.createBitmap(CARD_WIDTH, CARD_HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        canvas.drawColor(Color.parseColor("#0E1626"))
+        // Work in design coordinates; only the dark card area is exported.
+        canvas.translate(-CARD_LEFT, -CARD_TOP)
+        canvas.clipRect(CARD_LEFT, CARD_TOP, CARD_RIGHT, CARD_BOTTOM)
 
-        val card = RectF(48f, 48f, width - 48f, height - 48f)
-        val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#111A2A") }
-        canvas.drawRoundRect(card, 40f, 40f, cardPaint)
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+        val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
 
-        val regular = ResourcesCompat.getFont(this, R.font.font_family_inter)
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            textSize = 56f
-            typeface = Typeface.create(regular, Typeface.BOLD)
-        }
-        val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#8FA3BF")
-            textSize = 30f
-            typeface = regular
-        }
-        val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            textSize = 38f
-            typeface = Typeface.create(regular, Typeface.BOLD)
-        }
-        val notePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#8FA3BF")
-            textSize = 26f
-            typeface = regular
+        // 1. Card body
+        fill.color = CARD_COLOR
+        canvas.drawRect(CARD_LEFT, CARD_TOP, CARD_RIGHT, CARD_BOTTOM, fill)
+
+        // 2. Audience / seats strip at the bottom, 58% opacity
+        decodeDrawable(R.drawable.ticket_seats_strip)?.let { seats ->
+            val dst = RectF(SEATS_DST_LEFT, SEATS_DST_TOP, SEATS_DST_RIGHT, SEATS_DST_BOTTOM)
+            val paint = Paint(bitmapPaint).apply { alpha = (255 * SEATS_OPACITY).roundToInt() }
+            canvas.drawBitmap(seats, null, dst, paint)
+            seats.recycle()
         }
 
-        var y = 150f
-        canvas.drawText("MOVIEW • TIKET BIOSKOP", padding, y, labelPaint)
+        // 3. Ticket-shaped header background
+        decodeDrawable(R.drawable.ticket_header_bg)?.let { header ->
+            canvas.drawBitmap(
+                header,
+                null,
+                RectF(HEADER_LEFT, HEADER_TOP, HEADER_RIGHT, HEADER_BOTTOM),
+                bitmapPaint
+            )
+            header.recycle()
+        }
 
-        y += 78f
-        y = drawWrapped(canvas, data.movie.title, titlePaint, padding, y, width - padding, 64f)
-
-        y += 34f
-        val studioType = data.studio.type?.takeIf { it.isNotBlank() }
-        val lines = listOf(
-            "Tanggal" to formatDate(data.schedule.show_date),
-            "Jam" to formatTime(data.schedule.show_time),
-            "Studio" to if (studioType != null) "${data.studio.name} • $studioType" else data.studio.name,
-            "Kursi" to data.seats.mapNotNull { it.seat_code }.joinToString(", ").ifBlank { "-" },
-            "Kode Tiket" to data.ticket_code
+        // 4. Poster (327x490, radius 50)
+        val posterRect = RectF(
+            POSTER_LEFT,
+            POSTER_TOP,
+            POSTER_LEFT + POSTER_WIDTH,
+            POSTER_TOP + POSTER_HEIGHT
         )
-        lines.forEach { (label, value) ->
-            canvas.drawText(label, padding, y, labelPaint)
-            y += 42f
-            y = drawWrapped(canvas, value, valuePaint, padding, y, width - padding, 46f)
-            y += 26f
+        val poster = loadRemoteBitmap(ServerConfig.resolveStorageUrl(data.movie.poster_path))
+        if (poster != null) {
+            val posterPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = centerCropShader(poster, posterRect)
+            }
+            canvas.drawRoundRect(posterRect, POSTER_CORNER, POSTER_CORNER, posterPaint)
+            poster.recycle()
+        } else {
+            canvas.save()
+            canvas.clipPath(Path().apply { addRoundRect(posterRect, POSTER_CORNER, POSTER_CORNER, Path.Direction.CW) })
+            PosterFallbackDrawable(this, data.movie.title).apply {
+                setBounds(
+                    posterRect.left.roundToInt(),
+                    posterRect.top.roundToInt(),
+                    posterRect.right.roundToInt(),
+                    posterRect.bottom.roundToInt()
+                )
+                draw(canvas)
+            }
+            canvas.restore()
         }
 
-        y += 10f
-        val qr = generateQrBitmap(qrPayload, 620)
-        val qrLeft = (width - qr.width) / 2f
-        val qrTop = y
-        val whitePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
-        canvas.drawRoundRect(
-            RectF(qrLeft - 24f, qrTop - 24f, qrLeft + qr.width + 24f, qrTop + qr.height + 24f),
-            28f, 28f, whitePaint
+        // 5. Text
+        val labelPaint = textPaint(LABEL_SIZE, weight = 300, align = Paint.Align.LEFT)
+        val valuePaint = textPaint(VALUE_SIZE, weight = 700, align = Paint.Align.LEFT)
+        val titlePaint = textPaint(TITLE_SIZE, weight = 700, align = Paint.Align.LEFT)
+
+        // "Moview • Tiket Film"
+        canvas.drawText("Moview", TEXT_X, HEADER_LABEL_BASELINE, labelPaint)
+        canvas.drawCircle(BULLET_X, BULLET_Y, BULLET_RADIUS, textPaint(LABEL_SIZE, 300, Paint.Align.LEFT))
+        canvas.drawText("Tiket Film", HEADER_LABEL_X_2, HEADER_LABEL_BASELINE, labelPaint)
+
+        // Title (max 2 lines)
+        wrapLines(data.movie.title, titlePaint, TEXT_MAX_WIDTH, TITLE_MAX_LINES)
+            .forEachIndexed { index, line ->
+                canvas.drawText(line, TEXT_X, TITLE_BASELINE + index * TITLE_LINE_HEIGHT, titlePaint)
+            }
+
+        // Info rows
+        drawInfoRow(
+            canvas, "Tanggal", formatDateLong(data.schedule.show_date),
+            ROW_DATE_LABEL_BASELINE, ROW_DATE_VALUE_BASELINE, labelPaint, valuePaint
         )
-        canvas.drawBitmap(qr, qrLeft, qrTop, null)
+        drawInfoRow(
+            canvas, "Jam", formatTimeDot(data.schedule.show_time),
+            ROW_TIME_LABEL_BASELINE, ROW_TIME_VALUE_BASELINE, labelPaint, valuePaint
+        )
+        drawInfoRow(
+            canvas, "Studio", studioText(data),
+            ROW_STUDIO_LABEL_BASELINE, ROW_STUDIO_VALUE_BASELINE, labelPaint, valuePaint
+        )
+
+        // 6. Seats: "Kursi" label + pills (right-aligned, extra rows grow upward)
+        drawSeats(
+            canvas,
+            data.seats.mapNotNull { it.seat_code }.ifEmpty { listOf("-") },
+            labelPaint
+        )
+
+        // 7. QR
+        val qr = generateQrBitmap(qrPayload, QR_SIZE, QR_QUIET_ZONE_MODULES)
+        canvas.drawBitmap(qr, QR_LEFT, QR_TOP, null)
         qr.recycle()
 
-        y = qrTop + qr.height + 54f
-        drawWrapped(
-            canvas,
-            "Tiket berlaku satu kali. Siapa pun yang memindai lebih dulu bisa masuk.",
-            notePaint,
-            padding,
-            y,
-            width - padding,
-            36f
-        )
+        // 8. Ticket code + note (centered on the card)
+        val codeLabelPaint = textPaint(LABEL_SIZE, weight = 300, align = Paint.Align.CENTER)
+        canvas.drawText("Kode Tiket", CARD_CENTER_X, CODE_LABEL_BASELINE, codeLabelPaint)
+
+        val codePaint = textPaint(CODE_SIZE, weight = 700, align = Paint.Align.CENTER)
+        val code = fitSingleLine(data.ticket_code, codePaint, CARD_RIGHT - CARD_LEFT - 120f)
+        canvas.drawText(code, CARD_CENTER_X, CODE_BASELINE, codePaint)
+
+        val notePaint = textPaint(LABEL_SIZE, weight = 300, align = Paint.Align.CENTER)
+        canvas.drawText("*Tiket hanya berlaku satu kali", CARD_CENTER_X, NOTE_BASELINE, notePaint)
+
+        // 9. Logo
+        decodeDrawable(R.drawable.moview_wordmark, sampleSize = 4)?.let { logo ->
+            canvas.drawBitmap(
+                logo,
+                null,
+                RectF(LOGO_LEFT, LOGO_TOP, LOGO_LEFT + LOGO_WIDTH, LOGO_TOP + LOGO_HEIGHT),
+                bitmapPaint
+            )
+            logo.recycle()
+        }
 
         return bitmap
     }
 
-    /** Draws [text] wrapped to [maxWidth]; returns the next baseline y. */
-    private fun drawWrapped(
+    private fun drawInfoRow(
         canvas: Canvas,
-        text: String?,
-        paint: Paint,
-        x: Float,
-        startY: Float,
-        maxWidth: Float,
-        lineHeight: Float
-    ): Float {
-        if (text.isNullOrBlank()) return startY
-
-        var y = startY
-        val words = text.split(' ')
-        val line = StringBuilder()
-        words.forEach { word ->
-            val candidate = if (line.isEmpty()) word else "$line $word"
-            if (paint.measureText(candidate) > maxWidth && line.isNotEmpty()) {
-                canvas.drawText(line.toString(), x, y, paint)
-                y += lineHeight
-                line.clear()
-                line.append(word)
-            } else {
-                if (line.isNotEmpty()) line.clear()
-                line.append(candidate)
-            }
-        }
-        if (line.isNotEmpty()) {
-            canvas.drawText(line.toString(), x, y, paint)
-            y += lineHeight
-        }
-        return y
+        label: String,
+        value: String,
+        labelBaseline: Float,
+        valueBaseline: Float,
+        labelPaint: Paint,
+        valuePaint: Paint
+    ) {
+        canvas.drawText(label, TEXT_X, labelBaseline, labelPaint)
+        canvas.drawText(fitSingleLine(value, valuePaint, TEXT_MAX_WIDTH), TEXT_X, valueBaseline, valuePaint)
     }
 
-    private fun generateQrBitmap(content: String, size: Int): Bitmap {        val bitMatrix: BitMatrix = MultiFormatWriter().encode(
+    private fun drawSeats(canvas: Canvas, seats: List<String>, labelPaint: Paint) {
+        val rows = seats.chunked(PILLS_PER_ROW)
+        val pillFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = CARD_COLOR }
+        val pillText = textPaint(VALUE_SIZE, weight = 700, align = Paint.Align.CENTER)
+        val rowPitch = PILL_HEIGHT + PILL_GAP
+
+        rows.forEachIndexed { rowIndex, rowSeats ->
+            val top = PILLS_BOTTOM_ROW_TOP - (rows.size - 1 - rowIndex) * rowPitch
+            val rowWidth = rowSeats.size * PILL_WIDTH + (rowSeats.size - 1) * PILL_GAP
+            val left = PILLS_RIGHT - rowWidth
+
+            rowSeats.forEachIndexed { index, code ->
+                val pillLeft = left + index * (PILL_WIDTH + PILL_GAP)
+                canvas.drawRoundRect(
+                    RectF(pillLeft, top, pillLeft + PILL_WIDTH, top + PILL_HEIGHT),
+                    PILL_RADIUS, PILL_RADIUS, pillFill
+                )
+                canvas.drawText(
+                    fitSingleLine(code, pillText, PILL_WIDTH - 16f),
+                    pillLeft + PILL_WIDTH / 2f,
+                    top + PILL_TEXT_BASELINE_OFFSET,
+                    pillText
+                )
+            }
+        }
+
+        // Label sits above the top row, starting at that row's horizontal center.
+        val topRowCount = rows.first().size
+        val topRowWidth = topRowCount * PILL_WIDTH + (topRowCount - 1) * PILL_GAP
+        val labelX = PILLS_RIGHT - topRowWidth / 2f
+        val topRowTop = PILLS_BOTTOM_ROW_TOP - (rows.size - 1) * rowPitch
+        canvas.drawText("Kursi", labelX, topRowTop - SEAT_LABEL_OFFSET, labelPaint)
+    }
+
+    // --- Drawing helpers -----------------------------------------------------
+
+    /** White Inter paint; weight 300 = Light, 700 = Bold. */
+    private fun textPaint(size: Float, weight: Int, align: Paint.Align): Paint {
+        val base = ResourcesCompat.getFont(this, R.font.font_family_inter) ?: Typeface.DEFAULT
+        val face = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            Typeface.create(base, weight, false)
+        } else {
+            Typeface.create(base, if (weight >= 600) Typeface.BOLD else Typeface.NORMAL)
+        }
+        return Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = size
+            typeface = face
+            textAlign = align
+        }
+    }
+
+    /** Greedy word wrap into at most [maxLines] lines; the last line is ellipsized. */
+    private fun wrapLines(text: String?, paint: Paint, maxWidth: Float, maxLines: Int): List<String> {
+        val words = text.orEmpty().trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (words.isEmpty()) return listOf("-")
+
+        val all = mutableListOf<String>()
+        var current = ""
+        words.forEach { word ->
+            val candidate = if (current.isEmpty()) word else "$current $word"
+            if (paint.measureText(candidate) > maxWidth && current.isNotEmpty()) {
+                all.add(current)
+                current = word
+            } else {
+                current = candidate
+            }
+        }
+        if (current.isNotEmpty()) all.add(current)
+
+        if (all.size <= maxLines) return all.map { ellipsize(it, paint, maxWidth) }
+
+        val kept = all.take(maxLines - 1).toMutableList()
+        kept.add(ellipsize(all.drop(maxLines - 1).joinToString(" "), paint, maxWidth))
+        return kept
+    }
+
+    /** Shrinks the text down to 70% of its size, then ellipsizes if it still does not fit. */
+    private fun fitSingleLine(text: String?, paint: Paint, maxWidth: Float): String {
+        val value = text.orEmpty().ifBlank { "-" }
+        val original = paint.textSize
+        var guard = 0
+        while (paint.measureText(value) > maxWidth && paint.textSize > original * 0.7f && guard < 40) {
+            paint.textSize -= original * 0.01f
+            guard++
+        }
+        return ellipsize(value, paint, maxWidth)
+    }
+
+    private fun ellipsize(text: String, paint: Paint, maxWidth: Float): String {
+        if (paint.measureText(text) <= maxWidth) return text
+        var value = text
+        while (value.length > 1 && paint.measureText("$value…") > maxWidth) {
+            value = value.dropLast(1)
+        }
+        return "$value…"
+    }
+
+    private fun decodeDrawable(resId: Int, sampleSize: Int = 1): Bitmap? {
+        return try {
+            val options = BitmapFactory.Options().apply {
+                inScaled = false
+                inSampleSize = sampleSize
+            }
+            BitmapFactory.decodeResource(resources, resId, options)
+        } catch (_: Throwable) {
+            null // decorations are best-effort
+        }
+    }
+
+    /** Blocking Glide download (call from a background thread). Returns a software copy. */
+    private fun loadRemoteBitmap(model: Any?): Bitmap? {
+        if (model == null) return null
+        return try {
+            val loaded = Glide.with(applicationContext)
+                .asBitmap()
+                .disallowHardwareConfig()
+                .load(model)
+                .submit()
+                .get()
+            loaded?.copy(Bitmap.Config.ARGB_8888, false)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun centerCropShader(bitmap: Bitmap, target: RectF): BitmapShader {
+        val shader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        val targetRatio = target.width() / target.height()
+        val bitmapRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+
+        val srcWidth: Float
+        val srcHeight: Float
+        if (bitmapRatio > targetRatio) {
+            srcHeight = bitmap.height.toFloat()
+            srcWidth = srcHeight * targetRatio
+        } else {
+            srcWidth = bitmap.width.toFloat()
+            srcHeight = srcWidth / targetRatio
+        }
+
+        val left = (bitmap.width - srcWidth) / 2f
+        val top = (bitmap.height - srcHeight) / 2f
+        // The shader is evaluated in canvas space, so map to the real on-canvas rect.
+        shader.setLocalMatrix(
+            Matrix().apply {
+                setRectToRect(
+                    RectF(left, top, left + srcWidth, top + srcHeight),
+                    RectF(target),
+                    Matrix.ScaleToFit.FILL
+                )
+            }
+        )
+        return shader
+    }
+
+    private fun generateQrBitmap(content: String, size: Int, quietZone: Int = 4): Bitmap {
+        val hints = mapOf(EncodeHintType.MARGIN to quietZone)
+        val bitMatrix: BitMatrix = MultiFormatWriter().encode(
             content,
             BarcodeFormat.QR_CODE,
             size,
-            size
+            size,
+            hints
         )
 
         val width = bitMatrix.width
@@ -465,6 +759,8 @@ class TicketQrActivity : AppCompatActivity() {
         }
     }
 
+    // --- Formatting ----------------------------------------------------------
+
     private fun formatDate(rawDate: String?): String {
         if (rawDate.isNullOrBlank()) return "-"
         return try {
@@ -477,10 +773,26 @@ class TicketQrActivity : AppCompatActivity() {
         }
     }
 
+    /** "12 Agustus 2026" — used on the share card. */
+    private fun formatDateLong(rawDate: String?): String {
+        if (rawDate.isNullOrBlank()) return "-"
+        return try {
+            val parser = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val formatter = SimpleDateFormat("dd MMMM yyyy", Locale.forLanguageTag("id-ID"))
+            val date = parser.parse(rawDate)
+            if (date != null) formatter.format(date) else rawDate
+        } catch (_: Exception) {
+            rawDate
+        }
+    }
+
     private fun formatTime(rawTime: String?): String {
         if (rawTime.isNullOrBlank()) return "-"
         return if (rawTime.length >= 5) rawTime.substring(0, 5) else rawTime
     }
+
+    /** "17.40" — used on the share card. */
+    private fun formatTimeDot(rawTime: String?): String = formatTime(rawTime).replace(':', '.')
 
     private fun formatScannedAt(raw: String): String {
         return try {

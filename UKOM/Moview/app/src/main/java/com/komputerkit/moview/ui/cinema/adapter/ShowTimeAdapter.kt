@@ -24,9 +24,10 @@ class ShowTimeAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val time = times[position]
-        holder.tv.text = if (time.isAvailable) time.time else "${time.time}\nDitutup"
-        holder.tv.textSize = if (time.isAvailable) 13f else 11f
-        holder.tv.maxLines = 2
+        // Unavailable (already past its online cutoff) is only greyed out — no extra label.
+        holder.tv.text = time.time
+        holder.tv.textSize = 13f
+        holder.tv.maxLines = 1
 
         val isSelected = position == selectedPosition
         holder.tv.setBackgroundResource(
@@ -41,6 +42,7 @@ class ShowTimeAdapter(
         if (!time.isAvailable) {
             holder.tv.alpha = 0.4f
             holder.tv.isEnabled = false
+            holder.tv.setOnClickListener(null)
         } else {
             holder.tv.alpha = 1f
             holder.tv.isEnabled = true

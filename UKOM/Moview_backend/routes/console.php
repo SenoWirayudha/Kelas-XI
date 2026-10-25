@@ -14,5 +14,8 @@ Schedule::command('schedules:delete-expired')->hourly();
 // Auto-cancel stale pending orders to free locked seats quickly
 Schedule::command('orders:cleanup-stale-pending')->everyMinute();
 
+// Online tickets are only valid until 30 minutes after the show starts
+Schedule::command('tickets:expire-online')->everyMinute();
+
 // Auto-clear streaming release dates that have naturally passed (Indonesia)
 Schedule::command('services:sync-streaming-dates')->dailyAt('03:00');

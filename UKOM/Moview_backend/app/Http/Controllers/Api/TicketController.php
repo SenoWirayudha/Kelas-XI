@@ -12,7 +12,11 @@ use Illuminate\Support\Facades\DB;
 
 class TicketController extends Controller
 {
-    /** True when the show has already ended (same grace rule as scanning). */
+    /**
+     * True once an online ticket is past its validity window: show start + 30 minutes
+     * (ScheduleRules::ONLINE_TICKET_VALID_AFTER_MIN). Offline tickets sold at the counter
+     * keep the old, more generous grace.
+     */
     private function isOrderShowExpired(Order $order): bool
     {
         $schedule = $order->schedule;
@@ -20,11 +24,15 @@ class TicketController extends Controller
             return false;
         }
 
-        $showDateTime = Carbon::parse(
-            trim(Carbon::parse($schedule->show_date)->format('Y-m-d') . ' ' . $schedule->show_time)
-        );
+        if ($order->channel === Order::CHANNEL_OFFLINE) {
+            $showDateTime = Carbon::parse(
+                trim(Carbon::parse($schedule->show_date)->format('Y-m-d') . ' ' . $schedule->show_time)
+            );
 
-        return now()->greaterThan($showDateTime->copy()->addHour());
+            return now()->greaterThan($showDateTime->copy()->addHour());
+        }
+
+        return \App\Support\ScheduleRules::isOnlineTicketExpired($schedule);
     }
 
     /**

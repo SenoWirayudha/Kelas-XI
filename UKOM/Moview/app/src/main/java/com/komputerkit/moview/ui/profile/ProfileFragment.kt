@@ -411,8 +411,19 @@ class ProfileFragment : Fragment() {
         }
         
         binding.btnSettings.setOnClickListener {
-            val action = ProfileFragmentDirections.actionProfileToEditProfile()
-            findNavController().navigate(action)
+            // Explicit NavOptions: reuse the app's standard slide transition. Relying only on
+            // the <action> attributes made the jump happen without any animation.
+            val navOptions = androidx.navigation.NavOptions.Builder()
+                .setEnterAnim(R.anim.slide_in_right)
+                .setExitAnim(R.anim.slide_out_left)
+                .setPopEnterAnim(R.anim.slide_in_left)
+                .setPopExitAnim(R.anim.slide_out_right)
+                .build()
+            findNavController().navigate(
+                R.id.action_profile_to_editProfile,
+                null,
+                navOptions
+            )
         }
 
         binding.btnTicket.setOnClickListener {
