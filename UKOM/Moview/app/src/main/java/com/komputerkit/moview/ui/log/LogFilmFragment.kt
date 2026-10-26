@@ -62,7 +62,13 @@ class LogFilmFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        viewModel.loadMovie(args.movieId, requireContext())
+        viewModel.loadMovie(
+            movieId = args.movieId,
+            context = requireContext(),
+            isEditMode = args.isEditMode,
+            reviewId = args.reviewId,
+            diaryId = args.diaryId
+        )
         
         setupAppBar()
         setupFocusMode()

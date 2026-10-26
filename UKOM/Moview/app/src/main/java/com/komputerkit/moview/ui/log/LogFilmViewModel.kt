@@ -10,6 +10,7 @@ import com.komputerkit.moview.data.api.SaveReviewResult
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.applyCustomMedia
+import com.komputerkit.moview.util.resolveMediaUrl
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -41,7 +42,13 @@ class LogFilmViewModel : ViewModel() {
     private var currentUserId: Int = -1
     private var loadJob: Job? = null
     
-    fun loadMovie(movieId: Int, context: Context) {
+    fun loadMovie(
+        movieId: Int,
+        context: Context,
+        isEditMode: Boolean = false,
+        reviewId: Int = 0,
+        diaryId: Int = 0
+    ) {
         // Get user ID from SharedPreferences - use same name as Login
         val sharedPref = context.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         currentUserId = sharedPref.getInt("userId", 0)
@@ -53,11 +60,16 @@ class LogFilmViewModel : ViewModel() {
             // Load movie details from API
             val movieDetail = repository.getMovieDetail(movieId)
             if (movieDetail != null) {
-                // Apply custom media (films-type) if user has set custom poster/backdrop
-                val customMedia = if (currentUserId > 0) {
-                    repository.batchCustomMedia(currentUserId, listOf(movieId), "films")
-                } else emptyMap()
-                val resolved = listOf(movieDetail).applyCustomMedia(customMedia).first()
+                // Resolve the artwork the same way the detail screen does. When editing, the
+                // custom poster/backdrop belongs to that diary entry (type reviews/logged),
+                // not to the generic "films" context — otherwise the form fell back to the
+                // movie default.
+                val resolved = if (isEditMode && currentUserId > 0) {
+                    resolveDiaryMedia(movieDetail, reviewId, diaryId)
+                        ?: applyFilmsMedia(movieDetail, movieId)
+                } else {
+                    applyFilmsMedia(movieDetail, movieId)
+                }
                 _movie.postValue(resolved)
                 Log.d("LogFilmViewModel", "Loaded movie from API: ${movieDetail.title}")
             } else {
@@ -96,8 +108,51 @@ class LogFilmViewModel : ViewModel() {
         }
     }
     
-    fun setRating(stars: Float) {
-        _rating.value = stars
+    /** Generic "films" context artwork (what a brand-new log would inherit). */
+    private suspend fun applyFilmsMedia(movieDetail: Movie, movieId: Int): Movie {
+        val customMedia = if (currentUserId > 0) {
+            repository.batchCustomMedia(currentUserId, listOf(movieId), "films")
+        } else emptyMap()
+        return listOf(movieDetail).applyCustomMedia(customMedia).first()
+    }
+
+    /**
+     * Artwork saved for this specific diary entry (type "reviews" or "logged").
+     * Returns null when the entry has no custom artwork, so the caller can fall back.
+     */
+    private suspend fun resolveDiaryMedia(
+        movieDetail: Movie,
+        reviewId: Int,
+        diaryId: Int
+    ): Movie? {
+        val resolvedDiaryId = when {
+            diaryId > 0 -> diaryId
+            reviewId > 0 -> repository.getReviewDetail(currentUserId, reviewId)?.diary_id ?: 0
+            else -> 0
+        }
+        if (resolvedDiaryId <= 0) return null
+
+        // A diary row is stored as "logged" or "reviews" depending on whether it has review
+        // text; the backend resolves both for the same diary id.
+        val type = if (reviewId > 0) "reviews" else "logged"
+        val entry = repository.getDisplayMedia(
+            movieId = movieDetail.id,
+            viewerUserId = currentUserId,
+            type = type,
+            diariesId = resolvedDiaryId
+        ) ?: return null
+
+        val poster = entry.poster?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
+        val backdrop = entry.backdrop?.takeIf { !it.is_default }?.path?.let { resolveMediaUrl(it) }
+        if (poster == null && backdrop == null) return null
+
+        return movieDetail.copy(
+            posterUrl = poster ?: movieDetail.posterUrl,
+            backdropUrl = backdrop ?: movieDetail.backdropUrl
+        )
+    }
+
+    fun setRating(stars: Float) {        _rating.value = stars
         Log.d("LogFilmViewModel", "Rating set to: $stars stars")
     }
     
