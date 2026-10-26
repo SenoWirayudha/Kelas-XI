@@ -221,7 +221,8 @@
 </div>
 
 <!-- Films by tickets -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+@php $showWeekRanking = $period !== '7d'; @endphp
+<div class="grid grid-cols-1 {{ $showWeekRanking ? 'lg:grid-cols-2' : '' }} gap-6 mb-6">
     <div class="bg-white rounded-lg shadow p-6">
         <h3 class="text-lg font-bold mb-1 flex items-center">
             <i class="fas fa-ticket text-blue-600 mr-2"></i>
@@ -248,6 +249,8 @@
         </div>
     </div>
 
+    @if($showWeekRanking)
+    {{-- Hidden on the default 7-day period: it would list exactly the same films as above. --}}
     <div class="bg-white rounded-lg shadow p-6">
         <h3 class="text-lg font-bold mb-1 flex items-center">
             <i class="fas fa-calendar-week text-emerald-600 mr-2"></i>
@@ -273,6 +276,7 @@
             @endforelse
         </div>
     </div>
+    @endif
 </div>
 
 <!-- Social trends -->
@@ -293,6 +297,14 @@
             </span>
         </div>
     </div>
+
+    @if(!empty($socialTrend['fallback']))
+        <p class="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <i class="fas fa-circle-info mr-1"></i>
+            Tidak ada ulasan atau like pada periode terpilih. Menampilkan
+            <strong>{{ $socialTrend['fallback_label'] }}</strong>.
+        </p>
+    @endif
 
     @if($socialTrend['total_reviews'] === 0 && $socialTrend['total_likes'] === 0)
         <div class="text-center text-gray-400 py-12">

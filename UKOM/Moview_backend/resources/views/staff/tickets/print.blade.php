@@ -22,11 +22,17 @@
 
 <div class="p-6">
     <div class="no-print flex flex-wrap items-center gap-3 mb-6">
-        <a href="{{ route('staff.cashier.index') }}"
-           onclick="event.preventDefault(); try { var ref = document.referrer ? new URL(document.referrer) : null; if (ref && ref.origin === location.origin && history.length > 1) { history.back(); return; } } catch (_) {} location.href = this.href;"
-           class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition">
-            <i class="fas fa-arrow-left mr-2"></i> Kembali ke Kasir
-        </a>
+        @if($fromScan ?? false)
+            <a href="{{ route('staff.tickets.scanner') }}"
+               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali ke Scan
+            </a>
+        @else
+            <a href="{{ route('staff.cashier.index') }}"
+               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali ke Kasir
+            </a>
+        @endif
         <button type="button" onclick="window.print()"
                 class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition">
             <i class="fas fa-print mr-2"></i> Print
@@ -132,4 +138,18 @@
         }
     }
 </style>
+
+<script>
+    // Print dialog opens automatically; the Print button stays for re-printing.
+    (function () {
+        let printed = false;
+        const trigger = () => {
+            if (printed) return;
+            printed = true;
+            window.print();
+        };
+        window.addEventListener('load', () => setTimeout(trigger, 200));
+        window.addEventListener('afterprint', () => { printed = false; });
+    })();
+</script>
 @endsection

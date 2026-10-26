@@ -262,8 +262,33 @@ class AnalyticsController extends Controller
                 Carbon::now()->endOfDay(),
                 5
             ),
-            'socialTrend' => $this->socialTrend($start, $end),
+            'socialTrend' => $this->socialTrendWithFallback($start, $end),
         ];
+    }
+
+    /**
+     * Social activity for the selected period. When that window has no reviews or likes at
+     * all, fall back to the last 30 days so the section is not just an empty box — the view
+     * labels the fallback window explicitly.
+     */
+    private function socialTrendWithFallback(Carbon $start, Carbon $end): array
+    {
+        $trend = $this->socialTrend($start, $end);
+
+        if ($trend['total_reviews'] === 0 && $trend['total_likes'] === 0) {
+            $fallbackStart = Carbon::now()->subDays(29)->startOfDay();
+            $fallbackEnd = Carbon::now()->endOfDay();
+            $fallback = $this->socialTrend($fallbackStart, $fallbackEnd);
+
+            if ($fallback['total_reviews'] > 0 || $fallback['total_likes'] > 0) {
+                $fallback['fallback'] = true;
+                $fallback['fallback_label'] = $fallbackStart->translatedFormat('d M') . ' – ' . $fallbackEnd->translatedFormat('d M Y');
+                return $fallback;
+            }
+        }
+
+        $trend['fallback'] = false;
+        return $trend;
     }
 
     private function percentChange(float $previous, float $current): ?float

@@ -653,6 +653,15 @@ function ticketScanner() {
                 return;
             }
 
+            await this.submitConfirmation();
+        },
+
+        /** Confirms the pending scan and reports whether the ticket is now used. */
+        async submitConfirmation() {
+            if (!this.pendingTicketCode || this.isProcessing) {
+                return false;
+            }
+
             this.isProcessing = true;
             try {
                 const response = await fetch(this.scanConfirmApiUrl, {
@@ -680,8 +689,11 @@ function ticketScanner() {
                     this.canConfirm = false;
                     this.pendingTicketCode = null;
                 }
+
+                return success;
             } catch (error) {
                 this.showResult(false, { message: 'Gagal menghubungi server. Coba lagi.' });
+                return false;
             } finally {
                 this.isProcessing = false;
             }
@@ -698,14 +710,27 @@ function ticketScanner() {
             this.animateScannerBorder(success);
         },
 
-        printTicket() {
+        async printTicket() {
             const data = this.focusMode ? this.focusResult?.data : this.result?.data;
             const orderId = data?.order_id;
             if (!orderId) {
                 return;
             }
 
-            window.open(this.printUrlTemplate.replace('__ORDER__', orderId), '_blank');
+            // Printing implies the guest is entering, so confirm the scan first. Without this,
+            // pressing "Cetak" straight after a preview printed the ticket but left it unused.
+            if (!this.focusMode && this.canConfirm) {
+                const confirmed = await this.submitConfirmation();
+                if (!confirmed) {
+                    return;
+                }
+            }
+
+            // `from=scan` makes the print page's back button return here instead of the cashier.
+            window.open(
+                this.printUrlTemplate.replace('__ORDER__', orderId) + '?from=scan',
+                '_blank'
+            );
         },
 
         animateScannerBorder(success) {
