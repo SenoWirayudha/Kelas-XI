@@ -107,8 +107,10 @@ class ProfileFragment : Fragment() {
         
         Log.d("ProfileFragment", "onResume() - currentUserId: $currentUserId, requestedUserId: $requestedUserId, targetUserId: $targetUserId, isOwnProfile: $isOwnProfile")
         
-        // Reload profile data with correct userId
-        viewModel.loadProfileData(targetUserId)
+        // Reload profile data with correct userId. `force` bypasses the "already loaded"
+        // guard so recent activity and the review/diary counters reflect an entry that was
+        // just edited (e.g. a log turned into a review).
+        viewModel.loadProfileData(targetUserId, force = true)
         
         // Reload follow status if viewing another user's profile
         if (!isOwnProfile) {
@@ -261,6 +263,11 @@ class ProfileFragment : Fragment() {
     }
     
     private fun setupObservers() {
+        // Pull-to-refresh spinner follows the ViewModel's loading state.
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.swipeRefresh.isRefreshing = loading
+        }
+
         viewModel.userName.observe(viewLifecycleOwner) { name ->
             Log.d("ProfileFragment", "Username observed: $name")
             binding.tvUserName.text = name
@@ -402,6 +409,12 @@ class ProfileFragment : Fragment() {
     }
     
     private fun setupClickListeners() {
+        binding.swipeRefresh.setOnRefreshListener {
+            // Force a fresh read: recent activity and the review/diary counters change when
+            // an entry is edited elsewhere (e.g. a log entry turned into a review).
+            viewModel.loadProfileData(targetUserId, force = true)
+        }
+
         binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
         }

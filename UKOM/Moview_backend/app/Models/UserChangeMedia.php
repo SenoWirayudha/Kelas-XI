@@ -138,9 +138,19 @@ class UserChangeMedia extends Model
         // When a specific diary entry is requested (diariesId is set), do NOT fall back
         // to 'films'. Media is inherited once at diary-save time via propagateFilmsToContext,
         // so a later type=films change must not bleed into existing diary entries.
-        $typesToCheck = ($type !== 'films')
-            ? ($diariesId !== null ? [$type] : [$type, 'films'])
-            : ['films'];
+        //
+        // A diary row can be saved as 'logged' and later edited to add review text (or the
+        // other way round). The artwork belongs to the diary entry, not to that label, so
+        // both context types are checked for the same diaries_id.
+        if ($type === 'films') {
+            $typesToCheck = ['films'];
+        } elseif (in_array($type, ['reviews', 'logged'], true) && $diariesId !== null) {
+            $typesToCheck = [$type, $type === 'reviews' ? 'logged' : 'reviews'];
+        } elseif ($diariesId === null) {
+            $typesToCheck = [$type, 'films'];
+        } else {
+            $typesToCheck = [$type];
+        }
 
         $resolved = ['poster' => null, 'backdrop' => null];
 

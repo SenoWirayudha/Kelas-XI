@@ -57,6 +57,10 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     
     private val _followActionResult = MutableLiveData<FollowActionResult?>()
     val followActionResult: LiveData<FollowActionResult?> = _followActionResult
+
+    /** True while a (re)load is running; drives the pull-to-refresh spinner. */
+    private val _isLoading = MutableLiveData(false)
+    val isLoading: LiveData<Boolean> = _isLoading
     
     fun loadProfileData(userId: Int, force: Boolean = false) {
         val targetUserId = if (userId > 0) userId else prefs.getInt("userId", 0)
@@ -76,6 +80,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         if (force) loadJob?.cancel()
         if (loadJob?.isActive == true) return
         if (!force && key == loadedKey && _favoriteMovies.value != null) return
+        _isLoading.value = true
         loadJob = viewModelScope.launch {
             try {
                 Log.d("ProfileViewModel", "Calling API getUserProfile...")
@@ -185,6 +190,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                 _userName.postValue(fallbackUsername)
                 _favoriteMovies.postValue(emptyList())
                 _recentActivity.postValue(emptyList())
+            } finally {
+                _isLoading.postValue(false)
             }
             loadedKey = key
         }
