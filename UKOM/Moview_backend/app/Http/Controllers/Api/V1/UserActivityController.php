@@ -12,8 +12,22 @@ class UserActivityController extends Controller
 {
     use PaginatesList;
 
-    private function getMovieFilterMetadata(int $movieId): array
+    /** IDs from [targets] that [viewerId] already follows (empty when no viewer). */
+    private function followedIds(int $viewerId, array $targets): array
     {
+        if ($viewerId <= 0 || empty($targets)) {
+            return [];
+        }
+
+        return DB::table('followers')
+            ->where('follower_id', $viewerId)
+            ->whereIn('user_id', $targets)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    private function getMovieFilterMetadata(int $movieId): array    {
         $genres = DB::table('movie_genres')
             ->join('genres', 'movie_genres.genre_id', '=', 'genres.id')
             ->where('movie_genres.movie_id', $movieId)
@@ -758,9 +772,11 @@ class UserActivityController extends Controller
     /**
      * Get user followers
      */
-    public function getFollowers($userId)
+    public function getFollowers($userId, \Illuminate\Http\Request $request)
     {
         try {
+            $viewerId = (int) $request->query('viewer_id', 0);
+
             $followers = DB::table('followers')
                 ->join('users', 'followers.follower_id', '=', 'users.id')
                 ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
@@ -776,8 +792,11 @@ class UserActivityController extends Controller
                 ->orderBy('followers.created_at', 'desc')
                 ->get();
 
+            // Which of these users the viewer already follows (drives the row button).
+            $followedByViewer = $this->followedIds($viewerId, $followers->pluck('id')->all());
+
             // Build full URLs for profile photos
-            $followersWithUrls = $followers->map(function($follower) {
+            $followersWithUrls = $followers->map(function($follower) use ($followedByViewer) {
                 $profilePhotoUrl = null;
                 if ($follower->profile_photo) {
                     if (!str_starts_with($follower->profile_photo, 'http')) {
@@ -793,7 +812,8 @@ class UserActivityController extends Controller
                     'display_name' => $follower->display_name,
                     'profile_photo' => $profilePhotoUrl,
                     'bio' => $follower->bio,
-                    'followed_at' => $follower->followed_at
+                    'followed_at' => $follower->followed_at,
+                    'is_following' => in_array((int) $follower->id, $followedByViewer, true),
                 ];
             });
 
@@ -812,9 +832,11 @@ class UserActivityController extends Controller
     /**
      * Get user following
      */
-    public function getFollowing($userId)
+    public function getFollowing($userId, \Illuminate\Http\Request $request)
     {
         try {
+            $viewerId = (int) $request->query('viewer_id', 0);
+
             $following = DB::table('followers')
                 ->join('users', 'followers.user_id', '=', 'users.id')
                 ->leftJoin('user_profiles', 'users.id', '=', 'user_profiles.user_id')
@@ -830,8 +852,11 @@ class UserActivityController extends Controller
                 ->orderBy('followers.created_at', 'desc')
                 ->get();
 
+            // Users the *viewer* follows (when viewing someone else's following list).
+            $followedByViewer = $this->followedIds($viewerId, $following->pluck('id')->all());
+
             // Build full URLs for profile photos
-            $followingWithUrls = $following->map(function($user) {
+            $followingWithUrls = $following->map(function($user) use ($followedByViewer) {
                 $profilePhotoUrl = null;
                 if ($user->profile_photo) {
                     if (!str_starts_with($user->profile_photo, 'http')) {
@@ -847,7 +872,8 @@ class UserActivityController extends Controller
                     'display_name' => $user->display_name,
                     'profile_photo' => $profilePhotoUrl,
                     'bio' => $user->bio,
-                    'followed_at' => $user->followed_at
+                    'followed_at' => $user->followed_at,
+                    'is_following' => in_array((int) $user->id, $followedByViewer, true),
                 ];
             });
 

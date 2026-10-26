@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.MotionEvent
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
@@ -742,6 +743,97 @@ class MovieDetailFragment : Fragment() {
 
         // Show toggle on initial Cast tab
         binding.btnToggleView.visibility = View.VISIBLE
+
+        setupTabSwipe()
+    }
+
+    // --- Swipe between Cast / Crew / Details / Rilis ---------------------------
+
+    private var swipeTabWidth = 0f
+
+    /**
+     * Pager-style swipe across the four tabs. Each tab shows different views, so the visible
+     * one slides out while the target slides in; both are then normalised by [applyTabVisibility].
+     */
+    private fun setupTabSwipe() {
+        val width = { binding.root.width.toFloat().also { swipeTabWidth = it } }
+
+        val gesture = com.komputerkit.moview.util.PagerSwipeGesture(
+            context = requireContext(),
+            pageWidth = width,
+            translate = { offset -> translateTabContent(offset) },
+            canGoLeft = { selectedTabPosition < visibleTabCount() - 1 },
+            canGoRight = { selectedTabPosition > 0 },
+            onSwipe = { direction -> selectTabBySwipe(selectedTabPosition + direction) },
+            onDragStart = { direction ->
+                val target = (selectedTabPosition + direction).coerceIn(0, visibleTabCount() - 1)
+                showTabViews(target, translation = if (direction > 0) width() else -width())
+            },
+            onDragEnd = {
+                resetTabTranslations()
+                applyTabVisibility(selectedTabPosition)
+            }
+        )
+
+        val listener = View.OnTouchListener { _, event -> gesture.onTouch(event) }
+        tabContentViews().forEach { it.setOnTouchListener(listener) }
+    }
+
+    private fun visibleTabCount(): Int =
+        if (binding.tabLayout.getTabAt(3)?.view?.visibility == View.VISIBLE) 4 else 3
+
+    private fun tabContentViews(): List<View> = listOf(
+        binding.rvCast,
+        binding.rvCrew,
+        binding.tvCrewPlaceholder,
+        binding.layoutDetails,
+        binding.layoutRilis
+    )
+
+    private fun translateTabContent(offset: Float) {
+        val width = swipeTabWidth
+        val target = (selectedTabPosition + if (offset < 0) 1 else -1)
+            .coerceIn(0, visibleTabCount() - 1)
+        val currentViews = viewsForTab(selectedTabPosition)
+        val targetViews = viewsForTab(target)
+
+        currentViews.forEach { it.translationX = offset }
+        targetViews.forEach { it.translationX = (if (offset < 0) width else -width) + offset }
+    }
+
+    private fun viewsForTab(position: Int): List<View> = when (position) {
+        1 -> listOfNotNull(
+            binding.rvCrew.takeIf { currentMovie?.crew?.isNotEmpty() == true },
+            binding.tvCrewPlaceholder.takeIf { currentMovie?.crew?.isNullOrEmpty() != false }
+        )
+        2 -> listOf(binding.layoutDetails)
+        3 -> listOf(binding.layoutRilis)
+        else -> listOf(binding.rvCast)
+    }
+
+    private fun showTabViews(position: Int, translation: Float) {
+        viewsForTab(position).forEach {
+            it.visibility = View.VISIBLE
+            it.translationX = translation
+        }
+    }
+
+    private fun resetTabTranslations() {
+        tabContentViews().forEach { it.translationX = 0f }
+    }
+
+    private fun selectTabBySwipe(position: Int) {
+        val clamped = position.coerceIn(0, visibleTabCount() - 1)
+        binding.tabLayout.getTabAt(clamped)?.select()
+    }
+
+    private fun applyTabVisibility(position: Int) {
+        when (position) {
+            1 -> showCrewTab()
+            2 -> showDetailsTab()
+            3 -> showRilisTab()
+            else -> showCastTab()
+        }
     }
     
     private fun showCastTab() {

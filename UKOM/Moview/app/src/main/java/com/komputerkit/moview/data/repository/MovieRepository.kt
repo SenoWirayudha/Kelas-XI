@@ -814,9 +814,9 @@ class MovieRepository {
         }
     }
     
-    suspend fun getUserFollowers(userId: Int): List<com.komputerkit.moview.data.api.UserFollowDto> = withContext(Dispatchers.IO) {
+    suspend fun getUserFollowers(userId: Int, viewerId: Int = 0): List<com.komputerkit.moview.data.api.UserFollowDto> = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.getUserFollowers(userId)
+            val response = apiService.getUserFollowers(userId, viewerId.takeIf { it > 0 })
             if (response.success && response.data != null) {
                 response.data
             } else {
@@ -828,9 +828,9 @@ class MovieRepository {
         }
     }
     
-    suspend fun getUserFollowing(userId: Int): List<com.komputerkit.moview.data.api.UserFollowDto> = withContext(Dispatchers.IO) {
+    suspend fun getUserFollowing(userId: Int, viewerId: Int = 0): List<com.komputerkit.moview.data.api.UserFollowDto> = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.getUserFollowing(userId)
+            val response = apiService.getUserFollowing(userId, viewerId.takeIf { it > 0 })
             if (response.success && response.data != null) {
                 response.data
             } else {

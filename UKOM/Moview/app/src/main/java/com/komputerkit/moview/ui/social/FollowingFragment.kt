@@ -58,9 +58,10 @@ class FollowingFragment : Fragment() {
     }
     
     private fun setupRecyclerView() {
-        adapter = UserAdapter { user ->
-            navigateToUserProfile(user)
-        }
+        adapter = UserAdapter(
+            onUserClick = { user -> navigateToUserProfile(user) },
+            onFollowToggle = { user -> viewModel.toggleFollow(user) }
+        )
         
         binding.rvUsers.layoutManager = LinearLayoutManager(requireContext())
         binding.rvUsers.adapter = adapter

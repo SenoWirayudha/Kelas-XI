@@ -30,7 +30,7 @@ class FollowersViewModel(application: Application) : AndroidViewModel(applicatio
         _isLoading.value = true
         viewModelScope.launch {
             try {
-                val userFollows = repository.getUserFollowers(userId)
+                val userFollows = repository.getUserFollowers(userId, prefs.getInt("userId", 0))
                 
                 // Convert UserFollowDto to UserProfile model
                 val followersList = userFollows.map { dto ->
@@ -38,7 +38,9 @@ class FollowersViewModel(application: Application) : AndroidViewModel(applicatio
                         id = dto.id,
                         username = dto.username,
                         avatarUrl = dto.profile_photo ?: "",
-                        bio = dto.bio
+                        bio = dto.bio,
+                        isFollowing = dto.is_following,
+                        isMyself = dto.id == prefs.getInt("userId", 0)
                     )
                 }
                 
@@ -47,6 +49,32 @@ class FollowersViewModel(application: Application) : AndroidViewModel(applicatio
                 _followers.postValue(emptyList())
             } finally {
                 _isLoading.postValue(false)
+            }
+        }
+    }
+
+    /** Follow/unfollow from a row button; flips the row optimistically then syncs. */
+    fun toggleFollow(user: UserProfile) {
+        val currentUserId = prefs.getInt("userId", 0)
+        if (currentUserId <= 0 || user.id == currentUserId) return
+
+        val updated = (_followers.value ?: emptyList()).map {
+            if (it.id == user.id) it.copy(isFollowing = !it.isFollowing) else it
+        }
+        _followers.value = updated
+
+        viewModelScope.launch {
+            val target = !user.isFollowing
+            val success = if (target) {
+                repository.followUser(currentUserId, user.id)
+            } else {
+                repository.unfollowUser(currentUserId, user.id)
+            }
+            if (!success) {
+                // Revert on failure.
+                _followers.postValue((_followers.value ?: emptyList()).map {
+                    if (it.id == user.id) it.copy(isFollowing = user.isFollowing) else it
+                })
             }
         }
     }

@@ -30,7 +30,7 @@ class FollowingViewModel(application: Application) : AndroidViewModel(applicatio
         _isLoading.value = true
         viewModelScope.launch {
             try {
-                val userFollows = repository.getUserFollowing(userId)
+                val userFollows = repository.getUserFollowing(userId, prefs.getInt("userId", 0))
                 
                 // Convert UserFollowDto to UserProfile model
                 val followingList = userFollows.map { dto ->
@@ -38,7 +38,9 @@ class FollowingViewModel(application: Application) : AndroidViewModel(applicatio
                         id = dto.id,
                         username = dto.username,
                         avatarUrl = dto.profile_photo ?: "",
-                        bio = dto.bio
+                        bio = dto.bio,
+                        isFollowing = dto.is_following,
+                        isMyself = dto.id == prefs.getInt("userId", 0)
                     )
                 }
                 
@@ -47,6 +49,30 @@ class FollowingViewModel(application: Application) : AndroidViewModel(applicatio
                 _following.postValue(emptyList())
             } finally {
                 _isLoading.postValue(false)
+            }
+        }
+    }
+
+    /** Follow/unfollow from a row button; flips the row optimistically then syncs. */
+    fun toggleFollow(user: UserProfile) {
+        val currentUserId = prefs.getInt("userId", 0)
+        if (currentUserId <= 0 || user.id == currentUserId) return
+
+        _following.value = (_following.value ?: emptyList()).map {
+            if (it.id == user.id) it.copy(isFollowing = !it.isFollowing) else it
+        }
+
+        viewModelScope.launch {
+            val target = !user.isFollowing
+            val success = if (target) {
+                repository.followUser(currentUserId, user.id)
+            } else {
+                repository.unfollowUser(currentUserId, user.id)
+            }
+            if (!success) {
+                _following.postValue((_following.value ?: emptyList()).map {
+                    if (it.id == user.id) it.copy(isFollowing = user.isFollowing) else it
+                })
             }
         }
     }

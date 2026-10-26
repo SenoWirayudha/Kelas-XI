@@ -39,6 +39,7 @@ class MovieWatchedUsersFragment : Fragment() {
         setupTabs()
         setupRecycler()
         setupObservers()
+        setupTabSwipe()
 
         when (args.initialTab.lowercase()) {
             "liked" -> binding.tabLayout.getTabAt(1)?.select()
@@ -62,6 +63,7 @@ class MovieWatchedUsersFragment : Fragment() {
 
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
+                currentTab = tab.position
                 val filter = when (tab.position) {
                     1 -> WatchedUsersFilter.LIKED
                     2 -> WatchedUsersFilter.FRIENDS
@@ -75,8 +77,7 @@ class MovieWatchedUsersFragment : Fragment() {
         })
     }
 
-    private fun setupRecycler() {
-        adapter = MovieWatchedUsersAdapter { item ->
+    private fun setupRecycler() {        adapter = MovieWatchedUsersAdapter { item ->
             if (item.hasReview && (item.reviewId ?: 0) > 0) {
                 val action = MovieWatchedUsersFragmentDirections
                     .actionMovieWatchedUsersToReviewDetail(item.reviewId ?: 0, false)
@@ -91,8 +92,41 @@ class MovieWatchedUsersFragment : Fragment() {
         binding.rvUsers.adapter = adapter
     }
 
-    private fun setupObservers() {
-        viewModel.users.observe(viewLifecycleOwner) { users ->
+    /**
+     * Swipe left/right across the three tabs, with the same pager feel as the ticket-history
+     * screen. Tapping a tab still works; both paths end in [selectTab].
+     */
+    private fun setupTabSwipe() {
+        val width = { binding.root.width.toFloat() }
+        val gesture = com.komputerkit.moview.util.PagerSwipeGesture(
+            context = requireContext(),
+            pageWidth = width,
+            translate = { offset ->
+                binding.rvUsers.translationX = offset
+                binding.tvEmpty.translationX = offset
+            },
+            canGoLeft = { currentTab < TAB_COUNT - 1 },
+            canGoRight = { currentTab > 0 },
+            onSwipe = { direction -> selectTab(currentTab + direction) },
+            onDragEnd = {
+                binding.rvUsers.translationX = 0f
+                binding.tvEmpty.translationX = 0f
+            }
+        )
+
+        val listener = View.OnTouchListener { _, event -> gesture.onTouch(event) }
+        binding.rvUsers.setOnTouchListener(listener)
+        binding.tvEmpty.setOnTouchListener(listener)
+    }
+
+    private var currentTab = 0
+
+    private fun selectTab(position: Int) {
+        val clamped = position.coerceIn(0, TAB_COUNT - 1)
+        binding.tabLayout.getTabAt(clamped)?.select()
+    }
+
+    private fun setupObservers() {        viewModel.users.observe(viewLifecycleOwner) { users ->
             adapter.submitList(users)
             binding.tvEmpty.isVisible = users.isEmpty() && viewModel.isLoading.value != true
         }
@@ -109,5 +143,9 @@ class MovieWatchedUsersFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private companion object {
+        const val TAB_COUNT = 3
     }
 }

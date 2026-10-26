@@ -249,12 +249,14 @@ interface MovieApiService {
     
     @GET("users/{userId}/followers")
     suspend fun getUserFollowers(
-        @Path("userId") userId: Int
+        @Path("userId") userId: Int,
+        @Query("viewer_id") viewerId: Int? = null
     ): ApiResponse<List<UserFollowDto>>
     
     @GET("users/{userId}/following")
     suspend fun getUserFollowing(
-        @Path("userId") userId: Int
+        @Path("userId") userId: Int,
+        @Query("viewer_id") viewerId: Int? = null
     ): ApiResponse<List<UserFollowDto>>
     
     @GET("users/{userId}/friends-activity")

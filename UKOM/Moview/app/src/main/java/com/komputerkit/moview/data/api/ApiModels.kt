@@ -689,7 +689,8 @@ data class UserFollowDto(
     val display_name: String?,
     val profile_photo: String?,
     val bio: String?,
-    val followed_at: String
+    val followed_at: String,
+    val is_following: Boolean = false
 )
 
 data class ReviewLikeResponse(
