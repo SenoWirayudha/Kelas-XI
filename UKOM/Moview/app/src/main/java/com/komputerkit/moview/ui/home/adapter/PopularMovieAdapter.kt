@@ -28,7 +28,7 @@ class PopularMovieAdapter(
             // Convert rating to stars (★★★★★)
             starRating.apply {
                 displayMode = true
-                starSizeDp = 14f
+                starSizeDp = 10f
                 starGapDp = 0f
                 setColors(
                     ContextCompat.getColor(itemView.context, R.color.star_green),

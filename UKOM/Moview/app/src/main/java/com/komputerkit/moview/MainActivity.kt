@@ -346,53 +346,39 @@ class MainActivity : AppCompatActivity() {
         val currentId = navController.currentDestination?.id
         if (currentId == null || currentId !in tabOrder) return false
 
-        val decor = window.decorView
-        val location = IntArray(2)
-        decor.getLocationOnScreen(location)
-        val hit = findTopChildUnder(decor, ev.rawX - location[0], ev.rawY - location[1])
-            ?: return false
-        return !isHorizontalScrollerOrNav(hit)
+        // Use screen coordinates against each scroller's *global visible* rect. The previous
+        // hit-test walked children with getHitRect(), which ignores how far the page is
+        // scrolled — so after scrolling, a carousel was no longer detected and the tab swipe
+        // fired while the user was dragging a poster row.
+        return !isOverHorizontalScrollerOrNav(ev.rawX, ev.rawY)
     }
 
-    /** Top-most visible view under the given decor-view coordinates. */
-    private fun findTopChildUnder(root: View, rootX: Float, rootY: Float): View? {
-        var current: View = root
-        var x = rootX
-        var y = rootY
+    private fun isOverHorizontalScrollerOrNav(x: Float, y: Float): Boolean {
         val rect = android.graphics.Rect()
-        while (true) {
-            val group = current as? ViewGroup ?: break
-            var matched = false
-            for (i in group.childCount - 1 downTo 0) {
-                val child = group.getChildAt(i)
-                if (child.visibility != View.VISIBLE) continue
-                child.getHitRect(rect)
-                if (rect.contains(x.toInt(), y.toInt())) {
-                    x -= rect.left
-                    y -= rect.top
-                    current = child
-                    matched = true
-                    break
-                }
-            }
-            if (!matched) break
-        }
-        return current
+        return hitsHorizontalScroller(window.decorView, x, y, rect)
     }
 
-    /** True when the touch sits on the bottom nav or a horizontal scroller. */
-    private fun isHorizontalScrollerOrNav(start: View): Boolean {
-        var view: View? = start
-        while (view != null) {
-            if (view === binding.bottomNavigation) return true
-            if (view is HorizontalScrollView) return true
-            if (view is RecyclerView) {
-                val orientation = view.layoutManager?.let { lm ->
-                    (lm as? LinearLayoutManager)?.orientation
-                }
-                if (orientation == RecyclerView.HORIZONTAL) return true
+    private fun hitsHorizontalScroller(view: View, x: Float, y: Float, rect: android.graphics.Rect): Boolean {
+        if (view.visibility != View.VISIBLE) return false
+
+        if (view === binding.bottomNavigation) {
+            return view.getGlobalVisibleRect(rect) && rect.contains(x.toInt(), y.toInt())
+        }
+
+        val horizontal = when (view) {
+            is HorizontalScrollView -> true
+            is RecyclerView -> (view.layoutManager as? LinearLayoutManager)?.orientation ==
+                RecyclerView.HORIZONTAL
+            else -> false
+        }
+        if (horizontal && view.getGlobalVisibleRect(rect) && rect.contains(x.toInt(), y.toInt())) {
+            return true
+        }
+
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                if (hitsHorizontalScroller(view.getChildAt(i), x, y, rect)) return true
             }
-            view = view.parent as? View
         }
         return false
     }

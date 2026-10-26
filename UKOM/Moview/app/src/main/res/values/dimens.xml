@@ -29,7 +29,7 @@
 
     <!-- UI polish -->
     <dimen name="card_corner_radius">8dp</dimen>
-    <dimen name="card_section_width">96dp</dimen>
+    <dimen name="card_section_width">104dp</dimen>
     <dimen name="card_section_margin_end">12dp</dimen>
     <dimen name="poster_thumb_width">64dp</dimen>
     <dimen name="poster_thumb_height">96dp</dimen>
