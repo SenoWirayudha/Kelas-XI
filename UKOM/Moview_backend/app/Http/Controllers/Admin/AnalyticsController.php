@@ -275,12 +275,12 @@ class AnalyticsController extends Controller
     {
         $trend = $this->socialTrend($start, $end);
 
-        if ($trend['total_reviews'] === 0 && $trend['total_likes'] === 0) {
+        if ($trend['total_reviews'] === 0 && $trend['total_likes'] === 0 && $trend['total_logs'] === 0) {
             $fallbackStart = Carbon::now()->subDays(29)->startOfDay();
             $fallbackEnd = Carbon::now()->endOfDay();
             $fallback = $this->socialTrend($fallbackStart, $fallbackEnd);
 
-            if ($fallback['total_reviews'] > 0 || $fallback['total_likes'] > 0) {
+            if ($fallback['total_reviews'] > 0 || $fallback['total_likes'] > 0 || $fallback['total_logs'] > 0) {
                 $fallback['fallback'] = true;
                 $fallback['fallback_label'] = $fallbackStart->translatedFormat('d M') . ' – ' . $fallbackEnd->translatedFormat('d M Y');
                 return $fallback;
@@ -420,12 +420,22 @@ class AnalyticsController extends Controller
             ->all();
     }
 
-    /** Daily review/like counts plus the period's average rating. */
+    /** Daily review, log-entry and like counts plus the period's average rating. */
     private function socialTrend(Carbon $start, Carbon $end): array
     {
         $reviews = DB::table('reviews')
             ->selectRaw('DATE(created_at) as day, COUNT(*) as total')
             ->where('status', 'published')
+            ->whereBetween('created_at', [$start, $end])
+            ->groupBy('day')
+            ->pluck('total', 'day');
+
+        // Log entries: diary rows with no review attached (a plain "watched" log).
+        $logs = DB::table('diaries')
+            ->selectRaw('DATE(created_at) as day, COUNT(*) as total')
+            ->where(function ($query) {
+                $query->whereNull('review_id')->orWhere('review_id', 0);
+            })
             ->whereBetween('created_at', [$start, $end])
             ->groupBy('day')
             ->pluck('total', 'day');
@@ -445,6 +455,7 @@ class AnalyticsController extends Controller
                 'iso' => $key,
                 'label' => $cursor->format('d M'),
                 'reviews' => (int) ($reviews[$key] ?? 0),
+                'logs' => (int) ($logs[$key] ?? 0),
                 'likes' => (int) ($likes[$key] ?? 0),
             ];
             $cursor->addDay();
@@ -458,6 +469,7 @@ class AnalyticsController extends Controller
         return [
             'days' => $days,
             'total_reviews' => array_sum(array_column($days, 'reviews')),
+            'total_logs' => array_sum(array_column($days, 'logs')),
             'total_likes' => array_sum(array_column($days, 'likes')),
             'average_rating' => $averageRating !== null ? (float) $averageRating : null,
         ];

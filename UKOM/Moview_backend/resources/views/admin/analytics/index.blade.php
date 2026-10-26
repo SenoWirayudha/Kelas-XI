@@ -25,7 +25,7 @@
     $socialDays = $socialTrend['days'];
     $socialMax = 1;
     foreach ($socialDays as $d) {
-        $socialMax = max($socialMax, $d['reviews'], $d['likes']);
+        $socialMax = max($socialMax, $d['reviews'], $d['logs'], $d['likes']);
     }
     $pointCount = count($socialDays);
     $xAt = function (int $i) use ($chartW, $pad, $pointCount) {
@@ -36,9 +36,11 @@
         return $chartH - $pad - (($value / $socialMax) * ($chartH - 2 * $pad));
     };
     $reviewPoints = [];
+    $logPoints = [];
     $likePoints = [];
     foreach ($socialDays as $i => $d) {
         $reviewPoints[] = round($xAt($i), 2) . ',' . round($yAt($d['reviews']), 2);
+        $logPoints[] = round($xAt($i), 2) . ',' . round($yAt($d['logs']), 2);
         $likePoints[] = round($xAt($i), 2) . ',' . round($yAt($d['likes']), 2);
     }
     $socialFirstLabel = $socialDays[0]['label'] ?? '';
@@ -288,6 +290,7 @@
         </h3>
         <div class="flex flex-wrap items-center gap-4 text-xs text-gray-600">
             <span class="inline-flex items-center"><span class="w-3 h-3 rounded-sm bg-purple-500 mr-1"></span> Ulasan</span>
+            <span class="inline-flex items-center"><span class="w-3 h-3 rounded-sm bg-sky-500 mr-1"></span> Log Entry</span>
             <span class="inline-flex items-center"><span class="w-3 h-3 rounded-sm bg-pink-500 mr-1"></span> Like</span>
             <span class="inline-flex items-center">
                 Rata-rata rating:
@@ -306,7 +309,7 @@
         </p>
     @endif
 
-    @if($socialTrend['total_reviews'] === 0 && $socialTrend['total_likes'] === 0)
+    @if($socialTrend['total_reviews'] === 0 && $socialTrend['total_likes'] === 0 && $socialTrend['total_logs'] === 0)
         <div class="text-center text-gray-400 py-12">
             <i class="fas fa-chart-line text-4xl mb-2"></i>
             <p class="text-sm">Belum ada aktivitas ulasan atau like pada periode ini.</p>
@@ -319,11 +322,15 @@
                       stroke="#E5E7EB" stroke-width="1" />
                 <polyline fill="none" stroke="#A855F7" stroke-width="2.5" stroke-linejoin="round"
                           points="{{ implode(' ', $reviewPoints) }}" />
+                <polyline fill="none" stroke="#0EA5E9" stroke-width="2.5" stroke-linejoin="round"
+                          points="{{ implode(' ', $logPoints) }}" />
                 <polyline fill="none" stroke="#EC4899" stroke-width="2.5" stroke-linejoin="round"
                           points="{{ implode(' ', $likePoints) }}" />
                 @foreach($socialDays as $i => $day)
                     <circle cx="{{ round($xAt($i), 2) }}" cy="{{ round($yAt($day['reviews']), 2) }}" r="3.5"
                             fill="#A855F7" data-chart-tip="{{ $day['label'] }} • {{ $day['reviews'] }} ulasan" tabindex="0" />
+                    <circle cx="{{ round($xAt($i), 2) }}" cy="{{ round($yAt($day['logs']), 2) }}" r="3.5"
+                            fill="#0EA5E9" data-chart-tip="{{ $day['label'] }} • {{ $day['logs'] }} log entry" tabindex="0" />
                     <circle cx="{{ round($xAt($i), 2) }}" cy="{{ round($yAt($day['likes']), 2) }}" r="3.5"
                             fill="#EC4899" data-chart-tip="{{ $day['label'] }} • {{ $day['likes'] }} like" tabindex="0" />
                 @endforeach
