@@ -42,25 +42,33 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Tab Switcher: Profil / Setting (fixed header) -->
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_tabs"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="56dp"
         android:background="@color/dark_background"
-        android:elevation="4dp"
-        android:orientation="horizontal">
+        android:elevation="4dp">
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/tab_half"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.5" />
 
         <LinearLayout
             android:id="@+id/tab_profil"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:background="?attr/selectableItemBackground"
             android:gravity="center_horizontal"
             android:orientation="vertical"
             android:paddingTop="12dp"
-            android:paddingBottom="4dp">
+            android:paddingBottom="8dp"
+            app:layout_constraintEnd_toStartOf="@id/tab_half"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <TextView
                 android:id="@+id/tv_tab_profil"
@@ -72,25 +80,20 @@
                 android:textColor="@color/accent_blue"
                 android:textSize="14sp"
                 android:textStyle="bold" />
-
-            <View
-                android:id="@+id/tab_profil_indicator"
-                android:layout_width="match_parent"
-                android:layout_height="2dp"
-                android:layout_marginTop="8dp"
-                android:background="@color/accent_blue" />
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/tab_setting"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:background="?attr/selectableItemBackground"
             android:gravity="center_horizontal"
             android:orientation="vertical"
             android:paddingTop="12dp"
-            android:paddingBottom="4dp">
+            android:paddingBottom="8dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tab_half"
+            app:layout_constraintTop_toTopOf="parent">
 
             <TextView
                 android:id="@+id/tv_tab_setting"
@@ -102,16 +105,18 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
-
-            <View
-                android:id="@+id/tab_setting_indicator"
-                android:layout_width="match_parent"
-                android:layout_height="2dp"
-                android:layout_marginTop="8dp"
-                android:background="@color/accent_blue"
-                android:visibility="gone" />
         </LinearLayout>
-    </LinearLayout>
+
+        <!-- One continuous line that slides between the two tabs (no gap while swiping). -->
+        <View
+            android:id="@+id/tab_indicator"
+            android:layout_width="0dp"
+            android:layout_height="2dp"
+            android:background="@color/accent_blue"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/tab_half"
+            app:layout_constraintStart_toStartOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Scrollable Content -->
     <androidx.core.widget.NestedScrollView

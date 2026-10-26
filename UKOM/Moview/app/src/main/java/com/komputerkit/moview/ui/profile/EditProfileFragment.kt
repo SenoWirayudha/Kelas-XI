@@ -747,7 +747,13 @@ class EditProfileFragment : Fragment() {
                     binding.layoutBottomBar.translationX = offset
                     binding.scrollSettings.translationX = w + offset
                 }
-                updateTabIndicatorInteractive(offset, w)
+                // Indicator follows the finger: 0 = Profil, 1 = Setting.
+                val progress = if (showSettingsTab) {
+                    1f - (offset / w)
+                } else {
+                    -offset / w
+                }
+                setTabIndicatorProgress(progress)
             },
             canGoLeft = { !showSettingsTab },
             canGoRight = { showSettingsTab },
@@ -783,7 +789,7 @@ class EditProfileFragment : Fragment() {
                     if (showSettingsTab) View.VISIBLE else View.GONE
                 binding.layoutBottomBar.visibility =
                     if (showSettingsTab) View.GONE else View.VISIBLE
-                resetTabIndicators()
+                setTabIndicatorProgress(if (showSettingsTab) 1f else 0f)
             }
         )
 
@@ -794,25 +800,13 @@ class EditProfileFragment : Fragment() {
         binding.scrollSettings.setOnTouchListener(listener)
     }
 
-    private fun updateTabIndicatorInteractive(offset: Float, w: Float) {
-        if (w <= 0f) return
-        val progress = if (showSettingsTab) {
-            (1f - (offset / w)).coerceIn(0f, 1f)
-        } else {
-            (-offset / w).coerceIn(0f, 1f)
-        }
-        binding.tabProfilIndicator.visibility = View.VISIBLE
-        binding.tabSettingIndicator.visibility = View.VISIBLE
-        binding.tabProfilIndicator.alpha = 1f - progress
-        binding.tabSettingIndicator.alpha = progress
-    }
-
-    private fun resetTabIndicators() {
-        if (_binding == null) return
-        binding.tabProfilIndicator.alpha = 1f
-        binding.tabSettingIndicator.alpha = 1f
-        binding.tabProfilIndicator.visibility = if (showSettingsTab) View.GONE else View.VISIBLE
-        binding.tabSettingIndicator.visibility = if (showSettingsTab) View.VISIBLE else View.GONE
+    /**
+     * Moves the single indicator line under the tabs. [progress] is 0 (Profil) .. 1 (Setting),
+     * so the line stays continuous while the finger drags instead of cross-fading two lines.
+     */
+    private fun setTabIndicatorProgress(progress: Float) {
+        val half = binding.layoutTabs.width / 2f
+        binding.tabIndicator.translationX = half * progress.coerceIn(0f, 1f)
     }
 
     /** True when the touch starts on the horizontal favourites strip. */
@@ -843,7 +837,13 @@ class EditProfileFragment : Fragment() {
                 if (showSettings) R.color.accent_blue else R.color.text_secondary
             )
         )
-        resetTabIndicators()
+        // Tab tapped (not swiped): glide the indicator to its new half.
+        val target = (binding.layoutTabs.width / 2f) * if (showSettings) 1f else 0f
+        binding.tabIndicator.animate()
+            .translationX(target)
+            .setDuration(180)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .start()
     }
 
     /** How this session was created: "email" (default for old sessions) or "google". */

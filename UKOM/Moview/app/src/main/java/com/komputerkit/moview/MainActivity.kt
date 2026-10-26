@@ -19,8 +19,6 @@ import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.roundToLong
 
 class MainActivity : AppCompatActivity() {
     
@@ -288,67 +286,51 @@ class MainActivity : AppCompatActivity() {
             canGoLeft  = { currentTabIndex() < tabOrder.lastIndex },
             canGoRight = { currentTabIndex() > 0 },
             isBlocked  = { ev -> !isTabSwipeStartAllowed(ev) },
-            onDragEnd  = { navHost.translationX = 0f },
-            onSwipe    = { direction -> switchTabBySwipe(direction) },
-
-            // onCommit takes over when the swipe is going to commit.
-            // Strategy: navigate to the target fragment FIRST (before the snap animation),
-            // force-commit the transaction so the new fragment's view is already attached,
-            // then snap translationX from the current drag offset straight to 0 (center).
-            //
-            // This avoids the glitch that occurs with the default "snap to ±width → navigate →
-            // reset to 0" sequence, where the old fragment briefly flashes at center because
-            // the transaction hasn't committed yet when translationX is reset.
-            onCommit = onCommit@{ direction, offset ->
-                val currentIdx = currentTabIndex()
-                val targetIdx  = currentIdx + direction
-                if (targetIdx !in tabOrder.indices) return@onCommit false
-
-                val targetId = tabOrder[targetIdx]
-                if (binding.bottomNavigation.selectedItemId == targetId) return@onCommit false
-
-                // 1. Navigate immediately — no enter/exit animation.
-                val noAnim = NavOptions.Builder()
-                    .setLaunchSingleTop(true)
-                    .setPopUpTo(navController.graph.startDestinationId, false)
-                    .build()
-                try {
-                    navController.navigate(targetId, null, noAnim)
-                } catch (_: IllegalArgumentException) { return@onCommit false }
-
-                // 2. Force-commit the transaction synchronously.
-                //    NavController uses the NavHostFragment's childFragmentManager,
-                //    not the activity's supportFragmentManager.
-                val navHostFrag = supportFragmentManager
-                    .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
-                navHostFrag.childFragmentManager.executePendingTransactions()
-
-                // 3. Sync bottom-nav indicator (suppress listener re-navigation).
-                lastTabIndex   = targetIdx
-                swipeNavigating = true
-                binding.bottomNavigation.selectedItemId = targetId
-                swipeNavigating = false
-
-                // 4. Snap translationX from current drag offset straight to 0.
-                //    The new fragment is already in place — no ±width detour, no flash.
-                val width   = navHost.width.toFloat()
-                val dist    = abs(offset)
-                val snapMs  = (300L * (dist / width).coerceIn(0f, 1f))
-                    .roundToLong().coerceIn(180L, 300L)
-                android.animation.ValueAnimator.ofFloat(offset, 0f).apply {
-                    duration     = snapMs
-                    interpolator = android.view.animation.DecelerateInterpolator(1.8f)
-                    addUpdateListener { navHost.translationX = it.animatedValue as Float }
-                    addListener(object : android.animation.AnimatorListenerAdapter() {
-                        override fun onAnimationEnd(a: android.animation.Animator) {
-                            navHost.translationX = 0f
-                        }
-                    })
-                    start()
-                }
-                true // handled — PagerSwipeGesture will not run its own settle/onSwipe/onDragEnd
-            }
+            // A committed swipe is finished here: the old page exits, the destination is
+            // swapped while the host is off-screen, then the new page slides in. Doing this
+            // in one place avoids the flash where Home reappeared before Search.
+            onCommit = { direction, offset -> commitSwipe(navHost, direction, offset) },
+            // Fallback for the (unused) default path.
+            onSwipe = { direction -> switchTabBySwipe(direction) },
+            onDragEnd = { navHost.translationX = 0f }
         )
+    }
+
+    /**
+     * Finishes a swipe that passed the threshold.
+     *
+     * Sequence (each step starts where the previous ended, so the motion is continuous):
+     *  1. slide the current page fully off-screen;
+     *  2. swap the NavHost destination with no fragment animation (invisible, off-screen);
+     *  3. slide the new page in from the opposite edge.
+     */
+    private fun commitSwipe(navHost: View, direction: Int, offset: Float): Boolean {
+        val width = navHost.width.toFloat()
+        if (width <= 0f) return false
+
+        val exitTo = if (direction > 0) -width else width
+        android.animation.ValueAnimator.ofFloat(offset, exitTo).apply {
+            duration = EXIT_MS
+            interpolator = android.view.animation.DecelerateInterpolator()
+            addUpdateListener { navHost.translationX = it.animatedValue as Float }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    switchTabBySwipe(direction)
+                    // Commit now: the host is still off-screen, so the swap is invisible.
+                    (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment)
+                        ?.childFragmentManager?.executePendingTransactions()
+
+                    navHost.translationX = -exitTo
+                    navHost.animate()
+                        .translationX(0f)
+                        .setDuration(ENTER_MS)
+                        .setInterpolator(android.view.animation.DecelerateInterpolator())
+                        .start()
+                }
+            })
+            start()
+        }
+        return true
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
@@ -486,5 +468,12 @@ class MainActivity : AppCompatActivity() {
         } else {
             binding.bottomNavigation.removeBadge(R.id.navigation_notification)
         }
+    }
+
+    private companion object {
+        /** Swipe commit: time for the current page to finish leaving the screen. */
+        const val EXIT_MS = 150L
+        /** Swipe commit: time for the new page to slide in. */
+        const val ENTER_MS = 170L
     }
 }
