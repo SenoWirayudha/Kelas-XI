@@ -52,7 +52,7 @@ class FriendActivityNewAdapter(
             
             // Rating stars
             binding.starRating.apply {
-                starSizeDp = 9f
+                starSizeDp = 10f
                 starGapDp = 0f
                 displayMode = true
                 setColors(
