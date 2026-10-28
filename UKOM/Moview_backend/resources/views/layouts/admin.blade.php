@@ -298,6 +298,10 @@
                     <i class="fas fa-calendar-alt mr-3"></i>
                     <span>Jadwal Tayang</span>
                 </a>
+                <a href="{{ route('manager.events.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.events.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-film mr-3"></i>
+                    <span>Event Festival</span>
+                </a>
                 <a href="{{ route('manager.orders.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.orders.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-shopping-cart mr-3"></i>
                     <span>Manajemen Order</span>
@@ -376,6 +380,10 @@
                 <a href="{{ route('admin.schedules.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.schedules.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-calendar-alt mr-3"></i>
                     <span>Jadwal Tayang</span>
+                </a>
+                <a href="{{ route('admin.events.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.events.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-film mr-3"></i>
+                    <span>Event Festival</span>
                 </a>
                 <a href="{{ route('admin.orders.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.orders.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-shopping-cart mr-3"></i>

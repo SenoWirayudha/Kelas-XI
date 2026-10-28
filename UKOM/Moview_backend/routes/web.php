@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\CinemaController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\ManagerAccountController;
 use App\Http\Controllers\Manager\ManagerStatsController;
 use App\Http\Controllers\Manager\StaffAccountController;
@@ -151,6 +152,21 @@ Route::prefix('admin')->name('admin.')->middleware(['admin.auth', 'role:admin', 
     Route::delete('/schedules/{id}',          [ScheduleController::class, 'destroy'])->name('schedules.destroy');
     Route::get('/cinemas/{cinemaId}/studios', [ScheduleController::class, 'studiosByCinema'])->name('cinemas.studios');
 
+    // Event Festival (sessions reuse the schedules table)
+    Route::get('/events',                        [EventController::class, 'index'])->name('events.index');
+    Route::get('/events/create',                 [EventController::class, 'create'])->name('events.create');
+    Route::post('/events',                       [EventController::class, 'store'])->name('events.store');
+    Route::get('/events/{id}/edit',              [EventController::class, 'edit'])->name('events.edit');
+    Route::put('/events/{id}',                   [EventController::class, 'update'])->name('events.update');
+    Route::delete('/events/{id}',                [EventController::class, 'destroy'])->name('events.destroy');
+    Route::get('/events/{id}/sessions',          [EventController::class, 'sessions'])->name('events.sessions');
+    Route::get('/events/{id}/sessions/create',   [EventController::class, 'createSession'])->name('events.sessions.create');
+    Route::post('/events/{id}/sessions',         [EventController::class, 'storeSession'])->name('events.sessions.store');
+    Route::get('/events/{id}/sessions/{sessionId}/edit', [EventController::class, 'editSession'])->name('events.sessions.edit');
+    Route::put('/events/{id}/sessions/{sessionId}',      [EventController::class, 'updateSession'])->name('events.sessions.update');
+    Route::delete('/events/{id}/sessions/{sessionId}',   [EventController::class, 'destroySession'])->name('events.sessions.destroy');
+    Route::post('/events/movies',                [EventController::class, 'storeMovie'])->name('events.movies.store');
+
     // Cinema Management
     Route::get('/cinemas',          [CinemaController::class, 'index'])->name('cinemas.index');
     Route::get('/cinemas/create',   [CinemaController::class, 'create'])->name('cinemas.create');
@@ -224,6 +240,20 @@ Route::prefix('manager')->name('manager.')->middleware(['admin.auth', 'role:mana
     Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy'])->name('schedules.destroy');
     Route::get('/cinemas/{cinemaId}/studios', [ScheduleController::class, 'studiosByCinema'])->name('cinemas.studios');
 
+    // Event Festival (own cinema only)
+    Route::get('/events',                        [EventController::class, 'index'])->name('events.index');
+    Route::get('/events/create',                 [EventController::class, 'create'])->name('events.create');
+    Route::post('/events',                       [EventController::class, 'store'])->name('events.store');
+    Route::get('/events/{id}/edit',              [EventController::class, 'edit'])->name('events.edit');
+    Route::put('/events/{id}',                   [EventController::class, 'update'])->name('events.update');
+    Route::delete('/events/{id}',                [EventController::class, 'destroy'])->name('events.destroy');
+    Route::get('/events/{id}/sessions',          [EventController::class, 'sessions'])->name('events.sessions');
+    Route::get('/events/{id}/sessions/create',   [EventController::class, 'createSession'])->name('events.sessions.create');
+    Route::post('/events/{id}/sessions',         [EventController::class, 'storeSession'])->name('events.sessions.store');
+    Route::get('/events/{id}/sessions/{sessionId}/edit',   [EventController::class, 'editSession'])->name('events.sessions.edit');
+    Route::put('/events/{id}/sessions/{sessionId}',        [EventController::class, 'updateSession'])->name('events.sessions.update');
+    Route::delete('/events/{id}/sessions/{sessionId}',     [EventController::class, 'destroySession'])->name('events.sessions.destroy');
+    Route::post('/events/movies',                [EventController::class, 'storeMovie'])->name('events.movies.store');
     // Orders (own cinema only)
     Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/export', [AdminOrderController::class, 'export'])->name('orders.export');

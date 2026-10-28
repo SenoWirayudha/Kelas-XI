@@ -374,50 +374,38 @@
                                 </select>
                             </div>
 
-                            <!-- Country (searchable, flag) -->
+                            <!-- Country: searchable single select -->
                             <div class="md:col-span-3">
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Country</label>
-                                <div class="relative">
+                                <div x-data="moviewSingleSelect({ options: countries.map(c => ({ value: c.code, label: c.name })), selected: row.country_code || '', placeholder: 'Cari negara...', emptyText: 'Negara tidak ditemukan' })"
+                                     x-effect="row.country_code = selected">
+                                    <input type="hidden" :name="`releases[${index}][country_code]`" :value="selected">
                                     <button type="button"
-                                            @click="toggleCountry(index)"
-                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                                        <span class="flex items-center min-w-0">
-                                            <span x-show="row.country_code" class="mr-2 text-base leading-none" x-text="flagEmoji(row.country_code)"></span>
-                                            <span x-text="countryName(row.country_code)" class="text-gray-800 truncate"></span>
-                                            <span x-show="!row.country_code" class="text-gray-400">Pilih negara...</span>
-                                        </span>
-                                        <i class="fas fa-chevron-down text-gray-400 text-xs" :class="row.open ? 'rotate-180' : ''"></i>
+                                            @click="open = !open; if (open) $nextTick(() => $refs.search.focus())"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <span class="truncate" :class="selectedLabel() ? 'text-gray-800' : 'text-gray-400'"
+                                              x-text="selectedLabel() || 'Pilih negara...'"></span>
+                                        <i class="fas fa-chevron-down text-gray-400 text-xs transition-transform" :class="open ? 'rotate-180' : ''"></i>
                                     </button>
-                                    <input type="hidden" :name="`releases[${index}][country_code]`" :value="row.country_code || ''">
-
-                                    <template x-if="row.open">
-                                        <div x-cloak
-                                             x-transition
-                                             @click.outside="row.open = false"
-                                             class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden">
-                                            <div class="p-2 border-b border-gray-200 bg-gray-50 relative">
-                                                <i class="fas fa-search text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 text-sm"></i>
-                                                <input type="text"
-                                                       x-model="row.query"
-                                                       class="w-full pl-8 pr-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                       placeholder="Search country...">
-                                            </div>
-                                            <div class="max-h-48 overflow-y-auto p-1">
-                                                <template x-for="c in filteredCountries(row.query)" :key="c.code">
-                                                    <button type="button"
-                                                            @click="selectCountry(index, c.code); row.open = false"
-                                                            class="w-full flex items-center px-3 py-1.5 rounded hover:bg-blue-50 text-sm text-left"
-                                                            :class="row.country_code === c.code ? 'bg-blue-50 text-blue-700' : 'text-gray-700'">
-                                                        <span class="mr-2 text-base" x-text="flagEmoji(c.code)"></span>
-                                                        <span x-text="c.name"></span>
-                                                    </button>
-                                                </template>
-                                                <p x-show="filteredCountries(row.query).length === 0" class="text-sm text-gray-400 text-center py-2">
-                                                    No countries found
-                                                </p>
-                                            </div>
+                                    <div x-show="open" x-cloak x-transition @click.outside="open = false"
+                                         class="absolute z-30 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden">
+                                        <div class="p-2 border-b border-gray-200 bg-gray-50 relative">
+                                            <i class="fas fa-search text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 text-sm"></i>
+                                            <input type="text" x-ref="search" x-model="query"
+                                                   class="w-full pl-8 pr-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                   placeholder="Cari negara...">
                                         </div>
-                                    </template>
+                                        <div class="max-h-56 overflow-y-auto p-1">
+                                            <template x-for="option in filtered()" :key="option.value">
+                                                <button type="button" @click="select(option.value)"
+                                                        class="w-full flex items-center px-3 py-1.5 rounded hover:bg-blue-50 text-sm text-left"
+                                                        :class="selected === option.value ? 'bg-blue-50 text-blue-700' : 'text-gray-700'">
+                                                    <span x-text="option.label"></span>
+                                                </button>
+                                            </template>
+                                            <p x-show="filtered().length === 0" class="text-sm text-gray-400 text-center py-2">Negara tidak ditemukan</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -588,42 +576,33 @@
                                                         </td>
                                                         <td class="px-3 py-2">
                                                             <div class="relative">
-                                                                <button type="button"
-                                                                        @click="toggleImportCountry(i)"
-                                                                        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-left flex items-center justify-between bg-white cursor-pointer">
-                                                                    <span class="flex items-center min-w-0">
-                                                                        <span x-show="row.country_code" class="mr-2 text-base leading-none" x-text="flagEmoji(row.country_code)"></span>
-                                                                        <span x-text="countryName(row.country_code)" class="text-gray-800 truncate"></span>
-                                                                        <span x-show="!row.country_code" class="text-gray-400">Pilih negara...</span>
-                                                                    </span>
-                                                                    <i class="fas fa-chevron-down text-gray-400 text-xs" :class="row.open ? 'rotate-180' : ''"></i>
-                                                                </button>
-                                                                <input type="hidden" :name="`preview_countries[${i}]`" :value="row.country_code || ''">
-                                                                <div x-show="row.open"
-                                                                     x-cloak
-                                                                     x-transition
-                                                                     @click.outside="row.open = false"
-                                                                     class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden">
-                                                                    <div class="p-2 border-b border-gray-200 bg-gray-50 relative">
-                                                                        <i class="fas fa-search text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 text-sm"></i>
-                                                                        <input type="text"
-                                                                               x-model="row.query"
-                                                                               class="w-full pl-8 pr-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                               placeholder="Search country...">
-                                                                    </div>
-                                                                    <div class="max-h-40 overflow-y-auto p-1">
-                                                                        <template x-for="c in filteredCountries(row.query)" :key="c.code">
-                                                                            <button type="button"
-                                                                                    @click="selectImportCountry(i, c.code); row.open = false"
-                                                                                    class="w-full flex items-center px-3 py-1.5 rounded hover:bg-blue-50 text-sm text-left"
-                                                                                    :class="row.country_code === c.code ? 'bg-blue-50 text-blue-700' : 'text-gray-700'">
-                                                                                <span class="mr-2 text-base" x-text="flagEmoji(c.code)"></span>
-                                                                                <span x-text="c.name"></span>
-                                                                            </button>
-                                                                        </template>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
+                                                                <div x-data="moviewSingleSelect({ options: countries.map(c => ({ value: c.code, label: c.name })), selected: row.country_code || '', placeholder: 'Cari negara...', emptyText: 'Negara tidak ditemukan' })"
+     x-effect="row.country_code = selected">
+    <input type="hidden" :name="`preview_countries[${i}]`" :value="selected">
+    <button type="button"
+            @click="open = !open; if (open) $nextTick(() => $refs.search.focus())"
+            class="w-full px-2 py-1.5 border border-gray-300 rounded bg-white text-sm text-left flex items-center justify-between">
+        <span class="truncate" :class="selectedLabel() ? 'text-gray-800' : 'text-gray-400'"
+              x-text="selectedLabel() || 'Pilih negara...'"></span>
+        <i class="fas fa-chevron-down text-gray-400 text-xs" :class="open ? 'rotate-180' : ''"></i>
+    </button>
+    <div x-show="open" x-cloak @click.outside="open = false"
+         class="absolute z-30 mt-1 w-56 bg-white border border-gray-300 rounded shadow-lg">
+        <div class="p-1.5 border-b border-gray-200 bg-gray-50 relative">
+            <input type="text" x-ref="search" x-model="query" placeholder="Cari negara..."
+                   class="w-full px-2 py-1 border border-gray-300 rounded text-xs">
+        </div>
+        <div class="max-h-48 overflow-y-auto p-1">
+            <template x-for="option in filtered()" :key="option.value">
+                <button type="button" @click="select(option.value)"
+                        class="w-full text-left px-2 py-1 rounded hover:bg-blue-50 text-xs"
+                        :class="selected === option.value ? 'bg-blue-50 text-blue-700' : 'text-gray-700'"
+                        x-text="option.label"></button>
+            </template>
+            <p x-show="filtered().length === 0" class="text-xs text-gray-400 text-center py-1">Negara tidak ditemukan</p>
+        </div>
+    </div>
+</div>
                                                         </td>
                                                         <td class="px-3 py-2">
                                                             <input type="text"
@@ -885,6 +864,33 @@
 </div>
 
 <script>
+// Searchable single-select used for release countries (searchable dropdown).
+if (typeof moviewSingleSelect !== 'function') {
+    window.moviewSingleSelect = function (cfg) {
+        return {
+            options: cfg.options || [],
+            selected: cfg.selected || '',
+            placeholder: cfg.placeholder || '',
+            emptyText: cfg.emptyText || 'Tidak ada hasil',
+            open: false,
+            query: '',
+            selectedLabel() {
+                const found = this.options.find(o => o.value === this.selected);
+                return found ? found.label : '';
+            },
+            filtered() {
+                const q = (this.query || '').trim().toLowerCase();
+                if (!q) return this.options;
+                return this.options.filter(o => o.label.toLowerCase().includes(q));
+            },
+            select(value) {
+                this.selected = value;
+                this.open = false;
+                this.query = '';
+            },
+        };
+    };
+}
 function releaseManager(cfg) {
     return {
         ready: false,
@@ -979,13 +985,6 @@ function releaseManager(cfg) {
                 window.showToast('Baris release ditambahkan ke daftar. Simpan film untuk menyimpannya.', 'success');
             }
         },
-        toggleImportCountry(index) {
-            this.importRows.forEach((row, i) => { if (i !== index) row.open = false; });
-            this.importRows[index].open = !this.importRows[index].open;
-        },
-        selectImportCountry(index, code) {
-            this.importRows[index].country_code = code;
-        },
         addRow() {
             const i = this.rows.length;
             this.rows.push(emptyRow());
@@ -1001,27 +1000,6 @@ function releaseManager(cfg) {
         removeRow(index) {
             this.rows.splice(index, 1);
         },
-        toggleCountry(index) {
-            this.rows.forEach((row, i) => { if (i !== index) row.open = false; });
-            this.rows[index].open = !this.rows[index].open;
-        },
-        selectCountry(index, code) {
-            this.rows[index].country_code = code;
-        },
-        filteredCountries(query) {
-            const q = (query || '').trim().toLowerCase();
-            if (!q) return this.countries;
-            return this.countries.filter(c => c.name.toLowerCase().includes(q));
-        },
-        countryName(code) {
-            const c = this.countries.find(x => x.code === code);
-            return c ? c.name : '';
-        },
-        flagEmoji(code) {
-            if (!code || code.length !== 2) return '';
-            const base = 127397;
-            return code.toUpperCase().split('').map(ch => String.fromCodePoint(base + ch.charCodeAt(0))).join('');
-        }
     };
 }
 function emptyRow() {
