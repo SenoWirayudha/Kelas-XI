@@ -63,8 +63,11 @@
                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-gray-700">Jam Mulai (WIB) <span class="text-red-500">*</span></label>
-                    <input type="time" name="show_time" required
+                    <label class="mb-1 block text-sm font-medium text-gray-700">Jam Mulai (WIB, 24 jam) <span class="text-red-500">*</span></label>
+                    <input type="text" name="show_time" required inputmode="numeric" maxlength="5"
+                           placeholder="HH:MM"
+                           pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
+                           oninput="moviewMaskTime(this)"
                            x-model="showTime" @change="recalc()"
                            value="{{ old('show_time', $session->show_time ? substr((string) $session->show_time, 0, 5) : '') }}"
                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">

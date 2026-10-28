@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -894,6 +894,17 @@
             return false;
         };
     });
+    </script>
+
+    <script>
+    // 24-hour HH:MM input mask (Indonesian format, no AM/PM).
+    function moviewMaskTime(input) {
+        let digits = (input.value || '').replace(/[^0-9]/g, '').slice(0, 4);
+        if (digits.length >= 3) {
+            digits = digits.slice(0, 2) + ':' + digits.slice(2);
+        }
+        input.value = digits;
+    }
     </script>
 
     <script>

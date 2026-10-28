@@ -29,9 +29,17 @@
             </div>
         @endif
 
+        @php
+            $saleValue = old('sale_starts_at', $event->sale_starts_at
+                ? $event->sale_starts_at->copy()->setTimezone(\App\Support\FestivalSchedule::TIMEZONE)->format('Y-m-d H:i')
+                : '');
+            $saleDate = $saleValue ? substr($saleValue, 0, 10) : '';
+            $saleTime = $saleValue ? substr($saleValue, 11, 5) : '';
+        @endphp
         <form method="POST"
               action="{{ $isEdit ? route($panelPrefix.'.events.update', $event->id) : route($panelPrefix.'.events.store') }}"
-              enctype="multipart/form-data">
+              enctype="multipart/form-data"
+              x-data="{ saleDate: @js($saleDate), saleTime: @js($saleTime) }">
             @csrf
             @if($isEdit) @method('PUT') @endif
             <input type="hidden" name="return" value="{{ $returnUrl }}">
@@ -90,10 +98,19 @@
 
             <div class="mb-5">
                 <label class="mb-1 block text-sm font-medium text-gray-700">Waktu Buka Penjualan (WIB) <span class="text-red-500">*</span></label>
-                <input type="datetime-local" name="sale_starts_at" required
-                       value="{{ old('sale_starts_at', $event->sale_starts_at? $event->sale_starts_at->copy()->setTimezone(\App\Support\FestivalSchedule::TIMEZONE)->format('Y-m-d\TH:i') : '') }}"
-                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <p class="mt-1 text-xs text-gray-500">Waktu Indonesia Barat (WIB). Tidak boleh melewati sesi pertama event ini.</p>
+                <input type="hidden" name="sale_starts_at" :value="saleDate && saleTime ? saleDate + ' ' + saleTime : ''">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <input type="date" x-model="saleDate" required
+                           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" x-model="saleTime" required inputmode="numeric" maxlength="5"
+                           placeholder="HH:MM"
+                           pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
+                           oninput="moviewMaskTime(this)"
+                           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <p class="mt-1 text-xs text-gray-500">
+                    Format 24 jam (contoh 19:30), Waktu Indonesia Barat (WIB). Tidak boleh melewati sesi pertama event ini.
+                </p>
             </div>
 
             <label class="mb-6 flex cursor-pointer items-center gap-3">
