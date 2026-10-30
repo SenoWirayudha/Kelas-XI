@@ -262,7 +262,10 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
                     cinemaName = cinemaName,
                     serviceName = first.service_name?.trim().orEmpty(),
                     studioType = first.studio_type?.takeIf { it.isNotBlank() } ?: studioName,
-                    priceRange = formatRupiah(first.ticket_price.toInt()),
+                    priceRange = formatPriceRange(
+                        (first.price_min ?: first.ticket_price).toInt(),
+                        (first.price_max ?: first.ticket_price).toInt()
+                    ),
                     brand = detectBrand(cinemaName),
                     showTimes = sortedRows.map {
                         ShowTime(
@@ -334,10 +337,10 @@ class MovieScheduleViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /** "Rp50.000" when every seat type costs the same, otherwise "Rp50.000 \u2013 Rp60.000". */
     private fun formatPriceRange(min: Int, max: Int): String {
         val minFormatted = formatRupiah(min)
-        val maxFormatted = formatRupiah(max)
-        return if (min == max) minFormatted else "$minFormatted - $maxFormatted"
+        return if (min >= max) minFormatted else "$minFormatted \u2013 ${formatRupiah(max)}"
     }
 
     private fun formatRupiah(value: Int): String {

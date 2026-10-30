@@ -55,7 +55,10 @@ data class ScheduleDto(
     val is_open: Boolean? = null,
     val show_date: String,
     val show_time: String,
-    val ticket_price: Double
+    val ticket_price: Double,
+    /** Cheapest / priciest seat in the studio (base price + seat type surcharge). */
+    val price_min: Double? = null,
+    val price_max: Double? = null
 )
 
 data class SeatTypeDefinitionDto(
