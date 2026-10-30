@@ -48,7 +48,9 @@ class ScheduleController extends Controller
 
         $studios = $studiosQuery->get();
 
-        return view('admin.schedules.create', compact('movies', 'cinemas', 'studios'));
+        $isManager = $this->isManager();
+
+        return view('admin.schedules.create', compact('movies', 'cinemas', 'studios', 'isManager'));
     }
 
     public function store(Request $request)
@@ -113,7 +115,9 @@ class ScheduleController extends Controller
 
         $studios = $studiosQuery->get();
 
-        return view('admin.schedules.edit', compact('schedule', 'movies', 'cinemas', 'studios'));
+        $isManager = $this->isManager();
+
+        return view('admin.schedules.edit', compact('schedule', 'movies', 'cinemas', 'studios', 'isManager'));
     }
 
     public function update(Request $request, $id)

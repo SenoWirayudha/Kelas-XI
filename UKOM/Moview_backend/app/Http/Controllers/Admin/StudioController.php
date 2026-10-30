@@ -60,13 +60,16 @@ class StudioController extends Controller
         $cinemas = $cinemasQuery->get(['id', 'cinema_name', 'city']);
         $studioTypes = $this->studioTypes;
 
-        return view('admin.studios.create', compact('cinemas', 'studioTypes'));
+        $isManager = $this->isManager();
+
+        return view('admin.studios.create', compact('cinemas', 'studioTypes', 'isManager'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'cinema_id'   => 'required|exists:cinemas,id',
+            // Managers are pinned to their own cinema below, so the field is optional for them.
+            'cinema_id'   => ($this->isManager() ? 'nullable' : 'required') . '|exists:cinemas,id',
             'studio_name' => 'required|string|max:100',
             'studio_type' => 'required|in:' . implode(',', $this->studioTypes),
             'total_seats' => 'nullable|integer|min:0|max:999',
@@ -100,7 +103,9 @@ class StudioController extends Controller
         $cinemas = $cinemasQuery->get(['id', 'cinema_name', 'city']);
         $studioTypes = $this->studioTypes;
 
-        return view('admin.studios.edit', compact('studio', 'cinemas', 'studioTypes'));
+        $isManager = $this->isManager();
+
+        return view('admin.studios.edit', compact('studio', 'cinemas', 'studioTypes', 'isManager'));
     }
 
     public function update(Request $request, $id)
@@ -109,7 +114,7 @@ class StudioController extends Controller
         $this->authorizeCinema($studio->cinema_id);
 
         $validated = $request->validate([
-            'cinema_id'   => 'required|exists:cinemas,id',
+            'cinema_id'   => ($this->isManager() ? 'nullable' : 'required') . '|exists:cinemas,id',
             'studio_name' => 'required|string|max:100',
             'studio_type' => 'required|in:' . implode(',', $this->studioTypes),
             'total_seats' => 'required|integer|min:0|max:999',

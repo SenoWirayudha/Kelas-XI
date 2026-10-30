@@ -33,12 +33,14 @@
     $defaultDate = $defaultDate ?? ($dateBoxes[0]['iso'] ?? $event->start_date->format('Y-m-d'));
 @endphp
 
+<div x-data="{ selectedDate: @js($defaultDate), counts: @js(collect($dateBoxes)->mapWithKeys(fn ($b) => [$b['iso'] => (int) $b['count']])->all()) }">
+
 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
     <a href="{{ route($panelPrefix.'.events.index') }}" data-no-history
        class="inline-flex items-center text-sm text-gray-500 transition hover:text-gray-800">
         <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Event
     </a>
-    <a href="{{ route($panelPrefix.'.events.sessions.create', $event->id) }}"
+    <a :href="`{{ route($panelPrefix.'.events.sessions.create', $event->id) }}?date=${selectedDate}`"
        class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
         <i class="fas fa-plus mr-2"></i> Tambah Sesi
     </a>
@@ -80,7 +82,7 @@
 </div>
 
 <!-- Date filter -->
-<div x-data="{ selectedDate: @js($defaultDate), counts: @js(collect($dateBoxes)->mapWithKeys(fn ($b) => [$b['iso'] => (int) $b['count']])->all()) }" class="mb-4">
+<div class="mb-4">
     @if(count($dateBoxes) > 1)
         <div class="flex gap-2 overflow-x-auto pb-2">
             @foreach($dateBoxes as $box)
@@ -190,5 +192,6 @@
             </table>
         </div>
     </div>
+</div>
 </div>
 @endsection

@@ -33,11 +33,11 @@
             @method('PUT')
             <input type="hidden" name="return" value="{{ $returnUrl }}">
 
-            <div class="mb-5">
+            <div class="mb-5 {{ $isManager ? 'hidden' : '' }}">
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                     Bioskop <span class="text-red-500">*</span>
                 </label>
-                <select name="cinema_id" required
+                <select name="cinema_id" {{ $isManager ? '' : 'required' }}
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                     <option value="">-- Pilih Bioskop --</option>
                     @foreach($cinemas as $cinema)

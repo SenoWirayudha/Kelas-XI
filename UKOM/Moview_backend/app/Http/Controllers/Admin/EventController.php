@@ -153,14 +153,21 @@ class EventController extends Controller
         return view('admin.events.sessions', compact('event', 'sessions'));
     }
 
-    public function createSession($id)
+    public function createSession(Request $request, $id)
     {
         $event = Event::with('cinema')->findOrFail($id);
         $this->authorizeCinema($event->cinema_id);
 
+        // Prefill the date with the one currently selected on the sessions page (editable).
+        $session = new Schedule();
+        $requestedDate = $request->query('date');
+        if (is_string($requestedDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $requestedDate)) {
+            $session->show_date = FestivalSchedule::parse($requestedDate)->startOfDay();
+        }
+
         return view('admin.events.session-form', [
             'event' => $event,
-            'session' => new Schedule(),
+            'session' => $session,
             'studios' => $this->studiosFor($event->cinema_id),
             'movies' => $this->movies(),
             'selectedMovies' => [],

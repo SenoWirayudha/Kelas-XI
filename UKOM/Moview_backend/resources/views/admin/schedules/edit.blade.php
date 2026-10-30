@@ -48,9 +48,10 @@
                 </select>
             </div>
 
-            <div class="mb-5">
+            {{-- Cinema hidden for managers: their own cinema is applied by the backend. --}}
+            <div class="mb-5 {{ $isManager ? 'hidden' : '' }}">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Cinema <span class="text-red-500">*</span></label>
-                <select name="cinema_id" required
+                <select name="cinema_id" {{ $isManager ? '' : 'required' }}
                         x-model="cinemaId"
                         @change="loadStudios()"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">

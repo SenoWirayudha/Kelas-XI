@@ -18,7 +18,8 @@
 
     {{-- Filter by Cinema --}}
     <form method="GET" class="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <div class="w-full sm:w-auto">
+        {{-- Managers only ever see their own cinema, so the filter is admin-only. --}}
+        <div class="w-full sm:w-auto {{ session('admin_role') === 'admin' ? '' : 'hidden' }}">
             <label class="block text-xs text-gray-500 mb-1">Filter Bioskop</label>
             <select name="cinema_id"
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-64">
@@ -33,7 +34,7 @@
             </select>
         </div>
         <button type="submit"
-                class="min-h-[40px] rounded-lg bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700">
+                class="min-h-[40px] rounded-lg bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700 {{ session('admin_role') === 'admin' ? '' : 'hidden' }}">
             <i class="fas fa-filter mr-1"></i> Filter
         </button>
         @if(request('cinema_id'))
