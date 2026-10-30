@@ -80,7 +80,7 @@
 </div>
 
 <!-- Date filter -->
-<div x-data="{ selectedDate: @js($defaultDate), counts: @js(collect($dateBoxes)->mapWithKeys(fn ($b) => [$b['iso'] => (int) $b['count']])->all()) }" class="mb-6">
+<div x-data="{ selectedDate: @js($defaultDate), counts: @js(collect($dateBoxes)->mapWithKeys(fn ($b) => [$b['iso'] => (int) $b['count']])->all()) }" class="mb-4">
     @if(count($dateBoxes) > 1)
         <div class="flex gap-2 overflow-x-auto pb-2">
             @foreach($dateBoxes as $box)
@@ -167,18 +167,22 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-6 py-12 text-center text-gray-500">
-                                <i class="fas fa-clock mb-2 text-3xl text-gray-300"></i>
-                                <p class="text-sm">Belum ada sesi untuk event ini.</p>
+                            <td colspan="8" class="h-[180px] px-6 py-0 text-center align-middle text-gray-500">
+                                <div class="flex flex-col items-center justify-center">
+                                    <i class="fas fa-clock mb-2 text-2xl text-gray-300"></i>
+                                    <p class="text-sm">Belum ada sesi untuk event ini.</p>
+                                </div>
                             </td>
                         </tr>
                     @endforelse
 
                     @if($sessions->isNotEmpty())
                         <tr x-show="!counts[selectedDate]">
-                            <td colspan="8" class="px-6 py-10 text-center text-gray-500">
-                                <i class="fas fa-calendar-day mb-2 text-3xl text-gray-300"></i>
-                                <p class="text-sm">Belum ada sesi pada tanggal ini.</p>
+                            <td colspan="8" class="h-[180px] px-6 py-0 text-center align-middle text-gray-500">
+                                <div class="flex flex-col items-center justify-center">
+                                    <i class="fas fa-calendar-day mb-2 text-2xl text-gray-300"></i>
+                                    <p class="text-sm">Belum ada sesi pada tanggal ini.</p>
+                                </div>
                             </td>
                         </tr>
                     @endif
