@@ -121,8 +121,9 @@ class TicketOrderService
 
                 $totalPrice = 0;
                 foreach ($seatIds as $seatId) {
-                    $totalPrice += (int) round(
-                        $schedule->ticket_price * $studio->priceMultiplierFor($lockedById->get($seatId)->seat_type)
+                    $totalPrice += $studio->seatPrice(
+                        (float) $schedule->ticket_price,
+                        $lockedById->get($seatId)->seat_type
                     );
                 }
 
@@ -154,8 +155,9 @@ class TicketOrderService
 
                 foreach ($seatIds as $seatId) {
                     $seat = $lockedById->get($seatId);
-                    $price = (int) round(
-                        $schedule->ticket_price * $studio->priceMultiplierFor($seat->seat_type)
+                    $price = $studio->seatPrice(
+                        (float) $schedule->ticket_price,
+                        $seat->seat_type
                     );
 
                     OrderSeat::create([

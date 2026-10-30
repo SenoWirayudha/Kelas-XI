@@ -44,7 +44,7 @@ class SeatTypeController extends Controller
             'key'              => $validated['key'],
             'label'            => $validated['label'],
             'color'            => $validated['color'],
-            'price_multiplier' => !empty($validated['is_placeholder']) ? null : (float) $validated['price_multiplier'],
+            'price_surcharge'  => !empty($validated['is_placeholder']) ? null : (int) round((float) ($validated['price_surcharge'] ?? 0)),
             'purchase_mode'    => !empty($validated['is_placeholder']) ? null : $validated['purchase_mode'],
             'is_builtin'       => false,
         ];
@@ -125,7 +125,7 @@ class SeatTypeController extends Controller
                 'key'              => $validated['key'],
                 'label'            => $validated['label'],
                 'color'            => $validated['color'],
-                'price_multiplier' => !empty($validated['is_placeholder']) ? null : (float) $validated['price_multiplier'],
+                'price_surcharge'  => !empty($validated['is_placeholder']) ? null : (int) round((float) ($validated['price_surcharge'] ?? 0)),
                 'purchase_mode'    => !empty($validated['is_placeholder']) ? null : $validated['purchase_mode'],
                 'is_builtin'       => false,
             ];
@@ -214,7 +214,7 @@ class SeatTypeController extends Controller
             'key'              => 'required|string|max:50|regex:/^[a-z0-9_]+$/i',
             'label'            => 'required|string|max:50',
             'color'            => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
-            'price_multiplier' => 'nullable|numeric|min:0|max:20',
+            'price_surcharge'  => 'nullable|numeric|min:0',
             'purchase_mode'    => 'required|in:individual,paired',
             'is_placeholder'   => 'nullable|boolean',
         ]);

@@ -141,8 +141,8 @@
                                     <template x-if="d.purchase_mode">
                                         <span x-text="d.purchase_mode === 'paired' ? 'Berpasangan' : 'Individual'"></span>
                                     </template>
-                                    <template x-if="d.purchase_mode && d.price_multiplier !== null">
-                                        <span x-text="' · × ' + d.price_multiplier"></span>
+                                    <template x-if="d.purchase_mode && Number(d.price_surcharge || 0) > 0">
+                                        <span x-text="' · +Rp ' + Number(d.price_surcharge).toLocaleString('id-ID')"></span>
                                     </template>
                                     <template x-if="!d.purchase_mode">
                                         <span>Bukan kursi</span>
@@ -210,10 +210,11 @@
                         <template x-if="!editingKey || !isBuiltin(defList.find(d => d.key === editingKey))">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Multiplier Harga <span class="text-xs text-gray-400 font-normal">(× harga tiket)</span>
+                                    Tambahan Harga <span class="text-xs text-gray-400 font-normal">(Rp, ditambahkan ke harga dasar)</span>
                                 </label>
-                                <input type="number" step="0.1" min="0" max="20" x-model.number="form.price_multiplier"
+                                <input type="number" step="1000" min="0" x-model.number="form.price_surcharge"
                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                <p class="mt-1 text-xs text-gray-400">Reguler = 0. Contoh: 10000 berarti +Rp 10.000 dari harga dasar.</p>
                             </div>
                         </template>
                     </div>
@@ -489,13 +490,13 @@
             defList: Alpine.store('seatTypes').defs,
             formOpen: false,
             editingKey: null,
-            form: { key: '', label: '', color: '#8B5CF6', price_multiplier: 1.0, purchase_mode: 'individual' },
+            form: { key: '', label: '', color: '#8B5CF6', price_surcharge: 0, purchase_mode: 'individual' },
             saving: false,
             isBuiltin(def) { return !!def && !!def.is_builtin; },
             find(key) { return this.defList.find(d => d.key === key); },
             startAdd() {
                 this.editingKey = null;
-                this.form = { key: '', label: '', color: '#8B5CF6', price_multiplier: 1.0, purchase_mode: 'individual' };
+                this.form = { key: '', label: '', color: '#8B5CF6', price_surcharge: 0, purchase_mode: 'individual' };
                 this.formOpen = true;
             },
             startEdit(def) {
@@ -504,7 +505,7 @@
                     key: def.key,
                     label: def.label,
                     color: def.color || '#8B5CF6',
-                    price_multiplier: def.price_multiplier ?? 1.0,
+                    price_surcharge: def.price_surcharge ?? 0,
                     purchase_mode: def.purchase_mode || 'individual',
                 };
                 this.formOpen = true;

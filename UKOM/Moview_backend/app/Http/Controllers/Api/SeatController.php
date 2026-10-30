@@ -55,7 +55,7 @@ class SeatController extends Controller
                 if (!$seat->is_active) {
                     $status = 'unavailable';
                 }
-                $price = (float) round($schedule->ticket_price * $studio->priceMultiplierFor($seatType));
+                $price = (float) $studio->seatPrice((float) $schedule->ticket_price, $seatType);
             }
 
             return [

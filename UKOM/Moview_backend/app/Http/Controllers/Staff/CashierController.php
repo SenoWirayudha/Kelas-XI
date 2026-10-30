@@ -251,7 +251,7 @@ class CashierController extends Controller
                 'seat_code' => $seat->seat_code ?: trim(($seat->seat_row ?? '') . ($seat->seat_number ?? '')),
                 'seat_type' => $type,
                 'seat_type_label' => $definition['label'] ?? ucfirst($type),
-                'price' => (int) round($schedule->ticket_price * $studio->priceMultiplierFor($type)),
+                'price' => $studio->seatPrice((float) $schedule->ticket_price, $type),
             ];
         })->values();
 

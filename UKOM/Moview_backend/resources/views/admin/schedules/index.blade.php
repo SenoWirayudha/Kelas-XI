@@ -53,7 +53,15 @@
                     <td class="px-4 py-3 text-gray-600">{{ $schedule->studio->studio_type ?? 'Regular 2D' }}</td>
                     <td class="px-4 py-3 text-gray-600">{{ \Carbon\Carbon::parse($schedule->show_date)->isoFormat('D MMM Y') }}</td>
                     <td class="px-4 py-3 text-gray-600">{{ substr($schedule->show_time, 0, 5) }}</td>
-                    <td class="px-4 py-3 text-gray-700 font-medium">Rp {{ number_format($schedule->ticket_price, 0, ',', '.') }}</td>
+                    <td class="px-4 py-3 text-gray-700 font-medium">
+                        @php
+                            $minSurcharge = $schedule->studio ? $schedule->studio->minSurcharge() : 0;
+                        @endphp
+                        Rp {{ number_format((int) $schedule->ticket_price + $minSurcharge, 0, ',', '.') }}
+                        @if($minSurcharge > 0)
+                            <span class="text-xs text-gray-400">mulai dari</span>
+                        @endif
+                    </td>
                     <td class="px-4 py-3">
                         @if(($schedule->status ?? 'active') === 'active')
                             <span class="inline-flex px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-semibold">active</span>

@@ -99,11 +99,31 @@
                 </div>
             </div>
 
+            {{-- Harga dasar (Reguler). Tipe kursi lain menambah nominal di bawah. --}}
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Ticket Price (Rp) <span class="text-red-500">*</span></label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Harga Dasar (Reguler) (Rp) <span class="text-red-500">*</span></label>
                 <input type="number" name="ticket_price" required min="0" step="500"
+                       x-model.number="basePrice"
                        value="{{ old('ticket_price', $schedule->ticket_price) }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <div class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Pratinjau harga per tipe kursi</p>
+                    <template x-if="selectedStudio">
+                        <ul class="space-y-1 text-sm">
+                            <template x-for="type in (selectedStudio.surcharges || [])" :key="type.key">
+                                <li class="flex items-center justify-between gap-3">
+                                    <span class="text-gray-700" x-text="type.label"></span>
+                                    <span class="text-gray-900 font-medium">
+                                        Rp <span x-text="formatRupiah((Number(basePrice) || 0) + Number(type.surcharge || 0))"></span>
+                                        <span class="text-xs text-gray-400" x-show="Number(type.surcharge || 0) > 0"
+                                              x-text="'(+Rp ' + formatRupiah(type.surcharge) + ')'"></span>
+                                    </span>
+                                </li>
+                            </template>
+                        </ul>
+                    </template>
+                    <p class="text-xs text-gray-400" x-show="!selectedStudio">Pilih studio untuk melihat pratinjau harga.</p>
+                </div>
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
@@ -125,6 +145,15 @@
 function scheduleForm() {
     return {
         cinemaId: '{{ old('cinema_id', $schedule->studio->cinema_id ?? '') }}',
+        basePrice: {{ (int) old('ticket_price', (int) $schedule->ticket_price) }},
+        studios: [],
+        selectedStudioId: '{{ old('studio_id', $schedule->studio_id) }}',
+        get selectedStudio() {
+            return this.studios.find(s => String(s.id) === String(this.selectedStudioId)) || null;
+        },
+        formatRupiah(value) {
+            return new Intl.NumberFormat('id-ID').format(Number(value) || 0);
+        },
         init() {
             if (this.cinemaId) this.loadStudios();
         },
@@ -136,6 +165,7 @@ function scheduleForm() {
                 .then(r => r.json())
                 .then(studios => {
                     select.innerHTML = '<option value="">-- Pilih Studio --</option>';
+                    this.studios = studios;
                     studios.forEach(s => {
                         const opt = document.createElement('option');
                         opt.value = s.id;
@@ -143,6 +173,8 @@ function scheduleForm() {
                         if (String(s.id) === String(oldVal)) opt.selected = true;
                         select.appendChild(opt);
                     });
+                    select.addEventListener('change', () => { this.selectedStudioId = select.value; });
+                    this.selectedStudioId = select.value;
                 });
         }
     }

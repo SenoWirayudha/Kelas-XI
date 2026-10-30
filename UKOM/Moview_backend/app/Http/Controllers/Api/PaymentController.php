@@ -183,7 +183,7 @@ class PaymentController extends Controller
 
                 $ticketSubtotal = 0;
                 foreach ($seatIds as $seatId) {
-                    $ticketSubtotal += (int) round($schedule->ticket_price * $studio->priceMultiplierFor($lockedById->get($seatId)->seat_type));
+                    $ticketSubtotal += $studio->seatPrice((float) $schedule->ticket_price, $lockedById->get($seatId)->seat_type);
                 }
                 $seatCount = count($seatIds);
                 $serviceSubtotal = $serviceFeePerSeat * $seatCount;
@@ -215,7 +215,7 @@ class PaymentController extends Controller
                 $order = Order::create($orderPayload);
 
                 foreach ($seatIds as $seatId) {
-                    $price = (int) round($schedule->ticket_price * $studio->priceMultiplierFor($lockedById->get($seatId)->seat_type));
+                    $price = $studio->seatPrice((float) $schedule->ticket_price, $lockedById->get($seatId)->seat_type);
                     OrderSeat::create([
                         'order_id' => $order->id,
                         'seat_id' => $seatId,
@@ -263,7 +263,7 @@ class PaymentController extends Controller
                 // Aggregate ticket items by per-seat price so item_details sum
                 // exactly to gross_amount (seats can have different prices by type).
                 $ticketItems = collect($seatIds)
-                    ->map(fn($seatId) => (int) round($schedule->ticket_price * $studio->priceMultiplierFor($lockedById->get($seatId)->seat_type)))
+                    ->map(fn($seatId) => $studio->seatPrice((float) $schedule->ticket_price, $lockedById->get($seatId)->seat_type))
                     ->countBy()
                     ->map(function ($qty, $price) use ($schedule, $seatCodes) {
                         return [

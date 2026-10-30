@@ -150,7 +150,27 @@ class ScheduleController extends Controller
 
         $studios = Studio::where('cinema_id', $cinemaId)
             ->orderBy('studio_name')
-            ->get(['id', 'studio_name', 'total_seats']);
+            ->get(['id', 'studio_name', 'total_seats', 'seat_type_definitions'])
+            ->map(function (Studio $studio) {
+                // Seat-type surcharges drive the price preview on the schedule form.
+                $surcharges = [];
+                foreach ($studio->sellableTypeKeys() as $key) {
+                    $definition = $studio->definitionsByKey()[$key] ?? null;
+                    $surcharges[] = [
+                        'key' => $key,
+                        'label' => $definition['label'] ?? ucfirst($key),
+                        'surcharge' => $studio->priceSurchargeFor($key),
+                    ];
+                }
+
+                return [
+                    'id' => $studio->id,
+                    'studio_name' => $studio->studio_name,
+                    'total_seats' => $studio->total_seats,
+                    'min_surcharge' => $studio->minSurcharge(),
+                    'surcharges' => $surcharges,
+                ];
+            });
 
         return response()->json($studios);
     }

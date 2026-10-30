@@ -28,9 +28,9 @@ class Studio extends Model
      * Default custom entries auto-generated for new studios.
      */
     public const DEFAULT_CUSTOM_TYPE_KEYS = [
-        'couple'     => ['label' => 'Couple',     'color' => '#F472B6', 'multiplier' => 1.5, 'mode' => 'paired'],
-        'premium'    => ['label' => 'Premium',    'color' => '#C4B5FD', 'multiplier' => 2.0, 'mode' => 'individual'],
-        'wheelchair' => ['label' => 'Wheelchair', 'color' => '#86EFAC', 'multiplier' => 1.0, 'mode' => 'individual'],
+        'couple'     => ['label' => 'Couple',     'color' => '#F472B6', 'surcharge' => 0, 'mode' => 'paired'],
+        'premium'    => ['label' => 'Premium',    'color' => '#C4B5FD', 'surcharge' => 0, 'mode' => 'individual'],
+        'wheelchair' => ['label' => 'Wheelchair', 'color' => '#86EFAC', 'surcharge' => 0, 'mode' => 'individual'],
     ];
 
     protected static function booted(): void
@@ -173,10 +173,10 @@ class Studio extends Model
     public static function defaultDefinitions(): array
     {
         $defs = [
-            ['key' => 'seat', 'label' => 'Regular', 'color' => '#64748B', 'price_multiplier' => 1.0, 'purchase_mode' => 'individual', 'is_builtin' => true],
-            ['key' => 'aisle', 'label' => 'Aisle', 'color' => '#CBD5E1', 'price_multiplier' => null, 'purchase_mode' => null, 'is_builtin' => true],
-            ['key' => 'entrance', 'label' => 'Entrance', 'color' => '#94A3B8', 'price_multiplier' => null, 'purchase_mode' => null, 'is_builtin' => true],
-            ['key' => 'unavailable', 'label' => 'Unavailable', 'color' => '#1E293B', 'price_multiplier' => null, 'purchase_mode' => null, 'is_builtin' => true],
+            ['key' => 'seat', 'label' => 'Regular', 'color' => '#64748B', 'price_surcharge' => 0, 'purchase_mode' => 'individual', 'is_builtin' => true],
+            ['key' => 'aisle', 'label' => 'Aisle', 'color' => '#CBD5E1', 'price_surcharge' => null, 'purchase_mode' => null, 'is_builtin' => true],
+            ['key' => 'entrance', 'label' => 'Entrance', 'color' => '#94A3B8', 'price_surcharge' => null, 'purchase_mode' => null, 'is_builtin' => true],
+            ['key' => 'unavailable', 'label' => 'Unavailable', 'color' => '#1E293B', 'price_surcharge' => null, 'purchase_mode' => null, 'is_builtin' => true],
         ];
 
         foreach (self::DEFAULT_CUSTOM_TYPE_KEYS as $key => $custom) {
@@ -184,7 +184,7 @@ class Studio extends Model
                 'key'             => $key,
                 'label'           => $custom['label'],
                 'color'           => $custom['color'],
-                'price_multiplier'=> $custom['multiplier'],
+                'price_surcharge' => $custom['surcharge'],
                 'purchase_mode'   => $custom['mode'],
                 'is_builtin'      => false,
             ];
@@ -244,13 +244,41 @@ class Studio extends Model
     }
 
     /**
-     * Price multiplier for a seat type key (relative to schedule ticket_price).
+     * Extra nominal (Rp) added to the schedule's base price for a seat type.
+     * Regular is 0. Legacy definitions that still carry only a multiplier are
+     * treated as 0 so old data never inflates a price.
      */
-    public function priceMultiplierFor(string $seatType): float
+    public function priceSurchargeFor(?string $seatType): int
     {
+        if (!$seatType) {
+            return 0;
+        }
+
         $def = $this->definitionsByKey()[$seatType] ?? null;
-        $mult = $def['price_multiplier'] ?? null;
-        return $mult === null ? 1.0 : (float) $mult;
+        if ($def === null) {
+            return 0;
+        }
+
+        // Definitions saved before the surcharge model only carry `price_multiplier`;
+        // they intentionally fall back to 0 (prices are filled in manually).
+        return max(0, (int) round((float) ($def['price_surcharge'] ?? 0)));
+    }
+
+    /** Final seat price: schedule base price + the type's surcharge. */
+    public function seatPrice(float $basePrice, ?string $seatType): int
+    {
+        return (int) round($basePrice) + $this->priceSurchargeFor($seatType);
+    }
+
+    /** Cheapest surcharge across sellable seat types (used for "mulai dari"). */
+    public function minSurcharge(): int
+    {
+        $surcharges = [];
+        foreach ($this->sellableTypeKeys() as $key) {
+            $surcharges[] = $this->priceSurchargeFor($key);
+        }
+
+        return $surcharges ? min($surcharges) : 0;
     }
 
     /**

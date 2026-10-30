@@ -36,7 +36,9 @@ class ScheduleController extends Controller
                 'is_open'         => ScheduleRules::isOnlineOpen($s),
                 'show_date'       => $s->show_date->format('Y-m-d'),
                 'show_time'       => $s->show_time,
-                'ticket_price'    => (float) $s->ticket_price,
+                // "Mulai dari": base price + the cheapest surcharge in that studio.
+                'ticket_price'    => (float) ((int) $s->ticket_price + ($s->studio ? $s->studio->minSurcharge() : 0)),
+                'base_price'      => (float) $s->ticket_price,
             ]);
 
         return response()->json([
