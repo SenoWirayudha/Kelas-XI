@@ -152,10 +152,22 @@ class ScheduleController extends Controller
             ->orderBy('studio_name')
             ->get(['id', 'studio_name', 'total_seats', 'seat_type_definitions'])
             ->map(function (Studio $studio) {
-                // Seat-type surcharges drive the price preview on the schedule form.
+                // Only seat types that actually exist in this studio's layout are relevant
+                // for the price preview (a type defined but never painted must be ignored).
+                $usedTypes = $studio->seats()
+                    ->whereNotNull('seat_type')
+                    ->select('seat_type')
+                    ->distinct()
+                    ->pluck('seat_type')
+                    ->all();
+
+                $definitions = $studio->definitionsByKey();
                 $surcharges = [];
                 foreach ($studio->sellableTypeKeys() as $key) {
-                    $definition = $studio->definitionsByKey()[$key] ?? null;
+                    if (!in_array($key, $usedTypes, true)) {
+                        continue;
+                    }
+                    $definition = $definitions[$key] ?? null;
                     $surcharges[] = [
                         'key' => $key,
                         'label' => $definition['label'] ?? ucfirst($key),
@@ -163,16 +175,61 @@ class ScheduleController extends Controller
                     ];
                 }
 
+                $values = array_column($surcharges, 'surcharge');
+                sort($values);
+
                 return [
                     'id' => $studio->id,
                     'studio_name' => $studio->studio_name,
                     'total_seats' => $studio->total_seats,
-                    'min_surcharge' => $studio->minSurcharge(),
+                    'min_surcharge' => $values ? (int) $values[0] : 0,
+                    'max_surcharge' => $values ? (int) $values[count($values) - 1] : 0,
                     'surcharges' => $surcharges,
                 ];
             });
 
         return response()->json($studios);
+    }
+
+    /**
+     * Seat price range for a schedule's studio: [min, max, rows[]].
+     * Only seat types actually used in the studio layout are considered.
+     */
+    public static function priceRangeFor(Schedule $schedule): array
+    {
+        $studio = $schedule->studio;
+        $base = (int) round((float) $schedule->ticket_price);
+
+        if (!$studio) {
+            return ['min' => $base, 'max' => $base, 'rows' => []];
+        }
+
+        $usedTypes = $studio->seats()
+            ->whereNotNull('seat_type')
+            ->select('seat_type')
+            ->distinct()
+            ->pluck('seat_type')
+            ->all();
+
+        $definitions = $studio->definitionsByKey();
+        $rows = [];
+        foreach ($studio->sellableTypeKeys() as $key) {
+            if (!in_array($key, $usedTypes, true)) {
+                continue;
+            }
+            $rows[] = [
+                'label' => $definitions[$key]['label'] ?? ucfirst($key),
+                'price' => $base + $studio->priceSurchargeFor($key),
+            ];
+        }
+
+        if (!$rows) {
+            return ['min' => $base, 'max' => $base, 'rows' => []];
+        }
+
+        $prices = array_column($rows, 'price');
+
+        return ['min' => min($prices), 'max' => max($prices), 'rows' => $rows];
     }
 
     private function authorizeStudio($studioId): void

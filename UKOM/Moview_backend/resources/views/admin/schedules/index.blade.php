@@ -54,12 +54,13 @@
                     <td class="px-4 py-3 text-gray-600">{{ \Carbon\Carbon::parse($schedule->show_date)->isoFormat('D MMM Y') }}</td>
                     <td class="px-4 py-3 text-gray-600">{{ substr($schedule->show_time, 0, 5) }}</td>
                     <td class="px-4 py-3 text-gray-700 font-medium">
-                        @php
-                            $minSurcharge = $schedule->studio ? $schedule->studio->minSurcharge() : 0;
-                        @endphp
-                        Rp {{ number_format((int) $schedule->ticket_price + $minSurcharge, 0, ',', '.') }}
-                        @if($minSurcharge > 0)
-                            <span class="text-xs text-gray-400">mulai dari</span>
+                        @php $range = \App\Http\Controllers\Admin\ScheduleController::priceRangeFor($schedule); @endphp
+                        @if($range['min'] === $range['max'])
+                            Rp {{ number_format($range['min'], 0, ',', '.') }}
+                        @else
+                            Rp {{ number_format($range['min'], 0, ',', '.') }}
+                            <span class="text-gray-400">–</span>
+                            Rp {{ number_format($range['max'], 0, ',', '.') }}
                         @endif
                     </td>
                     <td class="px-4 py-3">

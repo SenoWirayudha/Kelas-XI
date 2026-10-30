@@ -111,22 +111,15 @@
                        value="{{ old('ticket_price', 50000) }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                 <div class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Pratinjau harga per tipe kursi</p>
-                    <template x-if="selectedStudio">
-                        <ul class="space-y-1 text-sm">
-                            <template x-for="type in (selectedStudio.surcharges || [])" :key="type.key">
-                                <li class="flex items-center justify-between gap-3">
-                                    <span class="text-gray-700" x-text="type.label"></span>
-                                    <span class="text-gray-900 font-medium">
-                                        Rp <span x-text="formatRupiah((Number(basePrice) || 0) + Number(type.surcharge || 0))"></span>
-                                        <span class="text-xs text-gray-400" x-show="Number(type.surcharge || 0) > 0"
-                                              x-text="'(+Rp ' + formatRupiah(type.surcharge) + ')'"></span>
-                                    </span>
-                                </li>
-                            </template>
-                        </ul>
+                    <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Pratinjau harga kursi</p>
+                    <template x-if="selectedStudio && priceRange()">
+                        <div>
+                            <p class="text-base font-semibold text-gray-900" x-text="priceRange()"></p>
+                            <p class="mt-0.5 text-xs text-gray-500" x-text="priceDetail()"></p>
+                        </div>
                     </template>
                     <p class="text-xs text-gray-400" x-show="!selectedStudio">Pilih studio untuk melihat pratinjau harga.</p>
+                    <p class="text-xs text-gray-400" x-show="selectedStudio && !priceRange()">Studio ini belum punya kursi.</p>
                 </div>
             </div>
 
@@ -157,6 +150,31 @@ function scheduleForm() {
         },
         formatRupiah(value) {
             return new Intl.NumberFormat('id-ID').format(Number(value) || 0);
+        },
+        // Price of each seat type in use = base price + that type's surcharge.
+        priceRows() {
+            const studio = this.selectedStudio;
+            if (!studio) return [];
+            const base = Number(this.basePrice) || 0;
+            return (studio.surcharges || []).map(t => ({
+                label: t.label,
+                price: base + Number(t.surcharge || 0),
+            }));
+        },
+        priceRange() {
+            const rows = this.priceRows();
+            if (!rows.length) return '';
+            const prices = rows.map(r => r.price);
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            return min === max
+                ? 'Rp ' + this.formatRupiah(min)
+                : 'Rp ' + this.formatRupiah(min) + ' \u2013 Rp ' + this.formatRupiah(max);
+        },
+        priceDetail() {
+            return this.priceRows()
+                .map(r => r.label + ' ' + this.formatRupiah(r.price))
+                .join(' \u00b7 ');
         },
         init() {
             if (this.cinemaId) this.loadStudios();
