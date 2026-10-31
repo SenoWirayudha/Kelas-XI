@@ -636,6 +636,7 @@ data class UserReviewDto(
     val title: String,
     val year: String,  // Changed from Int to String to match backend
     val poster_path: String?,
+    val backdrop_path: String? = null,
     val rating: Float?,  // 0.5 increments, supports half-star
     val is_liked: Boolean = false,
     val is_rewatched: Boolean = false,

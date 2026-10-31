@@ -59,7 +59,10 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
                         averageRating = dto.rating?.toFloat() ?: 0f,
                         genre = "",
                         releaseYear = dto.year.toIntOrNull() ?: 0,
-                        description = ""
+                        description = "",
+                        // Custom backdrop of the diary entry, resolved by the backend.
+                        backdropUrl = dto.backdrop_path?.takeIf { it.isNotBlank() }
+                            ?.let { ServerConfig.resolveStorageUrl(it) }
                     )
                     
                     Review(

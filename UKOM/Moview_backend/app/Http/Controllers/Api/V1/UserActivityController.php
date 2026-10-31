@@ -343,6 +343,9 @@ class UserActivityController extends Controller
     public function getReviews($userId)
     {
         try {
+            // Old conversions may still lack the mirrored artwork; repair once per load.
+            $this->repairReviewArtwork((int) $userId);
+
             $reviews = DB::table('reviews')
                 ->join('movies', 'reviews.film_id', '=', 'movies.id')
                 ->where('reviews.user_id', $userId)
@@ -366,12 +369,14 @@ class UserActivityController extends Controller
                     'reviews.created_at',
                     DB::raw('COALESCE(diaries.is_rewatched, 0) as is_rewatched'),
                     DB::raw('COALESCE(diaries.id, 0) as diary_id'),
+                    // Artwork belongs to the diary entry, so accept either context type
+                    // (a log that was later turned into a review keeps type 'logged').
                     DB::raw("COALESCE(
                         (SELECT mm.media_path FROM user_change_medias ucm
                          JOIN movie_media mm ON ucm.media_id = mm.id
                          WHERE ucm.user_id = " . (int)$userId . "
                            AND ucm.film_id = reviews.film_id
-                           AND ucm.type = 'reviews'
+                           AND ucm.type IN ('reviews', 'logged')
                            AND ucm.media_category = 'poster'
                            AND ucm.diaries_id = diaries.id
                          ORDER BY ucm.updated_at DESC LIMIT 1),
@@ -380,7 +385,15 @@ class UserActivityController extends Controller
                            AND mm.media_type = 'poster'
                            AND mm.is_default = 1
                          LIMIT 1)
-                    ) as poster_path")
+                    ) as poster_path"),
+                    DB::raw("(SELECT mm.media_path FROM user_change_medias ucm
+                         JOIN movie_media mm ON ucm.media_id = mm.id
+                         WHERE ucm.user_id = " . (int)$userId . "
+                           AND ucm.film_id = reviews.film_id
+                           AND ucm.type IN ('reviews', 'logged')
+                           AND ucm.media_category = 'backdrop'
+                           AND ucm.diaries_id = diaries.id
+                         ORDER BY ucm.updated_at DESC LIMIT 1) as backdrop_path")
                 )
                 ->orderBy('reviews.created_at', 'desc')
                 ->get();
@@ -394,6 +407,9 @@ class UserActivityController extends Controller
                 if ($review->poster_path && !str_starts_with($review->poster_path, 'http')) {
                     $review->poster_path = "http://10.0.2.2:8000/storage/{$review->poster_path}";
                 }
+                if (!empty($review->backdrop_path) && !str_starts_with($review->backdrop_path, 'http')) {
+                    $review->backdrop_path = "http://10.0.2.2:8000/storage/{$review->backdrop_path}";
+                }
                 return $review;
             });
 
@@ -406,6 +422,79 @@ class UserActivityController extends Controller
                 'success' => false,
                 'message' => 'Failed to fetch reviews: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Copies the diary entry's chosen artwork (saved under type 'logged') into the 'reviews'
+     * context, so a log edited into a review keeps the same poster/backdrop everywhere.
+     * Idempotent: an existing 'reviews' row is never duplicated.
+     */
+    private function copyLoggedMediaToReviewContext(int $userId, int $diaryId, int $filmId): void
+    {
+        if ($diaryId <= 0) {
+            return;
+        }
+
+        $sources = DB::table('user_change_medias')
+            ->where('user_id', $userId)
+            ->where('film_id', $filmId)
+            ->where('diaries_id', $diaryId)
+            ->whereIn('type', ['logged', 'reviews'])
+            ->orderByDesc('updated_at')
+            ->get()
+            ->groupBy('media_category');
+
+        foreach ($sources as $category => $rows) {
+            $alreadyInReviews = DB::table('user_change_medias')
+                ->where('user_id', $userId)
+                ->where('film_id', $filmId)
+                ->where('diaries_id', $diaryId)
+                ->where('type', 'reviews')
+                ->where('media_category', $category)
+                ->exists();
+
+            if ($alreadyInReviews) {
+                continue;
+            }
+
+            DB::table('user_change_medias')->insert([
+                'user_id'        => $userId,
+                'film_id'        => $filmId,
+                'media_id'       => $rows->first()->media_id,
+                'media_category' => $category,
+                'type'           => 'reviews',
+                'diaries_id'     => $diaryId,
+                'favorite_id'    => null,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ]);
+        }
+    }
+
+    /**
+     * One-off repair for entries converted before the artwork mirroring existed:
+     * every review-linked diary that only has 'logged' media gets a 'reviews' twin.
+     */
+    private function repairReviewArtwork(int $userId): void
+    {
+        $rows = DB::table('diaries')
+            ->where('user_id', $userId)
+            ->whereNotNull('review_id')
+            ->get(['id', 'film_id', 'review_id']);
+
+        foreach ($rows as $row) {
+            $hasReviewsMedia = DB::table('user_change_medias')
+                ->where('user_id', $userId)
+                ->where('diaries_id', $row->id)
+                ->where('type', 'reviews')
+                ->exists();
+
+            if ($hasReviewsMedia) {
+                continue;
+            }
+
+            $this->copyLoggedMediaToReviewContext($userId, (int) $row->id, (int) $row->film_id);
         }
     }
 
@@ -1817,10 +1906,22 @@ class UserActivityController extends Controller
             
             // Update ONLY the diary entry linked to this review (never other
             // entries of the same film, e.g. independent log-only rows).
+            $diaryIds = DB::table('diaries')
+                ->where('user_id', $userId)
+                ->where('review_id', $reviewId)
+                ->pluck('id')
+                ->all();
+
             DB::table('diaries')
                 ->where('user_id', $userId)
                 ->where('review_id', $reviewId)
                 ->update($diaryUpdateData);
+
+            // A log turned into a review keeps its artwork stored under type 'logged';
+            // mirror it into the 'reviews' context so every screen resolves the same media.
+            foreach ($diaryIds as $diaryId) {
+                $this->copyLoggedMediaToReviewContext((int) $userId, (int) $diaryId, (int) $review->film_id);
+            }
             
             return response()->json([
                 'success' => true,
