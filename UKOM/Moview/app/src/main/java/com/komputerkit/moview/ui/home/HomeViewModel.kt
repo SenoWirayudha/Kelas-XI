@@ -8,11 +8,15 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.FriendActivity
 import com.komputerkit.moview.data.model.Movie
+import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.data.model.TheatricalMovie
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.applyCustomMedia
 import com.komputerkit.moview.util.resolveMediaUrl
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
     
@@ -40,6 +44,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _comingSoonMovies = MutableLiveData<List<TheatricalMovie>>()
     val comingSoonMovies: LiveData<List<TheatricalMovie>> = _comingSoonMovies
 
+    private val _events = MutableLiveData<List<com.komputerkit.moview.data.model.EventItem>>()
+    val events: LiveData<List<com.komputerkit.moview.data.model.EventItem>> = _events
+
+    private val _popularReviews = MutableLiveData<List<Review>>()
+    val popularReviews: LiveData<List<Review>> = _popularReviews
+
+    private val _popularWithFriends = MutableLiveData<List<Movie>>()
+    val popularWithFriends: LiveData<List<Movie>> = _popularWithFriends
+
+    private val _filmInterest = MutableLiveData<List<Movie>>()
+    val filmInterest: LiveData<List<Movie>> = _filmInterest
+
+    private val _reviewsLoaded = MutableLiveData(false)
+    val reviewsLoaded: LiveData<Boolean> = _reviewsLoaded
+
+    private var reviewsPage = 0
+    private var reviewsLastPage = 1
+    private var reviewsLoading = false
+
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
     
@@ -55,6 +78,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // survives so we preserve the cached data (and scroll position).
         if (_popularMovies.value.isNullOrEmpty()) {
             loadData()
+        }
+        if (_events.value == null) {
+            loadEvents()
+        }
+        if (_popularWithFriends.value == null && _filmInterest.value == null) {
+            loadSocialSections()
         }
     }
     
@@ -132,5 +161,93 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     
     fun refreshData() {
         loadData()
+        loadEvents()
+        loadSocialSections()
+        if (_reviewsLoaded.value == true) loadPopularReviews(reset = true)
+    }
+
+    /** "Popular with Friends" + "Film Interest" (computed server-side). */
+    fun loadSocialSections() {
+        viewModelScope.launch {
+            _popularWithFriends.postValue(repository.getPopularWithFriends(userId))
+            _filmInterest.postValue(repository.getFilmInterest(userId))
+        }
+    }
+
+    /** Festivals shown at the top of the Bioskop tab. */
+    fun loadEvents() {
+        viewModelScope.launch {
+            _events.postValue(repository.getEvents())
+        }
+    }
+
+    /** First load only: the Review tab is fetched when the user opens it. */
+    fun ensurePopularReviews() {
+        if (_reviewsLoaded.value != true && !reviewsLoading) loadPopularReviews(reset = true)
+    }
+
+    fun loadPopularReviews(reset: Boolean = false) {
+        if (reviewsLoading) return
+        if (!reset && _reviewsLoaded.value == true && reviewsPage >= reviewsLastPage) return
+
+        val page = if (reset) 1 else reviewsPage + 1
+        reviewsLoading = true
+        viewModelScope.launch {
+            val response = repository.getPopularReviews(page)
+            if (response != null && response.success) {
+                val mapped = response.data.orEmpty().map { it.toReview() }
+                _popularReviews.value = if (reset) mapped else _popularReviews.value.orEmpty() + mapped
+                reviewsPage = response.pagination?.current_page ?: page
+                reviewsLastPage = response.pagination?.last_page ?: page
+            }
+            _reviewsLoaded.value = true
+            reviewsLoading = false
+        }
+    }
+
+    private fun com.komputerkit.moview.data.api.UserReviewDto.toReview(): Review {
+        val watched = watched_at ?: created_at
+        return Review(
+            id = review_id,
+            movie = Movie(
+                id = id,
+                title = title,
+                posterUrl = ServerConfig.resolveStorageUrl(poster_path),
+                averageRating = rating ?: 0f,
+                genre = "",
+                releaseYear = year.toIntOrNull() ?: 0,
+                description = "",
+                backdropUrl = backdrop_path?.takeIf { it.isNotBlank() }
+                    ?.let { ServerConfig.resolveStorageUrl(it) }
+            ),
+            rating = rating ?: 0f,
+            reviewText = content,
+            reviewDate = watched,
+            dateLabel = formatDateLabel(watched),
+            userId = 0,
+            movieId = id,
+            isLiked = is_liked,
+            isRewatch = is_rewatched,
+            isSpoiler = is_spoiler,
+            diaryId = diary_id
+        )
+    }
+
+    private fun formatDateLabel(dateString: String): String {
+        return try {
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val date = try {
+                dateFormat.parse(dateString)
+            } catch (e: Exception) {
+                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(dateString)
+            }
+            if (date != null) {
+                "Watched ${SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID")).format(date)}"
+            } else {
+                "Watched recently"
+            }
+        } catch (e: Exception) {
+            "Watched recently"
+        }
     }
 }

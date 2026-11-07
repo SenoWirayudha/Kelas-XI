@@ -52,7 +52,8 @@ class MovieRepository {
             description = "",
             hasReview = false,
             reviewId = 0,
-            userRating = 0f
+            userRating = 0f,
+            friendCount = this.friend_count
         )
     }
     
@@ -480,6 +481,49 @@ class MovieRepository {
         }
     }
     
+    suspend fun getPopularReviews(page: Int): com.komputerkit.moview.data.api.ApiResponse<List<com.komputerkit.moview.data.api.UserReviewDto>>? = withContext(Dispatchers.IO) {
+        try {
+            apiService.getPopularReviews(page)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun getPopularWithFriends(userId: Int): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getPopularWithFriends(userId)
+            if (response.success && response.data != null) {
+                response.data.map { it.toMovie() }
+            } else {
+                emptyList()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun getFilmInterest(userId: Int): List<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getFilmInterest(userId)
+            if (response.success && response.data != null) {
+                response.data.map { it.toMovie() }
+            } else {
+                emptyList()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
     suspend fun getUserReviewForMovie(userId: Int, movieId: Int): com.komputerkit.moview.data.api.UserReviewDto? = withContext(Dispatchers.IO) {
         try {
             val reviews = getUserReviews(userId)
@@ -530,6 +574,86 @@ class MovieRepository {
         }
         geoCountryLoaded = true
         return cachedCountryCode
+    }
+
+    /** Festival events (published, not finished). */
+    suspend fun getEvents(): List<com.komputerkit.moview.data.model.EventItem> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getEvents()
+            response.data?.map { dto ->
+                com.komputerkit.moview.data.model.EventItem(
+                    id = dto.id,
+                    title = dto.judul,
+                    description = dto.deskripsi,
+                    bannerUrl = dto.banner_url?.let { ServerConfig.fixUrl(it) },
+                    startDate = dto.tanggal_mulai,
+                    endDate = dto.tanggal_selesai,
+                    cinemaName = dto.nama_bioskop,
+                    startPrice = dto.harga_mulai,
+                    saleStartsAt = dto.sale_starts_at,
+                    salesOpen = dto.penjualan_dibuka ?: true
+                )
+            } ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    /** Server-side re-check before opening the seat picker. */
+    suspend fun getEventSessionStatus(sessionId: Int): com.komputerkit.moview.data.api.EventSessionStatusDto? =
+        withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.getEventSessionStatus(sessionId)
+                if (response.success) response.data else null
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
+
+    suspend fun getEventDetail(eventId: Int): com.komputerkit.moview.data.model.EventDetail? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getEventDetail(eventId)
+            response.data?.let { dto ->
+                com.komputerkit.moview.data.model.EventDetail(
+                    id = dto.id,
+                    title = dto.judul,
+                    description = dto.deskripsi,
+                    bannerUrl = dto.banner_url?.let { ServerConfig.fixUrl(it) },
+                    startDate = dto.tanggal_mulai,
+                    endDate = dto.tanggal_selesai,
+                    cinemaName = dto.nama_bioskop,
+                    saleStartsAt = dto.sale_starts_at,
+                    salesOpen = dto.penjualan_dibuka ?: true,
+                    sessions = dto.sessions.map { s ->
+                        com.komputerkit.moview.data.model.EventSession(
+                            id = s.id,
+                            startsAt = s.starts_at,
+                            sessionTitle = s.judul_sesi,
+                            posterUrl = s.poster_url?.let { ServerConfig.fixUrl(it) },
+                            totalDurationMinutes = s.durasi_total_menit,
+                            ageRating = s.usia,
+                            isSurprise = s.is_surprise,
+                            films = s.films.map { f ->
+                                com.komputerkit.moview.data.model.EventFilm(
+                                    title = f.judul,
+                                    synopsis = f.sinopsis,
+                                    posterUrl = f.poster_url?.let { ServerConfig.fixUrl(it) }
+                                )
+                            },
+                            minPrice = s.harga_min,
+                            maxPrice = s.harga_maks,
+                            soldOut = s.sold_out,
+                            status = s.status ?: if (s.sold_out) "sold_out" else "tersedia"
+                        )
+                    }
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 
     suspend fun getReviewDetail(userId: Int, reviewId: Int): com.komputerkit.moview.data.api.ReviewDetailDto? = withContext(Dispatchers.IO) {

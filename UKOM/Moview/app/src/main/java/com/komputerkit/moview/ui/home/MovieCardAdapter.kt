@@ -1,6 +1,7 @@
 package com.komputerkit.moview.ui.home
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -41,6 +42,10 @@ class MovieCardAdapter(
             binding.tvRating.text = String.format("%.1f", movie.averageRating)
             binding.tvTitle.text = movie.title
             binding.tvMovieInfo.text = "${movie.releaseYear} • ${movie.genre}"
+
+            // Badge is only present for the "Popular with Friends" section.
+            binding.tvFriendBadge.visibility = if (movie.friendCount > 0) View.VISIBLE else View.GONE
+            binding.tvFriendBadge.text = "Ditonton ${movie.friendCount} teman"
             
             binding.root.setOnClickListener {
                 onMovieClick(movie)

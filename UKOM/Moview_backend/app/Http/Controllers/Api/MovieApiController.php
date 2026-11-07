@@ -229,6 +229,264 @@ class MovieApiController extends Controller
     }
     
     /**
+     * Films watched by the most distinct followed users in the last 30 days.
+     */
+    public function popularWithFriends(Request $request)
+    {
+        $userId = (int) $request->get('user_id', 0);
+        if ($userId <= 0) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        // Visibility rule is the same as New From Friends: only followed users.
+        // ponytail: no per-entry privacy flags exist in the schema today; add a
+        // diaries.visibility filter here if private logs get introduced.
+        $followedIds = DB::table('followers')
+            ->where('follower_id', $userId)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (empty($followedIds)) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $rows = DB::table('diaries')
+            ->join('movies', 'diaries.film_id', '=', 'movies.id')
+            ->whereIn('diaries.user_id', $followedIds)
+            ->where('diaries.watched_at', '>=', now()->subDays(30)->toDateString())
+            ->where('movies.status', 'published')
+            ->select(
+                'movies.id',
+                DB::raw('COUNT(DISTINCT diaries.user_id) as friend_count'),
+                DB::raw('MAX(diaries.watched_at) as last_log')
+            )
+            ->groupBy('movies.id')
+            ->havingRaw('COUNT(DISTINCT diaries.user_id) > 0')
+            ->orderByDesc('friend_count')
+            ->orderByDesc('last_log')
+            ->limit(15)
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $friendCounts = $rows->pluck('friend_count', 'id')->map(fn ($c) => (int) $c);
+        $orderedIds = $rows->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        $movies = Movie::with('genres')
+            ->whereIn('id', $orderedIds)
+            ->get()
+            ->sortBy(fn ($movie) => array_search($movie->id, $orderedIds, true))
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $movies->map(function ($movie) use ($friendCounts) {
+                return $this->formatMovieCard($movie) + [
+                    'friend_count' => $friendCounts[$movie->id] ?? 0,
+                ];
+            }),
+        ]);
+    }
+
+    /**
+     * Recommendations from the user's favourite genres, never already logged.
+     */
+    public function filmInterest(Request $request)
+    {
+        $userId = (int) $request->get('user_id', 0);
+        $limit = 15;
+
+        $loggedIds = $userId > 0
+            ? DB::table('diaries')->where('user_id', $userId)->pluck('film_id')
+                ->map(fn ($id) => (int) $id)->all()
+            : [];
+
+        // Favourite films carry the strongest signal (genres 3, themes 2).
+        $genreWeights = [];
+        $themeWeights = [];
+        if ($userId > 0) {
+            $favoriteIds = DB::table('user_favorite_films')
+                ->where('user_id', $userId)
+                ->pluck('film_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            if (!empty($favoriteIds)) {
+                DB::table('movie_genres')
+                    ->whereIn('movie_id', $favoriteIds)
+                    ->pluck('genre_id')
+                    ->each(function ($genreId) use (&$genreWeights) {
+                        $genreWeights[(int) $genreId] = 3;
+                    });
+
+                DB::table('movie_themes')
+                    ->whereIn('movie_id', $favoriteIds)
+                    ->pluck('theme_id')
+                    ->each(function ($themeId) use (&$themeWeights) {
+                        $themeWeights[(int) $themeId] = 2;
+                    });
+            }
+        }
+
+        // Then genres/themes the user logs (weight 1, top 5 each).
+        if ($userId > 0) {
+            $genreRows = DB::table('diaries')
+                ->join('movie_genres', 'diaries.film_id', '=', 'movie_genres.movie_id')
+                ->where('diaries.user_id', $userId)
+                ->select('movie_genres.genre_id', DB::raw('COUNT(*) as hits'))
+                ->groupBy('movie_genres.genre_id')
+                ->orderByDesc('hits')
+                ->limit(5)
+                ->get();
+
+            foreach ($genreRows as $row) {
+                $genreId = (int) $row->genre_id;
+                if (!isset($genreWeights[$genreId])) {
+                    $genreWeights[$genreId] = 1;
+                }
+            }
+
+            $themeRows = DB::table('diaries')
+                ->join('movie_themes', 'diaries.film_id', '=', 'movie_themes.movie_id')
+                ->where('diaries.user_id', $userId)
+                ->select('movie_themes.theme_id', DB::raw('COUNT(*) as hits'))
+                ->groupBy('movie_themes.theme_id')
+                ->orderByDesc('hits')
+                ->limit(5)
+                ->get();
+
+            foreach ($themeRows as $row) {
+                $themeId = (int) $row->theme_id;
+                if (!isset($themeWeights[$themeId])) {
+                    $themeWeights[$themeId] = 1;
+                }
+            }
+        }
+
+        if (empty($genreWeights) && empty($themeWeights)) {
+            // Not enough user data: fall back to this week's popular films.
+            $popularIds = $this->topFilmIdsThisWeek($limit)
+                ->reject(fn ($id) => in_array((int) $id, $loggedIds, true))
+                ->values()
+                ->all();
+
+            $movies = Movie::with('genres')
+                ->whereIn('id', $popularIds)
+                ->get()
+                ->sortBy(fn ($movie) => array_search($movie->id, $popularIds, true))
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $movies->map(fn ($movie) => $this->formatMovieCard($movie)),
+            ]);
+        }
+
+        // Scalar subqueries keep genre and theme scores additive without row fan-out.
+        $scoreParts = [];
+        if (!empty($genreWeights)) {
+            $scoreParts[] = '(SELECT COALESCE(SUM(CASE g.genre_id '
+                . $this->caseWhen($genreWeights)
+                . ' ELSE 0 END), 0) FROM movie_genres g WHERE g.movie_id = movies.id)';
+        }
+        if (!empty($themeWeights)) {
+            $scoreParts[] = '(SELECT COALESCE(SUM(CASE t.theme_id '
+                . $this->caseWhen($themeWeights)
+                . ' ELSE 0 END), 0) FROM movie_themes t WHERE t.movie_id = movies.id)';
+        }
+        $scoreSql = implode(' + ', $scoreParts);
+        $query = Movie::with('genres')
+            ->where('movies.status', 'published')
+            ->whereRaw("($scoreSql) > 0")
+            ->orderByRaw("($scoreSql) desc")
+            ->orderByRaw(
+                '(SELECT COALESCE(AVG(rating), 0) FROM ratings WHERE ratings.film_id = movies.id) desc'
+            )
+            ->limit($limit);
+
+        if (!empty($loggedIds)) {
+            $query->whereNotIn('movies.id', $loggedIds);
+        }
+
+        $movies = $query->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $movies->map(fn ($movie) => $this->formatMovieCard($movie)),
+        ]);
+    }
+
+    /** "WHEN id THEN weight" fragments for a CASE expression. */
+    private function caseWhen(array $weights): string
+    {
+        $cases = [];
+        foreach ($weights as $id => $weight) {
+            $cases[] = 'WHEN ' . (int) $id . ' THEN ' . (int) $weight;
+        }
+
+        return implode(' ', $cases);
+    }
+
+    /**
+     * Popular reviews of the last 7 days: ranked by likes + comments.
+     */
+    public function popularReviews(Request $request)
+    {
+        // "Maks 20" is the per-page ceiling; the client pages through the rest.
+        $perPage = min(20, max(1, (int) $request->get('per_page', 20)));
+
+        $reviews = Review::with('movie')
+            ->where('status', 'published')
+            ->where('created_at', '>=', now()->subDays(7))
+            ->withCount(['likes', 'comments'])
+            // Aliases from withCount cannot be used inside an ORDER BY expression.
+            ->orderByRaw(
+                '((select count(*) from review_likes where review_likes.review_id = reviews.id)'
+                . ' + (select count(*) from review_comments where review_comments.review_id = reviews.id)) desc'
+            )
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => $reviews->getCollection()->map(function ($review) {
+                $movie = $review->movie;
+
+                return [
+                    'review_id' => $review->id,
+                    'id' => $review->film_id,
+                    'title' => $movie?->title,
+                    'year' => (string) ($movie?->release_year ?? ''),
+                    'poster_path' => $movie?->default_poster_path
+                        ? url('storage/' . $movie->default_poster_path)
+                        : null,
+                    'backdrop_path' => $movie?->default_backdrop_path
+                        ? url('storage/' . $movie->default_backdrop_path)
+                        : null,
+                    'rating' => $review->rating,
+                    'is_liked' => (bool) $review->is_liked,
+                    'is_rewatched' => (bool) $review->is_rewatched,
+                    'watched_at' => $review->watched_at,
+                    'review_title' => $review->title,
+                    'content' => $review->content,
+                    'is_spoiler' => (bool) $review->is_spoiler,
+                    'created_at' => optional($review->created_at)->format('Y-m-d H:i:s'),
+                    'diary_id' => 0,
+                ];
+            })->values(),
+            'pagination' => [
+                'current_page' => $reviews->currentPage(),
+                'last_page' => $reviews->lastPage(),
+                'per_page' => $reviews->perPage(),
+                'total' => $reviews->total(),
+            ],
+        ]);
+    }
+
+    /**
      * Get movies list
      */
     public function index(Request $request)
@@ -961,22 +1219,26 @@ class MovieApiController extends Controller
         $query = Movie::with([
                 'movieServices' => fn($movieServiceQuery) => $movieServiceQuery
                     ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical')),
-                'schedules:id,movie_id',
+                'schedules' => fn($scheduleQuery) => $scheduleQuery
+                    ->whereNull('event_id')
+                    ->select('id', 'movie_id'),
                 'genres:id,name',
             ])
             ->where('status', 'published')
+            // Festival-only films never leak into the regular catalogue.
+            ->notFestivalOnly()
             ->where(function ($movieQuery) {
                 // Now Showing original: theatrical + release_date null + is_coming_soon=0
                 $movieQuery->whereHas('movieServices', fn($movieServiceQuery) => $movieServiceQuery
                     ->whereNull('release_date')
                     ->where('is_coming_soon', 0)
                     ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical')))
-                    // Merge preorder into now showing: theatrical + release_date not null + has schedule
+                    // Merge preorder into now showing: theatrical + release_date not null + has regular schedule
                     ->orWhere(function ($preorderQuery) {
                         $preorderQuery->whereHas('movieServices', fn($movieServiceQuery) => $movieServiceQuery
                             ->whereNotNull('release_date')
                             ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical')))
-                            ->whereHas('schedules');
+                            ->whereHas('schedules', fn($scheduleQuery) => $scheduleQuery->whereNull('event_id'));
                     });
             })
             // Most purchased first: number of PAID orders across this movie's schedules.
@@ -1017,14 +1279,16 @@ class MovieApiController extends Controller
                 'movieServices' => fn($movieServiceQuery) => $movieServiceQuery
                     ->whereNotNull('release_date')
                     ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical')),
-                'schedules:id,movie_id',
+                'schedules' => fn($scheduleQuery) => $scheduleQuery
+                    ->whereNull('event_id')
+                    ->select('id', 'movie_id'),
                 'genres:id,name',
             ])
             ->where('status', 'published')
             ->whereHas('movieServices', fn($movieServiceQuery) => $movieServiceQuery
                 ->whereNotNull('release_date')
                 ->whereHas('service', fn($serviceQuery) => $serviceQuery->where('type', 'theatrical')))
-            ->whereHas('schedules')
+            ->whereHas('schedules', fn($scheduleQuery) => $scheduleQuery->whereNull('event_id'))
             ->orderByDesc('id');
 
         if ((int) $limit > 0) {
@@ -1064,6 +1328,7 @@ class MovieApiController extends Controller
                     });
             })
             ->whereDoesntHave('schedules')
+            ->notFestivalOnly()
             ->orderByDesc('id');
 
         if ((int) $limit > 0) {

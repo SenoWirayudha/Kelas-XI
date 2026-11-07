@@ -12,8 +12,12 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.SnapHelper
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.material.tabs.TabLayout
+import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentHomeNewBinding
 import com.komputerkit.moview.util.postponeEnterUntilLaidOut
 import com.komputerkit.moview.util.runAfterEnterTransition
@@ -33,6 +37,11 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     private lateinit var nowShowingAdapter: TheatricalMovieAdapter
     private lateinit var upcomingAdapter: TheatricalMovieAdapter
     private lateinit var comingSoonAdapter: TheatricalMovieAdapter
+    private lateinit var eventAdapter: com.komputerkit.moview.ui.event.EventCardAdapter
+    private lateinit var popularWithFriendsAdapter: MovieCardAdapter
+    private lateinit var filmInterestAdapter: MovieCardAdapter
+    private lateinit var popularReviewAdapter: com.komputerkit.moview.ui.review.ReviewAdapter
+    private var snapHelper: SnapHelper? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,10 +60,19 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         val userId = prefs.getInt("userId", 0)
         android.util.Log.d("HomeFragment", "Retrieved userId from SharedPreferences: $userId")
         
+        // Same fragment powers two tabs: social-only Home and the Bioskop tab.
+        val mode = arguments?.getString("mode") ?: "social"
+        val isCinemaTab = mode == "cinema"
+        binding.groupSocial.visibility = if (isCinemaTab) View.GONE else View.VISIBLE
+        binding.groupCinema.visibility = if (isCinemaTab) View.VISIBLE else View.GONE
+        // The tab bar only belongs to the Social/Review Home; the Bioskop tab has none.
+        binding.homeTabLayout.visibility = if (isCinemaTab) View.GONE else View.VISIBLE
+
         postponeEnterUntilLaidOut()
 
         setupRecyclerViews()
         setupSwipeRefresh()
+        setupTabs()
         observeViewModel()
         setupClickListeners()
 
@@ -82,16 +100,13 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         // Setup Popular Movies RecyclerView (Horizontal)
         movieCardAdapter = MovieCardAdapter(
             onMovieClick = { movie ->
-                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
-                findNavController().navigate(action)
+                navigateTo(R.id.movieDetailFragment, Bundle().apply { putInt("movieId", movie.id) })
             },
             onLogFilm = { movie ->
-                val action = HomeFragmentDirections.actionHomeToLogFilm(movie.id)
-                findNavController().navigate(action)
+                navigateTo(R.id.logFilmFragment, Bundle().apply { putInt("movieId", movie.id) })
             },
             onChangePoster = { movie ->
-                val action = HomeFragmentDirections.actionHomeToPosterBackdrop(movie.id, false)
-                findNavController().navigate(action)
+                navigateTo(R.id.posterBackdropFragment, Bundle().apply { putInt("movieId", movie.id) })
             }
         )
         binding.rvPopularMovies.apply {
@@ -103,6 +118,43 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             )
             // Tinggi mengikuti isi (wrap_content). Pengukuran setelah data masuk
             // dijaga oleh rvPopularMovies.post { requestLayout() } di observeViewModel.
+            isNestedScrollingEnabled = false
+            overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+        }
+
+        // "Popular with Friends" and "Film Interest" reuse the popular poster row.
+        popularWithFriendsAdapter = MovieCardAdapter(
+            onMovieClick = { movie ->
+                navigateTo(R.id.movieDetailFragment, Bundle().apply { putInt("movieId", movie.id) })
+            },
+            onLogFilm = { movie ->
+                navigateTo(R.id.logFilmFragment, Bundle().apply { putInt("movieId", movie.id) })
+            },
+            onChangePoster = { movie ->
+                navigateTo(R.id.posterBackdropFragment, Bundle().apply { putInt("movieId", movie.id) })
+            }
+        )
+        binding.rvPopularWithFriends.apply {
+            adapter = popularWithFriendsAdapter
+            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+            isNestedScrollingEnabled = false
+            overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+        }
+
+        filmInterestAdapter = MovieCardAdapter(
+            onMovieClick = { movie ->
+                navigateTo(R.id.movieDetailFragment, Bundle().apply { putInt("movieId", movie.id) })
+            },
+            onLogFilm = { movie ->
+                navigateTo(R.id.logFilmFragment, Bundle().apply { putInt("movieId", movie.id) })
+            },
+            onChangePoster = { movie ->
+                navigateTo(R.id.posterBackdropFragment, Bundle().apply { putInt("movieId", movie.id) })
+            }
+        )
+        binding.rvFilmInterest.apply {
+            adapter = filmInterestAdapter
+            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
             isNestedScrollingEnabled = false
             overScrollMode = RecyclerView.OVER_SCROLL_NEVER
         }
@@ -128,13 +180,13 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                     
                     if (reviewId > 0) {
                         android.util.Log.d("HomeFragment", "ReviewId is valid, creating navigation action...")
-                        val action = HomeFragmentDirections.actionHomeToReviewDetail(
-                            reviewId = reviewId,
-                            isLog = isLog
+                        navigateTo(
+                            R.id.reviewDetailFragment,
+                            Bundle().apply {
+                                putInt("reviewId", reviewId)
+                                putBoolean("isLog", isLog)
+                            }
                         )
-                        android.util.Log.d("HomeFragment", "Navigation action created successfully")
-                        android.util.Log.d("HomeFragment", "Calling findNavController().navigate()...")
-                        findNavController().navigate(action)
                         android.util.Log.d("HomeFragment", "Navigation command executed!")
                     } else {
                         android.util.Log.e("HomeFragment", "ERROR: Invalid reviewId: $reviewId")
@@ -150,32 +202,28 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             },
             onProfileClick = { activity ->
                 try {
-                    val action = HomeFragmentDirections.actionHomeToProfile(activity.user.id)
-                    findNavController().navigate(action)
+                    navigateTo(R.id.navigation_profile, Bundle().apply { putInt("userId", activity.user.id) })
                 } catch (e: Exception) {
                     android.util.Log.e("HomeFragment", "Profile navigation error", e)
                 }
             },
             onLongPressGoToFilm = { activity ->
                 try {
-                    val action = HomeFragmentDirections.actionHomeToMovieDetail(activity.movie.id)
-                    findNavController().navigate(action)
+                    navigateTo(R.id.movieDetailFragment, Bundle().apply { putInt("movieId", activity.movie.id) })
                 } catch (e: Exception) {
                     android.util.Log.e("HomeFragment", "Movie detail navigation error", e)
                 }
             },
             onLogFilm = { activity ->
                 try {
-                    val action = HomeFragmentDirections.actionHomeToLogFilm(activity.movie.id)
-                    findNavController().navigate(action)
+                    navigateTo(R.id.logFilmFragment, Bundle().apply { putInt("movieId", activity.movie.id) })
                 } catch (e: Exception) {
                     android.util.Log.e("HomeFragment", "Log film navigation error", e)
                 }
             },
             onChangePoster = { activity ->
                 try {
-                    val action = HomeFragmentDirections.actionHomeToPosterBackdrop(activity.movie.id, false)
-                    findNavController().navigate(action)
+                    navigateTo(R.id.posterBackdropFragment, Bundle().apply { putInt("movieId", activity.movie.id) })
                 } catch (e: Exception) {
                     android.util.Log.e("HomeFragment", "Change poster navigation error", e)
                 }
@@ -193,23 +241,33 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         // Setup Now Showing RecyclerView (Horizontal)
         nowShowingAdapter = TheatricalMovieAdapter(
             onMovieClick = { movie ->
-                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
-                findNavController().navigate(action)
+                navigateTo(R.id.movieDetailFragment, Bundle().apply { putInt("movieId", movie.id) })
             },
             onBuyTicketClick = { movie -> openMovieSchedule(movie) },
             onLongPressGoToFilm = { movie ->
-                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
-                findNavController().navigate(action)
+                navigateTo(R.id.movieDetailFragment, Bundle().apply { putInt("movieId", movie.id) })
             },
             onLogFilm = { movie ->
-                val action = HomeFragmentDirections.actionHomeToLogFilm(movie.id)
-                findNavController().navigate(action)
+                navigateTo(R.id.logFilmFragment, Bundle().apply { putInt("movieId", movie.id) })
             },
             onChangePoster = { movie ->
-                val action = HomeFragmentDirections.actionHomeToPosterBackdrop(movie.id, false)
-                findNavController().navigate(action)
+                navigateTo(R.id.posterBackdropFragment, Bundle().apply { putInt("movieId", movie.id) })
             }
         )
+        eventAdapter = com.komputerkit.moview.ui.event.EventCardAdapter { event ->
+            navigateTo(R.id.eventDetailFragment, Bundle().apply { putInt("eventId", event.id) })
+        }
+        binding.rvEvents.apply {
+            adapter = eventAdapter
+            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+            // Vertical page scroll owns the vertical gesture; the row only snaps horizontally.
+            isNestedScrollingEnabled = false
+            overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+            if (snapHelper == null) {
+                snapHelper = LinearSnapHelper().also { it.attachToRecyclerView(this) }
+            }
+        }
+
         binding.rvNowShowing.apply {
             adapter = nowShowingAdapter
             layoutManager = LinearLayoutManager(
@@ -220,21 +278,17 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         // Setup Upcoming RecyclerView (Horizontal)
         upcomingAdapter = TheatricalMovieAdapter(
             onMovieClick = { movie ->
-                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
-                findNavController().navigate(action)
+                navigateTo(R.id.movieDetailFragment, Bundle().apply { putInt("movieId", movie.id) })
             },
             showDateBadge = true,
             onLongPressGoToFilm = { movie ->
-                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
-                findNavController().navigate(action)
+                navigateTo(R.id.movieDetailFragment, Bundle().apply { putInt("movieId", movie.id) })
             },
             onLogFilm = { movie ->
-                val action = HomeFragmentDirections.actionHomeToLogFilm(movie.id)
-                findNavController().navigate(action)
+                navigateTo(R.id.logFilmFragment, Bundle().apply { putInt("movieId", movie.id) })
             },
             onChangePoster = { movie ->
-                val action = HomeFragmentDirections.actionHomeToPosterBackdrop(movie.id, false)
-                findNavController().navigate(action)
+                navigateTo(R.id.posterBackdropFragment, Bundle().apply { putInt("movieId", movie.id) })
             }
         )
         binding.rvUpcoming.apply {
@@ -247,21 +301,17 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         // Setup Coming Soon RecyclerView (Horizontal)
         comingSoonAdapter = TheatricalMovieAdapter(
             onMovieClick = { movie ->
-                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
-                findNavController().navigate(action)
+                navigateTo(R.id.movieDetailFragment, Bundle().apply { putInt("movieId", movie.id) })
             },
             showDateBadge = true,
             onLongPressGoToFilm = { movie ->
-                val action = HomeFragmentDirections.actionHomeToMovieDetail(movie.id)
-                findNavController().navigate(action)
+                navigateTo(R.id.movieDetailFragment, Bundle().apply { putInt("movieId", movie.id) })
             },
             onLogFilm = { movie ->
-                val action = HomeFragmentDirections.actionHomeToLogFilm(movie.id)
-                findNavController().navigate(action)
+                navigateTo(R.id.logFilmFragment, Bundle().apply { putInt("movieId", movie.id) })
             },
             onChangePoster = { movie ->
-                val action = HomeFragmentDirections.actionHomeToPosterBackdrop(movie.id, false)
-                findNavController().navigate(action)
+                navigateTo(R.id.posterBackdropFragment, Bundle().apply { putInt("movieId", movie.id) })
             }
         )
         binding.rvComingSoon.apply {
@@ -269,6 +319,32 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             layoutManager = LinearLayoutManager(
                 requireContext(), LinearLayoutManager.HORIZONTAL, false
             )
+        }
+
+        // Popular reviews (Review tab) reuse the shared review card.
+        popularReviewAdapter = com.komputerkit.moview.ui.review.ReviewAdapter(
+            onReviewClick = { review ->
+                navigateTo(
+                    R.id.reviewDetailFragment,
+                    Bundle().apply {
+                        putInt("reviewId", review.id)
+                        putBoolean("isLog", false)
+                    }
+                )
+            }
+        ).apply { isOwnProfile = false }
+        binding.rvPopularReviews.apply {
+            adapter = popularReviewAdapter
+            layoutManager = LinearLayoutManager(requireContext())
+            addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                    if (dy <= 0) return
+                    val lm = rv.layoutManager as? LinearLayoutManager ?: return
+                    if (lm.findLastVisibleItemPosition() >= (rv.adapter?.itemCount ?: 0) - 3) {
+                        viewModel.loadPopularReviews()
+                    }
+                }
+            })
         }
 
     }
@@ -283,8 +359,19 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             }
         }
 
-        viewModel.friendActivities.observe(viewLifecycleOwner) { activities ->
-            android.util.Log.d("HomeFragment", "Friend activities received: ${activities.size} items")
+        viewModel.popularWithFriends.observe(viewLifecycleOwner) { movies ->
+            popularWithFriendsAdapter.submitList(movies)
+            // Needs at least 3 films (and at least one followed friend) to be worth a row.
+            binding.layoutPopularWithFriends.visibility =
+                if (movies.size >= 3) View.VISIBLE else View.GONE
+        }
+
+        viewModel.filmInterest.observe(viewLifecycleOwner) { movies ->
+            filmInterestAdapter.submitList(movies)
+            binding.layoutFilmInterest.visibility = if (movies.isEmpty()) View.GONE else View.VISIBLE
+        }
+
+        viewModel.friendActivities.observe(viewLifecycleOwner) { activities ->            android.util.Log.d("HomeFragment", "Friend activities received: ${activities.size} items")
             if (activities.isEmpty()) {
                 android.util.Log.d("HomeFragment", "No friend activities to display")
                 binding.rvFriendActivities.visibility = View.GONE
@@ -295,6 +382,12 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             }
         }
         
+        viewModel.events.observe(viewLifecycleOwner) { events ->
+            // Section is always present on the Bioskop tab; the list may still be empty.
+            eventAdapter.submitList(events)
+            binding.layoutEvents.visibility = View.VISIBLE
+        }
+
         viewModel.nowShowingMovies.observe(viewLifecycleOwner) { movies ->
             nowShowingAdapter.submitList(movies)
         }
@@ -307,6 +400,13 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             comingSoonAdapter.submitList(movies)
             binding.layoutComingSoon.visibility = if (movies.isEmpty()) View.GONE else View.VISIBLE
         }
+
+        viewModel.popularReviews.observe(viewLifecycleOwner) { reviews ->
+            popularReviewAdapter.submitList(reviews)
+            updateReviewsEmpty()
+        }
+
+        viewModel.reviewsLoaded.observe(viewLifecycleOwner) { updateReviewsEmpty() }
 
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
@@ -323,38 +423,75 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     private fun setupSwipeRefresh() {
         binding.swipeRefresh.setOnRefreshListener(this)
     }
+
+    private fun setupTabs() {
+        binding.homeTabLayout.addTab(binding.homeTabLayout.newTab().setText("Social"))
+        binding.homeTabLayout.addTab(binding.homeTabLayout.newTab().setText("Review"))
+
+        // Tap-only switching: no swipe, so it never fights the outer tab pager.
+        // Scroll positions survive because both containers stay alive, just hidden.
+        binding.homeTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                val showReviews = tab.position == 1
+                binding.nestedScrollView.visibility = if (showReviews) View.GONE else View.VISIBLE
+                binding.layoutReviews.visibility = if (showReviews) View.VISIBLE else View.GONE
+                if (showReviews) viewModel.ensurePopularReviews()
+            }
+
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {}
+        })
+    }
+
+    private fun updateReviewsEmpty() {
+        val empty = viewModel.reviewsLoaded.value == true &&
+            viewModel.popularReviews.value.isNullOrEmpty()
+        binding.tvReviewsEmpty.visibility = if (empty) View.VISIBLE else View.GONE
+    }
     
     private fun setupClickListeners() {
         binding.btnSeeAll.setOnClickListener {
             android.util.Log.d("HomeFragment", "See All Popular clicked")
-            val action = HomeFragmentDirections.actionHomeToPopularMovies()
-            findNavController().navigate(action)
+            navigateTo(R.id.popularMoviesFragment)
         }
         
         binding.btnSeeAllFriends.setOnClickListener {
             android.util.Log.d("HomeFragment", "See All Friends clicked")
-            val action = HomeFragmentDirections.actionHomeToFriendActivities()
-            findNavController().navigate(action)
+            navigateTo(R.id.friendActivitiesFragment)
         }
         binding.btnSeeAllNowShowing.setOnClickListener {
-            val action = HomeFragmentDirections.actionHomeToNowShowing()
-            findNavController().navigate(action)
+            navigateTo(R.id.nowShowingFragment)
         }
 
         binding.btnSeeAllUpcoming.setOnClickListener {
-            val action = HomeFragmentDirections.actionHomeToUpcoming()
-            findNavController().navigate(action)
+            navigateTo(R.id.upcomingFragment)
         }
 
         binding.btnSeeAllComingSoon.setOnClickListener {
-            val action = HomeFragmentDirections.actionHomeToComingSoon()
-            findNavController().navigate(action)
+            navigateTo(R.id.comingSoonFragment)
+        }
+    }
+
+    /** Works from both the Home and Bioskop tabs (same fragment, different destinations). */
+    private fun navigateTo(destinationId: Int, args: Bundle? = null) {
+        try {
+            // Reuse the app's standard slide transition for every jump from this tab.
+            val options = androidx.navigation.NavOptions.Builder()
+                .setEnterAnim(R.anim.slide_in_right)
+                .setExitAnim(R.anim.slide_out_left)
+                .setPopEnterAnim(R.anim.slide_in_left)
+                .setPopExitAnim(R.anim.slide_out_right)
+                .build()
+            findNavController().navigate(destinationId, args, options)
+        } catch (e: Exception) {
+            android.util.Log.e("HomeFragment", "Navigation error to $destinationId", e)
         }
     }
 
     override fun onRefresh() {
         android.util.Log.d("HomeFragment", "Refreshing home data")
         viewModel.refreshData()
+        viewModel.loadEvents()
     }
 
     private fun openMovieSchedule(movie: com.komputerkit.moview.data.model.TheatricalMovie) {
