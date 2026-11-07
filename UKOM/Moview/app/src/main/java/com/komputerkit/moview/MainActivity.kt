@@ -29,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     private val tabOrder = intArrayOf(
         R.id.navigation_home,
         R.id.navigation_search,
+        R.id.navigation_cinema,
         R.id.navigation_notification,
         R.id.navigation_profile
     )
@@ -36,6 +37,9 @@ class MainActivity : AppCompatActivity() {
     // Set to true while a swipe-gesture commit is handling navigation directly,
     // so the BottomNav's setOnItemSelectedListener skips its navigateToTabRoot call.
     private var swipeNavigating = false
+
+    /** Event ids from the last festival list fetch (used for the Bioskop dot). */
+    private var knownEventIds: Set<Int> = emptySet()
 
     // Standard forward push animation (enter from right, exit to left) used for
     // navigate-by-id pushes that have no <action> to carry anim attrs.
@@ -56,6 +60,7 @@ class MainActivity : AppCompatActivity() {
         setupNavigation()
         checkLoginStatus()
         loadUnreadNotificationCount()
+        refreshBioskopBadge()
         handleMovieDetailIntent(intent)
 
         // Global network/5xx errors surfaced by the OkHttp interceptor
@@ -209,7 +214,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.editProfileFragment,
                 R.id.logFilmFragment,
                 R.id.posterGeneratorFragment,
-                R.id.posterBackdropFragment -> {
+                R.id.posterBackdropFragment,
+                R.id.eventDetailFragment -> {
                     binding.bottomNavigation.visibility = View.GONE
                 }
                 R.id.navigation_search -> {
@@ -225,10 +231,80 @@ class MainActivity : AppCompatActivity() {
                 R.id.navigation_home -> binding.bottomNavigation.menu.findItem(R.id.navigation_home)?.isChecked = true
                 R.id.navigation_profile -> binding.bottomNavigation.menu.findItem(R.id.navigation_profile)?.isChecked = true
                 R.id.navigation_search -> binding.bottomNavigation.menu.findItem(R.id.navigation_search)?.isChecked = true
+                R.id.navigation_cinema -> binding.bottomNavigation.menu.findItem(R.id.navigation_cinema)?.isChecked = true
                 R.id.navigation_notification -> binding.bottomNavigation.menu.findItem(R.id.navigation_notification)?.isChecked = true
+            }
+
+            // Bioskop dot clears as soon as the user opens the tab; the coach mark
+            // only ever shows on the Home tab.
+            when (destination.id) {
+                R.id.navigation_cinema -> {
+                    markBioskopEventsSeen()
+                    binding.coachBioskop.visibility = View.GONE
+                }
+                R.id.navigation_home -> maybeShowBioskopCoachMark()
+                else -> binding.coachBioskop.visibility = View.GONE
             }
         }
     }
+
+    // --- Bioskop tab dot + one-time coach mark ------------------------------
+
+    /** Dot on the Bioskop tab while any festival event has not been seen yet. */
+    private fun refreshBioskopBadge() {
+        lifecycleScope.launch {
+            val events = try {
+                MovieRepository().getEvents()
+            } catch (_: Exception) {
+                emptyList()
+            }
+            knownEventIds = events.map { it.id }.toSet()
+            // Already on the Bioskop tab: nothing new to announce.
+            if (navController.currentDestination?.id == R.id.navigation_cinema) {
+                markBioskopEventsSeen()
+                return@launch
+            }
+            val seen = prefs().getStringSet(KEY_SEEN_EVENTS, emptySet()).orEmpty()
+            setBioskopDot(events.any { it.id.toString() !in seen })
+        }
+    }
+
+    private fun setBioskopDot(show: Boolean) {
+        if (!show) {
+            binding.bottomNavigation.removeBadge(R.id.navigation_cinema)
+            return
+        }
+
+        // No number = the small dot variant of the badge.
+        val badge = binding.bottomNavigation.getOrCreateBadge(R.id.navigation_cinema)
+        badge.clearNumber()
+        badge.backgroundColor = androidx.core.content.ContextCompat.getColor(this, R.color.accent_blue)
+        badge.isVisible = true
+    }
+
+    /** Persists every currently listed event as seen (per event id). */
+    private fun markBioskopEventsSeen() {
+        if (knownEventIds.isEmpty()) return
+        val seen = prefs().getStringSet(KEY_SEEN_EVENTS, emptySet())
+            .orEmpty()
+            .toMutableSet()
+        seen.addAll(knownEventIds.map { it.toString() })
+        prefs().edit().putStringSet(KEY_SEEN_EVENTS, seen).apply()
+        setBioskopDot(false)
+    }
+
+    /** Shows the tooltip above the Bioskop tab once, on the first Home open. */
+    private fun maybeShowBioskopCoachMark() {
+        if (prefs().getBoolean(KEY_COACH_SEEN, false)) return
+        // Persist on show so it never reappears, even if the user navigates away.
+        prefs().edit().putBoolean(KEY_COACH_SEEN, true).apply()
+        binding.coachBioskop.visibility = View.VISIBLE
+        binding.btnCoachOk.setOnClickListener {
+            binding.coachBioskop.visibility = View.GONE
+        }
+    }
+
+    private fun prefs() = getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
     
     /**
      * Jump to a main tab's root (single stack, all nested screens discarded).
@@ -348,7 +424,7 @@ class MainActivity : AppCompatActivity() {
 
         // Use screen coordinates against each scroller's *global visible* rect. The previous
         // hit-test walked children with getHitRect(), which ignores how far the page is
-        // scrolled — so after scrolling, a carousel was no longer detected and the tab swipe
+        // scrolled ï¿½ so after scrolling, a carousel was no longer detected and the tab swipe
         // fired while the user was dragging a poster row.
         return !isOverHorizontalScrollerOrNav(ev.rawX, ev.rawY)
     }
@@ -461,5 +537,10 @@ class MainActivity : AppCompatActivity() {
         const val EXIT_MS = 150L
         /** Swipe commit: time for the new page to slide in. */
         const val ENTER_MS = 170L
+
+        /** Festival event ids the user has already seen on the Bioskop tab. */
+        const val KEY_SEEN_EVENTS = "bioskop_seen_event_ids"
+        /** One-time coach mark above the Bioskop tab. */
+        const val KEY_COACH_SEEN = "bioskop_coach_seen"
     }
 }

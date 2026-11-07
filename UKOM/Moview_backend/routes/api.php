@@ -109,6 +109,20 @@ Route::prefix('v1')->group(function () {
     Route::get('/users/{userId}/following', [UserActivityController::class, 'getFollowing']);
     Route::get('/users/{userId}/friends-activity', [UserActivityController::class, 'getFriendsRecentActivity']);
     Route::get('/users/{userId}/friends-activity-all', [UserActivityController::class, 'getAllFriendsActivity']);
+
+    // Film lists
+    Route::get('/users/{userId}/lists', [\App\Http\Controllers\Api\FilmListApiController::class, 'index'])->where('userId', '[0-9]+');
+    Route::post('/users/{userId}/lists', [\App\Http\Controllers\Api\FilmListApiController::class, 'store'])->where('userId', '[0-9]+');
+    Route::put('/users/{userId}/lists/{listId}', [\App\Http\Controllers\Api\FilmListApiController::class, 'update'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+']);
+    Route::delete('/users/{userId}/lists/{listId}', [\App\Http\Controllers\Api\FilmListApiController::class, 'destroy'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+']);
+    Route::post('/users/{userId}/lists/{listId}/items', [\App\Http\Controllers\Api\FilmListApiController::class, 'addItems'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+']);
+    Route::delete('/users/{userId}/lists/{listId}/items/{movieId}', [\App\Http\Controllers\Api\FilmListApiController::class, 'removeItem'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+', 'movieId' => '[0-9]+']);
+    Route::put('/users/{userId}/lists/{listId}/order', [\App\Http\Controllers\Api\FilmListApiController::class, 'reorder'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+']);
+    Route::put('/users/{userId}/lists/{listId}/items/{movieId}/media', [\App\Http\Controllers\Api\FilmListApiController::class, 'setItemMedia'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+', 'movieId' => '[0-9]+']);
+    Route::get('/lists/{listId}', [\App\Http\Controllers\Api\FilmListApiController::class, 'show'])->where('listId', '[0-9]+');
+    Route::get('/lists/{listId}/backdrop-movies', [\App\Http\Controllers\Api\FilmListApiController::class, 'backdropMovies'])->where('listId', '[0-9]+');
+    Route::get('/movies/{movieId}/list-artwork', [\App\Http\Controllers\Api\FilmListApiController::class, 'movieArtwork'])->where('movieId', '[0-9]+');
+
     
     // Follow/Unfollow
     Route::post('/users/{userId}/follow/{targetUserId}', [UserActivityController::class, 'followUser']);

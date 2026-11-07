@@ -84,6 +84,10 @@
         android:id="@+id/navigation_home"
         android:name="com.komputerkit.moview.ui.home.HomeFragment"
         android:label="Home">
+        <argument
+            android:name="mode"
+            android:defaultValue="social"
+            app:argType="string" />
         <action
             android:id="@+id/action_home_to_movieDetail"
             app:destination="@id/movieDetailFragment"
@@ -150,6 +154,51 @@
         <action
             android:id="@+id/action_home_to_posterBackdrop"
             app:destination="@id/posterBackdropFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_cinema"
+        android:name="com.komputerkit.moview.ui.home.HomeFragment"
+        android:label="Bioskop">
+        <argument
+            android:name="mode"
+            android:defaultValue="cinema"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_cinema_to_movieDetail"
+            app:destination="@id/movieDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_cinema_to_nowShowing"
+            app:destination="@id/nowShowingFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_cinema_to_upcoming"
+            app:destination="@id/upcomingFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_cinema_to_comingSoon"
+            app:destination="@id/comingSoonFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_cinema_to_eventDetail"
+            app:destination="@id/eventDetailFragment"
             app:enterAnim="@anim/slide_in_right"
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"
@@ -278,6 +327,13 @@
         <action
             android:id="@+id/action_profile_to_watchlist"
             app:destination="@id/watchlistFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_profile_to_myLists"
+            app:destination="@id/myListsFragment"
             app:enterAnim="@anim/slide_in_right"
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"
@@ -1230,6 +1286,92 @@
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"
             app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/eventDetailFragment"
+        android:name="com.komputerkit.moview.ui.event.EventDetailFragment"
+        android:label="Detail Event">
+        <argument
+            android:name="eventId"
+            app:argType="integer" />
+    </fragment>
+
+    <!-- Film lists -->
+    <fragment
+        android:id="@+id/myListsFragment"
+        android:name="com.komputerkit.moview.ui.lists.MyListsFragment"
+        android:label="List Film">
+        <action
+            android:id="@+id/action_myLists_to_listEditor"
+            app:destination="@id/listEditorFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_myLists_to_listDetail"
+            app:destination="@id/listDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/listEditorFragment"
+        android:name="com.komputerkit.moview.ui.lists.ListEditorFragment"
+        android:label="Buat List">
+        <argument
+            android:name="listId"
+            app:argType="integer"
+            android:defaultValue="0" />
+        <action
+            android:id="@+id/action_listEditor_to_listDetail"
+            app:destination="@id/listDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/listDetailFragment"
+        android:name="com.komputerkit.moview.ui.lists.ListDetailFragment"
+        android:label="List">
+        <argument
+            android:name="listId"
+            app:argType="integer" />
+        <action
+            android:id="@+id/action_listDetail_to_listEditor"
+            app:destination="@id/listEditorFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_listDetail_to_filmPicker"
+            app:destination="@id/filmPickerFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_listDetail_to_movieDetail"
+            app:destination="@id/movieDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/filmPickerFragment"
+        android:name="com.komputerkit.moview.ui.lists.FilmPickerFragment"
+        android:label="Pilih Film">
+        <argument
+            android:name="listId"
+            app:argType="integer" />
     </fragment>
 
 </navigation>

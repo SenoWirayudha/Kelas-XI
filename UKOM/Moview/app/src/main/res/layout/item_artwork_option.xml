@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="64dp"
+    android:layout_height="96dp"
+    android:layout_marginEnd="8dp"
+    app:cardBackgroundColor="@color/dark_card"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp">
+
+    <ImageView
+        android:id="@+id/iv_option"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="Pilihan artwork"
+        android:scaleType="centerCrop"
+        tools:src="@color/dark_surface" />
+
+</androidx.cardview.widget.CardView>

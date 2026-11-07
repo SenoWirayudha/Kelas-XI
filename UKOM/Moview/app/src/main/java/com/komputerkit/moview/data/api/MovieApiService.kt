@@ -574,4 +574,79 @@ interface MovieApiService {
         @Query("diaries_id") diariesId: Int? = null,
         @Query("favorite_id") favoriteId: Int? = null
     ): ApiResponse<DisplayMediaEntry>
+
+    // -----------------------------------------------------------------------
+    // Film lists
+    // -----------------------------------------------------------------------
+
+    @GET("users/{userId}/lists")
+    suspend fun getUserLists(
+        @Path("userId") userId: Int,
+        @Query("viewer_id") viewerId: Int? = null
+    ): ApiResponse<List<FilmListDto>>
+
+    @POST("users/{userId}/lists")
+    suspend fun createFilmList(
+        @Path("userId") userId: Int,
+        @Body request: CreateFilmListRequest
+    ): ApiResponse<FilmListDto>
+
+    @PUT("users/{userId}/lists/{listId}")
+    suspend fun updateFilmList(
+        @Path("userId") userId: Int,
+        @Path("listId") listId: Int,
+        @Body request: UpdateFilmListRequest
+    ): ApiResponse<FilmListDto>
+
+    @DELETE("users/{userId}/lists/{listId}")
+    suspend fun deleteFilmList(
+        @Path("userId") userId: Int,
+        @Path("listId") listId: Int
+    ): SimpleResponse
+
+    @GET("lists/{listId}")
+    suspend fun getFilmList(
+        @Path("listId") listId: Int,
+        @Query("viewer_id") viewerId: Int? = null
+    ): ApiResponse<FilmListDto>
+
+    @POST("users/{userId}/lists/{listId}/items")
+    suspend fun addFilmListItems(
+        @Path("userId") userId: Int,
+        @Path("listId") listId: Int,
+        @Body request: AddListItemsRequest
+    ): ApiResponse<FilmListDto>
+
+    @DELETE("users/{userId}/lists/{listId}/items/{movieId}")
+    suspend fun removeFilmListItem(
+        @Path("userId") userId: Int,
+        @Path("listId") listId: Int,
+        @Path("movieId") movieId: Int
+    ): ApiResponse<FilmListDto>
+
+    @PUT("users/{userId}/lists/{listId}/order")
+    suspend fun reorderFilmList(
+        @Path("userId") userId: Int,
+        @Path("listId") listId: Int,
+        @Body request: ReorderListRequest
+    ): SimpleResponse
+
+    @PUT("users/{userId}/lists/{listId}/items/{movieId}/media")
+    suspend fun setFilmListItemMedia(
+        @Path("userId") userId: Int,
+        @Path("listId") listId: Int,
+        @Path("movieId") movieId: Int,
+        @Body request: SetItemMediaRequest
+    ): ApiResponse<FilmListDto>
+
+    @GET("movies/{movieId}/list-artwork")
+    suspend fun getMovieArtwork(
+        @Path("movieId") movieId: Int
+    ): ApiResponse<MovieArtworkDto>
+
+    @GET("lists/{listId}/backdrop-movies")
+    suspend fun getListBackdropMovies(
+        @Path("listId") listId: Int,
+        @Query("viewer_id") viewerId: Int? = null
+    ): ApiResponse<List<BackdropMovieDto>>
 }

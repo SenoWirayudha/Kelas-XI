@@ -1035,3 +1035,77 @@ data class EventDetailDto(
     val status_event: String? = null,
     val sessions: List<EventSessionDto> = emptyList()
 )
+
+// ---------------------------------------------------------------------------
+// Film lists
+// ---------------------------------------------------------------------------
+
+data class FilmListDto(
+    val id: Int,
+    val user_id: Int,
+    val title: String,
+    val description: String? = null,
+    val type: String = "plain",
+    val visibility: String = "public",
+    val use_backdrop: Boolean = false,
+    val items_count: Int = 0,
+    val poster_url: String? = null,
+    val backdrop_url: String? = null,
+    val updated_at: String? = null,
+    val items: List<FilmListItemDto> = emptyList()
+)
+
+data class FilmListItemDto(
+    val movie_id: Int,
+    val position: Int,
+    val title: String? = null,
+    val release_year: Int? = null,
+    val age_rating: String? = null,
+    val poster_url: String? = null,
+    val backdrop_url: String? = null,
+    val custom_poster: Boolean = false,
+    val custom_backdrop: Boolean = false,
+    val poster_media_id: Int? = null,
+    val backdrop_media_id: Int? = null
+)
+
+data class CreateFilmListRequest(
+    val title: String,
+    val description: String? = null,
+    val type: String = "plain",
+    val visibility: String = "public"
+)
+
+data class UpdateFilmListRequest(
+    val title: String,
+    val description: String? = null,
+    val type: String = "plain",
+    val visibility: String = "public",
+    val use_backdrop: Boolean = false
+)
+
+data class AddListItemsRequest(val movie_ids: List<Int>)
+
+data class ReorderListRequest(val movie_ids: List<Int>)
+
+data class SetItemMediaRequest(
+    val poster_media_id: Int? = null,
+    val backdrop_media_id: Int? = null
+)
+
+data class MovieArtworkDto(
+    val posters: List<ArtworkOptionDto> = emptyList(),
+    val backdrops: List<ArtworkOptionDto> = emptyList()
+)
+
+data class ArtworkOptionDto(
+    val id: Int,
+    val url: String,
+    val is_default: Boolean = false
+)
+
+data class BackdropMovieDto(
+    val movie_id: Int,
+    val title: String? = null,
+    val backdrops: List<ArtworkOptionDto> = emptyList()
+)

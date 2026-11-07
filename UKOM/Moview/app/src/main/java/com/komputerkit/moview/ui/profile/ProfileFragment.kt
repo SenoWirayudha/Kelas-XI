@@ -468,6 +468,11 @@ class ProfileFragment : Fragment() {
             val action = ProfileFragmentDirections.actionProfileToWatchlist(targetUserId)
             findNavController().navigate(action)
         }
+
+        binding.layoutLists.setOnClickListener {
+            val action = ProfileFragmentDirections.actionProfileToMyLists()
+            findNavController().navigate(action)
+        }
         
         binding.layoutLikes.setOnClickListener {
             val action = ProfileFragmentDirections.actionProfileToLikes(targetUserId)
