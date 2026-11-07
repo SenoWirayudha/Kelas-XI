@@ -27,6 +27,8 @@ const envSchema = z.object({
   ENTITY_MATCH_THRESHOLD: z.coerce.number().min(0).max(1).default(0.85),
   BREVO_API_KEY: z.string().optional().default(''),
   EMAIL_FROM: z.string().default('noreply@moodspace.app'),
+  FEEDBACK_TO: z.string().optional().default(''),
+  FEEDBACK_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(3),
 })
 
 const parsed = envSchema.safeParse(process.env)

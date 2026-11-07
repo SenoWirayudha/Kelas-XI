@@ -139,3 +139,47 @@ export const sendVerificationCodeEmail = async ({ to, code }) => {
     console.error('[EMAIL] sendVerificationCodeEmail failed:', err)
   }
 }
+
+const escapeHtml = (str) =>
+  String(str || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+
+const FEEDBACK_CATEGORY_LABELS = {
+  bug: 'Masalah Teknis',
+  saran_fitur: 'Saran Fitur',
+  pertanyaan: 'Pertanyaan',
+  lainnya: 'Lainnya',
+}
+
+const FEEDBACK_TEMPLATE = ({ category, message, contactEmail, pageUrl, userAgent, fromUser }) => ({
+  subject: `[MoodSpace] ${FEEDBACK_CATEGORY_LABELS[category] || category} dari ${fromUser?.username || contactEmail}`,
+  html: `<!DOCTYPE html>
+<html lang="id">
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 16px">
+    <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden">
+      <tr><td style="padding:32px 32px 0">
+        <h1 style="margin:0 0 6px;font-size:20px;color:#1a1a2e">Feedback Baru — ${escapeHtml(FEEDBACK_CATEGORY_LABELS[category] || category)}</h1>
+        <p style="margin:0 0 4px;font-size:13px;color:#888">Dari <strong style="color:#1a1a2e">${escapeHtml(fromUser?.username || 'Anonim')}</strong> &lt;${escapeHtml(contactEmail)}&gt;${fromUser?.id ? ` · ID: ${escapeHtml(fromUser.id)}` : ''}</p>
+        ${pageUrl ? `<p style="margin:0 0 16px;font-size:13px;color:#888">Halaman: <a href="${escapeHtml(pageUrl)}" style="color:#1a1a2e;word-break:break-all">${escapeHtml(pageUrl)}</a></p>` : ''}
+        <div style="margin:16px 0;padding:16px;background:#f8f8f8;border-radius:8px;border-left:4px solid #1a1a2e">
+          <p style="margin:0;font-size:14px;color:#1a1a2e;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtml(message)}</p>
+        </div>
+        ${userAgent ? `<p style="margin:0 0 8px;font-size:12px;color:#999">User-Agent: ${escapeHtml(userAgent)}</p>` : ''}
+        <p style="margin:0 0 4px;font-size:12px;color:#999">Balas langsung ke ${escapeHtml(contactEmail)} via Reply di email ini.</p>
+        <div style="height:1px;background:#eee;margin:20px 0"></div>
+        <p style="margin:0 0 24px;font-size:13px;color:#999">&copy; ${new Date().getFullYear()} MoodSpace · Feedback System</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body>
+</html>`,
+})
+
+export const sendFeedbackEmail = async ({ category, message, contactEmail, pageUrl, userAgent, fromUser }) => {
+  if (!env.BREVO_API_KEY) throw new Error('BREVO_API_KEY not configured')
+  if (!env.FEEDBACK_TO) throw new Error('FEEDBACK_TO not configured')
+  const { subject, html } = FEEDBACK_TEMPLATE({ category, message, contactEmail, pageUrl, userAgent, fromUser })
+  const to = env.FEEDBACK_TO.split(',').map((s) => s.trim()).filter(Boolean).join(',')
+  await transporter.sendMail({ from: env.EMAIL_FROM, to, replyTo: contactEmail, subject, html })
+}

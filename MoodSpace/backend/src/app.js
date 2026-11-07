@@ -19,6 +19,7 @@ import { externalImagesRouter } from './modules/externalImages/externalImages.ro
 import { interestRouter } from './modules/interest/interest.routes.js'
 import { removeBgRouter } from './modules/removeBg/removeBg.routes.js'
 import { fontsRouter } from './modules/fonts/fonts.routes.js'
+import { feedbackRouter } from './modules/feedback/feedback.routes.js'
 
 export const createApp = () => {
   const app = express()
@@ -67,6 +68,7 @@ export const createApp = () => {
   app.use('/api/admin', adminRouter)
   app.use('/api', removeBgRouter)
   app.use('/api/fonts', fontsRouter)
+  app.use('/api/feedback', feedbackRouter)
 
   app.use(notFoundHandler)
   app.use(errorHandler)

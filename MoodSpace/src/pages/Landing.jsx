@@ -29,6 +29,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/authState'
 import { getHomeFeed } from '../lib/api/posts'
 import InfoModal from '../components/InfoModal'
+import FeedbackModal from '../components/FeedbackModal'
 import WanderingCursor from '../components/WanderingCursor'
 
 const formatCount = (value = 0) => (
@@ -151,6 +152,7 @@ function Landing() {
   const communityRef = useRef(null)
   const [discoverPosts, setDiscoverPosts] = useState([])
   const [activeInfoModal, setActiveInfoModal] = useState(null)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [flowRef, flowVisible] = useReveal()
   const [ecoRef, ecoVisible] = useReveal()
   const [featuresRef, featuresVisible] = useReveal()
@@ -653,6 +655,7 @@ function Landing() {
           <div className="landing-footer-links">
             <span role="button" tabIndex={0} onClick={() => setActiveInfoModal('privacy')} onKeyDown={(e) => e.key === 'Enter' && setActiveInfoModal('privacy')}>Privacy</span>
             <span role="button" tabIndex={0} onClick={() => setActiveInfoModal('terms')} onKeyDown={(e) => e.key === 'Enter' && setActiveInfoModal('terms')}>Terms</span>
+            <span role="button" tabIndex={0} onClick={() => setFeedbackOpen(true)} onKeyDown={(e) => e.key === 'Enter' && setFeedbackOpen(true)}>Feedback</span>
           </div>
         </div>
         <div className="landing-footer-bottom">
@@ -662,6 +665,7 @@ function Landing() {
 
       {/* ─── PRIVACY / TERMS MODALS ─────────────────────── */}
       <InfoModal type={activeInfoModal} onClose={() => setActiveInfoModal(null)} />
+      <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} initialEmail="" />
     </main>
   )
 }

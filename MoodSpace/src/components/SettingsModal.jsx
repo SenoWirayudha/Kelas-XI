@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ExternalLink, Eye, EyeOff, FileText, Key, LoaderCircle, LogOut, Mail, Save, Shield, X } from 'lucide-react'
+import { ExternalLink, Eye, EyeOff, FileText, Key, LoaderCircle, LogOut, Mail, MessageCircle, Save, Shield, X } from 'lucide-react'
 import { useAuth } from '../context/authState'
 import { apiRequest } from '../lib/api/client'
 import InfoModal from './InfoModal'
+import FeedbackModal from './FeedbackModal'
 
 function SettingsModal({ isOpen, onClose }) {
   const navigate = useNavigate()
@@ -19,6 +20,7 @@ function SettingsModal({ isOpen, onClose }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [infoModalType, setInfoModalType] = useState(null)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -169,6 +171,14 @@ function SettingsModal({ isOpen, onClose }) {
             <span className="settings-item-hint">Pelajari syarat dan ketentuan</span>
           </button>
 
+          <button type="button" className="settings-item" onClick={() => setFeedbackOpen(true)}>
+            <div className="settings-item-left">
+              <MessageCircle size={16} />
+              <span>Laporkan Masalah / Saran</span>
+            </div>
+            <span className="settings-item-hint">Kirim masukan ke tim Moodspace</span>
+          </button>
+
           <div className="settings-user-info">
             <div className="settings-user-avatar">
               {user?.displayName?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || '?'}
@@ -185,6 +195,7 @@ function SettingsModal({ isOpen, onClose }) {
       </section>
     </div>
       <InfoModal type={infoModalType} onClose={() => setInfoModalType(null)} />
+      <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} initialEmail={user?.email || ''} />
     </>
   )
 }

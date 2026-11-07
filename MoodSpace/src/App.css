@@ -15452,3 +15452,29 @@
   gap: 16px;
   flex-wrap: wrap;
 }
+
+/* ── Feedback Modal ── */
+.feedback-modal { max-width: 520px; }
+.feedback-desc { margin: 0 0 16px; font-size: 14px; color: #888; line-height: 1.5; }
+.feedback-form { display: flex; flex-direction: column; gap: 16px; }
+.feedback-label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #555; }
+.feedback-label > span { font-weight: 600; color: #1a1a2e; display: flex; align-items: center; justify-content: space-between; }
+.feedback-counter { font-weight: 400; color: #999; font-style: normal; font-size: 12px; }
+.feedback-category-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.feedback-category { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 10px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.feedback-category.active { border-color: #1a1a2e; background: #f5f5ff; }
+.feedback-category input { display: none; }
+.feedback-category-label { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+.feedback-category-desc { font-size: 11px; color: #999; }
+.feedback-textarea { width: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 10px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 90px; }
+.feedback-textarea:focus { outline: none; border-color: #1a1a2e; }
+.feedback-email-wrapper { position: relative; }
+.feedback-email-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999; pointer-events: none; }
+.feedback-email-wrapper input { padding-left: 32px !important; }
+.feedback-hint { font-size: 11px; color: #999; }
+.feedback-hint.error { color: #d33; }
+.feedback-submit { margin-top: 4px; }
+.feedback-success { text-align: center; padding: 12px 0; }
+.feedback-success-icon { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 50%; background: #eef2ff; display: flex; align-items: center; justify-content: center; color: #1a1a2e; }
+.feedback-success h2 { margin: 0 0 8px; font-size: 20px; color: #1a1a2e; }
+.feedback-success p { margin: 0 0 16px; font-size: 14px; color: #666; line-height: 1.5; }
