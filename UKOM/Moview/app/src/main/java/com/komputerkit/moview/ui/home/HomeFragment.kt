@@ -67,6 +67,7 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         binding.groupCinema.visibility = if (isCinemaTab) View.VISIBLE else View.GONE
         // The tab bar only belongs to the Social/Review Home; the Bioskop tab has none.
         binding.homeTabLayout.visibility = if (isCinemaTab) View.GONE else View.VISIBLE
+        binding.tvHeaderLabel.visibility = if (isCinemaTab) View.VISIBLE else View.GONE
 
         postponeEnterUntilLaidOut()
 

@@ -24,6 +24,21 @@
             android:contentDescription="@string/app_name"
             android:src="@drawable/text_logo_moview" />
 
+        <!-- Shown only on the Bioskop tab: logo stays, label tells where you are. -->
+        <TextView
+            android:id="@+id/tv_header_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_header_label"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp"
+            android:text="Bioskop"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
     </LinearLayout>
 
     <com.google.android.material.tabs.TabLayout
