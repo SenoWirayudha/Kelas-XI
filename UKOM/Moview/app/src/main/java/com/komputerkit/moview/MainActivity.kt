@@ -215,7 +215,11 @@ class MainActivity : AppCompatActivity() {
                 R.id.logFilmFragment,
                 R.id.posterGeneratorFragment,
                 R.id.posterBackdropFragment,
-                R.id.eventDetailFragment -> {
+                R.id.eventDetailFragment,
+                R.id.myListsFragment,
+                R.id.listEditorFragment,
+                R.id.listDetailFragment,
+                R.id.filmPickerFragment -> {
                     binding.bottomNavigation.visibility = View.GONE
                 }
                 R.id.navigation_search -> {

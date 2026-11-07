@@ -24,6 +24,10 @@ class ListEditorFragment : Fragment() {
     private val args: ListEditorFragmentArgs by navArgs()
     private var editing: FilmList? = null
 
+    /** Films picked before the list exists; flushed right after creation. */
+    private val pendingMovieIds = linkedSetOf<Int>()
+    private var navigatingAway = false
+
     private val listId: Int
         get() = args.listId
 
@@ -43,8 +47,25 @@ class ListEditorFragment : Fragment() {
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnSave.setOnClickListener { save() }
+        binding.btnPickFilms.setOnClickListener {
+            findNavController().navigate(R.id.action_listEditor_to_filmPicker)
+        }
+
+        // Fragment lifecycle (not view): the editor's view is destroyed while the
+        // picker is open, but the result must still arrive.
+        parentFragmentManager.setFragmentResultListener(
+            FilmPickerFragment.RESULT_KEY,
+            this
+        ) { _, bundle ->
+            if (_binding == null) return@setFragmentResultListener
+            val ids = bundle.getIntArray(FilmPickerFragment.RESULT_IDS)?.toList().orEmpty()
+            pendingMovieIds.clear()
+            pendingMovieIds.addAll(ids)
+            updateFilmsLabel()
+        }
 
         observe()
+        updateFilmsLabel()
 
         if (listId > 0) {
             viewModel.loadList(listId)
@@ -64,14 +85,18 @@ class ListEditorFragment : Fragment() {
         }
 
         viewModel.saved.observe(viewLifecycleOwner) { saved ->
-            if (!saved) return@observe
+            if (!saved || navigatingAway) return@observe
             viewModel.clearSaved()
+            navigatingAway = true
 
             val createdId = viewModel.list.value?.id ?: 0
-            if (listId > 0 || createdId <= 0) {
+            if (listId <= 0 && createdId > 0 && pendingMovieIds.isNotEmpty()) {
+                viewModel.addFilms(createdId, pendingMovieIds.toList())
+            }
+
+            if (listId > 0) {
                 findNavController().navigateUp()
-            } else {
-                // New list: continue in its detail screen, replacing the editor.
+            } else if (createdId > 0) {
                 val options = androidx.navigation.NavOptions.Builder()
                     .setPopUpTo(R.id.listEditorFragment, true)
                     .build()
@@ -80,6 +105,8 @@ class ListEditorFragment : Fragment() {
                     Bundle().apply { putInt("listId", createdId) },
                     options
                 )
+            } else {
+                findNavController().navigateUp()
             }
         }
 
@@ -90,6 +117,13 @@ class ListEditorFragment : Fragment() {
                 viewModel.clearError()
             }
         }
+    }
+
+    private fun updateFilmsLabel() {
+        val count = pendingMovieIds.size
+        binding.tvFilmsSelected.visibility = if (count > 0) View.VISIBLE else View.GONE
+        binding.tvFilmsSelected.text = "$count film dipilih"
+        binding.btnPickFilms.text = if (count > 0) "+ Ubah Pilihan Film" else "+ Pilih Film"
     }
 
     private fun prefill(list: FilmList) {

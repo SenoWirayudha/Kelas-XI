@@ -1333,6 +1333,13 @@
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"
             app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_listEditor_to_filmPicker"
+            app:destination="@id/filmPickerFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
     <fragment
@@ -1371,7 +1378,8 @@
         android:label="Pilih Film">
         <argument
             android:name="listId"
-            app:argType="integer" />
+            app:argType="integer"
+            android:defaultValue="0" />
     </fragment>
 
 </navigation>

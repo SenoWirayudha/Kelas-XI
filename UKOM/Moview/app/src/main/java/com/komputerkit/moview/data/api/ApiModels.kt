@@ -1041,18 +1041,18 @@ data class EventDetailDto(
 // ---------------------------------------------------------------------------
 
 data class FilmListDto(
-    val id: Int,
-    val user_id: Int,
-    val title: String,
+    val id: Int = 0,
+    val user_id: Int = 0,
+    val title: String? = null,
     val description: String? = null,
-    val type: String = "plain",
-    val visibility: String = "public",
+    val type: String? = null,
+    val visibility: String? = null,
     val use_backdrop: Boolean = false,
     val items_count: Int = 0,
     val poster_url: String? = null,
     val backdrop_url: String? = null,
     val updated_at: String? = null,
-    val items: List<FilmListItemDto> = emptyList()
+    val items: List<FilmListItemDto>? = null
 )
 
 data class FilmListItemDto(
@@ -1094,8 +1094,8 @@ data class SetItemMediaRequest(
 )
 
 data class MovieArtworkDto(
-    val posters: List<ArtworkOptionDto> = emptyList(),
-    val backdrops: List<ArtworkOptionDto> = emptyList()
+    val posters: List<ArtworkOptionDto>? = null,
+    val backdrops: List<ArtworkOptionDto>? = null
 )
 
 data class ArtworkOptionDto(
@@ -1105,7 +1105,7 @@ data class ArtworkOptionDto(
 )
 
 data class BackdropMovieDto(
-    val movie_id: Int,
+    val movie_id: Int = 0,
     val title: String? = null,
-    val backdrops: List<ArtworkOptionDto> = emptyList()
+    val backdrops: List<ArtworkOptionDto>? = null
 )

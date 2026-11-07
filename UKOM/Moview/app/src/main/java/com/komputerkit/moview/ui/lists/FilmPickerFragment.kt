@@ -101,6 +101,19 @@ class FilmPickerFragment : Fragment() {
     }
 
     private fun submit() {
+        if (args.listId <= 0) {
+            // Creation flow: hand the selection back to the editor, which will
+            // add them right after the list is created.
+            parentFragmentManager.setFragmentResult(
+                RESULT_KEY,
+                Bundle().apply {
+                    putIntArray(RESULT_IDS, selected.toIntArray())
+                }
+            )
+            findNavController().navigateUp()
+            return
+        }
+
         if (selected.isEmpty()) {
             findNavController().navigateUp()
             return
@@ -118,6 +131,11 @@ class FilmPickerFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    companion object {
+        const val RESULT_KEY = "film_picker_result"
+        const val RESULT_IDS = "movie_ids"
     }
 
     private class PickerAdapter(

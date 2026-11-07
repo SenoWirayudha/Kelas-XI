@@ -275,7 +275,9 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
                         FilmBackdropOption(
                             movieId = dto.movie_id,
                             title = dto.title,
-                            backdrops = dto.backdrops.map { ArtworkOption(it.id, ServerConfig.fixUrl(it.url)) }
+                            backdrops = dto.backdrops.orEmpty().map {
+                                ArtworkOption(it.id, ServerConfig.fixUrl(it.url))
+                            }
                         )
                     }
                 )
@@ -293,8 +295,12 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
                 response.data?.let { dto ->
                     _artwork.postValue(
                         MovieArtwork(
-                            posters = dto.posters.map { ArtworkOption(it.id, ServerConfig.fixUrl(it.url)) },
-                            backdrops = dto.backdrops.map { ArtworkOption(it.id, ServerConfig.fixUrl(it.url)) }
+                            posters = dto.posters.orEmpty().map {
+                                ArtworkOption(it.id, ServerConfig.fixUrl(it.url))
+                            },
+                            backdrops = dto.backdrops.orEmpty().map {
+                                ArtworkOption(it.id, ServerConfig.fixUrl(it.url))
+                            }
                         )
                     )
                 }
@@ -360,15 +366,15 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
     private fun FilmListDto.toModel() = FilmList(
         id = id,
         userId = user_id,
-        title = title,
+        title = title.orEmpty(),
         description = description,
-        type = type,
-        visibility = visibility,
+        type = type ?: FilmList.TYPE_PLAIN,
+        visibility = visibility ?: FilmList.VISIBILITY_PUBLIC,
         useBackdrop = use_backdrop,
         itemsCount = items_count,
         posterUrl = poster_url?.let { ServerConfig.fixUrl(it) },
         backdropUrl = backdrop_url?.let { ServerConfig.fixUrl(it) },
-        items = items.map { it.toModel() }
+        items = items.orEmpty().map { it.toModel() }
     )
 
     private fun FilmListItemDto.toModel() = FilmListItem(
