@@ -7,9 +7,11 @@ use App\Models\Cinema;
 use App\Models\Movie;
 use App\Models\Schedule;
 use App\Models\Studio;
+use App\Support\FestivalSchedule;
 use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ScheduleController extends Controller
 {
@@ -64,6 +66,12 @@ class ScheduleController extends Controller
         ]);
 
         $this->authorizeStudio($validated['studio_id']);
+        $this->assertNoOverlap(
+            (int) $validated['studio_id'],
+            $validated['show_date'],
+            $validated['show_time'],
+            (int) $validated['movie_id']
+        );
 
         $validated['status'] = 'active';
 
@@ -134,6 +142,13 @@ class ScheduleController extends Controller
         ]);
 
         $this->authorizeStudio($validated['studio_id']);
+        $this->assertNoOverlap(
+            (int) $validated['studio_id'],
+            $validated['show_date'],
+            $validated['show_time'],
+            (int) $validated['movie_id'],
+            (int) $schedule->id
+        );
 
         $schedule->update($validated);
 
@@ -236,6 +251,47 @@ class ScheduleController extends Controller
     {
         $cinemaId = Studio::whereKey($studioId)->value('cinema_id');
         $this->authorizeCinema($cinemaId);
+    }
+
+    /**
+     * Same guard festival sessions get: one studio cannot run two overlapping
+     * shows on the same day. Regular sessions also reserve the cleaning gap.
+     */
+    private function assertNoOverlap(
+        int $studioId,
+        string $showDate,
+        string $showTime,
+        int $movieId,
+        ?int $ignoreId = null
+    ): void {
+        $startAt = FestivalSchedule::parse($showDate)->startOfDay()->setTimeFromTimeString($showTime);
+        $duration = max(1, (int) Movie::whereKey($movieId)->value('duration'));
+        $endsAt = $startAt->copy()->addMinutes($duration + FestivalSchedule::GAP_MINUTES);
+
+        $candidates = Schedule::with(['movie', 'festivalMovies'])
+            ->where('studio_id', $studioId)
+            ->whereDate('show_date', $startAt->toDateString())
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->get();
+
+        foreach ($candidates as $candidate) {
+            $candidateStart = $candidate->startsAt();
+            $candidateEnd = $candidate->endsAt();
+
+            // Regular sessions end with the film, so add the same break the next
+            // show must wait for. Festival sessions already include it.
+            if (! $candidate->isFestival()) {
+                $candidateEnd = $candidateEnd->copy()->addMinutes(FestivalSchedule::GAP_MINUTES);
+            }
+
+            if ($startAt->lt($candidateEnd) && $endsAt->gt($candidateStart)) {
+                throw ValidationException::withMessages([
+                    'show_time' => 'Jadwal bentrok dengan sesi lain di studio yang sama: '
+                        . substr((string) $candidate->show_time, 0, 5)
+                        . ' – ' . $candidateEnd->format('H:i') . '.',
+                ]);
+            }
+        }
     }
 
     private function theatricalMovies()
