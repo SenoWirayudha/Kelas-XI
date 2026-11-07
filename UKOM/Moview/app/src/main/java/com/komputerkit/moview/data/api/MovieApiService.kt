@@ -192,6 +192,21 @@ interface MovieApiService {
         @Query("per_page") perPage: Int? = null
     ): ApiResponse<List<DiaryEntryDto>>
     
+    @GET("popular-reviews")
+    suspend fun getPopularReviews(
+        @Query("page") page: Int? = null
+    ): ApiResponse<List<UserReviewDto>>
+
+    @GET("home/popular-with-friends")
+    suspend fun getPopularWithFriends(
+        @Query("user_id") userId: Int
+    ): ApiResponse<List<MovieCardDto>>
+
+    @GET("home/film-interest")
+    suspend fun getFilmInterest(
+        @Query("user_id") userId: Int
+    ): ApiResponse<List<MovieCardDto>>
+
     @GET("users/{userId}/reviews")
     suspend fun getUserReviews(
         @Path("userId") userId: Int
@@ -247,6 +262,17 @@ interface MovieApiService {
         @Query("per_page") perPage: Int? = null
     ): ApiResponse<List<UserFilmDto>>
     
+    @GET("events")
+    suspend fun getEvents(): ApiResponse<List<EventDto>>
+
+    @GET("events/sessions/{sessionId}/status")
+    suspend fun getEventSessionStatus(
+        @Path("sessionId") sessionId: Int
+    ): ApiResponse<EventSessionStatusDto>
+
+    @GET("events/{id}")
+    suspend fun getEventDetail(@Path("id") id: Int): ApiResponse<EventDetailDto>
+
     @GET("users/{userId}/followers")
     suspend fun getUserFollowers(
         @Path("userId") userId: Int,
@@ -464,6 +490,11 @@ interface MovieApiService {
     suspend fun syncPaymentStatus(
         @Body request: SyncPaymentStatusRequest
     ): ApiResponse<SyncPaymentStatusResponseDto>
+
+    @POST("promos/validate")
+    suspend fun validatePromo(
+        @Body request: ValidatePromoRequest
+    ): ApiResponse<ValidatePromoResponseDto>
 
     @GET("users/{userId}/tickets")
     suspend fun getUserTickets(

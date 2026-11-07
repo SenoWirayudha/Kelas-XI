@@ -306,6 +306,10 @@
                     <i class="fas fa-shopping-cart mr-3"></i>
                     <span>Manajemen Order</span>
                 </a>
+                <a href="{{ route('manager.promos.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.promos.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-tags mr-3"></i>
+                    <span>Kode Promo</span>
+                </a>
                 <a href="{{ route('manager.staff.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('manager.staff.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-user-tie mr-3"></i>
                     <span>Kelola Staff</span>
@@ -387,7 +391,11 @@
                 </a>
                 <a href="{{ route('admin.orders.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.orders.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
                     <i class="fas fa-shopping-cart mr-3"></i>
-                    <span>Order Tiket</span>
+                    <span>Manajemen Order</span>
+                </a>
+                <a href="{{ route('admin.promos.index') }}" class="flex items-center px-6 py-3 {{ request()->routeIs('admin.promos.*') ? 'bg-blue-600' : 'hover:bg-gray-800' }}">
+                    <i class="fas fa-tags mr-3"></i>
+                    <span>Kode Promo</span>
                 </a>
                 @endif
             </nav>
@@ -894,6 +902,25 @@
             return false;
         };
     });
+    </script>
+
+    <script>
+    // Blocks oversized uploads before submit (PHP upload_max_filesize is 2 MB here).
+    function moviewCheckFileSize(input, maxKb) {
+        const error = input.parentElement?.querySelector('[data-file-error]');
+        const file = input.files && input.files[0];
+        if (!file) {
+            if (error) error.classList.add('hidden');
+            input.setCustomValidity('');
+            return;
+        }
+        const tooBig = file.size > maxKb * 1024;
+        if (error) {
+            error.textContent = tooBig ? 'Ukuran file maksimal ' + Math.round(maxKb / 1024) + ' MB.' : '';
+            error.classList.toggle('hidden', !tooBig);
+        }
+        input.setCustomValidity(tooBig ? 'Ukuran file terlalu besar.' : '');
+    }
     </script>
 
     <script>

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\OrderSeat;
 use App\Models\Payment;
+use App\Models\PromoUsage;
 use Illuminate\Support\Facades\DB;
 
 class PendingOrderCleanupService
@@ -39,6 +40,9 @@ class PendingOrderCleanupService
             // Release the seats: the unique (schedule_id, seat_id) constraint
             // must not keep a cancelled order's seats blocked forever.
             OrderSeat::whereIn('order_id', $staleOrderIds)->delete();
+
+            // Abandoned carts return their promo quota to the pool.
+            PromoUsage::whereIn('order_id', $staleOrderIds)->delete();
 
             Payment::whereIn('order_id', $staleOrderIds)
                 ->where(function ($query) {

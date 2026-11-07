@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\CinemaController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EventController;
+use App\Http\Controllers\Admin\PromoController;
 use App\Http\Controllers\Admin\ManagerAccountController;
 use App\Http\Controllers\Manager\ManagerStatsController;
 use App\Http\Controllers\Manager\StaffAccountController;
@@ -167,6 +168,14 @@ Route::prefix('admin')->name('admin.')->middleware(['admin.auth', 'role:admin', 
     Route::delete('/events/{id}/sessions/{sessionId}',   [EventController::class, 'destroySession'])->name('events.sessions.destroy');
     Route::post('/events/movies',                [EventController::class, 'storeMovie'])->name('events.movies.store');
 
+    // Promo Codes
+    Route::get('/promos',              [PromoController::class, 'index'])->name('promos.index');
+    Route::get('/promos/create',       [PromoController::class, 'create'])->name('promos.create');
+    Route::post('/promos',             [PromoController::class, 'store'])->name('promos.store');
+    Route::get('/promos/{id}/edit',    [PromoController::class, 'edit'])->name('promos.edit');
+    Route::put('/promos/{id}',         [PromoController::class, 'update'])->name('promos.update');
+    Route::delete('/promos/{id}',      [PromoController::class, 'destroy'])->name('promos.destroy');
+
     // Cinema Management
     Route::get('/cinemas',          [CinemaController::class, 'index'])->name('cinemas.index');
     Route::get('/cinemas/create',   [CinemaController::class, 'create'])->name('cinemas.create');
@@ -254,6 +263,13 @@ Route::prefix('manager')->name('manager.')->middleware(['admin.auth', 'role:mana
     Route::put('/events/{id}/sessions/{sessionId}',        [EventController::class, 'updateSession'])->name('events.sessions.update');
     Route::delete('/events/{id}/sessions/{sessionId}',     [EventController::class, 'destroySession'])->name('events.sessions.destroy');
     Route::post('/events/movies',                [EventController::class, 'storeMovie'])->name('events.movies.store');
+    // Promo codes (own cinema only)
+    Route::get('/promos',              [PromoController::class, 'index'])->name('promos.index');
+    Route::get('/promos/create',       [PromoController::class, 'create'])->name('promos.create');
+    Route::post('/promos',             [PromoController::class, 'store'])->name('promos.store');
+    Route::get('/promos/{id}/edit',    [PromoController::class, 'edit'])->name('promos.edit');
+    Route::put('/promos/{id}',         [PromoController::class, 'update'])->name('promos.update');
+    Route::delete('/promos/{id}',      [PromoController::class, 'destroy'])->name('promos.destroy');
     // Orders (own cinema only)
     Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/export', [AdminOrderController::class, 'export'])->name('orders.export');

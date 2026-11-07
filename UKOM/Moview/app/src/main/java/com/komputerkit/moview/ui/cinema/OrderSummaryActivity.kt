@@ -33,6 +33,7 @@ class OrderSummaryActivity : AppCompatActivity() {
     private var selectedSeatLabel: String = ""
     private var latestOrderCode: String? = null
     private var shouldSyncOnResume: Boolean = false
+    private var baseTotal: Int = 0
 
     private val appPrefs by lazy {
         getSharedPreferences("MoviewPrefs", MODE_PRIVATE)
@@ -63,14 +64,28 @@ class OrderSummaryActivity : AppCompatActivity() {
         startCountdown(7 * 60 * 1000L)
 
         binding.btnBack.setOnClickListener { finish() }
+        binding.btnApplyPromo.setOnClickListener {
+            val currentUserId = appPrefs.getInt("userId", 0)
+            viewModel.applyPromo(
+                userId = currentUserId,
+                scheduleId = bookingData.scheduleId,
+                selectedSeats = bookingData.selectedSeatIds,
+                code = binding.etPromoCode.text.toString()
+            )
+        }
+        binding.btnClearPromo.setOnClickListener {
+            viewModel.clearPromo()
+            binding.etPromoCode.setText("")
+        }
         binding.btnPay.setOnClickListener {
-            val userId = getSharedPreferences("MoviewPrefs", MODE_PRIVATE).getInt("userId", 0)
+            val userId = appPrefs.getInt("userId", 0)
             val selectedSeats = bookingData.selectedSeatIds
             shouldSyncOnResume = false
             viewModel.createPayment(
                 userId = userId,
                 scheduleId = bookingData.scheduleId,
-                selectedSeats = selectedSeats
+                selectedSeats = selectedSeats,
+                promoCode = viewModel.uiState.value?.promoCode
             )
         }
     }
@@ -92,9 +107,11 @@ class OrderSummaryActivity : AppCompatActivity() {
         val seatLabel = if (seatCount > 1) "$seatCount TIKET" else "1 TIKET"
         binding.tvTicketCount.text = seatLabel
         binding.tvSeatLabel.text = "KURSI $seatsLabel (${booking.studioType})"
+        binding.tvTicketPrice.text = "Rp${fmt.format(extraTotal)}"
         binding.tvServiceCharge.text = "Rp${fmt.format(booking.serviceCharge)} x $seatCount"
 
         val total = extraTotal + (booking.serviceCharge * seatCount)
+        baseTotal = total
         binding.tvTotalPrice.text = "Rp${fmt.format(total)}"
 
         if (booking.moviePosterUrl.isNotBlank()) {
@@ -112,6 +129,25 @@ class OrderSummaryActivity : AppCompatActivity() {
             binding.btnPay.isEnabled = !state.isCreatingPayment
             binding.btnPay.text = if (state.isCreatingPayment) "MEMPROSES..." else "SELESAIKAN PEMBAYARAN"
             binding.layoutSyncStatus.visibility = if (state.isSyncingPayment && shouldSyncOnResume) View.VISIBLE else View.GONE
+
+            binding.btnApplyPromo.isEnabled = !state.isApplyingPromo && !state.isCreatingPayment
+            binding.btnApplyPromo.text = "PAKAI"
+            binding.btnApplyPromo.alpha = if (state.isApplyingPromo) 0f else 1f
+            binding.pbApplyPromo.visibility = if (state.isApplyingPromo) View.VISIBLE else View.GONE
+            binding.btnClearPromo.visibility =
+                if (!state.promoCode.isNullOrBlank()) View.VISIBLE else View.GONE
+            binding.etPromoCode.isEnabled = !state.isApplyingPromo
+
+            val promoMessage = state.promoMessage
+            binding.tvPromoMessage.visibility =
+                if (promoMessage.isNullOrBlank()) View.GONE else View.VISIBLE
+            binding.tvPromoMessage.text = promoMessage
+
+            renderDiscount(state.promoCode, state.promoDiscount)
+
+            if (state.promoCode != null && binding.etPromoCode.text.toString() != state.promoCode) {
+                binding.etPromoCode.setText(state.promoCode)
+            }
 
             state.error?.let {
                 showSnackbar(it, SnackbarType.ERROR)
@@ -159,6 +195,20 @@ class OrderSummaryActivity : AppCompatActivity() {
             binding.tvSyncStatus.text = "Menunggu pembayaran selesai..."
             viewModel.syncPaymentStatus(pendingOrderCode)
         }
+    }
+
+    private fun renderDiscount(code: String?, discount: Int) {
+        val fmt = NumberFormat.getNumberInstance(Locale("id", "ID"))
+        val applied = discount.coerceAtLeast(0).coerceAtMost(baseTotal)
+        val hasPromo = !code.isNullOrBlank() && applied > 0
+
+        binding.layoutSubtotal.visibility = if (hasPromo) View.VISIBLE else View.GONE
+        binding.tvSubtotalAmount.text = "Rp${fmt.format(baseTotal)}"
+
+        binding.layoutDiscount.visibility = if (hasPromo) View.VISIBLE else View.GONE
+        binding.tvDiscountLabel.text = if (code.isNullOrBlank()) "DISKON PROMO" else "DISKON $code"
+        binding.tvDiscountAmount.text = "-Rp${fmt.format(applied)}"
+        binding.tvTotalPrice.text = "Rp${fmt.format((baseTotal - applied).coerceAtLeast(0))}"
     }
 
     private fun clearPendingOrderCode() {

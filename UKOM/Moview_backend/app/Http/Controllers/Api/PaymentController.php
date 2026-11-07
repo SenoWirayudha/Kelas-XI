@@ -12,6 +12,7 @@ use App\Models\Studio;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\PendingOrderCleanupService;
+use App\Services\PromoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -23,8 +24,10 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class PaymentController extends Controller
 {
-    public function __construct(private readonly PendingOrderCleanupService $pendingOrderCleanupService)
-    {
+    public function __construct(
+        private readonly PendingOrderCleanupService $pendingOrderCleanupService,
+        private readonly PromoService $promoService
+    ) {
     }
 
     private function resolveOrderStatus(string $transactionStatus, ?string $fraudStatus, string $currentStatus): string
@@ -60,8 +63,17 @@ class PaymentController extends Controller
             ]
         );
 
+        $previousStatus = $order->status;
         $newOrderStatus = $this->resolveOrderStatus($transactionStatus, $fraudStatus, $order->status);
         $order->update(['status' => $newOrderStatus]);
+
+        // Promo quota: settlement finalises it, expiry/cancel gives it back.
+        // Never release a code that was already paid for.
+        if ($newOrderStatus === 'paid') {
+            $this->promoService->finalizeForOrder($order->id);
+        } elseif (in_array($newOrderStatus, ['cancelled', 'expired'], true) && $previousStatus !== 'paid') {
+            $this->promoService->releaseForOrder($order->id);
+        }
 
         if (in_array($newOrderStatus, ['cancelled', 'expired'], true)) {
             OrderSeat::where('order_id', $order->id)->delete();
@@ -84,6 +96,7 @@ class PaymentController extends Controller
             'selected_seats' => 'required|array|min:1',
             'selected_seats.*' => 'integer|exists:seats,id',
             'payment_method' => 'nullable|string|in:gopay,qris,bank_transfer',
+            'promo_code' => 'nullable|string|max:32',
         ]);
 
         $schedule = Schedule::with(['movie', 'studio.cinema.service'])->findOrFail($validated['schedule_id']);
@@ -187,7 +200,23 @@ class PaymentController extends Controller
                 }
                 $seatCount = count($seatIds);
                 $serviceSubtotal = $serviceFeePerSeat * $seatCount;
-                $grossAmount = $ticketSubtotal + $serviceSubtotal;
+                $beforeDiscount = $ticketSubtotal + $serviceSubtotal;
+
+                // Promo is validated here (not in the app) so the price is authoritative.
+                $promo = null;
+                $discount = 0;
+                if (!empty($validated['promo_code'])) {
+                    [$promo, $discount] = $this->promoService->validateFor(
+                        $validated['promo_code'],
+                        (int) $user->id,
+                        $schedule,
+                        (int) $ticketSubtotal
+                    );
+                    // Midtrans requires a positive gross_amount.
+                    $discount = min($discount, max(0, $beforeDiscount - 1));
+                }
+
+                $grossAmount = $beforeDiscount - $discount;
 
                 $orderCode = 'ORD-' . date('YmdHis') . '-' . strtoupper(Str::random(6));
 
@@ -199,6 +228,12 @@ class PaymentController extends Controller
                     'status' => 'pending',
                     'expired_at' => now()->addMinutes($pendingTimeoutMinutes),
                 ];
+
+                if (Schema::hasColumn('orders', 'discount_amount')) {
+                    $orderPayload['promo_id'] = $promo?->id;
+                    $orderPayload['promo_code'] = $promo?->code;
+                    $orderPayload['discount_amount'] = $discount;
+                }
 
                 if (Schema::hasColumn('orders', 'ticket_code')) {
                     $orderPayload['ticket_code'] = Order::generateUniqueTicketCode();
@@ -213,6 +248,11 @@ class PaymentController extends Controller
                 }
 
                 $order = Order::create($orderPayload);
+
+                if ($promo && Schema::hasTable('promo_usages')) {
+                    // Reserved now: pending orders hold quota until they settle or die.
+                    $this->promoService->reserve($promo, (int) $user->id, (int) $order->id, $discount);
+                }
 
                 foreach ($seatIds as $seatId) {
                     $price = $studio->seatPrice((float) $schedule->ticket_price, $lockedById->get($seatId)->seat_type);
@@ -270,7 +310,8 @@ class PaymentController extends Controller
                             'id' => 'TICKET-' . $schedule->id . '-' . $price,
                             'price' => (int) $price,
                             'quantity' => (int) $qty,
-                            'name' => 'Tiket ' . ($schedule->movie->title ?? 'Movie') . ' (' . implode(', ', $seatCodes) . ')',
+                            // Session title for festival/surprise sessions, film title otherwise.
+                            'name' => 'Tiket ' . (\App\Support\SessionDisplay::forSchedule($schedule)['display_title'] ?? 'Movie') . ' (' . implode(', ', $seatCodes) . ')',
                         ];
                     })
                     ->values()
@@ -287,15 +328,29 @@ class PaymentController extends Controller
                         'phone' => $rawPhone,
                     ],
                     'enabled_payments' => $enabledPayments,
-                    'item_details' => array_merge($ticketItems, [[
-                        'id' => 'SERVICE-FEE',
-                        'price' => $serviceFeePerSeat,
-                        'quantity' => $seatCount,
-                        'name' => 'Biaya Layanan',
-                    ]]),
+                    'item_details' => array_values(array_merge(
+                        $ticketItems,
+                        [[
+                            'id' => 'SERVICE-FEE',
+                            'price' => $serviceFeePerSeat,
+                            'quantity' => $seatCount,
+                            'name' => 'Biaya Layanan',
+                        ]],
+                        // Item totals must equal gross_amount, so the discount is a
+                        // negative line (Midtrans' own recommendation).
+                        $discount > 0
+                            ? [[
+                                'id' => 'DISCOUNT-' . $promo->code,
+                                'price' => -$discount,
+                                'quantity' => 1,
+                                'name' => 'Diskon ' . $promo->code,
+                            ]]
+                            : []
+                    )),
                     'metadata' => [
                         'user_id' => $user->id,
                         'schedule_id' => $schedule->id,
+                        'promo_code' => $promo?->code,
                     ],
                 ];
 
@@ -346,6 +401,7 @@ class PaymentController extends Controller
                     'order' => $order,
                     'snap_token' => $snapToken,
                     'redirect_url' => $redirectUrl,
+                    'discount_amount' => $discount,
                 ];
             });
 
@@ -356,6 +412,8 @@ class PaymentController extends Controller
                     'order_code' => $result['order']->order_code,
                     'snap_token' => $result['snap_token'],
                     'redirect_url' => $result['redirect_url'],
+                    'discount_amount' => $result['discount_amount'],
+                    'gross_amount' => (int) $result['order']->total_price,
                 ],
             ]);
         } catch (ValidationException $e) {

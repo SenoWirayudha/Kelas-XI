@@ -50,6 +50,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/popular', [MovieApiController::class, 'popular']);
     Route::get('/popular-this-week', [MovieApiController::class, 'popularThisWeek']);
     Route::get('/recent-reviews', [MovieApiController::class, 'recentReviews']);
+    Route::get('/popular-reviews', [MovieApiController::class, 'popularReviews']);
+    Route::get('/home/popular-with-friends', [MovieApiController::class, 'popularWithFriends']);
+    Route::get('/home/film-interest', [MovieApiController::class, 'filmInterest']);
     Route::get('/now-showing', [MovieApiController::class, 'nowShowing']);
     Route::get('/preorder', [MovieApiController::class, 'preorder']);
     Route::get('/upcoming', [MovieApiController::class, 'upcoming']);
@@ -166,11 +169,17 @@ Route::prefix('v1')->group(function () {
 
     // Cinema Booking
     Route::get('/cinema-cities', [CinemaController::class, 'cities']);
+    // Film festival events (published & not finished)
+    Route::get('/events', [\App\Http\Controllers\Api\EventApiController::class, 'index']);
+    Route::get('/events/sessions/{sessionId}/status', [\App\Http\Controllers\Api\EventApiController::class, 'sessionStatusCheck'])->where('sessionId', '[0-9]+');
+    Route::get('/events/{id}', [\App\Http\Controllers\Api\EventApiController::class, 'show'])->where('id', '[0-9]+');
+
     Route::get('/schedules', [ScheduleController::class, 'index']);
     Route::get('/seats/layout', [SeatController::class, 'layout']);
     Route::get('/seats',     [SeatController::class,    'index']);
     Route::post('/payment/create', [PaymentController::class, 'create']);
     Route::post('/payment/status', [PaymentController::class, 'status']);
+    Route::post('/promos/validate', [\App\Http\Controllers\Api\PromoController::class, 'validateCode']);
     Route::post('/orders',   [OrderController::class,   'store']);
     Route::get('/users/{userId}/tickets', [TicketController::class, 'history'])->where('userId', '[0-9]+');
     Route::get('/users/{userId}/tickets/{orderId}/qr', [TicketController::class, 'qrDetail'])

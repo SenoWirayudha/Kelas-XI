@@ -95,14 +95,30 @@ data class SeatLayoutSeatDto(
 data class CreatePaymentRequest(
     val user_id: Int,
     val schedule_id: Int,
-    val selected_seats: List<Int>
+    val selected_seats: List<Int>,
+    val promo_code: String? = null
 )
 
 data class CreatePaymentResponseDto(
     val order_id: Int,
     val order_code: String,
     val snap_token: String,
-    val redirect_url: String?
+    val redirect_url: String?,
+    val discount_amount: Int? = null,
+    val gross_amount: Int? = null
+)
+
+data class ValidatePromoRequest(
+    val user_id: Int,
+    val schedule_id: Int,
+    val selected_seats: List<Int>,
+    val promo_code: String
+)
+
+data class ValidatePromoResponseDto(
+    val code: String,
+    val description: String?,
+    val discount_amount: Int
 )
 
 data class SyncPaymentStatusRequest(
@@ -137,7 +153,20 @@ data class UserTicketHistoryDto(
     val cinema: UserTicketCinemaDto,
     val studio: UserTicketStudioDto,
     val schedule: UserTicketScheduleDto,
-    val seats: List<UserTicketSeatDto>
+    val seats: List<UserTicketSeatDto>,
+    /** Festival sessions: session title, else the first film title. */
+    val judul_tampil: String? = null,
+    /** Festival sessions: session poster, else the first film poster. */
+    val poster_url: String? = null,
+    /** Ordered line-up, only for multi-film sessions. */
+    val films: List<TicketMovieRefDto> = emptyList(),
+    /** LSF classification of the session (SU / 13+ / 17+ / 21+). */
+    val usia: String? = null
+)
+
+data class TicketMovieRefDto(
+    val id: Int = 0,
+    val title: String
 )
 
 data class UserTicketMovieDto(
@@ -178,7 +207,11 @@ data class TicketQrDetailDto(
     val cinema: TicketQrCinemaDto,
     val studio: UserTicketStudioDto,
     val schedule: UserTicketScheduleDto,
-    val seats: List<UserTicketSeatDto> = emptyList()
+    val seats: List<UserTicketSeatDto> = emptyList(),
+    val judul_tampil: String? = null,
+    val poster_url: String? = null,
+    val films: List<TicketMovieRefDto> = emptyList(),
+    val usia: String? = null
 )
 
 data class TicketQrCinemaDto(
@@ -212,7 +245,8 @@ data class MovieCardDto(
     val themes: List<String>? = null,
     val average_rating: Float?,
     val watched_count: Int?,
-    val primary_release_date: String? = null
+    val primary_release_date: String? = null,
+    val friend_count: Int = 0
 )
 
 data class FriendReviewDto(
@@ -937,4 +971,67 @@ data class DisplayMediaEntry(
 data class BatchDisplayMediaRequest(
     val film_ids: List<Int>,
     val type: String = "films"
+)
+
+
+// ---- Festival events ----
+
+data class EventDto(
+    val id: Int,
+    val judul: String,
+    val deskripsi: String?,
+    val banner_url: String?,
+    val tanggal_mulai: String,
+    val tanggal_selesai: String,
+    val nama_bioskop: String?,
+    val harga_mulai: Double? = null,
+    /** Server-computed (WIB): coming_soon | berlangsung. */
+    val status_event: String? = null,
+    val sale_starts_at: String? = null,
+    /** Server-computed (WIB): false while the sale window has not opened yet. */
+    val penjualan_dibuka: Boolean? = null
+)
+
+data class EventFilmDto(
+    val judul: String,
+    val sinopsis: String?,
+    val poster_url: String?
+)
+
+data class EventSessionDto(
+    val id: Int,
+    val starts_at: String,
+    val judul_sesi: String?,
+    val poster_url: String?,
+    val durasi_total_menit: Int,
+    val usia: String?,
+    val is_surprise: Boolean = false,
+    val films: List<EventFilmDto> = emptyList(),
+    val harga_min: Double? = null,
+    val harga_maks: Double? = null,
+    val sold_out: Boolean = false,
+    /** tersedia | sold_out | belum_dibuka | selesai (computed on the server clock, WIB). */
+    val status: String? = null
+)
+
+data class EventSessionStatusDto(
+    val id: Int,
+    val status: String,
+    val tersedia: Boolean
+)
+
+data class EventDetailDto(
+    val id: Int,
+    val judul: String,
+    val deskripsi: String?,
+    val banner_url: String?,
+    val tanggal_mulai: String,
+    val tanggal_selesai: String,
+    val nama_bioskop: String?,
+    val sale_starts_at: String?,
+    /** Server-computed (WIB): false while the sale window has not opened yet. */
+    val penjualan_dibuka: Boolean? = null,
+    /** Server-computed (WIB): coming_soon | berlangsung. */
+    val status_event: String? = null,
+    val sessions: List<EventSessionDto> = emptyList()
 )
