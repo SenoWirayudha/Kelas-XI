@@ -8,7 +8,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.data.model.FilmListItem
 import com.komputerkit.moview.databinding.ItemListGridBinding
-import com.komputerkit.moview.util.loadThumbnail
+import com.komputerkit.moview.util.loadGridThumbnail
 
 /**
  * Poster grid for lists. Reuses the app's standard film grid cell
@@ -21,6 +21,9 @@ class PosterGridAdapter(
     private val onClick: (FilmListItem) -> Unit = {},
     private val onLongClick: (FilmListItem, View) -> Unit = { _, _ -> }
 ) : ListAdapter<FilmListItem, PosterGridAdapter.Holder>(Diff) {
+
+    /** Columns of the grid using this adapter (drives thumbnail decode size). */
+    var spanCount: Int = 4
 
     /** Diffs against the current items; [onCommitted] runs after the change lands. */
     fun submit(newItems: List<FilmListItem>, onCommitted: (() -> Unit)? = null) {
@@ -45,7 +48,8 @@ class PosterGridAdapter(
     inner class Holder(private val binding: ItemListGridBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: FilmListItem) {
             val card = binding.posterCard
-            card.ivPoster.loadThumbnail(item.posterUrl, item.title)
+            // Small, cached decode: never the full-resolution source.
+            card.ivPoster.loadGridThumbnail(item.posterUrl, item.title, spanCount)
 
             // The shared cell shows star ratings; lists don't have one.
             card.ratingContainer.visibility = View.GONE

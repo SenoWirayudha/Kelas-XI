@@ -25,7 +25,9 @@ import com.komputerkit.moview.data.model.MovieArtwork
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.util.ServerConfig
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import retrofit2.HttpException
 
@@ -278,7 +280,10 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             try {
                 val response = api.getFilmList(listId, currentUserId)
-                _list.postValue(response.data?.toModel())
+                // Mapping a long line-up is CPU work: keep it off the main
+                // thread so the enter/exit transition stays smooth.
+                val model = withContext(Dispatchers.Default) { response.data?.toModel() }
+                _list.postValue(model)
             } catch (e: Exception) {
                 _error.postValue(messageOf(e))
             } finally {

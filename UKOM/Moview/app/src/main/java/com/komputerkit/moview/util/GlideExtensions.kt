@@ -88,6 +88,44 @@ fun ImageView.loadThumbnail(url: String?, title: String? = null, placeholder: Dr
     requestBuilder.into(this)
 }
 
+/**
+ * Poster cell in a fixed-column grid: always decodes at (a bit above) cell
+ * size instead of the source resolution, so long lists stay smooth.
+ * Disk + memory cache come from Glide's defaults; ALL also caches the source.
+ */
+fun ImageView.loadGridThumbnail(
+    url: String?,
+    title: String? = null,
+    spanCount: Int = 4
+) {
+    if (url.isNullOrEmpty()) {
+        this.setImageDrawable(PosterFallbackDrawable(context, title))
+        return
+    }
+
+    val metrics = resources.displayMetrics
+    val cellWidth = (metrics.widthPixels / spanCount.coerceAtLeast(1))
+        .coerceIn(1, MAX_GRID_THUMB_WIDTH_PX)
+    val cellHeight = cellWidth * 3 / 2
+
+    val fallback = PosterFallbackDrawable(context, title)
+    Glide.with(this.context)
+        .load(ServerConfig.fixUrl(url))
+        .apply(
+            RequestOptions()
+                .placeholder(fallback)
+                .error(fallback)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .centerCrop()
+                .dontAnimate()
+                .override(cellWidth, cellHeight)
+        )
+        .into(this)
+}
+
+/** Widest decode for a poster cell (~2x a 4-column cell on a 1080px screen). */
+private const val MAX_GRID_THUMB_WIDTH_PX = 360
+
 // Load profile/avatar image with circular crop
 fun ImageView.loadAvatar(url: String?, placeholder: Drawable? = null) {
     if (url.isNullOrEmpty()) {

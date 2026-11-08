@@ -33,7 +33,6 @@ class ListEditorFragment : Fragment() {
     private lateinit var gridAdapter: PosterGridAdapter
 
     private lateinit var rankSpacing: RankRowSpacingDecoration
-    private var rankSpacingApplied = false
 
     private val repository = MovieRepository()
 
@@ -78,6 +77,7 @@ class ListEditorFragment : Fragment() {
                 if (listId > 0) openPosterPicker(item.movieId)
             }
         )
+        gridAdapter.spanCount = GRID_SPAN
         binding.rvPickedFilms.layoutManager = GridLayoutManager(requireContext(), GRID_SPAN)
         binding.rvPickedFilms.adapter = gridAdapter
         // Whole page scrolls as one: the grid never scrolls on its own.
@@ -358,16 +358,15 @@ class ListEditorFragment : Fragment() {
         binding.tvEmptyFilms.visibility = if (pickedItems.isEmpty()) View.VISIBLE else View.GONE
     }
 
-    /** Ranked rows need extra top space so the badge never covers the row above. */
+    /**
+     * Ranked rows need extra top space so the badge never covers the row above.
+     * Remove-then-add on every render keeps it applied after the screen reloads
+     * (e.g. back from Edit) without stacking duplicate decorations.
+     */
     private fun applyRankSpacing(ranked: Boolean) {
-        if (ranked == rankSpacingApplied) return
-        rankSpacingApplied = ranked
-
-        if (ranked) {
-            binding.rvPickedFilms.addItemDecoration(rankSpacing)
-        } else {
-            binding.rvPickedFilms.removeItemDecoration(rankSpacing)
-        }
+        binding.rvPickedFilms.removeItemDecoration(rankSpacing)
+        if (ranked) binding.rvPickedFilms.addItemDecoration(rankSpacing)
+        binding.rvPickedFilms.invalidateItemDecorations()
     }
 
     private fun openFilmPicker() {

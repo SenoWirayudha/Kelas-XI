@@ -1402,6 +1402,18 @@
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"
             app:popExitAnim="@anim/slide_out_right" />
+        <!-- Owner profile: same destination/shape as the review author tap. -->
+        <action
+            android:id="@+id/action_listDetail_to_profile"
+            app:destination="@id/navigation_profile"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right">
+            <argument
+                android:name="userId"
+                app:argType="integer" />
+        </action>
     </fragment>
 
     <!-- Add to List: multi-select the user's lists for one film. -->

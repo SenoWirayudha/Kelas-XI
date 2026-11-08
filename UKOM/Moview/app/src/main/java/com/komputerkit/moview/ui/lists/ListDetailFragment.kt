@@ -8,6 +8,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -22,8 +23,8 @@ import com.komputerkit.moview.databinding.FragmentListDetailBinding
 import com.komputerkit.moview.ui.adapter.CommentAdapter
 import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.SnackbarType
-import com.komputerkit.moview.util.loadBackdrop
-import com.komputerkit.moview.util.loadProfilePhoto
+import com.komputerkit.moview.util.postponeEnterUntilLaidOut
+import com.komputerkit.moview.util.runAfterEnterTransition
 import com.komputerkit.moview.util.showSnackbar
 
 /** Screen 4: list detail — backdrop hero, author, stats, poster grid. */
@@ -36,10 +37,14 @@ class ListDetailFragment : Fragment() {
     private val args: ListDetailFragmentArgs by navArgs()
 
     private lateinit var gridAdapter: PosterGridAdapter
+    private lateinit var headerAdapter: ListDetailHeaderAdapter
     private var currentList: FilmList? = null
+    private var commentCount: Int = 0
 
     private lateinit var rankSpacing: RankRowSpacingDecoration
-    private var rankSpacingApplied = false
+
+    /** Set once the deferred first load has been kicked off. */
+    private var initialLoadStarted = false
 
     private val listId: Int get() = args.listId
     private val isOwner: Boolean get() = currentList?.userId == viewModel.currentUserId
@@ -61,21 +66,45 @@ class ListDetailFragment : Fragment() {
             onClick = { item -> openMovie(item) },
             onLongClick = { item, view -> showMovieSheet(item, view) }
         )
-        binding.rvPosters.layoutManager = GridLayoutManager(requireContext(), 4)
-        binding.rvPosters.adapter = gridAdapter
+        gridAdapter.spanCount = GRID_SPAN
+        headerAdapter = ListDetailHeaderAdapter(
+            onOwnerClick = { openOwnerProfile() },
+            onCommentsClick = { showCommentsSheet() }
+        )
+
+        // One list: header item + poster cells share the same pool & scrolling.
+        val gridLayout = GridLayoutManager(requireContext(), GRID_SPAN).apply {
+            spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                override fun getSpanSize(position: Int) =
+                    if (position == 0) GRID_SPAN else 1
+            }
+        }
+        binding.rvContent.layoutManager = gridLayout
+        binding.rvContent.setHasFixedSize(false)
+        binding.rvContent.itemAnimator = null
+        binding.rvContent.adapter = ConcatAdapter(headerAdapter, gridAdapter)
+
+        // Header item counts as a leading row for the rank spacing offsets.
         rankSpacing = RankRowSpacingDecoration(
             GRID_SPAN,
-            (RANK_ROW_SPACING_DP * resources.displayMetrics.density).toInt()
+            (RANK_ROW_SPACING_DP * resources.displayMetrics.density).toInt(),
+            leadingItemCount = 1
         )
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnMore.setOnClickListener { showListMenu() }
-        binding.ivComment.setOnClickListener { showCommentsSheet() }
-        binding.tvCommentCount.setOnClickListener { showCommentsSheet() }
 
         observe()
-        viewModel.loadDetail(listId)
-        viewModel.loadComments(listId)
+
+        // Let the enter slide finish before the (possibly long) list is parsed
+        // and bound; a brief placeholder covers the gap.
+        postponeEnterUntilLaidOut()
+        binding.progress.visibility = View.VISIBLE
+        runAfterEnterTransition {
+            initialLoadStarted = true
+            viewModel.loadDetail(listId)
+            viewModel.loadComments(listId)
+        }
 
         // Poster/backdrop changed from the shared artwork screen.
         findNavController().currentBackStackEntry?.savedStateHandle
@@ -90,6 +119,9 @@ class ListDetailFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        // The first load is deferred until after the transition; only reload
+        // once it has started (e.g. returning from Edit).
+        if (!initialLoadStarted) return
         viewModel.loadDetail(listId)
         viewModel.loadComments(listId)
     }
@@ -105,7 +137,8 @@ class ListDetailFragment : Fragment() {
         }
 
         viewModel.commentCount.observe(viewLifecycleOwner) { count ->
-            binding.tvCommentCount.text = count.toString()
+            commentCount = count
+            headerAdapter.setCommentCount(count)
         }
 
         viewModel.error.observe(viewLifecycleOwner) { message ->
@@ -117,71 +150,56 @@ class ListDetailFragment : Fragment() {
     }
 
     private fun render(list: FilmList) {
+        val owner = list.userId == viewModel.currentUserId
         currentList = list
 
-        binding.tvTitle.text = list.title
-        binding.tvDescription.text = list.description.orEmpty()
-        binding.tvDescription.visibility = if (list.description.isNullOrBlank()) View.GONE else View.VISIBLE
+        // Top bar: "Your List" + menu for the owner, "List by @user" otherwise.
+        binding.tvHeaderTitle.text =
+            if (owner) "Your List" else "List by @${list.ownerUsername ?: "user"}"
+        binding.btnMore.visibility = if (owner) View.VISIBLE else View.GONE
 
-        // Author block: owner comes from the list response; local prefs only as
-        // a fallback while the field is missing.
         val prefs = requireContext().getSharedPreferences("MoviewPrefs", android.content.Context.MODE_PRIVATE)
-        val fallbackUsername = prefs.getString("username", null)
-        val ownerName = list.ownerUsername
-            ?: if (isOwner) (fallbackUsername ?: "you") else "user"
-        binding.tvUsername.text = "@$ownerName"
-        binding.ivAvatar.loadProfilePhoto(
-            list.ownerAvatarUrl
-                ?: if (isOwner) prefs.getString("profilePhotoUrl", null) else null
+        headerAdapter.submit(
+            list,
+            owner,
+            prefs.getString("profilePhotoUrl", null)
         )
 
-        // Likes are not part of the list API yet; comment count is owned by
-        // the comments LiveData so it is not reset here.
-        binding.tvLikeCount.text = "0"
-
-        // Hero backdrop = backdrop of film #1, only when the owner enabled it.
-        val showBackdrop = list.useBackdrop && !list.backdropUrl.isNullOrBlank()
-        binding.ivBackdrop.visibility = View.VISIBLE
-        binding.backdropScrim.visibility = View.VISIBLE
-        if (showBackdrop) {
-            binding.ivBackdrop.loadBackdrop(list.backdropUrl)
-        } else {
-            binding.ivBackdrop.setImageDrawable(null)
-            binding.ivBackdrop.setBackgroundColor(
-                androidx.core.content.ContextCompat.getColor(requireContext(), R.color.dark_surface)
-            )
-        }
-
         val items = list.items.sortedBy { it.position }
+        // Decoration must be (re)applied on every refresh: the edit flow reloads
+        // this screen and an early-return guard used to leave it detached.
         applyRankSpacing(list.isRanked)
-        // Submitting after the layout pass keeps the screen transition smooth
-        // for long lists: the diff calculation happens off the frame callback.
-        binding.rvPosters.post {
-            if (_binding == null) return@post
-            gridAdapter.submit(items)
-        }
-        binding.tvEmpty.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+        // DiffUtil keeps this cheap: only changed cells are re-bound.
+        gridAdapter.submit(items)
     }
 
     /**
      * Ranked lists draw the number above each poster, so every row after the
      * first needs extra top space to keep the badge off the row above.
+     * Remove-then-add keeps it idempotent (no duplicated decorations).
      */
     private fun applyRankSpacing(ranked: Boolean) {
-        if (ranked == rankSpacingApplied) return
-        rankSpacingApplied = ranked
-
-        if (ranked) {
-            binding.rvPosters.addItemDecoration(rankSpacing)
-        } else {
-            binding.rvPosters.removeItemDecoration(rankSpacing)
-        }
+        binding.rvContent.removeItemDecoration(rankSpacing)
+        if (ranked) binding.rvContent.addItemDecoration(rankSpacing)
+        binding.rvContent.invalidateItemDecorations()
     }
 
     private fun openMovie(item: FilmListItem) {
         findNavController().navigate(
             R.id.action_listDetail_to_movieDetail,
             Bundle().apply { putInt("movieId", item.movieId) }
+        )
+    }
+
+    /**
+     * Opens the list owner's profile, mirroring the review screen's author tap
+     * (same destination + userId argument, so own profile behaves the same).
+     */
+    private fun openOwnerProfile() {
+        val list = currentList ?: return
+        findNavController().navigate(
+            R.id.action_listDetail_to_profile,
+            Bundle().apply { putInt("userId", list.userId) }
         )
     }
 
@@ -320,7 +338,8 @@ class ListDetailFragment : Fragment() {
         viewModel.comments.observe(viewLifecycleOwner) { comments ->
             adapter.submitList(comments)
             sheet.tvTitle.text = "Comments (${comments.size})"
-            binding.tvCommentCount.text = comments.size.toString()
+            commentCount = comments.size
+            headerAdapter.setCommentCount(comments.size)
         }
 
         sheet.fabAddComment.setOnClickListener {
