@@ -21,7 +21,7 @@ import com.komputerkit.moview.databinding.BottomSheetCommentsBinding
 import com.komputerkit.moview.databinding.BottomSheetEntryActionsBinding
 import com.komputerkit.moview.databinding.FragmentListDetailBinding
 import com.komputerkit.moview.ui.adapter.CommentAdapter
-import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.ui.films.FilmGridAdapter
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.postponeEnterUntilLaidOut
 import com.komputerkit.moview.util.runAfterEnterTransition
@@ -36,12 +36,12 @@ class ListDetailFragment : Fragment() {
     private val viewModel: FilmListViewModel by viewModels()
     private val args: ListDetailFragmentArgs by navArgs()
 
-    private lateinit var gridAdapter: PosterGridAdapter
+    private lateinit var gridAdapter: FilmGridAdapter
     private lateinit var headerAdapter: ListDetailHeaderAdapter
     private var currentList: FilmList? = null
     private var commentCount: Int = 0
 
-    private lateinit var gridDecoration: PosterGridDecoration
+    private lateinit var rankBadge: RankBadgeDecoration
 
     /** Set once the deferred first load has been kicked off. */
     private var initialLoadStarted = false
@@ -61,12 +61,13 @@ class ListDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        gridAdapter = PosterGridAdapter(
-            showRanks = { currentList?.isRanked == true },
-            onClick = { item -> openMovie(item) },
-            onLongClick = { item, view -> showMovieSheet(item, view) }
+        // Reuses the app's 4-column film grid (same adapter + item layout as
+        // the Profile/Search film grids): FilmGridAdapter + item_film_grid.
+        gridAdapter = FilmGridAdapter(
+            onMovieClick = { movie -> openMovie(movie.id) },
+            onLongPressGoToFilm = { movie -> openMovie(movie.id) },
+            onChangePoster = { movie -> if (isOwner) openPosterPicker(movie.id) }
         )
-        gridAdapter.spanCount = GRID_SPAN
         headerAdapter = ListDetailHeaderAdapter(
             onOwnerClick = { openOwnerProfile() },
             onCommentsClick = { showCommentsSheet() }
@@ -76,9 +77,7 @@ class ListDetailFragment : Fragment() {
         val gridLayout = GridLayoutManager(requireContext(), GRID_SPAN).apply {
             spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int {
-                    // Only the real header is full span. Before it is attached
-                    // the header adapter has zero items, so position 0 is the
-                    // first film and must take a single column.
+                    // Only the real header is full span; every film is 1 column.
                     val headerItems = headerAdapter.itemCount
                     return if (position < headerItems) GRID_SPAN else 1
                 }
@@ -91,17 +90,20 @@ class ListDetailFragment : Fragment() {
         binding.rvContent.itemAnimator = null
         binding.rvContent.adapter = ConcatAdapter(headerAdapter, gridAdapter)
 
-        // One decoration for both the side padding and the rank row gap; the
-        // header is the leading full-span row and gets no grid offsets.
+        // Grid cells line up with the content (12dp + the cell's own 4dp
+        // margin, same as the profile grid); the header stays edge to edge.
         val density = resources.displayMetrics.density
-        gridDecoration = PosterGridDecoration(
-            grid = binding.rvContent,
-            spanCount = GRID_SPAN,
-            horizontalPadding = (GRID_SIDE_PADDING_DP * density).toInt(),
-            rankRowSpacing = (RANK_ROW_SPACING_DP * density).toInt(),
-            leadingItemCount = 1
+        binding.rvContent.addItemDecoration(
+            GridSidePaddingDecoration(
+                spanCount = GRID_SPAN,
+                horizontalPadding = (GRID_SIDE_PADDING_DP * density).toInt(),
+                leadingItemCount = 1
+            )
         )
-        binding.rvContent.addItemDecoration(gridDecoration)
+
+        // Rank numbers are a pure overlay on top of the poster cells.
+        rankBadge = RankBadgeDecoration(binding.rvContent, leadingItemCount = 1)
+        binding.rvContent.addItemDecoration(rankBadge)
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnMore.setOnClickListener { showListMenu() }
@@ -177,27 +179,41 @@ class ListDetailFragment : Fragment() {
             prefs.getString("profilePhotoUrl", null)
         )
 
-        val items = list.items.sortedBy { it.position }
-        // Decoration must be (re)applied on every refresh: the edit flow reloads
-        // this screen and an early-return guard used to leave it detached.
+        // Rank overlay follows the list type; set before the items so the
+        // first draw already has (or lacks) the numbers.
         applyRankSpacing(list.isRanked)
+
+        // The shared grid takes Movie models; list items only carry the
+        // poster fields, so ratings/review badges stay hidden.
+        val movies = list.items
+            .sortedBy { it.position }
+            .map { it.toGridMovie() }
         // DiffUtil keeps this cheap: only changed cells are re-bound.
-        gridAdapter.submit(items)
+        gridAdapter.submitList(movies)
     }
+
+    private fun FilmListItem.toGridMovie() = Movie(
+        id = movieId,
+        title = title,
+        posterUrl = posterUrl,
+        averageRating = 0f,
+        genre = "",
+        releaseYear = releaseYear,
+        description = ""
+    )
 
     /**
-     * Ranked lists draw the number above each poster, so every row after the
-     * first needs extra top space to keep the badge off the row above.
-     * The decoration is attached once; this only toggles the extra row gap.
+     * Rank numbers are drawn over the posters by the decoration; toggling it
+     * repaints without touching item size or spacing.
      */
     private fun applyRankSpacing(ranked: Boolean) {
-        gridDecoration.rankSpacingEnabled = ranked
+        rankBadge.ranked = ranked
     }
 
-    private fun openMovie(item: FilmListItem) {
+    private fun openMovie(movieId: Int) {
         findNavController().navigate(
             R.id.action_listDetail_to_movieDetail,
-            Bundle().apply { putInt("movieId", item.movieId) }
+            Bundle().apply { putInt("movieId", movieId) }
         )
     }
 
@@ -213,29 +229,6 @@ class ListDetailFragment : Fragment() {
         )
     }
 
-    /** Same poster long-press sheet used across the app. */
-    private fun showMovieSheet(item: FilmListItem, view: View) {
-        MovieActionsHelper.showMovieActionsBottomSheet(
-            context = requireContext(),
-            movie = Movie(
-                id = item.movieId,
-                title = item.title,
-                posterUrl = item.posterUrl,
-                averageRating = 0f,
-                genre = "",
-                releaseYear = item.releaseYear,
-                description = ""
-            ),
-            lifecycleOwner = viewLifecycleOwner,
-            isFromMovieDetail = false,
-            onGoToFilm = { movie -> openMovie(item.copy(movieId = movie.id)) },
-            onLogFilm = null,
-            onChangePoster = {
-                // Poster is stored on this list item only (reuses the artwork screen).
-                if (isOwner) openPosterPicker(item.movieId)
-            }
-        )
-    }
 
     private fun openPosterPicker(movieId: Int) {
         findNavController().navigate(
@@ -401,9 +394,8 @@ class ListDetailFragment : Fragment() {
     private companion object {
         /** Poster grid columns (matches the GridLayoutManager below). */
         const val GRID_SPAN = 4
-        /** Side inset of the poster grid, matching the screen's content. */
-        const val GRID_SIDE_PADDING_DP = 16
-        /** Gap between ranked rows; ~= half the 20dp rank badge. */
-        const val RANK_ROW_SPACING_DP = 12
+        /** Grid side inset (12dp + the cell's 4dp margin = 16dp), same as
+         *  the profile film grid. */
+        const val GRID_SIDE_PADDING_DP = 12
     }
 }

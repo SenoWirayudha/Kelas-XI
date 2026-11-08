@@ -1,5 +1,6 @@
 package com.komputerkit.moview.ui.lists
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -14,8 +15,10 @@ import androidx.recyclerview.widget.GridLayoutManager
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.FilmList
 import com.komputerkit.moview.data.model.FilmListItem
+import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.databinding.FragmentListEditorBinding
+import com.komputerkit.moview.ui.films.FilmGridAdapter
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.showSnackbar
 import kotlinx.coroutines.launch
@@ -30,9 +33,9 @@ class ListEditorFragment : Fragment() {
     private val args: ListEditorFragmentArgs by navArgs()
     private var editing: FilmList? = null
 
-    private lateinit var gridAdapter: PosterGridAdapter
+    private lateinit var gridAdapter: FilmGridAdapter
 
-    private lateinit var gridDecoration: PosterGridDecoration
+    private lateinit var rankBadge: RankBadgeDecoration
 
     private val repository = MovieRepository()
 
@@ -68,30 +71,24 @@ class ListEditorFragment : Fragment() {
 
         binding.tvHeaderTitle.text = if (listId > 0) "Ubah List" else "Buat List"
 
-        gridAdapter = PosterGridAdapter(
-            // Same rank badge as Your List; hidden while Rank List is off.
-            showRanks = { rankOn },
-            onClick = { },
-            onLongClick = { item, _ ->
-                // Poster per list item: only an existing list can persist it.
-                if (listId > 0) openPosterPicker(item.movieId)
-            }
+        // Same 4-column film grid as Your List / Profile / Search.
+        gridAdapter = FilmGridAdapter(
+            onMovieClick = { },
+            onLongPressGoToFilm = { },
+            // Poster per list item: only an existing list can persist it.
+            onChangePoster = { movie -> if (listId > 0) openPosterPicker(movie.id) }
         )
-        gridAdapter.spanCount = GRID_SPAN
-        binding.rvPickedFilms.layoutManager = GridLayoutManager(requireContext(), GRID_SPAN)
+        binding.rvPickedFilms.layoutManager = NonScrollingGridLayoutManager(requireContext(), GRID_SPAN)
         binding.rvPickedFilms.adapter = gridAdapter
-        // Whole page scrolls as one: the grid never scrolls on its own.
+        // Whole page scrolls as one: the grid never scrolls on its own and its
+        // height follows the number of films (layout_height=wrap_content).
         binding.rvPickedFilms.isNestedScrollingEnabled = false
         binding.rvPickedFilms.overScrollMode = View.OVER_SCROLL_NEVER
-        // Same spacing as Your List: the page already pads its content, so the
-        // decoration only adds the rank row gap (no extra side padding).
-        gridDecoration = PosterGridDecoration(
-            grid = binding.rvPickedFilms,
-            spanCount = GRID_SPAN,
-            horizontalPadding = 0,
-            rankRowSpacing = (RANK_ROW_SPACING_DP * resources.displayMetrics.density).toInt()
-        )
-        binding.rvPickedFilms.addItemDecoration(gridDecoration)
+        binding.rvPickedFilms.isFocusable = false
+
+        // Rank numbers are an overlay; the page already pads its content.
+        rankBadge = RankBadgeDecoration(binding.rvPickedFilms)
+        binding.rvPickedFilms.addItemDecoration(rankBadge)
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnSave.setOnClickListener { save() }
@@ -100,10 +97,8 @@ class ListEditorFragment : Fragment() {
         binding.toggleRank.setOnClickListener {
             rankOn = !rankOn
             renderToggles()
-            // Badge visibility + row spacing depend on this toggle, not on item
-            // content, so the grid needs an explicit refresh.
+            // Badge is an overlay: toggling only repaints, no rebind needed.
             applyRankSpacing(rankOn)
-            gridAdapter.refreshRankBadges()
         }
         binding.togglePublic.setOnClickListener {
             publicOn = !publicOn
@@ -359,17 +354,24 @@ class ListEditorFragment : Fragment() {
     private fun renderFilms() {
         if (_binding == null) return
         applyRankSpacing(rankOn)
-        gridAdapter.submit(pickedItems)
+        gridAdapter.submitList(pickedItems.map { it.toGridMovie() })
         binding.tvEmptyFilms.visibility = if (pickedItems.isEmpty()) View.VISIBLE else View.GONE
     }
 
-    /**
-     * Ranked rows need extra top space so the badge never covers the row above.
-     * The decoration is attached once; this only toggles the extra row gap, so
-     * it stays correct after the screen reloads (e.g. back from Edit).
-     */
+    /** List items only carry poster fields; ratings/review badges stay hidden. */
+    private fun FilmListItem.toGridMovie() = Movie(
+        id = movieId,
+        title = title,
+        posterUrl = posterUrl,
+        averageRating = 0f,
+        genre = "",
+        releaseYear = releaseYear,
+        description = ""
+    )
+
+    /** Rank numbers are drawn over the posters; item size/spacing stay intact. */
     private fun applyRankSpacing(ranked: Boolean) {
-        gridDecoration.rankSpacingEnabled = ranked
+        rankBadge.ranked = ranked
     }
 
     private fun openFilmPicker() {
@@ -454,10 +456,17 @@ class ListEditorFragment : Fragment() {
         _binding = null
     }
 
+    /**
+     * Grid that never scrolls itself: the Buat List page owns the scrolling and
+     * the grid height follows the number of films.
+     */
+    private class NonScrollingGridLayoutManager(context: Context, spanCount: Int) :
+        GridLayoutManager(context, spanCount) {
+        override fun canScrollVertically(): Boolean = false
+    }
+
     private companion object {
         /** Poster grid columns (matches the GridLayoutManager above). */
         const val GRID_SPAN = 4
-        /** Gap between ranked rows; ~= half the 20dp rank badge. */
-        const val RANK_ROW_SPACING_DP = 12
     }
 }
