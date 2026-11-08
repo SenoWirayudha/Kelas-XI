@@ -26,10 +26,16 @@ class ListDetailHeaderAdapter(
     private var ownerFallbackAvatar: String? = null
 
     fun submit(list: FilmList, isOwner: Boolean, ownerFallbackAvatar: String?) {
+        val wasEmpty = this.list == null
         this.list = list
         this.isOwner = isOwner
         this.ownerFallbackAvatar = ownerFallbackAvatar
-        if (itemCount > 0) notifyItemChanged(0)
+        // notifyItemChanged on an empty adapter is a no-op, which left the
+        // header (and its full-span row) missing on first render.
+        when {
+            wasEmpty -> notifyItemInserted(0)
+            else -> notifyItemChanged(0)
+        }
     }
 
     fun setCommentCount(count: Int) {

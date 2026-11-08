@@ -75,9 +75,16 @@ class ListDetailFragment : Fragment() {
         // One list: header item + poster cells share the same pool & scrolling.
         val gridLayout = GridLayoutManager(requireContext(), GRID_SPAN).apply {
             spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-                override fun getSpanSize(position: Int) =
-                    if (position == 0) GRID_SPAN else 1
+                override fun getSpanSize(position: Int): Int {
+                    // Only the real header is full span. Before it is attached
+                    // the header adapter has zero items, so position 0 is the
+                    // first film and must take a single column.
+                    val headerItems = headerAdapter.itemCount
+                    return if (position < headerItems) GRID_SPAN else 1
+                }
             }
+            // The header insert changes span sizes; keep the lookup honest.
+            spanSizeLookup.isSpanIndexCacheEnabled = false
         }
         binding.rvContent.layoutManager = gridLayout
         binding.rvContent.setHasFixedSize(false)

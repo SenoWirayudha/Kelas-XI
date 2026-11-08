@@ -20,6 +20,8 @@ import com.komputerkit.moview.databinding.FragmentFilmPickerBinding
 import com.komputerkit.moview.databinding.ItemPickRowBinding
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.loadThumbnail
+import com.komputerkit.moview.util.postponeEnterUntilLaidOut
+import com.komputerkit.moview.util.runAfterEnterTransition
 import com.komputerkit.moview.util.showSnackbar
 import kotlinx.coroutines.launch
 
@@ -68,7 +70,6 @@ class FilmPickerFragment : Fragment() {
         binding.rvPicks.layoutManager = LinearLayoutManager(requireContext())
         binding.rvPicks.adapter = adapter
         adapter.submit(picks)
-
         val callback = object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN,
             0
@@ -152,7 +153,14 @@ class FilmPickerFragment : Fragment() {
                 adapter.submit(picks)
                 renderEmpty()
             }
-            viewModel.loadDetail(listId)
+        }
+
+        // Same pattern as the other list screens: let the enter slide finish
+        // before parsing/binding the films, so the animation never stutters.
+        postponeEnterUntilLaidOut()
+        runAfterEnterTransition {
+            if (_binding == null) return@runAfterEnterTransition
+            if (listId > 0) viewModel.loadDetail(listId)
         }
     }
 
