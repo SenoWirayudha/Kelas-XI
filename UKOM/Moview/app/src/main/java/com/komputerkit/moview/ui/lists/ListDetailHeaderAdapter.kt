@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.FilmList
 import com.komputerkit.moview.databinding.ItemListDetailHeaderBinding
 import com.komputerkit.moview.util.loadBackdrop
@@ -85,6 +86,19 @@ class ListDetailHeaderAdapter(
             val showBackdrop = list.useBackdrop && !list.backdropUrl.isNullOrBlank()
             binding.backdropContainer.visibility = if (showBackdrop) View.VISIBLE else View.GONE
             binding.tvEmpty.visibility = if (list.items.isEmpty()) View.VISIBLE else View.GONE
+
+            // The content RecyclerView pads 16dp for the grid/header text; the
+            // hero cancels that padding on BOTH sides so the image is
+            // full-bleed instead of being cropped at the screen edges.
+            val side = binding.root.context.resources
+                .getDimensionPixelSize(R.dimen.list_grid_side_padding)
+            (binding.backdropContainer.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                if (lp.marginStart != -side || lp.marginEnd != -side) {
+                    lp.marginStart = -side
+                    lp.marginEnd = -side
+                    binding.backdropContainer.layoutParams = lp
+                }
+            }
 
             if (showBackdrop) {
                 binding.backdropScrim.visibility = View.VISIBLE

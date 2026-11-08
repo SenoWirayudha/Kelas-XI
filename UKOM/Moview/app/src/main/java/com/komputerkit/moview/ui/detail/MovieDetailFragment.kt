@@ -253,6 +253,11 @@ class MovieDetailFragment : Fragment() {
             isDescriptionExpanded = false
             binding.tvDescription.maxLines = SYNOPSIS_COLLAPSED_LINES
             binding.btnReadMore.text = "Read more"
+            // First load never went through the layout listener below (the
+            // layout already happened, or ran before the text was set), so the
+            // button stayed GONE until the screen was revisited. Evaluate after
+            // this text is measured.
+            binding.tvDescription.post { updateReadMoreVisibility() }
             binding.tvWatchedCount.text = movie.watchedCount ?: "0"
             binding.tvReviewCount.text = movie.reviewCount ?: "0"
             binding.tvAverageRating.text = String.format("%.1f", movie.averageRating ?: 0.0)
@@ -1241,7 +1246,14 @@ class MovieDetailFragment : Fragment() {
      */
     private fun updateReadMoreVisibility() {
         if (_binding == null) return
-        val layout = binding.tvDescription.layout ?: return
+        val text = binding.tvDescription
+        // Still unmeasured (no width/height yet): wait for the next layout pass
+        // instead of silently leaving the button hidden.
+        if (text.width <= 0 || text.layout == null) {
+            text.post { if (_binding != null) updateReadMoreVisibility() }
+            return
+        }
+        val layout = text.layout
         val truncated = layout.lineCount > 0 &&
             layout.getEllipsisCount(layout.lineCount - 1) > 0
         binding.btnReadMore.visibility =

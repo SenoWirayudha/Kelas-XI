@@ -256,9 +256,9 @@
                     android:layout_height="wrap_content"
                     android:text="Read more"
                     android:textColor="#1E88E5"
-                    android:textSize="13sp"
+                    android:textSize="12sp"
                     android:textStyle="bold"
-                    android:paddingVertical="4dp" />
+                    android:paddingVertical="2dp" />
 
             </LinearLayout>
 

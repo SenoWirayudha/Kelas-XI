@@ -12,12 +12,16 @@
     android:orientation="vertical">
 
     <!-- Hero backdrop (scrolls away with the content). GONE when the list has
-         no backdrop, so the content starts right below the top bar. -->
+         no backdrop, so the content starts right below the top bar.
+         Full-bleed: it cancels the RecyclerView's 16dp side padding so the
+         image reaches both screen edges, while the info block and the poster
+         grid below keep that 16dp inset. -->
     <FrameLayout
         android:id="@+id/backdrop_container"
         android:layout_width="match_parent"
         android:layout_height="200dp"
-        android:clipChildren="false">
+        android:clipChildren="false"
+        android:clipToPadding="false">
 
         <ImageView
             android:id="@+id/iv_backdrop"
