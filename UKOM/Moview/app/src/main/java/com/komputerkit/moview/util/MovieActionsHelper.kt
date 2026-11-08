@@ -243,7 +243,7 @@ object MovieActionsHelper {
                             )
                             watchlistText.text = "In Watchlist"
                         } else {
-                            watchlistIcon.setImageResource(R.drawable.clock_check_line_round)
+                            watchlistIcon.setImageResource(R.drawable.clock_plus_line_round)
                             watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
                                 context.getColor(R.color.text_secondary)
                             )
@@ -458,7 +458,7 @@ object MovieActionsHelper {
                                     (context as? android.app.Activity)?.showSnackbarWithDialog("Added to watchlist", bottomSheetDialog, SnackbarType.SUCCESS)
                                 }
                                 false -> {
-                                    watchlistIcon.setImageResource(R.drawable.clock_check_line_round)
+                                    watchlistIcon.setImageResource(R.drawable.clock_plus_line_round)
                                     watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
                                         context.getColor(R.color.text_secondary)
                                     )

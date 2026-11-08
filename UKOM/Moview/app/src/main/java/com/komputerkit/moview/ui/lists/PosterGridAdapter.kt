@@ -3,6 +3,8 @@ package com.komputerkit.moview.ui.lists
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.data.model.FilmListItem
 import com.komputerkit.moview.databinding.ItemListGridBinding
@@ -11,19 +13,26 @@ import com.komputerkit.moview.util.loadThumbnail
 /**
  * Poster grid for lists. Reuses the app's standard film grid cell
  * (item_film_grid) so radius, margins and poster ratio match Profile/Search.
+ *
+ * ListAdapter so large lists only re-bind the cells that actually changed.
  */
 class PosterGridAdapter(
     private val showRanks: () -> Boolean,
     private val onClick: (FilmListItem) -> Unit = {},
     private val onLongClick: (FilmListItem, View) -> Unit = { _, _ -> }
-) : RecyclerView.Adapter<PosterGridAdapter.Holder>() {
+) : ListAdapter<FilmListItem, PosterGridAdapter.Holder>(Diff) {
 
-    private val items = mutableListOf<FilmListItem>()
+    /** Diffs against the current items; [onCommitted] runs after the change lands. */
+    fun submit(newItems: List<FilmListItem>, onCommitted: (() -> Unit)? = null) {
+        submitList(newItems.toList(), onCommitted)
+    }
 
-    fun submit(newItems: List<FilmListItem>) {
-        items.clear()
-        items.addAll(newItems)
-        notifyDataSetChanged()
+    /**
+     * Rank badges depend on the caller's toggle, not on item content, so a
+     * toggle change needs an explicit re-bind of the visible cells.
+     */
+    fun refreshRankBadges() {
+        if (itemCount > 0) notifyItemRangeChanged(0, itemCount)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
@@ -31,9 +40,7 @@ class PosterGridAdapter(
         return Holder(binding)
     }
 
-    override fun getItemCount(): Int = items.size
-
-    override fun onBindViewHolder(holder: Holder, position: Int) = holder.bind(items[position])
+    override fun onBindViewHolder(holder: Holder, position: Int) = holder.bind(getItem(position))
 
     inner class Holder(private val binding: ItemListGridBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: FilmListItem) {
@@ -55,5 +62,13 @@ class PosterGridAdapter(
                 true
             }
         }
+    }
+
+    private object Diff : DiffUtil.ItemCallback<FilmListItem>() {
+        override fun areItemsTheSame(oldItem: FilmListItem, newItem: FilmListItem) =
+            oldItem.movieId == newItem.movieId
+
+        override fun areContentsTheSame(oldItem: FilmListItem, newItem: FilmListItem) =
+            oldItem == newItem
     }
 }

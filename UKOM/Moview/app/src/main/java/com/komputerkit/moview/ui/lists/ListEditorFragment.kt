@@ -32,6 +32,9 @@ class ListEditorFragment : Fragment() {
 
     private lateinit var gridAdapter: PosterGridAdapter
 
+    private lateinit var rankSpacing: RankRowSpacingDecoration
+    private var rankSpacingApplied = false
+
     private val repository = MovieRepository()
 
     /** Films picked in this screen, in display order. */
@@ -75,8 +78,15 @@ class ListEditorFragment : Fragment() {
                 if (listId > 0) openPosterPicker(item.movieId)
             }
         )
-        binding.rvPickedFilms.layoutManager = GridLayoutManager(requireContext(), 4)
+        binding.rvPickedFilms.layoutManager = GridLayoutManager(requireContext(), GRID_SPAN)
         binding.rvPickedFilms.adapter = gridAdapter
+        // Whole page scrolls as one: the grid never scrolls on its own.
+        binding.rvPickedFilms.isNestedScrollingEnabled = false
+        binding.rvPickedFilms.overScrollMode = View.OVER_SCROLL_NEVER
+        rankSpacing = RankRowSpacingDecoration(
+            GRID_SPAN,
+            (RANK_ROW_SPACING_DP * resources.displayMetrics.density).toInt()
+        )
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnSave.setOnClickListener { save() }
@@ -85,8 +95,10 @@ class ListEditorFragment : Fragment() {
         binding.toggleRank.setOnClickListener {
             rankOn = !rankOn
             renderToggles()
-            // Rank badge visibility lives in the shared grid cell: rebind it.
-            renderFilms()
+            // Badge visibility + row spacing depend on this toggle, not on item
+            // content, so the grid needs an explicit refresh.
+            applyRankSpacing(rankOn)
+            gridAdapter.refreshRankBadges()
         }
         binding.togglePublic.setOnClickListener {
             publicOn = !publicOn
@@ -238,8 +250,14 @@ class ListEditorFragment : Fragment() {
                 findNavController().navigateUp()
                 activity?.showSnackbar("List dibuat.", SnackbarType.SUCCESS)
             } else if (createdId > 0) {
+                // Replace this screen with the new list's detail using the same
+                // slide transition as every other list push.
                 val options = androidx.navigation.NavOptions.Builder()
                     .setPopUpTo(R.id.listEditorFragment, true)
+                    .setEnterAnim(R.anim.slide_in_right)
+                    .setExitAnim(R.anim.slide_out_left)
+                    .setPopEnterAnim(R.anim.slide_in_left)
+                    .setPopExitAnim(R.anim.slide_out_right)
                     .build()
                 findNavController().navigate(
                     R.id.action_listEditor_to_listDetail,
@@ -335,8 +353,21 @@ class ListEditorFragment : Fragment() {
 
     private fun renderFilms() {
         if (_binding == null) return
+        applyRankSpacing(rankOn)
         gridAdapter.submit(pickedItems)
         binding.tvEmptyFilms.visibility = if (pickedItems.isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    /** Ranked rows need extra top space so the badge never covers the row above. */
+    private fun applyRankSpacing(ranked: Boolean) {
+        if (ranked == rankSpacingApplied) return
+        rankSpacingApplied = ranked
+
+        if (ranked) {
+            binding.rvPickedFilms.addItemDecoration(rankSpacing)
+        } else {
+            binding.rvPickedFilms.removeItemDecoration(rankSpacing)
+        }
     }
 
     private fun openFilmPicker() {
@@ -419,5 +450,12 @@ class ListEditorFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private companion object {
+        /** Poster grid columns (matches the GridLayoutManager above). */
+        const val GRID_SPAN = 4
+        /** Gap between ranked rows; ~= half the 20dp rank badge. */
+        const val RANK_ROW_SPACING_DP = 12
     }
 }

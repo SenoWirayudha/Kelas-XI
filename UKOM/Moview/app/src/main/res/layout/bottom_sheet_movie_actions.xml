@@ -147,7 +147,7 @@
                     android:layout_width="28dp"
                     android:layout_height="28dp"
                     android:layout_gravity="center"
-                    android:src="@drawable/clock_check_line_round"
+                    android:src="@drawable/clock_plus_line_round"
                     app:tint="@color/text_secondary" />
 
             </com.google.android.material.card.MaterialCardView>

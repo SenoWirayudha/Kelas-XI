@@ -38,6 +38,9 @@ class ListDetailFragment : Fragment() {
     private lateinit var gridAdapter: PosterGridAdapter
     private var currentList: FilmList? = null
 
+    private lateinit var rankSpacing: RankRowSpacingDecoration
+    private var rankSpacingApplied = false
+
     private val listId: Int get() = args.listId
     private val isOwner: Boolean get() = currentList?.userId == viewModel.currentUserId
 
@@ -60,6 +63,10 @@ class ListDetailFragment : Fragment() {
         )
         binding.rvPosters.layoutManager = GridLayoutManager(requireContext(), 4)
         binding.rvPosters.adapter = gridAdapter
+        rankSpacing = RankRowSpacingDecoration(
+            GRID_SPAN,
+            (RANK_ROW_SPACING_DP * resources.displayMetrics.density).toInt()
+        )
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnMore.setOnClickListener { showListMenu() }
@@ -146,8 +153,29 @@ class ListDetailFragment : Fragment() {
         }
 
         val items = list.items.sortedBy { it.position }
-        gridAdapter.submit(items)
+        applyRankSpacing(list.isRanked)
+        // Submitting after the layout pass keeps the screen transition smooth
+        // for long lists: the diff calculation happens off the frame callback.
+        binding.rvPosters.post {
+            if (_binding == null) return@post
+            gridAdapter.submit(items)
+        }
         binding.tvEmpty.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * Ranked lists draw the number above each poster, so every row after the
+     * first needs extra top space to keep the badge off the row above.
+     */
+    private fun applyRankSpacing(ranked: Boolean) {
+        if (ranked == rankSpacingApplied) return
+        rankSpacingApplied = ranked
+
+        if (ranked) {
+            binding.rvPosters.addItemDecoration(rankSpacing)
+        } else {
+            binding.rvPosters.removeItemDecoration(rankSpacing)
+        }
     }
 
     private fun openMovie(item: FilmListItem) {
@@ -339,5 +367,12 @@ class ListDetailFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private companion object {
+        /** Poster grid columns (matches the GridLayoutManager below). */
+        const val GRID_SPAN = 4
+        /** Gap between ranked rows; ~= half the 20dp rank badge. */
+        const val RANK_ROW_SPACING_DP = 12
     }
 }
