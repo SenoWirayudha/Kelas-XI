@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shared list poster cell (Your List grid + Buat List preview).
+
+  Root is a FrameLayout so the rank badge can overhang the poster:
+  the badge is centered horizontally and shifted up by half its height, so it
+  sits half above / half on the poster. The exact width and height are set in
+  code (equal for every column), so there is no per-item margin here.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_poster"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:cardBackgroundColor="@color/dark_card"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="0dp">
+
+        <ImageView
+            android:id="@+id/iv_poster"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="Poster"
+            android:scaleType="centerCrop"
+            tools:src="@color/dark_surface" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:id="@+id/tv_rank"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_gravity="top|center_horizontal"
+        android:background="@drawable/bg_rank_badge"
+        android:gravity="center"
+        android:textColor="@color/text_primary"
+        android:textSize="9sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        tools:text="1"
+        tools:visibility="visible" />
+
+</FrameLayout>

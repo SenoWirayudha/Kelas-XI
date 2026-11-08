@@ -15,10 +15,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.FilmList
 import com.komputerkit.moview.data.model.FilmListItem
-import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.databinding.FragmentListEditorBinding
-import com.komputerkit.moview.ui.films.FilmGridAdapter
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.showSnackbar
 import kotlinx.coroutines.launch
@@ -33,9 +31,9 @@ class ListEditorFragment : Fragment() {
     private val args: ListEditorFragmentArgs by navArgs()
     private var editing: FilmList? = null
 
-    private lateinit var gridAdapter: FilmGridAdapter
+    private lateinit var gridAdapter: ListPosterAdapter
 
-    private lateinit var rankBadge: RankBadgeDecoration
+    private lateinit var gridSizing: PosterGridSizingDecoration
 
     private val repository = MovieRepository()
 
@@ -71,33 +69,43 @@ class ListEditorFragment : Fragment() {
 
         binding.tvHeaderTitle.text = if (listId > 0) "Ubah List" else "Buat List"
 
-        // Same 4-column film grid as Your List / Profile / Search.
-        gridAdapter = FilmGridAdapter(
-            onMovieClick = { },
-            onLongPressGoToFilm = { },
-            // Poster per list item: only an existing list can persist it.
-            onChangePoster = { movie -> if (listId > 0) openPosterPicker(movie.id) }
+        // Preview: at most 2 rows x 4 columns, sharing the Your List cell.
+        gridAdapter = ListPosterAdapter(
+            spanCount = GRID_SPAN,
+            onLongClick = { item, _ ->
+                // Poster per list item: only an existing list can persist it.
+                if (listId > 0) openPosterPicker(item.movieId)
+            }
         )
-        binding.rvPickedFilms.layoutManager = NonScrollingGridLayoutManager(requireContext(), GRID_SPAN)
+        binding.rvPickedFilms.layoutManager = PreviewGridLayoutManager(requireContext(), GRID_SPAN)
         binding.rvPickedFilms.adapter = gridAdapter
-        // Whole page scrolls as one: the grid never scrolls on its own and its
-        // height follows the number of films (layout_height=wrap_content).
+        // Static page: the preview never scrolls, it just fills its 2 rows.
         binding.rvPickedFilms.isNestedScrollingEnabled = false
         binding.rvPickedFilms.overScrollMode = View.OVER_SCROLL_NEVER
         binding.rvPickedFilms.isFocusable = false
 
-        // Rank numbers are an overlay; the page already pads its content.
-        rankBadge = RankBadgeDecoration(binding.rvPickedFilms)
-        binding.rvPickedFilms.addItemDecoration(rankBadge)
+        val density = resources.displayMetrics.density
+        gridSizing = PosterGridSizingDecoration(
+            spanCount = GRID_SPAN,
+            // The preview grid already sits inside the page's 16dp padding.
+            sideInset = 0,
+            gap = (GRID_GAP_DP * density).toInt(),
+            badgeOverhang = (RANK_BADGE_SIZE_DP * density / 2).toInt()
+        )
+        binding.rvPickedFilms.addItemDecoration(gridSizing)
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnSave.setOnClickListener { save() }
         binding.fabPick.setOnClickListener { openFilmPicker() }
+        // The preview itself opens the full Pilih Film screen.
+        binding.rvPickedFilms.setOnClickListener { openFilmPicker() }
+        binding.tvEmptyFilms.setOnClickListener { openFilmPicker() }
+        binding.tvPickLabel.setOnClickListener { openFilmPicker() }
 
         binding.toggleRank.setOnClickListener {
             rankOn = !rankOn
             renderToggles()
-            // Badge is an overlay: toggling only repaints, no rebind needed.
+            // Badge lives in the shared cell: only the badge needs re-binding.
             applyRankSpacing(rankOn)
         }
         binding.togglePublic.setOnClickListener {
@@ -354,24 +362,26 @@ class ListEditorFragment : Fragment() {
     private fun renderFilms() {
         if (_binding == null) return
         applyRankSpacing(rankOn)
-        gridAdapter.submitList(pickedItems.map { it.toGridMovie() })
+        gridAdapter.submitList(previewCells())
         binding.tvEmptyFilms.visibility = if (pickedItems.isEmpty()) View.VISIBLE else View.GONE
     }
 
-    /** List items only carry poster fields; ratings/review badges stay hidden. */
-    private fun FilmListItem.toGridMovie() = Movie(
-        id = movieId,
-        title = title,
-        posterUrl = posterUrl,
-        averageRating = 0f,
-        genre = "",
-        releaseYear = releaseYear,
-        description = ""
-    )
+    /**
+     * Preview shows at most 8 cells (2 rows x 4 columns). When the list holds
+     * more films, the 8th cell becomes a "+N" counter and the full line-up is
+     * managed on the Pilih Film screen.
+     */
+    private fun previewCells(): List<PosterCell> {
+        if (pickedItems.size <= PREVIEW_CELLS) return pickedItems.map { PosterCell.Film(it) }
 
-    /** Rank numbers are drawn over the posters; item size/spacing stay intact. */
+        val shown = pickedItems.take(PREVIEW_CELLS - 1).map { PosterCell.Film(it) }
+        val hidden = pickedItems.size - (PREVIEW_CELLS - 1)
+        return shown + PosterCell.More(hidden)
+    }
+
+    /** Rank numbers live in the shared cell; toggling only re-binds badges. */
     private fun applyRankSpacing(ranked: Boolean) {
-        rankBadge.ranked = ranked
+        gridAdapter.showRanks = ranked
     }
 
     private fun openFilmPicker() {
@@ -457,16 +467,21 @@ class ListEditorFragment : Fragment() {
     }
 
     /**
-     * Grid that never scrolls itself: the Buat List page owns the scrolling and
-     * the grid height follows the number of films.
+     * Preview grid that never scrolls: the page is static and the 8-cell
+     * preview always fits, so any scroll gesture belongs to the fields instead.
      */
-    private class NonScrollingGridLayoutManager(context: Context, spanCount: Int) :
+    private class PreviewGridLayoutManager(context: Context, spanCount: Int) :
         GridLayoutManager(context, spanCount) {
         override fun canScrollVertically(): Boolean = false
     }
 
     private companion object {
-        /** Poster grid columns (matches the GridLayoutManager above). */
+        /** Preview grid columns. */
         const val GRID_SPAN = 4
+        /** 2 rows x 4 columns. */
+        const val PREVIEW_CELLS = 8
+        const val GRID_GAP_DP = 8
+        /** Rank badge size; half of it overhangs above the poster. */
+        const val RANK_BADGE_SIZE_DP = 20
     }
 }

@@ -1,10 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Buat List / Ubah List: a static page. No ScrollView / NestedScrollView and no
+  self-scrolling grid, so the top bar, both fields, the poster preview and the
+  bottom toggle bar always fit on one screen. The description field absorbs the
+  remaining height; the preview is capped at 2 rows (8 cells).
+-->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/dark_background">
+    android:background="@color/dark_background"
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
     <LinearLayout
         android:id="@+id/header"
@@ -13,7 +21,7 @@
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="16dp"
-        android:paddingVertical="10dp"
+        android:paddingVertical="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -34,126 +42,144 @@
             android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:fontFamily="@font/font_family_inter"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:text="Buat List"
             android:textColor="@color/text_primary"
-            android:textSize="20sp"
+            android:textSize="18sp"
             android:textStyle="bold" />
 
         <ImageButton
             android:id="@+id/btn_save"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Simpan"
             android:src="@drawable/ic_check"
             app:tint="@color/accent_blue" />
     </LinearLayout>
 
-    <androidx.core.widget.NestedScrollView
+    <EditText
+        android:id="@+id/et_title"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/bg_list_input"
+        android:fontFamily="@font/font_family_inter"
+        android:hint="Judul List"
+        android:importantForAutofill="no"
+        android:inputType="textCapWords"
+        android:maxLength="120"
+        android:paddingHorizontal="16dp"
+        android:singleLine="true"
+        android:textColor="@color/text_primary"
+        android:textColorHint="@color/text_secondary"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/header" />
+
+    <EditText
+        android:id="@+id/et_description"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/bg_list_input"
+        android:fontFamily="@font/font_family_inter"
+        android:gravity="top|start"
+        android:hint="Deksripsikan Listmu"
+        android:importantForAutofill="no"
+        android:inputType="textCapSentences|textMultiLine"
+        android:maxLength="2000"
+        android:minHeight="56dp"
+        android:padding="16dp"
+        android:textColor="@color/text_primary"
+        android:textColorHint="@color/text_secondary"
+        android:textSize="14sp"
+        app:layout_constraintBottom_toTopOf="@id/tv_pick_label"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/et_title" />
+
+    <TextView
+        android:id="@+id/tv_pick_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginEnd="16dp"
+        android:fontFamily="@font/font_family_inter"
+        android:text="Pilih Film"
+        android:textColor="@color/text_primary"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/et_description" />
+
+    <!-- Preview: at most 2 rows x 4 columns. Tapping it opens Pilih Film. -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_picked_films"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:paddingBottom="88dp"
+        android:focusable="false"
+        android:nestedScrollingEnabled="false"
+        android:overScrollMode="never"
+        android:paddingHorizontal="16dp"
+        app:layout_constraintBottom_toTopOf="@id/tv_error"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_pick_label"
+        app:layout_constraintVertical_bias="0"
+        tools:itemCount="8"
+        tools:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+        tools:listitem="@layout/item_list_poster"
+        tools:spanCount="4" />
+
+    <TextView
+        android:id="@+id/tv_empty_films"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingVertical="20dp"
+        android:text="Belum ada film. Ketuk di sini atau ikon kunci pas untuk memilih."
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/rv_picked_films" />
+
+    <TextView
+        android:id="@+id/tv_error"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="6dp"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="#E57373"
+        android:textSize="12sp"
+        android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@id/bottom_bar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/header">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:orientation="vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="24dp">
-
-            <EditText
-                android:id="@+id/et_title"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:background="@drawable/bg_list_input"
-                android:fontFamily="@font/font_family_inter"
-                android:hint="Judul List"
-                android:importantForAutofill="no"
-                android:inputType="textCapWords"
-                android:maxLength="120"
-                android:paddingHorizontal="16dp"
-                android:singleLine="true"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_secondary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <EditText
-                android:id="@+id/et_description"
-                android:layout_width="match_parent"
-                android:layout_height="132dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_list_input"
-                android:fontFamily="@font/font_family_inter"
-                android:gravity="top|start"
-                android:hint="Deksripsikan Listmu"
-                android:importantForAutofill="no"
-                android:inputType="textCapSentences|textMultiLine"
-                android:maxLength="2000"
-                android:padding="16dp"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_secondary"
-                android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:fontFamily="@font/font_family_inter"
-                android:text="Pilih Film"
-                android:textColor="@color/text_primary"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rv_picked_films"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:clipChildren="false"
-                android:clipToPadding="false"
-                android:nestedScrollingEnabled="false"
-                android:paddingTop="16dp"
-                tools:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
-                tools:listitem="@layout/item_list_grid"
-                tools:spanCount="4" />
-
-            <TextView
-                android:id="@+id/tv_empty_films"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:paddingVertical="24dp"
-                android:text="Belum ada film. Tekan ikon kunci pas untuk memilih."
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp" />
-
-            <TextView
-                android:id="@+id/tv_error"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:textColor="#E57373"
-                android:textSize="12sp"
-                android:visibility="gone" />
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+        tools:text="Judul list wajib diisi." />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_pick"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="20dp"
-        android:layout_marginBottom="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="12dp"
         android:contentDescription="Atur film"
         android:src="@drawable/ic_settings"
         app:backgroundTint="@color/accent_blue"
@@ -169,7 +195,7 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_bottom_bar"
         android:orientation="horizontal"
-        android:paddingVertical="10dp"
+        android:paddingVertical="6dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
@@ -182,16 +208,16 @@
             android:background="?attr/selectableItemBackground"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingVertical="6dp">
+            android:paddingVertical="4dp">
 
             <FrameLayout
-                android:layout_width="32dp"
-                android:layout_height="32dp">
+                android:layout_width="30dp"
+                android:layout_height="30dp">
 
                 <ImageView
                     android:id="@+id/iv_rank"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
                     android:layout_gravity="center"
                     android:contentDescription="Rank List"
                     android:scaleType="fitCenter"
@@ -216,7 +242,7 @@
                 android:id="@+id/tv_rank_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="2dp"
                 android:text="Rank List"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
@@ -230,16 +256,16 @@
             android:background="?attr/selectableItemBackground"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingVertical="6dp">
+            android:paddingVertical="4dp">
 
             <FrameLayout
-                android:layout_width="32dp"
-                android:layout_height="32dp">
+                android:layout_width="30dp"
+                android:layout_height="30dp">
 
                 <ImageView
                     android:id="@+id/iv_public"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
                     android:layout_gravity="center"
                     android:contentDescription="Public"
                     android:src="@drawable/ic_eye"
@@ -263,7 +289,7 @@
                 android:id="@+id/tv_public_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="2dp"
                 android:text="Public"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
@@ -277,16 +303,16 @@
             android:background="?attr/selectableItemBackground"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingVertical="6dp">
+            android:paddingVertical="4dp">
 
             <FrameLayout
-                android:layout_width="32dp"
-                android:layout_height="32dp">
+                android:layout_width="30dp"
+                android:layout_height="30dp">
 
                 <ImageView
                     android:id="@+id/iv_backdrop"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
                     android:layout_gravity="center"
                     android:contentDescription="Backdrop"
                     android:src="@drawable/ic_image"
@@ -310,7 +336,7 @@
                 android:id="@+id/tv_backdrop_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="2dp"
                 android:text="Backdrop"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp" />

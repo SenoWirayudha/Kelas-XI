@@ -21,7 +21,7 @@ import com.komputerkit.moview.databinding.BottomSheetCommentsBinding
 import com.komputerkit.moview.databinding.BottomSheetEntryActionsBinding
 import com.komputerkit.moview.databinding.FragmentListDetailBinding
 import com.komputerkit.moview.ui.adapter.CommentAdapter
-import com.komputerkit.moview.ui.films.FilmGridAdapter
+import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.postponeEnterUntilLaidOut
 import com.komputerkit.moview.util.runAfterEnterTransition
@@ -36,12 +36,12 @@ class ListDetailFragment : Fragment() {
     private val viewModel: FilmListViewModel by viewModels()
     private val args: ListDetailFragmentArgs by navArgs()
 
-    private lateinit var gridAdapter: FilmGridAdapter
+    private lateinit var gridAdapter: ListPosterAdapter
     private lateinit var headerAdapter: ListDetailHeaderAdapter
     private var currentList: FilmList? = null
     private var commentCount: Int = 0
 
-    private lateinit var rankBadge: RankBadgeDecoration
+    private lateinit var gridSizing: PosterGridSizingDecoration
 
     /** Set once the deferred first load has been kicked off. */
     private var initialLoadStarted = false
@@ -61,12 +61,12 @@ class ListDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Reuses the app's 4-column film grid (same adapter + item layout as
-        // the Profile/Search film grids): FilmGridAdapter + item_film_grid.
-        gridAdapter = FilmGridAdapter(
-            onMovieClick = { movie -> openMovie(movie.id) },
-            onLongPressGoToFilm = { movie -> openMovie(movie.id) },
-            onChangePoster = { movie -> if (isOwner) openPosterPicker(movie.id) }
+        // Shared list poster grid (same cell as the Buat List preview): equal
+        // cell size in every column, rank badge half above the poster.
+        gridAdapter = ListPosterAdapter(
+            spanCount = GRID_SPAN,
+            onClick = { item -> openMovie(item.movieId) },
+            onLongClick = { item, view -> showMovieSheet(item, view) }
         )
         headerAdapter = ListDetailHeaderAdapter(
             onOwnerClick = { openOwnerProfile() },
@@ -90,20 +90,17 @@ class ListDetailFragment : Fragment() {
         binding.rvContent.itemAnimator = null
         binding.rvContent.adapter = ConcatAdapter(headerAdapter, gridAdapter)
 
-        // Grid cells line up with the content (12dp + the cell's own 4dp
-        // margin, same as the profile grid); the header stays edge to edge.
+        // One decoration owns cell size + spacing: equal widths in all columns,
+        // 16dp side inset matching the rest of the screen, rank badge overhang.
         val density = resources.displayMetrics.density
-        binding.rvContent.addItemDecoration(
-            GridSidePaddingDecoration(
-                spanCount = GRID_SPAN,
-                horizontalPadding = (GRID_SIDE_PADDING_DP * density).toInt(),
-                leadingItemCount = 1
-            )
+        gridSizing = PosterGridSizingDecoration(
+            spanCount = GRID_SPAN,
+            sideInset = (GRID_SIDE_PADDING_DP * density).toInt(),
+            gap = (GRID_GAP_DP * density).toInt(),
+            badgeOverhang = (RANK_BADGE_SIZE_DP * density / 2).toInt(),
+            leadingItemCount = 1
         )
-
-        // Rank numbers are a pure overlay on top of the poster cells.
-        rankBadge = RankBadgeDecoration(binding.rvContent, leadingItemCount = 1)
-        binding.rvContent.addItemDecoration(rankBadge)
+        binding.rvContent.addItemDecoration(gridSizing)
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnMore.setOnClickListener { showListMenu() }
@@ -183,37 +180,45 @@ class ListDetailFragment : Fragment() {
         // first draw already has (or lacks) the numbers.
         applyRankSpacing(list.isRanked)
 
-        // The shared grid takes Movie models; list items only carry the
-        // poster fields, so ratings/review badges stay hidden.
-        val movies = list.items
-            .sortedBy { it.position }
-            .map { it.toGridMovie() }
         // DiffUtil keeps this cheap: only changed cells are re-bound.
-        gridAdapter.submitList(movies)
+        gridAdapter.submitList(
+            list.items.sortedBy { it.position }.map { PosterCell.Film(it) }
+        )
     }
 
-    private fun FilmListItem.toGridMovie() = Movie(
-        id = movieId,
-        title = title,
-        posterUrl = posterUrl,
-        averageRating = 0f,
-        genre = "",
-        releaseYear = releaseYear,
-        description = ""
-    )
-
-    /**
-     * Rank numbers are drawn over the posters by the decoration; toggling it
-     * repaints without touching item size or spacing.
-     */
+    /** Rank numbers live in the shared cell; toggling only re-binds badges. */
     private fun applyRankSpacing(ranked: Boolean) {
-        rankBadge.ranked = ranked
+        gridAdapter.showRanks = ranked
     }
 
     private fun openMovie(movieId: Int) {
         findNavController().navigate(
             R.id.action_listDetail_to_movieDetail,
             Bundle().apply { putInt("movieId", movieId) }
+        )
+    }
+
+    /** Same poster long-press sheet used across the app. */
+    private fun showMovieSheet(item: FilmListItem, view: View) {
+        MovieActionsHelper.showMovieActionsBottomSheet(
+            context = requireContext(),
+            movie = Movie(
+                id = item.movieId,
+                title = item.title,
+                posterUrl = item.posterUrl,
+                averageRating = 0f,
+                genre = "",
+                releaseYear = item.releaseYear,
+                description = ""
+            ),
+            lifecycleOwner = viewLifecycleOwner,
+            isFromMovieDetail = false,
+            onGoToFilm = { movie -> openMovie(movie.id) },
+            onLogFilm = null,
+            onChangePoster = {
+                // Poster is stored on this list item only (reuses the artwork screen).
+                if (isOwner) openPosterPicker(item.movieId)
+            }
         )
     }
 
@@ -394,8 +399,11 @@ class ListDetailFragment : Fragment() {
     private companion object {
         /** Poster grid columns (matches the GridLayoutManager below). */
         const val GRID_SPAN = 4
-        /** Grid side inset (12dp + the cell's 4dp margin = 16dp), same as
-         *  the profile film grid. */
-        const val GRID_SIDE_PADDING_DP = 12
+        /** Grid side inset, matching the screen's content (title/description). */
+        const val GRID_SIDE_PADDING_DP = 16
+        /** Gap between posters, horizontally and vertically. */
+        const val GRID_GAP_DP = 8
+        /** Rank badge size; half of it overhangs above the poster. */
+        const val RANK_BADGE_SIZE_DP = 20
     }
 }

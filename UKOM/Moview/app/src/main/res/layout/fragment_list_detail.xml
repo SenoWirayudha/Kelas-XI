@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/dark_background">
+    android:background="@color/dark_background"
+    android:clipChildren="false">
 
     <!-- Solid top bar: stays put while the content below scrolls. -->
     <LinearLayout
@@ -68,7 +69,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/header"
-        tools:listitem="@layout/item_list_grid" />
+        tools:listitem="@layout/item_list_poster" />
 
     <ProgressBar
         android:id="@+id/progress"
