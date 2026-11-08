@@ -12,16 +12,18 @@ import androidx.recyclerview.widget.RecyclerView
  * width/height is written to `LayoutParams` on every bind — so all columns and
  * the "+N" cell always match:
  *
- * `width = (availableWidth - 2*sideInset - (span-1)*gap) / span`,
+ * `width = (availableWidth - 2*sideInset - span*gap) / span`,
  * `height = width * 1.5` (2:3 poster).
  *
- * Spacing comes from this decoration only (items carry no margins). Insets are
- * derived so `left + right` is identical for every column, which keeps the
- * measured width constant. [badgeOverhang] reserves half a badge above every
- * row so the rank badge can overhang the poster.
+ * Spacing comes from this decoration only (items carry no margins). Every
+ * column gets `left + right = gap + 2*sideInset`, so the `span*gap` term (not
+ * `(span-1)*gap`) is what makes `cell + insets` add up to the available width
+ * exactly. [badgeOverhang] reserves half a badge above every row so the rank
+ * badge can overhang the poster.
  *
  * @param spanCount columns of the grid.
- * @param sideInset padding on the outer columns (matches the screen content).
+ * @param sideInset extra outer padding; 0 when the RecyclerView already has
+ *        symmetric horizontal padding (the preferred setup).
  * @param gap spacing between columns and rows.
  * @param badgeOverhang half the rank badge height.
  * @param leadingItemCount full-span items before the grid (e.g. the header).
@@ -78,6 +80,8 @@ class PosterGridSizingDecoration(
         val isFirstRow = gridIndex < span
 
         // Equal left+right for every column keeps the measured width fixed.
+        // Total per column = gap (split between the two sides), so no column
+        // can drift past the right edge of the padded grid.
         outRect.left = sideInset + column * gap / span
         outRect.right = sideInset + gap - (column + 1) * gap / span
 
@@ -90,7 +94,7 @@ class PosterGridSizingDecoration(
         if (width <= 0 || width == gridWidth) return
 
         gridWidth = width
-        cellWidth = ((width - 2 * sideInset - (span - 1) * gap) / span).coerceAtLeast(1)
+        cellWidth = ((width - 2 * sideInset - span * gap) / span).coerceAtLeast(1)
         cellHeight = (cellWidth * aspect).toInt()
     }
 }

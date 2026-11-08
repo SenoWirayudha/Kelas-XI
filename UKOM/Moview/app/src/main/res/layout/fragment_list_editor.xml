@@ -120,27 +120,38 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/et_description" />
 
-    <!-- Preview: at most 2 rows x 4 columns. Tapping it opens Pilih Film. -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_picked_films"
+    <!-- Preview: 2 static rows x 4 cells, never scrolls. Tapping opens Pilih Film. -->
+    <LinearLayout
+        android:id="@+id/preview_grid"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:focusable="false"
-        android:nestedScrollingEnabled="false"
-        android:overScrollMode="never"
-        android:paddingHorizontal="16dp"
+        android:orientation="vertical"
+        android:paddingHorizontal="12dp"
+        android:paddingTop="10dp"
         app:layout_constraintBottom_toTopOf="@id/tv_error"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tv_pick_label"
-        app:layout_constraintVertical_bias="0"
-        tools:itemCount="8"
-        tools:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
-        tools:listitem="@layout/item_list_poster"
-        tools:spanCount="4" />
+        app:layout_constraintVertical_bias="0">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/preview_row_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/preview_row_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:clipChildren="false"
+            android:clipToPadding="false" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/tv_empty_films"
@@ -153,7 +164,7 @@
         android:textSize="13sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/rv_picked_films" />
+        app:layout_constraintTop_toTopOf="@id/preview_grid" />
 
     <TextView
         android:id="@+id/tv_error"

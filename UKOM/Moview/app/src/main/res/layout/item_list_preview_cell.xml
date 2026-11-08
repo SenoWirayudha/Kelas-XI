@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Static preview cell for Buat List / Ubah List (poster count <= 8).
+
+  Added programmatically to a 4-column row: width is 0dp with a shared weight,
+  height follows the 2:3 poster ratio. Margins are symmetric (same on both
+  sides) so every column — including the "+N" cell — gets the same width.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <ImageView
+        android:id="@+id/iv_poster"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:contentDescription="Poster"
+        android:scaleType="centerCrop"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintDimensionRatio="2:3"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@color/dark_surface" />
+
+    <!-- Rank badge: centered, half of it overhangs above the poster. -->
+    <TextView
+        android:id="@+id/tv_rank"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:background="@drawable/bg_rank_badge"
+        android:gravity="center"
+        android:textColor="@color/text_primary"
+        android:textSize="9sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="@id/iv_poster"
+        app:layout_constraintStart_toStartOf="@id/iv_poster"
+        app:layout_constraintTop_toTopOf="@id/iv_poster"
+        app:layout_constraintVertical_bias="0"
+        tools:text="1"
+        tools:visibility="visible" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

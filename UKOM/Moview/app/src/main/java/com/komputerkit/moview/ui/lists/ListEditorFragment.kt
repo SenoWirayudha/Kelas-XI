@@ -1,23 +1,25 @@
 package com.komputerkit.moview.ui.lists
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.GridLayoutManager
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.FilmList
 import com.komputerkit.moview.data.model.FilmListItem
 import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.databinding.FragmentListEditorBinding
+import com.komputerkit.moview.databinding.ItemListPosterBinding
+import com.komputerkit.moview.databinding.ItemListPreviewMoreBinding
 import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.loadGridThumbnail
 import com.komputerkit.moview.util.showSnackbar
 import kotlinx.coroutines.launch
 
@@ -30,10 +32,6 @@ class ListEditorFragment : Fragment() {
     private val viewModel: FilmListViewModel by viewModels()
     private val args: ListEditorFragmentArgs by navArgs()
     private var editing: FilmList? = null
-
-    private lateinit var gridAdapter: ListPosterAdapter
-
-    private lateinit var gridSizing: PosterGridSizingDecoration
 
     private val repository = MovieRepository()
 
@@ -69,52 +67,19 @@ class ListEditorFragment : Fragment() {
 
         binding.tvHeaderTitle.text = if (listId > 0) "Ubah List" else "Buat List"
 
-        // Preview: at most 2 rows x 4 columns, sharing the Your List cell.
-        gridAdapter = ListPosterAdapter(
-            spanCount = GRID_SPAN,
-            onLongClick = { item, _ ->
-                // Poster per list item: only an existing list can persist it.
-                if (listId > 0) openPosterPicker(item.movieId)
-            },
-            // The decoration computes the size once the grid has been laid out.
-            cellSize = {
-                if (::gridSizing.isInitialized && gridSizing.cellWidth > 0) {
-                    gridSizing.cellWidth to gridSizing.cellHeight
-                } else {
-                    null
-                }
-            }
-        )
-        binding.rvPickedFilms.layoutManager = PreviewGridLayoutManager(requireContext(), GRID_SPAN)
-        binding.rvPickedFilms.adapter = gridAdapter
-        // Static page: the preview never scrolls, it just fills its 2 rows.
-        binding.rvPickedFilms.isNestedScrollingEnabled = false
-        binding.rvPickedFilms.overScrollMode = View.OVER_SCROLL_NEVER
-        binding.rvPickedFilms.isFocusable = false
-
-        val density = resources.displayMetrics.density
-        gridSizing = PosterGridSizingDecoration(
-            spanCount = GRID_SPAN,
-            // The preview grid already sits inside the page's 16dp padding.
-            sideInset = 0,
-            gap = (GRID_GAP_DP * density).toInt(),
-            badgeOverhang = (RANK_BADGE_SIZE_DP * density / 2).toInt()
-        )
-        binding.rvPickedFilms.addItemDecoration(gridSizing)
-
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnSave.setOnClickListener { save() }
         binding.fabPick.setOnClickListener { openFilmPicker() }
         // The preview itself opens the full Pilih Film screen.
-        binding.rvPickedFilms.setOnClickListener { openFilmPicker() }
+        binding.previewGrid.setOnClickListener { openFilmPicker() }
         binding.tvEmptyFilms.setOnClickListener { openFilmPicker() }
         binding.tvPickLabel.setOnClickListener { openFilmPicker() }
 
         binding.toggleRank.setOnClickListener {
             rankOn = !rankOn
             renderToggles()
-            // Badge lives in the shared cell: only the badge needs re-binding.
-            applyRankSpacing(rankOn)
+            // Badge lives in the preview cells: re-bind them from scratch.
+            renderPreview()
         }
         binding.togglePublic.setOnClickListener {
             publicOn = !publicOn
@@ -369,9 +334,99 @@ class ListEditorFragment : Fragment() {
 
     private fun renderFilms() {
         if (_binding == null) return
-        applyRankSpacing(rankOn)
-        gridAdapter.submitList(previewCells())
-        binding.tvEmptyFilms.visibility = if (pickedItems.isEmpty()) View.VISIBLE else View.GONE
+        renderPreview()
+    }
+
+    /**
+     * Builds the fixed 2x4 preview from scratch on every call, so returning
+     * from Pilih Film never reuses an old cell size. Empty slots are blank
+     * views with the same weight/ratio, keeping every column identical.
+     */
+    private fun renderPreview() {
+        if (_binding == null) return
+        val row1 = binding.previewRow1
+        val row2 = binding.previewRow2
+        row1.removeAllViews()
+        row2.removeAllViews()
+
+        if (pickedItems.isEmpty()) {
+            binding.previewGrid.visibility = View.GONE
+            binding.tvEmptyFilms.visibility = View.VISIBLE
+            return
+        }
+
+        binding.previewGrid.visibility = View.VISIBLE
+        binding.tvEmptyFilms.visibility = View.GONE
+
+        val cells = previewCells()
+        bindPreviewRow(row1, cells.take(GRID_SPAN))
+        if (cells.size > GRID_SPAN) {
+            row2.visibility = View.VISIBLE
+            bindPreviewRow(row2, cells.drop(GRID_SPAN))
+        } else {
+            row2.visibility = View.GONE
+        }
+    }
+
+    /** Fills one row with 4 equal cells; missing cells become empty spacers. */
+    private fun bindPreviewRow(row: ConstraintLayout, cells: List<PosterCell>) {
+        val density = resources.displayMetrics.density
+        val margin = (PREVIEW_CELL_MARGIN_DP * density).toInt()
+
+        val views = (0 until GRID_SPAN).map { index ->
+            val cell = cells.getOrNull(index)
+            val view = when (cell) {
+                is PosterCell.Film -> inflatePreviewFilm(cell.item)
+                is PosterCell.More -> inflatePreviewMore(cell.count)
+                null -> View(requireContext()).apply { visibility = View.INVISIBLE }
+            }
+            view.id = View.generateViewId()
+            row.addView(view, ConstraintLayout.LayoutParams(0, 0).apply {
+                dimensionRatio = "2:3"
+                setMargins(margin, margin, margin, margin)
+            })
+            view
+        }
+
+        views.forEachIndexed { index, view ->
+            (view.layoutParams as ConstraintLayout.LayoutParams).apply {
+                topToTop = ConstraintLayout.LayoutParams.PARENT_ID
+                if (index == 0) {
+                    startToStart = ConstraintLayout.LayoutParams.PARENT_ID
+                } else {
+                    startToEnd = views[index - 1].id
+                }
+                if (index == views.lastIndex) {
+                    endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+                } else {
+                    endToStart = views[index + 1].id
+                }
+            }
+        }
+    }
+
+    private fun inflatePreviewFilm(item: FilmListItem): View {
+        val cell = ItemListPosterBinding.inflate(layoutInflater, binding.previewRow1, false)
+        cell.ivPoster.loadGridThumbnail(item.posterUrl, item.title, GRID_SPAN)
+        // Half of the badge sits above the poster edge.
+        cell.tvRank.translationY = -cell.tvRank.layoutParams.height / 2f
+        cell.tvRank.visibility = if (rankOn) View.VISIBLE else View.GONE
+        cell.tvRank.text = item.position.toString()
+
+        cell.cardPoster.setOnClickListener { openFilmPicker() }
+        cell.cardPoster.setOnLongClickListener {
+            // Poster per list item: only an existing list can persist it.
+            if (listId > 0) openPosterPicker(item.movieId)
+            true
+        }
+        return cell.root
+    }
+
+    private fun inflatePreviewMore(count: Int): View {
+        val cell = ItemListPreviewMoreBinding.inflate(layoutInflater, binding.previewRow2, false)
+        cell.tvMore.text = "+$count"
+        cell.root.setOnClickListener { openFilmPicker() }
+        return cell.root
     }
 
     /**
@@ -385,11 +440,6 @@ class ListEditorFragment : Fragment() {
         val shown = pickedItems.take(PREVIEW_CELLS - 1).map { PosterCell.Film(it) }
         val hidden = pickedItems.size - (PREVIEW_CELLS - 1)
         return shown + PosterCell.More(hidden)
-    }
-
-    /** Rank numbers live in the shared cell; toggling only re-binds badges. */
-    private fun applyRankSpacing(ranked: Boolean) {
-        gridAdapter.showRanks = ranked
     }
 
     private fun openFilmPicker() {
@@ -469,14 +519,11 @@ class ListEditorFragment : Fragment() {
         )
     }
 
-    /**
-     * Back from Pilih Film / artwork: re-bind every cell so each one picks up
-     * the (already fixed) cell size with freshly reset LayoutParams.
-     */
+    /** Back from Pilih Film: rebuild every preview cell from the current data. */
     override fun onResume() {
         super.onResume()
         if (_binding == null) return
-        binding.rvPickedFilms.post { if (_binding != null) renderFilms() }
+        binding.previewGrid.post { if (_binding != null) renderFilms() }
     }
 
     override fun onDestroyView() {
@@ -484,22 +531,12 @@ class ListEditorFragment : Fragment() {
         _binding = null
     }
 
-    /**
-     * Preview grid that never scrolls: the page is static and the 8-cell
-     * preview always fits, so any scroll gesture belongs to the fields instead.
-     */
-    private class PreviewGridLayoutManager(context: Context, spanCount: Int) :
-        GridLayoutManager(context, spanCount) {
-        override fun canScrollVertically(): Boolean = false
-    }
-
     private companion object {
         /** Preview grid columns. */
         const val GRID_SPAN = 4
         /** 2 rows x 4 columns. */
         const val PREVIEW_CELLS = 8
-        const val GRID_GAP_DP = 8
-        /** Rank badge size; half of it overhangs above the poster. */
-        const val RANK_BADGE_SIZE_DP = 20
+        /** Symmetric cell margin: same on the left and right of every cell. */
+        const val PREVIEW_CELL_MARGIN_DP = 4
     }
 }

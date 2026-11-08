@@ -51,6 +51,13 @@ class ListDetailHeaderAdapter(
             parent,
             false
         )
+        // The content RecyclerView carries the 16dp symmetric padding for the
+        // grid; the hero header stays full-bleed by cancelling it on both sides.
+        val inset = (HEADER_SIDE_PADDING_DP * parent.resources.displayMetrics.density).toInt()
+        (binding.root.layoutParams as RecyclerView.LayoutParams).apply {
+            marginStart = -inset
+            marginEnd = -inset
+        }
         return Holder(binding)
     }
 
@@ -104,3 +111,5 @@ class ListDetailHeaderAdapter(
         }
     }
 }
+
+private const val HEADER_SIDE_PADDING_DP = 16

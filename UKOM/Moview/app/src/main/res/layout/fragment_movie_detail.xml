@@ -261,7 +261,7 @@
 
             </LinearLayout>
 
-            <!-- Stats: Watched & Reviews — compact thin row (icon + label + count horizontal) -->
+            <!-- Stats: Watched & Reviews — each card = icon + right-aligned two-line text column -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -284,9 +284,9 @@
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:orientation="horizontal"
-                        android:paddingHorizontal="10dp"
+                        android:paddingHorizontal="8dp"
                         android:paddingVertical="10dp"
                         android:gravity="center_vertical">
 
@@ -296,26 +296,43 @@
                             android:src="@drawable/ic_eye"
                             app:tint="@color/text_secondary" />
 
-                        <TextView
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="WATCHED"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:letterSpacing="0.04" />
+                            android:layout_marginStart="6dp"
+                            android:orientation="vertical"
+                            android:gravity="end">
 
-                        <TextView
-                            android:id="@+id/tv_watched_count"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:textColor="@color/white"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            tools:text="12.4k" />
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="end"
+                                android:singleLine="true"
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                android:text="WATCHED"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="9sp"
+                                android:textStyle="bold"
+                                app:autoSizeMaxTextSize="10sp"
+                                app:autoSizeMinTextSize="7sp"
+                                app:autoSizeStepGranularity="1sp"
+                                app:autoSizeTextType="uniform" />
+
+                            <TextView
+                                android:id="@+id/tv_watched_count"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="end"
+                                android:singleLine="true"
+                                android:maxLines="1"
+                                android:textColor="@color/white"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                tools:text="12.4k" />
+
+                        </LinearLayout>
 
                     </LinearLayout>
 
@@ -336,9 +353,9 @@
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:orientation="horizontal"
-                        android:paddingHorizontal="10dp"
+                        android:paddingHorizontal="8dp"
                         android:paddingVertical="10dp"
                         android:gravity="center_vertical">
 
@@ -348,26 +365,43 @@
                             android:src="@drawable/ic_review"
                             app:tint="@color/text_secondary" />
 
-                        <TextView
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="REVIEWS"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:letterSpacing="0.04" />
+                            android:layout_marginStart="6dp"
+                            android:orientation="vertical"
+                            android:gravity="end">
 
-                        <TextView
-                            android:id="@+id/tv_review_count"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:textColor="@color/white"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            tools:text="3.4k" />
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="end"
+                                android:singleLine="true"
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                android:text="REVIEWS"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="9sp"
+                                android:textStyle="bold"
+                                app:autoSizeMaxTextSize="10sp"
+                                app:autoSizeMinTextSize="7sp"
+                                app:autoSizeStepGranularity="1sp"
+                                app:autoSizeTextType="uniform" />
+
+                            <TextView
+                                android:id="@+id/tv_review_count"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="end"
+                                android:singleLine="true"
+                                android:maxLines="1"
+                                android:textColor="@color/white"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                tools:text="3.4k" />
+
+                        </LinearLayout>
 
                     </LinearLayout>
 
@@ -389,7 +423,7 @@
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:orientation="horizontal"
                         android:paddingHorizontal="8dp"
                         android:paddingVertical="10dp"
@@ -419,7 +453,11 @@
                                 android:text="LISTS"
                                 android:textColor="@color/text_secondary"
                                 android:textSize="9sp"
-                                android:textStyle="bold" />
+                                android:textStyle="bold"
+                                app:autoSizeMaxTextSize="10sp"
+                                app:autoSizeMinTextSize="7sp"
+                                app:autoSizeStepGranularity="1sp"
+                                app:autoSizeTextType="uniform" />
 
                             <TextView
                                 android:id="@+id/tv_list_count"

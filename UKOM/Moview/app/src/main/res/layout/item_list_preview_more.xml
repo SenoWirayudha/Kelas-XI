@@ -1,20 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Preview overflow cell: the 8th slot shows "+N" when the list holds more
-     films than the 2x4 preview can show. -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  Preview overflow cell for Buat List / Ubah List: the 8th slot shows "+N"
+  when the list holds more films than the 2x4 preview can show.
+
+  Same sizing rules as item_list_preview_cell (weight 1, 2:3 ratio, symmetric
+  margins), so it lines up exactly with the poster cells.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="wrap_content"
+    android:layout_width="0dp"
     android:layout_height="wrap_content"
     android:clipChildren="false"
     android:clipToPadding="false">
 
     <com.google.android.material.card.MaterialCardView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:id="@+id/card_more"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         app:cardBackgroundColor="@color/dark_card"
         app:cardCornerRadius="8dp"
         app:cardElevation="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintDimensionRatio="2:3"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
         app:strokeWidth="0dp">
 
         <TextView
@@ -29,4 +40,4 @@
 
     </com.google.android.material.card.MaterialCardView>
 
-</FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -98,12 +98,14 @@ class ListDetailFragment : Fragment() {
         binding.rvContent.itemAnimator = null
         binding.rvContent.adapter = ConcatAdapter(headerAdapter, gridAdapter)
 
-        // One decoration owns cell size + spacing: equal widths in all columns,
-        // 16dp side inset matching the rest of the screen, rank badge overhang.
+        // One decoration owns cell size + spacing: equal widths in all columns.
+        // Side padding lives on the RecyclerView (16dp each side), so the cell
+        // width is computed from the already-padded width and the outer columns
+        // line up exactly with the header content.
         val density = resources.displayMetrics.density
         gridSizing = PosterGridSizingDecoration(
             spanCount = GRID_SPAN,
-            sideInset = (GRID_SIDE_PADDING_DP * density).toInt(),
+            sideInset = 0,
             gap = (GRID_GAP_DP * density).toInt(),
             badgeOverhang = (RANK_BADGE_SIZE_DP * density / 2).toInt(),
             leadingItemCount = 1
@@ -407,8 +409,6 @@ class ListDetailFragment : Fragment() {
     private companion object {
         /** Poster grid columns (matches the GridLayoutManager below). */
         const val GRID_SPAN = 4
-        /** Grid side inset, matching the screen's content (title/description). */
-        const val GRID_SIDE_PADDING_DP = 16
         /** Gap between posters, horizontally and vertically. */
         const val GRID_GAP_DP = 8
         /** Rank badge size; half of it overhangs above the poster. */
