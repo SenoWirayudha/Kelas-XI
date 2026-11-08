@@ -125,6 +125,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/lists/{listId}/comments', [\App\Http\Controllers\Api\FilmListApiController::class, 'comments'])->where('listId', '[0-9]+');
     Route::post('/users/{userId}/lists/{listId}/comments', [\App\Http\Controllers\Api\FilmListApiController::class, 'addComment'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+']);
     Route::get('/movies/{movieId}/list-artwork', [\App\Http\Controllers\Api\FilmListApiController::class, 'movieArtwork'])->where('movieId', '[0-9]+');
+    Route::get('/movies/{movieId}/lists', [\App\Http\Controllers\Api\FilmListApiController::class, 'listsForMovie'])->where('movieId', '[0-9]+');
 
     
     // Follow/Unfollow

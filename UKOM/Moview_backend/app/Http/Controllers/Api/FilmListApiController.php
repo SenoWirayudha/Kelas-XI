@@ -63,9 +63,50 @@ class FilmListApiController extends Controller
         ]);
     }
 
-    /** POST /users/{userId}/lists */
-    public function store(Request $request, $userId)
+    /**
+     * GET /movies/{movieId}/lists?viewer_id=&scope=all|friends
+     *
+     * Public lists that contain the film, newest first. Private lists only show
+     * up for their owner on the "all" scope. "friends" narrows to lists from
+     * users the viewer follows.
+     */
+    public function listsForMovie(Request $request, $movieId)
     {
+        $viewerId = (int) $request->get('viewer_id', 0);
+        $scope = $request->get('scope', 'all') === 'friends' ? 'friends' : 'all';
+
+        $query = FilmList::withCount('items')
+            ->with('user.userProfile')
+            ->whereIn('id', FilmListItem::where('movie_id', (int) $movieId)->select('film_list_id'))
+            // Public for everyone; private only for its owner.
+            ->where(function ($q) use ($viewerId) {
+                $q->where('visibility', FilmList::VISIBILITY_PUBLIC)
+                    ->orWhere('user_id', $viewerId);
+            })
+            ->orderByDesc('updated_at');
+
+        if ($scope === 'friends') {
+            $followedIds = DB::table('followers')
+                ->where('follower_id', $viewerId)
+                ->pluck('user_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $query->whereIn('user_id', $followedIds)
+                ->where('visibility', FilmList::VISIBILITY_PUBLIC);
+        }
+
+        $lists = $query->get();
+        $covers = $this->coverLookup($lists->pluck('id')->all(), $viewerId);
+
+        return response()->json([
+            'success' => true,
+            'data' => $lists->map(fn (FilmList $list) => $this->formatList($list, $covers)),
+        ]);
+    }
+
+    /** POST /users/{userId}/lists */
+    public function store(Request $request, $userId)    {
         $validated = $request->validate([
             'title' => 'required|string|max:120',
             'description' => 'nullable|string|max:2000',

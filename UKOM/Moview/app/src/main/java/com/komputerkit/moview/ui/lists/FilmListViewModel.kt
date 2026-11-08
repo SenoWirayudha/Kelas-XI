@@ -138,6 +138,42 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    // ---- Lists containing a film -----------------------------------------
+
+    private val _movieLists = MutableLiveData<List<FilmList>>(emptyList())
+    val movieLists: LiveData<List<FilmList>> = _movieLists
+
+    /**
+     * Public lists that contain [movieId], newest first.
+     * @param friendsOnly true = only lists from users the viewer follows.
+     */
+    fun loadListsForMovie(movieId: Int, friendsOnly: Boolean, clearFirst: Boolean = true) {
+        if (clearFirst) _movieLists.value = emptyList()
+        _isLoading.value = true
+        viewModelScope.launch {
+            try {
+                val response = api.getMovieLists(
+                    movieId = movieId,
+                    viewerId = currentUserId,
+                    scope = if (friendsOnly) "friends" else "all"
+                )
+                // Mapping happens off the main thread so the tab switch stays smooth.
+                val lists = withContext(Dispatchers.Default) {
+                    response.data.orEmpty().map { it.toModel() }
+                }
+                _movieLists.postValue(lists)
+            } catch (e: Exception) {
+                _error.postValue(messageOf(e))
+            } finally {
+                _isLoading.postValue(false)
+            }
+        }
+    }
+
+    fun clearMovieLists() {
+        _movieLists.value = emptyList()
+    }
+
     // ---- Add to List ----------------------------------------------------
 
     /** How many lists received the film; null until an add run finishes. */

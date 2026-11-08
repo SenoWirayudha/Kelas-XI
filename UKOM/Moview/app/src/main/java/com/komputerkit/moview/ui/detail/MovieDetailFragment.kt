@@ -673,6 +673,13 @@ class MovieDetailFragment : Fragment() {
         binding.btnSeeAllReviews.setOnClickListener { navigateToReviews() }
         binding.cardReviews.setOnClickListener { navigateToReviews() }
         binding.cardWatched.setOnClickListener { navigateToWatchedUsers() }
+        binding.cardLists.setOnClickListener {
+            val movie = viewModel.movie.value ?: return@setOnClickListener
+            findNavController().navigate(
+                R.id.action_movieDetail_to_movieLists,
+                Bundle().apply { putInt("movieId", movie.id) }
+            )
+        }
         
         binding.btnOpenActions.setOnClickListener {
             showMovieActionsBottomSheet()

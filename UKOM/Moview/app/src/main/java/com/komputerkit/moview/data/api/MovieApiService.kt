@@ -665,6 +665,14 @@ interface MovieApiService {
         @Query("viewer_id") viewerId: Int? = null
     ): ApiResponse<List<FilmListCommentDto>>
 
+    /** Public lists that contain a film; [scope] = "all" | "friends". */
+    @GET("movies/{movieId}/lists")
+    suspend fun getMovieLists(
+        @Path("movieId") movieId: Int,
+        @Query("viewer_id") viewerId: Int? = null,
+        @Query("scope") scope: String = "all"
+    ): ApiResponse<List<FilmListDto>>
+
     @POST("users/{userId}/lists/{listId}/comments")
     suspend fun addListComment(
         @Path("userId") userId: Int,
