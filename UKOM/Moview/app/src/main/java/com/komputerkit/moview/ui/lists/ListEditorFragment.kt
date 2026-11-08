@@ -75,6 +75,14 @@ class ListEditorFragment : Fragment() {
             onLongClick = { item, _ ->
                 // Poster per list item: only an existing list can persist it.
                 if (listId > 0) openPosterPicker(item.movieId)
+            },
+            // The decoration computes the size once the grid has been laid out.
+            cellSize = {
+                if (::gridSizing.isInitialized && gridSizing.cellWidth > 0) {
+                    gridSizing.cellWidth to gridSizing.cellHeight
+                } else {
+                    null
+                }
             }
         )
         binding.rvPickedFilms.layoutManager = PreviewGridLayoutManager(requireContext(), GRID_SPAN)
@@ -459,6 +467,16 @@ class ListEditorFragment : Fragment() {
             movieIds = pickedItems.map { it.movieId },
             backdropMediaId = backdropMediaId
         )
+    }
+
+    /**
+     * Back from Pilih Film / artwork: re-bind every cell so each one picks up
+     * the (already fixed) cell size with freshly reset LayoutParams.
+     */
+    override fun onResume() {
+        super.onResume()
+        if (_binding == null) return
+        binding.rvPickedFilms.post { if (_binding != null) renderFilms() }
     }
 
     override fun onDestroyView() {

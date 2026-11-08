@@ -273,7 +273,7 @@
                     android:id="@+id/card_watched"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:layout_height="wrap_content"
+                    android:layout_height="60dp"
                     android:layout_marginEnd="6dp"
                     android:clickable="true"
                     android:focusable="true"
@@ -325,7 +325,7 @@
                     android:id="@+id/card_reviews"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:layout_height="wrap_content"
+                    android:layout_height="60dp"
                     android:layout_marginStart="6dp"
                     android:clickable="true"
                     android:focusable="true"
@@ -378,7 +378,7 @@
                     android:id="@+id/card_lists"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:layout_height="wrap_content"
+                    android:layout_height="60dp"
                     android:layout_marginStart="6dp"
                     android:clickable="true"
                     android:focusable="true"
@@ -391,7 +391,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:paddingHorizontal="10dp"
+                        android:paddingHorizontal="8dp"
                         android:paddingVertical="10dp"
                         android:gravity="center_vertical">
 
@@ -401,16 +401,39 @@
                             android:src="@drawable/ic_list"
                             app:tint="@color/text_secondary" />
 
-                        <TextView
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="LISTS"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:letterSpacing="0.04" />
+                            android:layout_marginStart="6dp"
+                            android:orientation="vertical"
+                            android:gravity="end">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="end"
+                                android:singleLine="true"
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                android:text="LISTS"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="9sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_list_count"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="end"
+                                android:singleLine="true"
+                                android:maxLines="1"
+                                android:textColor="@color/white"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                tools:text="4" />
+
+                        </LinearLayout>
 
                     </LinearLayout>
 

@@ -7,21 +7,21 @@ import androidx.recyclerview.widget.RecyclerView
 /**
  * One decoration that fixes the poster grid geometry for every cell.
  *
- * Cell size is computed in code and is identical in all columns:
- * `width = (available - 2*sideInset - (span-1)*gap) / span`,
- * `height = width * 1.5` (2:3 poster). The width/height are also written to each
- * item's layout params, so no column can end up wider than another.
+ * The cell size is computed **once** from the real grid width (after layout),
+ * never from a child's current (possibly stale) measurement, and the same
+ * width/height is written to `LayoutParams` on every bind — so all columns and
+ * the "+N" cell always match:
  *
- * Spacing is produced by this decoration only (items have no margins):
- * [gap] between columns, [sideInset] on the outer edges (matching the rest of
- * the screen's content), and [badgeOverhang] above every row so the rank badge
- * can sit half above the poster.
+ * `width = (availableWidth - 2*sideInset - (span-1)*gap) / span`,
+ * `height = width * 1.5` (2:3 poster).
  *
- * Insets are derived so that `left + right` is the same for every column, which
- * is what keeps the measured widths equal.
+ * Spacing comes from this decoration only (items carry no margins). Insets are
+ * derived so `left + right` is identical for every column, which keeps the
+ * measured width constant. [badgeOverhang] reserves half a badge above every
+ * row so the rank badge can overhang the poster.
  *
  * @param spanCount columns of the grid.
- * @param sideInset horizontal padding of the outer columns.
+ * @param sideInset padding on the outer columns (matches the screen content).
  * @param gap spacing between columns and rows.
  * @param badgeOverhang half the rank badge height.
  * @param leadingItemCount full-span items before the grid (e.g. the header).
@@ -38,7 +38,9 @@ class PosterGridSizingDecoration(
 
     private val span = spanCount.coerceAtLeast(1)
 
-    /** Last computed cell size, exposed for tests/diagnostics. */
+    /** Width used for the computation; 0 until the grid has been laid out. */
+    private var gridWidth = 0
+
     var cellWidth: Int = 0
         private set
     var cellHeight: Int = 0
@@ -56,14 +58,13 @@ class PosterGridSizingDecoration(
         // Full-span header items handle their own layout.
         if (position < leadingItemCount) return
 
-        val available = parent.width - parent.paddingLeft - parent.paddingRight
-        if (available <= 0) return
+        // Recompute only when the grid's own width changes (one calc per size).
+        updateCellSize(parent)
+        if (cellWidth <= 0) return
 
-        val spanWidth = available / span
-        cellWidth = ((available - 2 * sideInset - (span - 1) * gap) / span).coerceAtLeast(1)
-        cellHeight = (cellWidth * aspect).toInt()
-
-        // Same fixed size for every cell (no content dependency, no margins).
+        // Reset then re-apply: a recycled view may still carry stale params
+        // (e.g. a poster reused for the "+N" cell). Writing the same size on
+        // every pass keeps all columns identical.
         view.layoutParams?.let { lp ->
             if (lp.width != cellWidth || lp.height != cellHeight) {
                 lp.width = cellWidth
@@ -76,14 +77,20 @@ class PosterGridSizingDecoration(
         val column = gridIndex % span
         val isFirstRow = gridIndex < span
 
-        // left + right is constant, so every column measures exactly cellWidth.
-        val insetTotal = spanWidth - cellWidth
-        val step = cellWidth + gap - spanWidth
-        outRect.left = sideInset + column * step
-        outRect.right = insetTotal - outRect.left
+        // Equal left+right for every column keeps the measured width fixed.
+        outRect.left = sideInset + column * gap / span
+        outRect.right = sideInset + gap - (column + 1) * gap / span
 
-        // Room for the half-overhanging badge, plus the gap between rows.
         outRect.top = if (isFirstRow) badgeOverhang else badgeOverhang + gap
         outRect.bottom = 0
+    }
+
+    private fun updateCellSize(parent: RecyclerView) {
+        val width = parent.width - parent.paddingLeft - parent.paddingRight
+        if (width <= 0 || width == gridWidth) return
+
+        gridWidth = width
+        cellWidth = ((width - 2 * sideInset - (span - 1) * gap) / span).coerceAtLeast(1)
+        cellHeight = (cellWidth * aspect).toInt()
     }
 }

@@ -143,6 +143,32 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
     private val _movieLists = MutableLiveData<List<FilmList>>(emptyList())
     val movieLists: LiveData<List<FilmList>> = _movieLists
 
+    /** Total public lists holding a film, for the Film Detail "LISTS" card. */
+    private val _movieListCount = MutableLiveData<Int?>(null)
+    val movieListCount: LiveData<Int?> = _movieListCount
+
+    /** Lightweight count for the detail card: public lists only. */
+    fun loadMovieListCount(movieId: Int) {
+        if (movieId <= 0) return
+        viewModelScope.launch {
+            try {
+                val response = api.getMovieLists(
+                    movieId = movieId,
+                    viewerId = currentUserId,
+                    scope = "all"
+                )
+                // Scope "all" also returns the viewer's own private lists; the
+                // card only counts public ones.
+                val all = response.data.orEmpty()
+                val privateMine = all.count { it.visibility == FilmList.VISIBILITY_PRIVATE }
+                val total = response.total ?: all.size
+                _movieListCount.postValue((total - privateMine).coerceAtLeast(0))
+            } catch (e: Exception) {
+                _movieListCount.postValue(null)
+            }
+        }
+    }
+
     /**
      * Public lists that contain [movieId], newest first.
      * @param friendsOnly true = only lists from users the viewer follows.

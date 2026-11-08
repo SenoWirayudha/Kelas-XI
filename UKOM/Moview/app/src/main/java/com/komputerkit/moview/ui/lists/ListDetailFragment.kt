@@ -66,7 +66,15 @@ class ListDetailFragment : Fragment() {
         gridAdapter = ListPosterAdapter(
             spanCount = GRID_SPAN,
             onClick = { item -> openMovie(item.movieId) },
-            onLongClick = { item, view -> showMovieSheet(item, view) }
+            onLongClick = { item, view -> showMovieSheet(item, view) },
+            // Cell size is computed once by the decoration after layout.
+            cellSize = {
+                if (::gridSizing.isInitialized && gridSizing.cellWidth > 0) {
+                    gridSizing.cellWidth to gridSizing.cellHeight
+                } else {
+                    null
+                }
+            }
         )
         headerAdapter = ListDetailHeaderAdapter(
             onOwnerClick = { openOwnerProfile() },

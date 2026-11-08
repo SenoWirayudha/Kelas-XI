@@ -30,6 +30,7 @@ import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.FragmentMovieDetailBinding
+import com.komputerkit.moview.ui.lists.FilmListViewModel
 import com.komputerkit.moview.util.MovieActionsHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -41,6 +42,8 @@ class MovieDetailFragment : Fragment() {
     private val binding get() = _binding!!
     
     private val viewModel: MovieDetailViewModel by viewModels()
+    /** Counts the lists holding this film for the "LISTS" card. */
+    private val listViewModel: FilmListViewModel by viewModels()
     private val args: MovieDetailFragmentArgs by navArgs()
     
     private lateinit var castAdapter: CastAdapter
@@ -679,6 +682,14 @@ class MovieDetailFragment : Fragment() {
                 R.id.action_movieDetail_to_movieLists,
                 Bundle().apply { putInt("movieId", movie.id) }
             )
+        }
+
+        // Card counter: public lists that contain this film.
+        listViewModel.movieListCount.observe(viewLifecycleOwner) { count ->
+            binding.tvListCount.text = (count ?: 0).toString()
+        }
+        viewModel.movie.observe(viewLifecycleOwner) { movie ->
+            movie?.let { listViewModel.loadMovieListCount(it.id) }
         }
         
         binding.btnOpenActions.setOnClickListener {

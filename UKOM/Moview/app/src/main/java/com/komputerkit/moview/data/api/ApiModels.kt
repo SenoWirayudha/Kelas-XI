@@ -4,7 +4,9 @@ data class ApiResponse<T>(
     val success: Boolean,
     val data: T?,
     val message: String? = null,
-    val pagination: Pagination? = null
+    val pagination: Pagination? = null,
+    /** Optional row total (e.g. lists for a movie), used for card counters. */
+    val total: Int? = null
 )
 
 data class SimpleResponse(

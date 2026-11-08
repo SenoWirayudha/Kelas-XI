@@ -23,7 +23,9 @@ import com.komputerkit.moview.util.loadGridThumbnail
 class ListPosterAdapter(
     private val spanCount: Int,
     private val onClick: (FilmListItem) -> Unit = {},
-    private val onLongClick: (FilmListItem, View) -> Unit = { _, _ -> }
+    private val onLongClick: (FilmListItem, View) -> Unit = { _, _ -> },
+    /** Cell size source (PosterGridSizingDecoration); keeps every cell equal. */
+    private val cellSize: () -> Pair<Int, Int>? = { null }
 ) : ListAdapter<PosterCell, RecyclerView.ViewHolder>(Diff) {
 
     var showRanks: Boolean = false
@@ -66,10 +68,28 @@ class ListPosterAdapter(
         super.onBindViewHolder(holder, position, payloads)
     }
 
+    /**
+     * Fixed cell size from the grid, or null while the grid has no width yet.
+     * Writing it per bind (instead of trusting recycled LayoutParams) is what
+     * keeps recycled posters and the "+N" cell the same size after navigating
+     * back from Pilih Film.
+     */
+    private fun applyCellSize(view: View) {
+        val size = cellSize() ?: return
+        view.layoutParams?.let { lp ->
+            if (lp.width != size.first || lp.height != size.second) {
+                lp.width = size.first
+                lp.height = size.second
+                view.layoutParams = lp
+            }
+        }
+    }
+
     inner class FilmHolder(private val binding: ItemListPosterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: FilmListItem) {
+            applyCellSize(binding.root)
             binding.ivPoster.loadGridThumbnail(item.posterUrl, item.title, spanCount)
             bindRank(item)
 
@@ -92,6 +112,8 @@ class ListPosterAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(count: Int) {
+            // Same fixed size as a poster cell, even on a recycled view.
+            applyCellSize(binding.root)
             binding.tvMore.text = "+$count"
             binding.root.setOnClickListener(null)
             binding.root.setOnLongClickListener(null)

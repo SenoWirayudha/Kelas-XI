@@ -101,6 +101,8 @@ class FilmListApiController extends Controller
 
         return response()->json([
             'success' => true,
+            // Total for the Film Detail card ("LISTS <count>").
+            'total' => $lists->count(),
             'data' => $lists->map(fn (FilmList $list) => $this->formatList($list, $covers)),
         ]);
     }
