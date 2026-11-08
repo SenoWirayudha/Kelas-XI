@@ -98,16 +98,14 @@ class ListDetailFragment : Fragment() {
         binding.rvContent.itemAnimator = null
         binding.rvContent.adapter = ConcatAdapter(headerAdapter, gridAdapter)
 
-        // Symmetric 16dp sides: the left inset is the RecyclerView's padding,
-        // the right one is added by the decoration only on poster cells (the
-        // full-span header keeps a full-bleed backdrop and its own insets).
-        // Both sides use the same dimen, so columns 1 and 4 line up with the
-        // header content and no cell can stick to the right edge.
+        // One decoration owns cell size + spacing: equal widths in all columns.
+        // The 16dp horizontal inset is the RecyclerView padding alone, and it
+        // is the exact same value used by the header content (which no longer
+        // adds padding of its own), so header, backdrop and grid are aligned.
         val density = resources.displayMetrics.density
         gridSizing = PosterGridSizingDecoration(
             spanCount = GRID_SPAN,
             sideInset = 0,
-            trailingInset = resources.getDimensionPixelSize(R.dimen.list_grid_side_padding),
             gap = (GRID_GAP_DP * density).toInt(),
             badgeOverhang = (RANK_BADGE_SIZE_DP * density / 2).toInt(),
             leadingItemCount = 1

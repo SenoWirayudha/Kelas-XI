@@ -48,12 +48,21 @@ class MovieListsFragment : Fragment() {
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
 
-        adapter = MovieListsAdapter { list ->
-            findNavController().navigate(
-                R.id.action_movieLists_to_listDetail,
-                Bundle().apply { putInt("listId", list.id) }
-            )
-        }
+        adapter = MovieListsAdapter(
+            onClick = { list ->
+                findNavController().navigate(
+                    R.id.action_movieLists_to_listDetail,
+                    Bundle().apply { putInt("listId", list.id) }
+                )
+            },
+            // Owner avatar / @username: same destination as the list header.
+            onOwnerClick = { list ->
+                findNavController().navigate(
+                    R.id.action_movieLists_to_profile,
+                    Bundle().apply { putInt("userId", list.userId) }
+                )
+            }
+        )
         binding.rvLists.layoutManager = LinearLayoutManager(requireContext())
         binding.rvLists.adapter = adapter
 

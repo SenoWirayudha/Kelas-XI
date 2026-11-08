@@ -34,6 +34,10 @@
             android:background="@drawable/bg_backdrop_gradient" />
     </FrameLayout>
 
+    <!-- Horizontal inset comes from the RecyclerView only (same 16dp as the
+         poster grid), so the info block, the backdrop and the grid share one
+         single left/right value. No paddingHorizontal here: nested padding
+         would double the left inset and misalign the header with the grid. -->
     <LinearLayout
         android:id="@+id/info_container"
         android:layout_width="match_parent"
@@ -41,7 +45,6 @@
         android:clipChildren="false"
         android:clipToPadding="false"
         android:orientation="vertical"
-        android:paddingHorizontal="16dp"
         android:paddingTop="@dimen/list_header_info_top_with_backdrop"
         android:paddingBottom="16dp">
 

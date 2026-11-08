@@ -9,43 +9,60 @@
     android:paddingHorizontal="16dp"
     android:paddingTop="16dp">
 
+    <!-- Owner row: only shown by the "Lists" screen on Movie Detail. Avatar
+         and @username both open the owner's profile; the rest of the row still
+         opens the list. Same avatar loader/placeholder as the list header. -->
     <LinearLayout
+        android:id="@+id/layout_owner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <ImageView
+            android:id="@+id/iv_owner_avatar"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Profil pemilik list"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_default_profile" />
+
+        <TextView
+            android:id="@+id/tv_owner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:background="?attr/selectableItemBackground"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:paddingVertical="2dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            tools:text="@username" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/tv_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tv_title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="@font/font_family_inter"
-                android:maxLines="1"
-                android:textColor="@color/text_primary"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                tools:text="TOP 2026 MOVIES" />
-
-            <!-- Owner line: only used by the "Lists" screen on Movie Detail. -->
-            <TextView
-                android:id="@+id/tv_owner"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:visibility="gone"
-                tools:text="@username"
-                tools:visibility="visible" />
-        </LinearLayout>
+            android:ellipsize="end"
+            android:fontFamily="@font/font_family_inter"
+            android:maxLines="1"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            tools:text="TOP 2026 MOVIES" />
 
         <TextView
             android:id="@+id/tv_count"

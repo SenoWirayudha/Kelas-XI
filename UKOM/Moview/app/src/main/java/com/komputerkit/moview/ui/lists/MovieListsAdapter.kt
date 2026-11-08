@@ -10,14 +10,17 @@ import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.data.model.FilmList
 import com.komputerkit.moview.databinding.ItemFilmListBinding
 import com.komputerkit.moview.databinding.ItemListStripPosterBinding
+import com.komputerkit.moview.util.loadProfilePhoto
 import com.komputerkit.moview.util.loadThumbnail
 
 /**
  * Row for the "Lists" screen on Movie Detail: the same layout as the My List
- * row (title + count + overlapping poster strip) plus the owner's @username.
+ * row (title + count + overlapping poster strip) plus the owner's avatar and
+ * @username. Tapping the owner opens their profile; the row opens the list.
  */
 class MovieListsAdapter(
-    private val onClick: (FilmList) -> Unit
+    private val onClick: (FilmList) -> Unit,
+    private val onOwnerClick: (FilmList) -> Unit
 ) : ListAdapter<FilmList, MovieListsAdapter.Holder>(Diff) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
@@ -33,8 +36,18 @@ class MovieListsAdapter(
             binding.tvCount.text = "${list.itemsCount} Films"
 
             val owner = list.ownerUsername
-            binding.tvOwner.text = if (owner.isNullOrBlank()) "" else "@$owner"
-            binding.tvOwner.visibility = if (owner.isNullOrBlank()) View.GONE else View.VISIBLE
+            val hasOwner = !owner.isNullOrBlank()
+            binding.layoutOwner.visibility = if (hasOwner) View.VISIBLE else View.GONE
+            if (hasOwner) {
+                binding.tvOwner.text = "@$owner"
+                // Same loader + default placeholder as the list detail header.
+                binding.ivOwnerAvatar.loadProfilePhoto(list.ownerAvatarUrl)
+                binding.ivOwnerAvatar.setOnClickListener { onOwnerClick(list) }
+                binding.tvOwner.setOnClickListener { onOwnerClick(list) }
+            } else {
+                binding.ivOwnerAvatar.setOnClickListener(null)
+                binding.tvOwner.setOnClickListener(null)
+            }
 
             binding.layoutPosters.removeAllViews()
             val posters = list.posterUrls.ifEmpty { listOfNotNull(list.posterUrl) }.take(7)
