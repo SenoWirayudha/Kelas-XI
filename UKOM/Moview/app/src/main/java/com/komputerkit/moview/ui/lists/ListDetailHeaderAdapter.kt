@@ -4,7 +4,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.FilmList
 import com.komputerkit.moview.databinding.ItemListDetailHeaderBinding
 import com.komputerkit.moview.util.loadBackdrop
@@ -51,13 +50,6 @@ class ListDetailHeaderAdapter(
             parent,
             false
         )
-        // The content RecyclerView carries the 16dp symmetric padding for the
-        // grid; the hero header stays full-bleed by cancelling it on both sides.
-        val inset = (HEADER_SIDE_PADDING_DP * parent.resources.displayMetrics.density).toInt()
-        (binding.root.layoutParams as RecyclerView.LayoutParams).apply {
-            marginStart = -inset
-            marginEnd = -inset
-        }
         return Holder(binding)
     }
 
@@ -87,21 +79,20 @@ class ListDetailHeaderAdapter(
             binding.tvCommentCount.text = commentCount.toString()
 
             // Hero backdrop = backdrop of film #1, only when the owner enabled it.
+            // Without one the whole area (image + scrim/fade + spacing) is
+            // dropped instead of leaving an empty block, so the content starts
+            // right below the top bar. Also used for "List by @username".
             val showBackdrop = list.useBackdrop && !list.backdropUrl.isNullOrBlank()
-            binding.backdropScrim.visibility = View.VISIBLE
+            binding.backdropContainer.visibility = if (showBackdrop) View.VISIBLE else View.GONE
+            binding.tvEmpty.visibility = if (list.items.isEmpty()) View.VISIBLE else View.GONE
+
             if (showBackdrop) {
+                binding.backdropScrim.visibility = View.VISIBLE
                 binding.ivBackdrop.loadBackdrop(list.backdropUrl)
             } else {
                 binding.ivBackdrop.setImageDrawable(null)
-                binding.ivBackdrop.setBackgroundColor(
-                    androidx.core.content.ContextCompat.getColor(
-                        binding.root.context,
-                        R.color.dark_surface
-                    )
-                )
+                binding.backdropScrim.visibility = View.GONE
             }
-
-            binding.tvEmpty.visibility = if (list.items.isEmpty()) View.VISIBLE else View.GONE
 
             // Same profile destination as tapping an author in a review.
             binding.ivAvatar.setOnClickListener { onOwnerClick() }
@@ -111,5 +102,3 @@ class ListDetailHeaderAdapter(
         }
     }
 }
-
-private const val HEADER_SIDE_PADDING_DP = 16

@@ -244,7 +244,15 @@ class MovieDetailFragment : Fragment() {
             binding.tvPgRating.text = pgText
             binding.tvGenre.text = movie.genre ?: "Unknown Genre"
             binding.tvDirector.text = movie.director ?: "Unknown Director"
-            binding.tvDescription.text = movie.description ?: "No description available."
+            // Newlines / trailing spaces would push the "..." onto a line of its
+            // own; one collapsed paragraph lets ellipsize=end cut the last line.
+            binding.tvDescription.text = (movie.description ?: "No description available.")
+                .replace(WHITESPACE_RUN, " ")
+                .trim()
+                .replace(TRAILING_ELLIPSIS, "")
+            isDescriptionExpanded = false
+            binding.tvDescription.maxLines = SYNOPSIS_COLLAPSED_LINES
+            binding.btnReadMore.text = "Read more"
             binding.tvWatchedCount.text = movie.watchedCount ?: "0"
             binding.tvReviewCount.text = movie.reviewCount ?: "0"
             binding.tvAverageRating.text = String.format("%.1f", movie.averageRating ?: 0.0)
@@ -648,13 +656,18 @@ class MovieDetailFragment : Fragment() {
         
         binding.btnReadMore.setOnClickListener {
             if (isDescriptionExpanded) {
-                binding.tvDescription.maxLines = 3
+                binding.tvDescription.maxLines = SYNOPSIS_COLLAPSED_LINES
                 binding.btnReadMore.text = "Read more"
             } else {
                 binding.tvDescription.maxLines = Int.MAX_VALUE
                 binding.btnReadMore.text = "Show less"
             }
             isDescriptionExpanded = !isDescriptionExpanded
+        }
+
+        // "Read more" only makes sense while the synopsis is really truncated.
+        binding.tvDescription.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            updateReadMoreVisibility()
         }
         
         val navigateToReviews: () -> Unit = {
@@ -1222,6 +1235,19 @@ class MovieDetailFragment : Fragment() {
         }
     }
 
+    /**
+     * Hides "Read more" when the whole synopsis already fits, so a short text
+     * never shows a dangling button or a separate ellipsis row.
+     */
+    private fun updateReadMoreVisibility() {
+        if (_binding == null) return
+        val layout = binding.tvDescription.layout ?: return
+        val truncated = layout.lineCount > 0 &&
+            layout.getEllipsisCount(layout.lineCount - 1) > 0
+        binding.btnReadMore.visibility =
+            if (isDescriptionExpanded || truncated) View.VISIBLE else View.GONE
+    }
+
     private fun setHeaderTitleVisible(visible: Boolean) {
         binding.toolbar.post {
             if (_binding == null) return@post
@@ -1238,3 +1264,14 @@ class MovieDetailFragment : Fragment() {
         }
     }
 }
+
+// ---- Synopsis formatting ------------------------------------------------
+
+/** Collapsed synopsis height; "Read more" expands it. */
+private const val SYNOPSIS_COLLAPSED_LINES = 3
+
+/** Any run of whitespace (newlines included) inside the synopsis. */
+private val WHITESPACE_RUN = Regex("\\s+")
+
+/** Ellipsis the source text already carries at the very end. */
+private val TRAILING_ELLIPSIS = Regex("\\s*(?:\\.{3}|\u2026)\\s*$")

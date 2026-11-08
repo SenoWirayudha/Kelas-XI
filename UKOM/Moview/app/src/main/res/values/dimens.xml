@@ -27,6 +27,14 @@
     <dimen name="date_badge_ring_gap">16dp</dimen>
     <dimen name="date_badge_ring_overhang">4dp</dimen>
 
+    <!-- List detail grid: left inset applied by the RecyclerView, identical
+         right inset applied by the grid decoration (same 16dp as the content). -->
+    <dimen name="list_grid_side_padding">16dp</dimen>
+
+    <!-- List detail header: info block top gap (with backdrop; without one the
+         block starts at this padding directly below the top bar). -->
+    <dimen name="list_header_info_top_with_backdrop">10dp</dimen>
+
     <!-- UI polish -->
     <dimen name="card_corner_radius">8dp</dimen>
     <dimen name="card_section_width">104dp</dimen>

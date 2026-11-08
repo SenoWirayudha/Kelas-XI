@@ -11,8 +11,10 @@
     android:clipToPadding="false"
     android:orientation="vertical">
 
-    <!-- Hero backdrop (scrolls away with the content). -->
+    <!-- Hero backdrop (scrolls away with the content). GONE when the list has
+         no backdrop, so the content starts right below the top bar. -->
     <FrameLayout
+        android:id="@+id/backdrop_container"
         android:layout_width="match_parent"
         android:layout_height="200dp"
         android:clipChildren="false">
@@ -33,26 +35,31 @@
     </FrameLayout>
 
     <LinearLayout
+        android:id="@+id/info_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clipChildren="false"
         android:clipToPadding="false"
         android:orientation="vertical"
         android:paddingHorizontal="16dp"
+        android:paddingTop="@dimen/list_header_info_top_with_backdrop"
         android:paddingBottom="16dp">
 
         <LinearLayout
+            android:id="@+id/owner_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
+            <!-- Owner avatar: round, default placeholder, opens the profile. -->
             <ImageView
                 android:id="@+id/iv_avatar"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Profil pemilik list"
+                android:scaleType="centerCrop"
                 android:src="@drawable/ic_default_profile" />
 
             <TextView
@@ -65,6 +72,8 @@
                 android:paddingVertical="2dp"
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp"
+                android:maxLines="1"
+                android:ellipsize="end"
                 tools:text="@username" />
         </LinearLayout>
 

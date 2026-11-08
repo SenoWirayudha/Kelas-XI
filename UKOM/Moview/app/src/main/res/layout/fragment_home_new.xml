@@ -41,6 +41,9 @@
 
     </LinearLayout>
 
+    <!-- Social / Review: same tab component, height and label size as the other
+         two-tab screens (shared TabTextStyle.Compact, as in Add to List and
+         Crew Detail), instead of the tiny caption style used before. -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/home_tab_layout"
         android:layout_width="0dp"
@@ -50,11 +53,13 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/top_bar"
+        app:tabGravity="fill"
         app:tabIndicatorColor="@color/accent_blue"
         app:tabIndicatorFullWidth="true"
         app:tabIndicatorHeight="2dp"
+        app:tabMode="fixed"
         app:tabSelectedTextColor="@color/text_primary"
-        app:tabTextAppearance="@style/TextAppearance.MaterialComponents.Caption"
+        app:tabTextAppearance="@style/TabTextStyle.Compact"
         app:tabTextColor="@color/text_secondary" />
 
     <!-- SwipeRefreshLayout for pull-to-refresh -->

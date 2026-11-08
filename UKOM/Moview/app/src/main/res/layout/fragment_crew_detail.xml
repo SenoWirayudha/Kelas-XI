@@ -94,7 +94,7 @@
                 app:tabIndicatorHeight="2dp"
                 app:tabSelectedTextColor="@color/text_primary"
                 app:tabTextColor="@color/text_secondary"
-                app:tabTextAppearance="@style/TabTextStyle" />
+                app:tabTextAppearance="@style/TabTextStyle.Compact" />
 
             <!-- Content Container -->
             <FrameLayout

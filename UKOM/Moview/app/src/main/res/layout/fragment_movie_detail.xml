@@ -243,8 +243,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textColor="@color/text_secondary"
-                    android:textSize="14sp"
-                    android:lineSpacingExtra="4dp"
+                    android:textSize="12sp"
+                    android:lineSpacingMultiplier="1.15"
+                    android:lineSpacingExtra="2dp"
                     android:maxLines="3"
                     android:ellipsize="end"
                     tools:text="A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival. When Earth becomes uninhabitable in the future, a..." />
@@ -255,7 +256,7 @@
                     android:layout_height="wrap_content"
                     android:text="Read more"
                     android:textColor="#1E88E5"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     android:textStyle="bold"
                     android:paddingVertical="4dp" />
 
@@ -273,7 +274,7 @@
                     android:id="@+id/card_watched"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:layout_height="60dp"
+                    android:layout_height="52dp"
                     android:layout_marginEnd="6dp"
                     android:clickable="true"
                     android:focusable="true"
@@ -287,7 +288,7 @@
                         android:layout_height="match_parent"
                         android:orientation="horizontal"
                         android:paddingHorizontal="8dp"
-                        android:paddingVertical="10dp"
+                        android:paddingVertical="6dp"
                         android:gravity="center_vertical">
 
                         <ImageView
@@ -301,6 +302,7 @@
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
+                            android:layout_marginTop="-2dp"
                             android:orientation="vertical"
                             android:gravity="end">
 
@@ -342,7 +344,7 @@
                     android:id="@+id/card_reviews"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:layout_height="60dp"
+                    android:layout_height="52dp"
                     android:layout_marginStart="6dp"
                     android:clickable="true"
                     android:focusable="true"
@@ -356,7 +358,7 @@
                         android:layout_height="match_parent"
                         android:orientation="horizontal"
                         android:paddingHorizontal="8dp"
-                        android:paddingVertical="10dp"
+                        android:paddingVertical="6dp"
                         android:gravity="center_vertical">
 
                         <ImageView
@@ -370,6 +372,7 @@
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
+                            android:layout_marginTop="-2dp"
                             android:orientation="vertical"
                             android:gravity="end">
 
@@ -412,7 +415,7 @@
                     android:id="@+id/card_lists"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:layout_height="60dp"
+                    android:layout_height="52dp"
                     android:layout_marginStart="6dp"
                     android:clickable="true"
                     android:focusable="true"
@@ -426,7 +429,7 @@
                         android:layout_height="match_parent"
                         android:orientation="horizontal"
                         android:paddingHorizontal="8dp"
-                        android:paddingVertical="10dp"
+                        android:paddingVertical="6dp"
                         android:gravity="center_vertical">
 
                         <ImageView
@@ -440,6 +443,7 @@
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
+                            android:layout_marginTop="-2dp"
                             android:orientation="vertical"
                             android:gravity="end">
 

@@ -12,18 +12,21 @@ import androidx.recyclerview.widget.RecyclerView
  * width/height is written to `LayoutParams` on every bind — so all columns and
  * the "+N" cell always match:
  *
- * `width = (availableWidth - 2*sideInset - span*gap) / span`,
+ * `width = (availableWidth - sideInset - trailingInset - span*gap) / span`,
  * `height = width * 1.5` (2:3 poster).
  *
  * Spacing comes from this decoration only (items carry no margins). Every
- * column gets `left + right = gap + 2*sideInset`, so the `span*gap` term (not
- * `(span-1)*gap`) is what makes `cell + insets` add up to the available width
- * exactly. [badgeOverhang] reserves half a badge above every row so the rank
- * badge can overhang the poster.
+ * column gets `left + right = gap + sideInset + trailingInset`, so the
+ * `span*gap` term (not `(span-1)*gap`) is what makes `cell + insets` add up to
+ * the available width exactly. [badgeOverhang] reserves half a badge above
+ * every row so the rank badge can overhang the poster.
  *
  * @param spanCount columns of the grid.
- * @param sideInset extra outer padding; 0 when the RecyclerView already has
- *        symmetric horizontal padding (the preferred setup).
+ * @param sideInset outer inset added on the left of the grid; 0 when the
+ *        RecyclerView already pads its left side.
+ * @param trailingInset outer inset added on the right of the grid, so a grid
+ *        inside a left-padded RecyclerView stays symmetric without forcing the
+ *        full-span header (e.g. a full-bleed backdrop) to follow the padding.
  * @param gap spacing between columns and rows.
  * @param badgeOverhang half the rank badge height.
  * @param leadingItemCount full-span items before the grid (e.g. the header).
@@ -31,6 +34,8 @@ import androidx.recyclerview.widget.RecyclerView
 class PosterGridSizingDecoration(
     private val spanCount: Int,
     private val sideInset: Int,
+    /** Outer inset added on the right of the grid (see [sideInset]). */
+    private val trailingInset: Int = 0,
     private val gap: Int,
     private val badgeOverhang: Int,
     private val leadingItemCount: Int = 0,
@@ -80,10 +85,10 @@ class PosterGridSizingDecoration(
         val isFirstRow = gridIndex < span
 
         // Equal left+right for every column keeps the measured width fixed.
-        // Total per column = gap (split between the two sides), so no column
-        // can drift past the right edge of the padded grid.
+        // Total per column = gap (split between the two sides) plus the two
+        // outer insets, so no column can drift past the right edge.
         outRect.left = sideInset + column * gap / span
-        outRect.right = sideInset + gap - (column + 1) * gap / span
+        outRect.right = trailingInset + gap - (column + 1) * gap / span
 
         outRect.top = if (isFirstRow) badgeOverhang else badgeOverhang + gap
         outRect.bottom = 0
@@ -94,7 +99,7 @@ class PosterGridSizingDecoration(
         if (width <= 0 || width == gridWidth) return
 
         gridWidth = width
-        cellWidth = ((width - 2 * sideInset - span * gap) / span).coerceAtLeast(1)
+        cellWidth = ((width - sideInset - trailingInset - span * gap) / span).coerceAtLeast(1)
         cellHeight = (cellWidth * aspect).toInt()
     }
 }
