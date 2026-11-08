@@ -237,13 +237,13 @@ object MovieActionsHelper {
                         val watchlistText = binding.btnWatchlist.getChildAt(1) as android.widget.TextView
                         
                         if (isInWatchlist) {
-                            watchlistIcon.setImageResource(R.drawable.ic_bookmark_filled)
+                            watchlistIcon.setImageResource(R.drawable.clock_minus_fill_round)
                             watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
                                 context.getColor(R.color.orange)
                             )
                             watchlistText.text = "In Watchlist"
                         } else {
-                            watchlistIcon.setImageResource(R.drawable.ic_bookmark)
+                            watchlistIcon.setImageResource(R.drawable.clock_check_line_round)
                             watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
                                 context.getColor(R.color.text_secondary)
                             )
@@ -450,7 +450,7 @@ object MovieActionsHelper {
                             
                             when (isInWatchlist) {
                                 true -> {
-                                    watchlistIcon.setImageResource(R.drawable.ic_bookmark_filled)
+                                    watchlistIcon.setImageResource(R.drawable.clock_minus_fill_round)
                                     watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
                                         context.getColor(R.color.orange)
                                     )
@@ -458,7 +458,7 @@ object MovieActionsHelper {
                                     (context as? android.app.Activity)?.showSnackbarWithDialog("Added to watchlist", bottomSheetDialog, SnackbarType.SUCCESS)
                                 }
                                 false -> {
-                                    watchlistIcon.setImageResource(R.drawable.ic_bookmark)
+                                    watchlistIcon.setImageResource(R.drawable.clock_check_line_round)
                                     watchlistIcon.imageTintList = android.content.res.ColorStateList.valueOf(
                                         context.getColor(R.color.text_secondary)
                                     )

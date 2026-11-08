@@ -302,11 +302,16 @@ class OrderSummaryActivity : AppCompatActivity() {
     }
 
     private fun navigateToActiveTickets() {
-        val intent = Intent(this, TicketHistoryActivity::class.java).apply {
-            putExtra(TicketHistoryActivity.EXTRA_INITIAL_TAB, TicketHistoryActivity.TAB_ACTIVE)
+        // Payment succeeded: collapse the whole checkout flow (schedule → seats →
+        // summary) by bringing the main screen back to the front, then open the
+        // ticket screen on top. Back from there returns to the screen the user
+        // was on before checkout instead of re-entering the payment summary.
+        startActivity(Intent(this, com.komputerkit.moview.MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-        startActivity(intent)
+        })
+        startActivity(Intent(this, TicketHistoryActivity::class.java).apply {
+            putExtra(TicketHistoryActivity.EXTRA_INITIAL_TAB, TicketHistoryActivity.TAB_ACTIVE)
+        })
         finish()
     }
 

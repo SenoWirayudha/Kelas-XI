@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solid twin of clock_minus_line_round: filled clock + filled badge, with
+     the clock hands and the minus cut out (even-odd) so they read under one tint.
+     Two separate paths so the badge sits on top of the body (no overlap hole). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+
+    <!-- Clock body; hands are even-odd holes. -->
+    <path
+        android:fillColor="#000000"
+        android:fillType="evenOdd"
+        android:pathData="M6.5,1 A5.5,5.5 0 1,1 6.5,12 A5.5,5.5 0 1,1 6.5,1 Z M6,3.4 L7,3.4 L7,6.6 L6,6.6 Z M6.4,6 L8.6,6 L8.6,7 L6.4,7 Z" />
+
+    <!-- Badge; the minus is an even-odd hole. -->
+    <path
+        android:fillColor="#000000"
+        android:fillType="evenOdd"
+        android:pathData="M11.5,7 A4.5,4.5 0 1,1 11.5,16 A4.5,4.5 0 1,1 11.5,7 Z M9.2,11 L13.8,11 L13.8,12 L9.2,12 Z" />
+</vector>
