@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\FilmList;
+use App\Models\FilmListComment;
 use App\Models\FilmListItem;
 use App\Models\Movie;
 use App\Models\MovieMedia;
@@ -32,6 +33,7 @@ class FilmListApiController extends Controller
         $viewerId = (int) $request->get('viewer_id', 0);
 
         $lists = FilmList::withCount('items')
+            ->with('user.userProfile')
             ->where('user_id', (int) $userId)
             ->when((int) $userId !== $viewerId, fn ($query) => $query
                 ->where('visibility', FilmList::VISIBILITY_PUBLIC))
@@ -54,24 +56,50 @@ class FilmListApiController extends Controller
             'description' => 'nullable|string|max:2000',
             'type' => 'nullable|in:ranked,plain',
             'visibility' => 'nullable|in:public,private',
+            'movie_ids' => 'nullable|array',
+            'movie_ids.*' => 'integer|exists:movies,id',
+            'backdrop_media_id' => 'nullable|integer|exists:movie_media,id',
+            'use_backdrop' => 'nullable|boolean',
         ]);
 
-        $list = FilmList::create([
-            'user_id' => (int) $userId,
-            'title' => $validated['title'],
-            'description' => $validated['description'] ?? null,
-            'type' => ($validated['type'] ?? FilmList::TYPE_PLAIN) === FilmList::TYPE_RANKED
-                ? FilmList::TYPE_RANKED
-                : FilmList::TYPE_PLAIN,
-            'visibility' => ($validated['visibility'] ?? FilmList::VISIBILITY_PUBLIC) === FilmList::VISIBILITY_PRIVATE
-                ? FilmList::VISIBILITY_PRIVATE
-                : FilmList::VISIBILITY_PUBLIC,
-            'use_backdrop' => false,
-        ]);
+        // Films are accepted inline so create + first line-up is one atomic call.
+        $movieIds = array_values(array_unique(array_map('intval', $validated['movie_ids'] ?? [])));
+        $backdropMediaId = $this->validatedBackdropId(
+            $validated['backdrop_media_id'] ?? null,
+            $movieIds[0] ?? null
+        );
+
+        $list = DB::transaction(function () use ($validated, $userId, $movieIds, $backdropMediaId) {
+            $list = FilmList::create([
+                'user_id' => (int) $userId,
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? null,
+                'type' => ($validated['type'] ?? FilmList::TYPE_PLAIN) === FilmList::TYPE_RANKED
+                    ? FilmList::TYPE_RANKED
+                    : FilmList::TYPE_PLAIN,
+                'visibility' => ($validated['visibility'] ?? FilmList::VISIBILITY_PUBLIC) === FilmList::VISIBILITY_PRIVATE
+                    ? FilmList::VISIBILITY_PRIVATE
+                    : FilmList::VISIBILITY_PUBLIC,
+                'use_backdrop' => ($validated['use_backdrop'] ?? false) || $backdropMediaId !== null,
+                'backdrop_media_id' => $backdropMediaId,
+            ]);
+
+            foreach ($movieIds as $index => $movieId) {
+                FilmListItem::create([
+                    'film_list_id' => $list->id,
+                    'movie_id' => $movieId,
+                    'position' => $index + 1,
+                ]);
+            }
+
+            return $list;
+        });
+
+        $fresh = FilmList::with('items.movie')->find($list->id);
 
         return response()->json([
             'success' => true,
-            'data' => $this->formatList($list->loadCount('items'), []),
+            'data' => $this->formatList($fresh, [], true, (int) $userId),
         ]);
     }
 
@@ -79,7 +107,7 @@ class FilmListApiController extends Controller
     public function show(Request $request, $listId)
     {
         $viewerId = (int) $request->get('viewer_id', 0);
-        $list = FilmList::with('items.movie')->find($listId);
+        $list = FilmList::with(['items.movie', 'user.userProfile'])->find($listId);
 
         if (!$list) {
             return $this->notFound();
@@ -108,7 +136,24 @@ class FilmListApiController extends Controller
             'type' => 'nullable|in:ranked,plain',
             'visibility' => 'nullable|in:public,private',
             'use_backdrop' => 'nullable|boolean',
+            'movie_ids' => 'nullable|array',
+            'movie_ids.*' => 'integer|exists:movies,id',
+            'backdrop_media_id' => 'nullable|integer|exists:movie_media,id',
         ]);
+
+        $movieIds = $request->has('movie_ids')
+            ? array_values(array_unique(array_map('intval', $validated['movie_ids'] ?? [])))
+            : null;
+
+        // Backdrop belongs to film #1; when the first film changes the choice is
+        // dropped so the new film's default backdrop is used.
+        $firstMovieChanged = false;
+        if ($movieIds !== null) {
+            $oldFirst = FilmListItem::where('film_list_id', $list->id)
+                ->orderBy('position')
+                ->value('movie_id');
+            $firstMovieChanged = (int) $oldFirst !== (int) ($movieIds[0] ?? 0);
+        }
 
         $payload = [
             'title' => $validated['title'],
@@ -124,11 +169,49 @@ class FilmListApiController extends Controller
                 ? FilmList::VISIBILITY_PRIVATE
                 : FilmList::VISIBILITY_PUBLIC;
         }
-        if ($request->has('use_backdrop')) {
+
+        if ($firstMovieChanged) {
+            // Keep the toggle on: the hero falls back to the new film #1's default.
+            $payload['backdrop_media_id'] = null;
+        } elseif ($request->has('backdrop_media_id')) {
+            $backdropMediaId = $this->validatedBackdropId(
+                $validated['backdrop_media_id'] ?? null,
+                $movieIds[0] ?? FilmListItem::where('film_list_id', $list->id)->orderBy('position')->value('movie_id')
+            );
+            $payload['backdrop_media_id'] = $backdropMediaId;
+            $payload['use_backdrop'] = $backdropMediaId !== null;
+        } elseif ($request->has('use_backdrop')) {
             $payload['use_backdrop'] = $request->boolean('use_backdrop');
         }
 
         $list->update($payload);
+
+        // When the editor sends the full line-up, it replaces the old one so
+        // additions/removals/order from "Pilih Film" are all persisted.
+        if ($movieIds !== null) {
+            DB::transaction(function () use ($list, $movieIds) {
+                // List-scoped custom artwork is keyed by (film_list_id, movie_id):
+                // keep it for films that stay, drop it for films that leave, and
+                // let brand-new films fall back to their default artwork.
+                $keptMedia = FilmListItem::where('film_list_id', $list->id)
+                    ->get(['movie_id', 'poster_media_id', 'backdrop_media_id'])
+                    ->keyBy(fn (FilmListItem $item) => (int) $item->movie_id);
+
+                FilmListItem::where('film_list_id', $list->id)->delete();
+
+                foreach ($movieIds as $index => $movieId) {
+                    $kept = $keptMedia->get((int) $movieId);
+
+                    FilmListItem::create([
+                        'film_list_id' => $list->id,
+                        'movie_id' => $movieId,
+                        'position' => $index + 1,
+                        'poster_media_id' => $kept?->poster_media_id,
+                        'backdrop_media_id' => $kept?->backdrop_media_id,
+                    ]);
+                }
+            });
+        }
 
         $fresh = FilmList::with('items.movie')->find($list->id);
 
@@ -235,7 +318,7 @@ class FilmListApiController extends Controller
         }
 
         $validated = $request->validate([
-            'movie_ids' => 'required|array|min:1',
+            'movie_ids' => 'present|array',
             'movie_ids.*' => 'integer',
         ]);
 
@@ -369,29 +452,32 @@ class FilmListApiController extends Controller
             return response()->json(['success' => false, 'message' => 'Film tidak ada di list ini.'], 404);
         }
 
-        // Media must belong to this film and match the requested category.
-        foreach ([
-            'poster' => ['poster_media_id', 'poster'],
-            'backdrop' => ['backdrop_media_id', 'backdrop'],
-        ] as [$field, $type]) {
-            if (empty($validated[$field])) {
+        // Partial update: only fields present in the request are touched, so a
+        // poster-only change never clears the item's backdrop (and vice versa).
+        $update = [];
+        foreach (['poster_media_id' => 'poster', 'backdrop_media_id' => 'backdrop'] as $field => $type) {
+            if (!$request->has($field)) {
                 continue;
             }
 
-            $media = MovieMedia::find($validated[$field]);
-            if (!$media
-                || (int) $media->movie_id !== (int) $movieId
-                || $media->media_type !== $type) {
-                throw ValidationException::withMessages([
-                    $field => 'Media tidak cocok dengan film ini.',
-                ]);
+            $mediaId = $validated[$field] ?? null;
+            if ($mediaId !== null) {
+                $media = MovieMedia::find($mediaId);
+                if (!$media
+                    || (int) $media->movie_id !== (int) $movieId
+                    || $media->media_type !== $type) {
+                    throw ValidationException::withMessages([
+                        $field => 'Media tidak cocok dengan film ini.',
+                    ]);
+                }
             }
+
+            $update[$field] = $mediaId;
         }
 
-        $item->update([
-            'poster_media_id' => $validated['poster_media_id'] ?? null,
-            'backdrop_media_id' => $validated['backdrop_media_id'] ?? null,
-        ]);
+        if (!empty($update)) {
+            $item->update($update);
+        }
 
         $fresh = FilmList::with('items.movie')->find($list->id);
 
@@ -399,6 +485,81 @@ class FilmListApiController extends Controller
             'success' => true,
             'data' => $this->formatList($fresh, $this->coverLookup([$list->id], (int) $userId), true, (int) $userId),
         ]);
+    }
+
+    // ------------------------------------------------------------------
+    // Comments
+    // ------------------------------------------------------------------
+
+    /** GET /lists/{listId}/comments?viewer_id= */
+    public function comments(Request $request, $listId)
+    {
+        $viewerId = (int) $request->get('viewer_id', 0);
+        $list = FilmList::find($listId);
+
+        if (!$list) {
+            return $this->notFound();
+        }
+        if (!$list->isVisibleTo($viewerId)) {
+            return response()->json(['success' => false, 'message' => 'List ini privat.'], 403);
+        }
+
+        $comments = FilmListComment::with('user')
+            ->where('film_list_id', $list->id)
+            ->orderBy('created_at')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $comments->map(fn (FilmListComment $comment) => $this->formatComment($comment)),
+        ]);
+    }
+
+    /** POST /users/{userId}/lists/{listId}/comments { content } */
+    public function addComment(Request $request, $userId, $listId)
+    {
+        $list = FilmList::find($listId);
+
+        if (!$list) {
+            return $this->notFound();
+        }
+        if (!$list->isVisibleTo((int) $userId)) {
+            return response()->json(['success' => false, 'message' => 'List ini privat.'], 403);
+        }
+
+        $validated = $request->validate([
+            'content' => 'required|string|max:1000',
+        ]);
+
+        $comment = FilmListComment::create([
+            'film_list_id' => $list->id,
+            'user_id' => (int) $userId,
+            'content' => trim($validated['content']),
+        ]);
+
+        $comment->load('user');
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatComment($comment),
+        ], 201);
+    }
+
+    private function formatComment(FilmListComment $comment): array
+    {
+        return [
+            'id' => $comment->id,
+            'user' => [
+                'id' => $comment->user?->id,
+                'username' => $comment->user?->username,
+                'profile_photo' => $comment->user?->userProfile?->profile_photo
+                    ? url('storage/' . $comment->user->userProfile->profile_photo)
+                    : null,
+            ],
+            'content' => $comment->content,
+            'created_at' => optional($comment->created_at)->format('Y-m-d H:i:s'),
+            'time_ago' => optional($comment->created_at)->diffForHumans(short: true),
+        ];
     }
 
     // ------------------------------------------------------------------
@@ -463,21 +624,37 @@ class FilmListApiController extends Controller
             ->get(['id', 'default_poster_path', 'default_backdrop_path'])
             ->keyBy('id');
 
-        $viewerMedia = $this->viewerMedia($movieIds, $viewerId);
-        $mediaPaths = $this->mediaPaths($items->pluck('poster_media_id')->merge($items->pluck('backdrop_media_id'))->filter()->all());
+        // List artwork only: item poster → film default. Never the user's
+        // film/review custom artwork.
+        $mediaPaths = $this->mediaPaths($items->pluck('poster_media_id')->filter()->all());
+        $listBackdrops = FilmList::whereIn('id', $listIds)
+            ->pluck('backdrop_media_id', 'id')
+            ->all();
+        $backdropPaths = $this->mediaPaths(array_values(array_filter($listBackdrops)));
 
         $covers = [];
         foreach ($firstByList as $listId => $item) {
             $movie = $movies->get((int) $item->movie_id);
             $movieId = (int) $item->movie_id;
 
+            // Poster strip for the "My List" row (max 7, in order).
+            $posterUrls = [];
+            foreach ($items->where('film_list_id', $listId)->sortBy('position')->take(7) as $stripItem) {
+                $stripMovie = $movies->get((int) $stripItem->movie_id);
+                $url = $this->mediaUrl($mediaPaths[$stripItem->poster_media_id] ?? null)
+                    ?? $this->movieDefault($stripMovie?->default_poster_path);
+
+                if ($url) {
+                    $posterUrls[] = $url;
+                }
+            }
+
             $covers[$listId] = [
                 'poster_url' => $this->mediaUrl($mediaPaths[$item->poster_media_id] ?? null)
-                    ?? ($viewerMedia[$movieId]['poster'] ?? null)
                     ?? $this->movieDefault($movie?->default_poster_path),
-                'backdrop_url' => $this->mediaUrl($mediaPaths[$item->backdrop_media_id] ?? null)
-                    ?? ($viewerMedia[$movieId]['backdrop'] ?? null)
+                'backdrop_url' => $this->mediaUrl($backdropPaths[$listBackdrops[$listId] ?? null] ?? null)
                     ?? $this->movieDefault($movie?->default_backdrop_path),
+                'poster_urls' => $posterUrls,
                 'movie_id' => $movieId,
             ];
         }
@@ -485,28 +662,67 @@ class FilmListApiController extends Controller
         return $covers;
     }
 
-    /** viewer's global 'films' poster/backdrop preference. */
-    private function viewerMedia(array $movieIds, int $viewerId): array
+    /**
+     * PUT /users/{userId}/lists/{listId}/backdrop
+     * { backdrop_media_id: int|null } — null restores film #1's default backdrop.
+     */
+    public function setListBackdrop(Request $request, $userId, $listId)
     {
-        if ($viewerId <= 0 || empty($movieIds)) {
-            return [];
+        $list = $this->ownedList($userId, $listId);
+        if ($list instanceof \Illuminate\Http\JsonResponse) {
+            return $list;
         }
 
-        $rows = DB::table('user_change_medias as ucm')
-            ->join('movie_media as mm', 'ucm.media_id', '=', 'mm.id')
-            ->where('ucm.user_id', $viewerId)
-            ->where('ucm.type', 'films')
-            ->whereIn('ucm.film_id', $movieIds)
-            ->whereIn('ucm.media_category', ['poster', 'backdrop'])
-            ->select('ucm.film_id', 'ucm.media_category', 'mm.media_path')
-            ->get();
+        $validated = $request->validate([
+            'backdrop_media_id' => 'nullable|integer|exists:movie_media,id',
+        ]);
 
-        $result = [];
-        foreach ($rows as $row) {
-            $result[(int) $row->film_id][$row->media_category] = $this->movieDefault($row->media_path);
+        $firstMovieId = FilmListItem::where('film_list_id', $list->id)
+            ->orderBy('position')
+            ->value('movie_id');
+
+        $backdropMediaId = $this->validatedBackdropId(
+            $validated['backdrop_media_id'] ?? null,
+            $firstMovieId
+        );
+
+        $list->update([
+            'backdrop_media_id' => $backdropMediaId,
+            'use_backdrop' => $backdropMediaId !== null,
+        ]);
+
+        $fresh = FilmList::with('items.movie')->find($list->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatList($fresh, $this->coverLookup([$list->id], (int) $userId), true, (int) $userId),
+        ]);
+    }
+
+    /**
+     * Backdrops must belong to film #1 (the hero source) and be a backdrop.
+     * Returns null when no backdrop was chosen.
+     */
+    private function validatedBackdropId(?int $mediaId, $firstMovieId): ?int
+    {
+        if ($mediaId === null || (int) $mediaId <= 0) {
+            return null;
         }
 
-        return $result;
+        $media = MovieMedia::find($mediaId);
+        if (!$media || $media->media_type !== 'backdrop') {
+            throw ValidationException::withMessages([
+                'backdrop_media_id' => 'Backdrop tidak valid.',
+            ]);
+        }
+
+        if ($firstMovieId !== null && (int) $media->movie_id !== (int) $firstMovieId) {
+            throw ValidationException::withMessages([
+                'backdrop_media_id' => 'Backdrop harus milik film nomor 1.',
+            ]);
+        }
+
+        return (int) $media->id;
     }
 
     /** movie_media.id => media_path for a set of ids. */
@@ -533,17 +749,27 @@ class FilmListApiController extends Controller
 
     private function formatList(FilmList $list, array $covers, bool $withItems = false, int $viewerId = 0): array
     {
+        $owner = $list->user;
+        $ownerPhoto = $owner?->userProfile?->profile_photo;
+
         $payload = [
             'id' => $list->id,
             'user_id' => $list->user_id,
+            'user' => [
+                'id' => $owner?->id,
+                'username' => $owner?->username,
+                'profile_photo' => $ownerPhoto ? url('storage/' . $ownerPhoto) : null,
+            ],
             'title' => $list->title,
             'description' => $list->description,
             'type' => $list->type,
             'visibility' => $list->visibility,
             'use_backdrop' => (bool) $list->use_backdrop,
+            'backdrop_media_id' => $list->backdrop_media_id,
             'items_count' => $list->items_count ?? ($list->relationLoaded('items') ? $list->items->count() : 0),
             'poster_url' => $covers[$list->id]['poster_url'] ?? null,
             'backdrop_url' => $covers[$list->id]['backdrop_url'] ?? null,
+            'poster_urls' => $covers[$list->id]['poster_urls'] ?? [],
             'updated_at' => optional($list->updated_at)->format('Y-m-d H:i:s'),
         ];
 
@@ -552,24 +778,20 @@ class FilmListApiController extends Controller
             $mediaPaths = $this->mediaPaths(
                 $items->pluck('poster_media_id')->merge($items->pluck('backdrop_media_id'))->filter()->all()
             );
-            $movieIds = $items->pluck('movie_id')->map(fn ($id) => (int) $id)->all();
-            $viewerMedia = $this->viewerMedia($movieIds, $viewerId);
 
-            $payload['items'] = $items->map(function (FilmListItem $item, $index) use ($mediaPaths, $viewerMedia) {
+            $payload['items'] = $items->map(function (FilmListItem $item, $index) use ($mediaPaths) {
                 $movie = $item->movie;
-                $movieId = (int) $item->movie_id;
 
                 return [
-                    'movie_id' => $movieId,
+                    'movie_id' => (int) $item->movie_id,
                     'position' => $index + 1,
                     'title' => $movie?->title,
                     'release_year' => $movie?->release_year,
                     'age_rating' => $movie?->age_rating,
+                    // List poster only → film default. Film/review custom artwork is ignored.
                     'poster_url' => $this->mediaUrl($mediaPaths[$item->poster_media_id] ?? null)
-                        ?? ($viewerMedia[$movieId]['poster'] ?? null)
                         ?? $this->movieDefault($movie?->default_poster_path),
                     'backdrop_url' => $this->mediaUrl($mediaPaths[$item->backdrop_media_id] ?? null)
-                        ?? ($viewerMedia[$movieId]['backdrop'] ?? null)
                         ?? $this->movieDefault($movie?->default_backdrop_path),
                     'custom_poster' => $item->poster_media_id !== null,
                     'custom_backdrop' => $item->backdrop_media_id !== null,

@@ -87,14 +87,15 @@ class TicketHistoryViewModel : ViewModel() {
             totalPrice = total_price ?: 0.0,
             paymentMethod = payment_method?.takeIf { it.isNotBlank() } ?: "-",
             isScanned = is_scanned,
-            posterUrl = ServerConfig.resolveStorageUrl(movie.poster_path),
-            title = movie.title,
+            posterUrl = ServerConfig.resolveStorageUrl(poster_url ?: movie.poster_path),
+            title = judul_tampil ?: movie.title,
             cinemaName = cinema.name,
             studioInfo = studioInfo,
             showDate = parsedDate,
             showTime = parsedTime,
             showEndTimeMillis = showEndTimeMillis,
             seatInfo = if (seats.isEmpty()) "Seat: -" else "Seat: ${seats.joinToString(", ")}",
+            filmsLine = if (films.size > 1) films.joinToString(" | ") { it.title }.uppercase() else "",
             status = when {
                 is_scanned -> TicketStatus.USED
                 System.currentTimeMillis() > showEndTimeMillis -> TicketStatus.EXPIRED

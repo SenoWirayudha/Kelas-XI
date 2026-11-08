@@ -7,6 +7,7 @@
 @section('content')
 @php
     $listReturn = \App\Support\ReturnUrl::current();
+    $canSeeSurpriseFilm = in_array($panelPrefix, ['admin', 'manager'], true);
 
     // Date boxes: every date inside the event window (capped so a long event stays readable).
     $sessionDates = $sessions->groupBy(fn ($s) => $s->show_date->format('Y-m-d'));
@@ -112,6 +113,7 @@
                 <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                         <th class="px-6 py-3">Tanggal &amp; Jam (WIB)</th>
+                        <th class="px-6 py-3">Poster</th>
                         <th class="px-6 py-3">Studio</th>
                         <th class="px-6 py-3">Judul Sesi</th>
                         <th class="px-6 py-3">Film</th>
@@ -129,14 +131,44 @@
                                 {{ $session->show_date->translatedFormat('d M Y') }}
                                 <span class="ml-1 text-gray-500">{{ substr((string) $session->show_time, 0, 5) }}</span>
                             </td>
-                            <td class="px-6 py-4 text-gray-700">{{ $session->studio?->studio_name ?? '-' }}</td>
-                            <td class="px-6 py-4 text-gray-700">{{ $session->session_title ?: '-' }}</td>
                             <td class="px-6 py-4">
-                                <ol class="list-inside list-decimal space-y-0.5 text-gray-700">
-                                    @foreach($session->festivalMovies as $film)
-                                        <li>{{ $film->title }} <span class="text-xs text-gray-500">({{ (int) $film->duration }} mnt)</span></li>
-                                    @endforeach
-                                </ol>
+                            @php
+                                $poster = $session->poster_path
+                                    ?: ($session->is_surprise
+                                        ? null
+                                        : optional($session->festivalMovies->first())->poster_path);
+                            @endphp
+                            @if($poster)
+                                <img src="{{ asset('storage/' . $poster) }}" alt="Poster sesi"
+                                     class="h-14 w-10 rounded object-cover border border-gray-200">
+                            @else
+                                <span class="text-xs text-gray-400">-</span>
+                            @endif
+                        </td>
+                        <td class="px-6 py-4 text-gray-700">{{ $session->studio?->studio_name ?? '-' }}</td>
+                            <td class="px-6 py-4 text-gray-700">
+                                {{ $session->session_title ?: '-' }}
+                                @if($session->is_surprise)
+                                    <span class="ml-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                                        Surprise
+                                    </span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4">
+                                @if($session->is_surprise && !$canSeeSurpriseFilm)
+                                    <span class="text-xs italic text-gray-400">Film kejutan (disembunyikan)</span>
+                                @else
+                                    <ol class="list-inside list-decimal space-y-0.5 text-gray-700">
+                                        @foreach($session->festivalMovies as $film)
+                                            <li>{{ $film->title }} <span class="text-xs text-gray-500">({{ (int) $film->duration }} mnt)</span></li>
+                                        @endforeach
+                                    </ol>
+                                @endif
+@if($session->age_rating)
+    <span class="mt-1 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+        {{ $session->age_rating }}
+    </span>
+@endif
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-right text-gray-700">
                                 Rp {{ number_format((float) $session->ticket_price, 0, ',', '.') }}
@@ -169,7 +201,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="h-[180px] px-6 py-0 text-center align-middle text-gray-500">
+                            <td colspan="9" class="h-[180px] px-6 py-0 text-center align-middle text-gray-500">
                                 <div class="flex flex-col items-center justify-center">
                                     <i class="fas fa-clock mb-2 text-2xl text-gray-300"></i>
                                     <p class="text-sm">Belum ada sesi untuk event ini.</p>
@@ -180,7 +212,7 @@
 
                     @if($sessions->isNotEmpty())
                         <tr x-show="!counts[selectedDate]">
-                            <td colspan="8" class="h-[180px] px-6 py-0 text-center align-middle text-gray-500">
+                            <td colspan="9" class="h-[180px] px-6 py-0 text-center align-middle text-gray-500">
                                 <div class="flex flex-col items-center justify-center">
                                     <i class="fas fa-calendar-day mb-2 text-2xl text-gray-300"></i>
                                     <p class="text-sm">Belum ada sesi pada tanggal ini.</p>

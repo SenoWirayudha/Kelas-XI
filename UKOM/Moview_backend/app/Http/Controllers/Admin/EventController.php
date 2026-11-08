@@ -182,13 +182,23 @@ class EventController extends Controller
 
         $validated = $this->validateSession($request, $event);
 
-        $session = DB::transaction(function () use ($validated, $event) {
+        $posterPath = $request->hasFile('poster')
+            ? $request->file('poster')->store('events/sessions', 'public')
+            : null;
+
+        $session = DB::transaction(function () use ($validated, $event, $posterPath) {
             $movieIds = $validated['movies'];
             unset($validated['movies']);
 
             $validated['event_id'] = $event->id;
-            $validated['movie_id'] = $movieIds[0]; // first film keeps legacy relations working
+            // First film keeps legacy relations working; surprise sessions may have none.
+            $validated['movie_id'] = $movieIds[0] ?? null;
             $validated['status'] = 'active';
+            unset($validated['poster']);
+
+            if ($posterPath) {
+                $validated['poster_path'] = $posterPath;
+            }
 
             $session = Schedule::create($validated);
             $this->syncFilms($session, $movieIds);
@@ -241,11 +251,22 @@ class EventController extends Controller
             }
         }
 
-        DB::transaction(function () use ($validated, $session) {
-            $movieIds = $validated['movies'];
-            unset($validated['movies']);
+        $posterPath = $request->hasFile('poster')
+            ? $request->file('poster')->store('events/sessions', 'public')
+            : null;
 
-            $validated['movie_id'] = $movieIds[0];
+        DB::transaction(function () use ($validated, $session, $posterPath) {
+            $movieIds = $validated['movies'];
+            unset($validated['movies'], $validated['poster']);
+
+            $validated['movie_id'] = $movieIds[0] ?? null;
+
+            if ($posterPath) {
+                if ($session->poster_path && \Storage::disk('public')->exists($session->poster_path)) {
+                    \Storage::disk('public')->delete($session->poster_path);
+                }
+                $validated['poster_path'] = $posterPath;
+            }
 
             $session->update($validated);
             $this->syncFilms($session, $movieIds);
@@ -286,7 +307,7 @@ class EventController extends Controller
             'duration' => 'required|integer|min:1|max:600',
             'director' => 'nullable|string|max:255',
             'synopsis' => 'nullable|string',
-            'poster' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'poster' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'backdrop' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
         ], [
             'duration.required' => 'Durasi film wajib diisi (menit).',
@@ -344,10 +365,15 @@ class EventController extends Controller
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'sale_starts_at' => 'required|date',
-            'banner' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
+            // Keep in sync with PHP's upload_max_filesize (2 MB on this server).
+            'banner' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ], [
             'end_date.after_or_equal' => 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai.',
             'sale_starts_at.required' => 'Waktu buka penjualan wajib diisi.',
+            'banner.image' => 'Banner harus berupa gambar.',
+            'banner.mimes' => 'Format banner harus JPG, PNG, atau WebP.',
+            'banner.max' => 'Ukuran banner maksimal 2 MB.',
+            'banner.uploaded' => 'Banner gagal diunggah. Pastikan ukurannya di bawah 2 MB.',
         ]);
     }
 
@@ -358,18 +384,56 @@ class EventController extends Controller
             'show_date' => 'required|date',
             'show_time' => 'required|date_format:H:i',
             'session_title' => 'nullable|string|max:255',
+            'age_rating' => 'nullable|in:SU,13+,17+,21+',
+            'is_surprise' => 'nullable|boolean',
+            'duration' => 'nullable|integer|min:1|max:600',
+            'poster' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
             'ticket_price' => 'required|numeric|min:0',
             'quota' => 'nullable|integer|min:1',
-            'movies' => 'required|array|min:1',
+            'movies' => 'nullable|array',
             'movies.*' => 'integer|exists:movies,id',
         ], [
-            'movies.required' => 'Minimal satu film harus dipilih untuk sesi ini.',
-            'movies.min' => 'Minimal satu film harus dipilih untuk sesi ini.',
+            'duration.required' => 'Durasi sesi wajib diisi (menit).',
+            'duration.min' => 'Durasi sesi minimal 1 menit.',
             'ticket_price.min' => 'Harga tiket tidak boleh negatif.',
             'quota.min' => 'Kuota minimal 1.',
         ]);
 
-        $validated['movies'] = array_values(array_unique($validated['movies']));
+        $validated['is_surprise'] = $request->boolean('is_surprise');
+        $validated['movies'] = array_values(array_unique($validated['movies'] ?? []));
+
+        // A line-up is only mandatory for regular festival sessions.
+        if (!$validated['is_surprise'] && count($validated['movies']) === 0) {
+            throw ValidationException::withMessages([
+                'movies' => 'Minimal satu film harus dipilih untuk sesi ini.',
+            ]);
+        }
+
+        // Surprise sessions are timed by their own duration, not by films.
+        if ($validated['is_surprise'] && empty($validated['duration'])) {
+            throw ValidationException::withMessages([
+                'duration' => 'Durasi sesi wajib diisi untuk Film Kejutan.',
+            ]);
+        }
+
+        // Only surprise sessions store an explicit duration; regular ones derive it.
+        $validated['duration'] = ($validated['is_surprise'] && !empty($validated['duration']))
+            ? (int) $validated['duration']
+            : null;
+
+        // Old sessions may stay empty, but once a session is edited the value is mandatory.
+        if (($ignore !== null || $validated['is_surprise']) && blank($validated['age_rating'] ?? null)) {
+            throw ValidationException::withMessages([
+                'age_rating' => 'Klasifikasi usia wajib dipilih.',
+            ]);
+        }
+
+        // Surprise sessions hide the film, so the session title is the only label users see.
+        if ($validated['is_surprise'] && blank($validated['session_title'] ?? null)) {
+            throw ValidationException::withMessages([
+                'session_title' => 'Judul sesi wajib diisi untuk sesi Film Kejutan.',
+            ]);
+        }
 
         if (count($validated['movies']) !== count($request->input('movies', []))) {
             throw ValidationException::withMessages([
@@ -437,7 +501,10 @@ class EventController extends Controller
         $validated['quota'] = $quota;
 
         // Overlap check, using the computed end time.
-        $duration = (int) Movie::whereIn('id', $validated['movies'])->sum('duration');
+        // Surprise sessions use their own duration; regular sessions sum the films.
+        $duration = $validated['is_surprise']
+            ? (int) ($validated['duration'] ?? 0)
+            : (int) Movie::whereIn('id', $validated['movies'])->sum('duration');
         $endsAt = $startAt->copy()->addMinutes(max(1, $duration) + FestivalSchedule::GAP_MINUTES);
 
         $conflict = $this->findConflictingSession(

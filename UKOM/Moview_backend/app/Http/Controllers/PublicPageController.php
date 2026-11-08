@@ -46,7 +46,8 @@ class PublicPageController extends Controller
 
         $movies = Movie::query()
             ->where('status', 'published')
-            ->whereHas('schedules', fn ($query) => $query->openForOnline())
+            ->notFestivalOnly()
+            ->whereHas('schedules', fn ($query) => $query->openForOnline()->whereNull('event_id'))
             ->orderByDesc('id')
             ->limit(12)
             ->get();
@@ -75,6 +76,7 @@ class PublicPageController extends Controller
     {
         $schedules = Schedule::with(['movie', 'studio.cinema'])
             ->openForOnline()
+            ->whereNull('event_id')
             ->orderBy('show_date')
             ->orderBy('show_time')
             ->limit(60)
@@ -90,6 +92,8 @@ class PublicPageController extends Controller
             $nowShowing = Movie::query()
                 ->where('status', 'published')
                 ->whereNotNull('default_poster_path')
+                // Festival-only films (incl. line-up-only films) stay out of the hero fallback.
+                ->notFestivalOnly()
                 ->latest('id')
                 ->limit(12)
                 ->get();
@@ -110,6 +114,18 @@ class PublicPageController extends Controller
                 'poster_url' => $this->posterUrl($schedule->movie->default_poster_path),
             ])
             ->values();
+
+        // No playable schedule today: keep the poster stage filled from the catalogue.
+        if ($heroPosters->isEmpty()) {
+            $heroPosters = $nowShowing
+                ->filter(fn (Movie $movie) => (bool) $movie->default_poster_path)
+                ->take(3)
+                ->map(fn (Movie $movie) => [
+                    'title' => $movie->title,
+                    'poster_url' => $this->posterUrl($movie->default_poster_path),
+                ])
+                ->values();
+        }
 
         $review = $this->popularReviews(1, 20)->first()
             ?? $this->popularReviews(1)->first();

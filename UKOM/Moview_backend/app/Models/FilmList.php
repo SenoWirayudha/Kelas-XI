@@ -19,11 +19,13 @@ class FilmList extends Model
         'type',
         'visibility',
         'use_backdrop',
+        'backdrop_media_id',
     ];
 
     protected $casts = [
         'user_id' => 'integer',
         'use_backdrop' => 'boolean',
+        'backdrop_media_id' => 'integer',
     ];
 
     public function items()

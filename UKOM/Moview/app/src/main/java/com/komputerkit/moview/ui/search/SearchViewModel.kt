@@ -263,6 +263,15 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     
     fun clearSearch() {
         searchJob?.cancel()
-        _uiState.value = SearchUiState(activeFilter = _uiState.value.activeFilter)
+        val current = _uiState.value
+        // Forget the last successful query so retyping it searches again.
+        lastLoadedQuery = null
+        lastLoadedFilter = null
+        // Clearing text must not drop the picker mode: without it the filter
+        // chips panel reappears and the Cancel affordance disappears.
+        _uiState.value = SearchUiState(
+            activeFilter = current.activeFilter,
+            isSelectMovieMode = current.isSelectMovieMode
+        )
     }
 }

@@ -329,6 +329,27 @@ class Movie extends Model
         });
     }
 
+    /**
+     * Scope: movies that are not exclusive to festival line-ups.
+     * A film belongs to the regular catalogue when it has a non-event schedule, or when it
+     * has no schedule at all and is not part of any festival session's line-up.
+     */
+    public function scopeNotFestivalOnly(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->whereHas('schedules', fn (Builder $s) => $s->whereNull('event_id'))
+                ->orWhere(function (Builder $q2) {
+                    $q2->whereDoesntHave('schedules')
+                        ->whereNotExists(fn ($sub) => $sub
+                            ->select(DB::raw(1))
+                            ->from('schedule_movies')
+                            ->join('schedules', 'schedules.id', '=', 'schedule_movies.schedule_id')
+                            ->whereColumn('schedule_movies.movie_id', 'movies.id')
+                            ->whereNotNull('schedules.event_id'));
+                });
+        });
+    }
+
     // ---- Symmetric pivots (Related / Similar) — canonical movie_id < related_movie_id ----
 
     public function relatedMovieLinksAsFirst()

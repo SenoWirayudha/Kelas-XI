@@ -10,21 +10,23 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.komputerkit.moview.data.model.Movie
+import androidx.recyclerview.widget.RecyclerView
+import com.komputerkit.moview.R
+import com.komputerkit.moview.data.model.FilmListItem
+import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.databinding.FragmentFilmPickerBinding
-import com.komputerkit.moview.databinding.ItemPickFilmBinding
+import com.komputerkit.moview.databinding.ItemPickRowBinding
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.loadThumbnail
 import com.komputerkit.moview.util.showSnackbar
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.ListAdapter
-import androidx.recyclerview.widget.RecyclerView
 
-/** Screen 4: search an existing film and add it to the list. */
+/**
+ * Screen 3: films currently in the list — numbered, drag to reorder, + to add.
+ * Adding reuses the profile "add favorite film" search screen.
+ */
 class FilmPickerFragment : Fragment() {
 
     private var _binding: FragmentFilmPickerBinding? = null
@@ -32,9 +34,17 @@ class FilmPickerFragment : Fragment() {
 
     private val viewModel: FilmListViewModel by viewModels()
     private val args: FilmPickerFragmentArgs by navArgs()
-    private lateinit var adapter: PickerAdapter
-    private val selected = linkedSetOf<Int>()
-    private var searchJob: Job? = null
+    private val repository = MovieRepository()
+
+    private lateinit var adapter: PickRowAdapter
+    private var touchHelper: ItemTouchHelper? = null
+
+    private val picks = mutableListOf<FilmListItem>()
+
+    /** Seeded once: the fragment instance survives while the search screen is open. */
+    private var seeded = false
+
+    private val listId: Int get() = args.listId
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -48,123 +58,294 @@ class FilmPickerFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        adapter = PickerAdapter(
-            isSelected = { movie: Movie -> selected.contains(movie.id) },
-            onToggle = { movie ->
-                if (selected.contains(movie.id)) selected.remove(movie.id) else selected.add(movie.id)
-                updateDoneLabel()
-                adapter.notifyDataSetChanged()
-            }
+        seedFromArgs()
+
+        adapter = PickRowAdapter(
+            onLongPress = { item -> confirmRemove(item) },
+            onDragStart = { holder -> touchHelper?.startDrag(holder) }
         )
 
-        val resultsView = binding.rvResults
-        resultsView.layoutManager = LinearLayoutManager(requireContext())
-        resultsView.adapter = adapter
+        binding.rvPicks.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvPicks.adapter = adapter
+        adapter.submit(picks)
 
-        binding.btnBack.setOnClickListener { findNavController().navigateUp() }
-        binding.btnDone.setOnClickListener { submit() }
-
-        binding.etSearch.addTextChangedListener(object : android.text.TextWatcher {
-            override fun afterTextChanged(s: android.text.Editable?) = scheduleSearch(s?.toString().orEmpty())
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-        })
-
-        viewModel.error.observe(viewLifecycleOwner) { message ->
-            message?.let {
-                showSnackbar(it, SnackbarType.ERROR)
-                viewModel.clearError()
+        val callback = object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+            0
+        ) {
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                val moved = adapter.moveItem(
+                    viewHolder.bindingAdapterPosition,
+                    target.bindingAdapterPosition
+                )
+                // Live rank feedback without rebinding every row (that caused jank).
+                if (moved) adapter.refreshRanks(recyclerView)
+                return moved
             }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && viewHolder != null) {
+                    viewHolder.itemView.performHapticFeedback(
+                        android.view.HapticFeedbackConstants.LONG_PRESS
+                    )
+                    viewHolder.itemView.animate()
+                        .scaleX(1.02f).scaleY(1.02f)
+                        .setDuration(120).start()
+                    viewHolder.itemView.elevation = 8f * resources.displayMetrics.density
+                }
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                viewHolder.itemView.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+                viewHolder.itemView.elevation = 0f
+                syncFromAdapter()
+                persistOrder()
+            }
+
+            override fun isItemViewSwipeEnabled(): Boolean = false
+        }
+        touchHelper = ItemTouchHelper(callback).also { it.attachToRecyclerView(binding.rvPicks) }
+
+        binding.btnBack.setOnClickListener {
+            publishResult()
+            findNavController().navigateUp()
         }
 
-        updateDoneLabel()
-    }
-
-    private fun scheduleSearch(query: String) {
-        searchJob?.cancel()
-        if (query.trim().length < 2) {
-            adapter.submitList(emptyList())
-            binding.tvEmpty.text = "Ketik judul film untuk mencari."
-            binding.tvEmpty.visibility = View.VISIBLE
-            return
-        }
-
-        searchJob = viewLifecycleOwner.lifecycleScope.launch {
-            delay(350)
-            binding.progress.visibility = View.VISIBLE
-            val results = viewModel.searchMovies(query.trim())
-            binding.progress.visibility = View.GONE
-            adapter.submitList(results)
-            binding.tvEmpty.text = "Film tidak ditemukan."
-            binding.tvEmpty.visibility = if (results.isEmpty()) View.VISIBLE else View.GONE
-        }
-    }
-
-    private fun submit() {
-        if (args.listId <= 0) {
-            // Creation flow: hand the selection back to the editor, which will
-            // add them right after the list is created.
-            parentFragmentManager.setFragmentResult(
-                RESULT_KEY,
+        // Reuses the search screen in "select movie" mode (profile favorites flow).
+        binding.fabAdd.setOnClickListener {
+            findNavController().navigate(
+                R.id.action_filmPicker_to_search,
                 Bundle().apply {
-                    putIntArray(RESULT_IDS, selected.toIntArray())
+                    putBoolean("selectMovieMode", true)
+                    putInt("slotIndex", -1)
                 }
             )
-            findNavController().navigateUp()
-            return
         }
 
-        if (selected.isEmpty()) {
-            findNavController().navigateUp()
-            return
-        }
+        // Search screen returns the picked film id through the back-stack handle.
+        findNavController().currentBackStackEntry?.savedStateHandle
+            ?.getLiveData<Int>("selected_movie_id")
+            ?.observe(viewLifecycleOwner) { movieId ->
+                if (movieId == null || movieId <= 0) return@observe
+                findNavController().currentBackStackEntry?.savedStateHandle
+                    ?.remove<Int>("selected_movie_id")
+                addMovie(movieId)
+            }
 
-        viewModel.addFilms(args.listId, selected.toList())
-        findNavController().navigateUp()
+        renderEmpty()
+
+        // Existing list: start from what the server already has.
+        if (listId > 0) {
+            viewModel.list.observe(viewLifecycleOwner) { list ->
+                if (list == null || list.id != listId || seeded) return@observe
+                seeded = true
+                picks.clear()
+                picks.addAll(list.items.sortedBy { it.position })
+                adapter.submit(picks)
+                renderEmpty()
+            }
+            viewModel.loadDetail(listId)
+        }
     }
 
-    private fun updateDoneLabel() {
-        binding.btnDone.text = "Tambah (${selected.size})"
-        binding.btnDone.alpha = if (selected.isEmpty()) 0.6f else 1f
+    private fun seedFromArgs() {
+        // Existing lists seed from the server instead (see onViewCreated).
+        if (seeded || listId > 0) return
+        seeded = true
+
+        picks.clear()
+        val ids = args.movieIds ?: intArrayOf()
+        val titles = args.movieTitles ?: arrayOf()
+        val posters = args.moviePosters ?: arrayOf()
+        val years = args.movieYears ?: intArrayOf()
+
+        ids.forEachIndexed { index, id ->
+            picks.add(
+                FilmListItem(
+                    movieId = id,
+                    position = index + 1,
+                    title = titles.getOrNull(index),
+                    releaseYear = years.getOrNull(index)?.takeIf { it > 0 },
+                    ageRating = null,
+                    posterUrl = posters.getOrNull(index),
+                    backdropUrl = null
+                )
+            )
+        }
+    }
+
+    private fun addMovie(movieId: Int) {
+        if (picks.any { it.movieId == movieId }) {
+            showSnackbar("Film sudah ada di list.", SnackbarType.INFO)
+            return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val movie = repository.getMovieDetail(movieId)
+            picks.add(
+                FilmListItem(
+                    movieId = movieId,
+                    position = picks.size + 1,
+                    title = movie?.title,
+                    releaseYear = movie?.releaseYear,
+                    ageRating = null,
+                    posterUrl = movie?.posterUrl,
+                    backdropUrl = movie?.backdropUrl
+                )
+            )
+            adapter.submit(picks)
+            renderEmpty()
+            publishResult()
+
+            // Existing list: persist the addition right away.
+            if (listId > 0) viewModel.addFilms(listId, listOf(movieId))
+        }
+    }
+
+    private fun confirmRemove(item: FilmListItem) {
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle("Hapus film?")
+            .setMessage("\"${item.title}\" akan dihapus dari list.")
+            .setNegativeButton("Batal", null)
+            .setPositiveButton("Hapus") { _, _ ->
+                picks.removeAll { it.movieId == item.movieId }
+                renumber()
+                adapter.submit(picks)
+                renderEmpty()
+                publishResult()
+                if (listId > 0) viewModel.removeFilm(listId, item.movieId)
+            }
+            .show()
+    }
+
+    private fun syncFromAdapter() {
+        picks.clear()
+        picks.addAll(adapter.currentItems)
+    }
+
+    private fun persistOrder() {
+        if (listId > 0) viewModel.reorder(listId, picks)
+        publishResult()
+    }
+
+    private fun renumber() {
+        picks.forEachIndexed { index, item -> picks[index] = item.copy(position = index + 1) }
+    }
+
+    /** Hands the ordered picks back to the editor (creation flow only). */
+    private fun publishResult() {
+        if (listId > 0) return
+
+        parentFragmentManager.setFragmentResult(
+            RESULT_KEY,
+            Bundle().apply {
+                putIntArray(RESULT_IDS, picks.map { it.movieId }.toIntArray())
+                putStringArray(RESULT_TITLES, picks.map { it.title.orEmpty() }.toTypedArray())
+                putStringArray(RESULT_POSTERS, picks.map { it.posterUrl.orEmpty() }.toTypedArray())
+                putIntArray(RESULT_YEARS, picks.map { it.releaseYear ?: 0 }.toIntArray())
+            }
+        )
+    }
+
+    private fun renderEmpty() {
+        binding.tvEmpty.visibility = if (picks.isEmpty()) View.VISIBLE else View.GONE
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        touchHelper?.attachToRecyclerView(null)
+        touchHelper = null
         _binding = null
+    }
+
+    private class PickRowAdapter(
+        private val onLongPress: (FilmListItem) -> Unit,
+        private val onDragStart: (RecyclerView.ViewHolder) -> Unit
+    ) : RecyclerView.Adapter<PickRowAdapter.Holder>() {
+
+        private val items = mutableListOf<FilmListItem>()
+
+        val currentItems: List<FilmListItem> get() = items.toList()
+
+        @SuppressLint("NotifyDataSetChanged")
+        fun submit(newItems: List<FilmListItem>) {
+            items.clear()
+            items.addAll(newItems)
+            notifyDataSetChanged()
+        }
+
+        fun moveItem(from: Int, to: Int): Boolean {
+            if (from == to) return true
+            if (from !in items.indices || to !in items.indices) return false
+
+            val moved = items.removeAt(from)
+            items.add(to, moved)
+            for (index in items.indices) {
+                items[index] = items[index].copy(position = index + 1)
+            }
+            // Only move the row; rebinding all rows on every frame is what made it janky.
+            notifyItemMoved(from, to)
+            return true
+        }
+
+        /** Re-binds just the rank badges of visible rows (live reorder feedback). */
+        fun refreshRanks(recyclerView: RecyclerView) {
+            for (i in 0 until recyclerView.childCount) {
+                val holder = recyclerView.getChildViewHolder(recyclerView.getChildAt(i))
+                val pos = holder.bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION && pos in items.indices) {
+                    (holder as? Holder)?.bindRank(items[pos])
+                }
+            }
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
+            val binding = ItemPickRowBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            return Holder(binding)
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        override fun onBindViewHolder(holder: Holder, position: Int) = holder.bind(items[position])
+
+        inner class Holder(private val binding: ItemPickRowBinding) : RecyclerView.ViewHolder(binding.root) {
+            fun bind(item: FilmListItem) {
+                binding.ivPoster.loadThumbnail(item.posterUrl, item.title)
+                binding.tvTitle.text = item.title.orEmpty()
+                binding.tvYear.text = item.releaseYear?.toString().orEmpty()
+                binding.tvYear.visibility = if (item.releaseYear == null) View.GONE else View.VISIBLE
+                bindRank(item)
+
+                binding.ivDrag.setOnTouchListener { _, _ ->
+                    onDragStart(this@Holder)
+                    false
+                }
+                binding.root.setOnLongClickListener {
+                    onLongPress(item)
+                    true
+                }
+            }
+
+            /** Cheap re-bind used while dragging. */
+            fun bindRank(item: FilmListItem) {
+                binding.tvRank.text = item.position.toString()
+            }
+        }
     }
 
     companion object {
         const val RESULT_KEY = "film_picker_result"
         const val RESULT_IDS = "movie_ids"
-    }
-
-    private class PickerAdapter(
-        private val isSelected: (Movie) -> Boolean,
-        private val onToggle: (Movie) -> Unit
-    ) : ListAdapter<Movie, PickerAdapter.Holder>(Diff) {
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
-            val binding = ItemPickFilmBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-            return Holder(binding)
-        }
-
-        override fun onBindViewHolder(holder: Holder, position: Int) = holder.bind(getItem(position))
-
-        inner class Holder(private val binding: ItemPickFilmBinding) : RecyclerView.ViewHolder(binding.root) {
-            @SuppressLint("SetTextI18n")
-            fun bind(movie: Movie) {
-                binding.tvTitle.text = movie.title.orEmpty()
-                binding.tvYear.text = movie.releaseYear?.toString().orEmpty()
-                binding.tvYear.visibility = if (movie.releaseYear == null) View.GONE else View.VISIBLE
-                binding.ivPoster.loadThumbnail(movie.posterUrl, movie.title)
-                binding.cbSelected.isChecked = isSelected(movie)
-                binding.root.setOnClickListener { onToggle(movie) }
-            }
-        }
-
-        private object Diff : DiffUtil.ItemCallback<Movie>() {
-            override fun areItemsTheSame(oldItem: Movie, newItem: Movie) = oldItem.id == newItem.id
-            override fun areContentsTheSame(oldItem: Movie, newItem: Movie) = oldItem == newItem
-        }
+        const val RESULT_TITLES = "movie_titles"
+        const val RESULT_POSTERS = "movie_posters"
+        const val RESULT_YEARS = "movie_years"
     }
 }

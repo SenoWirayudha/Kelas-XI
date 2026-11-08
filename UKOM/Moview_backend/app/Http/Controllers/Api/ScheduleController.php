@@ -59,6 +59,7 @@ class ScheduleController extends Controller
 
         $schedules = Schedule::with(['studio.cinema.service'])
             ->where('movie_id', $request->movie_id)
+            ->whereNull('event_id')
             ->where('show_date', '>=', now()->toDateString())
             ->orderBy('show_date')
             ->orderBy('show_time')

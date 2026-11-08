@@ -282,7 +282,14 @@ class TicketQrActivity : AppCompatActivity() {
     private fun renderTicket(data: TicketQrDetailDto) {
         try {
             ticketData = data
-            binding.tvMovieTitle.text = data.movie.title
+            // Festival sessions show the session title and poster.
+            val displayTitle = data.judul_tampil ?: data.movie.title
+            binding.tvMovieTitle.text = displayTitle
+            binding.tvFilms.text = if (data.films.size > 1) {
+                data.films.joinToString(" | ") { it.title }.uppercase()
+            } else ""
+            binding.tvFilms.visibility =
+                if (binding.tvFilms.text.isBlank()) android.view.View.GONE else android.view.View.VISIBLE
             binding.tvCinema.text = data.cinema.name
 
             binding.tvStudio.text = studioText(data)
@@ -294,9 +301,9 @@ class TicketQrActivity : AppCompatActivity() {
             binding.tvTicketCode.text = "TICKET CODE: ${data.ticket_code}"
 
             Glide.with(this)
-                .load(ServerConfig.resolveStorageUrl(data.movie.poster_path))
-                .placeholder(PosterFallbackDrawable(this, data.movie.title))
-                .error(PosterFallbackDrawable(this, data.movie.title))
+                .load(ServerConfig.resolveStorageUrl(data.poster_url ?: data.movie.poster_path))
+                .placeholder(PosterFallbackDrawable(this, displayTitle))
+                .error(PosterFallbackDrawable(this, displayTitle))
                 .into(binding.ivPoster)
 
             val isUsed = data.is_scanned || data.is_used
@@ -410,10 +417,13 @@ class TicketQrActivity : AppCompatActivity() {
                 val send = Intent(Intent.ACTION_SEND).apply {
                     type = "image/png"
                     putExtra(Intent.EXTRA_STREAM, uri)
-                    putExtra(Intent.EXTRA_SUBJECT, "Tiket ${data.movie.title}")
+                    putExtra(
+                        Intent.EXTRA_SUBJECT,
+                        "Tiket ${data.judul_tampil ?: data.movie.title}"
+                    )
                     putExtra(
                         Intent.EXTRA_TEXT,
-                        "Tiket ${data.movie.title} — " +
+                        "Tiket ${data.judul_tampil ?: data.movie.title} — " +
                                 "${formatDate(data.schedule.show_date)} ${formatTime(data.schedule.show_time)}. " +
                                 "Tiket berlaku satu kali."
                     )
@@ -475,7 +485,9 @@ class TicketQrActivity : AppCompatActivity() {
             POSTER_LEFT + POSTER_WIDTH,
             POSTER_TOP + POSTER_HEIGHT
         )
-        val poster = loadRemoteBitmap(ServerConfig.resolveStorageUrl(data.movie.poster_path))
+        val poster = loadRemoteBitmap(
+            ServerConfig.resolveStorageUrl(data.poster_url ?: data.movie.poster_path)
+        )
         if (poster != null) {
             val posterPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 shader = centerCropShader(poster, posterRect)
@@ -485,7 +497,7 @@ class TicketQrActivity : AppCompatActivity() {
         } else {
             canvas.save()
             canvas.clipPath(Path().apply { addRoundRect(posterRect, POSTER_CORNER, POSTER_CORNER, Path.Direction.CW) })
-            PosterFallbackDrawable(this, data.movie.title).apply {
+            PosterFallbackDrawable(this, data.judul_tampil ?: data.movie.title).apply {
                 setBounds(
                     posterRect.left.roundToInt(),
                     posterRect.top.roundToInt(),
@@ -508,7 +520,12 @@ class TicketQrActivity : AppCompatActivity() {
         canvas.drawText("Tiket Film", HEADER_LABEL_X_2, HEADER_LABEL_BASELINE, labelPaint)
 
         // Title (max 2 lines)
-        wrapLines(data.movie.title, titlePaint, TEXT_MAX_WIDTH, TITLE_MAX_LINES)
+        wrapLines(
+            data.judul_tampil ?: data.movie.title,
+            titlePaint,
+            TEXT_MAX_WIDTH,
+            TITLE_MAX_LINES
+        )
             .forEachIndexed { index, line ->
                 canvas.drawText(line, TEXT_X, TITLE_BASELINE + index * TITLE_LINE_HEIGHT, titlePaint)
             }

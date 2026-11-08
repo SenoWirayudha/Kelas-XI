@@ -118,9 +118,12 @@ Route::prefix('v1')->group(function () {
     Route::post('/users/{userId}/lists/{listId}/items', [\App\Http\Controllers\Api\FilmListApiController::class, 'addItems'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+']);
     Route::delete('/users/{userId}/lists/{listId}/items/{movieId}', [\App\Http\Controllers\Api\FilmListApiController::class, 'removeItem'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+', 'movieId' => '[0-9]+']);
     Route::put('/users/{userId}/lists/{listId}/order', [\App\Http\Controllers\Api\FilmListApiController::class, 'reorder'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+']);
+    Route::put('/users/{userId}/lists/{listId}/backdrop', [\App\Http\Controllers\Api\FilmListApiController::class, 'setListBackdrop'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+']);
     Route::put('/users/{userId}/lists/{listId}/items/{movieId}/media', [\App\Http\Controllers\Api\FilmListApiController::class, 'setItemMedia'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+', 'movieId' => '[0-9]+']);
     Route::get('/lists/{listId}', [\App\Http\Controllers\Api\FilmListApiController::class, 'show'])->where('listId', '[0-9]+');
     Route::get('/lists/{listId}/backdrop-movies', [\App\Http\Controllers\Api\FilmListApiController::class, 'backdropMovies'])->where('listId', '[0-9]+');
+    Route::get('/lists/{listId}/comments', [\App\Http\Controllers\Api\FilmListApiController::class, 'comments'])->where('listId', '[0-9]+');
+    Route::post('/users/{userId}/lists/{listId}/comments', [\App\Http\Controllers\Api\FilmListApiController::class, 'addComment'])->where(['userId' => '[0-9]+', 'listId' => '[0-9]+']);
     Route::get('/movies/{movieId}/list-artwork', [\App\Http\Controllers\Api\FilmListApiController::class, 'movieArtwork'])->where('movieId', '[0-9]+');
 
     

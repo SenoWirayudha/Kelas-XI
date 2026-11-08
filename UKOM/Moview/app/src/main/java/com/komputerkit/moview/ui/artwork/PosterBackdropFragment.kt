@@ -55,7 +55,8 @@ class PosterBackdropFragment : Fragment() {
             movieId = args.movieId,
             contextType = args.contextType,
             favoriteId = args.favoriteId.takeIf { it > 0 },
-            diariesId = args.diariesId.takeIf { it > 0 }
+            diariesId = args.diariesId.takeIf { it > 0 },
+            listId = args.listId
         )
         
         setupRecyclerViews()
@@ -160,13 +161,18 @@ class PosterBackdropFragment : Fragment() {
             if (success == null) return@observe
             viewModel.clearSaveResult()
             if (success) {
-                val selectedBackdropPath = viewModel.selectedArtwork.value?.url
-                if (selectedBackdropPath != null && currentTab == ArtworkType.BACKDROP) {
+                val selectedArtwork = viewModel.selectedArtwork.value
+
+                if (args.listMode && selectedArtwork != null) {
+                    // Let the list screen refresh and remember the choice.
+                    publishListSelection(selectedArtwork)
+                } else if (selectedArtwork != null && currentTab == ArtworkType.BACKDROP) {
                     findNavController().previousBackStackEntry?.savedStateHandle?.set(
                         "selected_backdrop_path",
-                        selectedBackdropPath
+                        selectedArtwork.url
                     )
                 }
+
                 // Signal all previous screens to refresh their artwork
                 findNavController().previousBackStackEntry?.savedStateHandle?.set(
                     "artwork_saved", true
@@ -286,9 +292,42 @@ class PosterBackdropFragment : Fragment() {
     }
     
     private fun saveCover() {
+        if (args.listMode) {
+            saveListArtwork()
+            return
+        }
+
         val favoriteId = args.favoriteId.takeIf { it > 0 }
         val diariesId = args.diariesId.takeIf { it > 0 }
         viewModel.saveArtwork(movieId = args.movieId, type = args.contextType, favoriteId = favoriteId, diariesId = diariesId)
+    }
+
+    /** List context: persist on the list, or hand the choice back to the editor. */
+    private fun saveListArtwork() {
+        val artwork = viewModel.selectedArtwork.value
+        if (artwork == null) {
+            showSnackbar("Pilih artwork dulu.", SnackbarType.ERROR)
+            return
+        }
+
+        if (args.listId > 0) {
+            viewModel.saveListArtwork(args.listId, args.movieId, artwork)
+        } else {
+            // New list: nothing to persist yet; the editor stores it and sends it on save.
+            publishListSelection(artwork)
+            findNavController().navigateUp()
+        }
+    }
+
+    private fun publishListSelection(artwork: Artwork) {
+        val handle = findNavController().previousBackStackEntry?.savedStateHandle ?: return
+
+        if (artwork.type == ArtworkType.BACKDROP) {
+            handle.set("selected_backdrop_media_id", artwork.id)
+            handle.set("selected_backdrop_path", artwork.url)
+        } else {
+            handle.set("selected_poster_media_id", artwork.id)
+        }
     }
 
     override fun onDestroyView() {

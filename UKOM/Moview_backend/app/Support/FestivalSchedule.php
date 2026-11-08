@@ -49,6 +49,12 @@ final class FestivalSchedule
     /** Sum of every film's duration in the session (minutes). */
     public static function filmsDuration(Schedule $schedule): int
     {
+        // Surprise sessions carry their own length (they may have no film at all).
+        $explicit = (int) ($schedule->duration ?? 0);
+        if ($explicit > 0) {
+            return $explicit;
+        }
+
         $films = $schedule->relationLoaded('festivalMovies')
             ? $schedule->festivalMovies
             : $schedule->festivalMovies()->get();

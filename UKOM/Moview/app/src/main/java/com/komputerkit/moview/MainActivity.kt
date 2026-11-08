@@ -216,9 +216,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.posterGeneratorFragment,
                 R.id.posterBackdropFragment,
                 R.id.eventDetailFragment,
-                R.id.myListsFragment,
+                // Only the list form/picker are full-screen; list screens keep the navbar.
                 R.id.listEditorFragment,
-                R.id.listDetailFragment,
                 R.id.filmPickerFragment -> {
                     binding.bottomNavigation.visibility = View.GONE
                 }
@@ -231,10 +230,16 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            // "Pilih Film" reuses Search; do not move the main-tab highlight there.
+            val isSelectMovieMode = destination.id == R.id.navigation_search &&
+                arguments?.getBoolean("selectMovieMode", false) == true
+
             when (destination.id) {
                 R.id.navigation_home -> binding.bottomNavigation.menu.findItem(R.id.navigation_home)?.isChecked = true
                 R.id.navigation_profile -> binding.bottomNavigation.menu.findItem(R.id.navigation_profile)?.isChecked = true
-                R.id.navigation_search -> binding.bottomNavigation.menu.findItem(R.id.navigation_search)?.isChecked = true
+                R.id.navigation_search -> if (!isSelectMovieMode) {
+                    binding.bottomNavigation.menu.findItem(R.id.navigation_search)?.isChecked = true
+                }
                 R.id.navigation_cinema -> binding.bottomNavigation.menu.findItem(R.id.navigation_cinema)?.isChecked = true
                 R.id.navigation_notification -> binding.bottomNavigation.menu.findItem(R.id.navigation_notification)?.isChecked = true
             }

@@ -390,6 +390,7 @@ class ProfileFragment : Fragment() {
         binding.tvDiaryCount.text = formatNumber(stats.diary)
         binding.tvReviewsCount.text = formatNumber(stats.reviews)
         binding.tvWatchlistCount.text = formatNumber(stats.watchlist)
+        binding.tvListsCount.text = formatNumber(stats.lists)
         binding.tvLikesCount.text = formatNumber(stats.likes)
         binding.tvFollowersCount.text = formatNumber(stats.followers)
         binding.tvFollowingCount.text = formatNumber(stats.following)

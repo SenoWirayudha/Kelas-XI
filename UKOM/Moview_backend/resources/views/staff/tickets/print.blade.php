@@ -56,7 +56,13 @@
                     </div>
                 </div>
 
-                <p class="text-xl font-bold text-gray-900">{{ $schedule?->movie?->title ?? '-' }}</p>
+                <p class="text-xl font-bold text-gray-900">{{ $display['display_title'] ?? '-' }}</p>
+                @if(!empty($display['films']))
+                    {{-- Festival line-up: small so the ticket still fits one page --}}
+                    <p class="mt-1 text-[9px] uppercase leading-tight text-gray-500">
+                        {{ implode(' | ', array_column($display['films'], 'title')) }}
+                    </p>
+                @endif
 
                 <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <div>

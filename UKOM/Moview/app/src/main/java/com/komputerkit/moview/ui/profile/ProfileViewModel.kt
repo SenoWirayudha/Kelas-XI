@@ -148,7 +148,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                         diary = profileData.statistics.diary,
                         reviews = profileData.statistics.reviews,
                         watchlist = profileData.statistics.watchlist,
-                        lists = 0,
+                        lists = profileData.statistics.lists,
                         likes = profileData.statistics.likes,
                         followers = profileData.statistics.followers,
                         following = profileData.statistics.following,

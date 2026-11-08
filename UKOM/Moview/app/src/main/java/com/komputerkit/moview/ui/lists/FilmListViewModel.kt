@@ -7,6 +7,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.api.AddListItemsRequest
+import com.komputerkit.moview.data.api.AddListCommentRequest
 import com.komputerkit.moview.data.api.CreateFilmListRequest
 import com.komputerkit.moview.data.api.FilmListDto
 import com.komputerkit.moview.data.api.FilmListItemDto
@@ -16,6 +17,7 @@ import com.komputerkit.moview.data.api.RetrofitClient
 import com.komputerkit.moview.data.api.SetItemMediaRequest
 import com.komputerkit.moview.data.api.UpdateFilmListRequest
 import com.komputerkit.moview.data.model.ArtworkOption
+import com.komputerkit.moview.data.model.Comment
 import com.komputerkit.moview.data.model.FilmBackdropOption
 import com.komputerkit.moview.data.model.FilmList
 import com.komputerkit.moview.data.model.FilmListItem
@@ -62,6 +64,12 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
 
     private val _backdropMovies = MutableLiveData<List<FilmBackdropOption>>(emptyList())
     val backdropMovies: LiveData<List<FilmBackdropOption>> = _backdropMovies
+
+    private val _comments = MutableLiveData<List<Comment>>(emptyList())
+    val comments: LiveData<List<Comment>> = _comments
+
+    private val _commentCount = MutableLiveData(0)
+    val commentCount: LiveData<Int> = _commentCount
 
     // ---- Lists overview -------------------------------------------------
 
@@ -140,7 +148,9 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
         description: String?,
         type: String,
         visibility: String,
-        useBackdrop: Boolean = false
+        useBackdrop: Boolean = false,
+        movieIds: List<Int> = emptyList(),
+        backdropMediaId: Int? = null
     ) {
         if (title.isBlank()) {
             _error.value = "Judul list wajib diisi."
@@ -152,15 +162,35 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             try {
                 val response = if (listId == null || listId <= 0) {
+                    // Films are sent with the create call: the list and its first
+                    // line-up are written in one transaction.
                     api.createFilmList(
                         userId,
-                        CreateFilmListRequest(title.trim(), description?.takeIf { it.isNotBlank() }, type, visibility)
+                        CreateFilmListRequest(
+                            title = title.trim(),
+                            description = description?.takeIf { it.isNotBlank() },
+                            type = type,
+                            visibility = visibility,
+                            movie_ids = movieIds.takeIf { it.isNotEmpty() },
+                            backdrop_media_id = backdropMediaId,
+                            use_backdrop = useBackdrop
+                        )
                     )
                 } else {
+                    // Editing sends the whole line-up: the server replaces it,
+                    // including ranking order.
                     api.updateFilmList(
                         userId,
                         listId,
-                        UpdateFilmListRequest(title.trim(), description?.takeIf { it.isNotBlank() }, type, visibility, useBackdrop)
+                        UpdateFilmListRequest(
+                            title = title.trim(),
+                            description = description?.takeIf { it.isNotBlank() },
+                            type = type,
+                            visibility = visibility,
+                            use_backdrop = useBackdrop,
+                            movie_ids = movieIds,
+                            backdrop_media_id = backdropMediaId
+                        )
                     )
                 }
 
@@ -259,6 +289,54 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
                 response.data?.let { _list.postValue(it.toModel()) }
             } catch (e: Exception) {
                 _list.postValue(current)
+                _error.postValue(messageOf(e))
+            }
+        }
+    }
+
+    // ---- Comments -------------------------------------------------------
+
+    fun loadComments(listId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = api.getListComments(listId, currentUserId)
+                val mapped = response.data.orEmpty().map { dto ->
+                    Comment(
+                        id = dto.id,
+                        // Lists have no review; 0 keeps the review-only actions inert.
+                        reviewId = 0,
+                        userId = dto.user?.id ?: 0,
+                        username = dto.user?.username.orEmpty(),
+                        userAvatar = dto.user?.profile_photo?.let { ServerConfig.fixUrl(it) }.orEmpty(),
+                        commentText = dto.content,
+                        timeAgo = dto.time_ago.orEmpty(),
+                        likeCount = 0
+                    )
+                }
+                _comments.postValue(mapped)
+                _commentCount.postValue(mapped.size)
+            } catch (e: Exception) {
+                _error.postValue(messageOf(e))
+            }
+        }
+    }
+
+    fun addComment(listId: Int, content: String) {
+        val text = content.trim()
+        if (text.isEmpty()) {
+            _error.value = "Komentar tidak boleh kosong."
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = api.addListComment(currentUserId, listId, AddListCommentRequest(text))
+                if (response.success) {
+                    loadComments(listId)
+                } else {
+                    _error.postValue(response.message ?: "Gagal mengirim komentar.")
+                }
+            } catch (e: Exception) {
                 _error.postValue(messageOf(e))
             }
         }
@@ -366,14 +444,18 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
     private fun FilmListDto.toModel() = FilmList(
         id = id,
         userId = user_id,
+        ownerUsername = user?.username,
+        ownerAvatarUrl = user?.profile_photo?.let { ServerConfig.fixUrl(it) },
         title = title.orEmpty(),
         description = description,
         type = type ?: FilmList.TYPE_PLAIN,
         visibility = visibility ?: FilmList.VISIBILITY_PUBLIC,
         useBackdrop = use_backdrop,
+        backdropMediaId = backdrop_media_id,
         itemsCount = items_count,
         posterUrl = poster_url?.let { ServerConfig.fixUrl(it) },
         backdropUrl = backdrop_url?.let { ServerConfig.fixUrl(it) },
+        posterUrls = poster_urls.orEmpty().mapNotNull { url -> url.takeIf { it.isNotBlank() }?.let { ServerConfig.fixUrl(it) } },
         items = items.orEmpty().map { it.toModel() }
     )
 

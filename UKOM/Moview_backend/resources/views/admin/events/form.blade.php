@@ -77,8 +77,10 @@
                     </div>
                 @endif
                 <input type="file" name="banner" accept="image/*"
+                       onchange="moviewCheckFileSize(this, 2048)"
                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                <p class="mt-1 text-xs text-gray-500">Opsional. JPG/PNG/WebP maksimal 4 MB.</p>
+                <p class="mt-1 text-xs text-gray-500">Opsional. JPG/PNG/WebP maksimal 2 MB.</p>
+                <p class="mt-1 hidden text-xs text-red-600" data-file-error></p>
             </div>
 
             <div class="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">

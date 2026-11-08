@@ -18,7 +18,9 @@ class ListFilmsAdapter(
     private val draggable: Boolean,
     private val onRemove: (FilmListItem) -> Unit,
     private val onArtwork: (FilmListItem) -> Unit,
-    private val onDragStart: (RecyclerView.ViewHolder) -> Unit
+    private val onDragStart: (RecyclerView.ViewHolder) -> Unit,
+    /** The editor has no list yet, so the per-film artwork button is hidden there. */
+    private val showArtwork: Boolean = true
 ) : RecyclerView.Adapter<ListFilmsAdapter.Holder>() {
 
     private val items = mutableListOf<FilmListItem>()
@@ -73,7 +75,7 @@ class ListFilmsAdapter(
 
             binding.ivPoster.loadThumbnail(item.posterUrl, item.title)
 
-            binding.btnArtwork.visibility = if (draggable) View.VISIBLE else View.GONE
+            binding.btnArtwork.visibility = if (draggable && showArtwork) View.VISIBLE else View.GONE
             binding.btnRemove.visibility = if (draggable) View.VISIBLE else View.GONE
             binding.btnArtwork.setOnClickListener { onArtwork(item) }
             binding.btnRemove.setOnClickListener { onRemove(item) }

@@ -36,7 +36,9 @@
 
         <form method="POST"
               action="{{ $isEdit ? route($panelPrefix.'.events.sessions.update', [$event->id, $session->id]) : route($panelPrefix.'.events.sessions.store', $event->id) }}"
-              x-data="festivalSessionForm({{ \Illuminate\Support\Js::from($moviesPayload) }}, {{ \Illuminate\Support\Js::from(array_map('intval', old('movies', $selectedMovies))) }}, {{ (int) \App\Support\FestivalSchedule::GAP_MINUTES }})">
+              enctype="multipart/form-data"
+              x-data="festivalSessionForm({{ \Illuminate\Support\Js::from($moviesPayload) }}, {{ \Illuminate\Support\Js::from(array_map('intval', old('movies', $selectedMovies))) }}, {{ (int) \App\Support\FestivalSchedule::GAP_MINUTES }})"
+              @movie-picked.window="addMovie($event.detail)">
             @csrf
             @if($isEdit) @method('PUT') @endif
 
@@ -74,18 +76,91 @@
                 </div>
             </div>
 
+            <div class="mb-5 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <input type="checkbox" id="is_surprise" name="is_surprise" value="1"
+                       x-model="isSurprise" @change="recalc()"
+                       class="mt-0.5 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500">
+                <div>
+                    <label for="is_surprise" class="block text-sm font-medium text-gray-800">Film Kejutan (Surprise)</label>
+                    <p class="mt-1 text-xs text-gray-600">
+                        Film tetap dipilih untuk menghitung durasi dan jam selesai, tetapi disembunyikan dari user.
+                        Judul sesi dan klasifikasi usia wajib diisi.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mb-5" x-show="isSurprise" x-cloak>
+                <label class="mb-1 block text-sm font-medium text-gray-700">
+                    Durasi (menit) <span class="text-red-500">*</span>
+                </label>
+                <input type="number" name="duration" min="1" max="600"
+                       x-bind:required="isSurprise"
+                       x-bind:disabled="!isSurprise"
+                       x-model="duration" @input="durationTouched = true"
+                       value="{{ old('duration', $session->duration) }}"
+                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <p class="mt-1 text-xs text-gray-500">
+                    Durasi sesi Film Kejutan. Terisi otomatis dari total durasi film (jika ada), bisa diubah.
+                </p>
+            </div>
+
             <div class="mb-5">
-                <label class="mb-1 block text-sm font-medium text-gray-700">Judul Sesi</label>
+                <label class="mb-1 block text-sm font-medium text-gray-700">
+                    Judul Sesi <span x-show="isSurprise" class="text-red-500">*</span>
+                </label>
                 <input type="text" name="session_title" maxlength="255"
+                       x-bind:required="isSurprise"
+                       x-bind:placeholder="isSurprise ? 'Surprise Film #1' : ''"
                        value="{{ old('session_title', $session->session_title) }}"
                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <p class="mt-1 text-xs text-gray-500">Wajib diisi jika sesi berisi lebih dari satu film.</p>
+                <p class="mt-1 text-xs text-gray-500">Wajib diisi jika sesi berisi lebih dari satu film atau Film Kejutan aktif.</p>
+            </div>
+
+            {{-- Klasifikasi usia LSF (wajib saat menyimpan) --}}
+            <div class="mb-5">
+                <label class="mb-1 block text-sm font-medium text-gray-700">
+                    Klasifikasi Usia <span class="text-red-500">*</span>
+                </label>
+                @php $currentAge = old('age_rating', $session->age_rating); @endphp
+                <select name="age_rating" required x-model="ageRating"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">-- Pilih klasifikasi --</option>
+                    @foreach(['SU' => 'SU (Semua Umur)', '13+' => '13+', '17+' => '17+', '21+' => '21+'] as $value => $label)
+                        <option value="{{ $value }}" {{ $currentAge === $value ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-gray-500">
+                    Isi sesuai klasifikasi tertinggi dari film dalam sesi ini.
+                </p>
+            </div>
+
+            {{-- Poster sesi: dipakai untuk sesi kumpulan film; kosong = poster film pertama --}}
+            <div class="mb-5">
+                <label class="mb-1 block text-sm font-medium text-gray-700">Poster Sesi</label>
+                @php
+                    $existingPoster = old('poster_path', $session->poster_path ?? null);
+                @endphp
+                @if($existingPoster)
+                    <div class="mb-2">
+                        <img src="{{ asset('storage/' . $existingPoster) }}" alt="Poster sesi"
+                             class="h-32 w-auto rounded-lg border border-gray-200 object-cover">
+                    </div>
+                @endif
+                <input type="file" name="poster" accept="image/*"
+                       onchange="moviewCheckFileSize(this, 2048)"
+                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                <p class="mt-1 text-xs text-gray-500">
+                    Opsional. JPG/PNG/WebP maksimal 2 MB. Jika kosong, dipakai poster film pertama.
+                </p>
+                <p class="mt-1 hidden text-xs text-red-600" data-file-error></p>
             </div>
 
             {{-- Film picker --}}
             <div class="mb-5 rounded-lg border border-gray-200 p-4">
                 <div class="mb-3 flex items-center justify-between">
-                    <p class="text-sm font-medium text-gray-700">Film <span class="text-red-500">*</span></p>
+                    <p class="text-sm font-medium text-gray-700">
+                        Film <span class="text-red-500" x-show="!isSurprise">*</span>
+                    </p>
                     <button type="button" @click="addMovieOpen = !addMovieOpen"
                             class="inline-flex items-center rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-200">
                         <i class="fas fa-plus mr-1"></i> Tambah Film Manual
@@ -153,14 +228,17 @@
                     </ol>
                 </template>
 
-                <!-- Searchable film picker: pick a film to append to the line-up -->
+                <!-- Searchable film picker: pick a film to append to the line-up.
+                     The wrapper must be `relative` so the absolute panel anchors to this
+                     field; otherwise it attaches to the page and overflows horizontally. -->
                 <div x-data="moviewSingleSelect({
                         options: movies.map(m => ({ value: String(m.id), label: m.title + ' (' + m.release_year + ') · ' + m.duration + ' mnt' })),
                         selected: '',
                         placeholder: 'Cari film untuk ditambahkan...',
                         emptyText: 'Film tidak ditemukan'
                      })"
-                     x-effect="if (selected) { addMovie(selected); selected = ''; }">
+                     x-effect="if (selected) { $dispatch('movie-picked', selected); selected = ''; }"
+                     class="relative">
                     <button type="button"
                             @click="open = !open; if (open) $nextTick(() => $refs.search.focus())"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-left flex items-center justify-between bg-white">
@@ -168,15 +246,15 @@
                         <i class="fas fa-chevron-down text-gray-400 text-xs" :class="open ? 'rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-cloak @click.outside="open = false"
-                         class="absolute z-30 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden">
+                         class="absolute left-0 right-0 z-50 mt-1 w-full max-w-full bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden">
                         <div class="p-2 border-b border-gray-200 bg-gray-50">
                             <input type="text" x-ref="search" x-model="query" placeholder="Cari film..."
                                    class="w-full px-3 py-1.5 border border-gray-300 rounded text-sm">
                         </div>
-                        <div class="max-h-56 overflow-y-auto p-1">
+                        <div class="max-h-[280px] overflow-y-auto overscroll-contain p-1">
                             <template x-for="option in filtered()" :key="option.value">
                                 <button type="button" @click="select(option.value)"
-                                        class="w-full text-left px-3 py-1.5 rounded hover:bg-blue-50 text-sm text-gray-700"
+                                        class="w-full text-left px-3 py-1.5 rounded hover:bg-blue-50 text-sm text-gray-700 break-words"
                                         x-text="option.label"></button>
                             </template>
                             <p x-show="filtered().length === 0" class="text-sm text-gray-400 text-center py-2">Film tidak ditemukan</p>
@@ -189,9 +267,12 @@
                 </template>
 
                 <p class="mt-2 text-xs text-gray-500">
-                    Total durasi: <span class="font-semibold" x-text="totalDuration()"></span> menit.
+                    Total durasi: <span class="font-semibold" x-text="effectiveDuration()"></span> menit.
                     Perkiraan selesai: <span class="font-semibold" x-text="estimatedEnd()"></span>
                     (termasuk jeda {{ \App\Support\FestivalSchedule::GAP_MINUTES }} menit).
+                </p>
+                <p class="mt-1 text-xs text-gray-500" x-show="isSurprise" x-cloak>
+                    Film opsional untuk Film Kejutan; durasi sesi memakai isian di atas.
                 </p>
             </div>
 
@@ -235,10 +316,18 @@ function festivalSessionForm(allMovies, initialSelected, gapMinutes) {
         gapMinutes: gapMinutes,
         showDate: @js(old('show_date', optional($session->show_date)->format('Y-m-d'))),
         showTime: @js(old('show_time', $session->show_time ? substr((string) $session->show_time, 0, 5) : '')),
+        ageRating: @js(old('age_rating', $session->age_rating)) || '',
+        isSurprise: @js((bool) old('is_surprise', $session->is_surprise)),
+        duration: @js((string) old('duration', $session->duration ?? '')) || '',
+        durationTouched: @js(old('duration', $session->duration ?? null) !== null),
         addMovieOpen: false,
         savingMovie: false,
         movieError: '',
         newMovie: { title: '', release_year: '', duration: '', director: '', synopsis: '' },
+
+        init() {
+            this.recalc();
+        },
 
         movie(id) {
             return this.movies.find(m => m.id === Number(id));
@@ -272,20 +361,34 @@ function festivalSessionForm(allMovies, initialSelected, gapMinutes) {
             const list = this.selected.slice();
             [list[index], list[to]] = [list[to], list[index]];
             this.selected = list;
+            this.recalc();
         },
 
         totalDuration() {
             return this.selected.reduce((sum, id) => sum + this.movieDuration(id), 0);
         },
+        /** Surprise sessions use their own duration; regular sessions sum the films. */
+        effectiveDuration() {
+            if (this.isSurprise) {
+                const value = Number(this.duration);
+                return value > 0 ? value : 0;
+            }
+            return this.totalDuration();
+        },
         estimatedEnd() {
             if (!this.showTime) return '—';
             const [h, m] = this.showTime.split(':').map(Number);
-            const total = h * 60 + m + this.totalDuration() + this.gapMinutes;
+            const total = h * 60 + m + this.effectiveDuration() + this.gapMinutes;
             const hh = String(Math.floor((total % 1440) / 60)).padStart(2, '0');
             const mm = String(total % 60).padStart(2, '0');
             return hh + ':' + mm;
         },
-        recalc() { /* reactive getters handle the rest */ },
+        /** Auto-fills the surprise duration from the line-up until the admin edits it. */
+        recalc() {
+            if (!this.isSurprise || this.durationTouched) return;
+            const auto = this.totalDuration();
+            this.duration = auto > 0 ? String(auto) : '';
+        },
 
         async saveMovie() {
             this.movieError = '';
@@ -321,6 +424,7 @@ function festivalSessionForm(allMovies, initialSelected, gapMinutes) {
                 }
                 this.movies.push(payload.movie);
                 this.selected.push(payload.movie.id);
+                this.recalc();
                 this.newMovie = { title: '', release_year: '', duration: '', director: '', synopsis: '' };
                 this.addMovieOpen = false;
             } catch (e) {

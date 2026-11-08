@@ -12,6 +12,7 @@ class TicketPrintController extends Controller
     {
         $order->load([
             'schedule.movie',
+            'schedule.festivalMovies',
             'schedule.studio.cinema',
             'tickets.seat',
             'staff',
@@ -25,6 +26,9 @@ class TicketPrintController extends Controller
         // target differs, so the operator returns to where they came from.
         $fromScan = $request->query('from') === 'scan';
 
-        return view('staff.tickets.print', compact('order', 'fromScan'));
+        // Festival sessions: session title, line-up and LSF classification.
+        $display = \App\Support\SessionDisplay::forSchedule($order->schedule);
+
+        return view('staff.tickets.print', compact('order', 'fromScan', 'display'));
     }
 }

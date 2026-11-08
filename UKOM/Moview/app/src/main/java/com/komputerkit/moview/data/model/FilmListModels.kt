@@ -4,6 +4,8 @@ package com.komputerkit.moview.data.model
 data class FilmList(
     val id: Int,
     val userId: Int,
+    val ownerUsername: String? = null,
+    val ownerAvatarUrl: String? = null,
     val title: String,
     val description: String?,
     /** "ranked" (numbered) or "plain" (no numbers). */
@@ -12,9 +14,13 @@ data class FilmList(
     val visibility: String = VISIBILITY_PUBLIC,
     /** Mirror the list back cover from the film at #1. */
     val useBackdrop: Boolean = false,
+    /** movie_media id of the chosen hero backdrop (film #1). */
+    val backdropMediaId: Int? = null,
     val itemsCount: Int = 0,
     val posterUrl: String? = null,
     val backdropUrl: String? = null,
+    /** Up to 7 posters for the overlapping strip on the My List row. */
+    val posterUrls: List<String> = emptyList(),
     val items: List<FilmListItem> = emptyList()
 ) {
     val isRanked: Boolean get() = type == TYPE_RANKED

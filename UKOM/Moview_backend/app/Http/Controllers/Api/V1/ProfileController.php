@@ -173,6 +173,15 @@ class ProfileController extends Controller
         }
 
         try {
+            // Count film lists
+            $listsCount = DB::table('film_lists')
+                ->where('user_id', $userId)
+                ->count();
+        } catch (\Exception $e) {
+            $listsCount = 0;
+        }
+
+        try {
             // Count likes
             $likesCount = DB::table('movie_likes')
                 ->where('user_id', $userId)
@@ -228,6 +237,7 @@ class ProfileController extends Controller
             'diary' => $diaryCount,
             'reviews' => $reviewsCount,
             'watchlist' => $watchlistCount,
+            'lists' => $listsCount,
             'likes' => $likesCount,
             'followers' => $followersCount,
             'following' => $followingCount,

@@ -28,7 +28,9 @@ data class TicketHistoryItem(
     val showTime: String,
     val showEndTimeMillis: Long,
     val seatInfo: String,
-    val status: TicketStatus
+    val status: TicketStatus,
+    /** Festival sessions: all film titles, uppercase and " | " separated (empty when one film). */
+    val filmsLine: String = ""
 )
 
 enum class TicketStatus { ACTIVE, USED, EXPIRED }
@@ -67,6 +69,10 @@ class TicketHistoryAdapter(
 
             binding.tvTitle.text = item.title
             binding.tvCinema.text = item.cinemaName
+
+            // Festival line-up, only when the session has more than one film.
+            binding.tvFilms.text = item.filmsLine
+            binding.tvFilms.visibility = if (item.filmsLine.isBlank()) View.GONE else View.VISIBLE
             binding.tvStudioInfo.text = item.studioInfo
             binding.tvDate.text = "${item.showDate} • ${item.showTime}"
             binding.tvSeat.text = item.seatInfo

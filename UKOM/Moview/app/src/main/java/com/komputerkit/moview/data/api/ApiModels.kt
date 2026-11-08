@@ -572,6 +572,7 @@ data class UserStatisticsDto(
     val diary: Int,
     val reviews: Int,
     val watchlist: Int,
+    val lists: Int = 0,
     val likes: Int,
     val followers: Int,
     val following: Int,
@@ -1043,14 +1044,18 @@ data class EventDetailDto(
 data class FilmListDto(
     val id: Int = 0,
     val user_id: Int = 0,
+    /** Owner block: username + profile photo of the list author. */
+    val user: FilmListCommentUserDto? = null,
     val title: String? = null,
     val description: String? = null,
     val type: String? = null,
     val visibility: String? = null,
     val use_backdrop: Boolean = false,
+    val backdrop_media_id: Int? = null,
     val items_count: Int = 0,
     val poster_url: String? = null,
     val backdrop_url: String? = null,
+    val poster_urls: List<String>? = null,
     val updated_at: String? = null,
     val items: List<FilmListItemDto>? = null
 )
@@ -1073,7 +1078,10 @@ data class CreateFilmListRequest(
     val title: String,
     val description: String? = null,
     val type: String = "plain",
-    val visibility: String = "public"
+    val visibility: String = "public",
+    val movie_ids: List<Int>? = null,
+    val backdrop_media_id: Int? = null,
+    val use_backdrop: Boolean = false
 )
 
 data class UpdateFilmListRequest(
@@ -1081,8 +1089,13 @@ data class UpdateFilmListRequest(
     val description: String? = null,
     val type: String = "plain",
     val visibility: String = "public",
-    val use_backdrop: Boolean = false
+    val use_backdrop: Boolean = false,
+    /** Full line-up: replaces the stored one when present. */
+    val movie_ids: List<Int>? = null,
+    val backdrop_media_id: Int? = null
 )
+
+data class SetListBackdropRequest(val backdrop_media_id: Int?)
 
 data class AddListItemsRequest(val movie_ids: List<Int>)
 
@@ -1109,3 +1122,19 @@ data class BackdropMovieDto(
     val title: String? = null,
     val backdrops: List<ArtworkOptionDto>? = null
 )
+
+data class FilmListCommentDto(
+    val id: Int = 0,
+    val user: FilmListCommentUserDto? = null,
+    val content: String = "",
+    val created_at: String? = null,
+    val time_ago: String? = null
+)
+
+data class FilmListCommentUserDto(
+    val id: Int = 0,
+    val username: String? = null,
+    val profile_photo: String? = null
+)
+
+data class AddListCommentRequest(val content: String)

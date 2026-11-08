@@ -11,14 +11,16 @@ class Schedule extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'movie_id', 'studio_id', 'show_date', 'show_time', 'ticket_price', 'status',
-        'event_id', 'session_title', 'quota',
+        'movie_id', 'studio_id', 'show_date', 'show_time', 'duration', 'ticket_price', 'status',
+        'event_id', 'session_title', 'poster_path', 'age_rating', 'is_surprise', 'quota',
     ];
 
     protected $casts = [
         'show_date'    => 'date',
         'ticket_price' => 'decimal:2',
         'quota'        => 'integer',
+        'duration'     => 'integer',
+        'is_surprise'  => 'boolean',
     ];
 
     public function movie()
@@ -42,6 +44,15 @@ class Schedule extends Model
     public function isFestival(): bool
     {
         return $this->event_id !== null;
+    }
+
+    /**
+     * Session length in minutes: an explicit duration (surprise sessions) wins,
+     * otherwise the sum of the line-up / the single film.
+     */
+    public function sessionDuration(): int
+    {
+        return \App\Support\FestivalSchedule::filmsDuration($this);
     }
 
     public function startsAt(): \Carbon\Carbon

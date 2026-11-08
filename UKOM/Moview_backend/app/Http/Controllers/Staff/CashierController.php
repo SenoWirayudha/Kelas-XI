@@ -33,7 +33,8 @@ class CashierController extends Controller
         $films = $schedules
             ->groupBy('movie_id')
             ->map(function ($movieSchedules) {
-                $movie = $movieSchedules->first()->movie;
+                // Festival/surprise sessions show the session title + session poster.
+                $display = \App\Support\SessionDisplay::forSchedule($movieSchedules->first());
 
                 $studios = $movieSchedules
                     ->groupBy('studio_id')
@@ -55,8 +56,8 @@ class CashierController extends Controller
 
                 return [
                     'id' => (int) $movieSchedules->first()->movie_id,
-                    'title' => $movie?->title ?? '-',
-                    'poster_url' => $this->posterUrl($movie?->default_poster_path),
+                    'title' => $display['display_title'] ?? '-',
+                    'poster_url' => $this->posterUrl($display['poster_path']),
                     'studios' => $studios,
                 ];
             })
@@ -255,14 +256,19 @@ class CashierController extends Controller
             ];
         })->values();
 
+        $display = \App\Support\SessionDisplay::forSchedule($schedule);
+
         return response()->json([
             'success' => true,
             'data' => [
                 'schedule_id' => (int) $schedule->id,
                 'movie' => [
-                    'title' => $schedule->movie?->title ?? '-',
-                    'poster_url' => $this->posterUrl($schedule->movie?->default_poster_path),
+                    'title' => $display['display_title'] ?? '-',
+                    'poster_url' => $this->posterUrl($display['poster_path']),
                 ],
+                // Festival sessions: full line-up + LSF classification.
+                'films' => $display['films'],
+                'usia' => $display['age_rating'],
                 'cinema_name' => $studio->cinema?->cinema_name ?? '-',
                 'studio_name' => $studio->studio_name ?? '-',
                 'date' => $schedule->show_date->toDateString(),
@@ -431,7 +437,7 @@ class CashierController extends Controller
 
     private function snapPayload(Order $order, Schedule $schedule, ?string $buyerName, string $method): array
     {
-        $order->loadMissing(['orderSeats.seat', 'schedule.movie']);
+        $order->loadMissing(['orderSeats.seat', 'schedule.movie', 'schedule.festivalMovies']);
 
         $items = $order->orderSeats->map(fn ($orderSeat) => [
             'id' => (string) $orderSeat->id,
@@ -452,7 +458,7 @@ class CashierController extends Controller
             ],
             'enabled_payments' => ['shopeepay', 'credit_card'],
             'custom_field1' => $method,
-            'custom_field2' => (string) $schedule->movie?->title,
+            'custom_field2' => (string) (\App\Support\SessionDisplay::forSchedule($schedule)['display_title'] ?? ''),
             'callbacks' => [
                 'finish' => route('staff.cashier.index'),
             ],

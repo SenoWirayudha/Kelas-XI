@@ -51,7 +51,7 @@ class MyListsFragment : Fragment() {
         }
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
-        binding.btnCreate.setOnClickListener {
+        binding.fabCreate.setOnClickListener {
             findNavController().navigate(R.id.action_myLists_to_listEditor)
         }
 

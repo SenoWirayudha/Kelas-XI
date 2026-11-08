@@ -631,6 +631,13 @@ interface MovieApiService {
         @Body request: ReorderListRequest
     ): SimpleResponse
 
+    @PUT("users/{userId}/lists/{listId}/backdrop")
+    suspend fun setFilmListBackdrop(
+        @Path("userId") userId: Int,
+        @Path("listId") listId: Int,
+        @Body request: SetListBackdropRequest
+    ): ApiResponse<FilmListDto>
+
     @PUT("users/{userId}/lists/{listId}/items/{movieId}/media")
     suspend fun setFilmListItemMedia(
         @Path("userId") userId: Int,
@@ -649,4 +656,17 @@ interface MovieApiService {
         @Path("listId") listId: Int,
         @Query("viewer_id") viewerId: Int? = null
     ): ApiResponse<List<BackdropMovieDto>>
+
+    @GET("lists/{listId}/comments")
+    suspend fun getListComments(
+        @Path("listId") listId: Int,
+        @Query("viewer_id") viewerId: Int? = null
+    ): ApiResponse<List<FilmListCommentDto>>
+
+    @POST("users/{userId}/lists/{listId}/comments")
+    suspend fun addListComment(
+        @Path("userId") userId: Int,
+        @Path("listId") listId: Int,
+        @Body request: AddListCommentRequest
+    ): ApiResponse<FilmListCommentDto>
 }

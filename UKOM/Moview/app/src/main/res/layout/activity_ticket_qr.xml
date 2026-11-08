@@ -118,6 +118,17 @@
                                 android:textSize="12sp"
                                 android:text="Studio" />
 
+                            <!-- Festival line-up (multi-film sessions only) -->
+                            <TextView
+                                android:id="@+id/tv_films"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:textAllCaps="true"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="11sp"
+                                android:visibility="gone" />
+
                             <TextView
                                 android:id="@+id/tv_date_time"
                                 android:layout_width="match_parent"

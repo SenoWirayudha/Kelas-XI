@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solid (filled) twin of trophy_line_round: same 16dp silhouette, no outline. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M4,3 H12 V6.5 C12,8.71 10.21,10.5 8,10.5 C5.79,10.5 4,8.71 4,6.5 Z M7.25,9.6 H8.75 V13 H7.25 Z M4.4,13 H11.6 C11.82,13 12,13.18 12,13.4 V13.6 C12,13.82 11.82,14 11.6,14 H4.4 C4.18,14 4,13.82 4,13.6 V13.4 C4,13.18 4.18,13 4.4,13 Z M4,3.6 H1.9 C1.4,3.6 1,4 1,4.5 V4.9 C1,6.32 2.02,7.4 3.42,7.65 L4,7.75 V6.5 L3.55,6.42 C2.72,6.26 2.1,5.55 2.1,4.9 V4.75 C2.1,4.72 2.13,4.7 2.16,4.7 H4 Z M12,3.6 H14.1 C14.6,3.6 15,4 15,4.5 V4.9 C15,6.32 13.98,7.4 12.58,7.65 L12,7.75 V6.5 L12.45,6.42 C13.28,6.26 13.9,5.55 13.9,4.9 V4.75 C13.9,4.72 13.87,4.7 13.84,4.7 H12 Z" />
+</vector>

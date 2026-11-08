@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\Schedule;
 use App\Models\Ticket;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -194,6 +195,7 @@ class TicketController extends Controller
         $showDateRaw = $schedule?->show_date;
         $used = $ticket ? (bool) $ticket->is_used : (bool) $order->is_scanned;
         $usedAt = $ticket ? $ticket->used_at : $order->scanned_at;
+        $display = \App\Support\SessionDisplay::forSchedule($schedule);
 
         return [
             'order_id' => $order->id,
@@ -205,7 +207,10 @@ class TicketController extends Controller
             'is_scanned' => $used,
             'scanned_at' => $usedAt ? Carbon::parse($usedAt)->toIso8601String() : null,
             'is_fully_scanned' => (bool) $order->is_scanned,
-            'movie_title' => $schedule?->movie?->title,
+            'movie_title' => $display['display_title'],
+            // Festival sessions: film line-up + LSF classification (for the 21+ badge).
+            'films' => $display['films'],
+            'usia' => $display['age_rating'],
             'cinema_name' => $schedule?->studio?->cinema?->cinema_name,
             'studio_name' => $schedule?->studio?->studio_name,
             'show_date' => $showDateRaw ? Carbon::parse($showDateRaw)->format('Y-m-d') : null,
@@ -214,6 +219,10 @@ class TicketController extends Controller
         ];
     }
 
+    /**
+     * What the ticket shows for a festival session: session title, session poster and the
+     * ordered film list. Computed at read time so existing orders are fixed too.
+     */
     private function resolvePaymentMethodLabel(?Payment $payment): string
     {
         if (!$payment) {
@@ -252,6 +261,7 @@ class TicketController extends Controller
     {
         $orders = Order::with([
             'schedule.movie',
+            'schedule.festivalMovies',
             'schedule.studio.cinema',
             'orderSeats.seat',
             'payment',
@@ -267,9 +277,13 @@ class TicketController extends Controller
             $studio = $schedule?->studio;
             $cinema = $studio?->cinema;
 
-            if (!$schedule || !$movie || !$studio || !$cinema) {
+            // Surprise sessions may have no film at all, so only the venue is required.
+            if (!$schedule || !$studio || !$cinema) {
                 return null;
             }
+
+            $display = \App\Support\SessionDisplay::forSchedule($schedule);
+            $isSurprise = (bool) $schedule->is_surprise;
 
             return [
                 'order_id' => $order->id,
@@ -280,11 +294,22 @@ class TicketController extends Controller
                 'payment_method' => $this->resolvePaymentMethodLabel($order->payment),
                 'is_scanned' => (bool) $order->is_scanned,
                 'scanned_at' => optional($order->scanned_at)?->toIso8601String(),
-                'movie' => [
-                    'id' => $movie->id,
-                    'title' => $movie->title,
-                    'poster_path' => $movie->default_poster_path,
-                ],
+                'movie' => $isSurprise || !$movie
+                    ? [
+                        'id' => 0,
+                        'title' => $display['display_title'],
+                        'poster_path' => null,
+                    ]
+                    : [
+                        'id' => $movie->id,
+                        'title' => $movie->title,
+                        'poster_path' => $movie->default_poster_path,
+                    ],
+                // Festival sessions: session title/poster + ordered film list.
+                'judul_tampil' => $display['display_title'],
+                'poster_url' => $display['poster_path'],
+                'films' => $display['films'],
+                'usia' => $display['age_rating'],
                 'cinema' => [
                     'name' => $cinema->cinema_name,
                 ],
@@ -327,6 +352,7 @@ class TicketController extends Controller
 
         $order = Order::with([
             'schedule.movie',
+            'schedule.festivalMovies',
             'schedule.studio.cinema',
             'orderSeats.seat',
         ])
@@ -338,7 +364,8 @@ class TicketController extends Controller
             )
             ->first();
 
-        if (!$order || !$order->schedule || !$order->schedule->movie || !$order->schedule->studio || !$order->schedule->studio->cinema) {
+        // Surprise sessions may have no film; the venue is all that is required.
+        if (!$order || !$order->schedule || !$order->schedule->studio || !$order->schedule->studio->cinema) {
             return response()->json([
                 'success' => false,
                 'message' => 'Ticket order not found.',
@@ -348,7 +375,9 @@ class TicketController extends Controller
         $schedule = $order->schedule;
         $movie = $schedule->movie;
         $studio = $schedule->studio;
+        $display = \App\Support\SessionDisplay::forSchedule($schedule);
         $cinema = $studio->cinema;
+        $isSurprise = (bool) $schedule->is_surprise;
 
         return response()->json([
             'success' => true,
@@ -361,11 +390,22 @@ class TicketController extends Controller
                 'is_used' => (bool) $order->is_scanned,
                 'is_expired' => $this->isOrderShowExpired($order),
                 'scanned_at' => optional($order->scanned_at)?->toIso8601String(),
-                'movie' => [
-                    'id' => $movie->id,
-                    'title' => $movie->title,
-                    'poster_path' => $movie->default_poster_path,
-                ],
+                'movie' => $isSurprise || !$movie
+                    ? [
+                        'id' => 0,
+                        'title' => $display['display_title'],
+                        'poster_path' => null,
+                    ]
+                    : [
+                        'id' => $movie->id,
+                        'title' => $movie->title,
+                        'poster_path' => $movie->default_poster_path,
+                    ],
+                // Festival sessions: session title/poster + ordered film list.
+                'judul_tampil' => $display['display_title'],
+                'poster_url' => $display['poster_path'],
+                'films' => $display['films'],
+                'usia' => $display['age_rating'],
                 'cinema' => [
                     'name' => $cinema->cinema_name,
                     'location' => trim($cinema->city . ', ' . $cinema->address, ', '),
@@ -548,6 +588,7 @@ class TicketController extends Controller
         $studio   = $schedule->studio;
         $cinema   = $studio->cinema;
         $movie    = $schedule->movie;
+        $display  = \App\Support\SessionDisplay::forSchedule($schedule);
 
         return response()->json([
             'success' => true,
@@ -567,9 +608,11 @@ class TicketController extends Controller
                     'seat_code' => $ticket->seat->seat_code,
                 ],
                 'movie'        => [
-                    'id'    => $movie->id,
-                    'title' => $movie->title,
+                    'id'    => $schedule->is_surprise || !$movie ? 0 : $movie->id,
+                    'title' => $display['display_title'],
                 ],
+                'films'        => $display['films'],
+                'usia'         => $display['age_rating'],
                 'cinema'       => [
                     'name'     => $cinema->cinema_name,
                     'location' => trim($cinema->city . ', ' . $cinema->address, ', '),
