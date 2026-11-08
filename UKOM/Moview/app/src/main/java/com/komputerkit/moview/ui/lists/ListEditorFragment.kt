@@ -32,7 +32,7 @@ class ListEditorFragment : Fragment() {
 
     private lateinit var gridAdapter: PosterGridAdapter
 
-    private lateinit var rankSpacing: RankRowSpacingDecoration
+    private lateinit var gridDecoration: PosterGridDecoration
 
     private val repository = MovieRepository()
 
@@ -83,10 +83,15 @@ class ListEditorFragment : Fragment() {
         // Whole page scrolls as one: the grid never scrolls on its own.
         binding.rvPickedFilms.isNestedScrollingEnabled = false
         binding.rvPickedFilms.overScrollMode = View.OVER_SCROLL_NEVER
-        rankSpacing = RankRowSpacingDecoration(
-            GRID_SPAN,
-            (RANK_ROW_SPACING_DP * resources.displayMetrics.density).toInt()
+        // Same spacing as Your List: the page already pads its content, so the
+        // decoration only adds the rank row gap (no extra side padding).
+        gridDecoration = PosterGridDecoration(
+            grid = binding.rvPickedFilms,
+            spanCount = GRID_SPAN,
+            horizontalPadding = 0,
+            rankRowSpacing = (RANK_ROW_SPACING_DP * resources.displayMetrics.density).toInt()
         )
+        binding.rvPickedFilms.addItemDecoration(gridDecoration)
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnSave.setOnClickListener { save() }
@@ -360,13 +365,11 @@ class ListEditorFragment : Fragment() {
 
     /**
      * Ranked rows need extra top space so the badge never covers the row above.
-     * Remove-then-add on every render keeps it applied after the screen reloads
-     * (e.g. back from Edit) without stacking duplicate decorations.
+     * The decoration is attached once; this only toggles the extra row gap, so
+     * it stays correct after the screen reloads (e.g. back from Edit).
      */
     private fun applyRankSpacing(ranked: Boolean) {
-        binding.rvPickedFilms.removeItemDecoration(rankSpacing)
-        if (ranked) binding.rvPickedFilms.addItemDecoration(rankSpacing)
-        binding.rvPickedFilms.invalidateItemDecorations()
+        gridDecoration.rankSpacingEnabled = ranked
     }
 
     private fun openFilmPicker() {

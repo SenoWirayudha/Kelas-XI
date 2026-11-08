@@ -41,7 +41,7 @@ class ListDetailFragment : Fragment() {
     private var currentList: FilmList? = null
     private var commentCount: Int = 0
 
-    private lateinit var rankSpacing: RankRowSpacingDecoration
+    private lateinit var gridDecoration: PosterGridDecoration
 
     /** Set once the deferred first load has been kicked off. */
     private var initialLoadStarted = false
@@ -91,12 +91,17 @@ class ListDetailFragment : Fragment() {
         binding.rvContent.itemAnimator = null
         binding.rvContent.adapter = ConcatAdapter(headerAdapter, gridAdapter)
 
-        // Header item counts as a leading row for the rank spacing offsets.
-        rankSpacing = RankRowSpacingDecoration(
-            GRID_SPAN,
-            (RANK_ROW_SPACING_DP * resources.displayMetrics.density).toInt(),
+        // One decoration for both the side padding and the rank row gap; the
+        // header is the leading full-span row and gets no grid offsets.
+        val density = resources.displayMetrics.density
+        gridDecoration = PosterGridDecoration(
+            grid = binding.rvContent,
+            spanCount = GRID_SPAN,
+            horizontalPadding = (GRID_SIDE_PADDING_DP * density).toInt(),
+            rankRowSpacing = (RANK_ROW_SPACING_DP * density).toInt(),
             leadingItemCount = 1
         )
+        binding.rvContent.addItemDecoration(gridDecoration)
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnMore.setOnClickListener { showListMenu() }
@@ -183,12 +188,10 @@ class ListDetailFragment : Fragment() {
     /**
      * Ranked lists draw the number above each poster, so every row after the
      * first needs extra top space to keep the badge off the row above.
-     * Remove-then-add keeps it idempotent (no duplicated decorations).
+     * The decoration is attached once; this only toggles the extra row gap.
      */
     private fun applyRankSpacing(ranked: Boolean) {
-        binding.rvContent.removeItemDecoration(rankSpacing)
-        if (ranked) binding.rvContent.addItemDecoration(rankSpacing)
-        binding.rvContent.invalidateItemDecorations()
+        gridDecoration.rankSpacingEnabled = ranked
     }
 
     private fun openMovie(item: FilmListItem) {
@@ -398,6 +401,8 @@ class ListDetailFragment : Fragment() {
     private companion object {
         /** Poster grid columns (matches the GridLayoutManager below). */
         const val GRID_SPAN = 4
+        /** Side inset of the poster grid, matching the screen's content. */
+        const val GRID_SIDE_PADDING_DP = 16
         /** Gap between ranked rows; ~= half the 20dp rank badge. */
         const val RANK_ROW_SPACING_DP = 12
     }
