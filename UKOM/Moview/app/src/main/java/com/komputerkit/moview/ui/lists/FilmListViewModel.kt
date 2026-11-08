@@ -112,6 +112,65 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /**
+     * Loads the user's own lists flagged with whether they already contain
+     * [movieId] (used by "Add to List" to disable those rows).
+     */
+    fun loadMyListsForMovie(movieId: Int) {
+        val userId = currentUserId
+        if (userId <= 0) {
+            _lists.value = emptyList()
+            return
+        }
+
+        _isLoading.value = true
+        viewModelScope.launch {
+            try {
+                val response = api.getUserLists(userId, userId, movieId.takeIf { it > 0 })
+                _lists.postValue(response.data.orEmpty().map { it.toModel() })
+            } catch (e: Exception) {
+                _error.postValue(messageOf(e))
+            } finally {
+                _isLoading.postValue(false)
+            }
+        }
+    }
+
+    // ---- Add to List ----------------------------------------------------
+
+    /** How many lists received the film; null until an add run finishes. */
+    private val _addResult = MutableLiveData<Int?>(null)
+    val addResult: LiveData<Int?> = _addResult
+
+    /**
+     * Appends the film to every selected list. Lists that already contain it
+     * are filtered out in the UI, so each call is a fresh add.
+     */
+    fun addMovieToLists(movieId: Int, listIds: List<Int>) {
+        val userId = currentUserId
+        if (userId <= 0 || movieId <= 0 || listIds.isEmpty()) {
+            _addResult.value = 0
+            return
+        }
+
+        viewModelScope.launch {
+            var added = 0
+            for (listId in listIds) {
+                try {
+                    api.addFilmListItems(userId, listId, AddListItemsRequest(listOf(movieId)))
+                    added++
+                } catch (e: Exception) {
+                    _error.postValue(messageOf(e))
+                }
+            }
+            _addResult.postValue(added)
+        }
+    }
+
+    fun clearAddResult() {
+        _addResult.value = null
+    }
+
     fun deleteList(listId: Int) {
         val userId = currentUserId
         viewModelScope.launch {
@@ -456,6 +515,7 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
         posterUrl = poster_url?.let { ServerConfig.fixUrl(it) },
         backdropUrl = backdrop_url?.let { ServerConfig.fixUrl(it) },
         posterUrls = poster_urls.orEmpty().mapNotNull { url -> url.takeIf { it.isNotBlank() }?.let { ServerConfig.fixUrl(it) } },
+        containsMovie = contains_movie,
         items = items.orEmpty().map { it.toModel() }
     )
 

@@ -27,10 +27,11 @@ class FilmListApiController extends Controller
     // Collections
     // ------------------------------------------------------------------
 
-    /** GET /users/{userId}/lists?viewer_id= */
+    /** GET /users/{userId}/lists?viewer_id=&movie_id= */
     public function index(Request $request, $userId)
     {
         $viewerId = (int) $request->get('viewer_id', 0);
+        $movieId = (int) $request->get('movie_id', 0);
 
         $lists = FilmList::withCount('items')
             ->with('user.userProfile')
@@ -42,9 +43,23 @@ class FilmListApiController extends Controller
 
         $covers = $this->coverLookup($lists->pluck('id')->all(), $viewerId);
 
+        // Optional "Add to List" scope: which lists already hold this film.
+        $listIdsWithMovie = $movieId > 0
+            ? FilmListItem::whereIn('film_list_id', $lists->pluck('id')->all())
+                ->where('movie_id', $movieId)
+                ->pluck('film_list_id')
+                ->map(fn ($id) => (int) $id)
+                ->all()
+            : [];
+
         return response()->json([
             'success' => true,
-            'data' => $lists->map(fn (FilmList $list) => $this->formatList($list, $covers)),
+            'data' => $lists->map(function (FilmList $list) use ($covers, $listIdsWithMovie) {
+                $payload = $this->formatList($list, $covers);
+                $payload['contains_movie'] = in_array((int) $list->id, $listIdsWithMovie, true);
+
+                return $payload;
+            }),
         ]);
     }
 

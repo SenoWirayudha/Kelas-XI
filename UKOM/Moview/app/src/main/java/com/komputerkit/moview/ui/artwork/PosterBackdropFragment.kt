@@ -39,6 +39,12 @@ class PosterBackdropFragment : Fragment() {
 
     private val isShareMode: Boolean get() = args.shareMode
 
+    /**
+     * Backdrop picker opened from a list: posters are not a valid choice there
+     * (the list back cover is always a backdrop), so the tab row is hidden.
+     */
+    private val isBackdropOnly: Boolean get() = args.listMode && args.openBackdropsTab
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -77,6 +83,10 @@ class PosterBackdropFragment : Fragment() {
             binding.btnSetCover.text = pickerButtonLabel()
             switchToTab(ArtworkType.BACKDROP)
             updatePickerButton()
+        } else if (isBackdropOnly) {
+            // From a list: only backdrops apply, so hide the Poster tab.
+            binding.layoutTabs.visibility = View.GONE
+            switchToTab(ArtworkType.BACKDROP)
         } else if (args.openBackdropsTab) {
             switchToTab(ArtworkType.BACKDROP)
         }

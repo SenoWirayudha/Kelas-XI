@@ -218,7 +218,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.eventDetailFragment,
                 // Only the list form/picker are full-screen; list screens keep the navbar.
                 R.id.listEditorFragment,
-                R.id.filmPickerFragment -> {
+                R.id.filmPickerFragment,
+                R.id.addToListFragment -> {
                     binding.bottomNavigation.visibility = View.GONE
                 }
                 R.id.navigation_search -> {

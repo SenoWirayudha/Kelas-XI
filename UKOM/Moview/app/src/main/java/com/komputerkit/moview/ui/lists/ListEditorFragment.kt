@@ -9,13 +9,16 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.FilmList
 import com.komputerkit.moview.data.model.FilmListItem
+import com.komputerkit.moview.data.repository.MovieRepository
 import com.komputerkit.moview.databinding.FragmentListEditorBinding
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.showSnackbar
+import kotlinx.coroutines.launch
 
 /** Screen 2: create or edit a list. UI state is local until Save. */
 class ListEditorFragment : Fragment() {
@@ -28,6 +31,8 @@ class ListEditorFragment : Fragment() {
     private var editing: FilmList? = null
 
     private lateinit var gridAdapter: PosterGridAdapter
+
+    private val repository = MovieRepository()
 
     /** Films picked in this screen, in display order. */
     private val pickedItems = mutableListOf<FilmListItem>()
@@ -179,6 +184,34 @@ class ListEditorFragment : Fragment() {
         if (listId > 0) {
             viewModel.loadList(listId)
         }
+
+        // "Add to List" seeds the film so the new list already holds it.
+        if (listId == 0 && args.presetMovieId > 0) {
+            seedPresetMovie(args.presetMovieId)
+        }
+    }
+
+    /** Loads the film from "Add to List" into the picker state. */
+    private fun seedPresetMovie(movieId: Int) {
+        if (pickedItems.any { it.movieId == movieId }) return
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val movie = repository.getMovieDetail(movieId) ?: return@launch
+            if (_binding == null || pickedItems.any { it.movieId == movieId }) return@launch
+
+            pickedItems.add(
+                FilmListItem(
+                    movieId = movieId,
+                    position = pickedItems.size + 1,
+                    title = movie.title,
+                    releaseYear = movie.releaseYear,
+                    ageRating = null,
+                    posterUrl = movie.posterUrl,
+                    backdropUrl = movie.backdropUrl
+                )
+            )
+            renderFilms()
+        }
     }
 
     private fun observe() {
@@ -198,6 +231,12 @@ class ListEditorFragment : Fragment() {
 
             if (listId > 0) {
                 findNavController().navigateUp()
+            } else if (args.returnToCaller) {
+                // Came from "Add to List": the film is already part of the new
+                // list, so just go back and let that screen refresh.
+                val activity = activity
+                findNavController().navigateUp()
+                activity?.showSnackbar("List dibuat.", SnackbarType.SUCCESS)
             } else if (createdId > 0) {
                 val options = androidx.navigation.NavOptions.Builder()
                     .setPopUpTo(R.id.listEditorFragment, true)
@@ -266,7 +305,9 @@ class ListEditorFragment : Fragment() {
 
     private fun renderToggles() {
         if (_binding == null) return
-        val accent = ContextCompat.getColor(requireContext(), R.color.accent_blue)
+        // Active state stays blue but muted: the accent at low opacity, so it
+        // sits calmly on the dark background instead of glowing.
+        val accent = ContextCompat.getColor(requireContext(), R.color.toggle_active)
         val muted = ContextCompat.getColor(requireContext(), R.color.text_secondary)
 
         // Trophy: outline when off, solid when on (same silhouette).

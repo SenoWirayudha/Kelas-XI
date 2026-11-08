@@ -177,6 +177,11 @@
         <item name="textAllCaps">false</item>
     </style>
 
+    <!-- Same tab label, one step smaller for compact screens (Add to List). -->
+    <style name="TabTextStyle.Compact">
+        <item name="android:textSize">13sp</item>
+    </style>
+
     <!-- Collapsing Toolbar Title -->
     <style name="TextAppearance.Moview.Toolbar.Title" parent="TextAppearance.MaterialComponents.Body1">
         <item name="android:fontFamily">@font/font_family_inter</item>

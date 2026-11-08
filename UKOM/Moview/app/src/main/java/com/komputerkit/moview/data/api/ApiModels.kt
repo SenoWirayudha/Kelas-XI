@@ -1057,6 +1057,8 @@ data class FilmListDto(
     val backdrop_url: String? = null,
     val poster_urls: List<String>? = null,
     val updated_at: String? = null,
+    /** Present when the request was scoped to a movie_id. */
+    val contains_movie: Boolean = false,
     val items: List<FilmListItemDto>? = null
 )
 

@@ -1334,6 +1334,16 @@
             android:name="listId"
             app:argType="integer"
             android:defaultValue="0" />
+        <!-- Film seeded from "Add to List" so a new list starts with it. -->
+        <argument
+            android:name="presetMovieId"
+            app:argType="integer"
+            android:defaultValue="0" />
+        <!-- Return to the caller (Add to List) instead of opening list detail. -->
+        <argument
+            android:name="returnToCaller"
+            app:argType="boolean"
+            android:defaultValue="false" />
         <action
             android:id="@+id/action_listEditor_to_listDetail"
             app:destination="@id/listDetailFragment"
@@ -1394,6 +1404,23 @@
             app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
+    <!-- Add to List: multi-select the user's lists for one film. -->
+    <fragment
+        android:id="@+id/addToListFragment"
+        android:name="com.komputerkit.moview.ui.lists.AddToListFragment"
+        android:label="Add to List">
+        <argument
+            android:name="movieId"
+            app:argType="integer" />
+        <action
+            android:id="@+id/action_addToList_to_listEditor"
+            app:destination="@id/listEditorFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
     <fragment
         android:id="@+id/filmPickerFragment"
         android:name="com.komputerkit.moview.ui.lists.FilmPickerFragment"
@@ -1430,5 +1457,14 @@
             app:popEnterAnim="@anim/slide_in_left"
             app:popExitAnim="@anim/slide_out_right" />
     </fragment>
+
+    <!-- Reachable from the film action sheet on any screen. -->
+    <action
+        android:id="@+id/action_global_addToList"
+        app:destination="@id/addToListFragment"
+        app:enterAnim="@anim/slide_in_right"
+        app:exitAnim="@anim/slide_out_left"
+        app:popEnterAnim="@anim/slide_in_left"
+        app:popExitAnim="@anim/slide_out_right" />
 
 </navigation>

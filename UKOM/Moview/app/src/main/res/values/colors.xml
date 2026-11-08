@@ -25,6 +25,10 @@
     <color name="text_secondary">#8899A6</color>
     <color name="colorAccent">#135bec</color>
     <color name="accent_blue">#135bec</color>
+    <!-- Muted "on" state for the list-editor toggles: the existing accent blue
+         at low opacity so an active toggle reads without glowing on dark. -->
+    <color name="toggle_active">#99135BEC</color>
+    <color name="toggle_active_badge">#66135BEC</color>
     <color name="accent_gold">#FFD700</color>
     <color name="brand_xxi">#d0ac7b</color>
     <color name="brand_cgv">#ee2a1f</color>

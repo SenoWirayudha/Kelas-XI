@@ -21,6 +21,8 @@ data class FilmList(
     val backdropUrl: String? = null,
     /** Up to 7 posters for the overlapping strip on the My List row. */
     val posterUrls: List<String> = emptyList(),
+    /** Set when the query was scoped to one film ("Add to List" marking). */
+    val containsMovie: Boolean = false,
     val items: List<FilmListItem> = emptyList()
 ) {
     val isRanked: Boolean get() = type == TYPE_RANKED

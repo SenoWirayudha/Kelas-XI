@@ -62,6 +62,16 @@ object MovieActionsHelper {
         return null
     }
 
+    /** Host activity of a (possibly wrapped) context. */
+    private fun activityOf(context: Context): android.app.Activity? {
+        var ctx: Context? = context
+        while (ctx is ContextWrapper) {
+            if (ctx is android.app.Activity) return ctx
+            ctx = ctx.baseContext
+        }
+        return ctx as? android.app.Activity
+    }
+
     /**
      * Shows the movie actions bottom sheet
      * @param context Context
@@ -525,6 +535,20 @@ object MovieActionsHelper {
         binding.btnGoToFilm.setOnClickListener {
             bottomSheetDialog.dismiss()
             onGoToFilm?.invoke(movie)
+        }
+
+        binding.btnAddToList.setOnClickListener {
+            bottomSheetDialog.dismiss()
+            try {
+                val activity = activityOf(context)
+                if (activity != null) {
+                    val navController = Navigation.findNavController(activity, R.id.nav_host_fragment)
+                    val bundle = android.os.Bundle().apply { putInt("movieId", movie.id) }
+                    navController.navigate(R.id.action_global_addToList, bundle, pushNavOptions)
+                }
+            } catch (e: Exception) {
+                Log.e("MovieActionsHelper", "Cannot navigate to Add to List", e)
+            }
         }
 
         binding.btnViewPoster.setOnClickListener {

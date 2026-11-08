@@ -582,7 +582,9 @@ interface MovieApiService {
     @GET("users/{userId}/lists")
     suspend fun getUserLists(
         @Path("userId") userId: Int,
-        @Query("viewer_id") viewerId: Int? = null
+        @Query("viewer_id") viewerId: Int? = null,
+        /** When set, each list reports whether it already contains this film. */
+        @Query("movie_id") movieId: Int? = null
     ): ApiResponse<List<FilmListDto>>
 
     @POST("users/{userId}/lists")

@@ -52,6 +52,7 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:clipChildren="false"
         android:clipToPadding="false"
         android:paddingBottom="88dp"
         app:layout_constraintBottom_toTopOf="@id/bottom_bar"
@@ -62,6 +63,8 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
             android:paddingTop="8dp"
@@ -116,6 +119,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
+                android:clipChildren="false"
                 android:clipToPadding="false"
                 android:nestedScrollingEnabled="false"
                 android:paddingTop="16dp"
@@ -200,11 +204,12 @@
                     android:layout_height="14dp"
                     android:layout_gravity="top|end"
                     android:background="@drawable/circle_background"
+                    android:backgroundTint="@color/toggle_active_badge"
                     android:contentDescription="Aktif"
                     android:padding="2dp"
                     android:src="@drawable/ic_check"
                     android:visibility="gone"
-                    app:tint="@android:color/white" />
+                    app:tint="@color/text_primary" />
             </FrameLayout>
 
             <TextView
@@ -246,11 +251,12 @@
                     android:layout_height="14dp"
                     android:layout_gravity="top|end"
                     android:background="@drawable/circle_background"
+                    android:backgroundTint="@color/toggle_active_badge"
                     android:contentDescription="Aktif"
                     android:padding="2dp"
                     android:src="@drawable/ic_check"
                     android:visibility="gone"
-                    app:tint="@android:color/white" />
+                    app:tint="@color/text_primary" />
             </FrameLayout>
 
             <TextView
@@ -292,11 +298,12 @@
                     android:layout_height="14dp"
                     android:layout_gravity="top|end"
                     android:background="@drawable/circle_background"
+                    android:backgroundTint="@color/toggle_active_badge"
                     android:contentDescription="Aktif"
                     android:padding="2dp"
                     android:src="@drawable/ic_check"
                     android:visibility="gone"
-                    app:tint="@android:color/white" />
+                    app:tint="@color/text_primary" />
             </FrameLayout>
 
             <TextView
