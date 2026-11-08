@@ -17,6 +17,7 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.core.view.ViewCompat
 import androidx.core.view.doOnLayout
+import androidx.core.view.doOnPreDraw
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import com.bumptech.glide.Glide
@@ -253,11 +254,10 @@ class MovieDetailFragment : Fragment() {
             isDescriptionExpanded = false
             binding.tvDescription.maxLines = SYNOPSIS_COLLAPSED_LINES
             binding.btnReadMore.text = "Read more"
-            // First load never went through the layout listener below (the
-            // layout already happened, or ran before the text was set), so the
-            // button stayed GONE until the screen was revisited. Evaluate after
-            // this text is measured.
-            binding.tvDescription.post { updateReadMoreVisibility() }
+            // Measure on the next pre-draw, when the TextView already has its
+            // final width (a plain post{} could still see width 0 inside the
+            // NestedScrollView and silently skip the button).
+            scheduleReadMoreCheck()
             binding.tvWatchedCount.text = movie.watchedCount ?: "0"
             binding.tvReviewCount.text = movie.reviewCount ?: "0"
             binding.tvAverageRating.text = String.format("%.1f", movie.averageRating ?: 0.0)
@@ -670,9 +670,10 @@ class MovieDetailFragment : Fragment() {
             isDescriptionExpanded = !isDescriptionExpanded
         }
 
-        // "Read more" only makes sense while the synopsis is really truncated.
-        binding.tvDescription.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            updateReadMoreVisibility()
+        // Re-evaluate when the width changes (rotation, split-screen); the
+        // first-load case is handled by scheduleReadMoreCheck() after binding.
+        binding.tvDescription.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (right - left != oldRight - oldLeft) updateReadMoreVisibility()
         }
         
         val navigateToReviews: () -> Unit = {
@@ -1241,23 +1242,59 @@ class MovieDetailFragment : Fragment() {
     }
 
     /**
-     * Hides "Read more" when the whole synopsis already fits, so a short text
-     * never shows a dangling button or a separate ellipsis row.
+     * Waits until the TextView is actually measured (pre-draw of the scroll
+     * view), then evaluates "Read more". Retries a few frames because on a cold
+     * open the description can still report width 0 on the first pass.
+     */
+    private fun scheduleReadMoreCheck(attempt: Int = 0) {
+        val view = view ?: return
+        view.doOnPreDraw {
+            if (_binding == null) return@doOnPreDraw
+            if (binding.tvDescription.width > 0) {
+                updateReadMoreVisibility()
+            } else if (attempt < READ_MORE_MAX_ATTEMPTS) {
+                scheduleReadMoreCheck(attempt + 1)
+            } else {
+                // Never leave the button permanently hidden if the width never
+                // arrives; a visible-but-expandable button degrades gracefully.
+                binding.btnReadMore.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    /**
+     * Shows "Read more" only when the synopsis really is truncated.
+     *
+     * Truncation is measured with a throwaway StaticLayout instead of reading
+     * `TextView.layout`: inside a NestedScrollView the text can already be laid
+     * out from a previous (different) movie, and `getEllipsisCount` then reports
+     * stale data, which is why the button stayed hidden on the first open and
+     * only appeared after another bind.
      */
     private fun updateReadMoreVisibility() {
         if (_binding == null) return
         val text = binding.tvDescription
-        // Still unmeasured (no width/height yet): wait for the next layout pass
-        // instead of silently leaving the button hidden.
-        if (text.width <= 0 || text.layout == null) {
-            text.post { if (_binding != null) updateReadMoreVisibility() }
-            return
-        }
-        val layout = text.layout
-        val truncated = layout.lineCount > 0 &&
-            layout.getEllipsisCount(layout.lineCount - 1) > 0
+        val layoutWidth = text.width -
+            text.compoundPaddingLeft - text.compoundPaddingRight
+        if (layoutWidth <= 0) return
+
+        val truncated = isSynopsisTruncated(text.text, layoutWidth)
         binding.btnReadMore.visibility =
             if (isDescriptionExpanded || truncated) View.VISIBLE else View.GONE
+    }
+
+    /** Measures the collapsed synopsis at [width] without touching the view. */
+    private fun isSynopsisTruncated(content: CharSequence?, width: Int): Boolean {
+        if (content.isNullOrEmpty() || width <= 0) return false
+        val text = binding.tvDescription
+        val paint = android.text.TextPaint(text.paint)
+        val layout = android.text.StaticLayout.Builder
+            .obtain(content, 0, content.length, paint, width)
+            .setMaxLines(SYNOPSIS_COLLAPSED_LINES)
+            .setEllipsize(android.text.TextUtils.TruncateAt.END)
+            .setIncludePad(text.includeFontPadding)
+            .build()
+        return layout.lineCount > 0 && layout.getEllipsisCount(layout.lineCount - 1) > 0
     }
 
     private fun setHeaderTitleVisible(visible: Boolean) {
@@ -1281,6 +1318,9 @@ class MovieDetailFragment : Fragment() {
 
 /** Collapsed synopsis height; "Read more" expands it. */
 private const val SYNOPSIS_COLLAPSED_LINES = 3
+
+/** Frames to wait for the description to be measured before giving up. */
+private const val READ_MORE_MAX_ATTEMPTS = 5
 
 /** Any run of whitespace (newlines included) inside the synopsis. */
 private val WHITESPACE_RUN = Regex("\\s+")
