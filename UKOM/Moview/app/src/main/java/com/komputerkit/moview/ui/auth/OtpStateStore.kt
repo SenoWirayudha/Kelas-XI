@@ -30,18 +30,20 @@ object OtpStateStore {
         val flow: String,
         val expiresAt: Long,
         val resendAvailableAt: Long
-    )
+    ) {
+        val purpose: OtpPurpose? get() = OtpPurpose.fromWire(flow)
+    }
 
     /**
      * Persists a fresh verification. Called once when the OTP screen is first
      * opened for an email (not on configuration changes, which would otherwise
      * reset the cooldown/expiry timestamps).
      */
-    fun save(context: Context, email: String, flow: String) {
+    fun save(context: Context, email: String, purpose: OtpPurpose) {
         val now = System.currentTimeMillis()
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putString(KEY_EMAIL, email)
-            .putString(KEY_FLOW, flow)
+            .putString(KEY_FLOW, purpose.wire)
             .putLong(KEY_EXPIRES_AT, now + OTP_TTL_MILLIS)
             .putLong(KEY_RESEND_AVAILABLE_AT, now + RESEND_COOLDOWN_MILLIS)
             .apply()
@@ -77,6 +79,16 @@ object OtpStateStore {
             return null
         }
         return state
+    }
+
+    /**
+     * Pending state for one purpose only. The app start guard uses this with
+     * [OtpPurpose.REGISTER]: a leftover delete-account verification must never
+     * hijack a normal launch and bounce the user back to the OTP screen.
+     */
+    fun getValid(context: Context, purpose: OtpPurpose): OtpState? {
+        val state = getValid(context) ?: return null
+        return state.takeIf { OtpPurpose.fromWire(it.flow) == purpose }
     }
 
     /** Wipes the pending verification (success, cancel, expiry, logout). */

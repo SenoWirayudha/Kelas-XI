@@ -180,6 +180,7 @@ class AuthController extends Controller
             }
 
             $this->issueOtp($email, [
+                'purpose' => EmailOtp::PURPOSE_REGISTER,
                 'username' => $request->username,
                 // Stored hashed — plaintext never leaves this request.
                 'password' => Hash::make($request->password),
@@ -227,7 +228,7 @@ class AuthController extends Controller
 
         $email = strtolower(trim($request->input('email')));
 
-        $record = EmailOtp::where('email', $email)->first();
+        $record = EmailOtp::pending($email, EmailOtp::PURPOSE_REGISTER);
 
         if (!$record) {
             return response()->json([
@@ -377,7 +378,7 @@ class AuthController extends Controller
             ], 429);
         }
 
-        $record = EmailOtp::where('email', $email)->first();
+        $record = EmailOtp::pending($email, EmailOtp::PURPOSE_REGISTER);
 
         if (!$record) {
             return response()->json([
@@ -409,7 +410,12 @@ class AuthController extends Controller
      */
     private function issueOtp(string $email, array $payload, ?EmailOtp $existing = null): void
     {
-        EmailOtp::where('email', $email)->delete();
+        // Replace only this purpose's code: a pending delete-account (or
+        // change-password) code for the same email must survive.
+        EmailOtp::purgePurpose(
+            $email,
+            (string) ($payload['purpose'] ?? EmailOtp::PURPOSE_REGISTER)
+        );
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 

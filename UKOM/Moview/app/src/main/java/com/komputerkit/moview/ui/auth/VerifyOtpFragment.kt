@@ -38,7 +38,7 @@ import kotlinx.coroutines.launch
  * The account only becomes active (and the session starts) after the code
  * verifies; resend has a 60-second cooldown handled by the server.
  *
- * Hardened: the pending verification (email, flow, absolute expiry + resend
+ * Hardened: the pending verification (email, purpose, absolute expiry + resend
  * timestamps) is persisted locally so the app returns here after a process
  * death or an email-app round-trip; the typed code survives recreation via a
  * ViewModel + savedInstanceState; countdowns are derived from absolute
@@ -57,7 +57,10 @@ class VerifyOtpFragment : Fragment() {
     private lateinit var viewModel: VerifyOtpViewModel
 
     private var email: String = ""
-    private var flow: String = "register"
+    private var purpose: OtpPurpose = OtpPurpose.REGISTER
+    /** Set once the screen is done (success / cancel / expiry) so a re-created
+     *  view never re-arms the pending state we just cleared. */
+    private var exited: Boolean = false
     private var resendTimer: CountDownTimer? = null
     private var otpHasError: Boolean = false
     private var isVerifying: Boolean = false
@@ -108,21 +111,24 @@ class VerifyOtpFragment : Fragment() {
     }
 
     /**
-     * Resolves the email/flow to verify. Prefers the navigation arguments,
+     * Resolves the email + purpose to verify. Prefers the navigation arguments,
      * falls back to the locally-persisted pending state (process death /
      * relaunch), and finally leaves for Login with a Snackbar when neither
      * exists. Returns false when the screen cannot be shown.
      */
     private fun resolveEmail(savedInstanceState: Bundle?): Boolean {
         email = arguments?.getString("email").orEmpty()
-        flow = arguments?.getString("flow") ?: "register"
+        val args = arguments
+        // `purpose` is the canonical arg; `flow` is kept for older call sites.
+        val requested = OtpPurpose.fromWire(args?.getString("purpose"))
+            ?: OtpPurpose.fromWire(args?.getString("flow"))
 
         if (email.isEmpty()) {
             // No args — restore the pending verification if one survived.
             val state = OtpStateStore.getValid(requireContext())
-            if (state != null) {
+            if (state != null && state.purpose != null) {
                 email = state.email
-                flow = state.flow
+                purpose = state.purpose!!
                 return true
             }
             // Nothing pending — do not crash; return to Login.
@@ -131,13 +137,24 @@ class VerifyOtpFragment : Fragment() {
             return false
         }
 
+        if (requested == null) {
+            // Unknown purpose (e.g. a stale argument from an older build):
+            // never guess an action — drop the state and go back to Login.
+            exited = true
+            OtpStateStore.clear(requireContext())
+            showSnackbar("Sesi verifikasi tidak valid. Silakan ulangi dari awal.", SnackbarType.ERROR)
+            goToLogin()
+            return false
+        }
+        purpose = requested
+
         // Email came from arguments. Persist it so a later process death can
         // resume here — but only on a FRESH entry (a configuration change
         // re-runs onViewCreated with the same args and must not reset the
         // expiry/cooldown timestamps).
         val existing = OtpStateStore.peek(requireContext())
-        if (existing == null || existing.email != email) {
-            OtpStateStore.save(requireContext(), email, flow)
+        if (!exited && (existing == null || existing.email != email || existing.flow != purpose.wire)) {
+            OtpStateStore.save(requireContext(), email, purpose)
         }
         return true
     }
@@ -205,9 +222,10 @@ class VerifyOtpFragment : Fragment() {
         if (_binding == null || email.isEmpty()) return
         val state = OtpStateStore.peek(requireContext()) ?: return
         if (System.currentTimeMillis() > state.expiresAt) {
+            exited = true
             OtpStateStore.clear(requireContext())
             viewModel.updateOtp("")
-            if (flow == "register") {
+            if (purpose == OtpPurpose.REGISTER) {
                 showSnackbar(
                     "Kode OTP kedaluwarsa. Silakan daftar ulang untuk mendapatkan kode baru.",
                     SnackbarType.ERROR
@@ -362,7 +380,7 @@ class VerifyOtpFragment : Fragment() {
     /** Asks before discarding the in-flight verification. */
     private fun confirmExit() {
         if (_binding == null) return
-        val message = if (flow == "register") {
+        val message = if (purpose == OtpPurpose.REGISTER) {
             "Proses verifikasi akan dihentikan. Kamu bisa mendaftar lagi kapan saja untuk mendapatkan kode baru."
         } else {
             "Proses verifikasi akan dihentikan. Kamu bisa memulai ulang dari Pengaturan profil kapan saja."
@@ -377,11 +395,12 @@ class VerifyOtpFragment : Fragment() {
 
     /** Leaves the OTP screen after a confirmed cancel. */
     private fun cancelVerification() {
+        exited = true
         OtpStateStore.clear(requireContext())
         viewModel.updateOtp("")
-        // Non-register flows (change password / delete account) simply go
-        // back to Edit Profile — only Sign-Up belongs on Sign-Up/Login.
-        if (flow != "register") {
+        // Delete-account verification simply goes back to Edit Profile — only
+        // Sign-Up belongs on Sign-Up/Login.
+        if (purpose != OtpPurpose.REGISTER) {
             findNavController().navigateUp()
             return
         }
@@ -396,11 +415,12 @@ class VerifyOtpFragment : Fragment() {
         }
     }
 
-    /** Pops everything back to the graph start and opens Login. */
+    /** Pops the whole stack and opens Login as the only entry. */
     private fun goToLogin() {
         try {
             val navOptions = NavOptions.Builder()
-                .setPopUpTo(navControllerStartId(), false)
+                .setPopUpTo(navControllerStartId(), true)
+                .setLaunchSingleTop(true)
                 .setEnterAnim(R.anim.slide_in_left)
                 .setExitAnim(R.anim.slide_out_right)
                 .setPopEnterAnim(R.anim.slide_in_left)
@@ -439,10 +459,9 @@ class VerifyOtpFragment : Fragment() {
 
         // viewLifecycleOwner: the coroutine is cancelled the moment the view
         // goes away, so callbacks can never touch a dead binding.
-        if (flow == "register") {
-            verifyRegisterCode(code)
-        } else {
-            verifyActionCode(code)
+        when (purpose) {
+            OtpPurpose.REGISTER -> verifyRegisterCode(code)
+            OtpPurpose.DELETE_ACCOUNT -> verifyActionCode(code)
         }
     }
 
@@ -453,6 +472,7 @@ class VerifyOtpFragment : Fragment() {
                 .onSuccess { loginData ->
                     if (!isAdded || _binding == null) return@onSuccess
                     isVerifying = false
+                    exited = true
                     OtpStateStore.clear(requireContext())
                     viewModel.updateOtp("")
                     saveLoginState(
@@ -499,7 +519,11 @@ class VerifyOtpFragment : Fragment() {
         }
     }
 
-    /** delete_account: the code is verified and the account removed atomically. */
+    /**
+     * delete_account: the code is verified and the account removed atomically.
+     * On success the local session is wiped and the app lands on Login with an
+     * empty auth stack — it must never come back to this screen.
+     */
     private fun verifyActionCode(code: String) {
         viewLifecycleOwner.lifecycleScope.launch {
             val result = authRepository.deleteAccount(email, code = code)
@@ -508,6 +532,7 @@ class VerifyOtpFragment : Fragment() {
             showLoading(false)
             result
                 .onSuccess {
+                    exited = true
                     OtpStateStore.clear(requireContext())
                     viewModel.updateOtp("")
                     finishAccountDeletion()
@@ -517,16 +542,39 @@ class VerifyOtpFragment : Fragment() {
                     val message = ErrorMessage.fromApi(error, "Kode OTP salah. Coba lagi.")
                         ?: "Kode OTP salah. Coba lagi."
                     showSnackbar(message, SnackbarType.ERROR)
+                    // A dead code (expired / too many attempts / wrong purpose)
+                    // can never succeed on retry: drop the local pending state
+                    // so the next app start does not bounce back here.
+                    if (isDeadOtpError(error)) {
+                        exited = true
+                        OtpStateStore.clear(requireContext())
+                    }
                     setOtpErrorBorder(true)
                 }
         }
     }
 
+    /** True for server answers that mean "this code is unusable from now on". */
+    private fun isDeadOtpError(error: Throwable?): Boolean = when (ErrorMessage.codeOf(error)) {
+        401, 403 -> true
+        else -> {
+            val raw = ErrorMessage.serverMessageRaw(error).orEmpty().lowercase()
+            raw.contains("kedaluwarsa") ||
+                raw.contains("terlalu banyak percobaan") ||
+                raw.contains("tidak ditemukan") ||
+                raw.contains("tidak berlaku")
+        }
+    }
+
     /** Local session teardown after the server removed the account. */
     private fun finishAccountDeletion() {
+        exited = true
         OtpStateStore.clear(requireContext())
+        com.komputerkit.moview.ui.profile.ChangePasswordOtpStore.clear(requireContext())
         val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         prefs.edit().clear().apply()
+        hideKeyboard()
+        applyImmersiveStatusBar(false)
         showSnackbar("Akun berhasil dihapus", SnackbarType.SUCCESS)
         goToLogin()
     }
@@ -539,9 +587,9 @@ class VerifyOtpFragment : Fragment() {
         binding.btnVerify.isEnabled = false
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = when (flow) {
-                "delete_account" -> authRepository.requestDeleteAccountOtp(email)
-                else -> authRepository.resendOtp(email)
+            val result = when (purpose) {
+                OtpPurpose.DELETE_ACCOUNT -> authRepository.requestDeleteAccountOtp(email)
+                OtpPurpose.REGISTER -> authRepository.resendOtp(email)
             }
             if (!isAdded || _binding == null) return@launch
             isResending = false

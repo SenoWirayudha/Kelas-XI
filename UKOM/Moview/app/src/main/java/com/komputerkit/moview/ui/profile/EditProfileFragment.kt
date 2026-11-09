@@ -1191,7 +1191,10 @@ class EditProfileFragment : Fragment() {
                         R.id.action_editProfile_to_verifyOtp,
                         Bundle().apply {
                             putString("email", email)
-                            putString("flow", "delete_account")
+                            putString(
+                                "purpose",
+                                com.komputerkit.moview.ui.auth.OtpPurpose.DELETE_ACCOUNT.wire
+                            )
                         }
                     )
                 }

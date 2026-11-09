@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Exceptions\AccountVerificationException;
 use App\Http\Controllers\Controller;
 use App\Models\EmailOtp;
 use App\Models\PasswordResetToken;
@@ -9,7 +10,9 @@ use App\Services\BrevoMailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 /**
@@ -24,8 +27,8 @@ use Illuminate\Support\Facades\Validator;
  */
 class AccountController extends Controller
 {
-    private const PURPOSE_CHANGE_PASSWORD = 'change_password';
-    private const PURPOSE_DELETE_ACCOUNT = 'delete_account';
+    private const PURPOSE_CHANGE_PASSWORD = EmailOtp::PURPOSE_CHANGE_PASSWORD;
+    private const PURPOSE_DELETE_ACCOUNT = EmailOtp::PURPOSE_DELETE_ACCOUNT;
 
     /** Seconds before the same account may request another code. */
     private const RESEND_COOLDOWN_SECONDS = 45;
@@ -307,22 +310,34 @@ class AccountController extends Controller
                     'message' => 'Verifikasi akun Google gagal.',
                 ], 422);
             }
-        } else {
-            $verification = $this->consumeActionOtp(
-                $email,
-                self::PURPOSE_DELETE_ACCOUNT,
-                (string) $code,
-                (int) $user->id
-            );
-
-            if ($verification !== null) {
-                return $verification;
-            }
         }
 
         try {
-            DB::transaction(function () use ($user, $email) {
-                DB::table('users')->where('id', $user->id)->delete();
+            DB::transaction(function () use ($user, $email, $code) {
+                // The OTP is checked AND consumed inside the transaction: if the
+                // delete fails, the rollback keeps the code usable instead of
+                // burning it (which used to leave the user stuck on the OTP
+                // screen with a code the server no longer knew).
+                if (empty($code) === false) {
+                    $verification = $this->consumeActionOtp(
+                        $email,
+                        self::PURPOSE_DELETE_ACCOUNT,
+                        (string) $code,
+                        (int) $user->id
+                    );
+
+                    if ($verification !== null) {
+                        throw new AccountVerificationException($verification);
+                    }
+                }
+
+                $this->detachUserReferences((int) $user->id, $email);
+
+                $deleted = DB::table('users')->where('id', $user->id)->delete();
+
+                if ($deleted !== 1) {
+                    throw new \RuntimeException('User row was not deleted.');
+                }
 
                 // Housekeeping: no pending codes for an account that no longer exists.
                 EmailOtp::where('email', $email)->delete();
@@ -336,11 +351,64 @@ class AccountController extends Controller
                     'email' => $email,
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (AccountVerificationException $e) {
+            return $e->response;
+        } catch (\Throwable $e) {
+            // Never leak SQL internals to the app — the user gets an actionable
+            // message, the details land in the log.
+            Log::error('delete-account failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal menghapus akun: ' . $e->getMessage(),
+                'message' => 'Gagal menghapus akun. Coba lagi sebentar lagi atau hubungi admin.',
             ], 500);
+        }
+    }
+
+    /**
+     * Clears every row that could hold the account back from being deleted.
+     *
+     * The core user tables cascade from `users`, but optional / legacy tables
+     * reference the account WITHOUT a constraint (film lists, promos) or via a
+     * column added by an older schema. Rows there are cleaned explicitly first
+     * so the delete can never fail on an implicit reference.
+     */
+    private function detachUserReferences(int $userId, string $email): void
+    {
+        // Film lists: items + comments first (no FK), then the lists.
+        if (Schema::hasTable('film_lists')) {
+            $listIds = DB::table('film_lists')->where('user_id', $userId)->pluck('id');
+
+            if ($listIds->isNotEmpty()) {
+                if (Schema::hasTable('film_list_comments')) {
+                    DB::table('film_list_comments')->whereIn('film_list_id', $listIds)->delete();
+                    DB::table('film_list_comments')->where('user_id', $userId)->delete();
+                }
+
+                if (Schema::hasTable('film_list_items')) {
+                    DB::table('film_list_items')->whereIn('film_list_id', $listIds)->delete();
+                }
+
+                DB::table('film_lists')->whereIn('id', $listIds)->delete();
+            }
+        }
+
+        // Promo redemptions (no FK to users).
+        if (Schema::hasTable('promo_usages')) {
+            DB::table('promo_usages')->where('user_id', $userId)->delete();
+        }
+
+        // Orders are the money trail: they are kept but no longer owned by the
+        // account (user_id is nullable by design).
+        if (Schema::hasTable('orders') && Schema::hasColumn('orders', 'user_id')) {
+            DB::table('orders')->where('user_id', $userId)->update(['user_id' => null]);
+        }
+
+        if (Schema::hasTable('notifications')) {
+            DB::table('notifications')->where('user_id', $userId)->delete();
         }
     }
 
@@ -361,7 +429,9 @@ class AccountController extends Controller
         string $intro,
         string $footer
     ): void {
-        EmailOtp::where('email', $email)->delete();
+        // Replace only this purpose's pending code (register / other action
+        // codes for the same email stay valid).
+        EmailOtp::purgePurpose($email, $purpose);
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
@@ -399,7 +469,7 @@ class AccountController extends Controller
         string $code,
         int $userId
     ): ?\Illuminate\Http\JsonResponse {
-        $record = EmailOtp::where('email', $email)->first();
+        $record = EmailOtp::pending($email, $purpose);
 
         if (!$record) {
             return response()->json([

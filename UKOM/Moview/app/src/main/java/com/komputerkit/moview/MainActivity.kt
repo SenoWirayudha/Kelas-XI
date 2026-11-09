@@ -539,21 +539,25 @@ class MainActivity : AppCompatActivity() {
     private fun checkLoginStatus() {
         val sharedPrefs = getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         val isLoggedIn = sharedPrefs.getBoolean("isLoggedIn", false)
-        
+
         if (!isLoggedIn) {
-            // Resume an in-flight OTP verification if one is still pending and
-            // unexpired (the user backgrounded mid-verify or the process died).
-            val otpState = com.komputerkit.moview.ui.auth.OtpStateStore.getValid(this)
+            // Resume ONLY a pending REGISTRATION OTP (user backgrounded mid
+            // sign-up or the process died). A leftover delete-account state must
+            // never hijack a normal launch — that is what kept bouncing the app
+            // back to the OTP screen after an account deletion.
+            val otpState = com.komputerkit.moview.ui.auth.OtpStateStore
+                .getValid(this, com.komputerkit.moview.ui.auth.OtpPurpose.REGISTER)
             if (otpState != null) {
                 navController.navigate(
                     R.id.verifyOtpFragment,
                     Bundle().apply {
                         putString("email", otpState.email)
-                        putString("flow", otpState.flow)
+                        putString("purpose", otpState.flow)
                     }
                 )
             } else {
-                // User not logged in, navigate to login
+                // Any non-registration pending state is stale at this point.
+                com.komputerkit.moview.ui.auth.OtpStateStore.clear(this)
                 navController.navigate(R.id.loginFragment)
             }
         }
