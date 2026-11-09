@@ -8,6 +8,7 @@ use App\Services\BrevoMailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 
@@ -179,12 +180,19 @@ class AuthController extends Controller
                 ], 409);
             }
 
-            $this->issueOtp($email, [
+            $sent = $this->issueOtp($email, [
                 'purpose' => EmailOtp::PURPOSE_REGISTER,
                 'username' => $request->username,
                 // Stored hashed — plaintext never leaves this request.
                 'password' => Hash::make($request->password),
             ]);
+
+            if (! $sent) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Kode OTP gagal dikirim ke emailmu. Coba lagi beberapa saat lagi.',
+                ], 502);
+            }
 
             return response()->json([
                 'success' => true,
@@ -390,7 +398,16 @@ class AuthController extends Controller
         RateLimiter::hit($key, 60);
 
         try {
-            $this->issueOtp($email, $record->payload, $record);
+            $sent = $this->issueOtp($email, $record->payload, $record);
+
+            if (! $sent) {
+                RateLimiter::clear($key);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Kode OTP gagal dikirim ke emailmu. Coba lagi beberapa saat lagi.',
+                ], 502);
+            }
 
             return response()->json([
                 'success' => true,
@@ -407,8 +424,11 @@ class AuthController extends Controller
     /**
      * Creates (or replaces) the pending OTP row for an email and emails the
      * 6-digit code. The stored code is sha256-hashed; attempts reset to 0.
+     *
+     * @return bool false when the mail provider did not accept the message
+     *              (the stored row is removed again in that case).
      */
-    private function issueOtp(string $email, array $payload, ?EmailOtp $existing = null): void
+    private function issueOtp(string $email, array $payload, ?EmailOtp $existing = null): bool
     {
         // Replace only this purpose's code: a pending delete-account (or
         // change-password) code for the same email must survive.
@@ -431,11 +451,31 @@ class AuthController extends Controller
         $username = (string) ($payload['username'] ?? '');
         $ttl = EmailOtp::TTL_MINUTES;
 
-        app(BrevoMailer::class)->send(
+        $sent = app(BrevoMailer::class)->send(
             $email,
             'Kode Verifikasi — Moview',
             view('emails.otp-register', compact('username', 'code', 'ttl'))->render()
         );
+
+        if (! $sent) {
+            // Local dev without Brevo: keep the row and log the code so the
+            // sign-up flow stays testable (never in production).
+            if (app()->environment('local')) {
+                Log::warning('OTP dev fallback (email not sent)', [
+                    'email' => $email,
+                    'purpose' => EmailOtp::PURPOSE_REGISTER,
+                    'code' => $code,
+                ]);
+
+                return true;
+            }
+
+            $record->delete();
+
+            return false;
+        }
+
+        return true;
     }
 
     /**

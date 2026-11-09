@@ -68,7 +68,12 @@ object ErrorMessage {
         t is UnknownHostException -> null   // ErrorBus posts NO_INTERNET
         t is IOException -> null            // ErrorBus posts NO_INTERNET
         t is HttpException && t.code() == 429 -> TOO_MANY_TRIES
-        t is HttpException && t.code() >= 500 -> null // ErrorBus posts SERVER_BUSY
+        t is HttpException && t.code() >= 500 -> {
+            // A 5xx WITH an explicit backend message (e.g. "Kode OTP gagal
+            // dikirim ke emailmu") is actionable — show it instead of the
+            // generic "server sibuk" that the interceptor would post.
+            parseErrorBody(t)?.let { mapServerMessage(it) ?: it }
+        }
         t is HttpException -> {
             val raw = parseErrorBody(t)
             mapServerMessage(raw) ?: raw ?: fallback

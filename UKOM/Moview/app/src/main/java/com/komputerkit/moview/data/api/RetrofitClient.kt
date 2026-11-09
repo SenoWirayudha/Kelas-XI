@@ -44,7 +44,9 @@ object RetrofitClient {
     private val errorReportingInterceptor = Interceptor { chain ->
         try {
             val response = chain.proceed(chain.request())
-            if (response.code in 500..599) {
+            // Only fall back to the generic "server sibuk" when the backend did
+            // NOT explain itself — an explicit 5xx message is shown per screen.
+            if (response.code in 500..599 && !hasExplicitMessage(response)) {
                 ErrorBus.post(ErrorMessage.SERVER_BUSY)
             }
             response
@@ -58,6 +60,15 @@ object RetrofitClient {
             }
             throw e
         }
+    }
+
+    /** True when a 5xx body carries a usable `message` field. */
+    private fun hasExplicitMessage(response: okhttp3.Response): Boolean = try {
+        val body = response.peekBody(64 * 1024).string()
+        body.isNotBlank() &&
+            org.json.JSONObject(body).optString("message").takeIf { it.isNotBlank() } != null
+    } catch (_: Exception) {
+        false
     }
     
     private val okHttpClient = OkHttpClient.Builder()

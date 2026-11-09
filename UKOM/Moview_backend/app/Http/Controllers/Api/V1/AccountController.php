@@ -78,13 +78,14 @@ class AccountController extends Controller
             ], 403);
         }
 
-        $limited = $this->resendCooldownResponse('change-password:' . $email);
+        $cooldownKey = 'change-password:' . $email;
+        $limited = $this->resendCooldownResponse($cooldownKey);
         if ($limited !== null) {
             return $limited;
         }
 
         try {
-            $this->issueActionOtp(
+            $sent = $this->issueActionOtp(
                 $email,
                 $user,
                 self::PURPOSE_CHANGE_PASSWORD,
@@ -93,6 +94,15 @@ class AccountController extends Controller
                 'gunakan kode di bawah ini untuk mengganti password akun Moview-mu.',
                 'Kalau kamu tidak meminta ganti password, abaikan email ini — password kamu tidak berubah.'
             );
+
+            if (! $sent) {
+                RateLimiter::clear($cooldownKey);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Kode OTP gagal dikirim ke emailmu. Periksa alamat email akunmu lalu coba lagi.',
+                ], 502);
+            }
 
             return response()->json([
                 'success' => true,
@@ -225,13 +235,14 @@ class AccountController extends Controller
             ], 403);
         }
 
-        $limited = $this->resendCooldownResponse('delete-account:' . $email);
+        $cooldownKey = 'delete-account:' . $email;
+        $limited = $this->resendCooldownResponse($cooldownKey);
         if ($limited !== null) {
             return $limited;
         }
 
         try {
-            $this->issueActionOtp(
+            $sent = $this->issueActionOtp(
                 $email,
                 $user,
                 self::PURPOSE_DELETE_ACCOUNT,
@@ -240,6 +251,17 @@ class AccountController extends Controller
                 'gunakan kode di bawah ini untuk mengonfirmasi penghapusan akun Moview-mu. Tindakan ini permanen.',
                 'Kalau kamu tidak meminta penghapusan akun, abaikan email ini dan segera ganti password.'
             );
+
+            if (! $sent) {
+                // Nothing was delivered — do not lock the user out for 45s on
+                // top of a failed send.
+                RateLimiter::clear($cooldownKey);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Kode OTP gagal dikirim ke emailmu. Periksa alamat email akunmu lalu coba lagi.',
+                ], 502);
+            }
 
             return response()->json([
                 'success' => true,
@@ -419,6 +441,9 @@ class AccountController extends Controller
     /**
      * Issues a hashed, purpose-bound OTP for a signed-in account action and
      * emails the plaintext code. Replaces any pending OTP for that email.
+     *
+     * @return bool false when the mail provider did not accept the message
+     *              (the stored row is removed again in that case).
      */
     private function issueActionOtp(
         string $email,
@@ -428,14 +453,14 @@ class AccountController extends Controller
         string $heading,
         string $intro,
         string $footer
-    ): void {
+    ): bool {
         // Replace only this purpose's pending code (register / other action
         // codes for the same email stay valid).
         EmailOtp::purgePurpose($email, $purpose);
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
-        EmailOtp::create([
+        $record = EmailOtp::create([
             'email' => $email,
             'code' => EmailOtp::hash($code),
             'expires_at' => now()->addMinutes(EmailOtp::TTL_MINUTES),
@@ -450,11 +475,34 @@ class AccountController extends Controller
         $username = $user->username ?: 'there';
         $ttl = EmailOtp::TTL_MINUTES;
 
-        app(BrevoMailer::class)->send(
+        $sent = app(BrevoMailer::class)->send(
             $email,
             $subject,
             view('emails.otp-action', compact('username', 'code', 'ttl', 'heading', 'intro', 'footer'))->render()
         );
+
+        if (! $sent) {
+            // Local dev without Brevo configured: keep the row and write the
+            // code to the log so the flow stays testable (never in production).
+            if (app()->environment('local')) {
+                Log::warning('OTP dev fallback (email not sent)', [
+                    'email' => $email,
+                    'purpose' => $purpose,
+                    'code' => $code,
+                ]);
+
+                return true;
+            }
+
+            // No code can ever arrive: drop the row so the next attempt is
+            // clean instead of "kode sudah dikirim" for an email that does
+            // not exist.
+            $record->delete();
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
