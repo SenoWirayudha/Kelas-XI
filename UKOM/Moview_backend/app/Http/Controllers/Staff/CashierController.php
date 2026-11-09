@@ -26,6 +26,7 @@ class CashierController extends Controller
         $schedules = Schedule::with(['movie', 'studio'])
             ->whereHas('studio', fn ($q) => $q->where('cinema_id', $cinemaId))
             ->whereDate('show_date', now()->toDateString())
+            ->whereNull('event_id')
             ->openForOffline()
             ->orderBy('show_time')
             ->get();
@@ -430,6 +431,10 @@ class CashierController extends Controller
 
         if ($schedule->show_date->toDateString() !== now()->toDateString()) {
             abort(422, 'Hanya jadwal hari ini yang dapat dijual di kasir.');
+        }
+
+        if ($schedule->isFestival()) {
+            abort(422, 'Jadwal festival tidak dapat dijual di kasir.');
         }
 
         return $schedule;
