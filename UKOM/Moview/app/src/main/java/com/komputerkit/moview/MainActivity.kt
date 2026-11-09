@@ -2,6 +2,7 @@ package com.komputerkit.moview
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -9,7 +10,9 @@ import android.view.WindowManager
 import android.widget.HorizontalScrollView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.NavOptions
@@ -60,6 +63,8 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setupActivityRootInsets()
+
         setupNavigation()
         checkLoginStatus()
         loadUnreadNotificationCount()
@@ -76,6 +81,32 @@ class MainActivity : AppCompatActivity() {
 
         // --- DEBUG: runtime font verification (auto-removed after confirmed, keep log only) ---
         binding.root.post { verifyFontsAtRuntime() }
+    }
+
+    /**
+     * Documents + enforces that the bottom navigation is only ever offset by the
+     * system bars.
+     *
+     * Every destination that SHOWS the bottom navigation runs
+     * [restoreDefaultWindowChrome], i.e. the window fits system windows and the
+     * content is already inset by the system — so no padding is added here and
+     * the IME insets are deliberately IGNORED. A keyboard can therefore never
+     * lift the navbar (the log is the diagnosis hook if it ever does).
+     */
+    private fun setupActivityRootInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            Log.d(
+                "NAVBAR_DEBUG",
+                "activityRoot: ime=${ime.bottom}px visible=${insets.isVisible(
+                    WindowInsetsCompat.Type.ime()
+                )} systemBars(top=${bars.top},bottom=${bars.bottom})px " +
+                    "navY=${binding.bottomNavigation.y} navBottom=${binding.bottomNavigation.bottom}"
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.root)
     }
 
     private fun verifyFontsAtRuntime() {

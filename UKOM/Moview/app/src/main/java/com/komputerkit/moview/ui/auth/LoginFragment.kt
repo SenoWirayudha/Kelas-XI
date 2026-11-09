@@ -30,6 +30,7 @@ import com.komputerkit.moview.databinding.FragmentLoginBinding
 import com.komputerkit.moview.data.repository.AuthRepository
 import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.ServerConfig
+import com.komputerkit.moview.util.hideImeAndThen
 import com.komputerkit.moview.util.loadBackdrop
 import kotlinx.coroutines.launch
 
@@ -212,7 +213,10 @@ class LoginFragment : Fragment() {
                 saveLoginState(loginData.email, loginData.username, loginData.token, loginData.userId, provider = "google")
                 showGoogleLoading(false)
                 showSnackbar("Selamat datang, ${loginData.username}!", SnackbarType.SUCCESS)
-                findNavController().navigate(R.id.action_login_to_home)
+                // Never hand over to Home while the IME is still up.
+                binding.root.hideImeAndThen {
+                    findNavController().navigate(R.id.action_login_to_home)
+                }
             }.onFailure { error ->
                 showGoogleLoading(false)
                 ErrorMessage.fromApi(error, "Login Google gagal. Coba lagi.")?.let { message ->
@@ -283,8 +287,10 @@ class LoginFragment : Fragment() {
                 showLoading(false)
                 showSnackbar("Selamat datang, ${loginData.username}!", SnackbarType.SUCCESS)
 
-                // Navigate to home
-                findNavController().navigate(R.id.action_login_to_home)
+                // Navigate to home once the keyboard is actually closed.
+                binding.root.hideImeAndThen {
+                    findNavController().navigate(R.id.action_login_to_home)
+                }
             }.onFailure { error ->
                 showLoading(false)
                 // One generic 401 covers both a wrong identifier and a wrong

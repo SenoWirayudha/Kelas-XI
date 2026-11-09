@@ -30,6 +30,7 @@ import com.komputerkit.moview.databinding.FragmentVerifyOtpBinding
 import com.komputerkit.moview.data.repository.AuthRepository
 import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.ServerConfig
+import com.komputerkit.moview.util.hideImeAndThen
 import com.komputerkit.moview.util.loadBackdrop
 import kotlinx.coroutines.launch
 
@@ -207,6 +208,11 @@ class VerifyOtpFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         applyImmersiveStatusBar(true)
+        // This screen HAS a text input, so it is the only place that keeps the
+        // resize mode. Home forces ADJUST_NOTHING when it becomes visible.
+        requireActivity().window.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        )
         // The user may have sat in the email app past the OTP's lifetime —
         // clear the (now-expired) state and leave rather than sit here.
         checkStillValid()
@@ -215,6 +221,15 @@ class VerifyOtpFragment : Fragment() {
     override fun onPause() {
         applyImmersiveStatusBar(false)
         super.onPause()
+    }
+
+    /**
+     * Hides the keyboard and runs [action] only once the IME insets are really
+     * gone (with a short fallback).
+     */
+    private fun afterKeyboardHidden(timeoutMs: Long = 300L, action: () -> Unit) {
+        if (_binding == null) return
+        binding.root.hideImeAndThen(timeoutMs, action)
     }
 
     /** Clears + leaves if the pending OTP expired while we were backgrounded. */
@@ -317,16 +332,6 @@ class VerifyOtpFragment : Fragment() {
                 imm.showSoftInput(binding.otpView, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
             }
         }
-    }
-
-    /** Hides the IME and drops focus so the window shrinks back before we leave. */
-    private fun hideKeyboard() {
-        binding.otpView.clearFocus()
-        val controller = ViewCompat.getWindowInsetsController(requireView())
-        controller?.hide(WindowInsetsCompat.Type.ime())
-        val imm = requireContext()
-            .getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-        imm.hideSoftInputFromWindow(binding.otpView.windowToken, 0)
     }
 
     /** Red borders on all boxes while an error is active; null restores normal colors. */
@@ -483,24 +488,26 @@ class VerifyOtpFragment : Fragment() {
                     )
                     showLoading(false)
                     showSnackbar("Welcome to Moview, ${loginData.username}!", SnackbarType.SUCCESS)
-                    // Close the IME and drop the edge-to-edge window BEFORE leaving:
-                    // handing Home over while the keyboard is still up keeps the
-                    // decor at the IME-sized height, which lifts the bottom nav off
-                    // the bottom edge until the activity is recreated.
-                    hideKeyboard()
-                    applyImmersiveStatusBar(false)
-                    // Clear the whole auth stack (Login / Sign-Up / OTP) so Home is
-                    // the only entry left — the XML action only pops up to Login,
-                    // which is not on the stack when OTP was resumed after a relaunch.
-                    val navOptions = NavOptions.Builder()
-                        .setPopUpTo(navControllerStartId(), false)
-                        .setLaunchSingleTop(true)
-                        .setEnterAnim(R.anim.fade_through_in)
-                        .setExitAnim(R.anim.fade_through_out)
-                        .setPopEnterAnim(R.anim.fade_through_in)
-                        .setPopExitAnim(R.anim.fade_through_out)
-                        .build()
-                    findNavController().navigate(R.id.navigation_home, null, navOptions)
+                    // Leave ONLY after the keyboard is really gone: navigating
+                    // with the IME still up leaves the shared activity window at
+                    // the keyboard-reduced height, so Home's bottom navigation
+                    // stayed pushed up until the app was restarted.
+                    afterKeyboardHidden {
+                        applyImmersiveStatusBar(false)
+                        // Clear the whole auth stack (Login / Sign-Up / OTP) so
+                        // Home is the only entry left — the XML action only pops
+                        // up to Login, which is not on the stack when OTP was
+                        // resumed after a relaunch.
+                        val navOptions = NavOptions.Builder()
+                            .setPopUpTo(navControllerStartId(), false)
+                            .setLaunchSingleTop(true)
+                            .setEnterAnim(R.anim.fade_through_in)
+                            .setExitAnim(R.anim.fade_through_out)
+                            .setPopEnterAnim(R.anim.fade_through_in)
+                            .setPopExitAnim(R.anim.fade_through_out)
+                            .build()
+                        findNavController().navigate(R.id.navigation_home, null, navOptions)
+                    }
                 }
                 .onFailure { error ->
                     if (!isAdded || _binding == null) return@onFailure
@@ -573,10 +580,12 @@ class VerifyOtpFragment : Fragment() {
         com.komputerkit.moview.ui.profile.ChangePasswordOtpStore.clear(requireContext())
         val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         prefs.edit().clear().apply()
-        hideKeyboard()
-        applyImmersiveStatusBar(false)
         showSnackbar("Akun berhasil dihapus", SnackbarType.SUCCESS)
-        goToLogin()
+        // Same rule as the register hand-off: never navigate while the IME is up.
+        afterKeyboardHidden {
+            applyImmersiveStatusBar(false)
+            goToLogin()
+        }
     }
 
     private fun performResend() {

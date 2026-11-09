@@ -52,6 +52,69 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         return binding.root
     }
 
+    override fun onResume() {
+        super.onResume()
+        clearResidualKeyboardState()
+    }
+
+    /**
+     * Home owns no text input, so it must never be resized by the IME.
+     *
+     * Residual state that has to be cleared explicitly:
+     *  - a fragment view still holding focus from the previous screen
+     *    (the keyboard would reopen and resize this window),
+     *  - ADJUST_RESIZE inherited from the activity (manifest) / from the OTP
+     *    screen, which leaves the window keyboard-sized until recreation —
+     *    this is what pushed the bottom navigation up,
+     *  - a "fit system windows = false" flag set by an edge-to-edge screen.
+     */
+    private fun clearResidualKeyboardState() {
+        if (_binding == null || !isAdded) return
+        val root = binding.root
+
+        root.clearFocus()
+        (activity ?: return).window.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+        )
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(
+            requireActivity().window,
+            true
+        )
+
+        // Re-evaluate insets for the new window state and log the values so a
+        // remaining offset can be diagnosed from logcat (tag NAVBAR_DEBUG).
+        androidx.core.view.ViewCompat.requestApplyInsets(root)
+        logNavbarInsets(root)
+    }
+
+    /** Temporary diagnostics for the "navbar pushed up" bug. Tag: NAVBAR_DEBUG. */
+    private fun logNavbarInsets(root: View) {
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())
+            val bars = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars()
+            )
+            val imeVisible = insets.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())
+            android.util.Log.d(
+                "NAVBAR_DEBUG",
+                "ime=${ime.bottom}px visible=$imeVisible " +
+                    "systemBars(top=${bars.top},bottom=${bars.bottom})px " +
+                    "rootBottom=${v.bottom} focused=${v.findFocus()?.javaClass?.simpleName}"
+            )
+            insets
+        }
+        // One extra pass after layout so the numbers reflect the settled state.
+        root.post {
+            androidx.core.view.ViewCompat.requestApplyInsets(root)
+            val nav = activity?.findViewById<View>(R.id.bottom_navigation)
+            android.util.Log.d(
+                "NAVBAR_DEBUG",
+                "post: root(h=${root.height},bottom=${root.bottom}) " +
+                    "navbar(y=${nav?.y},top=${nav?.top},bottom=${nav?.bottom},translationY=${nav?.translationY})"
+            )
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
@@ -70,6 +133,12 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         binding.tvHeaderLabel.visibility = if (isCinemaTab) View.VISIBLE else View.GONE
 
         postponeEnterUntilLaidOut()
+
+        // The bottom nav belongs to the activity, not to this layout: make sure
+        // the window is back in its plain (non edge-to-edge) state and that the
+        // IME cannot push it up, e.g. right after the OTP screen handed over
+        // while the keyboard was still open.
+        clearResidualKeyboardState()
 
         setupRecyclerViews()
         setupSwipeRefresh()
