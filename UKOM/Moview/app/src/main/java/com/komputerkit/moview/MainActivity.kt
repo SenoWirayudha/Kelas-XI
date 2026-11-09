@@ -5,8 +5,11 @@ import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.HorizontalScrollView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.NavOptions
@@ -206,6 +209,8 @@ class MainActivity : AppCompatActivity() {
 
         // Hide bottom navigation on login screen and child screens that should be full-screen
         navController.addOnDestinationChangedListener { _, destination, arguments ->
+            applySoftInputMode(destination.id)
+
             when (destination.id) {
                 R.id.loginFragment,
                 R.id.signUpFragment,
@@ -228,6 +233,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 else -> {
                     binding.bottomNavigation.visibility = View.VISIBLE
+                    restoreDefaultWindowChrome()
                 }
             }
 
@@ -259,6 +265,44 @@ class MainActivity : AppCompatActivity() {
     }
 
     // --- Bioskop tab dot + one-time coach mark ------------------------------
+
+    /**
+     * Home has no text input, so the IME must never resize its window. Leaving the
+     * activity on the inherited `adjustResize` meant a Home opened right after the OTP
+     * screen kept the keyboard-sized window (empty band under the navbar) until the
+     * activity was recreated. Everything else keeps `adjustResize` (search, log, forms).
+     */
+    private fun applySoftInputMode(destinationId: Int) {
+        val mode = if (destinationId == R.id.navigation_home) {
+            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+        } else {
+            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        }
+        window.setSoftInputMode(mode)
+    }
+
+    /**
+     * Back to the plain, non edge-to-edge window used by the tab destinations.
+     *
+     * The auth / movie-schedule / detail screens switch the window to edge-to-edge
+     * on resume and restore it on pause. When a tab is reached straight from one of
+     * those screens (e.g. OTP success -> Home) the restore can be skipped, leaving the
+     * window laid out edge-to-edge: the root then fills the screen and the bottom nav
+     * is lifted off the bottom edge until the activity is recreated. Re-applying the
+     * default here makes every tab entry self-healing.
+     */
+    private fun restoreDefaultWindowChrome() {
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        @Suppress("DEPRECATION")
+        window.statusBarColor = ContextCompat.getColor(this, R.color.dark_background)
+        @Suppress("DEPRECATION")
+        window.navigationBarColor = ContextCompat.getColor(this, R.color.dark_background)
+        // A stale translation would keep the bar off its constraint; it is never
+        // animated by us, so resetting is safe.
+        binding.bottomNavigation.translationY = 0f
+        // Re-evaluate insets for the new (non edge-to-edge) window state.
+        binding.root.requestApplyInsets()
+    }
 
     /** Dot on the Bioskop tab while any festival event has not been seen yet. */
     private fun refreshBioskopBadge() {

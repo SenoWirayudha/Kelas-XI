@@ -301,6 +301,16 @@ class VerifyOtpFragment : Fragment() {
         }
     }
 
+    /** Hides the IME and drops focus so the window shrinks back before we leave. */
+    private fun hideKeyboard() {
+        binding.otpView.clearFocus()
+        val controller = ViewCompat.getWindowInsetsController(requireView())
+        controller?.hide(WindowInsetsCompat.Type.ime())
+        val imm = requireContext()
+            .getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.hideSoftInputFromWindow(binding.otpView.windowToken, 0)
+    }
+
     /** Red borders on all boxes while an error is active; null restores normal colors. */
     private fun setOtpErrorBorder(invalid: Boolean) {
         otpHasError = invalid
@@ -453,7 +463,24 @@ class VerifyOtpFragment : Fragment() {
                     )
                     showLoading(false)
                     showSnackbar("Welcome to Moview, ${loginData.username}!", SnackbarType.SUCCESS)
-                    findNavController().navigate(R.id.action_verifyOtp_to_home)
+                    // Close the IME and drop the edge-to-edge window BEFORE leaving:
+                    // handing Home over while the keyboard is still up keeps the
+                    // decor at the IME-sized height, which lifts the bottom nav off
+                    // the bottom edge until the activity is recreated.
+                    hideKeyboard()
+                    applyImmersiveStatusBar(false)
+                    // Clear the whole auth stack (Login / Sign-Up / OTP) so Home is
+                    // the only entry left — the XML action only pops up to Login,
+                    // which is not on the stack when OTP was resumed after a relaunch.
+                    val navOptions = NavOptions.Builder()
+                        .setPopUpTo(navControllerStartId(), false)
+                        .setLaunchSingleTop(true)
+                        .setEnterAnim(R.anim.fade_through_in)
+                        .setExitAnim(R.anim.fade_through_out)
+                        .setPopEnterAnim(R.anim.fade_through_in)
+                        .setPopExitAnim(R.anim.fade_through_out)
+                        .build()
+                    findNavController().navigate(R.id.navigation_home, null, navOptions)
                 }
                 .onFailure { error ->
                     if (!isAdded || _binding == null) return@onFailure
