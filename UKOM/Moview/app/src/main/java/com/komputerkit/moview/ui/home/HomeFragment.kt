@@ -453,9 +453,10 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         }
         
         viewModel.events.observe(viewLifecycleOwner) { events ->
-            // Section is always present on the Bioskop tab; the list may still be empty.
+            // Hide the whole section (title included) when there is no festival
+            // event, instead of leaving an empty "Event Festival" heading.
             eventAdapter.submitList(events)
-            binding.layoutEvents.visibility = View.VISIBLE
+            binding.layoutEvents.visibility = if (events.isEmpty()) View.GONE else View.VISIBLE
         }
 
         viewModel.nowShowingMovies.observe(viewLifecycleOwner) { movies ->

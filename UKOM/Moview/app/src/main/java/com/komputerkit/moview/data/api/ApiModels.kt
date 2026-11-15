@@ -550,7 +550,9 @@ data class UserBasicInfoDto(
     val username: String,
     val email: String,
     val role: String,
-    val joined_at: String
+    val joined_at: String,
+    /** "google" for Google Sign-In accounts, otherwise "manual". */
+    val auth_provider: String? = null
 )
 
 data class ProfileInfoDto(

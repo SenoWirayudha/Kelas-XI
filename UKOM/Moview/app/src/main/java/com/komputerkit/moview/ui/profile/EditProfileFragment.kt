@@ -132,6 +132,8 @@ class EditProfileFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // Restore the Informasi Akun dropdown across config changes.
+        accountInfoExpanded = savedInstanceState?.getBoolean(KEY_ACCOUNT_INFO_EXPANDED) ?: false
         
         loadProfileData()
         setupRecyclerView()
@@ -339,6 +341,8 @@ class EditProfileFragment : Fragment() {
                 
                 // Update favorites
                 favoriteSlotAdapter.submitList(state.favoriteSlots)
+
+                bindAccountInfo(state)
                 
                 // Check if has favorites for backdrop toggle
                 hasFavorites = state.favoriteSlots.any { it.movie != null }
@@ -349,6 +353,40 @@ class EditProfileFragment : Fragment() {
         }
     }
     
+    /**
+     * Read-only account info at the top of the Setting tab. Missing values
+     * (null/blank) render as "-" so the rows never crash or show an empty gap.
+     */
+    private fun bindAccountInfo(state: EditProfileUiState) {
+        binding.tvAccountEmail.text = state.email?.takeIf { it.isNotBlank() } ?: "-"
+        binding.tvAccountUsername.text =
+            state.username.takeIf { it.isNotBlank() }?.let { "@$it" } ?: "-"
+        binding.tvAccountLoginMethod.text = when (state.authProvider?.lowercase()) {
+            "google" -> "Google"
+            "manual" -> "Email & Password"
+            else -> state.authProvider?.takeIf { it.isNotBlank() } ?: "-"
+        }
+        binding.tvAccountJoined.text = formatJoinedAt(state.joinedAt) ?: "-"
+    }
+
+    /** "2026-11-15 10:20:30" / ISO → "November 2026"; null when unparsable. */
+    private fun formatJoinedAt(raw: String?): String? {
+        val value = raw?.trim().orEmpty()
+        if (value.isEmpty()) return null
+
+        val formatter = java.time.format.DateTimeFormatter
+            .ofPattern("MMMM yyyy", java.util.Locale("id", "ID"))
+
+        // Each parse yields its own type, so format inside the runCatching.
+        return runCatching { java.time.OffsetDateTime.parse(value).format(formatter) }.getOrNull()
+            ?: runCatching {
+                java.time.LocalDateTime.parse(value.replace(' ', 'T')).format(formatter)
+            }.getOrNull()
+            ?: runCatching {
+                java.time.LocalDate.parse(value.take(10)).atStartOfDay().format(formatter)
+            }.getOrNull()
+    }
+
     private fun setupNavigationResultListener() {
         // Listen for selected movie from Search Screen
         findNavController().currentBackStackEntry?.savedStateHandle?.let { savedStateHandle ->
@@ -705,6 +743,8 @@ class EditProfileFragment : Fragment() {
 
         setupTabSwipe()
 
+        setupAccountInfoSection()
+
         // Google accounts have no password — the section is not shown at all.
         if (accountProvider() == "google") {
             binding.cardChangePassword.visibility = View.GONE
@@ -724,6 +764,9 @@ class EditProfileFragment : Fragment() {
     }
 
     private var showSettingsTab = false
+
+    /** Informasi Akun dropdown state (reset when the screen is recreated). */
+    private var accountInfoExpanded = false
 
     /**
      * Swipe between the Profil and Setting panes with the same pager feel as the ticket
@@ -858,6 +901,31 @@ class EditProfileFragment : Fragment() {
     // ---------------------------------------------------------------------
     // Inline "Ganti Password" (email accounts only)
     // ---------------------------------------------------------------------
+
+    /** Collapsed by default; tap the header to reveal the read-only rows. */
+    private fun setupAccountInfoSection() {
+        applyAccountInfoExpanded(accountInfoExpanded, animate = false)
+        binding.layoutAccountInfoHeader.setOnClickListener {
+            accountInfoExpanded = !accountInfoExpanded
+            applyAccountInfoExpanded(accountInfoExpanded, animate = true)
+        }
+    }
+
+    /** Same expand/collapse transition + arrow rotation as Ganti Password. */
+    private fun applyAccountInfoExpanded(expanded: Boolean, animate: Boolean) {
+        if (_binding == null) return
+        if (animate) {
+            TransitionManager.beginDelayedTransition(
+                binding.cardAccountInfo,
+                AutoTransition().apply { duration = 200L }
+            )
+        }
+        binding.layoutAccountInfoContent.visibility = if (expanded) View.VISIBLE else View.GONE
+        binding.ivAccountInfoArrow.animate()
+            .rotation(if (expanded) 90f else 0f)
+            .setDuration(200L)
+            .start()
+    }
 
     private fun setupChangePasswordSection() {
         binding.layoutChangePasswordHeader.setOnClickListener { toggleChangePasswordSection() }
@@ -1296,6 +1364,11 @@ class EditProfileFragment : Fragment() {
         navController.navigate(R.id.loginFragment, null, navOptions)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_ACCOUNT_INFO_EXPANDED, accountInfoExpanded)
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         changePwResendTimer?.cancel()
@@ -1305,5 +1378,6 @@ class EditProfileFragment : Fragment() {
 
     private companion object {
         // Swipe behaviour lives in PagerSwipeGesture (same feel as the ticket-history pager).
+        const val KEY_ACCOUNT_INFO_EXPANDED = "account_info_expanded"
     }
 }

@@ -20,7 +20,7 @@ class ProfileController extends Controller
             // Get user basic info
             $user = DB::table('users')
                 ->where('id', $userId)
-                ->first(['id', 'username', 'email', 'role', 'joined_at']);
+                ->first(['id', 'username', 'email', 'role', 'joined_at', 'auth_provider']);
 
             if (!$user) {
                 return response()->json([
@@ -106,7 +106,8 @@ class ProfileController extends Controller
                         'username' => $user->username,
                         'email' => $user->email,
                         'role' => $user->role,
-                        'joined_at' => $user->joined_at
+                        'joined_at' => $user->joined_at,
+                        'auth_provider' => $user->auth_provider ?? 'manual'
                     ],
                     'profile' => [
                         'display_name' => $profile && !empty($profile->display_name) ? $profile->display_name : $user->username,

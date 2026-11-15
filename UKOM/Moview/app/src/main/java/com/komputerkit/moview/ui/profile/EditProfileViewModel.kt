@@ -22,6 +22,10 @@ data class EditProfileUiState(
     val backdropEnabled: Boolean = false,
     val backdropUrl: String? = null,
     val profilePhotoUrl: String? = null,
+    // Read-only account info (Setting tab).
+    val email: String? = null,
+    val joinedAt: String? = null,
+    val authProvider: String? = null,
     val favoriteSlots: List<FavoriteSlot> = List(4) { FavoriteSlot(it, null) },
     val isLoading: Boolean = false
 )
@@ -90,6 +94,9 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                     backdropEnabled = profileResponse.profile.backdrop_enabled,
                     backdropUrl = profileResponse.profile.backdrop_url,
                     profilePhotoUrl = profileResponse.profile.profile_photo_url,
+                    email = profileResponse.user.email,
+                    joinedAt = profileResponse.user.joined_at,
+                    authProvider = profileResponse.user.auth_provider,
                     favoriteSlots = resolvedSlots,
                     isLoading = false
                 )

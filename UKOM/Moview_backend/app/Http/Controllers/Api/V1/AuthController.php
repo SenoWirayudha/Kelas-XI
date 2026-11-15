@@ -112,7 +112,8 @@ class AuthController extends Controller
                         'username' => $user->username,
                         'email' => $user->email,
                         'role' => $user->role,
-                        'joined_at' => $user->joined_at
+                        'joined_at' => $user->joined_at,
+                        'auth_provider' => $user->auth_provider ?? 'manual'
                     ],
                     'token' => $token
                 ]
@@ -342,7 +343,8 @@ class AuthController extends Controller
                         'username' => $user->username,
                         'email' => $user->email,
                         'role' => $user->role,
-                        'joined_at' => $user->joined_at
+                        'joined_at' => $user->joined_at,
+                        'auth_provider' => $user->auth_provider ?? 'manual'
                     ],
                     'token' => $token
                 ]
@@ -681,7 +683,8 @@ class AuthController extends Controller
                         'username' => $user->username,
                         'email' => $user->email,
                         'role' => $user->role,
-                        'joined_at' => $user->joined_at
+                        'joined_at' => $user->joined_at,
+                        'auth_provider' => $user->auth_provider ?? 'manual'
                     ],
                     'token' => $token
                 ]
