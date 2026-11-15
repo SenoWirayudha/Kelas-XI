@@ -1,4 +1,4 @@
-package com.komputerkit.moview.ui.filmlist
+﻿package com.komputerkit.moview.ui.filmlist
 
 import android.content.Context
 import android.os.Bundle
@@ -17,6 +17,7 @@ import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
 import com.komputerkit.moview.ui.common.LoadingFooterAdapter
+import com.komputerkit.moview.ui.common.DurationFilter
 import com.komputerkit.moview.ui.common.MovieFilterState
 import com.komputerkit.moview.ui.common.MovieFilterUtils
 import com.komputerkit.moview.ui.common.MovieSortMode
@@ -123,7 +124,19 @@ class FilmListFragment : Fragment() {
                 themes = themeOptions,
                 languages = languageOptions,
                 countries = countryOptions,
-                years = availableYears()
+                productionHouses = availableProductionHouses(),
+                years = availableYears(),
+                // Hide an option when this page's payload has no data for it.
+                sortOptions = if (allFilms.any { it.popularity != null }) {
+                    listOf(FilterSheetDialog.SORT_POPULARITY_ALL_TIME)
+                } else {
+                    emptyList()
+                },
+                durationOptions = if (allFilms.any { !it.duration.isNullOrBlank() }) {
+                    FilterSheetDialog.DURATION_OPTIONS
+                } else {
+                    emptyList()
+                }
             ),
             initial = FilterSheetResult(
                 genre = filterState.selectedGenre,
@@ -132,14 +145,41 @@ class FilmListFragment : Fragment() {
                 country = filterState.selectedCountry,
                 releaseYearChoice = currentReleaseYearChoice(),
                 ratingChoice = currentRatingChoice(),
-                year = filterState.selectedYear
+                year = filterState.selectedYear,
+                sortChoice = currentSortChoice(),
+                durationChoice = currentDurationChoice()
             ),
             initialCategory = initialCategory,
+            enabledCategories = setOf(
+                FilterSheetDialog.Category.GENRE,
+                FilterSheetDialog.Category.THEME,
+                FilterSheetDialog.Category.LANGUAGE,
+                FilterSheetDialog.Category.COUNTRY,
+                FilterSheetDialog.Category.PRODUCTION_HOUSE,
+                FilterSheetDialog.Category.RELEASE_YEAR,
+                FilterSheetDialog.Category.RATING,
+                FilterSheetDialog.Category.YEAR,
+                FilterSheetDialog.Category.SORT,
+                FilterSheetDialog.Category.DURATION
+            ),
             onApply = { result ->
                 setGenre(result.genre)
                 setTheme(result.theme)
                 setCountry(result.country)
                 setLanguage(result.language)
+                setProductionHouse(result.productionHouse)
+                setDurationFilter(
+                    when (result.durationChoice) {
+                        FilterSheetDialog.DURATION_FEATURE -> DurationFilter.FEATURE_LENGTH
+                        FilterSheetDialog.DURATION_SHORT -> DurationFilter.SHORT_FILM
+                        else -> null
+                    }
+                )
+
+                when (result.sortChoice) {
+                    FilterSheetDialog.SORT_POPULARITY_ALL_TIME -> sortByPopularity()
+                    null -> Unit
+                }
 
                 when (result.releaseYearChoice) {
                     "Newest First" -> sortByReleaseYear(descending = true)
@@ -232,6 +272,34 @@ class FilmListFragment : Fragment() {
         filterState = filterState.copy(selectedTheme = theme)
         applyCurrentFilters()
     }
+    private fun setProductionHouse(house: String?) {
+        filterState = filterState.copy(selectedProductionHouse = house)
+        applyCurrentFilters()
+    }
+
+    private fun setDurationFilter(duration: DurationFilter?) {
+        filterState = filterState.copy(durationFilter = duration)
+        applyCurrentFilters()
+    }
+
+    private fun sortByPopularity() {
+        filterState = filterState.copy(sortMode = MovieSortMode.POPULARITY)
+        applyCurrentFilters()
+    }
+
+    private fun currentProductionHouse(): String? = filterState.selectedProductionHouse
+
+    private fun currentDurationChoice(): String? = when (filterState.durationFilter) {
+        DurationFilter.FEATURE_LENGTH -> FilterSheetDialog.DURATION_FEATURE
+        DurationFilter.SHORT_FILM -> FilterSheetDialog.DURATION_SHORT
+        null -> null
+    }
+
+    private fun currentSortChoice(): String? =
+        if (filterState.sortMode == MovieSortMode.POPULARITY) FilterSheetDialog.SORT_POPULARITY_ALL_TIME else null
+
+    private fun availableProductionHouses(): List<String> =
+        allFilms.flatMap { it.productionCompanies }.distinct().sorted()
 
     private fun applyCurrentFilters() {
         render(viewModel.uiState.value)
@@ -249,6 +317,15 @@ class FilmListFragment : Fragment() {
         listFooter?.setVisible(state.isLoadingMore)
 
         val filtered = MovieFilterUtils.applyFilters(allFilms, filterState)
+
+        // Always push the result, including an empty one: skipping submitList on
+        // an empty result left the previous posters on screen behind the message.
+        adapter.submitList(filtered) {
+            val current = _binding ?: return@submitList
+            ScrollStateHelper.restore(current.rvFilms, savedScrollState)
+            savedScrollState = null
+        }
+
         when {
             state.status == FilmListStatus.ERROR && state.items.isEmpty() -> {
                 b.tvEmpty.visibility = View.VISIBLE
@@ -258,17 +335,7 @@ class FilmListFragment : Fragment() {
                 b.tvEmpty.visibility = View.VISIBLE
                 b.tvEmpty.text = "No films found for ${args.categoryName}"
             }
-            filtered.isEmpty() -> {
-                b.tvEmpty.visibility = View.GONE
-            }
-            else -> {
-                b.tvEmpty.visibility = View.GONE
-                adapter.submitList(filtered) {
-                    val current = _binding ?: return@submitList
-                    ScrollStateHelper.restore(current.rvFilms, savedScrollState)
-                    savedScrollState = null
-                }
-            }
+            else -> b.tvEmpty.visibility = View.GONE
         }
     }
 

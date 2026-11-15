@@ -171,6 +171,36 @@
                 app:chipCornerRadius="20dp"
                 app:checkedIconVisible="false" />
 
+            <!-- Opt-in category: only shown when the caller enables Category.SORT. -->
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_sort"
+                style="@style/Widget.App.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/font_family_inter"
+                android:text="Sort"
+                android:textColor="@color/chip_text_selector"
+                android:visibility="gone"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp"
+                app:checkedIconVisible="false" />
+
+            <!-- Opt-in category: only shown when the caller enables Category.DURATION. -->
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_duration"
+                style="@style/Widget.App.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/font_family_inter"
+                android:text="Duration"
+                android:textColor="@color/chip_text_selector"
+                android:visibility="gone"
+                app:chipBackgroundColor="@color/chip_background_selector"
+                app:chipStrokeWidth="0dp"
+                app:chipCornerRadius="20dp"
+                app:checkedIconVisible="false" />
+
         </com.google.android.material.chip.ChipGroup>
 
     </HorizontalScrollView>

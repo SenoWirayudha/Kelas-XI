@@ -48,7 +48,18 @@ data class FilmListItem(
     val customPoster: Boolean = false,
     val customBackdrop: Boolean = false,
     val posterMediaId: Int? = null,
-    val backdropMediaId: Int? = null
+    val backdropMediaId: Int? = null,
+    // Display-only metadata for the list filter sheet.
+    val duration: String? = null,
+    val watchedCount: Int = 0,
+    val averageRating: Float = 0f,
+    val userRating: Float? = null,
+    val addedAt: String? = null,
+    val genres: List<String> = emptyList(),
+    val themes: List<String> = emptyList(),
+    val countries: List<String> = emptyList(),
+    val languages: List<String> = emptyList(),
+    val productionHouses: List<String> = emptyList()
 )
 
 /** Artwork picker payload for a film already in the list. */

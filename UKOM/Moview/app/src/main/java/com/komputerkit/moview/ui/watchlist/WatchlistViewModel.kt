@@ -9,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.WatchlistItem
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.ui.common.DurationFilter
+import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.MovieFilterState
 import com.komputerkit.moview.ui.common.MovieFilterUtils
 import com.komputerkit.moview.ui.common.MovieSortMode
@@ -178,6 +180,14 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
         applyCurrentFilters()
     }
     
+    /** Popularitas (All Time): most watched across all users. */
+    fun sortByPopularity() {
+        filterState = filterState.copy(sortMode = MovieSortMode.POPULARITY)
+        applyCurrentFilters()
+    }
+
+    fun currentSortChoice(): String? =
+        if (filterState.sortMode == MovieSortMode.POPULARITY) FilterSheetDialog.SORT_POPULARITY_ALL_TIME else null
     fun sortByReleaseYear(descending: Boolean) {
         filterState = filterState.copy(
             sortMode = MovieSortMode.RELEASE_YEAR,
@@ -255,4 +265,29 @@ fun setLanguage(language: String?) {
         filterState = filterState.copy(selectedTheme = theme)
         applyCurrentFilters()
     }
+    fun setProductionHouse(house: String?) {
+        filterState = filterState.copy(selectedProductionHouse = house)
+        applyCurrentFilters()
+    }
+
+    fun setDurationFilter(duration: DurationFilter?) {
+        filterState = filterState.copy(durationFilter = duration)
+        applyCurrentFilters()
+    }
+
+    fun currentProductionHouse(): String? = filterState.selectedProductionHouse
+
+    fun currentDurationChoice(): String? = when (filterState.durationFilter) {
+        DurationFilter.FEATURE_LENGTH -> FilterSheetDialog.DURATION_FEATURE
+        DurationFilter.SHORT_FILM -> FilterSheetDialog.DURATION_SHORT
+        null -> null
+    }
+
+    /** True when at least one loaded film carries a duration (otherwise hide the option). */
+    fun supportsDurationFilter(): Boolean = allMovies.any { !it.duration.isNullOrBlank() }
+
+    /** True when the page's payload carries watched counts (Popularity sort). */
+    fun supportsPopularitySort(): Boolean = allMovies.any { it.popularity != null }
+    fun availableProductionHouses(): List<String> =
+        allMovies.flatMap { it.productionCompanies }.distinct().sorted()
 }

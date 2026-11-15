@@ -62,11 +62,26 @@ class UserActivityController extends Controller
 
         $avgRating = (float) (DB::table('reviews')->where('film_id', $movieId)->avg('rating') ?? 0);
 
+        $productionHouses = DB::table('movie_production_houses')
+            ->join('production_houses', 'movie_production_houses.production_house_id', '=', 'production_houses.id')
+            ->where('movie_production_houses.movie_id', $movieId)
+            ->pluck('production_houses.name')
+            ->filter()
+            ->values()
+            ->toArray();
+
+        // Same duration + popularity sources as the film list payload.
+        $movie = DB::table('movies')->where('id', $movieId)->first(['duration']);
+        $watchedCount = (int) DB::table('ratings')->where('film_id', $movieId)->count();
+
         return [
             'genres' => $genres,
             'countries' => $countries,
             'languages' => $languages,
             'themes' => $themes,
+            'production_houses' => $productionHouses,
+            'duration' => $movie?->duration !== null ? $movie->duration . 'm' : null,
+            'watched_count' => $watchedCount,
             'average_rating' => round($avgRating, 1),
         ];
     }
@@ -170,6 +185,9 @@ class UserActivityController extends Controller
                     'is_liked' => (bool)$film->is_liked,
                     'is_in_watchlist' => (bool)$film->is_in_watchlist,
                     'primary_release_date' => $film->primary_release_date,
+                    'production_houses' => $meta['production_houses'],
+                    'duration' => $meta['duration'],
+                    'watched_count' => $meta['watched_count'],
                 ];
             });
 
@@ -764,7 +782,10 @@ class UserActivityController extends Controller
                     'languages' => $meta['languages'],
                     'themes' => $meta['themes'],
                     'liked_at' => $like->liked_at,
-                    'primary_release_date' => $like->primary_release_date
+                    'primary_release_date' => $like->primary_release_date,
+                    'production_houses' => $meta['production_houses'],
+                    'duration' => $meta['duration'],
+                    'watched_count' => $meta['watched_count'],
                 ];
             });
 
@@ -837,7 +858,10 @@ class UserActivityController extends Controller
                     'languages' => $meta['languages'],
                     'themes' => $meta['themes'],
                     'added_at' => $item->added_at,
-                    'primary_release_date' => $item->primary_release_date
+                    'primary_release_date' => $item->primary_release_date,
+                    'production_houses' => $meta['production_houses'],
+                    'duration' => $meta['duration'],
+                    'watched_count' => $meta['watched_count'],
                 ];
             });
 

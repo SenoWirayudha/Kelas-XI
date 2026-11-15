@@ -23,6 +23,15 @@ class FilmListApiController extends Controller
 {
     private const MAX_BACKDROP_MOVIES = 8;
 
+    /** Everything the item payload needs, eager-loaded in one go. */
+    private const ITEM_MOVIE_RELATIONS = [
+        'items.movie.genres',
+        'items.movie.movieThemes.theme',
+        'items.movie.movieCountries.country',
+        'items.movie.movieLanguages.language',
+        'items.movie.movieProductionHouses.productionHouse',
+    ];
+
     // ------------------------------------------------------------------
     // Collections
     // ------------------------------------------------------------------
@@ -153,7 +162,7 @@ class FilmListApiController extends Controller
             return $list;
         });
 
-        $fresh = FilmList::with('items.movie')->find($list->id);
+        $fresh = FilmList::with(self::ITEM_MOVIE_RELATIONS)->find($list->id);
 
         return response()->json([
             'success' => true,
@@ -165,7 +174,7 @@ class FilmListApiController extends Controller
     public function show(Request $request, $listId)
     {
         $viewerId = (int) $request->get('viewer_id', 0);
-        $list = FilmList::with(['items.movie', 'user.userProfile'])->find($listId);
+        $list = FilmList::with(array_merge(self::ITEM_MOVIE_RELATIONS, ['user.userProfile']))->find($listId);
 
         if (!$list) {
             return $this->notFound();
@@ -271,7 +280,7 @@ class FilmListApiController extends Controller
             });
         }
 
-        $fresh = FilmList::with('items.movie')->find($list->id);
+        $fresh = FilmList::with(self::ITEM_MOVIE_RELATIONS)->find($list->id);
 
         return response()->json([
             'success' => true,
@@ -336,7 +345,7 @@ class FilmListApiController extends Controller
             $list->touch();
         });
 
-        $fresh = FilmList::with('items.movie')->find($list->id);
+        $fresh = FilmList::with(self::ITEM_MOVIE_RELATIONS)->find($list->id);
 
         return response()->json([
             'success' => true,
@@ -359,7 +368,7 @@ class FilmListApiController extends Controller
         $this->resequence($list->id);
         $list->touch();
 
-        $fresh = FilmList::with('items.movie')->find($list->id);
+        $fresh = FilmList::with(self::ITEM_MOVIE_RELATIONS)->find($list->id);
 
         return response()->json([
             'success' => true,
@@ -537,7 +546,7 @@ class FilmListApiController extends Controller
             $item->update($update);
         }
 
-        $fresh = FilmList::with('items.movie')->find($list->id);
+        $fresh = FilmList::with(self::ITEM_MOVIE_RELATIONS)->find($list->id);
 
         return response()->json([
             'success' => true,
@@ -749,7 +758,7 @@ class FilmListApiController extends Controller
             'use_backdrop' => $backdropMediaId !== null,
         ]);
 
-        $fresh = FilmList::with('items.movie')->find($list->id);
+        $fresh = FilmList::with(self::ITEM_MOVIE_RELATIONS)->find($list->id);
 
         return response()->json([
             'success' => true,
@@ -837,8 +846,27 @@ class FilmListApiController extends Controller
                 $items->pluck('poster_media_id')->merge($items->pluck('backdrop_media_id'))->filter()->all()
             );
 
-            $payload['items'] = $items->map(function (FilmListItem $item, $index) use ($mediaPaths) {
+            // Filter metadata is computed in bulk: two aggregates for the whole
+            // list instead of two queries per film.
+            $movieIds = $items->pluck('movie_id')->map(fn ($id) => (int) $id)->all();
+            $watchedCounts = DB::table('ratings')
+                ->whereIn('film_id', $movieIds)
+                ->groupBy('film_id')
+                ->select('film_id', DB::raw('COUNT(*) as total'), DB::raw('AVG(rating) as average'))
+                ->get()
+                ->keyBy('film_id');
+            $viewerRatings = $viewerId > 0
+                ? DB::table('ratings')
+                    ->where('user_id', $viewerId)
+                    ->whereIn('film_id', $movieIds)
+                    ->pluck('rating', 'film_id')
+                    ->all()
+                : [];
+
+            $payload['items'] = $items->map(function (FilmListItem $item, $index) use ($mediaPaths, $watchedCounts, $viewerRatings) {
                 $movie = $item->movie;
+                $stats = $watchedCounts->get((int) $item->movie_id);
+                $viewerRating = $viewerRatings[(int) $item->movie_id] ?? null;
 
                 return [
                     'movie_id' => (int) $item->movie_id,
@@ -855,6 +883,17 @@ class FilmListApiController extends Controller
                     'custom_backdrop' => $item->backdrop_media_id !== null,
                     'poster_media_id' => $item->poster_media_id,
                     'backdrop_media_id' => $item->backdrop_media_id,
+                    // Display-only filter/sort metadata (never persisted by the app).
+                    'duration' => $movie?->duration !== null ? $movie->duration . 'm' : null,
+                    'watched_count' => (int) ($stats->total ?? 0),
+                    'average_rating' => $stats ? round((float) $stats->average, 1) : 0,
+                    'user_rating' => $viewerRating !== null ? (float) $viewerRating : null,
+                    'added_at' => optional($item->created_at)->format('Y-m-d H:i:s'),
+                    'genres' => $movie?->genres->pluck('name')->values() ?? [],
+                    'themes' => $movie?->movieThemes->map(fn ($row) => $row->theme?->name)->filter()->values() ?? [],
+                    'countries' => $movie?->movieCountries->map(fn ($row) => $row->country?->name)->filter()->values() ?? [],
+                    'languages' => $movie?->movieLanguages->map(fn ($row) => $row->language?->name)->filter()->values() ?? [],
+                    'production_houses' => $movie?->movieProductionHouses->map(fn ($row) => $row->productionHouse?->name)->filter()->values() ?? [],
                 ];
             })->all();
         }

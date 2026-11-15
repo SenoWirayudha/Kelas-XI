@@ -1,4 +1,4 @@
-package com.komputerkit.moview.ui.common
+﻿package com.komputerkit.moview.ui.common
 
 import android.content.Context
 import android.text.Editable
@@ -21,7 +21,10 @@ data class FilterSheetResult(
     val releaseYearChoice: String? = null,
     val ratingChoice: String? = null,
     val year: Int? = null,
-    val dateChoice: String? = null
+    val dateChoice: String? = null,
+    val sortChoice: String? = null,
+    /** Saring (bukan urutkan): Feature Length / Short Film. */
+    val durationChoice: String? = null
 )
 
 data class FilterSheetOptions(
@@ -31,7 +34,9 @@ data class FilterSheetOptions(
     val countries: List<String> = emptyList(),
     val productionHouses: List<String> = emptyList(),
     val years: List<String> = emptyList(),
-    val dateOptions: List<String> = emptyList()
+    val dateOptions: List<String> = emptyList(),
+    val sortOptions: List<String> = emptyList(),
+    val durationOptions: List<String> = FilterSheetDialog.DURATION_OPTIONS
 )
 
 class FilterSheetDialog(
@@ -52,11 +57,23 @@ class FilterSheetDialog(
         RELEASE_YEAR("Release Year"),
         RATING("Rating"),
         YEAR("Year"),
-        DATE("Date")
+        DATE("Date"),
+        SORT("Sort"),
+        DURATION("Duration")
     }
 
     companion object {
         val RELEASE_YEAR_OPTIONS = listOf("Newest First", "Earliest First")
+        /** Filter (not sort): films with no duration never match either option. */
+        const val DURATION_FEATURE = "Feature Length"
+        const val DURATION_SHORT = "Short Film"
+        val DURATION_OPTIONS = listOf(DURATION_FEATURE, DURATION_SHORT)
+        /** New global sort options. */
+        const val SORT_LIST_ORDER = "Urutan List"
+        const val SORT_POPULARITY_ALL_TIME = "Popularitas (All Time)"
+        const val SORT_DATE_ADDED = "Date Added"
+        const val SORT_DATE_LIKED = "Date Liked"
+        const val SORT_DATE_WATCHED = "Date Watched"
         val RATING_OPTIONS = listOf(
             "Highest Rated: Average",
             "Highest Rated: Your",
@@ -97,7 +114,7 @@ class FilterSheetDialog(
     private fun setupCategoryChips() {
         // Force Inter — same reason as Search chips (style's fontFamily not picked up by Chip)
         val inter = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.font_family_inter)
-        listOf(binding.chipGenre, binding.chipTheme, binding.chipLanguage, binding.chipCountry, binding.chipProductionHouse, binding.chipReleaseYear, binding.chipRating, binding.chipYear, binding.chipDate).forEach { it.typeface = inter }
+        listOf(binding.chipGenre, binding.chipTheme, binding.chipLanguage, binding.chipCountry, binding.chipProductionHouse, binding.chipReleaseYear, binding.chipRating, binding.chipYear, binding.chipDate, binding.chipSort, binding.chipDuration).forEach { it.typeface = inter }
 
         // Hide categories that the caller did not enable (null = all enabled)
         fun enable(category: Category, view: View) {
@@ -124,6 +141,12 @@ class FilterSheetDialog(
         binding.chipDate.setOnClickListener { selectCategory(Category.DATE) }
         binding.chipProductionHouse.isVisible = (enabledCategories?.contains(Category.PRODUCTION_HOUSE) ?: true) && options.productionHouses.isNotEmpty()
         binding.chipProductionHouse.setOnClickListener { selectCategory(Category.PRODUCTION_HOUSE) }
+        binding.chipSort.setOnClickListener { selectCategory(Category.SORT) }
+        binding.chipDuration.setOnClickListener { selectCategory(Category.DURATION) }
+        binding.chipSort.isVisible =
+            (enabledCategories?.contains(Category.SORT) ?: false) && options.sortOptions.isNotEmpty()
+        binding.chipDuration.isVisible =
+            (enabledCategories?.contains(Category.DURATION) ?: false) && options.durationOptions.isNotEmpty()
     }
 
     private fun selectCategory(category: Category) {
@@ -139,6 +162,8 @@ class FilterSheetDialog(
             Category.YEAR -> binding.chipYear.isChecked = true
             Category.DATE -> binding.chipDate.isChecked = true
             Category.PRODUCTION_HOUSE -> binding.chipProductionHouse.isChecked = true
+            Category.SORT -> binding.chipSort.isChecked = true
+            Category.DURATION -> binding.chipDuration.isChecked = true
         }
         binding.etSearch.text?.clear()
         binding.etSearch.clearFocus()
@@ -158,6 +183,8 @@ class FilterSheetDialog(
         Category.YEAR -> options.years
         Category.DATE -> options.dateOptions
         Category.PRODUCTION_HOUSE -> options.productionHouses
+        Category.SORT -> options.sortOptions
+        Category.DURATION -> options.durationOptions
     }
 
     private fun valueFor(category: Category): String? = when (category) {
@@ -170,6 +197,8 @@ class FilterSheetDialog(
         Category.YEAR -> selection.year?.toString()
         Category.DATE -> selection.dateChoice
         Category.PRODUCTION_HOUSE -> selection.productionHouse
+        Category.SORT -> selection.sortChoice
+        Category.DURATION -> selection.durationChoice
     }
 
     private fun setupSearch() {
@@ -216,6 +245,8 @@ class FilterSheetDialog(
             Category.YEAR -> selection.copy(year = value?.toIntOrNull())
             Category.DATE -> selection.copy(dateChoice = value)
             Category.PRODUCTION_HOUSE -> selection.copy(productionHouse = value)
+            Category.SORT -> selection.copy(sortChoice = value)
+            Category.DURATION -> selection.copy(durationChoice = value)
         }
     }
 

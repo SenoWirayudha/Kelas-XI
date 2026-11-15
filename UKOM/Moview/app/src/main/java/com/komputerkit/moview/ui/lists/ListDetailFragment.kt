@@ -9,6 +9,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.ConcatAdapter
+import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -21,6 +22,14 @@ import com.komputerkit.moview.databinding.BottomSheetCommentsBinding
 import com.komputerkit.moview.databinding.BottomSheetEntryActionsBinding
 import com.komputerkit.moview.databinding.FragmentListDetailBinding
 import com.komputerkit.moview.ui.adapter.CommentAdapter
+import com.komputerkit.moview.ui.common.DurationFilter
+import com.komputerkit.moview.ui.common.FilterSheetDialog
+import com.komputerkit.moview.ui.common.FilterSheetOptions
+import com.komputerkit.moview.ui.common.FilterSheetResult
+import com.komputerkit.moview.ui.common.MovieFilterState
+import com.komputerkit.moview.ui.common.MovieFilterUtils
+import com.komputerkit.moview.ui.common.MovieSortMode
+import com.komputerkit.moview.ui.common.RatingSource
 import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.util.postponeEnterUntilLaidOut
@@ -42,6 +51,12 @@ class ListDetailFragment : Fragment() {
     private var commentCount: Int = 0
 
     private lateinit var gridSizing: PosterGridSizingDecoration
+
+    /** Films exactly as the owner arranged them (drag order, by position). */
+    private var orderedItems: List<FilmListItem> = emptyList()
+
+    /** Display-only filters; never written back to the server. */
+    private var filterState = MovieFilterState(sortMode = MovieSortMode.LIST_ORDER)
 
     /** Set once the deferred first load has been kicked off. */
     private var initialLoadStarted = false
@@ -95,7 +110,16 @@ class ListDetailFragment : Fragment() {
         }
         binding.rvContent.layoutManager = gridLayout
         binding.rvContent.setHasFixedSize(false)
-        binding.rvContent.itemAnimator = null
+        // Filter changes animate: surviving posters slide, removed ones fade out,
+        // new ones fade in. Same default animator the app already uses for grids.
+        binding.rvContent.itemAnimator = DefaultItemAnimator().apply {
+            moveDuration = GRID_ANIM_MS
+            addDuration = GRID_ANIM_MS
+            removeDuration = GRID_ANIM_MS
+            changeDuration = GRID_ANIM_MS
+            // Header re-binds must not cross-fade (it holds the backdrop).
+            supportsChangeAnimations = false
+        }
         binding.rvContent.adapter = ConcatAdapter(headerAdapter, gridAdapter)
 
         // One decoration owns cell size + spacing: equal widths in all columns.
@@ -114,6 +138,7 @@ class ListDetailFragment : Fragment() {
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnMore.setOnClickListener { showListMenu() }
+        binding.btnFilter.setOnClickListener { showFilterSheet() }
 
         observe()
 
@@ -191,10 +216,144 @@ class ListDetailFragment : Fragment() {
         applyRankSpacing(list.isRanked)
 
         // DiffUtil keeps this cheap: only changed cells are re-bound.
-        gridAdapter.submitList(
-            list.items.sortedBy { it.position }.map { PosterCell.Film(it) }
-        )
+        orderedItems = list.items.sortedBy { it.position }
+        applyDisplayOrder()
     }
+
+    /**
+     * Renders the display order only, via the app-wide filter logic. Rank badges
+     * always read [FilmListItem.position], so a Rank List keeps its original
+     * numbers while sorted or filtered another way.
+     */
+    private fun applyDisplayOrder() {
+        // FilmListItem → Movie only to reuse MovieFilterUtils; the original
+        // position travels along so the rank badge never changes.
+        val byId = orderedItems.associateBy { it.movieId }
+        val filtered = MovieFilterUtils.applyFilters(orderedItems.map { it.toFilterMovie() }, filterState)
+
+        val items = filtered.mapNotNull { byId[it.id] }
+        headerAdapter.setFilterEmpty(items.isEmpty() && orderedItems.isNotEmpty())
+        gridAdapter.submitList(items.map { PosterCell.Film(it) })
+    }
+
+    /** All categories the shared sheet offers, fed from the list's own films. */
+    private fun showFilterSheet() {
+        val items = orderedItems
+        FilterSheetDialog(
+            context = requireContext(),
+            options = FilterSheetOptions(
+                genres = items.flatMap { it.genres }.distinct().sorted(),
+                themes = items.flatMap { it.themes }.distinct().sorted(),
+                languages = items.flatMap { it.languages }.distinct().sorted(),
+                countries = items.flatMap { it.countries }.distinct().sorted(),
+                productionHouses = items.flatMap { it.productionHouses }.distinct().sorted(),
+                years = items.mapNotNull { it.releaseYear }.distinct().sortedDescending().map { it.toString() },
+                dateOptions = listOf(FilterSheetDialog.SORT_DATE_ADDED),
+                // Same rule as the other pages: no data → no option.
+                sortOptions = if (items.any { it.watchedCount > 0 }) {
+                    listOf(FilterSheetDialog.SORT_LIST_ORDER, FilterSheetDialog.SORT_POPULARITY_ALL_TIME)
+                } else {
+                    listOf(FilterSheetDialog.SORT_LIST_ORDER)
+                },
+                durationOptions = if (items.any { !it.duration.isNullOrBlank() }) {
+                    FilterSheetDialog.DURATION_OPTIONS
+                } else {
+                    emptyList()
+                }
+            ),
+            initial = FilterSheetResult(
+                genre = filterState.selectedGenre,
+                theme = filterState.selectedTheme,
+                language = filterState.selectedLanguage,
+                country = filterState.selectedCountry,
+                productionHouse = filterState.selectedProductionHouse,
+                releaseYearChoice = currentReleaseYearChoice(),
+                ratingChoice = currentRatingChoice(),
+                year = filterState.selectedYear,
+                dateChoice = if (filterState.sortMode == MovieSortMode.DATE) FilterSheetDialog.SORT_DATE_ADDED else null,
+                sortChoice = currentSortChoice(),
+                durationChoice = currentDurationChoice()
+            ),
+            initialCategory = FilterSheetDialog.Category.SORT,
+            enabledCategories = FilterSheetDialog.Category.values().toSet(),
+            onApply = { result ->
+                filterState = filterState.copy(
+                    selectedGenre = result.genre,
+                    selectedTheme = result.theme,
+                    selectedLanguage = result.language,
+                    selectedCountry = result.country,
+                    selectedProductionHouse = result.productionHouse,
+                    selectedYear = result.year,
+                    durationFilter = when (result.durationChoice) {
+                        FilterSheetDialog.DURATION_FEATURE -> DurationFilter.FEATURE_LENGTH
+                        FilterSheetDialog.DURATION_SHORT -> DurationFilter.SHORT_FILM
+                        else -> null
+                    },
+                    // One sort value per category in the sheet; the touched one wins.
+                    sortMode = when {
+                        result.sortChoice == FilterSheetDialog.SORT_LIST_ORDER -> MovieSortMode.LIST_ORDER
+                        result.sortChoice == FilterSheetDialog.SORT_POPULARITY_ALL_TIME -> MovieSortMode.POPULARITY
+                        result.dateChoice == FilterSheetDialog.SORT_DATE_ADDED -> MovieSortMode.DATE
+                        result.releaseYearChoice != null -> MovieSortMode.RELEASE_YEAR
+                        result.ratingChoice != null -> MovieSortMode.RATING
+                        else -> MovieSortMode.LIST_ORDER
+                    },
+                    releaseYearDescending = result.releaseYearChoice != "Earliest First",
+                    ratingSource = if (result.ratingChoice?.endsWith("Your") == true) {
+                        RatingSource.YOUR
+                    } else {
+                        RatingSource.AVERAGE
+                    },
+                    ratingDescending = result.ratingChoice?.startsWith("Highest") != false
+                )
+                applyDisplayOrder()
+            }
+        ).show()
+    }
+
+    private fun currentSortChoice(): String? = when (filterState.sortMode) {
+        MovieSortMode.LIST_ORDER -> FilterSheetDialog.SORT_LIST_ORDER
+        MovieSortMode.POPULARITY -> FilterSheetDialog.SORT_POPULARITY_ALL_TIME
+        else -> null
+    }
+
+    private fun currentReleaseYearChoice(): String? = when {
+        filterState.sortMode != MovieSortMode.RELEASE_YEAR -> null
+        filterState.releaseYearDescending -> "Newest First"
+        else -> "Earliest First"
+    }
+
+    private fun currentRatingChoice(): String? {
+        if (filterState.sortMode != MovieSortMode.RATING) return null
+        val source = if (filterState.ratingSource == RatingSource.AVERAGE) "Average" else "Your"
+        return if (filterState.ratingDescending) "Highest Rated: $source" else "Lowest Rated: $source"
+    }
+
+    private fun currentDurationChoice(): String? = when (filterState.durationFilter) {
+        DurationFilter.FEATURE_LENGTH -> FilterSheetDialog.DURATION_FEATURE
+        DurationFilter.SHORT_FILM -> FilterSheetDialog.DURATION_SHORT
+        null -> null
+    }
+
+    /** Adapter between the list payload and the shared filter/sort logic. */
+    private fun FilmListItem.toFilterMovie() = Movie(
+        id = movieId,
+        title = title,
+        posterUrl = posterUrl,
+        averageRating = averageRating,
+        genre = genres.joinToString(", "),
+        genres = genres,
+        countries = countries,
+        languages = languages,
+        themes = themes,
+        productionCompanies = productionHouses,
+        releaseYear = releaseYear,
+        activityAtRaw = addedAt,
+        popularity = watchedCount,
+        duration = duration,
+        userRating = userRating ?: 0f,
+        description = ""
+    )
 
     /** Rank numbers live in the shared cell; toggling only re-binds badges. */
     private fun applyRankSpacing(ranked: Boolean) {
@@ -413,5 +572,7 @@ class ListDetailFragment : Fragment() {
         const val GRID_GAP_DP = 8
         /** Rank badge size; half of it overhangs above the poster. */
         const val RANK_BADGE_SIZE_DP = 20
+        /** Duration of the grid re-order/fade animation after a filter change. */
+        const val GRID_ANIM_MS = 275L
     }
 }

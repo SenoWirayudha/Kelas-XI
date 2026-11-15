@@ -233,6 +233,9 @@ data class TicketScanResponseDto(
     val scanned_at: String?
 )
 
+// Gson leaves Kotlin non-null primitives at 0 (no constructor is called), so
+// fields that not every endpoint returns must stay nullable and be defaulted
+// by the mapper — a non-null Int here would arrive as 0 on /films/category.
 data class MovieCardDto(
     val id: Int,
     val title: String?,
@@ -248,7 +251,8 @@ data class MovieCardDto(
     val average_rating: Float?,
     val watched_count: Int?,
     val primary_release_date: String? = null,
-    val friend_count: Int = 0
+    val friend_count: Int? = null,
+    val production_houses: List<String>? = null
 )
 
 data class FriendReviewDto(
@@ -599,7 +603,12 @@ data class UserFilmDto(
     val added_at: String? = null,
     val is_liked: Boolean? = null,
     val is_in_watchlist: Boolean? = null,
-    val primary_release_date: String? = null
+    val primary_release_date: String? = null,
+    // Filter metadata: same duration/popularity sources as the list payload.
+    // Nullable on purpose: Gson skips Kotlin defaults for absent fields.
+    val duration: String? = null,
+    val watched_count: Int? = null,
+    val production_houses: List<String>? = null
 )
 
 data class FilterOptionsDto(
@@ -1075,7 +1084,18 @@ data class FilmListItemDto(
     val custom_poster: Boolean = false,
     val custom_backdrop: Boolean = false,
     val poster_media_id: Int? = null,
-    val backdrop_media_id: Int? = null
+    val backdrop_media_id: Int? = null,
+    // Display-only metadata for the list filter sheet (never sent back).
+    val duration: String? = null,
+    val watched_count: Int = 0,
+    val average_rating: Float = 0f,
+    val user_rating: Float? = null,
+    val added_at: String? = null,
+    val genres: List<String>? = null,
+    val themes: List<String>? = null,
+    val countries: List<String>? = null,
+    val languages: List<String>? = null,
+    val production_houses: List<String>? = null
 )
 
 data class CreateFilmListRequest(

@@ -48,12 +48,13 @@ class MovieRepository {
             releaseYear = this.year,
             primaryReleaseDate = this.primary_release_date,
             popularity = this.watched_count,
+            productionCompanies = this.production_houses.orEmpty(),
             duration = this.duration,
             description = "",
             hasReview = false,
             reviewId = 0,
             userRating = 0f,
-            friendCount = this.friend_count
+            friendCount = this.friend_count ?: 0
         )
     }
     
@@ -410,6 +411,9 @@ class MovieRepository {
                         activityAtRaw = filmDto.added_at,
                         primaryReleaseDate = filmDto.primary_release_date,
                         description = "",
+                        duration = filmDto.duration,
+                        popularity = filmDto.watched_count,
+                        productionCompanies = filmDto.production_houses.orEmpty(),
                         hasReview = false,
                         reviewId = 0,
                         userRating = filmDto.rating ?: 0f
@@ -452,6 +456,9 @@ class MovieRepository {
                         activityAtRaw = filmDto.liked_at,
                         primaryReleaseDate = filmDto.primary_release_date,
                         description = "",
+                        duration = filmDto.duration,
+                        popularity = filmDto.watched_count,
+                        productionCompanies = filmDto.production_houses.orEmpty(),
                         hasReview = review != null,
                         reviewId = review?.review_id ?: 0,
                         userRating = filmDto.rating ?: 0f,  // Now uses user's rating from ratings table
@@ -2341,6 +2348,9 @@ class MovieRepository {
                             activityAtRaw = filmDto.rated_at,
                             primaryReleaseDate = filmDto.primary_release_date,
                             description = "",
+                            duration = filmDto.duration,
+                            popularity = filmDto.watched_count,
+                            productionCompanies = filmDto.production_houses.orEmpty(),
                             hasReview = review != null,
                             reviewId = review?.review_id ?: 0,
                             isLiked = filmDto.is_liked ?: false,
@@ -2427,6 +2437,9 @@ class MovieRepository {
                             activityAtRaw = filmDto.added_at,
                             primaryReleaseDate = filmDto.primary_release_date,
                             description = "",
+                            duration = filmDto.duration,
+                            popularity = filmDto.watched_count,
+                            productionCompanies = filmDto.production_houses.orEmpty(),
                             hasReview = false,
                             reviewId = 0,
                             userRating = filmDto.rating ?: 0f
@@ -2469,6 +2482,9 @@ class MovieRepository {
                             activityAtRaw = filmDto.liked_at,
                             primaryReleaseDate = filmDto.primary_release_date,
                             description = "",
+                            duration = filmDto.duration,
+                            popularity = filmDto.watched_count,
+                            productionCompanies = filmDto.production_houses.orEmpty(),
                             hasReview = review != null,
                             reviewId = review?.review_id ?: 0,
                             userRating = filmDto.rating ?: 0f,

@@ -597,6 +597,16 @@ class FilmListViewModel(application: Application) : AndroidViewModel(application
         customPoster = custom_poster,
         customBackdrop = custom_backdrop,
         posterMediaId = poster_media_id,
-        backdropMediaId = backdrop_media_id
+        backdropMediaId = backdrop_media_id,
+        duration = duration,
+        watchedCount = watched_count,
+        averageRating = average_rating,
+        userRating = user_rating,
+        addedAt = added_at,
+        genres = genres.orEmpty(),
+        themes = themes.orEmpty(),
+        countries = countries.orEmpty(),
+        languages = languages.orEmpty(),
+        productionHouses = production_houses.orEmpty()
     )
 }

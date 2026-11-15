@@ -93,6 +93,7 @@ class FilmListController extends Controller
                 'movies.id',
                 'movies.title',
                 'movies.release_year',
+                'movies.duration',
                 'movies.default_poster_path',
                 DB::raw('(SELECT COUNT(*) FROM ratings WHERE ratings.film_id = movies.id) AS watched_count'),
                 DB::raw(Movie::primaryReleaseDateSql() . ' AS primary_release_date')
@@ -132,6 +133,14 @@ class FilmListController extends Controller
                     ->where('film_id', $movie->id)
                     ->avg('rating') ?? 0;
 
+                $productionHouses = DB::table('movie_production_houses')
+                    ->join('production_houses', 'movie_production_houses.production_house_id', '=', 'production_houses.id')
+                    ->where('movie_production_houses.movie_id', $movie->id)
+                    ->pluck('production_houses.name')
+                    ->filter()
+                    ->values()
+                    ->toArray();
+
                 $rawPath = $movie->default_poster_path ?? null;
                 $posterUrl = null;
                 if ($rawPath) {
@@ -150,6 +159,8 @@ class FilmListController extends Controller
                     'languages'      => $languages,
                     'themes'         => $themes,
                     'average_rating' => round($avgRating, 1),
+                    'duration'       => $movie->duration !== null ? $movie->duration . 'm' : null,
+                    'production_houses' => $productionHouses,
                     'watched_count'  => (int)$movie->watched_count,
                     'primary_release_date' => $movie->primary_release_date,
                 ];

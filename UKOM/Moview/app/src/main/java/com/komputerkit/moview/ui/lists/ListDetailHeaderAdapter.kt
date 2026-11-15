@@ -24,6 +24,8 @@ class ListDetailHeaderAdapter(
     private var isOwner: Boolean = false
     private var commentCount: Int = 0
     private var ownerFallbackAvatar: String? = null
+    /** True when the active filter hides every film (the list itself is not empty). */
+    private var filterEmpty: Boolean = false
 
     fun submit(list: FilmList, isOwner: Boolean, ownerFallbackAvatar: String?) {
         val wasEmpty = this.list == null
@@ -36,6 +38,13 @@ class ListDetailHeaderAdapter(
             wasEmpty -> notifyItemInserted(0)
             else -> notifyItemChanged(0)
         }
+    }
+
+    /** Shows the empty state inside the header, right below the list info. */
+    fun setFilterEmpty(empty: Boolean) {
+        if (filterEmpty == empty) return
+        filterEmpty = empty
+        if (list != null) notifyItemChanged(0)
     }
 
     fun setCommentCount(count: Int) {
@@ -85,7 +94,14 @@ class ListDetailHeaderAdapter(
             // right below the top bar. Also used for "List by @username".
             val showBackdrop = list.useBackdrop && !list.backdropUrl.isNullOrBlank()
             binding.backdropContainer.visibility = if (showBackdrop) View.VISIBLE else View.GONE
-            binding.tvEmpty.visibility = if (list.items.isEmpty()) View.VISIBLE else View.GONE
+            // Same empty state for "no films yet" and "filter matched nothing":
+            // it sits inside the header, i.e. below the backdrop and list info.
+            val listEmpty = list.items.isEmpty()
+            binding.tvEmpty.visibility = if (listEmpty || filterEmpty) View.VISIBLE else View.GONE
+            binding.tvEmpty.text = when {
+                !listEmpty && filterEmpty -> "Tidak ada film yang cocok dengan filter."
+                else -> "Belum ada film di list ini."
+            }
 
             // The content RecyclerView pads 16dp for the grid/header text; the
             // hero cancels that padding on BOTH sides so the image is

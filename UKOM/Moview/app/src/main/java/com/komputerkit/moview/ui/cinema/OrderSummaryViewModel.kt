@@ -156,7 +156,7 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
                             isApplyingPromo = false,
                             promoCode = null,
                             promoDiscount = 0,
-                            promoMessage = response.message ?: "Kode promo tidak berlaku."
+                            error = response.message ?: "Kode promo tidak berlaku."
                         )
                     )
                 }
@@ -179,7 +179,7 @@ class OrderSummaryViewModel(application: Application) : AndroidViewModel(applica
                         isApplyingPromo = false,
                         promoCode = null,
                         promoDiscount = 0,
-                        promoMessage = errorMessage
+                        error = errorMessage
                     )
                 )
             }

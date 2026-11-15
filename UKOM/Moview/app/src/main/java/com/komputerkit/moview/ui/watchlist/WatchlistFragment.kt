@@ -14,6 +14,7 @@ import com.komputerkit.moview.data.model.WatchlistItem
 import com.komputerkit.moview.databinding.FragmentWatchlistBinding
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.ui.common.DurationFilter
 import com.komputerkit.moview.ui.common.FilterSheetDialog
 import com.komputerkit.moview.ui.common.FilterSheetOptions
 import com.komputerkit.moview.ui.common.FilterSheetResult
@@ -117,7 +118,19 @@ class WatchlistFragment : Fragment() {
                 themes = themeOptions,
                 languages = languageOptions,
                 countries = countryOptions,
+                productionHouses = viewModel.availableProductionHouses(),
                 years = viewModel.availableYears(),
+                // Hide an option when this page's payload has no data for it.
+                sortOptions = if (viewModel.supportsPopularitySort()) {
+                    listOf(FilterSheetDialog.SORT_POPULARITY_ALL_TIME)
+                } else {
+                    emptyList()
+                },
+                durationOptions = if (viewModel.supportsDurationFilter()) {
+                    FilterSheetDialog.DURATION_OPTIONS
+                } else {
+                    emptyList()
+                },
                 dateOptions = listOf("Date Added")
             ),
             initial = FilterSheetResult(
@@ -128,14 +141,42 @@ class WatchlistFragment : Fragment() {
                 releaseYearChoice = viewModel.currentReleaseYearChoice(),
                 ratingChoice = viewModel.currentRatingChoice(),
                 year = viewModel.currentYear(),
-                dateChoice = viewModel.currentDateChoice()
+                dateChoice = viewModel.currentDateChoice(),
+                sortChoice = viewModel.currentSortChoice(),
+                durationChoice = viewModel.currentDurationChoice()
             ),
             initialCategory = initialCategory,
+            enabledCategories = setOf(
+                FilterSheetDialog.Category.GENRE,
+                FilterSheetDialog.Category.THEME,
+                FilterSheetDialog.Category.LANGUAGE,
+                FilterSheetDialog.Category.COUNTRY,
+                FilterSheetDialog.Category.PRODUCTION_HOUSE,
+                FilterSheetDialog.Category.RELEASE_YEAR,
+                FilterSheetDialog.Category.RATING,
+                FilterSheetDialog.Category.YEAR,
+                FilterSheetDialog.Category.DATE,
+                FilterSheetDialog.Category.SORT,
+                FilterSheetDialog.Category.DURATION
+            ),
             onApply = { result ->
                 viewModel.setGenre(result.genre)
                 viewModel.setTheme(result.theme)
                 viewModel.setCountry(result.country)
                 viewModel.setLanguage(result.language)
+                viewModel.setProductionHouse(result.productionHouse)
+                viewModel.setDurationFilter(
+                    when (result.durationChoice) {
+                        FilterSheetDialog.DURATION_FEATURE -> DurationFilter.FEATURE_LENGTH
+                        FilterSheetDialog.DURATION_SHORT -> DurationFilter.SHORT_FILM
+                        else -> null
+                    }
+                )
+
+                when (result.sortChoice) {
+                    FilterSheetDialog.SORT_POPULARITY_ALL_TIME -> viewModel.sortByPopularity()
+                    null -> Unit
+                }
 
                 when (result.dateChoice) {
                     "Date Added" -> viewModel.sortByDateAdded()
