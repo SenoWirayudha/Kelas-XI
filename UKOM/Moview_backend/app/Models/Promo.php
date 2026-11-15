@@ -26,6 +26,7 @@ class Promo extends Model
         'valid_until',
         'scope',
         'cinema_id',
+        'networks',
         'is_active',
     ];
 
@@ -36,6 +37,7 @@ class Promo extends Model
         'quota_total' => 'integer',
         'per_user_limit' => 'integer',
         'cinema_id' => 'integer',
+        'networks' => 'array',
         'is_active' => 'boolean',
         'valid_from' => 'datetime',
         'valid_until' => 'datetime',
@@ -49,6 +51,20 @@ class Promo extends Model
     public function usages()
     {
         return $this->hasMany(PromoUsage::class);
+    }
+
+    /**
+     * Networks this code is limited to, in the canonical XXI/CGV/CINEPOLIS
+     * order. Empty array means "all networks".
+     */
+    public function networkList(): array
+    {
+        $selected = array_map('strtoupper', (array) ($this->networks ?? []));
+
+        return array_values(array_filter(
+            Cinema::NETWORKS,
+            fn ($network) => in_array($network, $selected, true)
+        ));
     }
 
     /** Codes are stored uppercase; keep lookup and storage in sync. */

@@ -7,6 +7,7 @@ use App\Models\Cinema;
 use App\Models\Service;
 use App\Support\ReturnUrl;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CinemaController extends Controller
 {
@@ -38,6 +39,7 @@ class CinemaController extends Controller
         $validated = $request->validate([
             'service_id'  => 'nullable|exists:services,id',
             'cinema_name' => 'required|string|max:150',
+            'network'     => ['nullable', Rule::in(Cinema::NETWORKS)],
             'city'        => 'required|string|max:100',
             'address'     => 'required|string|max:255',
         ]);
@@ -68,6 +70,7 @@ class CinemaController extends Controller
         $validated = $request->validate([
             'service_id'  => 'nullable|exists:services,id',
             'cinema_name' => 'required|string|max:150',
+            'network'     => ['nullable', Rule::in(Cinema::NETWORKS)],
             'city'        => 'required|string|max:100',
             'address'     => 'required|string|max:255',
         ]);

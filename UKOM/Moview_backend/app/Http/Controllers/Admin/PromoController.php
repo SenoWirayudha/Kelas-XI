@@ -102,6 +102,8 @@ class PromoController extends Controller
             'per_user_limit' => 'required|integer|min:1',
             'valid_from' => 'nullable|date',
             'valid_until' => 'nullable|date|after_or_equal:valid_from',
+            'networks' => 'nullable|array',
+            'networks.*' => Rule::in(Cinema::NETWORKS),
         ];
 
         if ($this->isManager()) {
@@ -133,6 +135,10 @@ class PromoController extends Controller
         $validated['min_purchase'] = $validated['min_purchase'] ?? 0;
         $validated['quota_total'] = $validated['quota_total'] ?? null;
 
+        // No network selected means "all networks" (null keeps old rows compatible).
+        $networks = array_values(array_unique($validated['networks'] ?? []));
+        $validated['networks'] = $networks === [] ? null : $networks;
+
         return $validated;
     }
 
@@ -143,6 +149,7 @@ class PromoController extends Controller
             'isEdit' => $isEdit,
             'panelPrefix' => $this->panelPrefix(),
             'isManager' => $this->isManager(),
+            'networks' => Cinema::NETWORKS,
             'cinemas' => $this->isManager()
                 ? Cinema::where('id', $this->scopedCinemaId())->get(['id', 'cinema_name'])
                 : Cinema::orderBy('cinema_name')->get(['id', 'cinema_name']),

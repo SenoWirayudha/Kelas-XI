@@ -60,6 +60,7 @@ class PromoService
         }
 
         $this->assertScope($promo, $schedule);
+        $this->assertNetwork($promo, $schedule);
 
         $discount = $this->discountAmount($promo, $ticketSubtotal);
 
@@ -103,6 +104,34 @@ class PromoService
                 'promo_code' => 'Kode promo hanya berlaku untuk tiket festival.',
             ]);
         }
+    }
+
+    /** Empty network list = all networks; otherwise the schedule's cinema must match. */
+    private function assertNetwork(Promo $promo, Schedule $schedule): void
+    {
+        $allowed = $promo->networkList();
+
+        if ($allowed === []) {
+            return;
+        }
+
+        $network = $schedule->studio?->cinema?->network;
+
+        if ($network !== null && in_array($network, $allowed, true)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'promo_code' => 'Promo ini hanya berlaku untuk bioskop ' . $this->formatNetworkList($allowed) . '.',
+        ]);
+    }
+
+    /** ["CGV", "XXI"] -> "CGV dan XXI"; ["CGV", "XXI", "CINEPOLIS"] -> "CGV, XXI, dan CINEPOLIS". */
+    private function formatNetworkList(array $networks): string
+    {
+        $last = array_pop($networks);
+
+        return $networks === [] ? $last : implode(', ', $networks) . ' dan ' . $last;
     }
 
     /** Reserve a slot at order creation (pending payments count against quota). */

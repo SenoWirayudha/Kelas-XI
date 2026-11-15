@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Cinema extends Model
 {
-    protected $fillable = ['service_id', 'cinema_name', 'city', 'address'];
+    public const NETWORKS = ['XXI', 'CGV', 'CINEPOLIS'];
+
+    protected $fillable = ['service_id', 'cinema_name', 'network', 'city', 'address'];
 
     public function service()
     {

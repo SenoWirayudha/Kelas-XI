@@ -135,6 +135,21 @@
             </div>
         @endunless
 
+        @php($selectedNetworks = old('networks', $promo->networks ?? []))
+        <div>
+            <label class="mb-1 block text-sm font-medium text-gray-800">Jaringan Bioskop</label>
+            <div class="flex flex-wrap gap-4 rounded-lg border border-gray-300 px-3 py-2">
+                @foreach($networks as $network)
+                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" name="networks[]" value="{{ $network }}"
+                               @checked(in_array($network, (array) $selectedNetworks, true))>
+                        {{ $network }}
+                    </label>
+                @endforeach
+            </div>
+            <p class="mt-1 text-xs text-gray-500">Kosongkan untuk berlaku di semua jaringan.</p>
+        </div>
+
         @if($isEdit)
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $promo->is_active))>

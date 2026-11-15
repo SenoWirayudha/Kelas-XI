@@ -58,6 +58,20 @@
             </div>
 
             <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Jaringan Bioskop</label>
+                <select name="network"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <option value="">-- Pilih Jaringan --</option>
+                    @foreach(\App\Models\Cinema::NETWORKS as $network)
+                        <option value="{{ $network }}" {{ old('network', $cinema->network) === $network ? 'selected' : '' }}>
+                            {{ $network }}
+                        </option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Dipakai untuk aturan promo per jaringan.</p>
+            </div>
+
+            <div class="mb-5">
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                     Kota <span class="text-red-500">*</span>
                 </label>

@@ -72,6 +72,17 @@
                             @else
                                 Semua tiket
                             @endif
+                            <p class="mt-1">
+                                @if($promo->networkList())
+                                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                                        {{ implode(', ', $promo->networkList()) }}
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600">
+                                        Semua jaringan
+                                    </span>
+                                @endif
+                            </p>
                         </td>
                         <td class="px-6 py-4 text-xs text-gray-600">
                             {{ $promo->valid_from?->translatedFormat('d M Y H:i') ?? '—' }}
