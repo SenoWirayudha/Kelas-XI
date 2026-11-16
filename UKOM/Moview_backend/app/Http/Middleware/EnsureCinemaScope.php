@@ -39,7 +39,7 @@ class EnsureCinemaScope
             }
 
             if ($value !== null && (int) $value !== $cinemaId) {
-                abort(403, 'Anda hanya dapat mengakses data bioskop Anda sendiri.');
+                abort(403, "Akses ditolak: Anda hanya dapat mengakses data bioskop Anda sendiri (cinema #{$cinemaId}), sedangkan permintaan ini untuk cinema #" . (int) $value . '.');
             }
         }
 

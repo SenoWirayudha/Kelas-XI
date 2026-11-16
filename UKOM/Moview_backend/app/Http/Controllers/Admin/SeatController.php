@@ -268,7 +268,7 @@ class SeatController extends Controller
                (count($aisles) > 0 ? ', ' . count($aisles) . ' lorong' : '') .
                ($hasEntranceFeature ? ', area entrance dari baris ' . $entranceStartRow : '') . '.';
 
-return redirect(ReturnUrl::add(route('admin.seats.layout', $studioId), ReturnUrl::fromRequest($request)))
+return redirect(ReturnUrl::add(route($this->panelRoute('seats.layout'), $studioId), ReturnUrl::fromRequest($request)))
             ->with('success', $msg);
     }
 
@@ -474,7 +474,7 @@ return redirect(ReturnUrl::add(route('admin.seats.layout', $studioId), ReturnUrl
 
         $msg = "Layout berhasil disimpan: {$totalActualSeats} kursi, " . count($rowsPayload) . ' baris.';
 
-        return redirect(ReturnUrl::add(route('admin.seats.layout', $studioId), ReturnUrl::fromRequest($request)))
+        return redirect(ReturnUrl::add(route($this->panelRoute('seats.layout'), $studioId), ReturnUrl::fromRequest($request)))
             ->with('success', $msg);
     }
 
@@ -487,13 +487,7 @@ return redirect(ReturnUrl::add(route('admin.seats.layout', $studioId), ReturnUrl
         $this->authorizeStudio($studio->id);
 
         // Only delete seats that have no bookings
-        $bookedSeatIds = DB::table('order_seats')
-            ->whereIn('schedule_id', function ($q) use ($studio) {
-                $q->select('id')->from('schedules')->where('studio_id', $studio->id);
-            })
-            ->pluck('seat_id')
-            ->unique()
-            ->all();
+        $bookedSeatIds = $this->bookedSeatIdsForStudio($studio);
 
         $deleted = Seat::where('studio_id', $studio->id)
             ->when(!empty($bookedSeatIds), fn($q) => $q->whereNotIn('id', $bookedSeatIds))
@@ -501,19 +495,28 @@ return redirect(ReturnUrl::add(route('admin.seats.layout', $studioId), ReturnUrl
 
         $studio->update(['total_seats' => Seat::where('studio_id', $studio->id)->whereNotIn('seat_type', Studio::PLACEHOLDER_TYPE_KEYS)->count()]);
 
-return redirect(ReturnUrl::add(route('admin.seats.layout', $studioId), ReturnUrl::fromRequest($request)))
+return redirect(ReturnUrl::add(route($this->panelRoute('seats.layout'), $studioId), ReturnUrl::fromRequest($request)))
             ->with('success', "Berhasil menghapus {$deleted} kursi.");
     }
 
     private function bookedSeatIdsForStudio(Studio $studio): array
     {
-        return DB::table('order_seats')
+        $orderSeatIds = DB::table('order_seats')
             ->whereIn('schedule_id', function ($q) use ($studio) {
                 $q->select('id')->from('schedules')->where('studio_id', $studio->id);
             })
-            ->pluck('seat_id')
-            ->unique()
-            ->all();
+            ->pluck('seat_id');
+
+        // tickets.seat_id is a RESTRICT foreign key: a seat referenced by any
+        // issued ticket cannot be deleted even if its order_seat was released.
+        $ticketSeatIds = DB::table('tickets')
+            ->whereNotNull('seat_id')
+            ->whereIn('seat_id', function ($q) use ($studio) {
+                $q->select('id')->from('seats')->where('studio_id', $studio->id);
+            })
+            ->pluck('seat_id');
+
+        return $orderSeatIds->merge($ticketSeatIds)->unique()->values()->all();
     }
 
     private function authorizeStudio(int $studioId): void
