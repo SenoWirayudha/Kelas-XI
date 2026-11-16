@@ -1,7 +1,6 @@
 package com.komputerkit.moview.ui.cinema
 
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
@@ -10,11 +9,8 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -29,6 +25,7 @@ import com.komputerkit.moview.ui.cinema.model.*
 import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.WindowInsetsHelper
 import kotlinx.coroutines.launch
 
 class MovieScheduleActivity : AppCompatActivity() {
@@ -117,18 +114,12 @@ class MovieScheduleActivity : AppCompatActivity() {
     // Applied on onResume and restored on onPause, because restoring in onDestroy would
     // run after the next window's onResume and clobber its edge-to-edge state.
     private fun applyImmersiveStatusBar(immersive: Boolean) {
-        val window = window
-        val controller = WindowInsetsControllerCompat(window, window.decorView)
-        if (immersive) {
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            window.statusBarColor = Color.TRANSPARENT
-            controller.isAppearanceLightStatusBars = false
-        } else {
-            WindowCompat.setDecorFitsSystemWindows(window, true)
-            window.statusBarColor =
-                ContextCompat.getColor(this, R.color.dark_background)
-            controller.isAppearanceLightStatusBars = false
-        }
+        WindowInsetsHelper.applyImmersiveWindow(
+            this,
+            immersive = immersive,
+            darkStatusBarIcons = false,
+            includeNavigationBar = false
+        )
     }
 
     override fun onResume() {

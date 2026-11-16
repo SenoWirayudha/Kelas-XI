@@ -13,6 +13,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.NavOptions
@@ -20,7 +22,13 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.data.repository.MovieRepository
+import com.komputerkit.moview.ui.auth.ForgotPasswordFragment
+import com.komputerkit.moview.ui.auth.LoginFragment
+import com.komputerkit.moview.ui.auth.SignUpFragment
+import com.komputerkit.moview.ui.auth.VerifyOtpFragment
+import com.komputerkit.moview.ui.detail.MovieDetailFragment
 import com.komputerkit.moview.util.PagerSwipeGesture
+import com.komputerkit.moview.util.WindowInsetsHelper
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.databinding.ActivityMainBinding
@@ -60,6 +68,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        WindowInsetsHelper.applyDarkSystemBars(this)
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -97,6 +107,7 @@ class MainActivity : AppCompatActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+
             Log.d(
                 "NAVBAR_DEBUG",
                 "activityRoot: ime=${ime.bottom}px visible=${insets.isVisible(
@@ -223,6 +234,23 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
 
+        // Nav destinations live in the NavHost's child FragmentManager, so the
+        // header inset callback must be registered there (not on the activity
+        // FragmentManager, which only sees the NavHostFragment itself).
+        navHostFragment.childFragmentManager.registerFragmentLifecycleCallbacks(
+            object : FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentViewCreated(
+                    fm: FragmentManager,
+                    fragment: Fragment,
+                    view: View,
+                    savedInstanceState: Bundle?
+                ) {
+                    applyWindowInsetsTo(fragment, view)
+                }
+            },
+            false
+        )
+
         // Letterboxd-style tab navigation: EVERY tap on the bottom nav (whether switching
         // tabs or re-tapping the active one) goes back to that tab's root and discards all
         // nested/child screens opened anywhere. No saveState/restoreState / multiple back stacks.
@@ -292,7 +320,37 @@ class MainActivity : AppCompatActivity() {
                 R.id.navigation_home -> maybeShowBioskopCoachMark()
                 else -> binding.coachBioskop.visibility = View.GONE
             }
+
+            applyWindowInsetsToCurrentDestination()
         }
+    }
+
+    private fun applyWindowInsetsToCurrentDestination() {
+        if (!WindowInsetsHelper.isEdgeToEdge) return
+        val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment)
+            as? NavHostFragment ?: return
+        val fragment = navHost.childFragmentManager.fragments.lastOrNull() ?: return
+        val view = fragment.view ?: return
+        applyWindowInsetsTo(fragment, view)
+    }
+
+    private fun applyWindowInsetsTo(fragment: Fragment, view: View) {
+        if (!WindowInsetsHelper.isEdgeToEdge) return
+
+        val mode = when (fragment) {
+            // These screens already own their status-bar/hero handling.
+            is LoginFragment,
+            is SignUpFragment,
+            is VerifyOtpFragment,
+            is ForgotPasswordFragment -> WindowInsetsHelper.Mode.NONE
+
+            // The backdrop bleeds behind the status bar and the toolbar already
+            // receives the status-bar inset in the fragment itself.
+            is MovieDetailFragment -> WindowInsetsHelper.Mode.NONE
+
+            else -> WindowInsetsHelper.Mode.HEADER
+        }
+        WindowInsetsHelper.applyFragmentInsets(view, mode)
     }
 
     // --- Bioskop tab dot + one-time coach mark ------------------------------
@@ -323,15 +381,21 @@ class MainActivity : AppCompatActivity() {
      * default here makes every tab entry self-healing.
      */
     private fun restoreDefaultWindowChrome() {
-        WindowCompat.setDecorFitsSystemWindows(window, true)
-        @Suppress("DEPRECATION")
-        window.statusBarColor = ContextCompat.getColor(this, R.color.dark_background)
-        @Suppress("DEPRECATION")
-        window.navigationBarColor = ContextCompat.getColor(this, R.color.dark_background)
+        if (WindowInsetsHelper.isEdgeToEdge) {
+            // Android 15+ is always edge-to-edge: keep the transparent bars
+            // and only restore the dark-theme (light) system icons.
+            WindowInsetsHelper.applyDarkSystemBars(this)
+        } else {
+            WindowCompat.setDecorFitsSystemWindows(window, true)
+            @Suppress("DEPRECATION")
+            window.statusBarColor = ContextCompat.getColor(this, R.color.dark_background)
+            @Suppress("DEPRECATION")
+            window.navigationBarColor = ContextCompat.getColor(this, R.color.dark_background)
+        }
         // A stale translation would keep the bar off its constraint; it is never
         // animated by us, so resetting is safe.
         binding.bottomNavigation.translationY = 0f
-        // Re-evaluate insets for the new (non edge-to-edge) window state.
+        // Re-evaluate insets for the new window state.
         binding.root.requestApplyInsets()
     }
 

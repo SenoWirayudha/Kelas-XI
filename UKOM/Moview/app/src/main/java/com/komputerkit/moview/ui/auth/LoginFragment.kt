@@ -2,7 +2,6 @@ package com.komputerkit.moview.ui.auth
 
 import android.app.Activity
 import android.content.Context
-import android.graphics.Color
 import android.os.Bundle
 import android.text.InputType
 import android.util.Log
@@ -12,11 +11,8 @@ import android.view.ViewGroup
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.lifecycleScope
@@ -32,6 +28,7 @@ import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.hideImeAndThen
 import com.komputerkit.moview.util.loadBackdrop
+import com.komputerkit.moview.util.WindowInsetsHelper
 import kotlinx.coroutines.launch
 
 class LoginFragment : Fragment() {
@@ -115,23 +112,12 @@ class LoginFragment : Fragment() {
     // runs AFTER the next fragment's onViewCreated — restoring there would clobber the
     // incoming page's edge-to-edge state.
     private fun applyImmersiveStatusBar(immersive: Boolean) {
-        val window = requireActivity().window
-        val controller = WindowInsetsControllerCompat(window, window.decorView)
-        if (immersive) {
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            window.statusBarColor = Color.TRANSPARENT
-            window.navigationBarColor = Color.TRANSPARENT
-            controller.isAppearanceLightStatusBars = true
-            controller.isAppearanceLightNavigationBars = false
-        } else {
-            WindowCompat.setDecorFitsSystemWindows(window, true)
-            window.statusBarColor =
-                ContextCompat.getColor(requireContext(), R.color.dark_background)
-            window.navigationBarColor =
-                ContextCompat.getColor(requireContext(), R.color.dark_background)
-            controller.isAppearanceLightStatusBars = false
-            controller.isAppearanceLightNavigationBars = false
-        }
+        WindowInsetsHelper.applyImmersiveWindow(
+            requireActivity(),
+            immersive = immersive,
+            darkStatusBarIcons = true,
+            includeNavigationBar = true
+        )
     }
 
     override fun onResume() {

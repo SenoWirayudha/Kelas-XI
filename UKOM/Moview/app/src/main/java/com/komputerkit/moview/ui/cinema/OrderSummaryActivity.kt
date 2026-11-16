@@ -15,6 +15,7 @@ import com.komputerkit.moview.ui.cinema.model.BookingData
 import com.komputerkit.moview.ui.ticket.TicketHistoryActivity
 import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.WindowInsetsHelper
 import com.komputerkit.moview.util.showSnackbar
 import com.midtrans.sdk.corekit.callback.TransactionFinishedCallback
 import com.midtrans.sdk.corekit.core.MidtransSDK
@@ -43,6 +44,7 @@ class OrderSummaryActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityOrderSummaryBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowInsetsHelper.applyActivityInsets(this, binding.root)
 
         bookingData = (intent.getSerializableExtra(EXTRA_BOOKING) as? BookingData)
             ?: BookingData(

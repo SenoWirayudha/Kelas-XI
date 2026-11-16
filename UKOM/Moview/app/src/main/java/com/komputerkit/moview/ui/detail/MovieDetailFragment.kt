@@ -7,7 +7,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.MotionEvent
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -33,6 +32,7 @@ import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.FragmentMovieDetailBinding
 import com.komputerkit.moview.ui.lists.FilmListViewModel
 import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.util.WindowInsetsHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1134,15 +1134,12 @@ class MovieDetailFragment : Fragment() {
     // runs AFTER the next fragment's onViewCreated — restoring there would clobber the
     // incoming page's edge-to-edge state.
     private fun applyImmersiveStatusBar(immersive: Boolean) {
-        val window = requireActivity().window
-        if (immersive) {
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            window.statusBarColor = Color.TRANSPARENT
-        } else {
-            WindowCompat.setDecorFitsSystemWindows(window, true)
-            window.statusBarColor =
-                ContextCompat.getColor(requireContext(), R.color.dark_background)
-        }
+        WindowInsetsHelper.applyImmersiveWindow(
+            requireActivity(),
+            immersive = immersive,
+            darkStatusBarIcons = false,
+            includeNavigationBar = false
+        )
     }
 
     override fun onResume() {

@@ -76,10 +76,12 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         (activity ?: return).window.setSoftInputMode(
             android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
         )
-        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(
-            requireActivity().window,
-            true
-        )
+        if (!com.komputerkit.moview.util.WindowInsetsHelper.isEdgeToEdge) {
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(
+                requireActivity().window,
+                true
+            )
+        }
 
         // Re-evaluate insets for the new window state and log the values so a
         // remaining offset can be diagnosed from logcat (tag NAVBAR_DEBUG).
@@ -89,19 +91,22 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
 
     /** Temporary diagnostics for the "navbar pushed up" bug. Tag: NAVBAR_DEBUG. */
     private fun logNavbarInsets(root: View) {
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
-            val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())
-            val bars = insets.getInsets(
-                androidx.core.view.WindowInsetsCompat.Type.systemBars()
-            )
-            val imeVisible = insets.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())
-            android.util.Log.d(
-                "NAVBAR_DEBUG",
-                "ime=${ime.bottom}px visible=$imeVisible " +
-                    "systemBars(top=${bars.top},bottom=${bars.bottom})px " +
-                    "rootBottom=${v.bottom} focused=${v.findFocus()?.javaClass?.simpleName}"
-            )
-            insets
+        // On API 35+ the centralized inset listener already owns this view.
+        if (!com.komputerkit.moview.util.WindowInsetsHelper.isEdgeToEdge) {
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+                val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())
+                val bars = insets.getInsets(
+                    androidx.core.view.WindowInsetsCompat.Type.systemBars()
+                )
+                val imeVisible = insets.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())
+                android.util.Log.d(
+                    "NAVBAR_DEBUG",
+                    "ime=${ime.bottom}px visible=$imeVisible " +
+                        "systemBars(top=${bars.top},bottom=${bars.bottom})px " +
+                        "rootBottom=${v.bottom} focused=${v.findFocus()?.javaClass?.simpleName}"
+                )
+                insets
+            }
         }
         // One extra pass after layout so the numbers reflect the settled state.
         root.post {

@@ -2,7 +2,6 @@ package com.komputerkit.moview.ui.auth
 
 import android.content.Context
 import android.content.res.ColorStateList
-import android.graphics.Color
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.text.Editable
@@ -15,9 +14,7 @@ import com.komputerkit.moview.util.SnackbarType
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -32,6 +29,7 @@ import com.komputerkit.moview.util.ErrorMessage
 import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.hideImeAndThen
 import com.komputerkit.moview.util.loadBackdrop
+import com.komputerkit.moview.util.WindowInsetsHelper
 import kotlinx.coroutines.launch
 
 /**
@@ -186,23 +184,12 @@ class VerifyOtpFragment : Fragment() {
     }
 
     private fun applyImmersiveStatusBar(immersive: Boolean) {
-        val window = requireActivity().window
-        val controller = WindowInsetsControllerCompat(window, window.decorView)
-        if (immersive) {
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            window.statusBarColor = Color.TRANSPARENT
-            window.navigationBarColor = Color.TRANSPARENT
-            controller.isAppearanceLightStatusBars = true
-            controller.isAppearanceLightNavigationBars = false
-        } else {
-            WindowCompat.setDecorFitsSystemWindows(window, true)
-            window.statusBarColor =
-                ContextCompat.getColor(requireContext(), R.color.dark_background)
-            window.navigationBarColor =
-                ContextCompat.getColor(requireContext(), R.color.dark_background)
-            controller.isAppearanceLightStatusBars = false
-            controller.isAppearanceLightNavigationBars = false
-        }
+        WindowInsetsHelper.applyImmersiveWindow(
+            requireActivity(),
+            immersive = immersive,
+            darkStatusBarIcons = true,
+            includeNavigationBar = true
+        )
     }
 
     override fun onResume() {

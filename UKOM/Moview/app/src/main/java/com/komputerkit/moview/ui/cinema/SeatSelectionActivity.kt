@@ -22,6 +22,7 @@ import com.komputerkit.moview.ui.cinema.model.BookingData
 import com.komputerkit.moview.ui.cinema.model.Seat
 import com.komputerkit.moview.ui.cinema.model.SeatStatus
 import com.komputerkit.moview.ui.cinema.model.SeatType
+import com.komputerkit.moview.util.WindowInsetsHelper
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -45,6 +46,7 @@ class SeatSelectionActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySeatSelectionBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowInsetsHelper.applyActivityInsets(this, binding.root)
         viewModel = ViewModelProvider(this)[SeatSelectionViewModel::class.java]
 
         bookingData = (intent.getSerializableExtra(EXTRA_BOOKING) as? BookingData)

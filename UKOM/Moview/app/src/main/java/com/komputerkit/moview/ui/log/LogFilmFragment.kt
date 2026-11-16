@@ -315,7 +315,14 @@ class LogFilmFragment : Fragment() {
     }
     
     private fun setupKeyboardInset() {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+        // On API 35+ the centralized inset listener owns the fragment root, so
+        // handle the IME on the scroll view instead to avoid clobbering it.
+        val target = if (com.komputerkit.moview.util.WindowInsetsHelper.isEdgeToEdge) {
+            binding.scrollView
+        } else {
+            binding.root
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(target) { _, insets ->
             val keyboardHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
             val bottomPadding = if (isFocusMode) 0 else keyboardHeight
             binding.scrollView.setPadding(
@@ -708,9 +715,14 @@ class LogFilmFragment : Fragment() {
             } catch (_: Exception) {}
         }
         scrollListener = null
-        _binding?.root?.let { root ->
+        _binding?.let { binding ->
+            val target = if (com.komputerkit.moview.util.WindowInsetsHelper.isEdgeToEdge) {
+                binding.scrollView
+            } else {
+                binding.root
+            }
             try {
-                ViewCompat.setOnApplyWindowInsetsListener(root, null)
+                ViewCompat.setOnApplyWindowInsetsListener(target, null)
             } catch (_: Exception) {}
         }
         _binding = null

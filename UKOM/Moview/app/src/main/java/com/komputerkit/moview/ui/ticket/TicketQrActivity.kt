@@ -32,6 +32,7 @@ import com.komputerkit.moview.databinding.ActivityTicketQrBinding
 import com.komputerkit.moview.util.PosterFallbackDrawable
 import com.komputerkit.moview.util.ServerConfig
 import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.WindowInsetsHelper
 import com.komputerkit.moview.util.showSnackbar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -173,6 +174,7 @@ class TicketQrActivity : AppCompatActivity() {
 
         binding = ActivityTicketQrBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowInsetsHelper.applyActivityInsets(this, binding.root)
 
         binding.btnBack.setOnClickListener { finish() }
         binding.btnShareTicket.isVisible = false

@@ -14,6 +14,7 @@ import com.google.android.material.tabs.TabLayoutMediator
 import com.komputerkit.moview.databinding.ActivityTicketHistoryBinding
 import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.SnackbarType
+import com.komputerkit.moview.util.WindowInsetsHelper
 import com.komputerkit.moview.util.showSnackbar
 import kotlinx.coroutines.launch
 
@@ -34,6 +35,7 @@ class TicketHistoryActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityTicketHistoryBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowInsetsHelper.applyActivityInsets(this, binding.root)
 
         setupClicks()
         setupTabs()
