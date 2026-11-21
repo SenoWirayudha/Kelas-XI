@@ -154,11 +154,16 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         setupClickListeners()
 
         // Placeholder until the first payload lands; on back-navigation the data is
-        // already cached so the skeleton is never shown again.
+        // already cached so the skeleton is never shown again. While loading, the
+        // real content is GONE (not just covered) so no stale UI can show through.
         if (skeletonDismissed) {
             binding.skeletonContainer.visibility = View.GONE
         } else {
-            SkeletonLoader.show(binding.skeletonContainer)
+            SkeletonLoader.show(
+                binding.skeletonContainer,
+                binding.nestedScrollView,
+                binding.layoutReviews
+            )
         }
 
         // Defer the first network load until the tab slide has finished so the
@@ -505,13 +510,24 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         }
         
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.swipeRefresh.isRefreshing = isLoading
+            // The skeleton is the first-load indicator; the pull-to-refresh spinner
+            // is only for later refreshes.
+            binding.swipeRefresh.isRefreshing = isLoading == true && skeletonDismissed
+            // First load finished (success or failure): never leave the skeleton up.
+            if (isLoading == false) hideSkeleton()
         }
     }
     
     private fun hideSkeleton() {
+        if (skeletonDismissed) return
         skeletonDismissed = true
-        _binding?.let { SkeletonLoader.hide(it.skeletonContainer) }
+        val b = _binding ?: return
+        // Restore only the container that belongs to the active tab.
+        val showReviews = b.homeTabLayout.selectedTabPosition == 1
+        b.nestedScrollView.visibility = if (showReviews) View.GONE else View.VISIBLE
+        b.layoutReviews.visibility = if (showReviews) View.VISIBLE else View.GONE
+        SkeletonLoader.hide(b.skeletonContainer)
+        if (showReviews) viewModel.ensurePopularReviews()
     }
 
     private fun setupSwipeRefresh() {
@@ -526,6 +542,9 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         // Scroll positions survive because both containers stay alive, just hidden.
         binding.homeTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
+                // While the skeleton is up the content stays GONE; hideSkeleton()
+                // reveals the correct container for the selected tab.
+                if (!skeletonDismissed) return
                 val showReviews = tab.position == 1
                 binding.nestedScrollView.visibility = if (showReviews) View.GONE else View.VISIBLE
                 binding.layoutReviews.visibility = if (showReviews) View.VISIBLE else View.GONE

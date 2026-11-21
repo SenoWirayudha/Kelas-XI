@@ -73,11 +73,12 @@ class ProfileFragment : Fragment() {
         setupNavigationResultListener()
 
         // Placeholder only for the first load; a recreated view (back-navigation)
-        // already has the data in the ViewModel.
+        // already has the data in the ViewModel. While loading, the real content is
+        // GONE (not just covered) so no stale UI can show through the pulse.
         if (skeletonDismissed) {
             binding.skeletonContainer.visibility = View.GONE
         } else {
-            SkeletonLoader.show(binding.skeletonContainer)
+            SkeletonLoader.show(binding.skeletonContainer, binding.swipeRefresh)
         }
 
         postponeEnterUntilLaidOut()
@@ -159,8 +160,9 @@ class ProfileFragment : Fragment() {
     }
     
     private fun hideSkeleton() {
+        if (skeletonDismissed) return
         skeletonDismissed = true
-        _binding?.let { SkeletonLoader.hide(it.skeletonContainer) }
+        _binding?.let { SkeletonLoader.hide(it.skeletonContainer, it.swipeRefresh) }
     }
 
     private fun setupNavigationResultListener() {

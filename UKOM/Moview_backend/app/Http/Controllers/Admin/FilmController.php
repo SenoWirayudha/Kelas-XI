@@ -432,7 +432,9 @@ class FilmController extends Controller
             }
         }
 
-        $this->syncReleases($movie, $request->input('releases', []));
+        // A brand-new film is the only place where the release track may create
+        // services automatically. Editing never does (see update()).
+        $this->syncReleases($movie, $request->input('releases', []), autoCreateServices: true);
 
         $this->syncRelatedMovies($movie, $request->input('related_movies', []));
         $this->syncSimilarMovies($movie, $request->input('similar_movies', []));
@@ -460,7 +462,61 @@ class FilmController extends Controller
         $relatedMovies = $movie->getRelatedMoviesOrdered();
         $similarMovies = $movie->getSimilarMoviesOrdered();
 
-        return view('admin.films.show', compact('movie', 'countryNameByCode', 'relatedMovies', 'similarMovies'));
+        // Services the release track points to but the film does not have yet.
+        // Shown as a suggestion banner; nothing is applied without a click.
+        $serviceSuggestions = app(\App\Services\StreamingSyncService::class)->suggestions($movie);
+        $suggestionsDismissed = !empty($serviceSuggestions)
+            && session($this->suggestionsSessionKey($movie)) === $this->suggestionsSignature($serviceSuggestions);
+
+        return view('admin.films.show', compact(
+            'movie',
+            'countryNameByCode',
+            'relatedMovies',
+            'similarMovies',
+            'serviceSuggestions',
+            'suggestionsDismissed'
+        ));
+    }
+
+    /**
+     * Applies or dismisses the release-track service suggestions. Both actions
+     * are explicit admin clicks; a dismissal is remembered per suggestion set.
+     */
+    public function serviceSuggestions(Request $request, $id)
+    {
+        $movie = Movie::findOrFail($id);
+        $action = $request->input('action');
+        $suggestions = app(\App\Services\StreamingSyncService::class)->suggestions($movie);
+
+        if ($action === 'dismiss') {
+            session()->put(
+                $this->suggestionsSessionKey($movie),
+                $this->suggestionsSignature($suggestions)
+            );
+            return back()->with('success', 'Saran service diabaikan.');
+        }
+
+        app(\App\Services\StreamingSyncService::class)->syncMovie($movie, $suggestions);
+        session()->forget($this->suggestionsSessionKey($movie));
+
+        return back()->with('success', 'Service dari track rilis diterapkan.');
+    }
+
+    private function suggestionsSessionKey(Movie $movie): string
+    {
+        return 'films.service_suggestions_dismissed.' . $movie->id;
+    }
+
+    /** Changes whenever the suggestion set changes, so a new one is shown again. */
+    private function suggestionsSignature(array $suggestions): string
+    {
+        $parts = array_map(
+            fn ($s) => $s['service_id'] . '|' . $s['availability_type'] . '|' . ($s['release_date'] ?? ''),
+            $suggestions
+        );
+        sort($parts);
+
+        return md5(implode(',', $parts));
     }
 
     public function edit($id)
@@ -538,12 +594,24 @@ class FilmController extends Controller
             }
         }
 
-        // Sync services (delete old, add new)
-        $movie->movieServices()->delete();
-        if ($request->has('services')) {
-            foreach ($request->services as $serviceId) {
-                $movie->movieServices()->create(['service_id' => $serviceId]);
-            }
+        // Sync services without wiping the existing rows: rows the admin kept
+        // keep their availability/country data and are marked manual; only
+        // unchecked services are removed. A plain delete+recreate used to reset
+        // every availability type on any film edit.
+        $submittedServiceIds = collect($request->input('services', []))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $movie->movieServices()
+            ->whereNotIn('service_id', $submittedServiceIds->all())
+            ->delete();
+
+        foreach ($submittedServiceIds as $serviceId) {
+            $movie->movieServices()->updateOrCreate(
+                ['service_id' => $serviceId],
+                ['source' => \App\Models\MovieService::SOURCE_MANUAL]
+            );
         }
 
         // Sync countries (delete old, add new)
@@ -578,10 +646,19 @@ class FilmController extends Controller
             }
         }
 
-        $this->syncReleases($movie, $request->input('releases', []));
+        // Editing NEVER creates/overwrites services automatically. The release
+        // track only produces suggestions, shown as a banner on the detail page
+        // and applied only when the admin clicks "Terapkan".
+        $this->syncReleases($movie, $request->input('releases', []), autoCreateServices: false);
 
         $this->syncRelatedMovies($movie, $request->input('related_movies', []));
         $this->syncSimilarMovies($movie, $request->input('similar_movies', []));
+
+        $suggestions = app(\App\Services\StreamingSyncService::class)->suggestions($movie->fresh());
+        if (!empty($suggestions)) {
+            return redirect(route('admin.films.show', $movie->id))
+                ->with('success', 'Film berhasil diperbarui!');
+        }
 
         return ReturnUrl::redirect($request, route('admin.films.index'))
             ->with('success', 'Film berhasil diperbarui!');
@@ -632,9 +709,9 @@ class FilmController extends Controller
      * (movie_id, type, country_code, name, release_date). Rows without a
      * release_date are skipped (release dates are optional).
      */
-    private function syncReleases(Movie $movie, array $releases)
+    private function syncReleases(Movie $movie, array $releases, bool $autoCreateServices = false)
     {
-        DB::transaction(function () use ($movie, $releases) {
+        DB::transaction(function () use ($movie, $releases, $autoCreateServices) {
             $desired = [];
             foreach ($releases as $release) {
                 $release = array_map('trim', $release);
@@ -687,57 +764,16 @@ class FilmController extends Controller
                 }
             }
 
-            $this->syncTheatricalServices($movie);
-
-            $unhandledStreaming = app(\App\Services\StreamingSyncService::class)->syncMovie($movie);
-            if (!empty($unhandledStreaming)) {
-                session()->flash('streaming_warning', 'Streaming platform tidak dikenal (tidak disinkronkan): ' . implode(', ', $unhandledStreaming));
+            // Only a brand-new film may auto-create services from the release
+            // track. On edit the caller passes false and the suggestions are
+            // shown as a banner instead (nothing changes without a click).
+            if ($autoCreateServices) {
+                $unhandledStreaming = app(\App\Services\StreamingSyncService::class)->syncMovie($movie);
+                if (!empty($unhandledStreaming)) {
+                    session()->flash('streaming_warning', 'Streaming platform tidak dikenal (tidak disinkronkan): ' . implode(', ', $unhandledStreaming));
+                }
             }
         });
-    }
-
-    /**
-     * Auto-sync movie_services theatrical rows (Indonesia only) from movie_releases.
-     *
-     * ON: an Indonesian theatrical release (type=theatrical, country_code=ID) exists
-     *     with a FUTURE release_date -> activate all theatrical cinema services
-     *     (Cinema XXI, CGV, Cinepolis) using the earliest future date.
-     * OFF: the Indonesian theatrical row was deleted OR its date has passed ->
-     *     deactivate (is_coming_soon=0, release_date=NULL) so the film becomes
-     *     Now Showing instead of staying in Coming Soon.
-     */
-    private function syncTheatricalServices(Movie $movie)
-    {
-        $theatricalServiceIds = Service::where('type', 'theatrical')->pluck('id');
-
-        $earliestFuture = $movie->movieReleases()
-            ->where('type', MovieRelease::TYPE_THEATRICAL)
-            ->where('country_code', 'ID')
-            ->where('release_date', '>', now()->toDateString())
-            ->min('release_date');
-
-        if ($earliestFuture) {
-            foreach ($theatricalServiceIds as $serviceId) {
-                $movie->movieServices()->updateOrCreate(
-                    ['service_id' => $serviceId],
-                    [
-                        'availability_type' => 'theatrical',
-                        'release_date' => $earliestFuture,
-                        'is_coming_soon' => 1,
-                    ]
-                );
-            }
-            return;
-        }
-
-        foreach ($theatricalServiceIds as $serviceId) {
-            $movie->movieServices()
-                ->where('service_id', $serviceId)
-                ->update([
-                    'is_coming_soon' => 0,
-                    'release_date' => null,
-                ]);
-        }
     }
 
 /**
@@ -793,9 +829,16 @@ class FilmController extends Controller
             $duplicateMovie->movieGenres()->create(['genre_id' => $mg->genre_id]);
         }
 
-        // Duplicate services
+        // Duplicate services (keep availability + source so the copy behaves
+        // exactly like the original instead of becoming an empty manual row).
         foreach ($originalMovie->movieServices as $ms) {
-            $duplicateMovie->movieServices()->create(['service_id' => $ms->service_id]);
+            $duplicateMovie->movieServices()->create([
+                'service_id' => $ms->service_id,
+                'availability_type' => $ms->availability_type,
+                'release_date' => $ms->release_date,
+                'is_coming_soon' => $ms->is_coming_soon,
+                'source' => $ms->source,
+            ]);
         }
 
         // Duplicate countries
@@ -902,6 +945,15 @@ class FilmController extends Controller
                     }
                     $label = "Service ID {$serviceId} [{$availType}]";
 
+                    // Availability type must resolve to the schema values
+                    // (stream/rent/buy/theatrical); legacy/quoted input is normalized.
+                    $postedType = \App\Models\MovieService::normalizeAvailabilityType(
+                        $data['availability_type'] ?? $availType
+                    );
+                    if (!in_array($postedType, \App\Models\MovieService::AVAILABILITY_TYPES, true)) {
+                        $errors[] = "{$label}: tipe availability tidak valid (harus stream, rent, buy, atau theatrical).";
+                    }
+
                     // Type default: is_coming_soon must be 0/1 when present.
                     if (isset($data['is_coming_soon']) && !in_array((string) $data['is_coming_soon'], ['0', '1'], true)) {
                         $errors[] = "{$label}: Coming Soon harus bernilai 0 atau 1.";
@@ -973,13 +1025,20 @@ class FilmController extends Controller
                     }
                     $isComingSoon = isset($data['is_coming_soon']) && $data['is_coming_soon'] == '1' ? 1 : 0;
                     $releaseDate = !empty($data['release_date']) ? $data['release_date'] : null;
-                    $type = $data['availability_type'] ?? $availType;
+                    // Never trust the posted string: normalize to the stored
+                    // lowercase schema value (this is where a stray "STREAM"
+                    // used to be persisted verbatim).
+                    $type = \App\Models\MovieService::normalizeAvailabilityType(
+                        $data['availability_type'] ?? $availType
+                    );
 
                     $movie->movieServices()->create([
                         'service_id' => $serviceId,
                         'availability_type' => $type,
                         'release_date' => $releaseDate,
                         'is_coming_soon' => $isComingSoon,
+                        // Edited through the modal = admin-owned, never auto-overwritten.
+                        'source' => \App\Models\MovieService::SOURCE_MANUAL,
                     ]);
 
                     // Sync countries for this availability type (streaming only).

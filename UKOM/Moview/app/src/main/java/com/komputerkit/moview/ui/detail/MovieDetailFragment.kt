@@ -92,11 +92,12 @@ class MovieDetailFragment : Fragment() {
         setupObservers()
 
         // Placeholder only for the first load; a recreated view (back-navigation)
-        // already has the movie in the ViewModel.
+        // already has the movie in the ViewModel. While loading, the scroll content
+        // is GONE (not just covered) so no stale UI can show through the pulse.
         if (skeletonDismissed) {
             binding.skeletonContainer.visibility = View.GONE
         } else {
-            SkeletonLoader.show(binding.skeletonContainer)
+            SkeletonLoader.show(binding.skeletonContainer, binding.scrollView)
         }
 
         postponeEnterUntilLaidOut()
@@ -215,6 +216,14 @@ class MovieDetailFragment : Fragment() {
     }
     
     private fun setupObservers() {
+        // First load finished (success or failure): never leave the skeleton up.
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            if (loading == false && !skeletonDismissed) {
+                skeletonDismissed = true
+                SkeletonLoader.hide(binding.skeletonContainer, binding.scrollView)
+            }
+        }
+
         // Re-filter streaming preview once country detection arrives
         viewModel.geoCountry.observe(viewLifecycleOwner) {
             viewModel.movie.value?.let { movie -> updateWhereToWatch(movie) }
@@ -222,8 +231,10 @@ class MovieDetailFragment : Fragment() {
 
         viewModel.movie.observe(viewLifecycleOwner) { movie ->
             currentMovie = movie
-            skeletonDismissed = true
-            SkeletonLoader.hide(binding.skeletonContainer)
+            if (!skeletonDismissed) {
+                skeletonDismissed = true
+                SkeletonLoader.hide(binding.skeletonContainer, binding.scrollView)
+            }
 
             binding.tvTitle.text = movie.title ?: "Unknown Title"
             binding.tvHeaderTitle.text = movie.title ?: "Unknown Title"

@@ -881,6 +881,45 @@
             </div>
         </div>
 
+        <!-- Suggestion from the release track: shown on EDIT only, applied only
+             when the admin clicks "Terapkan". Nothing changes automatically. -->
+        @if(!empty($serviceSuggestions) && empty($suggestionsDismissed))
+        <div class="bg-amber-50 border border-amber-300 rounded-lg p-4">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div class="min-w-0">
+                    <p class="font-semibold text-amber-900">
+                        <i class="fas fa-wand-magic-sparkles mr-1"></i>
+                        Terdeteksi dari track rilis
+                    </p>
+                    <p class="text-sm text-amber-800 mt-1">
+                        {{ collect($serviceSuggestions)->map(fn ($s) => $s['name'] . ' (' . $s['type'] . ')')->implode(', ') }}
+                    </p>
+                    <p class="text-xs text-amber-700 mt-1">
+                        Service ini belum ada di film. Terapkan saran ini?
+                    </p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <form method="POST" action="{{ route('admin.films.service-suggestions', $movie->id) }}">
+                        @csrf
+                        <input type="hidden" name="action" value="apply">
+                        <button type="submit"
+                                class="px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded-lg">
+                            <i class="fas fa-check mr-1"></i> Terapkan
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.films.service-suggestions', $movie->id) }}">
+                        @csrf
+                        <input type="hidden" name="action" value="dismiss">
+                        <button type="submit"
+                                class="px-3 py-1.5 text-sm border border-amber-400 text-amber-800 hover:bg-amber-100 rounded-lg">
+                            Abaikan
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <!-- Streaming Services -->
         <div class="bg-white rounded-lg shadow p-6" x-data="serviceModal">
             <div class="flex justify-between items-center mb-4">
@@ -910,6 +949,12 @@
                                         {{ ucfirst($movieService->availability_type) }}
                                     </span>
                                 @endif
+                                {{-- Source marker: auto rows may be refreshed by the
+                                     release-track sync, manual rows never are. --}}
+                                <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold {{ $movieService->source === 'auto' ? 'bg-gray-200 text-gray-700' : 'bg-emerald-100 text-emerald-800' }}"
+                                      title="{{ $movieService->source === 'auto' ? 'Dibuat otomatis dari track rilis' : 'Dibuat/diubah manual oleh admin' }}">
+                                    {{ $movieService->source === 'auto' ? 'Auto' : 'Manual' }}
+                                </span>
                             </div>
                             @if($movieService->release_date)
                                 <p class="text-xs text-gray-600 mt-1">
@@ -1403,7 +1448,7 @@
 
                                         <input type="hidden"
                                                name="services[{{ $service->id }}][theatrical][availability_type]"
-                                               value="stream">
+                                               value="theatrical">
 
                                         <div x-show="enabledTheatrical[{{ $service->id }}]" x-cloak class="pl-4 space-y-2">
                                             <div>
@@ -1643,7 +1688,7 @@
                                 </label>
                             </div>
 
-                            <input type="hidden" name="services[__ID__][theatrical][availability_type]" value="stream">
+                            <input type="hidden" name="services[__ID__][theatrical][availability_type]" value="theatrical">
 
                             <div x-show="enabledTheatrical[__ID__]" x-cloak class="pl-4 space-y-2">
                                 <div>

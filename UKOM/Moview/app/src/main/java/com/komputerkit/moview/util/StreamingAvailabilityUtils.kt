@@ -10,6 +10,19 @@ object StreamingAvailabilityUtils {
     /** Fallback country used when the user's country has no availability data. */
     const val FALLBACK_COUNTRY = "US"
 
+    /**
+     * Human label for an availability type. The API stores lowercase values
+     * (stream/rent/buy/theatrical); unknown or legacy values (e.g. "STREAM")
+     * are normalized here so the raw stored string is never shown.
+     */
+    fun typeLabel(type: String?): String? = when (type?.trim()?.lowercase(Locale.ROOT)) {
+        "stream", "streaming" -> "Stream"
+        "rent" -> "Rent"
+        "buy" -> "Buy"
+        "theatrical" -> "Theatrical"
+        else -> null
+    }
+
     /** Normalized availability entries: grouped `availabilities` when the API
      *  provides them, otherwise the legacy flat fields of the service. */
     fun entries(service: StreamingServiceDto): List<AvailabilityEntryDto> {

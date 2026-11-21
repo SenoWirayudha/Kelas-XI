@@ -91,7 +91,8 @@ class StreamingAvailabilityAdapter(
 
             countryView.text = row.countryName
 
-            val type = row.type.uppercase(Locale.ROOT)
+            // Normalized label; unknown/legacy type values are omitted, not shown raw.
+            val type = StreamingAvailabilityUtils.typeLabel(row.type)
             val status = if (row.isComingSoon) "Coming Soon" else "Available"
             val date = row.date?.let { formatDate(it) }
             metaView.text = listOfNotNull(type, status, date).joinToString(" · ")

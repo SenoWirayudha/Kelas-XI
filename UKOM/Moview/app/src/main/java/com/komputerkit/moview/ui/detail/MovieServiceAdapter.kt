@@ -86,14 +86,15 @@ class MovieServiceAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             // Set service name
             tvServiceName.text = service.name
 
-            // Availability type + status below the name (grouped entries)
+            // Availability type + status below the name (grouped entries).
+            // Unknown/legacy type values are skipped instead of shown raw.
             val entries = com.komputerkit.moview.util.StreamingAvailabilityUtils.entries(service)
             val types = entries
-                .map { it.availability_type.uppercase(Locale.ROOT) }
+                .mapNotNull { com.komputerkit.moview.util.StreamingAvailabilityUtils.typeLabel(it.availability_type) }
                 .distinct()
-                .joinToString(" · ")
+                .joinToString(" | ")
             val status = if (entries.none { it.is_coming_soon }) "AVAILABLE" else "COMING SOON"
-            tvTypeStatus.text = "$types · $status"
+            tvTypeStatus.text = if (types.isEmpty()) status else "$types | $status"
             tvTypeStatus.visibility = View.VISIBLE
 
             // Country flag on the top-right corner of the icon

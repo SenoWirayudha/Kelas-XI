@@ -99,6 +99,7 @@ Route::prefix('admin')->name('admin.')->middleware(['admin.auth', 'role:admin', 
     
     // Services Management
     Route::put('/films/{id}/services', [FilmController::class, 'updateServices'])->name('films.services.update');
+    Route::post('/films/{id}/service-suggestions', [FilmController::class, 'serviceSuggestions'])->name('films.service-suggestions');
     Route::post('/services', [ServiceController::class, 'store'])->name('services.store');
     Route::put('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
     

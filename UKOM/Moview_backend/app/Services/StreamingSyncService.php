@@ -4,118 +4,189 @@ namespace App\Services;
 
 use App\Models\Movie;
 use App\Models\MovieRelease;
+use App\Models\MovieService;
 use App\Models\Service;
 
 /**
- * Auto-syncs movie_services streaming rows (Indonesia only) from movie_releases.
+ * Derives the movie_services rows that follow from a movie's release track
+ * (theatrical in Indonesia + streaming per platform).
  *
- * Each row of type=streaming with country_code=ID is handled independently per
- * platform (no "earliest wins"): multiple streaming platforms can be active at
- * the same time, each with its own release_date / coming-soon state.
+ * Two modes:
+ *  - suggestions(): read-only. Returns the services the release track points to
+ *    that the movie does not have yet. Used on EDIT so nothing changes without
+ *    the admin clicking "Terapkan".
+ *  - syncMovie(): applies those suggestions. Used on CREATE only. It never
+ *    overwrites a row created/edited manually (source = manual); it only creates
+ *    missing rows or refreshes rows it created itself (source = auto).
  *
- *  - release_date <= today (past / live)  -> activate service without a date
- *      (release_date=NULL, is_coming_soon=0 -> "available now")
- *  - release_date > today (future)        -> activate service with the date
- *      (release_date=<date>, is_coming_soon=1 -> "coming soon on [platform]")
- *  - platform name in movie_releases.name that matches no known streaming
- *      service is reported as an unhandled case (never silently ignored)
+ * Streaming rows (country_code=ID):
+ *  - release_date <= today -> available now (release_date NULL, not coming soon)
+ *  - release_date > today  -> coming soon on that date
  *
- * When a row is removed from movie_releases, the matching service is
- * deactivated (is_coming_soon=0, release_date=NULL, row kept) so manually
- * managed stream/rent/buy rows are left untouched.
+ * Theatrical rows (country_code=ID, future date) -> all cinema services with the
+ * earliest future date; without a future date they are just deactivated.
  */
 class StreamingSyncService
 {
     private const TYPE_STREAMING = MovieRelease::TYPE_STREAMING;
     private const COUNTRY_ID = 'ID';
 
-    /**
-     * Normalized service name -> Service id, for streaming services only.
-     */
+    /** Normalized service name -> Service model, streaming only. */
     private array $streamingByName = [];
+
+    /** Theatrical service ids (cinemas). */
+    private array $theatricalServiceIds = [];
 
     public function __construct()
     {
         foreach (Service::where('type', 'streaming')->get() as $service) {
-            $this->streamingByName[$this->normalize($service->name)] = $service->id;
+            $this->streamingByName[$this->normalize($service->name)] = $service;
         }
+        $this->theatricalServiceIds = Service::where('type', 'theatrical')->pluck('id')->all();
     }
 
     /**
-     * Re-sync streaming movie_services for a single movie based on its current
-     * Indonesian streaming movie_releases. Returns a list of unhandled platform
-     * names found in movie_releases.name that matched no known streaming service.
+     * Services detected from the release track that the movie does not have yet.
      *
-     * @return string[]
+     * @return array<int, array{service_id:int, name:string, type:string, availability_type:string, release_date:?string, is_coming_soon:bool}>
      */
-    public function syncMovie(Movie $movie): array
+    public function suggestions(Movie $movie): array
     {
-        $unhandled = [];
+        $existing = $movie->movieServices()->pluck('service_id')->map(fn ($id) => (int) $id)->all();
+        $existing = array_flip($existing);
 
+        $suggestions = [];
+        $today = now()->toDateString();
+
+        // --- Theatrical: one suggestion per cinema service, earliest future date ---
+        $earliestFuture = $movie->movieReleases()
+            ->where('type', MovieRelease::TYPE_THEATRICAL)
+            ->where('country_code', self::COUNTRY_ID)
+            ->where('release_date', '>', $today)
+            ->min('release_date');
+
+        if ($earliestFuture) {
+            foreach ($this->theatricalServiceIds as $serviceId) {
+                if (isset($existing[(int) $serviceId])) {
+                    continue;
+                }
+                $service = Service::find($serviceId);
+                if (!$service) {
+                    continue;
+                }
+                $suggestions[] = [
+                    'service_id' => (int) $serviceId,
+                    'name' => $service->name,
+                    'type' => 'theatrical',
+                    'availability_type' => 'theatrical',
+                    'release_date' => $earliestFuture,
+                    'is_coming_soon' => true,
+                ];
+            }
+        }
+
+        // --- Streaming: one suggestion per platform, per platform resolution ---
         $streamingReleases = $movie->movieReleases()
             ->where('type', self::TYPE_STREAMING)
             ->where('country_code', self::COUNTRY_ID)
             ->get();
 
-        $today = now()->toDateString();
-
-        $handledServiceIds = [];
-
-        // Group by platform so multiple release rows for the same platform
-        // (e.g. a past + a future date) resolve deterministically: any future
-        // date -> earliest one wins (coming soon); otherwise -> available now.
         $platforms = [];
         foreach ($streamingReleases as $release) {
-            $key = $this->normalize($release->name ?? '');
-            if (!isset($platforms[$key])) {
-                $platforms[$key] = [];
-            }
-            $platforms[$key][] = $release;
+            $platforms[$this->normalize($release->name ?? '')][] = $release;
         }
 
         foreach ($platforms as $platformName => $releases) {
-            $serviceId = $this->streamingByName[$platformName] ?? null;
-
-            if ($serviceId === null) {
-                $unhandled[] = $releases[0]->name ?: '(empty name)';
+            $service = $this->streamingByName[$platformName] ?? null;
+            if ($service === null || isset($existing[(int) $service->id])) {
                 continue;
             }
 
-            $handledServiceIds[] = $serviceId;
-
-            $futureDates = collect($releases)
+            $earliestFuture = collect($releases)
                 ->pluck('release_date')
                 ->filter()
-                ->filter(fn($date) => $date->format('Y-m-d') > $today)
-                ->sort();
+                ->filter(fn ($date) => $date->format('Y-m-d') > $today)
+                ->sort()
+                ->first();
 
-            $earliestFuture = $futureDates->first();
+            $suggestions[] = [
+                'service_id' => (int) $service->id,
+                'name' => $service->name,
+                'type' => 'streaming',
+                'availability_type' => 'stream',
+                'release_date' => $earliestFuture ? $earliestFuture->format('Y-m-d') : null,
+                'is_coming_soon' => (bool) $earliestFuture,
+            ];
+        }
+
+        return $suggestions;
+    }
+
+    /**
+     * Applies the release-track state to movie_services.
+     *
+     * Only missing rows and rows with source=auto are written; a manual row is
+     * never overwritten. Returns the streaming platform names found in the
+     * release track that match no known service (never silently ignored).
+     *
+     * @param  array|null  $suggestions  Pre-computed suggestions (optional).
+     * @return string[]
+     */
+    public function syncMovie(Movie $movie, ?array $suggestions = null): array
+    {
+        $suggestions ??= $this->suggestions($movie);
+
+        $appliedServiceIds = [];
+
+        foreach ($suggestions as $suggestion) {
+            $serviceId = (int) $suggestion['service_id'];
+            $appliedServiceIds[] = $serviceId;
+
+            $existing = $movie->movieServices()->where('service_id', $serviceId)->first();
+            if ($existing && $existing->source === MovieService::SOURCE_MANUAL) {
+                continue;
+            }
 
             $movie->movieServices()->updateOrCreate(
                 ['service_id' => $serviceId],
                 [
-                    'availability_type' => 'stream',
-                    'release_date' => $earliestFuture ? $earliestFuture->format('Y-m-d') : null,
-                    'is_coming_soon' => $earliestFuture ? 1 : 0,
+                    'availability_type' => $suggestion['availability_type'],
+                    'release_date' => $suggestion['release_date'],
+                    'is_coming_soon' => $suggestion['is_coming_soon'] ? 1 : 0,
+                    'source' => MovieService::SOURCE_AUTO,
                 ]
             );
         }
 
-        // Deactivate streaming platforms that were auto-synced (had a date or
-        // were marked coming soon) but no longer have a matching release row.
+        // Deactivate auto rows whose release row disappeared. Manual rows are
+        // left exactly as the admin saved them.
         $movie->movieServices()
-            ->whereHas('service', fn($q) => $q->where('type', 'streaming'))
+            ->where('source', MovieService::SOURCE_AUTO)
             ->where(function ($q) {
-                $q->whereNotNull('release_date')
-                    ->orWhere('is_coming_soon', 1);
+                $q->whereNotNull('release_date')->orWhere('is_coming_soon', 1);
             })
-            ->whereNotIn('service_id', $handledServiceIds)
+            ->whereNotIn('service_id', $appliedServiceIds)
             ->update([
                 'release_date' => null,
                 'is_coming_soon' => 0,
             ]);
 
-        return array_values(array_unique($unhandled));
+        // Streaming platforms in the release track that match no known service.
+        $unhandled = [];
+        foreach ($movie->movieReleases()
+                     ->where('type', self::TYPE_STREAMING)
+                     ->where('country_code', self::COUNTRY_ID)
+                     ->get() as $release) {
+            $name = trim((string) $release->name);
+            if ($name === '') {
+                continue;
+            }
+            if (!isset($this->streamingByName[$this->normalize($name)])) {
+                $unhandled[$name] = $name;
+            }
+        }
+
+        return array_values($unhandled);
     }
 
     /**
@@ -137,7 +208,7 @@ class StreamingSyncService
 
         foreach ($movies as $movie) {
             $before = $movie->movieServices()
-                ->whereHas('service', fn($q) => $q->where('type', 'streaming'))
+                ->where('source', MovieService::SOURCE_AUTO)
                 ->where(function ($q) {
                     $q->whereNotNull('release_date')->orWhere('is_coming_soon', 1);
                 })
@@ -146,7 +217,7 @@ class StreamingSyncService
             $this->syncMovie($movie);
 
             $after = $movie->movieServices()
-                ->whereHas('service', fn($q) => $q->where('type', 'streaming'))
+                ->where('source', MovieService::SOURCE_AUTO)
                 ->where(function ($q) {
                     $q->whereNotNull('release_date')->orWhere('is_coming_soon', 1);
                 })
