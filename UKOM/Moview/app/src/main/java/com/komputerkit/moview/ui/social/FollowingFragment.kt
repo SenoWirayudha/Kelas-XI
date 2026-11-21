@@ -2,9 +2,12 @@ package com.komputerkit.moview.ui.social
 
 import android.content.Context
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -21,6 +24,9 @@ class FollowingFragment : Fragment() {
     
     private val viewModel: FollowingViewModel by viewModels()
     private lateinit var adapter: UserAdapter
+
+    private var allUsers: List<UserProfile> = emptyList()
+    private var searchQuery: String = ""
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -42,8 +48,35 @@ class FollowingFragment : Fragment() {
         viewModel.loadFollowing(targetUserId)
         
         setupRecyclerView()
+        setupSearch()
         setupClickListeners()
         observeViewModel()
+    }
+
+    private fun setupSearch() {
+        binding.etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                searchQuery = s?.toString().orEmpty()
+                binding.btnClear.isVisible = searchQuery.isNotEmpty()
+                applyFilter()
+            }
+        })
+        binding.btnClear.setOnClickListener { binding.etSearch.setText("") }
+    }
+
+    private fun applyFilter() {
+        val query = searchQuery.trim()
+        val filtered = if (query.isEmpty()) {
+            allUsers
+        } else {
+            allUsers.filter { it.username.contains(query, ignoreCase = true) }
+        }
+        adapter.submitList(filtered)
+        binding.tvEmpty.text =
+            if (allUsers.isEmpty()) "Not following anyone yet" else "No users found"
+        binding.tvEmpty.isVisible = filtered.isEmpty()
     }
     
     override fun onResume() {
@@ -78,8 +111,8 @@ class FollowingFragment : Fragment() {
             binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
         }
         viewModel.following.observe(viewLifecycleOwner) { users ->
-            adapter.submitList(users)
-            binding.tvEmpty.visibility = if (users.isEmpty()) View.VISIBLE else View.GONE
+            allUsers = users
+            applyFilter()
         }
     }
     

@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.komputerkit.moview.util.SkeletonLoader
 import com.komputerkit.moview.util.postponeEnterUntilLaidOut
 import com.komputerkit.moview.util.runAfterEnterTransition
 import com.komputerkit.moview.util.loadPoster
@@ -66,6 +67,7 @@ class MovieDetailFragment : Fragment() {
     private var pendingScrollToTop = false
     // Pulihkan posisi scroll: hanya sekali per pembuatan view, setelah bind+layout pertama
     private var pendingScrollRestore = false
+    private var skeletonDismissed = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -88,6 +90,14 @@ class MovieDetailFragment : Fragment() {
         setupRecyclerViews()
         setupClickListeners()
         setupObservers()
+
+        // Placeholder only for the first load; a recreated view (back-navigation)
+        // already has the movie in the ViewModel.
+        if (skeletonDismissed) {
+            binding.skeletonContainer.visibility = View.GONE
+        } else {
+            SkeletonLoader.show(binding.skeletonContainer)
+        }
 
         postponeEnterUntilLaidOut()
 
@@ -212,7 +222,9 @@ class MovieDetailFragment : Fragment() {
 
         viewModel.movie.observe(viewLifecycleOwner) { movie ->
             currentMovie = movie
-            
+            skeletonDismissed = true
+            SkeletonLoader.hide(binding.skeletonContainer)
+
             binding.tvTitle.text = movie.title ?: "Unknown Title"
             binding.tvHeaderTitle.text = movie.title ?: "Unknown Title"
 

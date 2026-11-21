@@ -19,6 +19,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.tabs.TabLayout
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentHomeNewBinding
+import com.komputerkit.moview.util.SkeletonLoader
 import com.komputerkit.moview.util.postponeEnterUntilLaidOut
 import com.komputerkit.moview.util.runAfterEnterTransition
 import com.komputerkit.moview.util.showSnackbar
@@ -42,6 +43,7 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     private lateinit var filmInterestAdapter: MovieCardAdapter
     private lateinit var popularReviewAdapter: com.komputerkit.moview.ui.review.ReviewAdapter
     private var snapHelper: SnapHelper? = null
+    private var skeletonDismissed = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -150,6 +152,14 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         setupTabs()
         observeViewModel()
         setupClickListeners()
+
+        // Placeholder until the first payload lands; on back-navigation the data is
+        // already cached so the skeleton is never shown again.
+        if (skeletonDismissed) {
+            binding.skeletonContainer.visibility = View.GONE
+        } else {
+            SkeletonLoader.show(binding.skeletonContainer)
+        }
 
         // Defer the first network load until the tab slide has finished so the
         // list rebind does not land in the middle of the animation.
@@ -427,6 +437,7 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     private fun observeViewModel() {
         viewModel.popularMovies.observe(viewLifecycleOwner) { movies ->
             android.util.Log.d("HomeFragment", "Popular movies received: ${movies.size} items")
+            hideSkeleton()
             movieCardAdapter.submitList(movies)
             binding.rvPopularMovies.visibility = if (movies.isEmpty()) View.GONE else View.VISIBLE
             binding.rvPopularMovies.post {
@@ -465,6 +476,7 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         }
 
         viewModel.nowShowingMovies.observe(viewLifecycleOwner) { movies ->
+            hideSkeleton()
             nowShowingAdapter.submitList(movies)
         }
 
@@ -487,6 +499,7 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
                 android.util.Log.e("HomeFragment", "Error loading data: $it")
+                hideSkeleton()
                 showSnackbar(it, SnackbarType.ERROR)
             }
         }
@@ -496,6 +509,11 @@ class HomeFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         }
     }
     
+    private fun hideSkeleton() {
+        skeletonDismissed = true
+        _binding?.let { SkeletonLoader.hide(it.skeletonContainer) }
+    }
+
     private fun setupSwipeRefresh() {
         binding.swipeRefresh.setOnRefreshListener(this)
     }

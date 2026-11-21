@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentProfileNewBinding
+import com.komputerkit.moview.util.SkeletonLoader
 import com.komputerkit.moview.util.postponeEnterUntilLaidOut
 import com.komputerkit.moview.util.runAfterEnterTransition
 import com.komputerkit.moview.util.showSnackbar
@@ -38,6 +39,7 @@ class ProfileFragment : Fragment() {
     private var isOwnProfile = true
     private var targetUserId = 0
     private var isFollowing = false
+    private var skeletonDismissed = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -69,7 +71,15 @@ class ProfileFragment : Fragment() {
         setupClickListeners()
         setupScrollListener()
         setupNavigationResultListener()
-        
+
+        // Placeholder only for the first load; a recreated view (back-navigation)
+        // already has the data in the ViewModel.
+        if (skeletonDismissed) {
+            binding.skeletonContainer.visibility = View.GONE
+        } else {
+            SkeletonLoader.show(binding.skeletonContainer)
+        }
+
         postponeEnterUntilLaidOut()
 
         // Defer the first load until the tab slide is done (list rebind would
@@ -148,6 +158,11 @@ class ProfileFragment : Fragment() {
         }
     }
     
+    private fun hideSkeleton() {
+        skeletonDismissed = true
+        _binding?.let { SkeletonLoader.hide(it.skeletonContainer) }
+    }
+
     private fun setupNavigationResultListener() {
         // Listen for profile update notification from EditProfileFragment
         findNavController().currentBackStackEntry?.savedStateHandle?.let { savedStateHandle ->
@@ -272,6 +287,7 @@ class ProfileFragment : Fragment() {
             Log.d("ProfileFragment", "Username observed: $name")
             binding.tvUserName.text = name
             binding.tvToolbarName.text = name  // Set toolbar name
+            hideSkeleton()
         }
         
         viewModel.bio.observe(viewLifecycleOwner) { bio ->

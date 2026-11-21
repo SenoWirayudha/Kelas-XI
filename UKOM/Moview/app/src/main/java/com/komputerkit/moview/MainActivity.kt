@@ -302,7 +302,15 @@ class MainActivity : AppCompatActivity() {
 
             when (destination.id) {
                 R.id.navigation_home -> binding.bottomNavigation.menu.findItem(R.id.navigation_home)?.isChecked = true
-                R.id.navigation_profile -> binding.bottomNavigation.menu.findItem(R.id.navigation_profile)?.isChecked = true
+                R.id.navigation_profile -> {
+                    // The Profile tab is only "active" for the signed-in user's own
+                    // profile. Opening someone else's profile keeps the tab you came from.
+                    val targetUserId = arguments?.getInt("userId") ?: 0
+                    val currentUserId = prefs().getInt("userId", 0)
+                    if (targetUserId == 0 || targetUserId == currentUserId) {
+                        binding.bottomNavigation.menu.findItem(R.id.navigation_profile)?.isChecked = true
+                    }
+                }
                 R.id.navigation_search -> if (!isSelectMovieMode) {
                     binding.bottomNavigation.menu.findItem(R.id.navigation_search)?.isChecked = true
                 }

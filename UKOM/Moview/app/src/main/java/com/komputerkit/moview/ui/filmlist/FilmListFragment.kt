@@ -65,10 +65,9 @@ class FilmListFragment : Fragment() {
         viewModel.load(args.categoryType, args.categoryValue, userId())
     }
 
-    override fun onResume() {
-        super.onResume()
-        viewModel.silentRefresh(userId())
-    }
+    // No refresh on resume: the ViewModel survives back-navigation and keeps the
+    // loaded pages, so returning from a film detail must not refetch page 1 (which
+    // used to shrink the list and jump the scroll position back to the top).
 
     private fun userId(): Int = requireContext()
         .getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
