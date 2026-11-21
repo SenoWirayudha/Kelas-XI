@@ -53,6 +53,6 @@
     <color name="date_badge_header">@color/accent_blue</color>
     <color name="date_badge_header_text">@color/white</color>
     <color name="date_badge_day_text">@color/text_primary</color>
-    <color name="date_badge_ring">#CBD5E1</color>
-    <color name="date_badge_stack">#CBD5E1</color>
+    <color name="date_badge_ring">#94A3B8</color>
+    <color name="date_badge_stack">#0B1220</color>
 </resources>

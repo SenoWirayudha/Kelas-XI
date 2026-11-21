@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.komputerkit.moview.databinding.FragmentFilmListBinding
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.ui.common.FilterSheetDialog
@@ -39,6 +40,7 @@ class FilmListFragment : Fragment() {
 
     private var allFilms: List<Movie> = emptyList()
     private var filterState = MovieFilterState(sortMode = MovieSortMode.POPULARITY)
+    private var autoLoadCheckPosted = false
 
     private var genreOptions: List<String> = emptyList()
     private var themeOptions: List<String> = emptyList()
@@ -324,6 +326,7 @@ class FilmListFragment : Fragment() {
             val current = _binding ?: return@submitList
             ScrollStateHelper.restore(current.rvFilms, savedScrollState)
             savedScrollState = null
+            maybeAutoLoadMore()
         }
 
         when {
@@ -339,6 +342,33 @@ class FilmListFragment : Fragment() {
         }
     }
 
+    /**
+     * On large-DPI / small-window devices the first page may not fill the
+     * screen, so the list cannot be scrolled and the scroll listener never
+     * fires. After every render, if the content is not scrollable (or the end
+     * of the list is already visible), pull the next page. Stops by itself
+     * when the screen is full or the data is exhausted; [FilmListViewModel.loadMore]
+     * rejects calls while another load is running or when there are no pages left.
+     */
+    private fun maybeAutoLoadMore() {
+        val b = _binding ?: return
+        if (autoLoadCheckPosted) return
+        autoLoadCheckPosted = true
+        b.rvFilms.post {
+            autoLoadCheckPosted = false
+            val current = _binding ?: return@post
+            val lm = current.rvFilms.layoutManager as? LinearLayoutManager ?: return@post
+            val total = lm.itemCount
+            if (total == 0) return@post
+            val endVisible = lm.findLastVisibleItemPosition() >= total - 1
+            if (!endVisible && current.rvFilms.canScrollVertically(1)) return@post
+            val state = viewModel.uiState.value
+            if (state.status == FilmListStatus.READY && !state.isLoadingMore) {
+                viewModel.loadMore(userId())
+            }
+        }
+    }
+
     override fun onStop() {
         super.onStop()
         _binding?.let { savedScrollState = ScrollStateHelper.save(it.rvFilms) }
@@ -346,6 +376,7 @@ class FilmListFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        autoLoadCheckPosted = false
         _binding = null
     }
 }
