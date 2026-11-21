@@ -134,9 +134,9 @@ class MovieRepository {
         emptyList()
     }
     
-    suspend fun search(query: String, type: String): SearchResponse? = withContext(Dispatchers.IO) {
+    suspend fun search(query: String, type: String, page: Int = 1): SearchResponse? = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.search(query, type)
+            val response = apiService.search(query, type, page = page, perPage = PAGE_SIZE)
             if (response.success && response.data != null) {
                 response.data
             } else {
@@ -2575,6 +2575,103 @@ class MovieRepository {
             PagedSlice(emptyList(), page, page)
         }
     }
+
+    /** "Popular This Week" grid (See All), paged. */
+    suspend fun getPopularMoviesThisWeekPaged(page: Int): PagedSlice<Movie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getPopularThisWeekPaged(page = page, perPage = PAGE_SIZE)
+            if (response.success) {
+                PagedSlice(
+                    items = response.data.map { it.toMovie() },
+                    page = response.pagination.current_page,
+                    lastPage = response.pagination.last_page
+                )
+            } else {
+                PagedSlice(emptyList(), page, page)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            PagedSlice(emptyList(), page, page)
+        }
+    }
+
+    suspend fun getNowShowingPaged(page: Int): PagedSlice<TheatricalMovie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getNowShowingPaged(page = page, perPage = PAGE_SIZE)
+            if (response.success) {
+                PagedSlice(
+                    items = response.data.map { it.toTheatricalMovie() },
+                    page = response.pagination.current_page,
+                    lastPage = response.pagination.last_page
+                )
+            } else {
+                PagedSlice(emptyList(), page, page)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            PagedSlice(emptyList(), page, page)
+        }
+    }
+
+    suspend fun getUpcomingPaged(page: Int): PagedSlice<TheatricalMovie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getUpcomingPaged(page = page, perPage = PAGE_SIZE)
+            if (response.success) {
+                PagedSlice(
+                    items = response.data.map { it.toTheatricalMovie() },
+                    page = response.pagination.current_page,
+                    lastPage = response.pagination.last_page
+                )
+            } else {
+                PagedSlice(emptyList(), page, page)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            PagedSlice(emptyList(), page, page)
+        }
+    }
+
+    suspend fun getComingSoonPaged(page: Int): PagedSlice<TheatricalMovie> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getComingSoonPaged(page = page, perPage = PAGE_SIZE)
+            if (response.success) {
+                PagedSlice(
+                    items = response.data.map { it.toTheatricalMovie() },
+                    page = response.pagination.current_page,
+                    lastPage = response.pagination.last_page
+                )
+            } else {
+                PagedSlice(emptyList(), page, page)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            PagedSlice(emptyList(), page, page)
+        }
+    }
+
+    private fun com.komputerkit.moview.data.api.TheatricalMovieDto.toTheatricalMovie(): TheatricalMovie =
+        TheatricalMovie(
+            id = id,
+            title = title,
+            posterUrl = poster,
+            releaseDate = release_date,
+            isPreorder = is_preorder,
+            hasSchedule = has_schedule,
+            genre = genre,
+            year = year,
+            ageRating = age_rating,
+            releaseType = release_type,
+            countryCode = country_code,
+            countryName = country_name
+        )
 }
 
 data class PagedSlice<T>(

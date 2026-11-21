@@ -19,6 +19,8 @@ import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.FragmentSearchNewBinding
+import com.komputerkit.moview.ui.common.LoadingFooterAdapter
+import com.komputerkit.moview.ui.common.PagedList
 import com.komputerkit.moview.util.postponeEnterUntilLaidOut
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
@@ -38,6 +40,7 @@ class SearchFragment : Fragment() {
     private lateinit var productionHouseAdapter: SearchStudioAdapter
     private lateinit var userAdapter: SearchUserAdapter
     private lateinit var historyAdapter: SearchHistoryAdapter
+    private var movieListFooter: LoadingFooterAdapter? = null
 
     private var syncingQuery = false
     private var userId = 0
@@ -239,8 +242,25 @@ class SearchFragment : Fragment() {
             }
         )
         binding.rvMovies.apply {
-            adapter = movieAdapter
             layoutManager = LinearLayoutManager(requireContext())
+            // The list scrolls with the page, so the inner scroll listener never
+            // fires; paging is driven by the outer NestedScrollView below.
+        }
+        // Footer spinner at the end of the movie results (shared paging look).
+        movieListFooter = PagedList.setup(
+            binding.rvMovies,
+            movieAdapter,
+            prefetchThreshold = 6
+        ) { viewModel.loadMoreMovies() }
+
+        // Near the bottom of the page: pull the next page of movie results.
+        binding.searchScroll.setOnScrollChangeListener { v, _, scrollY, _, _ ->
+            val scroll = v as? androidx.core.widget.NestedScrollView ?: return@setOnScrollChangeListener
+            val content = scroll.getChildAt(0) ?: return@setOnScrollChangeListener
+            val threshold = (200 * resources.displayMetrics.density).toInt()
+            if (scrollY >= content.height - scroll.height - threshold) {
+                viewModel.loadMoreMovies()
+            }
         }
         
         // Cast & Crew - navigate to person detail
@@ -339,6 +359,15 @@ class SearchFragment : Fragment() {
                 // Show empty state
                 val showEmpty = !state.isLoading && state.isEmpty && state.query.isNotEmpty()
                 binding.emptyState.isVisible = showEmpty
+
+                // Movie results paging: footer spinner + auto-load when the page
+                // is not scrollable yet (large-DPI screens).
+                movieListFooter?.setVisible(state.isLoadingMoreMovies)
+                if (!state.isLoading) {
+                    PagedList.autoLoadIfNotFilled(binding.searchScroll, binding.rvMovies) {
+                        viewModel.loadMoreMovies()
+                    }
+                }
 
                 // Recent searches only while the field is empty; Cancel only in the
                 // movie-picker flow (where the bottom nav is hidden).

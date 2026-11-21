@@ -19,9 +19,10 @@ class PopularMoviesViewModel(application: Application) : AndroidViewModel(applic
     private val repository = MovieRepository()
     private val prefs = application.getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
 
-    private var loadedKey: String? = null
     private var loadJob: Job? = null
-    private var refreshJob: Job? = null
+    private var loadMoreJob: Job? = null
+    private var currentPage = 1
+    private var lastPage = 1
 
     private val _movies = MutableLiveData<List<Movie>>()
     val movies: LiveData<List<Movie>> = _movies
@@ -29,31 +30,24 @@ class PopularMoviesViewModel(application: Application) : AndroidViewModel(applic
     private val _loading = MutableLiveData<Boolean>()
     val loading: LiveData<Boolean> = _loading
 
+    private val _isLoadingMore = MutableLiveData<Boolean>(false)
+    val isLoadingMore: LiveData<Boolean> = _isLoadingMore
+
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
-    fun loadPopularMovies() {
-        val key = "popular"
+    fun loadPopularMovies(force: Boolean = false) {
         if (loadJob?.isActive == true) return
-        if (key == loadedKey && _movies.value != null) {
-            if (refreshJob?.isActive == true) return
-            refreshJob = viewModelScope.launch {
-                try {
-                    fetchPopularMovies()
-                    loadedKey = key
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-            return
-        }
+        // Keep the loaded pages on re-entry (e.g. back from a film detail).
+        if (!force && _movies.value != null) return
         loadJob = viewModelScope.launch {
             _loading.value = true
             try {
-                fetchPopularMovies()
-                loadedKey = key
+                _error.value = null
+                val slice = repository.getPopularMoviesThisWeekPaged(1)
+                currentPage = slice.page
+                lastPage = slice.lastPage
+                _movies.value = applyCustomMedia(slice.items)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -65,16 +59,37 @@ class PopularMoviesViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    private suspend fun fetchPopularMovies() {
-        _error.value = null
-        val rawMovies = repository.getPopularMoviesThisWeekAll(limit = 50)
-        val userId = prefs.getInt("userId", 0)
-        val movies = if (userId > 0 && rawMovies.isNotEmpty()) {
-            val customMedia = repository.batchCustomMedia(userId, rawMovies.map { it.id }, "films")
-            rawMovies.applyCustomMedia(customMedia)
-        } else {
-            rawMovies
+    /** Next page; ignored while loading or when the data is exhausted. */
+    fun loadMore() {
+        if (loadJob?.isActive == true || loadMoreJob?.isActive == true) return
+        if (_isLoadingMore.value == true) return
+        if (currentPage >= lastPage) return
+
+        loadMoreJob = viewModelScope.launch {
+            _isLoadingMore.value = true
+            try {
+                val slice = repository.getPopularMoviesThisWeekPaged(currentPage + 1)
+                if (slice.items.isEmpty()) {
+                    lastPage = currentPage
+                    return@launch
+                }
+                currentPage = slice.page
+                lastPage = slice.lastPage
+                _movies.value = (_movies.value ?: emptyList()) + applyCustomMedia(slice.items)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                if (isActive) _isLoadingMore.value = false
+            }
         }
-        _movies.value = movies
+    }
+
+    private suspend fun applyCustomMedia(items: List<Movie>): List<Movie> {
+        val userId = prefs.getInt("userId", 0)
+        if (userId <= 0 || items.isEmpty()) return items
+        val customMedia = repository.batchCustomMedia(userId, items.map { it.id }, "films")
+        return items.applyCustomMedia(customMedia)
     }
 }

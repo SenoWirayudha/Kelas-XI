@@ -35,7 +35,9 @@ data class SearchUiState(
     val userResults: List<SearchUser> = emptyList(),
     val error: String? = null,
     val isEmpty: Boolean = false,
-    val isSelectMovieMode: Boolean = false
+    val isSelectMovieMode: Boolean = false,
+    /** True while the next page of the movie grid is loading. */
+    val isLoadingMoreMovies: Boolean = false
 )
 
 @OptIn(FlowPreview::class)
@@ -48,6 +50,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
     
     private var searchJob: Job? = null
+    private var loadMoreMoviesJob: Job? = null
+    private var moviesPage = 1
+    private var moviesLastPage = 1
     private var lastLoadedQuery: String? = null
     private var lastLoadedFilter: SearchFilter? = null
 
@@ -59,6 +64,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     
     fun setFilter(filter: SearchFilter) {
         _uiState.value = _uiState.value.copy(activeFilter = filter)
+        // A new filter starts the movie grid from page 1 again.
+        moviesPage = 1
+        moviesLastPage = 1
+        _uiState.value = _uiState.value.copy(isLoadingMoreMovies = false)
+        loadMoreMoviesJob?.cancel()
 
         // Re-perform search with new filter if query exists
         val currentQuery = _uiState.value.query
@@ -85,6 +95,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
         // Cancel previous search
         searchJob?.cancel()
+        loadMoreMoviesJob?.cancel()
+        // A new query starts the movie grid from page 1 again.
+        moviesPage = 1
+        moviesLastPage = 1
+        _uiState.value = _uiState.value.copy(isLoadingMoreMovies = false)
         
         _uiState.value = _uiState.value.copy(query = query)
         
@@ -174,22 +189,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     
     private suspend fun searchMovies(query: String): List<Movie> = withContext(Dispatchers.Default) {
         try {
-            val response = repository.search(query, "movies")
-            val movies = response?.movies?.map { dto ->
-                Movie(
-                    id = dto.id,
-                    title = dto.title,
-                    posterUrl = dto.poster_path,
-                    averageRating = dto.average_rating,
-                    genre = dto.genres?.firstOrNull(),
-                    releaseYear = dto.year,
-                    description = null,
-                    backdropUrl = dto.backdrop_path,
-                    duration = dto.duration,
-                    pgRating = dto.rating,
-                    watchedCount = "${dto.watched_count} views"
-                )
-            } ?: return@withContext emptyList()
+            val response = repository.search(query, "movies", page = 1)
+            moviesPage = response?.movies_pagination?.current_page ?: 1
+            moviesLastPage = response?.movies_pagination?.last_page ?: 1
+            val movies = response?.movies?.map { dto -> mapMovie(dto) }
+                ?: return@withContext emptyList()
             val userId = prefs.getInt("userId", 0)
             if (userId > 0 && movies.isNotEmpty()) {
                 val customMedia = repository.batchCustomMedia(userId, movies.map { it.id }, "films")
@@ -263,10 +267,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     
     fun clearSearch() {
         searchJob?.cancel()
+        loadMoreMoviesJob?.cancel()
         val current = _uiState.value
         // Forget the last successful query so retyping it searches again.
         lastLoadedQuery = null
         lastLoadedFilter = null
+        moviesPage = 1
+        moviesLastPage = 1
         // Clearing text must not drop the picker mode: without it the filter
         // chips panel reappears and the Cancel affordance disappears.
         _uiState.value = SearchUiState(
@@ -274,4 +281,65 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             isSelectMovieMode = current.isSelectMovieMode
         )
     }
+
+    /**
+     * Next page of the movie grid. Ignored while a search is running, while a
+     * page is already loading, or when the results are exhausted.
+     */
+    fun loadMoreMovies() {
+        val state = _uiState.value
+        if (state.isLoading || state.isLoadingMoreMovies) return
+        if (loadMoreMoviesJob?.isActive == true) return
+        if (moviesPage >= moviesLastPage) return
+        if (state.activeFilter != SearchFilter.ALL && state.activeFilter != SearchFilter.MOVIES) return
+        val query = state.query.trim()
+        if (query.isEmpty()) return
+
+        loadMoreMoviesJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingMoreMovies = true)
+            try {
+                val response = repository.search(query, "movies", page = moviesPage + 1)
+                val newMovies = response?.movies?.map { dto -> mapMovie(dto) } ?: emptyList()
+                if (newMovies.isEmpty()) {
+                    moviesLastPage = moviesPage
+                    return@launch
+                }
+                moviesPage = response?.movies_pagination?.current_page ?: (moviesPage + 1)
+                moviesLastPage = response?.movies_pagination?.last_page ?: moviesLastPage
+
+                val userId = prefs.getInt("userId", 0)
+                val decorated = if (userId > 0) {
+                    val customMedia = repository.batchCustomMedia(userId, newMovies.map { it.id }, "films")
+                    newMovies.applyCustomMedia(customMedia)
+                } else newMovies
+
+                // Ignore the page if the query/filter changed while loading.
+                val current = _uiState.value
+                if (current.query.trim() != query) return@launch
+
+                _uiState.value = current.copy(
+                    movieResults = current.movieResults + decorated,
+                    isLoadingMoreMovies = false
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoadingMoreMovies = false)
+            }
+        }
+    }
+
+    private fun mapMovie(dto: com.komputerkit.moview.data.api.MovieCardDto): Movie = Movie(
+        id = dto.id,
+        title = dto.title,
+        posterUrl = dto.poster_path,
+        averageRating = dto.average_rating,
+        genre = dto.genres?.firstOrNull(),
+        releaseYear = dto.year,
+        description = null,
+        backdropUrl = dto.backdrop_path,
+        duration = dto.duration,
+        pgRating = dto.rating,
+        watchedCount = "${dto.watched_count} views"
+    )
 }

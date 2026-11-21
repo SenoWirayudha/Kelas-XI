@@ -72,6 +72,12 @@ interface MovieApiService {
     suspend fun getPopularThisWeek(
         @Query("limit") limit: Int = 50
     ): ApiResponse<List<MovieCardDto>>
+
+    @GET("popular-this-week")
+    suspend fun getPopularThisWeekPaged(
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20
+    ): PaginatedResponse<MovieCardDto>
     
     @GET("recent-reviews")
     suspend fun getRecentReviews(
@@ -389,7 +395,9 @@ interface MovieApiService {
     @GET("search")
     suspend fun search(
         @Query("q") query: String,
-        @Query("type") type: String = "all"
+        @Query("type") type: String = "all",
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20
     ): ApiResponse<SearchResponse>
     
     // Review Comments
@@ -518,6 +526,12 @@ interface MovieApiService {
         @Query("limit") limit: Int = 10
     ): ApiResponse<List<TheatricalMovieDto>>
 
+    @GET("movies/now-showing")
+    suspend fun getNowShowingPaged(
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20
+    ): PaginatedResponse<TheatricalMovieDto>
+
     @GET("movies/preorder")
     suspend fun getPreorder(
         @Query("limit") limit: Int = 0
@@ -528,10 +542,22 @@ interface MovieApiService {
         @Query("limit") limit: Int = 0
     ): ApiResponse<List<TheatricalMovieDto>>
 
+    @GET("movies/upcoming")
+    suspend fun getUpcomingPaged(
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20
+    ): PaginatedResponse<TheatricalMovieDto>
+
     @GET("movies/coming-soon")
     suspend fun getComingSoon(
         @Query("limit") limit: Int = 0
     ): ApiResponse<List<TheatricalMovieDto>>
+
+    @GET("movies/coming-soon")
+    suspend fun getComingSoonPaged(
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20
+    ): PaginatedResponse<TheatricalMovieDto>
 
     @GET("academy-award-nominees")
     suspend fun getAcademyAwardNominees(): ApiResponse<List<MovieCardDto>>

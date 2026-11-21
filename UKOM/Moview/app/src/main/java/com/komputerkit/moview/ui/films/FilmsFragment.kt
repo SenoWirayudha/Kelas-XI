@@ -62,14 +62,8 @@ class FilmsFragment : Fragment() {
         viewModel.loadFilms(targetUserId)
     }
     
-    override fun onResume() {
-        super.onResume()
-        // Reload films when returning from other screens
-        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
-        val currentUserId = prefs.getInt("userId", 0)
-        val targetUserId = if (args.userId > 0) args.userId else currentUserId
-        viewModel.loadFilms(targetUserId)
-    }
+    // No reload on resume: the ViewModel keeps the loaded pages, so coming back
+    // from a film detail must not refetch page 1 (which reset the list + scroll).
     
     private fun setupRecyclerView() {
         filmGridAdapter = FilmGridAdapter(
@@ -119,6 +113,9 @@ class FilmsFragment : Fragment() {
             binding.tvEmpty.visibility = if (films.isEmpty()) View.VISIBLE else View.GONE
             ScrollStateHelper.restore(binding.rvFilms, savedScrollState)
             savedScrollState = null
+            // Large-DPI screens: the first page may not fill the viewport, so the
+            // scroll listener never fires. Pull the next page until it does.
+            PagedList.autoLoadIfNotFilled(binding.rvFilms) { viewModel.loadMore(targetUserId) }
         }
 
         viewModel.genres.observe(viewLifecycleOwner) { genreOptions = it }

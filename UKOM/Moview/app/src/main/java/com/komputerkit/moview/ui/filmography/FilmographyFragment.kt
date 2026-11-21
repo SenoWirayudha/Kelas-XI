@@ -54,11 +54,9 @@ class FilmographyFragment : Fragment() {
         loadFilmography()
     }
 
-    override fun onResume() {
-        super.onResume()
-        loadFilmography()
-    }
-
+    // No reload on resume: the ViewModel keeps the loaded pages, so coming back
+    // from a film detail must not refetch page 1 (which reset the list + scroll).
+    
     private fun loadFilmography() {
         val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
         val userId = prefs.getInt("userId", 0)
@@ -109,6 +107,11 @@ class FilmographyFragment : Fragment() {
             binding.tvEmpty.visibility = if (films.isEmpty()) View.VISIBLE else View.GONE
             ScrollStateHelper.restore(binding.rvFilmography, savedScrollState)
             savedScrollState = null
+            // Large-DPI screens: pull the next page while the viewport is not full.
+            PagedList.autoLoadIfNotFilled(binding.rvFilmography) {
+                val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
+                viewModel.loadMore(args.filterType, args.filterValue, prefs.getInt("userId", 0))
+            }
         }
 
         viewModel.genres.observe(viewLifecycleOwner) { genreOptions = it }

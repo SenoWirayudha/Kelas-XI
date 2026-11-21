@@ -10,6 +10,8 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentPopularMoviesBinding
+import com.komputerkit.moview.ui.common.LoadingFooterAdapter
+import com.komputerkit.moview.ui.common.PagedList
 import com.komputerkit.moview.util.showSnackbar
 import com.komputerkit.moview.util.SnackbarType
 import com.komputerkit.moview.ui.social.GridSpacingItemDecoration
@@ -22,6 +24,7 @@ class PopularMoviesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     
     private val viewModel: PopularMoviesViewModel by viewModels()
     private lateinit var adapter: MovieGridAdapter
+    private var listFooter: LoadingFooterAdapter? = null
     private var savedScrollState: Pair<Int, Int>? = null
 
     override fun onCreateView(
@@ -95,11 +98,18 @@ class PopularMoviesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             val spacingPx = (12 * resources.displayMetrics.density).toInt()
             addItemDecoration(GridSpacingItemDecoration(3, spacingPx, false))
         }
+
+        // Shared paging: footer spinner + prefetch near the end of the grid.
+        listFooter = PagedList.setup(
+            binding.rvPopularMovies,
+            adapter,
+            prefetchThreshold = 8
+        ) { viewModel.loadMore() }
     }
     
     override fun onRefresh() {
         android.util.Log.d("PopularMoviesFragment", "Refreshing...")
-        viewModel.loadPopularMovies()
+        viewModel.loadPopularMovies(force = true)
     }
 
     private fun observeViewModel() {
@@ -115,7 +125,13 @@ class PopularMoviesFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 adapter.submitList(movies)
                 ScrollStateHelper.restore(binding.rvPopularMovies, savedScrollState)
                 savedScrollState = null
+                // Large-DPI screens: pull the next page while the viewport is not full.
+                PagedList.autoLoadIfNotFilled(binding.rvPopularMovies) { viewModel.loadMore() }
             }
+        }
+
+        viewModel.isLoadingMore.observe(viewLifecycleOwner) { loading ->
+            listFooter?.setVisible(loading)
         }
         
         viewModel.loading.observe(viewLifecycleOwner) { isLoading ->

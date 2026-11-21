@@ -813,7 +813,9 @@ data class SearchResponse(
     val movies: List<MovieCardDto>? = null,
     val cast_crew: List<SearchPersonDto>? = null,
     val production_houses: List<SearchProductionHouseDto>? = null,
-    val people: List<SearchUserDto>? = null
+    val people: List<SearchUserDto>? = null,
+    /** Paging metadata for the movie grid (null on older payloads). */
+    val movies_pagination: Pagination? = null
 )
 
 data class SearchPersonDto(

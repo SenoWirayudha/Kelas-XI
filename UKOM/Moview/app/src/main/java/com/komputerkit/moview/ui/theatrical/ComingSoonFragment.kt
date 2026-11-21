@@ -11,6 +11,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.komputerkit.moview.databinding.FragmentComingSoonBinding
 import com.komputerkit.moview.ui.home.TheatricalMovieAdapter
+import com.komputerkit.moview.ui.common.LoadingFooterAdapter
+import com.komputerkit.moview.ui.common.PagedList
 import com.komputerkit.moview.ui.social.GridSpacingItemDecoration
 import com.komputerkit.moview.util.ScrollStateHelper
 import com.komputerkit.moview.util.SnackbarType
@@ -24,6 +26,7 @@ class ComingSoonFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
     private val viewModel: ComingSoonViewModel by viewModels()
     private lateinit var adapter: TheatricalMovieAdapter
     private var savedScrollState: Pair<Int, Int>? = null
+    private var listFooter: LoadingFooterAdapter? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -61,6 +64,13 @@ class ComingSoonFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
             addItemDecoration(GridSpacingItemDecoration(3, spacingPx, false))
         }
 
+        // Shared paging: footer spinner + prefetch near the end of the grid.
+        listFooter = PagedList.setup(
+            binding.rvMovies,
+            adapter,
+            prefetchThreshold = 8
+        ) { viewModel.loadMore() }
+
         binding.swipeRefresh.setOnRefreshListener(this)
 
         viewModel.movies.observe(viewLifecycleOwner) { movies ->
@@ -73,7 +83,13 @@ class ComingSoonFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
                 adapter.submitList(movies)
                 ScrollStateHelper.restore(binding.rvMovies, savedScrollState)
                 savedScrollState = null
+                // Large-DPI screens: pull the next page while the viewport is not full.
+                PagedList.autoLoadIfNotFilled(binding.rvMovies) { viewModel.loadMore() }
             }
+        }
+
+        viewModel.isLoadingMore.observe(viewLifecycleOwner) { loading ->
+            listFooter?.setVisible(loading)
         }
 
         viewModel.loading.observe(viewLifecycleOwner) { isLoading ->
@@ -89,7 +105,7 @@ class ComingSoonFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener {
         viewModel.loadMovies()
     }
 
-    override fun onRefresh() { viewModel.loadMovies() }
+    override fun onRefresh() { viewModel.loadMovies(force = true) }
 
     override fun onStop() {
         super.onStop()

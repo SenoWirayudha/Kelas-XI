@@ -62,16 +62,8 @@ class LikesFragment : Fragment() {
         setupClickListeners()
     }
     
-    override fun onResume() {
-        super.onResume()
-        
-        // Get userId from args or use current user
-        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
-        val currentUserId = prefs.getInt("userId", 0)
-        val targetUserId = if (args.userId > 0) args.userId else currentUserId
-        
-        viewModel.loadLikes(targetUserId)
-    }
+    // No reload on resume: the ViewModel keeps the loaded pages, so coming back
+    // from a film detail must not refetch page 1 (which reset the list + scroll).
     
     private fun setupRecyclerView() {
         filmGridAdapter = FilmGridAdapter(
@@ -122,6 +114,8 @@ class LikesFragment : Fragment() {
             binding.emptyState.isVisible = films.isEmpty() && viewModel.isLoading.value != true
             ScrollStateHelper.restore(binding.rvLikes, savedScrollState)
             savedScrollState = null
+            // Large-DPI screens: pull the next page while the viewport is not full.
+            PagedList.autoLoadIfNotFilled(binding.rvLikes) { viewModel.loadMore(targetUserId) }
         }
         
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->

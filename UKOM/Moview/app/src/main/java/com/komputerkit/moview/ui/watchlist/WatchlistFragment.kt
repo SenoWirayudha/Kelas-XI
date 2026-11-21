@@ -64,16 +64,8 @@ class WatchlistFragment : Fragment() {
         observeViewModel()
     }
     
-    override fun onResume() {
-        super.onResume()
-        
-        // Get userId from args or use current user
-        val prefs = requireContext().getSharedPreferences("MoviewPrefs", Context.MODE_PRIVATE)
-        val currentUserId = prefs.getInt("userId", 0)
-        val targetUserId = if (args.userId > 0) args.userId else currentUserId
-        
-        viewModel.loadWatchlist(targetUserId)
-    }
+    // No reload on resume: the ViewModel keeps the loaded pages, so coming back
+    // from a film detail must not refetch page 1 (which reset the list + scroll).
     
     private fun setupRecyclerView() {
         adapter = WatchlistAdapter(
@@ -224,6 +216,8 @@ class WatchlistFragment : Fragment() {
             binding.tvEmpty.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
             ScrollStateHelper.restore(binding.rvWatchlist, savedScrollState)
             savedScrollState = null
+            // Large-DPI screens: pull the next page while the viewport is not full.
+            PagedList.autoLoadIfNotFilled(binding.rvWatchlist) { viewModel.loadMore(targetUserId) }
         }
 
         viewModel.genres.observe(viewLifecycleOwner) { genreOptions = it }

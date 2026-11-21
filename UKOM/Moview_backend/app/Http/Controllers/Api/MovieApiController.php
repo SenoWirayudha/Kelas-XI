@@ -52,7 +52,7 @@ class MovieApiController extends Controller
         ]);
     }
 
-    private function topFilmIdsThisWeek(int $limit)
+    private function topFilmIdsThisWeek(int $limit, int $offset = 0)
     {
         return DB::table('ratings')
             ->join('movies', 'ratings.film_id', '=', 'movies.id')
@@ -63,8 +63,20 @@ class MovieApiController extends Controller
             ])
             ->groupBy('movies.id')
             ->orderBy('view_count', 'desc')
+            ->orderBy('movies.id')
             ->limit($limit)
+            ->offset($offset)
             ->pluck('movies.id');
+    }
+
+    /** Total distinct films watched in the last 7 days (for paging metadata). */
+    private function topFilmCountThisWeek(): int
+    {
+        return DB::table('ratings')
+            ->join('movies', 'ratings.film_id', '=', 'movies.id')
+            ->whereBetween('ratings.created_at', [now()->subWeek(), now()])
+            ->distinct()
+            ->count('movies.id');
     }
 
     private function mapTheatricalMovie(Movie $movie, bool $isPreorder): array
@@ -170,11 +182,38 @@ class MovieApiController extends Controller
      */
     public function popularThisWeek(Request $request)
     {
-        $limit = $request->get('limit', 50);
-        
-        // Same base query as Admin Analytics > Top Films This Week.
-        $popularMovieIds = $this->topFilmIdsThisWeek((int) $limit);
-        
+        // Backward compatible: `limit` alone keeps the old "top N, no paging"
+        // behaviour used by the Home carousel.
+        if (!$request->has('page') && !$request->has('per_page')) {
+            $limit = $request->get('limit', 50);
+
+            // Same base query as Admin Analytics > Top Films This Week.
+            $popularMovieIds = $this->topFilmIdsThisWeek((int) $limit);
+
+            $movies = Movie::with(['genres'])
+                ->whereIn('id', $popularMovieIds)
+                ->get()
+                ->sortBy(function($movie) use ($popularMovieIds) {
+                    return array_search($movie->id, $popularMovieIds->toArray());
+                })
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $movies->map(function ($movie) {
+                    return $this->formatMovieCard($movie);
+                })
+            ]);
+        }
+
+        // Paged mode for the "See All" grid.
+        $perPage = min(50, max(1, (int) $request->get('per_page', 20)));
+        $page = max(1, (int) $request->get('page', 1));
+        $offset = ($page - 1) * $perPage;
+
+        $total = $this->topFilmCountThisWeek();
+        $popularMovieIds = $this->topFilmIdsThisWeek($perPage, $offset);
+
         $movies = Movie::with(['genres'])
             ->whereIn('id', $popularMovieIds)
             ->get()
@@ -182,12 +221,18 @@ class MovieApiController extends Controller
                 return array_search($movie->id, $popularMovieIds->toArray());
             })
             ->values();
-        
+
         return response()->json([
             'success' => true,
             'data' => $movies->map(function ($movie) {
                 return $this->formatMovieCard($movie);
-            })
+            }),
+            'pagination' => [
+                'current_page' => $page,
+                'last_page' => max(1, (int) ceil($total / $perPage)),
+                'per_page' => $perPage,
+                'total' => $total,
+            ],
         ]);
     }
     
@@ -1093,6 +1138,10 @@ class MovieApiController extends Controller
             $like = "%{$query}%";
             $startsWith = "{$query}%";
 
+            // Paging for the movie grid (defaults keep the old first-page size).
+            $moviePerPage = min(50, max(1, (int) $request->get('per_page', 20)));
+            $moviePage = max(1, (int) $request->get('page', 1));
+
             // Weighted relevance: exact title > title starts-with > original
             // title starts-with > substring title > substring original title >
             // trigram similarity (>= 0.4) > synopsis substring.
@@ -1120,12 +1169,18 @@ class MovieApiController extends Controller
                 )
                 ->with(['genres'])
                 ->orderByRaw('relevance DESC, movies.id ASC')
-                ->limit(20)
-                ->get();
+                ->paginate($moviePerPage, ['*'], 'page', $moviePage);
 
-            $results['movies'] = $movies->map(function ($movie) {
+            $results['movies'] = $movies->getCollection()->map(function ($movie) {
                 return $this->formatMovieCard($movie);
             });
+
+            $results['movies_pagination'] = [
+                'current_page' => $movies->currentPage(),
+                'last_page' => $movies->lastPage(),
+                'per_page' => $movies->perPage(),
+                'total' => $movies->total(),
+            ];
         }
         
         // Search Cast & Crew (Persons)
@@ -1215,6 +1270,10 @@ class MovieApiController extends Controller
     public function nowShowing(Request $request)
     {
         $limit = $request->get('limit', 0); // 0 = all
+        // Optional paging for the "See All" grid (absent = old behaviour).
+        $paged = $request->has('page') || $request->has('per_page');
+        $perPage = min(50, max(1, (int) $request->get('per_page', 20)));
+        $page = max(1, (int) $request->get('page', 1));
 
         $query = Movie::with([
                 'movieServices' => fn($movieServiceQuery) => $movieServiceQuery
@@ -1254,6 +1313,23 @@ class MovieApiController extends Controller
 
         if ((int) $limit > 0) {
             $query->limit((int) $limit);
+        }
+
+        if ($paged) {
+            $paginator = $query->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'success' => true,
+                'data' => collect($paginator->items())
+                    ->map(fn(Movie $movie) => $this->mapTheatricalMovie($movie, $movie->schedules->isNotEmpty() && $movie->movieServices->contains(fn($movieService) => !empty($movieService->release_date))))
+                    ->values(),
+                'pagination' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                    'per_page' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                ],
+            ]);
         }
 
         $movies = $query->get();
@@ -1310,6 +1386,10 @@ class MovieApiController extends Controller
     public function upcoming(Request $request)
     {
         $limit = $request->get('limit', 0); // 0 = all
+        // Optional paging for the "See All" grid (absent = old behaviour).
+        $paged = $request->has('page') || $request->has('per_page');
+        $perPage = min(50, max(1, (int) $request->get('per_page', 20)));
+        $page = max(1, (int) $request->get('page', 1));
 
         $query = Movie::with([
                 'movieServices' => fn($movieServiceQuery) => $movieServiceQuery
@@ -1356,6 +1436,22 @@ class MovieApiController extends Controller
                 $isComingSoon ? 1 : 0,
             ];
         })->values();
+
+        if ($paged) {
+            $total = $sortedMovies->count();
+            $items = $sortedMovies->forPage($page, $perPage)->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $items->map(fn(Movie $movie) => $this->mapTheatricalMovie($movie, false))->values(),
+                'pagination' => [
+                    'current_page' => $page,
+                    'last_page' => max(1, (int) ceil($total / $perPage)),
+                    'per_page' => $perPage,
+                    'total' => $total,
+                ],
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -1438,6 +1534,25 @@ class MovieApiController extends Controller
 
         if ((int) $limit > 0) {
             $sorted = $sorted->take((int) $limit);
+        }
+
+        // Optional paging for the "See All" grid (absent = old behaviour).
+        if ($request->has('page') || $request->has('per_page')) {
+            $perPage = min(50, max(1, (int) $request->get('per_page', 20)));
+            $page = max(1, (int) $request->get('page', 1));
+            $total = $sorted->count();
+            $items = $sorted->forPage($page, $perPage)->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $items->map(fn($item) => $this->mapComingSoonMovie($item['movie'], $item['date'], $item['type'], $item['country']))->values(),
+                'pagination' => [
+                    'current_page' => $page,
+                    'last_page' => max(1, (int) ceil($total / $perPage)),
+                    'per_page' => $perPage,
+                    'total' => $total,
+                ],
+            ]);
         }
 
         return response()->json([
