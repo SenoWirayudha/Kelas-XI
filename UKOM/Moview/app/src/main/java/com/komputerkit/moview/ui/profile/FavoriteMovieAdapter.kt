@@ -9,7 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemFavoriteMovieBinding
-import com.komputerkit.moview.util.loadThumbnail
+import com.komputerkit.moview.util.loadGridThumbnail
 import com.komputerkit.moview.util.MovieActionsHelper
 
 class FavoriteMovieAdapter(
@@ -39,7 +39,7 @@ class FavoriteMovieAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(movie: Movie) {
-            binding.ivPoster.loadThumbnail(movie.posterUrl, movie.title)
+            binding.ivPoster.loadGridThumbnail(movie.posterUrl, movie.title)
             
             // Root click behavior:
             // - If has review: navigate to review detail

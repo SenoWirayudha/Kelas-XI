@@ -1,6 +1,5 @@
 package com.komputerkit.moview.ui.films
 
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,12 +7,13 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemFilmGridBinding
+import com.komputerkit.moview.ui.common.FilmGridDiff
 import com.komputerkit.moview.util.MovieActionsHelper
+import com.komputerkit.moview.ui.common.FilmGridCell
+import com.komputerkit.moview.ui.common.FilmGridSizes
 
 class FilmGridAdapter(
     private val onMovieClick: (Movie) -> Unit,
@@ -21,7 +21,7 @@ class FilmGridAdapter(
     private val onLongPressGoToFilm: ((Movie) -> Unit)? = null,
     private val onLogFilm: ((Movie) -> Unit)? = null,
     private val onChangePoster: ((Movie) -> Unit)? = null
-) : ListAdapter<Movie, FilmGridAdapter.FilmViewHolder>(FilmDiffCallback()) {
+) : ListAdapter<Movie, FilmGridAdapter.FilmViewHolder>(FilmGridDiff) {
 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilmViewHolder {
@@ -46,25 +46,26 @@ class FilmGridAdapter(
         private val onChangePoster: ((Movie) -> Unit)?
     ) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(movie: Movie) {
-            // Load poster with optimization
-            if (!movie.posterUrl.isNullOrEmpty()) {
-                val fixedUrl = com.komputerkit.moview.util.ServerConfig.fixUrl(movie.posterUrl)
-                Glide.with(binding.root.context)
-                    .load(fixedUrl)
-                    .thumbnail(0.1f)  // Load 10% thumbnail first for fast preview
-                    .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(binding.root.context, movie.title))  // Show fallback while loading
-                    .error(com.komputerkit.moview.util.PosterFallbackDrawable(binding.root.context, movie.title))  // Show fallback if error
-                    .diskCacheStrategy(DiskCacheStrategy.ALL)  // Cache both original & resized
-                    .centerCrop()
-                    .into(binding.ivPoster)
-                Log.d("FilmGridAdapter", "Loading poster for ${movie.title}: ${movie.posterUrl}")
-            } else {
-                // No poster URL, show fallback
-                binding.ivPoster.setImageDrawable(com.komputerkit.moview.util.PosterFallbackDrawable(binding.root.context, movie.title))
-                Log.w("FilmGridAdapter", "No poster URL for ${movie.title}")
+        init {
+            // Star configuration is constant per holder: set it once instead of
+            // on every bind (setters would requestLayout + invalidate).
+            binding.starRating.apply {
+                starSizeDp = 10f
+                starGapDp = 0f
+                displayMode = true
+                setColors(
+                    ContextCompat.getColor(context, R.color.star_green),
+                    ContextCompat.getColor(context, R.color.star_green_empty)
+                )
             }
-            
+        }
+
+        fun bind(movie: Movie) {
+            // Fixed 2:3 decode target (4-column grid): no full-resolution decode
+            // and scrolling back to an item is a memory-cache hit.
+            val (w, h) = FilmGridSizes.cellFor(binding.root, GRID_SPAN) ?: (0 to 0)
+            FilmGridCell.loadPoster(binding.ivPoster, movie.posterUrl, movie.title, w, h)
+
             // Show review icon if movie has review
             binding.icHasReview.visibility = if (movie.hasReview) View.VISIBLE else View.GONE
             
@@ -72,7 +73,6 @@ class FilmGridAdapter(
             updateStarRating(movie.userRating)
             
             // Show liked icon if movie is liked
-            Log.d("FilmGridAdapter", "Film: ${movie.title}, isLiked=${movie.isLiked}, rating=${movie.userRating}")
             binding.ivLiked.visibility = if (movie.isLiked) View.VISIBLE else View.GONE
             
             // Poster click - if has review go to review detail, otherwise go to film detail
@@ -101,32 +101,20 @@ class FilmGridAdapter(
         }
         
         private fun updateStarRating(rating: Float) {
-            binding.ratingContainer.visibility = View.VISIBLE
-            binding.starRating.apply {
-                if (rating == 0f) {
-                    visibility = View.GONE
-                    return@apply
-                }
-                visibility = View.VISIBLE
-                starSizeDp = 10f
-                starGapDp = 0f
-                displayMode = true
-                setColors(
-                    ContextCompat.getColor(context, R.color.star_green),
-                    ContextCompat.getColor(context, R.color.star_green_empty)
-                )
-                this@FilmViewHolder.binding.starRating.rating = rating
+            if (rating == 0f) {
+                binding.ratingContainer.visibility = View.GONE
+                binding.starRating.visibility = View.GONE
+                return
             }
+            binding.ratingContainer.visibility = View.VISIBLE
+            binding.starRating.visibility = View.VISIBLE
+            binding.starRating.rating = rating
         }
     }
 
-    private class FilmDiffCallback : DiffUtil.ItemCallback<Movie>() {
-        override fun areItemsTheSame(oldItem: Movie, newItem: Movie): Boolean {
-            return oldItem.id == newItem.id
-        }
-
-        override fun areContentsTheSame(oldItem: Movie, newItem: Movie): Boolean {
-            return oldItem == newItem
-        }
+    private companion object {
+        /** The profile films grid is 4 columns. */
+        const val GRID_SPAN = 4
     }
+
 }

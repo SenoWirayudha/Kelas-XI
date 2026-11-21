@@ -13,7 +13,7 @@ import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemDiarySimpleBinding
 import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.bindDateIso
-import com.komputerkit.moview.util.loadPoster
+import com.komputerkit.moview.util.loadThumbnail
 
 class SimpleDiaryAdapter(
     private val onDiaryClick: (reviewOrDiaryId: Int, isLog: Boolean, diaryId: Int) -> Unit,
@@ -41,7 +41,7 @@ class SimpleDiaryAdapter(
         fun bind(diary: Diary) {
             binding.apply {
                 // Load poster
-                ivPoster.loadPoster(diary.poster_path, diary.title)
+                ivPoster.loadThumbnail(diary.poster_path, diary.title)
 
                 // Set title and year
                 tvTitle.text = diary.title

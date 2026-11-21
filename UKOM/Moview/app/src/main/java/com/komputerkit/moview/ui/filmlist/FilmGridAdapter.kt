@@ -6,19 +6,19 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemFilmGridBinding
+import com.komputerkit.moview.ui.common.FilmGridDiff
 import com.komputerkit.moview.util.MovieActionsHelper
-import com.komputerkit.moview.util.loadThumbnail
+import com.komputerkit.moview.ui.common.FilmGridCell
+import com.komputerkit.moview.ui.common.FilmGridSizes
 
 class FilmGridAdapter(
     private val onMovieClick: (Movie) -> Unit,
     private val onLogFilm: ((Movie) -> Unit)? = null,
     private val onChangePoster: ((Movie) -> Unit)? = null
-) : ListAdapter<Movie, FilmGridAdapter.FilmViewHolder>(FilmDiffCallback()) {
+) : ListAdapter<Movie, FilmGridAdapter.FilmViewHolder>(FilmGridDiff) {
 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilmViewHolder {
@@ -38,32 +38,29 @@ class FilmGridAdapter(
         private val binding: ItemFilmGridBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(movie: Movie, onClick: (Movie) -> Unit, onLogFilm: ((Movie) -> Unit)? = null, onChangePoster: ((Movie) -> Unit)? = null) {
-            // Clear previous image to prevent recycling issues
-            binding.ivPoster.setImageDrawable(null)
-            
-            // Load poster with fixed size to prevent stretching
-            binding.ivPoster.post {
-                val fixedUrl = if (!movie.posterUrl.isNullOrEmpty()) com.komputerkit.moview.util.ServerConfig.fixUrl(movie.posterUrl) else movie.posterUrl
-                val width = binding.ivPoster.width
-                if (width > 0) {
-                    val height = (width * 1.5).toInt() // 2:3 aspect ratio
-                    com.bumptech.glide.Glide.with(binding.ivPoster.context)
-                        .load(fixedUrl)
-                        .override(width, height)
-                        .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, movie.title))
-                        .error(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, movie.title))
-                        .centerCrop()
-                        .into(binding.ivPoster)
-                } else {
-                    binding.ivPoster.loadThumbnail(fixedUrl, movie.title)
-                }
+        init {
+            // Star configuration is constant per holder: set it once instead of
+            // on every bind (setters would requestLayout + invalidate).
+            binding.starRating.apply {
+                starSizeDp = 10f
+                starGapDp = 0f
+                displayMode = true
+                setColors(
+                    ContextCompat.getColor(context, R.color.star_green),
+                    ContextCompat.getColor(context, R.color.star_green_empty)
+                )
             }
-            
+        }
+
+        fun bind(movie: Movie, onClick: (Movie) -> Unit, onLogFilm: ((Movie) -> Unit)? = null, onChangePoster: ((Movie) -> Unit)? = null) {
+            // Exact cell size (2:3 of the grid cell): one decode per size, cache hits on scroll-back.
+            val (w, h) = FilmGridSizes.cellFor(binding.root, GRID_SPAN) ?: (0 to 0)
+            FilmGridCell.loadPoster(binding.ivPoster, movie.posterUrl, movie.title, w, h)
+
             // Show rating if user has rated
             if (movie.userRating > 0) {
                 binding.ratingContainer.visibility = android.view.View.VISIBLE
-                updateStars(movie.userRating)
+                binding.starRating.rating = movie.userRating
             } else {
                 binding.ratingContainer.visibility = android.view.View.GONE
             }
@@ -91,28 +88,11 @@ class FilmGridAdapter(
                 true
             }
         }
-        
-        private fun updateStars(rating: Float) {
-            binding.starRating.apply {
-                starSizeDp = 10f
-                starGapDp = 0f
-                displayMode = true
-                setColors(
-                    ContextCompat.getColor(context, R.color.star_green),
-                    ContextCompat.getColor(context, R.color.star_green_empty)
-                )
-                this@FilmViewHolder.binding.starRating.rating = rating
-            }
-        }
     }
 
-    private class FilmDiffCallback : DiffUtil.ItemCallback<Movie>() {
-        override fun areItemsTheSame(oldItem: Movie, newItem: Movie): Boolean {
-            return oldItem.id == newItem.id
-        }
-
-        override fun areContentsTheSame(oldItem: Movie, newItem: Movie): Boolean {
-            return oldItem == newItem
-        }
+    private companion object {
+        /** The category/watchlist/likes grids are 4 columns. */
+        const val GRID_SPAN = 4
     }
+
 }

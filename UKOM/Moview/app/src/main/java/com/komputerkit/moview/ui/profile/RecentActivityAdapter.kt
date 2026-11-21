@@ -11,7 +11,7 @@ import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.DiaryEntry
 import com.komputerkit.moview.databinding.ItemRecentActivityBinding
 import com.komputerkit.moview.util.MovieActionsHelper
-import com.komputerkit.moview.util.loadPoster
+import com.komputerkit.moview.util.loadGridThumbnail
 
 class RecentActivityAdapter(
     private val onMovieClick: ((DiaryEntry) -> Unit)? = null,
@@ -41,7 +41,7 @@ class RecentActivityAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         
         fun bind(entry: DiaryEntry) {
-            binding.ivPoster.loadPoster(entry.movie.posterUrl, entry.movie.title)
+            binding.ivPoster.loadGridThumbnail(entry.movie.posterUrl, entry.movie.title)
             
             // Show rating stars
             binding.starRating.apply {

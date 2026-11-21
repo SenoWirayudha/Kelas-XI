@@ -1,6 +1,5 @@
 package com.komputerkit.moview.ui.review
 
-import android.text.Html
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,8 +10,9 @@ import androidx.core.content.ContextCompat
 import com.komputerkit.moview.R
 import com.komputerkit.moview.data.model.Review
 import com.komputerkit.moview.databinding.ItemReviewBinding
+import com.komputerkit.moview.util.HtmlText
 import com.komputerkit.moview.util.MovieActionsHelper
-import com.komputerkit.moview.util.loadPoster
+import com.komputerkit.moview.util.loadThumbnail
 
 class ReviewAdapter(
     private val onReviewClick: (Review) -> Unit,
@@ -43,6 +43,19 @@ class ReviewAdapter(
         private val onChangePoster: ((Review) -> Unit)? = null
     ) : RecyclerView.ViewHolder(binding.root) {
 
+        init {
+            // Constant per holder: configured once, not on every bind.
+            binding.starRating.apply {
+                displayMode = true
+                starSizeDp = 12f
+                starGapDp = 0f
+                setColors(
+                    ContextCompat.getColor(context, R.color.star_green),
+                    ContextCompat.getColor(context, R.color.star_green_empty)
+                )
+            }
+        }
+
         fun bind(review: Review, isOwnProfile: Boolean) {
             binding.tvTitle.text = review.movie.title
             binding.tvYear.text = review.movie.releaseYear.toString()
@@ -60,41 +73,20 @@ class ReviewAdapter(
                 binding.tvReviewPreview.visibility = View.GONE
                 binding.layoutSpoilerOverlay.visibility = View.VISIBLE
             } else {
-                // Render HTML in review text
-                val reviewHtml = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                    Html.fromHtml(review.reviewText, Html.FROM_HTML_MODE_COMPACT)
-                } else {
-                    @Suppress("DEPRECATION")
-                    Html.fromHtml(review.reviewText)
-                }
-                binding.tvReviewPreview.text = reviewHtml
+                // Render HTML in review text (decoded once per review, cached)
+                binding.tvReviewPreview.text = HtmlText.decode(review.reviewText)
                 binding.tvReviewPreview.visibility = View.VISIBLE
                 binding.layoutSpoilerOverlay.visibility = View.GONE
             }
 
             // Tap spoiler overlay to reveal
             binding.layoutSpoilerOverlay.setOnClickListener {
-                val reviewHtml = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                    Html.fromHtml(review.reviewText, Html.FROM_HTML_MODE_COMPACT)
-                } else {
-                    @Suppress("DEPRECATION")
-                    Html.fromHtml(review.reviewText)
-                }
-                binding.tvReviewPreview.text = reviewHtml
+                binding.tvReviewPreview.text = HtmlText.decode(review.reviewText)
                 binding.tvReviewPreview.visibility = View.VISIBLE
                 binding.layoutSpoilerOverlay.visibility = View.GONE
             }
 
             // Display star rating - supports half-star
-            binding.starRating.apply {
-                displayMode = true
-                starSizeDp = 12f
-                starGapDp = 0f
-                setColors(
-                    ContextCompat.getColor(binding.root.context, R.color.star_green),
-                    ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
-                )
-            }
             binding.starRating.rating = review.rating
             binding.starRating.visibility = if (review.rating > 0f) View.VISIBLE else View.GONE
 
@@ -105,7 +97,7 @@ class ReviewAdapter(
             binding.ivRewatch.visibility = if (review.isRewatch) View.VISIBLE else View.GONE
 
             // Load poster using Glide extension for fast loading
-            binding.ivPoster.loadPoster(review.movie.posterUrl, review.movie.title)
+            binding.ivPoster.loadThumbnail(review.movie.posterUrl, review.movie.title)
 
             binding.root.setOnClickListener {
                 onReviewClick(review)

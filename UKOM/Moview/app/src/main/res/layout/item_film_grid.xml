@@ -15,14 +15,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- Poster Container with fixed aspect ratio -->
-        <androidx.constraintlayout.widget.Guideline
-            android:id="@+id/guideline_bottom"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            app:layout_constraintGuide_percent="0.0" />
-
+        <!-- Poster: 2:3 box (same as before). The grid's target size matches this
+             box exactly (FilmGridCell), so Glide decodes once per size. -->
         <ImageView
             android:id="@+id/iv_poster"
             android:layout_width="0dp"
@@ -35,6 +29,7 @@
             app:layout_constraintDimensionRatio="W,2:3"
             app:layout_constraintBottom_toTopOf="@id/rating_container"
             tools:src="@tools:sample/backgrounds/scenic" />
+
 
         <FrameLayout
             android:id="@+id/poster_container"

@@ -12,7 +12,7 @@ import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.data.model.ReviewData
 import com.komputerkit.moview.databinding.ItemReviewSimpleBinding
 import com.komputerkit.moview.util.MovieActionsHelper
-import com.komputerkit.moview.util.loadPoster
+import com.komputerkit.moview.util.loadThumbnail
 
 class SimpleReviewAdapter(
     private val onReviewClick: (Int) -> Unit,
@@ -40,7 +40,7 @@ class SimpleReviewAdapter(
         fun bind(review: ReviewData) {
             binding.apply {
                 // Load poster
-                ivPoster.loadPoster(review.poster_path, review.title)
+                ivPoster.loadThumbnail(review.poster_path, review.title)
 
                 // Set title and year
                 tvTitle.text = review.title

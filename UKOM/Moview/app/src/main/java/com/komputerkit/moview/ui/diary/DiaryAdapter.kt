@@ -13,7 +13,7 @@ import com.komputerkit.moview.data.model.DiaryEntry
 import com.komputerkit.moview.databinding.ItemDiaryEntryBinding
 import com.komputerkit.moview.util.MovieActionsHelper
 import com.komputerkit.moview.util.bindDateIso
-import com.komputerkit.moview.util.loadPoster
+import com.komputerkit.moview.util.loadThumbnail
 
 class DiaryAdapter(
     private val onEntryClick: (DiaryEntry) -> Unit,
@@ -84,7 +84,7 @@ class DiaryAdapter(
             binding.tvYear.text = entry.movie.releaseYear.toString()
             binding.dateBadge.bindDateIso(entry.watchedDate)
 
-            binding.ivPoster.loadPoster(entry.movie.posterUrl, entry.movie.title)
+            binding.ivPoster.loadThumbnail(entry.movie.posterUrl, entry.movie.title)
 
             // Set stars
             binding.starRating.apply {

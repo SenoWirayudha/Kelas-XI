@@ -82,11 +82,7 @@ class TheatricalMovieAdapter(
             if (countryCode != null) {
                 binding.llCountry.visibility = View.VISIBLE
                 binding.tvCountryCode.text = countryCode
-                val flagRes = binding.root.context.resources.getIdentifier(
-                    "flag_${countryCode.lowercase(Locale.ENGLISH)}",
-                    "drawable",
-                    binding.root.context.packageName
-                )
+                val flagRes = flagResource(binding.root.context, countryCode)
                 if (flagRes != 0) {
                     com.bumptech.glide.Glide.with(binding.root.context)
                         .load(flagRes)
@@ -117,10 +113,8 @@ class TheatricalMovieAdapter(
                     ?: movie.countryCode?.takeIf { it.isNotBlank() }
                 val dateText = if (!movie.releaseDate.isNullOrBlank()) {
                     try {
-                        val inFmt = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
-                        val outFmt = SimpleDateFormat("d MMM yyyy", Locale.ENGLISH)
-                        val date = inFmt.parse(movie.releaseDate)
-                        if (date != null) outFmt.format(date) else "Coming Soon"
+                        val date = inDateFormat().parse(movie.releaseDate)
+                        if (date != null) outDateFormat().format(date) else "Coming Soon"
                     } catch (e: Exception) {
                         "Coming Soon"
                     }
@@ -166,6 +160,24 @@ class TheatricalMovieAdapter(
     }
 
     companion object {
+        // Formatters and flag lookups are reused across binds: creating a
+        // SimpleDateFormat / calling getIdentifier for every cell is measurable
+        // while scrolling.
+        private val inFmt by lazy { SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH) }
+        private val outFmt by lazy { SimpleDateFormat("d MMM yyyy", Locale.ENGLISH) }
+        private fun inDateFormat() = inFmt
+        private fun outDateFormat() = outFmt
+
+        private val flagCache = HashMap<String, Int>()
+        private fun flagResource(context: android.content.Context, code: String): Int =
+            flagCache.getOrPut(code) {
+                context.resources.getIdentifier(
+                    "flag_${code.lowercase(Locale.ENGLISH)}",
+                    "drawable",
+                    context.packageName
+                )
+            }
+
         private val DIFF = object : DiffUtil.ItemCallback<TheatricalMovie>() {
             override fun areItemsTheSame(oldItem: TheatricalMovie, newItem: TheatricalMovie) =
                 oldItem.id == newItem.id

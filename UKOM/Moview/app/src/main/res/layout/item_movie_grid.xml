@@ -14,18 +14,20 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- Movie Poster -->
-        <androidx.cardview.widget.CardView
+        <!-- Movie Poster: single rounded clip from the outer card; no inner
+             elevated CardView (that stacked a second clip + shadow per item). -->
+        <FrameLayout
             android:id="@+id/card_poster"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="2dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:background="@drawable/placeholder_poster"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintDimensionRatio="2:3">
-            
+
             <ImageView
                 android:id="@+id/iv_poster"
                 android:layout_width="match_parent"
@@ -33,8 +35,8 @@
                 android:scaleType="centerCrop"
                 android:contentDescription="Movie Poster"
                 tools:src="@android:color/darker_gray" />
-        
-        </androidx.cardview.widget.CardView>
+
+        </FrameLayout>
 
         <!-- Rating Badge -->
         <TextView

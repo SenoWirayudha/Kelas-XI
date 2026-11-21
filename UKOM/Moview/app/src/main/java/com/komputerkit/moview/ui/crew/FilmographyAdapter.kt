@@ -6,11 +6,11 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.komputerkit.moview.data.model.Movie
 import com.komputerkit.moview.databinding.ItemFilmGridBinding
 import com.komputerkit.moview.util.MovieActionsHelper
-import com.komputerkit.moview.util.loadThumbnail
+import com.komputerkit.moview.ui.common.FilmGridCell
+import com.komputerkit.moview.ui.common.FilmGridSizes
 
 class FilmographyAdapter(
     private val onFilmClick: (Film) -> Unit,
@@ -36,24 +36,10 @@ class FilmographyAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(film: Film) {
-            binding.ivPoster.setImageDrawable(null)
-
-            binding.ivPoster.post {
-                val fixedUrl = if (film.posterUrl.isNotEmpty()) com.komputerkit.moview.util.ServerConfig.fixUrl(film.posterUrl) else film.posterUrl
-                val width = binding.ivPoster.width
-                if (width > 0) {
-                    val height = (width * 1.5).toInt()
-                    Glide.with(binding.ivPoster.context)
-                        .load(fixedUrl)
-                        .override(width, height)
-                        .placeholder(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, film.title))
-                        .error(com.komputerkit.moview.util.PosterFallbackDrawable(binding.ivPoster.context, film.title))
-                        .centerCrop()
-                        .into(binding.ivPoster)
-                } else {
-                    binding.ivPoster.loadThumbnail(fixedUrl, film.title)
-                }
-            }
+            // Fixed 2:3 decode target (4-column grid) — no per-bind post{} and no
+            // full-resolution decode.
+            val (w, h) = FilmGridSizes.cellFor(binding.root, GRID_SPAN) ?: (0 to 0)
+            FilmGridCell.loadPoster(binding.ivPoster, film.posterUrl, film.title, w, h)
 
             binding.ratingContainer.visibility = View.GONE
             binding.icHasReview.visibility = View.GONE
@@ -83,6 +69,11 @@ class FilmographyAdapter(
                 true
             }
         }
+    }
+
+    private companion object {
+        /** The filmography grid is 4 columns. */
+        const val GRID_SPAN = 4
     }
 
     private class FilmDiffCallback : DiffUtil.ItemCallback<Film>() {

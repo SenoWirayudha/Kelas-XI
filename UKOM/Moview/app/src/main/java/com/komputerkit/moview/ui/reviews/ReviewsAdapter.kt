@@ -1,7 +1,5 @@
 package com.komputerkit.moview.ui.reviews
 
-import android.os.Build
-import android.text.Html
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,6 +9,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.R
 import com.komputerkit.moview.databinding.ItemReviewUserBinding
+import com.komputerkit.moview.util.HtmlText
 import com.komputerkit.moview.util.loadProfilePhoto
 
 class ReviewsAdapter(
@@ -39,21 +38,30 @@ class ReviewsAdapter(
         private val onReviewClick: (ReviewItem) -> Unit,
         private val onUserClick: ((Int) -> Unit)?
     ) : RecyclerView.ViewHolder(binding.root) {
-        
-        fun bind(review: ReviewItem, userHasWatched: Boolean) {
-            binding.tvUsername.text = review.username
-            binding.tvTimestamp.text = review.timestamp
 
-            // Display star rating - supports half-star
+        /** Shared tint: avoids allocating a ColorStateList on every bind. */
+        private val likeTint = android.content.res.ColorStateList.valueOf(
+            ContextCompat.getColor(binding.root.context, R.color.red)
+        )
+        
+        init {
+            // Constant per holder: configured once, not on every bind.
             binding.starRating.apply {
                 displayMode = true
                 starSizeDp = 12f
                 starGapDp = 0f
                 setColors(
-                    ContextCompat.getColor(binding.root.context, R.color.star_green),
-                    ContextCompat.getColor(binding.root.context, R.color.star_green_empty)
+                    ContextCompat.getColor(context, R.color.star_green),
+                    ContextCompat.getColor(context, R.color.star_green_empty)
                 )
             }
+        }
+
+        fun bind(review: ReviewItem, userHasWatched: Boolean) {
+            binding.tvUsername.text = review.username
+            binding.tvTimestamp.text = review.timestamp
+
+            // Display star rating - supports half-star
             binding.starRating.rating = review.rating
             binding.starRating.visibility = if (review.rating > 0f) View.VISIBLE else View.GONE
 
@@ -61,9 +69,7 @@ class ReviewsAdapter(
             // When hidden it is GONE (not INVISIBLE) so the card keeps its layout.
             if (review.isLiked) {
                 binding.ivLike.setImageResource(R.drawable.ic_heart_filled)
-                binding.ivLike.imageTintList = android.content.res.ColorStateList.valueOf(
-                    ContextCompat.getColor(binding.root.context, R.color.red)
-                )
+                binding.ivLike.imageTintList = likeTint
                 binding.ivLike.visibility = View.VISIBLE
             } else {
                 binding.ivLike.visibility = View.GONE
@@ -77,14 +83,14 @@ class ReviewsAdapter(
             } else {
                 binding.tvReviewText.visibility = View.VISIBLE
                 binding.cardSpoilerOverlay.visibility = View.GONE
-                binding.tvReviewText.text = decodeReviewText(review.content)
+                binding.tvReviewText.text = HtmlText.decodeToString(review.content)
             }
 
             // Tap spoiler overlay to reveal content
             binding.cardSpoilerOverlay.setOnClickListener {
                 binding.cardSpoilerOverlay.visibility = View.GONE
                 binding.tvReviewText.visibility = View.VISIBLE
-                binding.tvReviewText.text = decodeReviewText(review.content)
+                binding.tvReviewText.text = HtmlText.decodeToString(review.content)
             }
             
             // Load user avatar
@@ -104,23 +110,6 @@ class ReviewsAdapter(
             }
         }
 
-        private fun decodeReviewText(raw: String): CharSequence {
-            // Decode once/twice to handle both "&#128512;" and "&amp;#128512;" payloads.
-            var decoded = raw
-            repeat(2) {
-                val next = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    Html.fromHtml(decoded, Html.FROM_HTML_MODE_COMPACT).toString()
-                } else {
-                    @Suppress("DEPRECATION")
-                    Html.fromHtml(decoded).toString()
-                }
-                if (next == decoded) {
-                    return decoded
-                }
-                decoded = next
-            }
-            return decoded
-        }
     }
 
     private class ReviewDiffCallback : DiffUtil.ItemCallback<ReviewItem>() {

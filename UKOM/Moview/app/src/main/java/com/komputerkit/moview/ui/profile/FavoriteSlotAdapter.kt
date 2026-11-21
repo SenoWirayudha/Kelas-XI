@@ -6,7 +6,7 @@ import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.komputerkit.moview.databinding.ItemFavoriteSlotBinding
-import com.komputerkit.moview.util.loadThumbnail
+import com.komputerkit.moview.util.loadGridThumbnail
 
 /**
  * The 4 Top-Favorite slots. A plain (non-List) adapter so ItemTouchHelper can
@@ -113,7 +113,7 @@ class FavoriteSlotAdapter(
             binding.cardAdd.isVisible = !hasPoster
 
             if (hasPoster) {
-                binding.ivPoster.loadThumbnail(slot.movie!!.posterUrl, slot.movie!!.title)
+                binding.ivPoster.loadGridThumbnail(slot.movie!!.posterUrl, slot.movie!!.title)
                 bindRank(slot)
 
                 binding.btnRemove.setOnClickListener {

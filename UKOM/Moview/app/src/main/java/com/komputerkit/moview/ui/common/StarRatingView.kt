@@ -28,6 +28,7 @@ class StarRatingView @JvmOverloads constructor(
      */
     var displayMode: Boolean = false
         set(value) {
+            if (field == value) return
             field = value
             requestLayout()
             invalidate()
@@ -41,22 +42,34 @@ class StarRatingView @JvmOverloads constructor(
     }
 
     private val starPath = Path()
+    /** Size the cached [starPath] was built for (-1 = not built yet). */
+    private var cachedPathStarSize = -1f
+
+    init {
+        activePaint.color = activeColor
+        emptyPaint.color = emptyColor
+    }
 
     var rating: Float = 0f
         set(value) {
-            field = value.coerceIn(0f, starCount.toFloat())
+            val next = value.coerceIn(0f, starCount.toFloat())
+            if (field == next) return
+            field = next
             invalidate()
         }
 
     var starCount: Int = DEFAULT_STAR_COUNT
         set(value) {
-            field = value.coerceIn(1, 10)
+            val next = value.coerceIn(1, 10)
+            if (field == next) return
+            field = next
             requestLayout()
             invalidate()
         }
 
     var starSizeDp: Float = DEFAULT_STAR_SIZE_DP
         set(value) {
+            if (field == value) return
             field = value
             requestLayout()
             invalidate()
@@ -64,12 +77,14 @@ class StarRatingView @JvmOverloads constructor(
 
     var starGapDp: Float = DEFAULT_STAR_GAP_DP
         set(value) {
+            if (field == value) return
             field = value
             requestLayout()
             invalidate()
         }
 
     fun setColors(active: Int, empty: Int) {
+        if (activeColor == active && emptyColor == empty) return
         activeColor = active
         emptyColor = empty
         activePaint.color = activeColor
@@ -140,6 +155,10 @@ class StarRatingView @JvmOverloads constructor(
     }
 
     private fun updatePath(starSize: Float) {
+        // The star geometry only depends on the size: rebuild it once per size
+        // instead of on every draw while scrolling.
+        if (starSize == cachedPathStarSize) return
+        cachedPathStarSize = starSize
         starPath.reset()
         val scale = starSize / 20f
         starPath.moveTo((12f - 2f) * scale, (17.27f - 2f) * scale)
@@ -153,8 +172,6 @@ class StarRatingView @JvmOverloads constructor(
         starPath.lineTo((7.46f - 2f) * scale, (13.97f - 2f) * scale)
         starPath.lineTo((5.82f - 2f) * scale, (21f - 2f) * scale)
         starPath.close()
-        activePaint.color = activeColor
-        emptyPaint.color = emptyColor
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

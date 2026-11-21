@@ -164,8 +164,10 @@ class WatchlistViewModel(application: Application) : AndroidViewModel(applicatio
     
     private fun applyCurrentFilters() {
         val filteredMovies = MovieFilterUtils.applyFilters(allMovies, filterState)
+        // Index once per render: a linear find() per movie made each page append O(n²).
+        val itemsById = allItems.associateBy { it.movie.id }
         _watchlistItems.value = filteredMovies.map { movie ->
-            allItems.find { it.movie.id == movie.id }
+            itemsById[movie.id]
                 ?: WatchlistItem(
                     id = movie.id,
                     movie = movie,
