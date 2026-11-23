@@ -29,8 +29,10 @@ class PosterGeneratorViewModel(application: Application) : AndroidViewModel(appl
     private val _shareEvent = MutableLiveData<ShareResult?>()
     val shareEvent: LiveData<ShareResult?> = _shareEvent
 
-    private val _previewContent = MutableLiveData<PosterCompositor.PosterContent?>()
-    val previewContent: LiveData<PosterCompositor.PosterContent?> = _previewContent
+    // The preview shows the exact bitmap produced by PosterCompositor (1080x1920), i.e. the
+    // same rendering path and resolution used for the Instagram export (single source of truth).
+    private val _previewBitmap = MutableLiveData<Bitmap?>()
+    val previewBitmap: LiveData<Bitmap?> = _previewBitmap
 
     private var previewJob: Job? = null
 
@@ -89,40 +91,23 @@ class PosterGeneratorViewModel(application: Application) : AndroidViewModel(appl
         useDefaultBackground = false
         _selectedUrls.value = emptyList()
         previewJob?.cancel()
-        _previewContent.value = null
+        _previewBitmap.value = null
     }
 
     fun isReady(): Boolean =
         useDefaultBackground || _selectedUrls.value.orEmpty().size == MAX_SCENES
 
-    /** Builds the on-screen preview content at display resolution. */
+    /** Renders the export bitmap (same resolution/path as [share]) to show it as the preview. */
     fun loadPreview(context: Context) {
-        val urls = _selectedUrls.value.orEmpty()
         if (!isReady()) {
-            _previewContent.value = null
+            _previewBitmap.value = null
             return
         }
 
         previewJob?.cancel()
         previewJob = viewModelScope.launch {
-            val panelHeight = PREVIEW_WIDTH / 3
-
-            // Empty when the user skipped picking: the compositor then paints the branded
-            // fallback artwork instead of grey panels.
-            val backdrops = if (useDefaultBackground) emptyList() else urls.map { url ->
-                ShareBitmapLoader.load(context, url, PREVIEW_WIDTH, panelHeight)
-            }
-            val poster = ShareBitmapLoader.load(context, posterUrl, PREVIEW_POSTER_W, PREVIEW_POSTER_H)
-            val avatar = ShareBitmapLoader.load(context, profilePhotoUrl, PREVIEW_AVATAR, PREVIEW_AVATAR)
-
-            _previewContent.value = PosterCompositor.PosterContent(
-                backdrops = backdrops,
-                poster = poster,
-                profilePhoto = avatar,
-                title = title,
-                rating = rating,
-                username = withAtPrefix(username)
-            )
+            val bitmap = buildBitmap(context, _selectedUrls.value.orEmpty())
+            _previewBitmap.value = bitmap
         }
     }
 
@@ -211,12 +196,5 @@ class PosterGeneratorViewModel(application: Application) : AndroidViewModel(appl
         private const val POSTER_LOAD_WIDTH = 940
         private const val POSTER_LOAD_HEIGHT = 1400
         private const val AVATAR_LOAD_SIZE = 384
-
-        // Preview is rendered at ~1080 wide too: it is only visible on screen at ~430dp,
-        // but reusing the export resolution keeps text/shadow crisp on high-density devices.
-        private const val PREVIEW_WIDTH = 1080
-        private const val PREVIEW_POSTER_W = 940
-        private const val PREVIEW_POSTER_H = 1400
-        private const val PREVIEW_AVATAR = 384
     }
 }

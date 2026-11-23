@@ -140,8 +140,8 @@ class PosterGeneratorFragment : Fragment() {
             }
         }
 
-        viewModel.previewContent.observe(viewLifecycleOwner) { content ->
-            binding.posterPreview.setContent(content)
+        viewModel.previewBitmap.observe(viewLifecycleOwner) { bitmap ->
+            binding.posterPreview.setImageBitmap(bitmap)
         }
 
         viewModel.shareEvent.observe(viewLifecycleOwner) { event ->

@@ -295,7 +295,8 @@ class PosterCompositor(
         val centerX = canvasWidth / 2f
         val padding = 70f * s
 
-        // Title: white 40px with a black glow (the only element with a glow).
+        // Title: white 40px with a black glow (the only element with a glow), at most two
+        // centered lines. A second line pushes the stars/"By"/username down one line height.
         val titlePaint = textPaint(TITLE_TEXT_SIZE * s, colors.textPrimary, semibold = true).apply {
             setShadowLayer(
                 blurRadius(TITLE_GLOW_SIGMA * s),
@@ -304,15 +305,68 @@ class PosterCompositor(
                 ColorUtils.setAlphaComponent(colors.glow, (255 * TITLE_GLOW_ALPHA).roundToInt())
             )
         }
-        val title = fitText(content.title, titlePaint, canvasWidth - padding * 2f)
-        canvas.drawText(title, centerX, TITLE_BASELINE * s, titlePaint)
+        val titleLines = wrapTitle(content.title, titlePaint, canvasWidth - padding * 2f)
+        val titleLineHeight = titlePaint.fontSpacing
+        titleLines.forEachIndexed { index, line ->
+            canvas.drawText(line, centerX, TITLE_BASELINE * s + index * titleLineHeight, titlePaint)
+        }
+        val captionShift = if (titleLines.size > 1) titleLineHeight else 0f
 
-        drawStars(canvas, centerX, STAR_CENTER_Y * s, content.rating, s)
-        drawByRow(canvas, centerX, s)
+        drawStars(canvas, centerX, STAR_CENTER_Y * s + captionShift, content.rating, s)
+        drawByRow(canvas, centerX, s, captionShift)
 
         val usernamePaint = textPaint(USERNAME_TEXT_SIZE * s, colors.textPrimary, semibold = true)
         val username = fitText(content.username, usernamePaint, canvasWidth - padding * 2f)
-        canvas.drawText(username, centerX, USERNAME_BASELINE * s, usernamePaint)
+        canvas.drawText(username, centerX, USERNAME_BASELINE * s + captionShift, usernamePaint)
+    }
+
+    /**
+     * Lays the title out on one line when it fits, otherwise on two balanced lines. The font
+     * size only shrinks (never ellipsizes) when a line would be clipped by [maxWidth].
+     */
+    private fun wrapTitle(raw: String, paint: Paint, maxWidth: Float): List<String> {
+        val value = raw.ifBlank { "Untitled" }.trim().replace(Regex("\\s+"), " ")
+        if (paint.measureText(value) <= maxWidth) return listOf(value)
+
+        val words = value.split(' ')
+        if (words.size == 1) {
+            shrinkToFit(paint, value, maxWidth)
+            return listOf(value)
+        }
+
+        var bestFirst = words.first()
+        var bestSecond = words.drop(1).joinToString(" ")
+        var bestScore = Float.MAX_VALUE
+        for (index in 1 until words.size) {
+            val first = words.take(index).joinToString(" ")
+            val second = words.drop(index).joinToString(" ")
+            val score = maxOf(paint.measureText(first), paint.measureText(second))
+            if (score < bestScore) {
+                bestScore = score
+                bestFirst = first
+                bestSecond = second
+            }
+        }
+
+        val baseSize = paint.textSize
+        var guard = 0
+        while ((paint.measureText(bestFirst) > maxWidth || paint.measureText(bestSecond) > maxWidth) &&
+            paint.textSize > 4f && guard < 400
+        ) {
+            paint.textSize -= (baseSize * 0.02f).coerceAtLeast(0.5f)
+            guard++
+        }
+
+        return listOf(bestFirst, bestSecond)
+    }
+
+    private fun shrinkToFit(paint: Paint, text: String, maxWidth: Float) {
+        val baseSize = paint.textSize
+        var guard = 0
+        while (paint.measureText(text) > maxWidth && paint.textSize > 4f && guard < 400) {
+            paint.textSize -= (baseSize * 0.02f).coerceAtLeast(0.5f)
+            guard++
+        }
     }
 
     /**
@@ -335,19 +389,19 @@ class PosterCompositor(
         canvas.restore()
     }
 
-    private fun drawByRow(canvas: Canvas, centerX: Float, s: Float) {
+    private fun drawByRow(canvas: Canvas, centerX: Float, s: Float, shift: Float = 0f) {
         val byPaint = textPaint(BY_TEXT_SIZE * s, colors.textPrimary, semibold = false)
-        canvas.drawText("By", centerX, BY_BASELINE * s, byPaint)
+        canvas.drawText("By", centerX, BY_BASELINE * s + shift, byPaint)
 
         val half = BY_LINE_HEIGHT * s / 2f
         val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = colors.byLine }
         canvas.drawRect(
-            BY_LEFT_LINE_START * s, BY_LEFT_LINE_Y * s - half,
-            BY_LEFT_LINE_END * s, BY_LEFT_LINE_Y * s + half, linePaint
+            BY_LEFT_LINE_START * s, BY_LEFT_LINE_Y * s - half + shift,
+            BY_LEFT_LINE_END * s, BY_LEFT_LINE_Y * s + half + shift, linePaint
         )
         canvas.drawRect(
-            BY_RIGHT_LINE_START * s, BY_RIGHT_LINE_Y * s - half,
-            BY_RIGHT_LINE_END * s, BY_RIGHT_LINE_Y * s + half, linePaint
+            BY_RIGHT_LINE_START * s, BY_RIGHT_LINE_Y * s - half + shift,
+            BY_RIGHT_LINE_END * s, BY_RIGHT_LINE_Y * s + half + shift, linePaint
         )
     }
 

@@ -311,7 +311,12 @@ class PaymentController extends Controller
                             'price' => (int) $price,
                             'quantity' => (int) $qty,
                             // Session title for festival/surprise sessions, film title otherwise.
-                            'name' => 'Tiket ' . (\App\Support\SessionDisplay::forSchedule($schedule)['display_title'] ?? 'Movie') . ' (' . implode(', ', $seatCodes) . ')',
+                            // Midtrans caps item names at 50 chars; longer names reject the transaction.
+                            'name' => mb_substr(
+                                'Tiket ' . (\App\Support\SessionDisplay::forSchedule($schedule)['display_title'] ?? 'Movie') . ' (' . implode(', ', $seatCodes) . ')',
+                                0,
+                                50
+                            ),
                         ];
                     })
                     ->values()
@@ -340,10 +345,10 @@ class PaymentController extends Controller
                         // negative line (Midtrans' own recommendation).
                         $discount > 0
                             ? [[
-                                'id' => 'DISCOUNT-' . $promo->code,
+                                'id' => mb_substr('DISCOUNT-' . $promo->code, 0, 50),
                                 'price' => -$discount,
                                 'quantity' => 1,
-                                'name' => 'Diskon ' . $promo->code,
+                                'name' => mb_substr('Diskon ' . $promo->code, 0, 50),
                             ]]
                             : []
                     )),
